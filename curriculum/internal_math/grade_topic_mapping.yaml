@@ -1,0 +1,15 @@
+# Internal curriculum taxonomy — grade band to candidate topic mapping.
+# Reference: docs/SPEC.md §5.7.3. The student's school grade narrows the initial
+# topic candidates but does not determine the final learning level (assessed
+# separately via mastery/placement logic in later sessions).
+#
+# Only grade bands with a seeded topic are populated below. The full §5.7.3 table
+# has 12 bands (K-1 through 11-12); the rest are added as topics are authored for
+# them.
+grade_topic_candidates:
+  "1-2":
+    - place_value
+  "4-5":
+    - fraction_operations
+  "6-7":
+    - linear_equations

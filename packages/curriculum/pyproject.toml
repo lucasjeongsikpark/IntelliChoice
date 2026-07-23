@@ -1,0 +1,25 @@
+[project]
+name = "intellichoice-curriculum"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "intellichoice-db",
+    "intellichoice-shared",
+    "intellichoice-adapters",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "pyyaml>=6.0",
+    "sympy>=1.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/intellichoice_curriculum"]
+
+[tool.uv.sources]
+intellichoice-db = { workspace = true }
+intellichoice-shared = { workspace = true }
+intellichoice-adapters = { workspace = true }

@@ -1,0 +1,46 @@
+# Internal curriculum taxonomy — skills within each topic.
+# Reference: docs/SPEC.md §5.7. Skill ordering within a topic roughly tracks the
+# difficulty ladder used for question templates (see prerequisites.yaml).
+skills:
+  # linear_equations — difficulty 1 through 5 skill ladder.
+  - skill_id: linear_one_step
+    topic_id: linear_equations
+    name: "Solve one-step linear equations"
+
+  - skill_id: linear_two_step
+    topic_id: linear_equations
+    name: "Solve two-step linear equations"
+
+  - skill_id: linear_neg_frac_coeff
+    topic_id: linear_equations
+    name: "Solve linear equations with negative or fractional coefficients"
+
+  - skill_id: linear_both_sides
+    topic_id: linear_equations
+    name: "Solve linear equations with variables on both sides"
+
+  - skill_id: linear_distribute
+    topic_id: linear_equations
+    name: "Solve linear equations requiring distribution and combining like terms"
+
+  # fraction_operations — no templates authored yet (S9 pipeline volume target).
+  - skill_id: fraction_add_sub_like
+    topic_id: fraction_operations
+    name: "Add and subtract fractions with like denominators"
+
+  - skill_id: fraction_add_sub_unlike
+    topic_id: fraction_operations
+    name: "Add and subtract fractions with unlike denominators"
+
+  - skill_id: fraction_mul_div
+    topic_id: fraction_operations
+    name: "Multiply and divide fractions"
+
+  # place_value — no templates authored yet (S9 pipeline volume target).
+  - skill_id: place_value_identify
+    topic_id: place_value
+    name: "Identify the place value of a digit in a multi-digit number"
+
+  - skill_id: place_value_compare
+    topic_id: place_value
+    name: "Compare and order multi-digit numbers by place value"

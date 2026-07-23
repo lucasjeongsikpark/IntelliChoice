@@ -1,0 +1,627 @@
+.app-shell {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+.app-product-name {
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 24px;
+  background: var(--footer-bg);
+  color: var(--footer-text);
+  font-size: 13px;
+}
+
+.app-footer a {
+  color: var(--footer-link);
+}
+
+.app-footer a:hover {
+  color: var(--brand-green);
+}
+
+.panel {
+  width: 100%;
+  max-width: 480px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow);
+  padding: 28px;
+}
+
+.login-logo {
+  height: 40px;
+  width: auto;
+  display: block;
+  margin: 0 auto 16px;
+}
+
+/* Sparse highlight device (plan BD): the brand gradient never carries text,
+   only decorative bars/badges, so it never needs its own contrast check. */
+.gradient-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--brand-gradient);
+  margin-bottom: 16px;
+}
+
+.panel.wide {
+  max-width: 720px;
+}
+
+.subtitle {
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.field input,
+.field select {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+button {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 12px 16px;
+  margin-top: 10px;
+  border-radius: var(--radius-button);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+button.link {
+  background: none;
+  color: var(--text);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  text-decoration: underline;
+}
+
+.error {
+  color: var(--error);
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.message {
+  white-space: pre-line;
+  margin-bottom: 16px;
+}
+
+.dim {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  background: var(--bg);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+.card span {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.email-preview {
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.email-preview pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.phase-chip {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-weight: 600;
+}
+
+.streak {
+  margin-left: auto;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.option {
+  background: var(--bg);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  margin: 0;
+  text-align: left;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.option.selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.intervention-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  text-align: left;
+}
+
+.intervention-panel ol {
+  padding-left: 20px;
+}
+
+.intervention-panel li {
+  margin-bottom: 10px;
+}
+
+.chat-panel {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.chat-bubble {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  font-size: 14px;
+  max-width: 85%;
+}
+
+.chat-bubble.student {
+  align-self: flex-end;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.chat-bubble.tutor {
+  align-self: flex-start;
+  background: var(--bg);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-input-row input {
+  flex: 1;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.chat-input-row button {
+  width: auto;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 12px;
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+ul {
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+/* Visually hidden but still announced by screen readers - used for the exam's
+   aria-live status region, whose visible presence would just duplicate the nav bar. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.exam-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.exam-timer {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 4px 10px;
+}
+
+.exam-timer.urgent {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.exam-nav {
+  margin-bottom: 16px;
+}
+
+.exam-nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.exam-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: auto;
+  min-width: 36px;
+  margin: 0;
+  padding: 6px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  background: var(--bg);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.exam-nav-item.current {
+  border-color: var(--accent);
+  border-width: 2px;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.exam-nav-item.status-answered {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-style: solid;
+}
+
+.exam-nav-item.status-skipped {
+  border-style: dashed;
+}
+
+.exam-nav-item.status-flagged {
+  background: rgba(194, 47, 115, 0.12);
+  color: var(--pink-interactive);
+  border-color: var(--pink-interactive);
+}
+
+.exam-nav-glyph {
+  font-size: 11px;
+}
+
+.difficulty-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-bottom: 10px;
+}
+
+.exam-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.exam-actions button {
+  margin-top: 0;
+}
+
+.readonly-note {
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 10;
+}
+
+.modal {
+  width: 100%;
+  max-width: 440px;
+  background: var(--panel-bg);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  text-align: left;
+}
+
+.modal h2 {
+  font-family: var(--heading);
+  color: var(--text-h);
+  margin-top: 0;
+}
+
+/* S28 (plan §18-L9): progress dashboard chart tokens. Palette follows the dataviz
+   skill's validated reference categorical/sequential slots - this design system has no
+   chart-specific brand tokens yet, and both light and dark sets here pass the skill's
+   validator (lightness band, chroma floor, CVD separation, contrast). Slots 1-4
+   (blue/aqua/yellow/green) keep a fixed order across every chart on this screen so a
+   series' color means the same thing everywhere it appears. */
+.dashboard-charts {
+  --viz-ink: var(--text-h);
+  --viz-ink-muted: var(--text);
+  --viz-grid: var(--border);
+  --viz-series-1: #2a78d6;
+  --viz-series-2: #1baf7a;
+  --viz-series-3: #eda100;
+  --viz-series-4: #008300;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dashboard-charts {
+    --viz-series-1: #3987e5;
+    --viz-series-2: #199e70;
+    --viz-series-3: #c98500;
+    --viz-series-4: #008300;
+  }
+}
+
+.panel.dashboard {
+  max-width: 960px;
+}
+
+.date-range-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.date-range-controls button {
+  width: auto;
+  margin-top: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.date-range-controls button.selected {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.chart-section {
+  margin-bottom: 28px;
+}
+
+.chart-section h2 {
+  font-family: var(--heading);
+  font-size: 16px;
+  color: var(--text-h);
+  margin-bottom: 8px;
+}
+
+.chart-empty {
+  color: var(--text);
+  font-size: 14px;
+  padding: 16px 0;
+}
+
+.report-section {
+  margin-top: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.report-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.report-block h3 {
+  font-family: var(--heading);
+  font-size: 14px;
+  color: var(--text-h);
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.report-block.facts-only {
+  border-color: var(--accent);
+}

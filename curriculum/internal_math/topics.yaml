@@ -1,0 +1,26 @@
+# Internal curriculum taxonomy — topics.
+# Reference: docs/SPEC.md §5.7. Grade bands follow the §5.7.3 table; only the topics
+# actually seeded so far are listed (more topic groups from that table are added as
+# later sessions author templates for them — see grade_topic_mapping.yaml).
+curriculum_version: "2026.1"
+
+topics:
+  - topic_id: linear_equations
+    name: "Linear Equations"
+    grade_band: "6-7"
+    description: >
+      Solving one-variable linear equations: one-step, two-step, variables on both
+      sides, and equations requiring distribution/combining like terms.
+
+  - topic_id: fraction_operations
+    name: "Fraction Operations"
+    grade_band: "4-5"
+    description: >
+      Adding, subtracting, multiplying, and dividing fractions, including unlike
+      denominators and mixed numbers.
+
+  - topic_id: place_value
+    name: "Place Value"
+    grade_band: "1-2"
+    description: >
+      Identifying and comparing the value of digits in multi-digit whole numbers.

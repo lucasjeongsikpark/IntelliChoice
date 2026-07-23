@@ -1,0 +1,57 @@
+/* Element base styles shared by learning-web and chat-web (D-065). App-local
+   App.css files own everything component/screen-specific; this file only
+   covers bare-element defaults previously duplicated in each app's
+   index.css. */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--heading);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-h);
+}
+
+h1 {
+  font-size: 28px;
+  margin: 0 0 8px;
+}
+
+h2 {
+  font-size: 18px;
+  margin: 20px 0 8px;
+}
+
+h3 {
+  font-size: 16px;
+  margin: 16px 0 8px;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 15px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--code-bg);
+  color: var(--text-h);
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent-hover);
+}

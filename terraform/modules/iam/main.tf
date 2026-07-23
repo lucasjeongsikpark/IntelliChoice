@@ -1,0 +1,148 @@
+data "aws_iam_policy_document" "ecs_tasks_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+# Shared ECS task execution role (used by the ECS agent to pull images, write logs,
+# and resolve `secrets` block references) - identical permissions needs across
+# learning-api/chat-api/the migration-runner task, so one role for all three rather
+# than three near-identical roles (D-084: match current reality, not a hypothetical
+# future divergence).
+resource "aws_iam_role" "task_execution" {
+  name               = "${var.name_prefix}-ecs-task-execution"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
+  tags               = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "task_execution_managed" {
+  role       = aws_iam_role.task_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+data "aws_iam_policy_document" "task_execution_extra" {
+  statement {
+    sid       = "ReadAppSecrets"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = var.secret_arns
+  }
+
+  statement {
+    sid       = "WriteAppLogs"
+    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = var.log_group_arns
+  }
+}
+
+resource "aws_iam_role_policy" "task_execution_extra" {
+  name   = "${var.name_prefix}-task-execution-extra"
+  role   = aws_iam_role.task_execution.id
+  policy = data.aws_iam_policy_document.task_execution_extra.json
+}
+
+# Shared ECS task role (assumed by the running application code itself, e.g. for
+# Bedrock calls) - both apps invoke the same configured model IDs, so one role
+# covers both (see task_execution's comment above for the same reasoning).
+resource "aws_iam_role" "task" {
+  name               = "${var.name_prefix}-ecs-task"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
+  tags               = var.tags
+}
+
+data "aws_iam_policy_document" "task_bedrock" {
+  # Covers both TitanEmbeddingProvider's plain invoke_model calls and
+  # AnthropicBedrockProvider's converse calls (confirmed live - both use the same
+  # bedrock:InvokeModel action/resource shape, just different boto3 methods on the same
+  # bedrock-runtime client). A separate Bedrock Mantle grant (bedrock-mantle:
+  # CreateInference on a project/default resource - a completely different IAM surface)
+  # existed here through S32/D-084's model-access investigation but was removed once
+  # every flagship model on that surface turned out to be blocked account-wide by an
+  # AWS-Sales-only access gate, unrelated to IAM.
+  statement {
+    sid       = "InvokeConfiguredBedrockModels"
+    actions   = ["bedrock:InvokeModel"]
+    resources = var.bedrock_model_arns
+  }
+
+  # ECS Exec (`aws ecs execute-command`) - used for the one-off migration/seed/ops task
+  # and ad-hoc debugging, since private-subnet tasks have no other reachable shell
+  # (no bastion, no NAT). No resource-level scoping exists for these SSM actions.
+  statement {
+    sid = "EcsExecChannels"
+    actions = [
+      "ssmmessages:CreateControlChannel",
+      "ssmmessages:CreateDataChannel",
+      "ssmmessages:OpenControlChannel",
+      "ssmmessages:OpenDataChannel",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "task_bedrock" {
+  name   = "${var.name_prefix}-task-bedrock"
+  role   = aws_iam_role.task.id
+  policy = data.aws_iam_policy_document.task_bedrock.json
+}
+
+# --- GitHub Actions OIDC (deploy-time; deliberately deferred until a repo exists) ---
+# No long-lived AWS access keys in GitHub - the deploy workflow assumes this role via
+# GitHub's OIDC token instead. create_github_oidc_provider/create_github_deploy_role
+# stay false until the repo is created (D-084's execution order): the trust policy
+# below needs the real org/repo to scope correctly, and an AWS account should have at
+# most one GitHub OIDC provider, so re-use an existing one via github_oidc_provider_arn
+# if this account already has one.
+
+resource "aws_iam_openid_connect_provider" "github" {
+  count = var.create_github_oidc_provider ? 1 : 0
+  url   = "https://token.actions.githubusercontent.com"
+
+  client_id_list = ["sts.amazonaws.com"]
+
+  # GitHub's OIDC token-signing thumbprint (well-known, documented by GitHub/AWS -
+  # https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect).
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+
+  tags = var.tags
+}
+
+locals {
+  github_oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : var.github_oidc_provider_arn
+}
+
+data "aws_iam_policy_document" "github_deploy_assume" {
+  count = var.create_github_deploy_role ? 1 : 0
+
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [local.github_oidc_provider_arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      # Any branch/ref/PR in this one repo - deploy_staging.yml itself only triggers
+      # on push to main, so this is a coarser ceiling than the actual trigger, not the
+      # enforcement point.
+      values = ["repo:${var.github_org}/${var.github_repo}:*"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_deploy" {
+  count                = var.create_github_deploy_role ? 1 : 0
+  name                 = "${var.name_prefix}-github-deploy"
+  assume_role_policy   = data.aws_iam_policy_document.github_deploy_assume[0].json
+  permissions_boundary = var.deploy_role_permissions_boundary_arn != "" ? var.deploy_role_permissions_boundary_arn : null
+  tags                 = var.tags
+}

@@ -1,0 +1,10 @@
+aws_region  = "us-east-1"
+name_prefix = "intellichoice-staging"
+
+notification_email = "you@example.com"
+
+# Left at their code defaults until a real image exists in ECR / Bedrock access is
+# confirmed - see the S32/D-084 execution order in docs/DECISIONS.md.
+# learning_api_image_tag = "unset"
+# chat_api_image_tag     = "unset"
+# bedrock_provider       = "mock"

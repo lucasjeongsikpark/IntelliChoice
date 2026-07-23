@@ -1,0 +1,480 @@
+source_url: https://www.intellichoice.org/wp-json/tribe/events/v1/events/
+extracted_at: '2026-07-19T06:30:58.668091+00:00'
+records:
+- event_external_id: no-class-on-thanksgiving-break
+  title: Thanksgiving Break (No Classes)
+  description: ''
+  starts_at: '2021-11-27 08:00:00'
+  ends_at: '2021-12-05 17:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/no-class-on-thanksgiving-break/
+  content_hash: d5df076a8464b4350089a969244a66f9e01f12f73b9617004fa27e90c219ef01
+- event_external_id: no-class-winter-break
+  title: Winter Break (No Classes)
+  description: ''
+  starts_at: '2021-12-13 08:00:00'
+  ends_at: '2022-01-02 17:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/no-class-winter-break/
+  content_hash: a3806cef1fa74429125fe0fae84ee9f9e16166faeacca2ece005babfcc60a730
+- event_external_id: classes-resume
+  title: Classes Resume
+  description: ''
+  starts_at: '2022-01-08 08:00:00'
+  ends_at: '2022-01-08 17:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/classes-resume/
+  content_hash: 7f5a3e310200bbe36205afcd13979ff7d9a89ace51101246155629ea28fcbf21
+- event_external_id: spring-break-no-classes
+  title: Spring Break (No Classes)
+  description: ''
+  starts_at: '2022-03-14 00:00:00'
+  ends_at: '2022-03-18 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/spring-break-no-classes/
+  content_hash: 4fb25e5d6d1d857f50a864a10e714d533550d79b23005299e05b85013d441df6
+- event_external_id: intellichoice-online-tutoring
+  title: IntelliChoice Online Tutoring
+  description: ''
+  starts_at: '2022-03-19 10:00:00'
+  ends_at: '2022-03-19 15:30:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/intellichoice-online-tutoring/
+  content_hash: 29c087071534bee9b28313bd04d30a0eb10ebd4d80f6951f1a288654b037e5ea
+- event_external_id: classes-end-summer-vacation
+  title: Summer Break (Classes End)
+  description: ''
+  starts_at: '2022-05-14 08:00:00'
+  ends_at: '2022-05-14 17:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/classes-end-summer-vacation/
+  content_hash: 079cc64197cb8fbc3971d2c7b99e5fd3d12783a10e065aa71308d408c6932e22
+- event_external_id: summer-sat-workshop
+  title: "Summer SAT Workshop (6 PM \u2013 8 PM)"
+  description: ''
+  starts_at: '2022-07-05 00:00:00'
+  ends_at: '2022-07-08 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/summer-sat-workshop/
+  content_hash: 75fd9ba87796471a9af0f4c250e33954881af7640dd1d40e7336ff72e91625d2
+- event_external_id: summer-sat-workshop-6-pm-8-pm
+  title: "Summer SAT Workshop (6 PM \u2013 8 PM)"
+  description: ''
+  starts_at: '2022-07-11 00:00:00'
+  ends_at: '2022-07-15 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/summer-sat-workshop-6-pm-8-pm/
+  content_hash: e868b5987dd1ea33c762f5a4b99531de48773d236b8d2dbce8680af8db5b0a68
+- event_external_id: summer-sat-workshop-6-pm-8-pm-2
+  title: "Summer SAT Workshop (6 PM \u2013 8 PM)"
+  description: ''
+  starts_at: '2022-07-18 00:00:00'
+  ends_at: '2022-07-22 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/summer-sat-workshop-6-pm-8-pm-2/
+  content_hash: 000152722640cfb957acd9b85bd5e535936a2a968dda8f20a2a55ec5dc4eebdf
+- event_external_id: summer-sat-workshop-6-pm-8-pm-3
+  title: "Summer SAT Workshop (6 PM \u2013 8 PM)"
+  description: ''
+  starts_at: '2022-07-25 00:00:00'
+  ends_at: '2022-07-29 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/summer-sat-workshop-6-pm-8-pm-3/
+  content_hash: c6b2ae87d5347113b895823d624b2d01355fc6f3de2f5ae364ffc7fb7c01255e
+- event_external_id: classes-resume-2
+  title: Classes Begin
+  description: ''
+  starts_at: '2022-09-10 10:00:00'
+  ends_at: '2022-09-10 10:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/classes-resume-2/
+  content_hash: 410a44b3632080d8f07d89087282f42be27bfb3fd593559e56e4acf7950068d2
+- event_external_id: thanksgiving-break-no-classes
+  title: Thanksgiving Break (No Classes)
+  description: ''
+  starts_at: '2022-11-26 00:00:00'
+  ends_at: '2022-11-26 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/thanksgiving-break-no-classes/
+  content_hash: d62ba67db1556642a098ca2f39dae2b138922ecf57ef297a16643f91bd92f859
+- event_external_id: winter-break-no-classes
+  title: Winter Break (No Classes)
+  description: ''
+  starts_at: '2022-12-20 00:00:00'
+  ends_at: '2023-01-06 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/winter-break-no-classes/
+  content_hash: 006b894ffaee70181bc50039f85bbb52b6c920c789227bca7c7052404c46142c
+- event_external_id: resume-classes
+  title: Classes Resume
+  description: ''
+  starts_at: '2023-01-14 10:00:00'
+  ends_at: '2023-01-14 10:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/resume-classes/
+  content_hash: b0a25a946cb8d60a1800e24dc14b0fd987ca59778487e034d08ebfb1c30cd4a4
+- event_external_id: spring-break-no-classes-2
+  title: Spring Break (No Classes)
+  description: ''
+  starts_at: '2023-03-18 00:00:00'
+  ends_at: '2023-03-18 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/spring-break-no-classes-2/
+  content_hash: e6fb16a5d93741b210fafe9e1d1063a48fe7e5495788cc4ef5985cfb21af4ae7
+- event_external_id: summer-break-classes-end
+  title: Summer Break (Classes End)
+  description: ''
+  starts_at: '2023-05-13 00:00:00'
+  ends_at: '2023-05-13 00:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/summer-break-classes-end/
+  content_hash: 7f88f329c6c3cd1bda41d6328757d45d2033881a573edcbeced238c32150886e
+- event_external_id: summer-sat-workshop-week-1
+  title: "Summer SAT Workshop Week 1 (6 PM \u2013 8 PM)"
+  description: "<p>The Summer 2023 camp will be fully virtual. In addition to the\
+    \ provided SAT practice book,<br />\nany required materials will be available\
+    \ online. We suggest students have pencils, pens, and<br />\npaper, as well as\
+    \ a quiet study area to complete practice problems and assignments. The first<br\
+    \ />\nhour (6:00 \u2013 7:00) will be focused on reading and language, and the\
+    \ second hour (7:00 \u2013 8:00)<br />\nwill be devoted to math.</p>"
+  starts_at: '2023-07-10 00:00:00'
+  ends_at: '2023-07-14 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/summer-sat-workshop-week-1/
+  content_hash: fdab3f2f5e802f5a1039f125fc9f26fd84a29a75a352c8e3f79ca95beafd5058
+- event_external_id: summer-sat-workshop-week-2-6-pm-8-pm
+  title: "Summer SAT Workshop Week 2 (6 PM \u2013 8 PM)"
+  description: "<p>The first hour (6:00 \u2013 7:00) will be focused on reading and\
+    \ language, and the second hour (7:00 \u2013 8:00)<br />\nwill be devoted to math.</p>"
+  starts_at: '2023-07-17 00:00:00'
+  ends_at: '2023-07-21 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/summer-sat-workshop-week-2-6-pm-8-pm/
+  content_hash: ecb9d074b2ddde7aa2ce5f95ae5df3098c055c7e6d352d4bfc964fec00ef69da
+- event_external_id: summer-sat-workshop-week-3-6-pm-8-pm
+  title: "Summer SAT Workshop Week 3 (6 PM \u2013 8 PM)"
+  description: "<p>The first hour (6:00 \u2013 7:00) will be focused on reading and\
+    \ language, and the second hour (7:00 \u2013 8:00)<br />\nwill be devoted to math.</p>"
+  starts_at: '2023-07-24 00:00:00'
+  ends_at: '2023-07-28 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/summer-sat-workshop-week-3-6-pm-8-pm/
+  content_hash: 0d12e58191fc88368fa52602f6e5eb8e199725b08085600b93fac986a8383467
+- event_external_id: summer-sat-workshop-week-4-6-pm-8-pm
+  title: "Summer SAT Workshop Week 4 (6 PM \u2013 8 PM)"
+  description: "<p>The first hour (6:00 \u2013 7:00) will be focused on reading and\
+    \ language, and the second hour (7:00 \u2013 8:00)<br />\nwill be devoted to math.</p>"
+  starts_at: '2023-07-31 00:00:00'
+  ends_at: '2023-08-04 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/summer-sat-workshop-week-4-6-pm-8-pm/
+  content_hash: cd96915fe026b155614bddc12048001611c14446217eec79cbffa990e43bd0bb
+- event_external_id: fall-semester-starts
+  title: Fall Semester Starts
+  description: ''
+  starts_at: '2023-09-09 00:00:00'
+  ends_at: '2023-09-09 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/fall-semester-starts/
+  content_hash: 43a612e0d534d3ce43035e71ca7bcba4b2f28e1b176046efb52935a04447ceb5
+- event_external_id: ut-dallas-branch-opens
+  title: UT Dallas Branch Opens
+  description: <p>Our Richardson branch relocates to UT Dallas starting September
+    16th.</p>
+  starts_at: '2023-09-16 00:00:00'
+  ends_at: '2023-09-16 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/ut-dallas-branch-opens/
+  content_hash: b423c3d406aa7fd0eb51565e44ecb68c0a96699f9f0b817c37ba00c8942df46d
+- event_external_id: last-day-of-fall-semester
+  title: Last Day of Fall Semester
+  description: ''
+  starts_at: '2023-12-09 00:00:00'
+  ends_at: '2023-12-09 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/last-day-of-fall-semester/
+  content_hash: 410184fed3954f029dae209355559a78fb4ee6f35556b1b0307c60ca444cff2e
+- event_external_id: scholarship-banquet
+  title: Scholarship Banquet
+  description: ''
+  starts_at: '2023-12-10 17:00:00'
+  ends_at: '2023-12-10 20:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/scholarship-banquet/
+  content_hash: 2e1ccf6f560add1d2312f303b86ceb9e27dc5ec294c3cbd07657c390428dc095
+- event_external_id: winter-break-no-classes-2
+  title: Winter Break (No Classes)
+  description: ''
+  starts_at: '2023-12-16 00:00:00'
+  ends_at: '2023-12-30 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/winter-break-no-classes-2/
+  content_hash: e289776366b0ed15ebcc103a770c084a34fd89c40e94b96e10d73c5866e8e190
+- event_external_id: first-day-of-spring-semester-classes-resume
+  title: First Day of Spring Semester (Classes Resume)
+  description: ''
+  starts_at: '2024-01-06 00:00:00'
+  ends_at: '2024-01-06 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/first-day-of-spring-semester-classes-resume/
+  content_hash: 218f875556655c13a756e699244980838256e12d3e7798b46990a0a49e140b35
+- event_external_id: plano-harrington-branch-opens-in-person
+  title: Plano Harrington Branch Opens In Person
+  description: <p>Our Harrington Library branch is switching to fully in-person starting
+    January 13th!</p>
+  starts_at: '2024-01-13 10:00:00'
+  ends_at: '2024-01-13 12:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/plano-harrington-branch-opens-in-person/
+  content_hash: 67c59ae0230ea375678e1ca1d867815298d8e95591bdce71263773ec2e2d1ef5
+- event_external_id: tutoring-resumes-michael-finley-branch
+  title: "Tutoring Resumes \u2013 Michael Finley Branch"
+  description: <p>This marks the first day of the spring tutoring semester at the
+    Michael Finley Branch.</p>
+  starts_at: '2024-01-20 10:00:00'
+  ends_at: '2024-01-20 12:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/tutoring-resumes-michael-finley-branch/
+  content_hash: 63b1b2d4ef68fa456450b0b2afc7d8ab6b04e39e34172ad405e6ce1d766c5310
+- event_external_id: tutoring-resumes-nashville-branch
+  title: "Tutoring Resumes \u2013 Nashville Branch"
+  description: <p>This marks the first day of the spring tutoring semester at the
+    Nashville Branch.</p>
+  starts_at: '2024-01-27 10:00:00'
+  ends_at: '2024-01-27 12:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/tutoring-resumes-nashville-branch/
+  content_hash: e8f3b78d8fbfd318e16b1a42f9f758da82073cac1faa89fc641bafba7aec3f54
+- event_external_id: tutoring-resumes-garland-ethiopian-branch
+  title: "Tutoring Resumes \u2013 Garland Ethiopian Branch"
+  description: <p>This marks the first day of the spring tutoring semester at the
+    Garland Ethiopian Branch.</p>
+  starts_at: '2024-01-27 11:00:00'
+  ends_at: '2024-01-27 13:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/tutoring-resumes-garland-ethiopian-branch/
+  content_hash: cdcb3c1b3732c24a3fb4466663ecf1fc6d3ae391da297843e834c979546bd148
+- event_external_id: last-day-of-tutoring-before-spring-break
+  title: Last Day of Tutoring Before Spring Break
+  description: ''
+  starts_at: '2024-03-09 00:00:00'
+  ends_at: '2024-03-09 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/last-day-of-tutoring-before-spring-break/
+  content_hash: 3812dc4e634ce6e148e6289df6af79450e01edc9d72aea95f71657a7b72ddbe0
+- event_external_id: spring-break-no-tutoring
+  title: "Spring Break \u2013 No Tutoring"
+  description: <p>No tutoring on Saturday, 3/16.</p>
+  starts_at: '2024-03-11 00:00:00'
+  ends_at: '2024-03-17 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/spring-break-no-tutoring/
+  content_hash: 8245030ff124e71e718a46059c8b1e23251cb23eed23d349ffa94e6bb0ec24ea
+- event_external_id: tutoring-resumes
+  title: Tutoring Resumes
+  description: <p>Tutoring resumes after spring break, 3/23.</p>
+  starts_at: '2024-03-23 00:00:00'
+  ends_at: '2024-03-23 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/tutoring-resumes/
+  content_hash: f54b933df2e611b5a8f992cfc3a41be29a3d47bc947e82a28f00129435394ad4
+- event_external_id: last-day-of-tutoring-plano-harrington-library
+  title: Last Day of Tutoring @ Plano (Harrington Library)
+  description: "<p>After March 23rd, in person classes end at our Plano (Harrington\
+    \ Library) branch. Tutoring will be held online for the rest of the semester.\
+    \ To sign up, click \u201COnline 10 AM Central\u201D under registration.</p>"
+  starts_at: '2024-03-23 10:00:00'
+  ends_at: '2024-03-23 12:00:00'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/last-day-of-tutoring-plano-harrington-library/
+  content_hash: f98c69333a6b180ead2f2ec1cc9d929b0143eaa0a9792797dff56791068becbc
+- event_external_id: fall-semester-tutoring-starts
+  title: Fall Semester Tutoring Starts
+  description: ''
+  starts_at: '2024-09-07 00:00:00'
+  ends_at: '2024-09-07 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/fall-semester-tutoring-starts/
+  content_hash: 937f05734a7ed54b3f8e141c241b5052e520f292f4a3385d6d42873e6bcfe481
+- event_external_id: thanksgiving-break
+  title: Thanksgiving Break
+  description: ''
+  starts_at: '2024-11-30 00:00:00'
+  ends_at: '2024-11-30 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/thanksgiving-break/
+  content_hash: 428b2eb7849a251ba1e564a0fec2c1a80e0c7a820d27ae46f746fab97b78585d
+- event_external_id: winter-break
+  title: "Winter Break \u2013 No Class"
+  description: ''
+  starts_at: '2024-12-21 00:00:00'
+  ends_at: '2024-12-21 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/winter-break/
+  content_hash: c603a718aed6a8396cae32bd7344396ea063552041538dacc8cae89b8bcf7020
+- event_external_id: winter-break-2
+  title: "Winter Break \u2013 No Class"
+  description: ''
+  starts_at: '2024-12-28 00:00:00'
+  ends_at: '2024-12-28 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/winter-break-2/
+  content_hash: 4da5e93efe068dc2cc1eccd599625b9ddac4249eef3f5b4e651052b633bbc1e7
+- event_external_id: winter-break-3
+  title: "Winter Break \u2013 No Class"
+  description: ''
+  starts_at: '2025-01-04 00:00:00'
+  ends_at: '2025-01-04 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/winter-break-3/
+  content_hash: c375ed12c9fd76baa38d664a9d52a2b64f37641baebc0f3c1f4a6626e7149bc6
+- event_external_id: spring-semester-starts
+  title: Spring Semester Starts
+  description: ''
+  starts_at: '2025-01-11 00:00:00'
+  ends_at: '2025-01-11 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/spring-semester-starts/
+  content_hash: b09a9fe8dd2168d0df7bda8b20233bf4324e4cec5b9da3766e8ca19fb685b2c5
+- event_external_id: spring-break
+  title: Spring Break
+  description: ''
+  starts_at: '2025-03-22 00:00:00'
+  ends_at: '2025-03-22 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/spring-break/
+  content_hash: 7c1518689260a3ef20cfaa2d18e4bd59ebcf98e6855a37554586ab3045ce0ee9
+- event_external_id: last-day-of-tutoring
+  title: Last Day of Tutoring
+  description: ''
+  starts_at: '2025-05-10 00:00:00'
+  ends_at: '2025-05-10 23:59:59'
+  timezone: America/Chicago
+  location: null
+  registration_url: null
+  recurrence_rule: null
+  source_url: https://www.intellichoice.org/event/last-day-of-tutoring/
+  content_hash: 087078c46347573abc0eee753d78b029c241fd5dde58f0481acce30b618f798d

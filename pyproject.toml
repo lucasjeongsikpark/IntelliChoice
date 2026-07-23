@@ -1,0 +1,40 @@
+[project]
+name = "intellichoice"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["apps/*", "packages/*"]
+# apps/learning-web and apps/chat-web are Node/Vite apps (S11/S16), not uv workspace members.
+# packages/ui-brand is a shared CSS/asset package (S22.5), not a Python package.
+exclude = ["apps/learning-web", "apps/chat-web", "packages/ui-brand"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "pyright>=1.1",
+    "pytest>=8.3",
+    "httpx2>=2.7",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# Alembic autogenerates these in its own single-line-per-column style; not hand-written.
+extend-exclude = ["packages/db/alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+include = ["apps", "packages"]
+typeCheckingMode = "basic"
+
+[tool.pytest.ini_options]
+testpaths = ["apps", "packages"]
+addopts = "--import-mode=importlib"

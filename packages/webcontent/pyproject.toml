@@ -1,0 +1,22 @@
+[project]
+name = "intellichoice-webcontent"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "intellichoice-db",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "pyyaml>=6.0",
+    "httpx>=0.28",
+    "beautifulsoup4>=4.12",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/intellichoice_webcontent"]
+
+[tool.uv.sources]
+intellichoice-db = { workspace = true }

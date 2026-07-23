@@ -1,0 +1,86 @@
+/* IntelliChoice brand tokens — shared by learning-web and chat-web.
+   Semantic token names match the pre-branding placeholder tokens so consuming
+   App.css files needed no renames, only new values (D-065). Do not read raw
+   brand-tier tokens (--brand-*) as text color without checking contrast first
+   — they're WCAG-AA text-illegal by design; use the interactive tier instead
+   (D-067). */
+
+:root {
+  --text: #333333;
+  --text-h: #1a1a1a;
+  --bg: #f5f5f5;
+  --panel-bg: #ffffff;
+  --border: #e8e8e8;
+  --code-bg: #f5f5f5;
+
+  /* Interactive tier: WCAG-AA-passing tones derived from the raw brand colors
+     for text-sized/link/button use (D-067). */
+  --accent: #387e40;
+  --accent-hover: #2f6b36;
+  --accent-bg: rgba(94, 183, 97, 0.15);
+  --accent-contrast: #ffffff;
+  --pink-interactive: #c22f73;
+  --error: #d32020;
+  --success: #387e40;
+
+  --shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+  --footer-bg: #222222;
+  --footer-text: #999999;
+  --footer-link: #cccccc;
+
+  /* Raw brand tier: identity/decorative/large-surface use only, never
+     text-sized (D-067). */
+  --brand-green: #5eb761;
+  --brand-pink: #e95095;
+  --brand-purple: #7049ba;
+  --brand-gradient: linear-gradient(135deg, #e95095, #7049ba);
+
+  --sans: "Open Sans", system-ui, "Segoe UI", Roboto, sans-serif;
+  --heading: "Poppins", var(--sans);
+  --mono: ui-monospace, Consolas, monospace;
+
+  --radius-panel: 12px;
+  --radius-control: 8px;
+  --radius-button: 6px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+
+  font: 17px/150% var(--sans);
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark variants are our own design (D-068), not the live site's own dark CSS
+   (untouched Impreza theme defaults, unrelated colors). */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #c7cac7;
+    --text-h: #f4f6f4;
+    --bg: #131513;
+    --panel-bg: #1c1f1d;
+    --border: #2e332f;
+    --code-bg: #1c1f1d;
+
+    --accent: #7cc880;
+    --accent-hover: #93d696;
+    --accent-bg: rgba(124, 200, 128, 0.14);
+    --accent-contrast: #0c1f10;
+    --pink-interactive: #ef6ba6;
+    --error: #f87171;
+    --success: #7cc880;
+
+    --shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+
+    --brand-green: #7cc880;
+    --brand-pink: #ef6ba6;
+    --brand-purple: #9d7fd6;
+    --brand-gradient: linear-gradient(135deg, #ef6ba6, #9d7fd6);
+  }
+}

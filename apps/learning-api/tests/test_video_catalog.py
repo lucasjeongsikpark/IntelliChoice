@@ -1,0 +1,256 @@
+"""SPEC §5.11.6/§5.18.3 video option - S15 replaced the S10 hardcoded stub map with a
+real Postgres catalog (`youtube_videos`) queried through the `youtube_catalog.search`
+MCP tool. Real Postgres via the same rollback-session pattern as `packages/knowledge/
+tests/test_ingest.py` (D-013). Skips cleanly when Postgres is unreachable (D-008).
+"""
+
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+
+import pytest
+from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
+from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
+from intellichoice_db.engine import create_engine
+from intellichoice_db.models.mcp import McpToolCall
+from intellichoice_db.models.youtube import YoutubeVideo
+from intellichoice_db.repositories.mcp import McpToolCallRepository
+from intellichoice_db.repositories.youtube import YoutubeRepository
+from intellichoice_shared.bedrock import BedrockGenerationResult, BedrockTask
+from learning_api.services import video_catalog
+from pydantic import BaseModel
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+def _postgres_skip_reason() -> str | None:
+    async def check() -> str | None:
+        engine = create_engine()
+        try:
+            async with engine.connect() as conn:
+                try:
+                    await conn.execute(text("SELECT 1 FROM youtube_videos LIMIT 1"))
+                except Exception:
+                    return "Postgres schema is not migrated (run `make up && make db-upgrade`)"
+            return None
+        except Exception:
+            return "PostgreSQL is not reachable at localhost:5432 (run `make up`)"
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(check())
+
+
+@asynccontextmanager
+async def _rollback_session() -> AsyncIterator[AsyncSession]:
+    engine = create_engine()
+    try:
+        async with engine.connect() as conn:
+            trans = await conn.begin()
+            session = AsyncSession(bind=conn, join_transaction_mode="create_savepoint")
+            try:
+                yield session
+            finally:
+                await session.close()
+                await trans.rollback()
+    finally:
+        await engine.dispose()
+
+
+pytestmark = pytest.mark.skipif(
+    (_reason := _postgres_skip_reason()) is not None, reason=_reason or ""
+)
+
+
+def _gateway() -> ResilientBedrockGateway:
+    mock = MockBedrockProvider()
+    return ResilientBedrockGateway(
+        provider=mock,
+        embedding_provider=mock,
+        model_registry={BedrockTask.EMBEDDING: "amazon.titan-embed-text-v2:0"},
+    )
+
+
+def test_search_video_returns_a_seeded_catalog_match() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = YoutubeRepository(session)
+            gateway = _gateway()
+            await repo.upsert_video(
+                YoutubeVideo(
+                    youtube_video_id="zqxvvc-one-step",
+                    channel_id="zqxvvc-channel",
+                    channel_title="Khan Academy",
+                    video_url="https://example.test/one-step",
+                    title="Solve one-step linear equations",
+                    description="An intro video.",
+                    playlist_ids=[],
+                    duration="PT5M",
+                    published_at=datetime(2024, 1, 1, tzinfo=UTC),
+                    thumbnail_url="https://example.test/thumb.jpg",
+                    language="en",
+                    topic_ids=["linear_equations"],
+                    skill_ids=["zqxvvc_one_step"],
+                    grade_band="3-5",
+                    difficulty_min=1,
+                    difficulty_max=3,
+                    embedding=(await gateway.create_embedding(
+                        texts=["Solve one-step linear equations"], session_spend_cents=0.0
+                    )).vectors[0],
+                    last_synced_at=datetime.now(UTC),
+                )
+            )
+
+            video, cost = await video_catalog.search_video(
+                repo=repo,
+                gateway=gateway,
+                mcp_call_repo=McpToolCallRepository(session),
+                caller_external_id="zqxvvc-caller-1",
+                skill_id="zqxvvc_one_step",
+                skill_name="Solve one-step linear equations",
+                difficulty=2,
+                session_spend_cents=0.0,
+            )
+            assert video is not None
+            assert video.video_id == "zqxvvc-one-step"
+            assert video.source == "Khan Academy"
+            assert cost > 0.0
+
+            # Filtered on a nonsense marker caller id (D-018's pattern), not just the
+            # real tool name - other tests' real, committed `TestClient(app)` HTTP
+            # calls (unlike this rollback-isolated session) also legitimately call
+            # `youtube_catalog.search` for real fixture students, so an exact global
+            # count against the tool name alone would be environment-dependent.
+            audit_rows = await session.execute(
+                select(McpToolCall).where(
+                    McpToolCall.tool_name == "youtube_catalog.search",
+                    McpToolCall.caller_external_id == "zqxvvc-caller-1",
+                )
+            )
+            rows = list(audit_rows.scalars().all())
+            assert len(rows) == 1
+            assert rows[0].success is True
+
+    asyncio.run(run())
+
+
+def test_search_video_falls_back_when_no_catalog_match() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = YoutubeRepository(session)
+            gateway = _gateway()
+
+            video, cost = await video_catalog.search_video(
+                repo=repo,
+                gateway=gateway,
+                mcp_call_repo=McpToolCallRepository(session),
+                caller_external_id="zqxvvc-caller-1",
+                skill_id="zqxvvc_no_such_skill",
+                skill_name="Some skill with no seeded video",
+                difficulty=1,
+                session_spend_cents=0.0,
+            )
+            assert video is None
+            assert cost >= 0.0
+            assert "not currently available" in video_catalog.FALLBACK_MESSAGE
+
+    asyncio.run(run())
+
+
+class _CapturingGateway:
+    """S27 query-enrichment proof: records the exact text handed to `create_embedding`
+    (delegating the real work to the wrapped gateway) so a test can assert the
+    misconception/grade-band/mastery-state enrichment actually reaches the embedding
+    call - not just that `search_video` accepts the new parameters. Mirrors
+    `test_tutor_service.py`'s own `_CapturingGateway` pattern.
+    """
+
+    def __init__(self, inner: ResilientBedrockGateway) -> None:
+        self._inner = inner
+        self.embed_texts: list[list[str]] = []
+
+    async def generate_structured[T: BaseModel](
+        self,
+        *,
+        task: BedrockTask,
+        system_prompt: str,
+        payload: BaseModel,
+        response_model: type[T],
+        max_output_tokens: int,
+        session_spend_cents: float,
+    ) -> BedrockGenerationResult[T]:
+        raise NotImplementedError
+
+    async def create_embedding(self, *, texts: list[str], session_spend_cents: float):
+        self.embed_texts.append(list(texts))
+        return await self._inner.create_embedding(
+            texts=texts, session_spend_cents=session_spend_cents
+        )
+
+
+def test_search_video_enriches_the_embedding_query_with_available_context() -> None:
+    """S27 (SPEC §5.18.3 query enrichment): misconception tag/grade band/mastery state
+    widen the embedding query text only - `skill_id`/`difficulty` stay the only hard
+    filters, so the enriched query still costs exactly one embedding call and still
+    finds the same catalog match.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = YoutubeRepository(session)
+            gateway = _CapturingGateway(_gateway())
+            await repo.upsert_video(
+                YoutubeVideo(
+                    youtube_video_id="zqxvvc-enriched",
+                    channel_id="zqxvvc-channel",
+                    channel_title="Khan Academy",
+                    video_url="https://example.test/enriched",
+                    title="Solve two-step linear equations",
+                    description="A follow-up video.",
+                    playlist_ids=[],
+                    duration="PT5M",
+                    published_at=datetime(2024, 1, 1, tzinfo=UTC),
+                    thumbnail_url="https://example.test/thumb.jpg",
+                    language="en",
+                    topic_ids=["linear_equations"],
+                    skill_ids=["zqxvvc_two_step"],
+                    grade_band="6-7",
+                    difficulty_min=1,
+                    difficulty_max=3,
+                    embedding=(
+                        await gateway.create_embedding(
+                            texts=["Solve two-step linear equations"],
+                            session_spend_cents=0.0,
+                        )
+                    ).vectors[0],
+                    last_synced_at=datetime.now(UTC),
+                )
+            )
+            gateway.embed_texts.clear()  # only the search call below matters
+
+            video, cost = await video_catalog.search_video(
+                repo=repo,
+                gateway=gateway,
+                mcp_call_repo=McpToolCallRepository(session),
+                caller_external_id="zqxvvc-caller-2",
+                skill_id="zqxvvc_two_step",
+                skill_name="Solve two-step linear equations",
+                difficulty=2,
+                session_spend_cents=0.0,
+                misconception_tag="sign_error",
+                grade_band="6-7",
+                mastery_state="weak_skill",
+            )
+            assert video is not None
+            assert video.video_id == "zqxvvc-enriched"
+            assert cost > 0.0
+
+            assert len(gateway.embed_texts) == 1
+            enriched_query = gateway.embed_texts[0][0]
+            assert "Solve two-step linear equations" in enriched_query
+            assert "sign_error" in enriched_query
+            assert "6-7" in enriched_query
+            assert "weak_skill" in enriched_query
+
+    asyncio.run(run())

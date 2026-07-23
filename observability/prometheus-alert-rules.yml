@@ -1,0 +1,62 @@
+# SPEC §5.32.4 "Alerting" - rules only, evaluated and visible in Prometheus's own
+# /alerts UI. No Alertmanager/real notification channel is wired (no Slack/email/
+# PagerDuty credentials exist for this project - D-002's "no real creds yet" posture,
+# same as every other external dependency); these rules are ready for a receiver once
+# real ones exist, not yet load-bearing for paging anyone.
+groups:
+  - name: intellichoice-slos
+    rules:
+      - alert: HighHttpErrorRate
+        expr: >
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP 5xx rate above 5% for 5 minutes"
+
+      - alert: HighAttendanceBlockRate
+        expr: >
+          sum(rate(learning_attendance_checks_total{result="blocked"}[30m]))
+          /
+          sum(rate(learning_attendance_checks_total[30m]))
+          > 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Over half of attendance checks are blocking sessions"
+
+      - alert: TutorReviewFlagsRising
+        expr: rate(learning_tutor_review_flagged_total[1h]) > 0
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: "Students are exhausting the study retry ladder unresolved"
+
+      - alert: HighQaNoAnswerRate
+        expr: >
+          sum(rate(qa_answers_total{result="no_answer"}[30m]))
+          /
+          sum(rate(qa_answers_total[30m]))
+          > 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Over half of Q&A queries are returning no answer"
+
+      - alert: SessionCostApproachingBudget
+        # SPEC §5.25.1's per-session Bedrock budget defaults to 50 cents
+        # (`bedrock_session_budget_cents`) - alert well before sessions start hitting
+        # CostBudgetExceededError in volume.
+        expr: histogram_quantile(0.95, rate(learning_session_cost_cents_bucket[1h])) > 40
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 learning session Bedrock cost is approaching the session budget ceiling"

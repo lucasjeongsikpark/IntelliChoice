@@ -1,0 +1,210 @@
+# SPEC §18-C3/plan §13: golden Q&A coverage eval fixtures - a versioned regression gate
+# for retrieval config changes (packages/knowledge/retrieval.py, chat_api/services/qa.py,
+# role_access.py). Loaded and run by apps/chat-api/tests/test_qa_coverage_eval.py.
+#
+# Four categories:
+#   grounded     - targets one of the 4 real documents already `effective_from` today
+#                  (public-organization-overview/public-branch-directory/public-our-team;
+#                  public-academic-calendar is deliberately excluded - a calendar-shaped
+#                  query always routes to the `calendar` intent's structured org_events
+#                  path, not document_qa/RAG citations, so it can never produce a RAG
+#                  citation by design, not by gap). Measures citation-grounding rate.
+#   role_gated   - a higher-tier audience question; `seed` provides synthetic content
+#                  (no real non-public content is effective until 2026-08-01 - see
+#                  PROGRESS.md's date-gate carryover) so the access-hint path is
+#                  genuinely exercised rather than coincidentally falling through to a
+#                  plain no-source message. Measures refusal-correctness (right role
+#                  named, no content leaked).
+#   out_of_scope - no supported-topic keyword at all. Measures no-hallucination.
+#   no_source    - in-scope, but nothing (seeded or real) matches. Measures
+#                  no-hallucination (must never fabricate a citation).
+#
+# Query wording matters: `MockBedrockProvider`'s reranker scores by literal query/chunk
+# word overlap (see its own docstring) - `grounded` queries deliberately reuse several
+# exact words from the target chunk's real text so the mock's crude scoring doesn't
+# zero them out (confirmed empirically during this session - a stopword-heavy query
+# like "What is IntelliChoice?" alone was not enough).
+
+cases:
+  # --- grounded (real content, already effective today) ---
+  - id: grounded-overview-1
+    category: grounded
+    query: "Tell me about IntelliChoice, founded 1993 Dallas nonprofit tutoring volunteers underprivileged children."
+    expected_document_id: public-organization-overview
+  - id: grounded-overview-2
+    category: grounded
+    query: "What programs does IntelliChoice offer - tutoring, online tutoring, SAT Prep Camp, and scholarships?"
+    expected_document_id: public-organization-overview
+  - id: grounded-overview-3
+    category: grounded
+    query: "What is the mission and values of IntelliChoice regarding mathematics and education?"
+    expected_document_id: public-organization-overview
+  # Note: the words "branch"/"location"/"address" are deliberately avoided in these
+  # queries even though the target content is literally a branch directory - the mock
+  # scope/intent classifier routes any of those words straight to `branch_locator`
+  # before document_qa ever runs (confirmed empirically this session), so a query using
+  # them can never reach the RAG citation path with this mock. Real classification
+  # would tell "give me this named branch's hours" apart from "find my nearest branch"
+  # correctly; the mock can't, which is itself one of the already-documented
+  # `MockBedrockProvider` limitations (D-025/D-035 posture) - queries here are literal
+  # words from the target row instead, which both keyword and semantic search key on.
+  - id: grounded-branch-1
+    category: grounded
+    query: "Carrollton Public Library Keller Springs Road Saturday hours"
+    expected_document_id: public-branch-directory
+  - id: grounded-branch-2
+    category: grounded
+    query: "Fretz Park Library Belt Line Road Dallas Saturday hours"
+    expected_document_id: public-branch-directory
+  - id: grounded-branch-3
+    category: grounded
+    query: "Baton Rouge Carver Public Library Terrace Street Saturday hours"
+    expected_document_id: public-branch-directory
+  - id: grounded-team-1
+    category: grounded
+    query: "Who is Gil Sik Lee, the IntelliChoice Founder and CEO and professor at University of Texas Dallas?"
+    expected_document_id: public-our-team
+  - id: grounded-team-2
+    category: grounded
+    query: "Tell me about Jungsoon Lee, the IntelliChoice Founder and Academic Advisor and professor of mathematics."
+    expected_document_id: public-our-team
+  - id: grounded-team-3
+    category: grounded
+    query: "Who is the Chief Operation Officer and manager, Anil Bhatia, with electrical engineering degrees from I.I.T. Bombay and Washington University?"
+    expected_document_id: public-our-team
+
+  # --- role_gated (synthetic seeded content - real gated docs aren't effective yet) ---
+  # Deliberately minimal wording (nonsense marker + the single real word "handbook",
+  # mirroring test_qa_graph.py's proven-safe pattern): any additional plain-English
+  # words here (e.g. "tutors", "procedure") risk the mock's keyword/semantic search
+  # matching unrelated REAL public content (confirmed empirically this session - see
+  # this file's own module docstring), which would route to a real answer instead of
+  # the access-hint path this case is meant to test.
+  - id: role-gated-tutor
+    category: role_gated
+    query: "zqxveval1 handbook"
+    expected_required_role: tutor
+    seed:
+      audience: tutor
+      chunk_text: "zqxveval1 handbook."
+  - id: role-gated-parent
+    category: role_gated
+    query: "zqxveval2 handbook"
+    expected_required_role: parent
+    seed:
+      audience: parent
+      chunk_text: "zqxveval2 handbook."
+  - id: role-gated-student
+    category: role_gated
+    query: "zqxveval3 handbook"
+    expected_required_role: student
+    seed:
+      audience: student
+      chunk_text: "zqxveval3 handbook."
+  - id: role-gated-branch-manager
+    category: role_gated
+    query: "zqxveval4 handbook"
+    expected_required_role: branch_manager
+    seed:
+      audience: branch_manager
+      chunk_text: "zqxveval4 handbook."
+  - id: role-gated-priority
+    category: role_gated
+    query: "zqxveval5 handbook"
+    expected_required_role: branch_manager
+    seed:
+      audience: tutor
+      chunk_text: "zqxveval5 handbook."
+    extra_seed:
+      audience: branch_manager
+      chunk_text: "zqxveval5 handbook."
+
+  # --- out_of_scope (no supported-topic keyword) ---
+  - id: out-of-scope-1
+    category: out_of_scope
+    query: "What's the best recipe for chocolate chip cookies?"
+  - id: out-of-scope-2
+    category: out_of_scope
+    query: "Can you help me debug my Python code?"
+  - id: out-of-scope-3
+    category: out_of_scope
+    query: "What's the weather forecast for tomorrow?"
+  - id: out-of-scope-4
+    category: out_of_scope
+    query: "Who won the World Cup in 2018?"
+  - id: out-of-scope-5
+    category: out_of_scope
+    query: "Write me a poem about the ocean."
+  - id: out-of-scope-6
+    category: out_of_scope
+    query: "What movies are playing this weekend?"
+  - id: out-of-scope-7
+    category: out_of_scope
+    query: "How do I fix a flat tire on my bicycle?"
+  - id: out-of-scope-8
+    category: out_of_scope
+    query: "Translate 'good morning' into French."
+  - id: out-of-scope-9
+    category: out_of_scope
+    query: "What's a good stock to invest in right now?"
+  - id: out-of-scope-10
+    category: out_of_scope
+    query: "Tell me a joke about cats."
+
+  # --- no_source (in-scope keyword, but nothing matches anywhere) ---
+  # All use "handbook" (confirmed empirically this session, and by test_qa_graph.py's
+  # own precedent, to be absent from every real seeded document) - other supported
+  # topic keywords (program/session/hour/admin/manager/class/learning/...) turned out to
+  # risk a real-content match via the mock's hash-based semantic search even paired with
+  # a nonsense marker, since the *keyword itself* (not the marker) can coincidentally
+  # appear in real public prose (e.g. "hour" in the branch directory's own Hours
+  # column). "handbook" is the one keyword confirmed to appear in none of the 3
+  # currently-effective real documents.
+  - id: no-source-1
+    category: no_source
+    query: "zqxveval6 handbook"
+  - id: no-source-2
+    category: no_source
+    query: "zqxveval7 handbook"
+  - id: no-source-3
+    category: no_source
+    query: "zqxveval8 handbook"
+  - id: no-source-4
+    category: no_source
+    query: "zqxveval9 handbook"
+  - id: no-source-5
+    category: no_source
+    query: "zqxveval10 handbook"
+  - id: no-source-6
+    category: no_source
+    query: "zqxveval11 handbook"
+  - id: no-source-7
+    category: no_source
+    query: "zqxveval12 handbook"
+  - id: no-source-8
+    category: no_source
+    query: "zqxveval13 handbook"
+  - id: no-source-9
+    category: no_source
+    query: "zqxveval14 handbook"
+  - id: no-source-10
+    category: no_source
+    query: "zqxveval15 handbook"
+  - id: no-source-11
+    category: no_source
+    query: "zqxveval16 handbook"
+  - id: no-source-12
+    category: no_source
+    query: "zqxveval17 handbook"
+  - id: no-source-13
+    category: no_source
+    query: "zqxveval18 handbook"
+  - id: no-source-14
+    category: no_source
+    query: "zqxveval19 handbook"
+  - id: no-source-15
+    category: no_source
+    query: "zqxveval20 handbook"
+  - id: no-source-16
+    category: no_source
+    query: "zqxveval21 handbook"

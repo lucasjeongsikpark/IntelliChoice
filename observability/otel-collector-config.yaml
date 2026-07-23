@@ -1,0 +1,30 @@
+# SPEC §5.32.2 / ROADMAP S31 "Done when": otel-collector + Jaeger in compose, one
+# trace_id spans FastAPI -> LangGraph -> Bedrock -> Mongo/Postgres -> MCP. Both apps
+# export OTLP/HTTP here (`OTEL_EXPORTER_OTLP_ENDPOINT`, default localhost:4318 from the
+# host, since the apps run natively via `make dev-learning`/`dev-chat`, not as compose
+# services themselves); this collector forwards to Jaeger over OTLP.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger, debug]

@@ -1,0 +1,380 @@
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.panel {
+  width: 100%;
+  max-width: 480px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow);
+  padding: 28px;
+}
+
+.login-logo {
+  height: 40px;
+  width: auto;
+  display: block;
+  margin: 0 auto 16px;
+}
+
+.panel.wide {
+  max-width: 720px;
+}
+
+.subtitle {
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.field input,
+.field select {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+button {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 12px 16px;
+  margin-top: 10px;
+  border-radius: var(--radius-button);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+button.link {
+  background: none;
+  color: var(--text);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  text-decoration: underline;
+  width: auto;
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+
+.error {
+  color: var(--error);
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.dim {
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* Chat layout */
+
+.chat-page {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100svh - 48px);
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.chat-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-logo {
+  height: 22px;
+  width: auto;
+  display: block;
+}
+
+.chat-header h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.chat-header .who {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.stream-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: var(--border);
+}
+
+.stream-dot.open {
+  background: var(--success);
+}
+
+.stream-dot.error {
+  background: var(--error);
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 2px 12px;
+}
+
+.message-row {
+  display: flex;
+}
+
+.message-row.user {
+  justify-content: flex-end;
+}
+
+.message-row.assistant {
+  justify-content: flex-start;
+}
+
+.bubble {
+  max-width: 85%;
+  border-radius: 14px;
+  padding: 12px 16px;
+  white-space: pre-line;
+  font-size: 15px;
+}
+
+.message-row.user .bubble {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-bottom-right-radius: 4px;
+}
+
+.message-row.assistant .bubble {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  color: var(--text-h);
+  border-bottom-left-radius: 4px;
+}
+
+.citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.citation-chip {
+  font-size: 12px;
+  color: var(--text);
+  background: var(--accent-bg);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.escalation-banner {
+  font-size: 13px;
+  color: var(--text);
+  background: var(--code-bg);
+  border-radius: var(--radius-control);
+  padding: 8px 12px;
+  margin-top: 6px;
+}
+
+.ics-download {
+  margin-top: 8px;
+  display: inline-block;
+  width: auto;
+  padding: 8px 14px;
+}
+
+.welcome-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  padding: 16px;
+  margin-top: 8px;
+}
+
+.welcome-card p {
+  margin: 0 0 10px;
+  color: var(--text-h);
+  font-size: 15px;
+}
+
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+button.chip {
+  width: auto;
+  display: inline-block;
+  margin: 0;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.access-hint-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--accent-bg);
+  border-radius: var(--radius-control);
+  padding: 8px 12px;
+  margin-top: 6px;
+}
+
+.access-hint-banner button.link {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.composer textarea {
+  flex: 1;
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+}
+
+.composer button {
+  width: auto;
+  margin-top: 0;
+  align-self: flex-end;
+}
+
+/* Interrupt modals */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 10;
+}
+
+.modal {
+  width: 100%;
+  max-width: 440px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+
+.modal h2 {
+  margin-top: 0;
+}
+
+.email-preview {
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.email-preview pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-actions button {
+  margin-top: 12px;
+}
+
+.notice {
+  background: var(--code-bg);
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+  font-size: 14px;
+  margin-bottom: 14px;
+  white-space: pre-line;
+}

@@ -1,0 +1,11 @@
+# Maps public Kumon topic-progression names (curriculum_taxonomy.csv) to our
+# internal topic taxonomy (internal_math/topics.yaml). Reference only — narrows
+# where an internal topic sits in the public progression, does not imply
+# affiliation or reproduce any official level structure (see README.md).
+mappings:
+  - public_topic_name: "Equations"
+    internal_topic_id: linear_equations
+  - public_topic_name: "Fractions"
+    internal_topic_id: fraction_operations
+  - public_topic_name: "Number sense and counting"
+    internal_topic_id: place_value

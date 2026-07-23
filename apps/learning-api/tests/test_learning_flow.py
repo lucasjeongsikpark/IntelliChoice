@@ -1,0 +1,1534 @@
+"""End-to-end HTTP integration test for the S5 deterministic learning flow (SPEC §5.5.1,
+Phase 6 §6.7 "Done when": a student can complete the entire flow through APIs).
+"""
+
+import asyncio
+
+import pytest
+from fastapi.testclient import TestClient
+from intellichoice_adapters.fake_auth import FakeTokenIssuer
+from intellichoice_adapters.mysql_profile_adapter import current_week_key
+from intellichoice_adapters.seed.mysql_fixtures import (
+    PARENT_TWO_CHILDREN,
+    STUDENT_FIRST_CHILD,
+    STUDENT_SECOND_CHILD,
+    STUDENT_UNLINKED,
+    seed,
+)
+from intellichoice_curriculum.loader import load_curriculum_and_templates
+from intellichoice_db.engine import create_engine, create_session_factory, session_scope
+from intellichoice_db.models.assessment import BlockedSession
+from intellichoice_db.models.interrupts import InterruptApproval
+from intellichoice_db.models.mastery import StudyAttempt, StudyItem
+from intellichoice_db.models.memory import LearningEvent, SemanticMemory
+from intellichoice_db.models.stage_transition import StageTransition
+from intellichoice_db.repositories.assessment import AssessmentRepository
+from intellichoice_db.repositories.questions import QuestionRepository
+from intellichoice_shared.auth import Audience, Role
+from learning_api.main import app
+from learning_api.services import video_catalog
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import create_async_engine
+
+MYSQL_URL = "mysql+aiomysql://intellichoice:intellichoice@localhost:3306"
+
+issuer = FakeTokenIssuer()
+
+
+def _mysql_available() -> bool:
+    async def check() -> bool:
+        engine = create_async_engine(MYSQL_URL, connect_args={"connect_timeout": 1})
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            return True
+        except Exception:
+            return False
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(check())
+
+
+def _postgres_available() -> bool:
+    async def check() -> bool:
+        engine = create_engine()
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1 FROM topics LIMIT 1"))
+            return True
+        except Exception:
+            return False
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(check())
+
+
+pytestmark = pytest.mark.skipif(
+    not (_mysql_available() and _postgres_available()),
+    reason="MySQL/PostgreSQL not reachable or not migrated (run `make up && make db-upgrade`)",
+)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def seeded_fixtures() -> None:
+    asyncio.run(seed(MYSQL_URL))
+
+    async def load() -> None:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                await load_curriculum_and_templates(session)
+                await session.commit()
+        finally:
+            await engine.dispose()
+
+    asyncio.run(load())
+
+
+def _auth_header(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _student_token(student_id: str) -> str:
+    return issuer.issue(sub=student_id, role=Role.STUDENT, audience=Audience.LEARNING)
+
+
+def _parent_token(parent_id: str) -> str:
+    return issuer.issue(sub=parent_id, role=Role.PARENT, audience=Audience.LEARNING)
+
+
+def _finalize_exam(client: TestClient, headers: dict[str, str], session_id: str) -> dict:
+    """S22/D-064: pre/post exams no longer auto-advance once the last item is answered -
+    every test that used to rely on that now drives this explicit step first.
+    """
+    resp = client.post(f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={})
+    assert resp.status_code == 200
+    return resp.json()
+
+
+def _correct_options(variant_ids: list[str]) -> dict[str, str]:
+    async def fetch() -> dict[str, str]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                repo = QuestionRepository(session)
+                result = {}
+                for variant_id in variant_ids:
+                    variant = await repo.get_variant(variant_id)
+                    assert variant is not None
+                    result[variant_id] = variant.correct_option
+                return result
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _attempt_count(assessment_session_id: str) -> int:
+    async def fetch() -> int:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                repo = AssessmentRepository(session)
+                return len(await repo.get_attempts(assessment_session_id))
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _blocked_session_count(student_id: str, week_id: str) -> int:
+    async def fetch() -> int:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                stmt = select(BlockedSession).where(
+                    BlockedSession.student_external_id == student_id,
+                    BlockedSession.week_id == week_id,
+                )
+                result = await session.execute(stmt)
+                return len(list(result.scalars().all()))
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _other_option(correct: str) -> str:
+    for option in ("a", "b", "c", "d"):
+        if option != correct:
+            return option
+    raise AssertionError("no alternate option available")
+
+
+def _pre_assessment_session_id(learning_session_id: str) -> str:
+    """Resolves the pre-exam assessment_session_id from the graph's checkpointed state,
+    for the idempotency attempt-count check.
+    """
+
+    async def fetch() -> str:
+        graph = app.state.learning_graph
+        snapshot = await graph.aget_state({"configurable": {"thread_id": learning_session_id}})
+        pre_assessment_session_id = snapshot.values["pre_assessment_session_id"]
+        assert pre_assessment_session_id is not None
+        return pre_assessment_session_id
+
+    return asyncio.run(fetch())
+
+
+def _study_session_id(learning_session_id: str) -> str:
+    async def fetch() -> str:
+        graph = app.state.learning_graph
+        snapshot = await graph.aget_state({"configurable": {"thread_id": learning_session_id}})
+        study_session_id = snapshot.values["study_session_id"]
+        assert study_session_id is not None
+        return study_session_id
+
+    return asyncio.run(fetch())
+
+
+def _bedrock_spend_cents(learning_session_id: str) -> float:
+    async def fetch() -> float:
+        graph = app.state.learning_graph
+        snapshot = await graph.aget_state({"configurable": {"thread_id": learning_session_id}})
+        return snapshot.values["bedrock_spend_cents"]
+
+    return asyncio.run(fetch())
+
+
+def _study_attempt(study_session_id: str, question_variant_id: str) -> StudyAttempt:
+    async def fetch() -> StudyAttempt:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                stmt = select(StudyAttempt).where(
+                    StudyAttempt.study_session_id == study_session_id,
+                    StudyAttempt.question_variant_id == question_variant_id,
+                )
+                result = await session.execute(stmt)
+                attempt = result.scalars().first()
+                assert attempt is not None
+                return attempt
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _study_items(study_session_id: str) -> list[StudyItem]:
+    async def fetch() -> list[StudyItem]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                stmt = (
+                    select(StudyItem)
+                    .where(StudyItem.study_session_id == study_session_id)
+                    .order_by(StudyItem.display_order)
+                )
+                result = await session.execute(stmt)
+                return list(result.scalars().all())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _study_attempts_all(study_session_id: str) -> list[StudyAttempt]:
+    async def fetch() -> list[StudyAttempt]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                stmt = select(StudyAttempt).where(
+                    StudyAttempt.study_session_id == study_session_id
+                )
+                result = await session.execute(stmt)
+                return list(result.scalars().all())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _learning_events(session_id: str) -> list[LearningEvent]:
+    """S25: every episodic event `graph/nodes.py` emitted for this learning-session
+    thread (`LearningEvent.session_id` is the graph's own `session_id`, not a Postgres
+    FK to any exam/study session row).
+    """
+
+    async def fetch() -> list[LearningEvent]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                stmt = select(LearningEvent).where(LearningEvent.session_id == session_id)
+                result = await session.execute(stmt)
+                return list(result.scalars().all())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _semantic_memory_facts(student_id: str) -> list[SemanticMemory]:
+    async def fetch() -> list[SemanticMemory]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                stmt = select(SemanticMemory).where(
+                    SemanticMemory.student_external_id == student_id
+                )
+                result = await session.execute(stmt)
+                return list(result.scalars().all())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _stage_transitions(learning_session_id: str) -> list[StageTransition]:
+    """S26: every narrative row persisted for this session's thread, real Bedrock
+    (mock provider) output or the deterministic template fallback alike.
+    """
+
+    async def fetch() -> list[StageTransition]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                stmt = select(StageTransition).where(
+                    StageTransition.learning_session_id == learning_session_id
+                )
+                result = await session.execute(stmt)
+                return list(result.scalars().all())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _interrupt_approvals(learning_session_id: str) -> list[InterruptApproval]:
+    async def fetch() -> list[InterruptApproval]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                stmt = select(InterruptApproval).where(
+                    InterruptApproval.session_id == learning_session_id
+                )
+                result = await session.execute(stmt)
+                return list(result.scalars().all())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def test_full_deterministic_learning_flow() -> None:
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        assert create_resp.status_code == 200
+        session_id = create_resp.json()["learning_session_id"]
+
+        student_resp = client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        assert student_resp.status_code == 200
+        assert student_resp.json()["phase"] == "student_selected"
+
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        assert topics_resp.status_code == 200
+        topics_body = topics_resp.json()
+        assert topics_body["phase"] == "pre_exam"
+        pre_items = topics_body["items"]
+        assert len(pre_items) == 10
+
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+
+        # Answer the first two items wrong, the rest correct, so the pre-exam isn't a
+        # perfect score (exercises the normal normalized_gain branch, not the
+        # not_applicable_pre_max edge case).
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            correct = pre_correct[variant_id]
+            selected = _other_option(correct) if index < 2 else correct
+            idem_key = f"pre-{index}"
+
+            answer_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": idem_key},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": selected,
+                    "response_time_ms": 3000 + index * 100,
+                },
+            )
+            assert answer_resp.status_code == 200
+            body = answer_resp.json()
+            # S22/D-064: correctness is withheld from the wire response during pre/post
+            # exam - grading still happens immediately (verified below via
+            # `_attempt_count`/the finalize response), just not exposed here.
+            assert body["is_correct"] is None
+            assert body["phase"] == "pre_exam"
+
+            if index == 0:
+                # Idempotent resubmission: same (variant, Idempotency-Key) while still in
+                # the same phase must return the identical result, not a second row.
+                repeat_resp = client.post(
+                    f"/learning/sessions/{session_id}/answers",
+                    headers={**headers, "Idempotency-Key": idem_key},
+                    json={
+                        "question_variant_id": variant_id,
+                        "selected_option": selected,
+                        "response_time_ms": 9999,
+                    },
+                )
+                assert repeat_resp.status_code == 200
+                assert repeat_resp.json() == body
+
+        pre_assessment_attempts = _attempt_count(_pre_assessment_session_id(session_id))
+        assert pre_assessment_attempts == 10
+
+        # S22/D-064: pre/post exams no longer auto-advance once the last item is
+        # answered - every item already has a real grade (verified above via
+        # `_attempt_count`), but the phase only transitions on this explicit finalize.
+        finalize_resp = client.post(
+            f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
+        )
+        assert finalize_resp.status_code == 200
+        body = finalize_resp.json()
+        assert body["phase"] == "study"
+
+        # S26: the pre_outro narrative fires on the same finalize turn - grounded in
+        # this cycle's real weak skills and the planner's actual next step (skill
+        # *names*, never ids).
+        assert body["stage_narrative"]
+        assert body["stage_narrative_evidence"]
+        pre_outro_evidence = " ".join(body["stage_narrative_evidence"])
+        assert "Skills to strengthen" in pre_outro_evidence
+        assert "Next up" in pre_outro_evidence
+
+        # A retried finalize call is idempotent - same result, no side effects.
+        repeat_finalize_resp = client.post(
+            f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
+        )
+        assert repeat_finalize_resp.status_code == 200
+        assert repeat_finalize_resp.json() == body
+
+        # S10: the study phase now serves one question at a time and runs a per-skill retry
+        # ladder (SPEC §5.11.7), so we drive it as a loop until the phase leaves "study"
+        # rather than a fixed 5-item batch. `body["items"]` always carries exactly the one
+        # currently-pending question.
+        study_step = 0
+        answered_wrong_once = False
+        while body["phase"] == "study":
+            items = body["items"]
+            assert items is not None and len(items) == 1
+            variant_id = items[0]["question_variant_id"]
+            correct = _correct_options([variant_id])[variant_id]
+            key = f"study-{study_step}"
+            study_step += 1
+
+            if not answered_wrong_once:
+                # One deliberately wrong answer proves the SPEC §5.11.3 interrupt: it
+                # pauses for a hint/solution/video choice instead of silently advancing.
+                answered_wrong_once = True
+                wrong_resp = client.post(
+                    f"/learning/sessions/{session_id}/answers",
+                    headers={**headers, "Idempotency-Key": key},
+                    json={
+                        "question_variant_id": variant_id,
+                        "selected_option": _other_option(correct),
+                        "response_time_ms": 2500,
+                    },
+                )
+                assert wrong_resp.status_code == 200
+                wrong_body = wrong_resp.json()
+                assert wrong_body["is_correct"] is False
+                pending = wrong_body["pending_interrupt"]
+                assert pending["interrupt_type"] == "intervention_choice"
+                assert pending["question_variant_id"] == variant_id
+
+                respond_resp = client.post(
+                    f"/learning/sessions/{session_id}/respond",
+                    headers=headers,
+                    json={"interrupt_type": "intervention_choice", "choice": "hint"},
+                )
+                assert respond_resp.status_code == 200
+                body = respond_resp.json()
+                # S8/S21: the hint choice returns validated generated content (mock
+                # provider or its deterministic fallback) - never a bare "recorded, no
+                # content" ack - and the within-question ladder pauses again for another
+                # round (more levels available) instead of immediately advancing.
+                intervention = body["intervention"]
+                assert intervention["type"] == "hint"
+                assert intervention["hint_text"]
+                assert intervention["answer_revealed"] is False
+                assert intervention["hint_level"] == 1
+                assert intervention["max_hint_level"] == 3
+                pending = body["pending_interrupt"]
+                assert pending["interrupt_type"] == "intervention_choice"
+
+                # "continue" ends the ladder without a further hint/solution/video -
+                # SPEC §5.11.7's retry ladder only runs once the support choice is
+                # fully resolved.
+                continue_resp = client.post(
+                    f"/learning/sessions/{session_id}/respond",
+                    headers=headers,
+                    json={"interrupt_type": "intervention_choice", "choice": "continue"},
+                )
+                assert continue_resp.status_code == 200
+                body = continue_resp.json()
+                # SPEC §5.11.7: after the ladder closes the same skill line serves a
+                # retry question, so the phase is still study with a fresh pending item,
+                # not an advance.
+                assert body["phase"] == "study"
+                continue
+
+            answer_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": key},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": correct,
+                    "response_time_ms": 2500,
+                },
+            )
+            assert answer_resp.status_code == 200
+            body = answer_resp.json()
+            assert body["is_correct"] is True
+
+        assert body["phase"] == "post_exam"
+        # S26: `study_outro` fires on the exact turn study completes - grounded in this
+        # cycle's real hint/solution/video usage (the mock-provider hint round above).
+        assert body["stage_narrative"]
+        assert body["stage_narrative_evidence"]
+        assert any("Hints used" in line for line in body["stage_narrative_evidence"])
+        # SPEC §5.25.1 "per-session cost budget" - the mock provider hint call above must
+        # have registered real (if placeholder) spend against the session's running total.
+        assert _bedrock_spend_cents(session_id) > 0
+        post_items = body["items"]
+        assert len(post_items) == 10
+        post_correct = _correct_options([item["question_variant_id"] for item in post_items])
+
+        for index, item in enumerate(post_items):
+            variant_id = item["question_variant_id"]
+            correct = post_correct[variant_id]
+
+            answer_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"post-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": correct,
+                    "response_time_ms": 2000,
+                },
+            )
+            assert answer_resp.status_code == 200
+            body = answer_resp.json()
+            # S22/D-064: withheld during the exam, same as the pre-exam loop above.
+            assert body["is_correct"] is None
+            assert body["phase"] == "post_exam"
+
+        finalize_resp = client.post(
+            f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
+        )
+        assert finalize_resp.status_code == 200
+        body = finalize_resp.json()
+        assert body["phase"] == "completed"
+        gain = body["learning_gain"]
+        assert gain is not None
+        assert gain["pre_raw_score"] == 8.0
+        assert gain["post_raw_score"] == 10.0
+        assert gain["raw_gain"] == 2.0
+        if gain["normalized_gain"] is None:
+            assert gain["normalized_gain_status"] == "not_applicable_pre_max"
+        else:
+            assert gain["normalized_gain_status"] is None
+            assert 0.0 < gain["normalized_gain"] <= 1.0
+
+        # S26: `post_outro` fires on this same finalize turn, grounded in the real
+        # SPEC §5.13.3 gain just computed above (8.0 -> 10.0, a real gain of 2.0).
+        assert body["stage_narrative"]
+        assert body["stage_narrative_evidence"]
+        post_outro_evidence = " ".join(body["stage_narrative_evidence"])
+        assert "8.0" in post_outro_evidence
+        assert "10.0" in post_outro_evidence
+
+        # S26: every in-graph narrative moment fired at least once across this one full
+        # pre->study->post cycle, including `study_step` - proving a genuine skill
+        # transition (not just a same-skill retry) triggered its own narrative
+        # somewhere mid-loop, even though the checkpoint's own `stage_narrative` channel
+        # was since overwritten by `study_outro`/`post_outro` (S26: `stage_narrative`
+        # only ever exposes the *latest* narrative, like `last_message` - the durable
+        # `stage_transitions` table is the source of truth for every one that fired).
+        transitions = _stage_transitions(session_id)
+        stages_fired = {t.stage for t in transitions}
+        assert stages_fired == {"pre_outro", "study_step", "study_outro", "post_outro"}
+        assert all(t.student_external_id == STUDENT_UNLINKED for t in transitions)
+        assert all(t.evidence for t in transitions)
+
+        # S25 (plan §9): every one of the six emission points should have fired at
+        # least once across this one full pre->study->post cycle.
+        events = _learning_events(session_id)
+        event_types = {event.event_type for event in events}
+        assert event_types == {
+            "answer_submitted",
+            "intervention_chosen",
+            "study_outcome",
+            "exam_finalized",
+            "learning_gain_computed",
+        }
+        assert all(event.student_external_id == STUDENT_UNLINKED for event in events)
+
+        # The post-exam finalize triggered a real, session-scoped consolidation call
+        # (plan §9 trigger (a)) - MockBedrockProvider's deterministic stand-in proposes
+        # at least one candidate fact from this cycle's own events. A single learning
+        # session can only ever supply one distinct `session_id` of evidence, so the
+        # minimum-evidence "≥2 sessions" bar (plan §9) is never met by this one cycle
+        # alone - every fact from it must land `provisional`, never `active`.
+        facts = _semantic_memory_facts(STUDENT_UNLINKED)
+        assert len(facts) > 0
+        assert all(fact.status == "provisional" for fact in facts)
+        assert all(fact.evidence_event_ids for fact in facts)
+        assert all(
+            {event.event_id for event in events} >= set(fact.evidence_event_ids)
+            for fact in facts
+        )
+
+
+def test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite() -> None:
+    """SPEC §5.11.7: a skill the student never resolves escalates through same-skill
+    retries and an easier *prerequisite* problem, then - on the 4th unresolved attempt -
+    is marked for tutor review while the flow continues. Driven on `linear_two_step` (whose
+    prerequisite is `linear_one_step`) by failing both difficulty-2 pre-exam items so it is
+    the weakest, hence first-served, skill.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        pre_items = topics_resp.json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+
+        # Items are ordered by difficulty (2 per level); indices 2,3 are difficulty 2 =
+        # skill `linear_two_step`. Fail exactly those so it becomes the weakest skill.
+        body = None
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            correct = pre_correct[variant_id]
+            selected = _other_option(correct) if index in (2, 3) else correct
+            answer_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"ladder-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": selected,
+                    "response_time_ms": 2000,
+                },
+            )
+            body = answer_resp.json()
+
+        assert body is not None and body["phase"] == "pre_exam"
+        body = _finalize_exam(client, headers, session_id)
+        assert body["phase"] == "study"
+        first_item = body["items"][0]
+        assert first_item is not None
+
+        # Drive four straight wrong answers through the full ladder, choosing "solution"
+        # each time so the eventual outcome is answer_revealed -> unresolved.
+        for attempt_index in range(4):
+            variant_id = body["items"][0]["question_variant_id"]
+            correct = _correct_options([variant_id])[variant_id]
+            wrong_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"ladder-{attempt_index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": _other_option(correct),
+                    "response_time_ms": 2000,
+                },
+            )
+            assert wrong_resp.status_code == 200
+            assert wrong_resp.json()["pending_interrupt"]["interrupt_type"] == (
+                "intervention_choice"
+            )
+            respond_resp = client.post(
+                f"/learning/sessions/{session_id}/respond",
+                headers=headers,
+                json={"interrupt_type": "intervention_choice", "choice": "solution"},
+            )
+            assert respond_resp.status_code == 200
+            body = respond_resp.json()
+
+        # After the 4th unresolved attempt the skill line is abandoned and the flow moves
+        # on (to the next base skill), rather than looping forever on the same skill.
+        assert body["phase"] == "study"
+
+        study_session_id = _study_session_id(session_id)
+
+    items = _study_items(study_session_id)
+    attempts = _study_attempts_all(study_session_id)
+
+    line_items = [i for i in items if i.target_skill_id == "linear_two_step"]
+    # Base + 2 same-skill retries + 1 prerequisite problem = 4 questions on the line.
+    assert len(line_items) == 4
+    assert line_items[0].is_remediation is False
+    assert [i.is_remediation for i in line_items[1:]] == [True, True, True]
+    # The §5.11.7 3rd step serves the prerequisite skill's (easier) question.
+    prerequisite_items = [i for i in line_items if i.skill_id == "linear_one_step"]
+    assert len(prerequisite_items) == 1
+    assert prerequisite_items[0].difficulty == 1
+
+    line_variant_ids = {i.question_variant_id for i in line_items}
+    line_attempts = [a for a in attempts if a.question_variant_id in line_variant_ids]
+    assert len(line_attempts) == 4
+    assert all(a.is_correct is False for a in line_attempts)
+    # Exactly one terminal attempt: unresolved + flagged for tutor review (SPEC §5.11.7).
+    unresolved = [a for a in line_attempts if a.outcome_label == "unresolved"]
+    assert len(unresolved) == 1
+    assert unresolved[0].tutor_review_flagged is True
+    assert all(not a.tutor_review_flagged for a in line_attempts if a not in unresolved)
+
+
+def _drive_full_flow(student_id: str, pre_wrong_indices: set[int]) -> tuple[list, dict]:
+    """Run one full pre -> study (all correct) -> post (all correct) flow and return the
+    base study routing and the learning-gain scores, for the Phase 10 determinism check.
+    """
+    headers = _auth_header(_student_token(student_id))
+    with TestClient(app) as client:
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": student_id},
+        )
+        pre_items = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        ).json()["items"]
+        pre_correct = _correct_options([i["question_variant_id"] for i in pre_items])
+
+        body: dict = {}
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            correct = pre_correct[variant_id]
+            selected = _other_option(correct) if index in pre_wrong_indices else correct
+            body = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"det-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": selected,
+                    "response_time_ms": 2000,
+                },
+            ).json()
+
+        body = _finalize_exam(client, headers, session_id)
+
+        step = 0
+        while body["phase"] == "study":
+            variant_id = body["items"][0]["question_variant_id"]
+            correct = _correct_options([variant_id])[variant_id]
+            body = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"det-study-{step}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": correct,
+                    "response_time_ms": 2000,
+                },
+            ).json()
+            step += 1
+
+        for index, item in enumerate(body["items"]):
+            variant_id = item["question_variant_id"]
+            correct = _correct_options([variant_id])[variant_id]
+            body = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"det-post-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": correct,
+                    "response_time_ms": 2000,
+                },
+            ).json()
+
+        body = _finalize_exam(client, headers, session_id)
+        assert body["phase"] == "completed"
+        gain = body["learning_gain"]
+        study_session_id = _study_session_id(session_id)
+
+    items = _study_items(study_session_id)
+    routing = [(i.target_skill_id, i.difficulty, i.is_remediation) for i in items]
+    return routing, gain
+
+
+def test_identical_inputs_reproduce_identical_routing_and_scores() -> None:
+    """Phase 10 (§6.11) completion criterion / §5.31.1 deterministic evaluator: the same
+    answer sequence yields the same study routing and the same learning-gain scores.
+    """
+    routing_a, gain_a = _drive_full_flow(STUDENT_UNLINKED, pre_wrong_indices={2, 3})
+    routing_b, gain_b = _drive_full_flow(STUDENT_UNLINKED, pre_wrong_indices={2, 3})
+
+    assert routing_a == routing_b
+    assert gain_a == gain_b
+    # Difficulty routing responded to the pre-exam: failing both difficulty-2 items makes
+    # `linear_two_step` the weakest skill, so it is routed first.
+    assert routing_a[0][0] == "linear_two_step"
+
+
+def test_wrong_final_pre_exam_answer_enters_study_without_spurious_interrupt() -> None:
+    """Regression (S22/D-064 update): an incorrect *last* pre-exam answer, followed by an
+    explicit finalize, transitions to study but records no study attempt, so finalize must
+    not be routed into the §5.11.3 hint/solution/video interrupt - only a real study answer
+    is. (Pre-S22 this guarded the same property on the auto-advance path; that path no
+    longer exists - finalize is now the only thing that can transition pre_exam -> study.)
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        pre_items = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        ).json()["items"]
+        pre_correct = _correct_options([i["question_variant_id"] for i in pre_items])
+
+        body = None
+        last_index = len(pre_items) - 1
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            correct = pre_correct[variant_id]
+            # Answer every item correctly except the very last one.
+            selected = _other_option(correct) if index == last_index else correct
+            answer_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"lastwrong-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": selected,
+                    "response_time_ms": 2000,
+                },
+            )
+            assert answer_resp.status_code == 200
+            body = answer_resp.json()
+
+        assert body is not None
+        assert body["is_correct"] is None  # withheld during the exam (D-064)
+        assert body["phase"] == "pre_exam"
+
+        body = _finalize_exam(client, headers, session_id)
+        assert body["phase"] == "study"  # ...but we still advanced into study
+        # `FinalizeExamResponse` has no `pending_interrupt` field at all - `finalize_exam`
+        # never calls `interrupt()`, so pausing for an intervention here is structurally
+        # impossible, not just untriggered.
+        assert body["items"] is not None and len(body["items"]) == 1
+
+
+def test_blocked_attendance_branch() -> None:
+    token = _student_token(STUDENT_FIRST_CHILD)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_FIRST_CHILD},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+
+    assert topics_resp.status_code == 200
+    body = topics_resp.json()
+    assert body["phase"] == "blocked"
+    assert body["items"] is None
+    assert body["message"]
+
+    assert _blocked_session_count(STUDENT_FIRST_CHILD, current_week_key()) >= 1
+
+
+def test_restart_and_resume_continues_from_same_question() -> None:
+    """SPEC §5.16 "Done when": killing the process mid-session and calling resume
+    continues from the same question. Exiting the first `TestClient` block tears down
+    the app's lifespan - including the `AsyncPostgresSaver` connection - and entering a
+    second one opens a brand new checkpointer connection to the same Postgres, standing
+    in for a real process restart.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        assert topics_resp.status_code == 200
+        pre_items_before = topics_resp.json()["items"]
+
+    # The app (and its checkpointer connection) has fully shut down here.
+
+    with TestClient(app) as client:
+        resume_resp = client.post(f"/learning/sessions/{session_id}/resume", headers=headers)
+
+    assert resume_resp.status_code == 200
+    body = resume_resp.json()
+    assert body["phase"] == "pre_exam"
+    assert body["items"] == pre_items_before
+
+
+def test_resume_after_an_exam_answer_still_returns_the_full_batch() -> None:
+    """S23 regression: under free navigation (D-064), every pre/post-exam `/answers`
+    call reports `items: None` on the wire (nothing new to show, the nav bar is driven
+    by `exam/overview` instead) - but the graph node used to write that `None` straight
+    into the checkpointed `last_items` channel, silently erasing the original 10-question
+    batch the instant any answer was submitted. A resume (or a browser refresh, which
+    reads the same checkpointed state via `/stream`) after even one answer would then have
+    no question content left to show at all. Fixed by omitting the key from the node's
+    update dict instead of clearing it (see `graph/nodes.py::submit_answer`) - LangGraph's
+    default `LastValue` merge leaves an omitted channel holding its previous value.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        pre_items_before = topics_resp.json()["items"]
+        correct = _correct_options([item["question_variant_id"] for item in pre_items_before])
+        first = pre_items_before[0]
+
+        answer_resp = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "resume-regression-0"},
+            json={
+                "question_variant_id": first["question_variant_id"],
+                "selected_option": correct[first["question_variant_id"]],
+                "response_time_ms": 1500,
+            },
+        )
+        assert answer_resp.status_code == 200
+        # The per-request response still has nothing new to report - only the
+        # checkpointed batch itself must survive, not necessarily every response body.
+        assert answer_resp.json()["is_correct"] is None
+
+    # The app (and its checkpointer connection) has fully shut down here.
+
+    with TestClient(app) as client:
+        resume_resp = client.post(f"/learning/sessions/{session_id}/resume", headers=headers)
+
+    assert resume_resp.status_code == 200
+    body = resume_resp.json()
+    assert body["phase"] == "pre_exam"
+    assert body["items"] == pre_items_before
+
+
+def test_intervention_choice_pause_records_choice_and_blocks_skip() -> None:
+    """SPEC §5.11.3 + Phase 8 (§6.9): an incorrect study answer pauses for a
+    hint/solution/video choice; the choice is recorded on the attempt, and a client
+    cannot silently skip past the pause by submitting the next answer instead (S7's
+    `/answers`-guard against LangGraph discarding an unresolved paused task).
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        pre_items = topics_resp.json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+
+        body = None
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            answer_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"iv-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+            assert answer_resp.status_code == 200
+            body = answer_resp.json()
+
+        assert body is not None
+        assert body["phase"] == "pre_exam"
+        body = _finalize_exam(client, headers, session_id)
+        assert body["phase"] == "study"
+        # S10: one question is served at a time; this is the first (weakest) skill's item.
+        study_items = body["items"]
+        assert len(study_items) == 1
+        wrong_variant_id = study_items[0]["question_variant_id"]
+        wrong_correct = _correct_options([wrong_variant_id])[wrong_variant_id]
+
+        wrong_resp = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "iv-study-0"},
+            json={
+                "question_variant_id": wrong_variant_id,
+                "selected_option": _other_option(wrong_correct),
+                "response_time_ms": 2000,
+            },
+        )
+        assert wrong_resp.status_code == 200
+        wrong_body = wrong_resp.json()
+        assert wrong_body["is_correct"] is False
+        pending = wrong_body["pending_interrupt"]
+        assert pending["interrupt_type"] == "intervention_choice"
+        assert pending["question_variant_id"] == wrong_variant_id
+
+        # Trying to move on without resolving the pause is rejected, not silently
+        # dropped (a fresh, non-`Command` `ainvoke` would otherwise discard the paused
+        # task and lose the choice-capture opportunity entirely).
+        skip_resp = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "iv-study-skip"},
+            json={
+                "question_variant_id": wrong_variant_id,
+                "selected_option": wrong_correct,
+                "response_time_ms": 2000,
+            },
+        )
+        assert skip_resp.status_code == 409
+
+        respond_resp = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "video"},
+        )
+        assert respond_resp.status_code == 200
+        respond_body = respond_resp.json()
+        assert respond_body["phase"] == "study"
+        # SPEC §5.11.6/§5.18.3: real Postgres-backed catalog (S15) - this HTTP test runs
+        # against the live shared dev Postgres with no `youtube_videos` row seeded for
+        # this skill, so the correct, deterministic outcome here is the fallback
+        # message (no real-time YouTube call either way). The "a real catalog match is
+        # returned" path is covered by `test_video_catalog.py`'s rollback-isolated,
+        # deterministically-seeded unit tests.
+        intervention = respond_body["intervention"]
+        assert intervention["type"] == "video"
+        assert intervention["message"] == video_catalog.FALLBACK_MESSAGE
+
+        # `_study_session_id` reads via `app.state.learning_graph`, so it must run while
+        # this block's checkpointer connection is still open.
+        study_session_id = _study_session_id(session_id)
+
+    attempt = _study_attempt(study_session_id, wrong_variant_id)
+    assert attempt.is_correct is False
+    assert attempt.video_used is True
+    assert attempt.hint_used is False
+    assert attempt.solution_used is False
+
+
+def test_hint_ladder_escalates_through_three_levels_without_leaking_answer() -> None:
+    """ROADMAP S21 "Done when": three successive hints escalate and never reveal the
+    answer before the final level. Each "hint" choice pauses again (more levels
+    available) instead of immediately advancing; only the third (final) level's choice
+    runs the retry ladder and serves a fresh question. `hint_used` stays True and no
+    `advance_study` transition happens on rounds 1-2.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        pre_items = topics_resp.json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+
+        body = None
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            answer_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"ladder-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+            body = answer_resp.json()
+
+        assert body is not None
+        body = _finalize_exam(client, headers, session_id)
+        study_items = body["items"]
+        wrong_variant_id = study_items[0]["question_variant_id"]
+        wrong_correct = _correct_options([wrong_variant_id])[wrong_variant_id]
+        correct_answer_text = {
+            "a": study_items[0]["option_a"],
+            "b": study_items[0]["option_b"],
+            "c": study_items[0]["option_c"],
+            "d": study_items[0]["option_d"],
+        }[wrong_correct]
+
+        wrong_resp = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "ladder-study-0"},
+            json={
+                "question_variant_id": wrong_variant_id,
+                "selected_option": _other_option(wrong_correct),
+                "response_time_ms": 2000,
+            },
+        )
+        assert wrong_resp.json()["pending_interrupt"]["interrupt_type"] == "intervention_choice"
+
+        hint_levels_seen: list[int] = []
+        hint_texts: list[str] = []
+        respond_body = None
+        for _ in range(3):
+            respond_resp = client.post(
+                f"/learning/sessions/{session_id}/respond",
+                headers=headers,
+                json={"interrupt_type": "intervention_choice", "choice": "hint"},
+            )
+            assert respond_resp.status_code == 200
+            respond_body = respond_resp.json()
+            intervention = respond_body["intervention"]
+            assert intervention["type"] == "hint"
+            assert intervention["answer_revealed"] is False
+            assert correct_answer_text.lower() not in intervention["hint_text"].lower()
+            hint_levels_seen.append(intervention["hint_level"])
+            hint_texts.append(intervention["hint_text"])
+
+        assert hint_levels_seen == [1, 2, 3]
+        # Each level's text is genuinely different, not the same content repeated -
+        # `MockBedrockProvider`'s personalization branch varies by hint_level/canonical
+        # text, and the canonical ladder itself has 3 distinct levels.
+        assert len(set(hint_texts)) == 3
+        # The third (final) level closed the ladder on its own - no explicit "continue"
+        # needed - and served a fresh retry question for the same skill line.
+        assert respond_body is not None
+        assert respond_body["phase"] == "study"
+        assert respond_body["pending_interrupt"] is None
+        assert respond_body["items"] is not None
+        assert len(respond_body["items"]) == 1
+
+        study_session_id = _study_session_id(session_id)
+
+    attempt = _study_attempt(study_session_id, wrong_variant_id)
+    assert attempt.hint_used is True
+    assert attempt.video_used is False
+    assert attempt.solution_used is False
+
+
+def test_hint_ladder_survives_restart_mid_ladder() -> None:
+    """SPEC §5.16-style restart guarantee, applied to S21's new ladder state: a
+    checkpoint restart between hint rounds must not lose `assistance_level_by_variant`
+    - the next hint requested after restart must be level 2, not a repeat of level 1.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        pre_items = topics_resp.json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+
+        body = None
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            answer_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"restart-ladder-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+            body = answer_resp.json()
+
+        assert body is not None
+        body = _finalize_exam(client, headers, session_id)
+        study_items = body["items"]
+        wrong_variant_id = study_items[0]["question_variant_id"]
+        wrong_correct = _correct_options([wrong_variant_id])[wrong_variant_id]
+
+        client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "restart-ladder-study-0"},
+            json={
+                "question_variant_id": wrong_variant_id,
+                "selected_option": _other_option(wrong_correct),
+                "response_time_ms": 2000,
+            },
+        )
+        first_hint_resp = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "hint"},
+        )
+        assert first_hint_resp.json()["intervention"]["hint_level"] == 1
+
+    # The app (and its checkpointer connection) has fully shut down here.
+
+    with TestClient(app) as client:
+        second_hint_resp = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "hint"},
+        )
+
+    assert second_hint_resp.status_code == 200
+    assert second_hint_resp.json()["intervention"]["hint_level"] == 2
+
+
+def test_hint_reflects_the_students_actual_wrong_option() -> None:
+    """ROADMAP S21 "Done when": a personalized hint addresses the mapped misconception.
+    Scripted against `MockBedrockProvider`'s own deterministic personalization branch
+    (it embeds the resolved `misconception_tag` verbatim into `hint_text`) - the
+    hand-authored `linear_equations` bank's `common_error_tags` are
+    `["sign_error", "off_by_one", "magnitude_error"]` for every template
+    (`templates/linear_equations.py`), ordinal-mapped to the three non-correct options.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        pre_items = topics_resp.json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+
+        body = None
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            answer_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"misconception-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+            body = answer_resp.json()
+
+        assert body is not None
+        body = _finalize_exam(client, headers, session_id)
+        study_items = body["items"]
+        wrong_variant_id = study_items[0]["question_variant_id"]
+        wrong_correct = _correct_options([wrong_variant_id])[wrong_variant_id]
+        wrong_option = _other_option(wrong_correct)
+        expected_tag = topic_resolver_expected_tag(wrong_correct, wrong_option)
+
+        client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "misconception-study-0"},
+            json={
+                "question_variant_id": wrong_variant_id,
+                "selected_option": wrong_option,
+                "response_time_ms": 2000,
+            },
+        )
+        respond_resp = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "hint"},
+        )
+
+    assert respond_resp.status_code == 200
+    hint_text = respond_resp.json()["intervention"]["hint_text"]
+    assert expected_tag in hint_text
+
+
+def topic_resolver_expected_tag(correct_option: str, selected_option: str) -> str:
+    """Mirrors `topic_resolver.resolve_misconception_tag`'s ordinal-rank mapping for the
+    fixed `_COMMON_ERROR_TAGS` list every hand-authored `linear_equations` template
+    shares, so this test's expectation is derived the same way the production code
+    computes it rather than hard-coded per option letter.
+    """
+    tags = ["sign_error", "off_by_one", "magnitude_error"]
+    wrong_labels = [label for label in ("a", "b", "c", "d") if label != correct_option]
+    return tags[wrong_labels.index(selected_option)]
+
+
+def test_intervention_choice_solution_content_is_verified_correct() -> None:
+    """SPEC §5.12.2 "verify calculations with tools": whatever the model (or its
+    deterministic fallback) returns as `final_answer`, it must equal the question's
+    actual correct answer - a wrong model answer is silently replaced, not surfaced.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        pre_items = topics_resp.json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+
+        body = None
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            answer_resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"sol-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+            body = answer_resp.json()
+
+        assert body is not None
+        body = _finalize_exam(client, headers, session_id)
+        study_items = body["items"]
+        study_correct = _correct_options([item["question_variant_id"] for item in study_items])
+        wrong_variant_id = study_items[0]["question_variant_id"]
+        wrong_correct = study_correct[wrong_variant_id]
+
+        wrong_resp = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "sol-study-0"},
+            json={
+                "question_variant_id": wrong_variant_id,
+                "selected_option": _other_option(wrong_correct),
+                "response_time_ms": 2000,
+            },
+        )
+        assert wrong_resp.json()["pending_interrupt"]["interrupt_type"] == "intervention_choice"
+
+        respond_resp = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "solution"},
+        )
+        assert respond_resp.status_code == 200
+        intervention = respond_resp.json()["intervention"]
+
+    correct_option_text = {
+        "a": study_items[0]["option_a"],
+        "b": study_items[0]["option_b"],
+        "c": study_items[0]["option_c"],
+        "d": study_items[0]["option_d"],
+    }[wrong_correct]
+
+    assert intervention["type"] == "solution"
+    assert intervention["steps"]
+    assert intervention["final_answer"] == correct_option_text
+
+
+def test_attendance_ask_branch_manager_end_to_end() -> None:
+    """SPEC §5.6.3-§5.6.4 + Phase 8 (§6.9) completion criterion: the email is only sent
+    after approval, and an approval record is written either way.
+    """
+    token = _student_token(STUDENT_FIRST_CHILD)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        # A fresh `FakeEmailTransport` is created by this block's own lifespan startup
+        # (main.py), so counts are absolute from here, not deltas against a stale
+        # instance left over from a previous test's now-shutdown app lifecycle.
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_FIRST_CHILD},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        assert topics_resp.json()["phase"] == "blocked"
+
+        ask_resp = client.post(
+            f"/learning/sessions/{session_id}/attendance-resolution",
+            headers=headers,
+            json={"choice": "ask_branch_manager"},
+        )
+        assert ask_resp.status_code == 200
+        pending = ask_resp.json()["pending_interrupt"]
+        assert pending["interrupt_type"] == "email_approval"
+        preview = pending["email_preview"]
+        assert preview["recipient"] == "manager.main@example.test"
+        assert "Ben First" in preview["body"]
+
+        # Only previewed so far - nothing sent.
+        assert app.state.email_transport.sent == []
+
+        respond_resp = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "email_approval", "approved": True},
+        )
+        assert respond_resp.status_code == 200
+        assert respond_resp.json()["phase"] == "blocked"
+
+    assert len(app.state.email_transport.sent) == 1
+    assert app.state.email_transport.sent[-1].recipient == "manager.main@example.test"
+
+    approvals = _interrupt_approvals(session_id)
+    assert len(approvals) == 1
+    assert approvals[0].decision == "approved"
+    assert approvals[0].interrupt_type == "email_approval"
+
+
+def test_restart_survives_pending_child_selection_interrupt() -> None:
+    """SPEC §5.16: "Parent exits during child selection" - a pending interrupt must
+    survive a process restart and still be resumable afterward, not silently lost (a
+    fresh, non-`Command` `ainvoke` - which is what `/resume` must NOT do here - would
+    otherwise discard the paused task).
+    """
+    token = _parent_token(PARENT_TWO_CHILDREN)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+
+        student_resp = client.post(
+            f"/learning/sessions/{session_id}/student", headers=headers, json={}
+        )
+        assert student_resp.status_code == 200
+        pending_before = student_resp.json()["pending_interrupt"]
+        assert pending_before["interrupt_type"] == "child_selection"
+        candidates_before = {
+            c["student_external_id"] for c in pending_before["child_candidates"]
+        }
+        assert candidates_before == {STUDENT_FIRST_CHILD, STUDENT_SECOND_CHILD}
+
+    # The app (and its checkpointer connection) has fully shut down here.
+
+    with TestClient(app) as client:
+        resume_resp = client.post(f"/learning/sessions/{session_id}/resume", headers=headers)
+        assert resume_resp.status_code == 200
+        pending_after = resume_resp.json()["pending_interrupt"]
+        assert pending_after["interrupt_type"] == "child_selection"
+        candidates_after = {c["student_external_id"] for c in pending_after["child_candidates"]}
+        assert candidates_after == candidates_before
+
+        respond_resp = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "child_selection", "student_id": STUDENT_FIRST_CHILD},
+        )
+        assert respond_resp.status_code == 200
+        assert respond_resp.json()["phase"] == "student_selected"

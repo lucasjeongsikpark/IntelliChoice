@@ -1,0 +1,51 @@
+{
+  "events": [
+    {
+      "id": 9154,
+      "url": "https://www.intellichoice.org/event/scholarship-banquet/",
+      "title": "Scholarship Banquet",
+      "description": "",
+      "slug": "scholarship-banquet",
+      "start_date": "2023-12-10 17:00:00",
+      "end_date": "2023-12-10 20:00:00",
+      "timezone": "UTC+0",
+      "timezone_abbr": "UTC+0",
+      "website": "",
+      "venue": [],
+      "organizer": []
+    },
+    {
+      "id": 9080,
+      "url": "https://www.intellichoice.org/event/ut-dallas-branch-opens/",
+      "title": "UT Dallas Branch Opens",
+      "description": "Come celebrate the opening of our newest branch.",
+      "slug": "ut-dallas-branch-opens",
+      "start_date": "2023-09-16 10:00:00",
+      "end_date": "2023-09-16 12:00:00",
+      "timezone": "UTC+0",
+      "timezone_abbr": "UTC+0",
+      "website": "https://www.intellichoice.org/rsvp/",
+      "venue": [
+        {
+          "venue": "University of Texas at Dallas",
+          "address": "800 W Campbell Rd., ECSS 2.201"
+        }
+      ],
+      "organizer": []
+    },
+    {
+      "id": 8181,
+      "url": "https://www.intellichoice.org/event/no-class-on-thanksgiving-break/",
+      "title": "Thanksgiving Break (No Classes)",
+      "description": "",
+      "slug": "no-class-on-thanksgiving-break",
+      "start_date": "2021-11-27 08:00:00",
+      "end_date": "2021-12-05 17:00:00",
+      "timezone": "UTC+0",
+      "timezone_abbr": "UTC+0",
+      "website": "",
+      "venue": [],
+      "organizer": []
+    }
+  ]
+}

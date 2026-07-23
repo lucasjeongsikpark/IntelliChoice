@@ -1,0 +1,28 @@
+# Internal curriculum taxonomy — skill prerequisite edges.
+# Reference: docs/SPEC.md §5.7, §5.8.4 (prerequisite count feeds difficulty
+# assignment), §5.11 (intervention routing to an easier prerequisite problem, S10).
+#
+# This is content only in S4 — there is no Postgres table for prerequisites yet
+# (see DECISIONS.md). Consumers read this file directly through
+# intellichoice_curriculum.content.load_curriculum().
+prerequisites:
+  - skill_id: linear_two_step
+    prerequisite_skill_id: linear_one_step
+
+  - skill_id: linear_neg_frac_coeff
+    prerequisite_skill_id: linear_two_step
+
+  - skill_id: linear_both_sides
+    prerequisite_skill_id: linear_neg_frac_coeff
+
+  - skill_id: linear_distribute
+    prerequisite_skill_id: linear_both_sides
+
+  - skill_id: fraction_add_sub_unlike
+    prerequisite_skill_id: fraction_add_sub_like
+
+  - skill_id: fraction_mul_div
+    prerequisite_skill_id: fraction_add_sub_unlike
+
+  - skill_id: place_value_compare
+    prerequisite_skill_id: place_value_identify

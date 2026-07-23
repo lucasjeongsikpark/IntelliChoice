@@ -1,0 +1,23 @@
+[project]
+name = "intellichoice-evals"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "intellichoice-shared",
+    "intellichoice-adapters",
+    "intellichoice-curriculum",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/intellichoice_evals"]
+
+[tool.uv.sources]
+intellichoice-shared = { workspace = true }
+intellichoice-adapters = { workspace = true }
+intellichoice-curriculum = { workspace = true }

@@ -1,0 +1,2744 @@
+# Decision Log
+
+Lightweight ADRs. One entry per decision that a future session (or future you) might
+otherwise re-litigate. Status: proposed | accepted | superseded.
+
+---
+
+## D-001 — Slim CLAUDE.md, full spec in docs/SPEC.md (accepted, 2026-07-13)
+The original 81KB CLAUDE.md was loaded into every Claude session (~20K tokens of context
+before any work starts). CLAUDE.md now holds only working rules and pointers; the complete
+spec lives verbatim in docs/SPEC.md and sessions read only the sections they need.
+**Revert:** `cp docs/SPEC.md CLAUDE.md`.
+
+## D-002 — Local fakes behind interfaces for all external dependencies (accepted, 2026-07-13)
+`go.intellichoice.org` auth, production MongoDB, AWS (Bedrock, S3, SQS, EventBridge), and
+Google APIs do not exist yet for this project. Every one is consumed through an interface
+(`TokenVerifier`, `ProfileAdapter`, `BedrockGateway`, MCP tool transports, `BlobStore`,
+scheduler) with a dev fake as the default and the real client selected by env config.
+**Why:** the entire product core (M1–M4) becomes buildable and testable offline; swapping in
+real services later is configuration, not rework. This mirrors the spec's own gateway/adapter
+design (§5.25.1, §5.4).
+
+## D-003 — Hand-authored seed question bank before the LLM pipeline (accepted, 2026-07-13)
+Session 4 ships ~50 hand-authored validated templates for one topic so the deterministic
+learning slice (S5–S6) isn't blocked on the multi-agent generation pipeline (S9). The spec's
+"100 templates per topic" volume target is met later by the pipeline. All templates,
+hand-authored or generated, pass the same §5.8.5 validation suite.
+
+## D-004 — Defer EKS/multi-account AWS; launch on a simpler footprint (accepted, decided at S32 2026-07-22, proposed 2026-07-13)
+Spec §5.33 prescribes AWS Organizations (3 accounts), EKS across 3 AZs, Karpenter, and Aurora.
+For a solo maintainer at ~1,000 MAU / 100 concurrent sessions, that is a heavy operational
+burden (cluster upgrades, node management, Helm, IRSA) with little payoff at this scale.
+**Recommendation:** launch on ECS Fargate (or equivalent managed containers) + RDS Postgres
+with pgvector + managed Mongo (Atlas), keeping the spec's non-negotiables: env separation
+(can be VPC/prefix-level before account-level), secrets in Secrets Manager, TLS, WAF, IaC via
+Terraform, no PII replication. Containers make EKS a later migration path if scale demands it.
+**Decide at Session 21.** Everything before then is deployment-agnostic.
+
+**Correction (2026-07-22, see D-082/D-083):** the "managed Mongo (Atlas)" clause above is stale
+on two axes and should not be acted on as written when S32 decides this. First, the real
+`go.intellichoice.org` system runs MySQL, not MongoDB. Second, and more importantly regardless of
+engine: `go.intellichoice.org` is **pre-existing external infrastructure IntelliChoice doesn't own
+or provision** — this project's own deployment needs network reachability and read credentials to
+that existing system, not a managed database instance standing in for it. Only the
+"ECS Fargate + RDS Postgres/pgvector" half of this recommendation is IntelliChoice's own
+deployment surface.
+
+**Decided (2026-07-22, S32 — see D-084 for the full design, real bugs found, and live
+verification):** the corrected recommendation above is confirmed as-is — ECS Fargate + RDS
+PostgreSQL w/ pgvector + RDS MySQL (IntelliChoice's own seeded fixture DB standing in for
+`go.intellichoice.org`'s shape, not a managed instance of the real external system). A real
+staging environment is now live on this footprint.
+
+## D-005 — Use `httpx2` for FastAPI `TestClient` in tests (accepted, 2026-07-14)
+`fastapi.testclient.TestClient` on the installed `starlette` 1.3.1 emits a `StarletteDeprecationWarning`
+when the classic `httpx` package is present, and expects `httpx2` instead. The dev dependency group
+uses `httpx2`, not `httpx`. **Do not swap back to `httpx`** — it will reintroduce the deprecation
+warning under this starlette version.
+
+## D-006 — Dev JWT secret is a hardcoded module constant, not a settings field (accepted, 2026-07-15)
+`FakeTokenIssuer`/`JwtTokenVerifier` (`packages/adapters/src/intellichoice_adapters/fake_auth.py`)
+default to a hardcoded HS256 secret rather than reading one from `Settings`/`.env`. This mirrors
+the existing `database_url`/`mongo_url` hardcoded-default pattern in `config.py` and avoids
+touching `.env.example` (edits to any `.env*` file are blocked by global instructions regardless).
+**Why it's safe:** this issuer only ever signs tokens in dev/tests; the real system is
+`go.intellichoice.org`, which this code is replaced by wholesale, not configured against, at
+launch. **Revisit:** never for this fake issuer; a real token verifier (verifying the existing
+system's signing keys/JWKS) gets its own settings-driven config when it's built, unrelated to this
+constant.
+
+## D-007 — Async DB adapters are constructed once via FastAPI `lifespan`, not `lru_cache` (accepted, 2026-07-15)
+`MongoProfileAdapter` is created in `learning_api.main`'s `lifespan` and stored on `app.state`,
+read back via a plain dependency (`get_profile_adapter`) — not built lazily behind `@lru_cache`
+the way the sync `JwtTokenVerifier` is. **Why:** `motor`'s `AsyncIOMotorClient` binds to whatever
+asyncio event loop is running when it first performs I/O; constructing it outside a stable,
+long-lived loop (e.g. via `lru_cache` at import time or on a stray first request) risks
+"attached to a different loop" errors once more than one event loop is ever in play (e.g. under
+certain test runners or worker restarts). Lifespan guarantees one client bound to the one loop the
+app runs on for its whole life. **How to apply:** any future async client (Postgres engine in S3,
+Bedrock gateway in S8, etc.) should follow the same lifespan + `app.state` pattern, not module-level
+`lru_cache`.
+
+## D-008 — Mongo-dependent tests self-skip when Mongo is unreachable (accepted, 2026-07-15)
+`packages/adapters/tests/test_mongo_profile_adapter.py` and
+`apps/learning-api/tests/test_auth_and_attendance.py` probe Mongo with a short-timeout ping and
+apply `pytest.mark.skipif` with a clear reason (`run make up`) rather than failing hard when
+Docker isn't running. **Why:** keeps `make test` meaningful and fast in any environment (CI or a
+laptop without Docker Desktop open) instead of forcing Postgres/Mongo containers to always be up
+just to run the suite. **How to apply:** any future integration test against the Compose Postgres
+or Mongo should copy this skip-if-unreachable probe rather than assuming the containers are
+running; the healthz/lint/typecheck-only checks stay dependency-free.
+
+## D-009 — New `packages/db` workspace member owns all Postgres models/migrations/repositories (accepted, 2026-07-15)
+SQLAlchemy models, the async Alembic environment, and the SPEC §5.26.1 repository layer live in
+a new `packages/db` (`intellichoice_db`) workspace member, not inside `apps/learning-api` or
+`packages/adapters`. **Why:** the Postgres domain schema (assessments, mastery, RAG chunks, etc.)
+is shared by both apps and by offline pipelines (S9 generation, S17 consolidation worker) that
+aren't FastAPI routes at all; keeping it a standalone package avoids a circular/awkward dependency
+from `chat-api` or a worker script back onto `learning-api`. **How to apply:** any new Postgres
+table, migration, or repository method goes in `packages/db`; apps depend on it, not the reverse.
+
+## D-010 — Alembic migrations use the async template with a hardcoded dev DB URL (accepted, 2026-07-15)
+`packages/db/alembic/env.py` was generated via `alembic init -t async` and hardcodes
+`DEFAULT_DATABASE_URL` from `intellichoice_db.engine` (same value as
+`learning_api.config.Settings.database_url`) rather than reading `.env`. **Why:** mirrors D-006's
+rationale — this is dev-only scaffolding, and editing any `.env*` file is blocked regardless.
+`packages/db/alembic/versions/` is excluded from ruff (`extend-exclude` in root `pyproject.toml`)
+since Alembic autogenerates one very long line per column; that's normal for generated migrations,
+not something to hand-format. **Revisit:** when real settings-driven Postgres config exists for
+the apps, wire `env.py` to read the same source instead of its own constant.
+
+## D-011 — PII schema-purity test uses an exact-match column-name denylist, not a substring match (accepted, 2026-07-15)
+`packages/db/tests/test_schema_purity.py` checks every mapped column's name against a fixed set
+(`email`, `display_name`, `first_name`, ...) with `==`, not `in`/substring. **Why:** curriculum
+content columns like `Topic.name` / `Skill.name` hold lesson names ("Fractions"), not people's
+names — a substring match on `"name"` would false-positive on those and everything like
+`chunk_text`/`rendered_question`. The denylist targets columns that would actually carry a
+person's identifying data if someone added one by mistake. **How to apply:** any new model with a
+column that could carry PII must not use any of the denylisted exact names; if a legitimately
+non-PII field would collide with the list (unlikely), rename the field rather than loosening the
+test.
+
+## D-012 — Assessment/mastery/RAG-document schema fills gaps not covered by exact SPEC fields (accepted, 2026-07-15)
+SPEC gives exact field lists for question templates/variants (§5.8.2), episodic/semantic memory
+(§5.15.2–5.15.3), chunking (§5.21.2), assessment sessions/attempts (§5.9.2–5.9.3), blocked
+sessions (§5.6.5), base study plans (§5.11.1), learning-gain metrics (§5.13.3), and document
+versioning (§5.20.4) — all implemented verbatim. It does **not** give exact schemas for
+`study_attempts` (hint/video/retry columns), `mastery` (bootstrap columns beyond the weighted-score
+formula), or `rag_documents` (top-level document row, only the versioning fields). Those were
+designed from context (PROGRESS.md carry-over notes, surrounding SPEC prose) rather than an exact
+spec table. **How to apply:** S5 (study/attempt flow), S10 (adaptive mastery), and S12/S13 (RAG
+ingestion) may need a follow-up Alembic migration if the columns designed here don't fit — that's
+expected and fine, not a sign S3 was done wrong. Also: `learning_events.question_id` (SPEC's name)
+is stored as `question_variant_id`, a real FK to `question_variants`, since that's the only
+question-level identifier that exists at this layer.
+
+## D-014 — New `packages/curriculum` workspace member owns template generation, validation, and the taxonomy/question loader (accepted, 2026-07-15)
+Alongside `packages/db` (models/migrations/repositories, D-009), a separate `packages/curriculum`
+(`intellichoice_curriculum`) owns everything that's pure logic rather than persistence: the YAML
+curriculum-taxonomy loader (`content.py`), the hand-authored template "shape" registry
+(`templates/registry.py`), deterministic seeded variant generation (`generation.py`), the SPEC
+§5.8.5 validation suite (`validation.py`), and the Postgres loader script (`loader.py`). **Why:**
+this logic is reused by the S9 AI-generation pipeline and any future offline tooling, not just the
+S4 loader; keeping it out of `packages/db` keeps that package scoped to schema/persistence per
+D-009's own rationale. **How to apply:** new topics' template banks go in
+`templates/<topic_id>.py`; new equation/problem "shapes" register into `templates/registry.py`
+rather than writing ad-hoc solve/render code inline in a template module.
+
+## D-015 — Template `solution_function`/`correct_option_generator`/`distractor_generators` are string keys into a Python registry, never executed code (accepted, 2026-07-15)
+Each hand-authored linear_equations template stores these SPEC §5.8.2 fields as plain strings
+(e.g. `solution_function="two_step"`); `intellichoice_curriculum.generation.generate_variant`
+resolves them through `templates/registry.py`'s `SHAPES`/`CORRECT_OPTION_GENERATORS`/
+`DISTRACTOR_GENERATORS` dicts. **Why:** the DB schema locks these fields as `String`/`JSON`, not
+executable code — resolving them through a fixed registry means a bad/malicious string can never
+be `eval`'d, and the S9 AI-generation pipeline can only ever select from the same reviewed set of
+solvers, not synthesize new ones at runtime. **How to apply:** any new "shape" (equation form) is a
+new registered entry with a `sample_parameters`/`render`/`solve` triple; parameters are always
+derived from a chosen integer answer during sampling (not solved after the fact), so every
+generated variant is guaranteed an exact-integer solution without post-hoc rejection sampling.
+
+## D-016 — Curriculum topics/skills/templates get deterministic natural-key IDs so `loader.py` is idempotent (accepted, 2026-07-15)
+`Topic`/`Skill` primary keys are set explicitly to the YAML `topic_id`/`skill_id` strings (e.g.
+`"linear_equations"`) instead of the model's default random-UUID factory; each template gets a
+constructed id `f"{topic_id}-d{difficulty_label}-{index:02d}"`. `loader.py` checks
+`get_topic`/`get_skill`/`get_template` before inserting and skips anything already present.
+**Why:** matches the Mongo seed fixtures' upsert-by-natural-key idempotency (D-002), and lets
+`make curriculum-load` be re-run safely (e.g. after a template bank grows) without duplicating
+rows. **Consequence:** repository/loader tests that assert on `topics_created`/`skills_created`/
+`templates_created` counts are environment-dependent once real data has been loaded into a dev DB
+via `make curriculum-load` — `packages/curriculum/tests/test_loader.py` asserts final queryable
+state (topic exists, 10 active templates per difficulty) rather than delta counts for this reason,
+and its validation-rejection test uses a synthetic topic_id that can never already exist. **How to
+apply:** any test of idempotent natural-key loading should follow the same pattern — assert
+converged state, not creation counts, unless the test controls the entire DB content itself.
+
+## D-017 — Bootstrap weak-skill threshold is `weighted_score < 0.7`; `MasteryRepository.upsert_mastery` now updates in place (accepted, 2026-07-15)
+S5's mastery bootstrap (`apps/learning-api/src/learning_api/services/mastery_bootstrap.py`)
+needs a cutoff to decide which skills are "weak" for study-plan selection (§5.11.2 rule 1)
+and which are "unresolved" after the post-exam (§5.13.3) - SPEC §5.10.3 lists the inputs but
+gives no formula. `weighted_score < 0.7` is a placeholder constant, **superseded once S10's
+enterprise (IRT/Bayesian) mastery model lands** - not a value to defend or re-derive later.
+While wiring this up, `MasteryRepository.upsert_mastery` (added S3, first real caller in S5)
+turned out to only ever insert a new row, never update an existing `(student, skill)` row in
+place, despite the name - harmless when called once per test, but S5 recomputes mastery
+repeatedly (once after the pre-exam, then again after every study attempt), which would have
+silently accumulated duplicate `mastery` rows per skill. It now does a real find-or-update.
+**Gotcha for future callers:** the transient `Mastery` object passed in only has its
+mapped-column *Python-side* defaults (e.g. `model_version`) resolved at *insert* time, not at
+construction - `upsert_mastery` only overwrites `model_version` on the existing row when the
+passed-in value is not `None`, to avoid nulling a NOT NULL column on the update path.
+
+## D-018 — Full-flow HTTP integration tests must use a fixture student id that isn't already hardcoded elsewhere (accepted, 2026-07-15)
+`apps/learning-api/tests/test_learning_flow.py` drives the real `TestClient` + live dev
+Postgres/Mongo end-to-end (no `rollback_session` - each HTTP request commits via
+`get_db_session`, same as production). This is unlike every `packages/db/tests/
+test_repositories.py` round-trip test, which rolls back after each test and so never leaves
+real data behind. The first version of this test used `STUDENT_ONLY_CHILD` ("student-ext-1"),
+which collided with `test_repositories.py`'s own hardcoded `"student-ext-1"` fixture id -
+`get_student_assessment_summary("student-ext-1")` and `get_weak_skills("student-ext-1", ...)`
+started returning extra real rows left behind by the flow test, breaking count-based
+assertions on a completely unrelated test file. Switched to `STUDENT_UNLINKED`
+("student-ext-4"), not used anywhere in `packages/db/tests/`. **How to apply:** any future
+test that exercises the API through real HTTP requests (not `rollback_session`) must pick a
+Mongo fixture student id not already referenced in `packages/db/tests/test_repositories.py`
+(or grep first) - it will leave real committed rows in the shared dev Postgres.
+
+## D-028 — S10 study phase: serve-one-at-a-time + per-skill retry ladder replaces the fixed 5-item batch (accepted, 2026-07-16)
+S5's study phase served a fixed 5-`StudyItem` batch, one attempt each, completing when
+`len(attempts) >= len(items)`. SPEC §5.11.7's retry ladder (same-skill retries -> easier
+prerequisite problem -> tutor-review flag) and "additional remediation questions tracked
+separately" (§5.11.1) are structurally incompatible with that, so S10 reworks it:
+`flow.py` now serves **one question at a time** (`_submit_pre_exam_answer` returns only the
+first study item; each study answer serves the next), and `StudyItem` gains
+`target_skill_id`/`skill_id`/`difficulty`/`is_remediation` (one Alembic migration,
+round-tripped, `server_default` on the new NOT NULL columns so it applies to a DB that
+already holds study rows). `advance_study` is the single function that labels the last
+attempt, recomputes mastery, and decides the next move; `MAX_ATTEMPTS_PER_SKILL = 4` (base +
+2 same-skill retries + 1 prerequisite problem). **Study completion is now "every base target
+skill reached a terminal outcome"** (correct at any attempt, or the ladder exhausted ->
+`unresolved` + `tutor_review_flagged`), not a fixed count. The base 5 questions are
+`is_remediation=False`; every retry/prerequisite question is `is_remediation=True`. **Bug
+found + fixed in-flight:** `_route_after_submit_answer` routed *any* `phase=="study" &&
+last_is_correct is False` into `intervention_choice`, but an incorrect *final pre-exam*
+answer transitions to "study" with `last_is_correct` still False and **no** study attempt -
+so it now also requires `last_study_attempt_id is not None` (set only by a study submission).
+Pre-S10 tests missed this because they always answered the last pre-exam item correctly;
+`test_wrong_final_pre_exam_answer_enters_study_without_spurious_interrupt` is the regression.
+**How to apply:** the current pending study question is the `StudyItem` lacking a matching
+`StudyAttempt`; anything reading "the study plan" must not assume exactly 5 items.
+
+## D-029 — Only `independent_correct` counts toward bootstrap mastery; outcome labels are finalized in `advance_study` (accepted, 2026-07-16)
+SPEC §5.11.5 explicitly excludes `correct_after_solution` from independent mastery; S10
+extends that to **every** assisted or unresolved study outcome - only `independent_correct`
+contributes a "correct" to bootstrap mastery (`mastery_bootstrap._study_counts_as_correct`),
+since "independent" is the operative word (§5.10.3). Assessment attempts (no label, no
+hint/solution mechanism) still count their raw `is_correct`. The six §5.11.7 labels (plus an
+interim `incorrect` for a wrong answer whose skill line is still open) live in
+`study_outcomes.py` as pure functions; precedence for a correct answer is most-revealing-
+first (solution > video > hint over the line's support history). `_record_study_attempt`
+writes only the raw attempt; **labeling + mastery recompute happen in `advance_study`**, after
+the hint/solution/video choice is known - so an assisted correct is labeled and excluded in
+one place. `learning_gain.support_dependency` derives §5.13.3's independent/hint/solution
+rates from these labels (one resolving attempt per skill line), replacing S8's
+post-accuracy/0.0/0.0 placeholder; `correct_after_video` folds into `hint_dependency` (a
+nudge short of the full solution), since §5.13.3 lists no separate video-dependency metric.
+
+## D-030 — Difficulty routing is constrained by the 1:1 skill<->difficulty curriculum; the concrete ±1 move is prerequisite remediation, which retires part of the rule-6 carry-over (accepted, 2026-07-16)
+`linear_equations`' 5 skills map 1:1 to difficulties 1-5, and each skill's templates all sit
+at that one tier, so "difficulty routing (±1)" (§5.11.2 rules 2-3) can't select a *different*
+difficulty for the *same* skill. S10 therefore: (a) computes/stores `Mastery.
+recommended_difficulty` deterministically from accuracy (step up ≥0.8, hold ≥0.5, else down;
+clamped 1-5) for observability and the future enterprise model, but serves each base study
+question at its skill's own tier; (b) makes the real, testable ±1 move the ladder's 3rd step,
+which serves the skill's **prerequisite** (difficulty −1) via `curriculum.prerequisite_for`
+read in-process from `prerequisites.yaml` - **no Postgres prerequisites table needed**, which
+retires the "rule 6 skipped because no table" half of the standing carry-over for the *retry*
+path (the study-plan *selector* still doesn't gate on prerequisites). If a skill has no
+prerequisite (e.g. `linear_one_step`) or the prerequisite has no approved templates, the
+ladder falls back to another same-skill retry. **Consequence:** genuine within-skill
+difficulty routing needs multi-difficulty-per-skill template banks (future content work),
+tracked as carry-over.
+
+## D-031 — S10 video option uses a hardcoded deterministic stub catalog; real catalog + semantic search is S14/S15 (accepted, 2026-07-16)
+`video_catalog.search_video` (§5.11.6) is a small hardcoded `skill -> approved Khan Academy
+video` map with **no network call** - it stands in for the real catalog table + embeddings +
+YouTube sync worker that Session 14/15 build. Its signature (`skill_id`, optional
+`difficulty`) matches the metadata-filter -> semantic-search shape S14 will implement behind
+it, so swapping in the real catalog is an implementation change, not a caller change. Not
+every skill has an entry (e.g. `linear_distribute` and any prerequisite/other-topic skill
+don't), so the exact §5.11.6 catalog-unavailable fallback message is a live path. The
+intervention response (`InterventionContentResponse`) gained `video_title`/`video_url`/
+`video_source` for the found case. **How to apply:** S14/S15 replaces the `_STUB_CATALOG`
+dict + lookup body with a real query; the response shape and the intervention wiring stay.
+
+## D-013 — Repository round-trip tests share one Postgres DB via per-test rollback transactions (accepted, 2026-07-15)
+`packages/db/tests/conftest.py` provides `rollback_session()`, an async context manager that opens
+one connection, begins a transaction, hands a session bound to it to the test, and always rolls
+back afterward — rather than creating a separate `intellichoice_test` database the way
+`MongoProfileAdapter` tests use a separate `TEST_DATABASE` name. **Why:** Postgres schema requires
+migrations to be applied (`make db-upgrade`) before tests can run at all; maintaining a second
+fully-migrated test database in sync would be more moving parts than a per-test rollback, which
+guarantees no cross-test pollution regardless of run order or table count. **How to apply:** any
+new repository test imports `rollback_session` from this conftest rather than inventing another
+isolation strategy; the reachability/schema check (`postgres_skip_reason`) gives a distinct skip
+message for "Postgres down" vs. "migrations not applied," mirroring D-008's style for Mongo.
+
+## D-019 — LangGraph `ainvoke` calls pass a narrow `EntryInput`, never a full `LearningState` (accepted, 2026-07-15)
+`apps/learning-api/src/learning_api/graph/build.py` compiles the S6 `StateGraph` with
+`input_schema=EntryInput` (just `session_id` + `entry_action`), and every router call
+(`routers/sessions.py`) constructs an `EntryInput`, never a full `LearningState`. **Why:**
+LangGraph's per-turn merge is "last write wins" per state *channel* (field), driven by
+which keys are present in the `ainvoke` input/node-return dict - fields absent from that
+dict keep their prior checkpointed value. A first draft passed a fully materialized
+`LearningState(session_id=..., entry_action=...)` object (to satisfy pyright's overload
+resolution) instead of a dict/partial input; since every field of a Pydantic model
+instance is "present" (unset fields still carry their schema default), this made every
+`ainvoke` call silently reset `phase` and every other field back to its default each
+turn, discarding the previous turn's progress. This only reproduced when a full
+`make test` run happened to construct a second `TestClient(app)` lifespan cycle *and* a
+node body used `state.phase` in a way that exposed the reset - the failure did not
+appear in an isolated single-file test run, which delayed diagnosis. **How to apply:**
+any new graph entry point or caller must build the narrowest possible `input_schema`
+instance (or a plain dict) for `ainvoke`, containing only the fields that turn actually
+sets; never pass a full state-schema instance as graph input.
+
+## D-020 — `interrupt()` payloads are external-id-only; human-readable previews are built at the API layer from a live Mongo lookup (accepted, 2026-07-15)
+S7 adds three real `interrupt()` pauses (child selection, attendance-email approval,
+hint/solution/video choice) via `AsyncPostgresSaver`, which means whatever value is
+passed to `interrupt()` gets serialized into Postgres checkpoint tables. That would
+violate the "no PII in Postgres" rule (SPEC §5.30, CLAUDE.md non-negotiable #1) if a
+payload ever carried a student's display name, a parent's name, or a branch manager's
+email. Every `interrupt()` call in `apps/learning-api/src/learning_api/graph/nodes.py`
+(`await_child_selection`, `resolve_attendance`, `intervention_choice`) therefore carries
+only external ids (`candidate_children`, `student_external_id`, `week_id`,
+`question_variant_id`) - never anything read from `ProfileAdapter`/Mongo beyond an id.
+`routers/sessions.py`'s `_pending_interrupt_response` enriches that payload into a
+human-readable preview (child display names/grades/branches, the actual email
+recipient/subject/body) via a fresh `ProfileAdapter` call on *every* request that
+surfaces the pending interrupt (`/student`, `/attendance-resolution`, `/answers`,
+`/respond`, `/resume`) - never cached in `LearningState`. The email draft itself
+(`attendance.build_attendance_email_draft`) is likewise rebuilt fresh at send time, not
+carried through the interrupt payload. **How to apply:** any future `interrupt()` call
+follows the same rule - ids only in the payload; enrich at the API boundary, per request,
+from Mongo.
+
+## D-021 — Two LangGraph `interrupt()`/`Command(resume=...)` replay gotchas, both worth remembering before adding another paused node (accepted, 2026-07-15)
+While wiring S7's three interrupts, two non-obvious LangGraph behaviors caused real bugs
+that only reproduced through the live-DB HTTP tests, not the fast graph-unit tests:
+
+1. **A resumed node replays its entire body from the top** - only the specific
+   `interrupt()` call returns the cached resume value instead of pausing again; every
+   line *before* it (reads, branching on `runtime.context`) re-executes with whatever
+   fresh `TurnContext` the resuming caller supplies. `resolve_attendance` branches on
+   `ctx.attendance_choice` before its `interrupt()` call, so `routers/sessions.py`'s
+   `/respond` handler must reconstruct that field (`"ask_branch_manager"`, inferred from
+   `body.interrupt_type == "email_approval"`, since that's the only path that ever
+   pauses) on the resume call, not just the original one - it was initially omitted and
+   failed replay with an `AssertionError`, not a hang. **How to apply:** any node that
+   branches on `ctx.*` before calling `interrupt()` needs its resume-call context to
+   supply the same fields, not just fields used *after* the pause. Prefer designing new
+   paused nodes so nothing before `interrupt()` depends on per-turn `ctx` fields at all
+   (`await_child_selection`, `intervention_choice` both do this) - only `resolve_attendance`
+   couldn't, since the choice of whether to pause at all is exactly what's being decided.
+2. **A fresh (non-`Command`) `ainvoke` on a thread with an unresolved paused task
+   silently discards that task** instead of erroring or queuing - `snapshot.tasks`
+   becomes empty and the graph just starts a new turn from `START`. This meant a client
+   could accidentally abandon an `intervention_choice` pause by calling `/answers` again
+   for the next question, with no error and no obvious signal that the hint/solution/video
+   choice was lost. Fixed by `_get_state_values` (used by `/topics`, `/attendance-
+   resolution`, `/answers`) rejecting with 409 whenever `aget_state()` shows a pending
+   task, forcing `/respond` first. The same discard risk applies to `/resume`: it must
+   read `snapshot.tasks` and re-serve a pending interrupt directly from the checkpoint
+   rather than ever calling `ainvoke` with a fresh `EntryInput` while one is pending.
+   **How to apply:** any endpoint that might be called while a turn is paused needs the
+   same guard - check `aget_state()` for a pending task before invoking with a non-
+   `Command` input.
+
+A related identity issue: `resolve_student`'s multi-child branch originally called
+`interrupt()` inline, before returning anything - meaning `user_external_id` never
+committed to checkpointed state for a still-paused session, so `/resume`'s auth check
+(`claims.sub == state.get("user_external_id")`) had nothing to compare against and
+always 403'd. Fixed by splitting that branch into `resolve_student` (commits
+`user_external_id`/`parent_external_id`, routes to `await_child_selection` only when
+disambiguation is needed) and `await_child_selection` (does only the `interrupt()`,
+re-validates the choice against a *fresh* `get_parent_children(ctx.claims.sub)` lookup
+- not the checkpointed candidate list, so a stale replay can't approve a since-revoked
+link). **How to apply:** any node whose pause needs to be authenticated by a later,
+separate request (not just resumed by the same caller in the same breath) must commit
+whatever identity that authentication depends on *before* the pause, in its own
+node/superstep - never inline in the same node body as the `interrupt()` call.
+
+## D-022 — `BedrockGateway` implements only `generate_structured`; the other 5 SPEC §5.25.1 methods are added when their first caller lands (accepted, 2026-07-16)
+SPEC §5.25.1's `BedrockGateway` interface lists six methods (`generate_structured`,
+`generate_stream`, `classify`, `create_embedding`, `analyze_image`, `judge`). S8 only
+has a real caller for `generate_structured` (the Hint/Solution generators) - the other
+five have no caller until S11 (SSE streaming), S9/S13 (classification/intent), S12
+(RAG embeddings), S18 (VLM image analysis), and S19 (LLM-judge eval) respectively.
+**Why:** matches this project's existing "don't stub ahead of time" convention (see
+`LearningState`'s own docstring, and PROGRESS.md's S6 log) - an unused method signature
+with no real implementation behind it is dead surface that would need to be redesigned
+once its actual caller's needs are known anyway. **How to apply:** each future session
+that needs one of the other five methods adds it to the `BedrockGateway` Protocol
+(`packages/shared/src/intellichoice_shared/bedrock.py`) and to
+`ResilientBedrockGateway` (`packages/adapters/.../bedrock/gateway.py`) at that point,
+not before.
+
+## D-023 — Bedrock wire payload is restricted to SPEC §5.30.1's exact field list, not the broader §5.11.4 TutorContext; `SolutionResponse` is a list of `SolutionStep` (accepted, 2026-07-16)
+SPEC §5.11.4's `TutorContext` (grade, estimated_level, topic, skill, question,
+selected_wrong_answer, common_error_tag, previous_hints) is broader than §5.30.1's
+"send to Bedrock" list (grade, current_topic, skill, estimated_level, question,
+selected_answer, relevant_learning_fact) - `common_error_tag`/`previous_hints` aren't in
+the latter. `BedrockTutorPayload` (`packages/shared/.../bedrock.py`) implements the
+stricter §5.30.1 list verbatim, with `extra="forbid"`, as the *only* type
+`BedrockGateway.generate_structured` accepts - `TutorContext` is a local domain object
+used to build that payload and to render deterministic fallback content
+(`learning_api/services/tutor.py`), but its two extra fields never cross the gateway
+boundary. **Why:** SPEC's non-negotiable PII-floor language ("send to Bedrock: ...")
+reads as an exhaustive allowlist, not a minimum - and CLAUDE.md's non-negotiable rule
+#1 ("no PII in ... LLM payloads") plus ROADMAP's own S8 completion criterion ("PII
+floor ... enforced by a request-model test") point at the stricter reading being the
+one that's actually tested. **Consequence:** hint/solution generation can't yet
+reference "you already got a hint that said X" or a known common-error tag in the
+prompt sent to the model - only in locally-selected fallback content. Revisit if a
+later session's prompt-quality work finds this materially hurts hint quality, but
+extending the wire payload's allowed fields is a spec-level decision, not a local
+one. Separately: SPEC gives §5.11.5 `SolutionResponse` as a single step's field list
+with no explicit repetition marker for a multi-step solution - modeled here as
+`SolutionResponse.steps: list[SolutionStep]` (a new `SolutionStep` model holding
+`step_number`/`explanation`/`expression`/`common_mistake`) plus a top-level
+`final_answer`, since a real step-by-step solution needs an ordered sequence and
+exactly one overall answer. **How to apply:** any future Bedrock task's wire payload
+should default to the narrowest documented field list for that task, not the richest
+domain context object available, unless a spec section explicitly says otherwise.
+
+## D-024 — `topic_resolver.py` is a deterministic (non-LLM) `TutorContext` builder, not SPEC §5.25.2's "Topic mapping" model (accepted, 2026-07-16)
+ROADMAP's S8 build list names "Topic Resolver" as a component, but nothing in this
+session's endpoints accepts free text - the topic/skill are already known from graph
+state (`question_variant_id`) by the time `intervention_choice` needs them.
+`learning_api/services/topic_resolver.py` therefore does a plain DB lookup (question
+variant -> template -> topic/skill/mastery), never an LLM call, satisfying the named
+build item without building unused LLM-classifier code with no caller. **Why:** matches
+D-022's "don't stub ahead of time" rationale. **How to apply:** an LLM-based free-text
+topic/skill resolver (SPEC §5.25.2's actual "Topic mapping" row) gets added when a
+free-text endpoint first needs one - most likely S13's Intent Router - as a new function
+in this module or a new one, not a retrofit of this deterministic one.
+
+## D-025 — Real-Bedrock provider uses `anthropic`'s `AnthropicBedrockMantle` client with a forced single-tool call, not raw `boto3` `invoke_model`/`converse` (accepted, 2026-07-16)
+`AnthropicBedrockProvider` (`packages/adapters/.../bedrock/bedrock_runtime_provider.py`)
+constructs `anthropic.AnthropicBedrockMantle(aws_region=...)` and calls
+`.messages.create(..., tools=[<schema-as-tool>], tool_choice={"type": "tool", ...})` -
+the same Messages-API structured-output pattern as the first-party client, wrapped in
+`asyncio.to_thread` since the SDK's Bedrock client is sync. Bedrock model ids take an
+`anthropic.` prefix (e.g. `anthropic.claude-sonnet-5`), applied in
+`learning_api.config`'s default, not by this provider. **Why:** this is the officially
+documented, actively maintained path (vs. hand-rolling the legacy `invoke_model`/
+`Converse` request/response shapes for structured JSON output) and keeps the real and
+future first-party providers structurally similar. Pyright's bundled `anthropic` stubs
+don't yet mark `AnthropicBedrockMantle` as a public export despite it being the
+documented top-level import - the import carries a scoped
+`pyright: ignore[reportPrivateImportUsage]` rather than reaching for the private
+`anthropic.lib.bedrock._mantle` path pyright suggests. **Untested by design:** no real
+AWS credentials exist for this project yet (mirrors D-006's real-auth-verifier gap), so
+this provider is exercised by neither `make test` nor the manual verification pass -
+only `MockBedrockProvider` is. **How to apply:** when real Bedrock credentials exist
+(SPEC §5.35), smoke-test this provider directly before relying on `LEARNING_BEDROCK_
+PROVIDER=bedrock` in any shared environment.
+
+## D-026 — S9 pipeline: generalized gateway payload, shape-key allowlist, and pending-not-approved lifecycle (accepted, 2026-07-16)
+Three coupled decisions for the AI question-generation pipeline
+(`packages/curriculum/.../ai_pipeline.py`, SPEC §5.8.3):
+
+1. **`BedrockGateway.generate_structured`'s `payload` param was generalized from the
+   hardcoded `BedrockTutorPayload` (S8's only caller) to the base `BaseModel`.** S9 needs
+   several more task-specific payload types (`GeneratorPayload`, `SolverPayload`, three
+   review payloads) - each still its own `extra="forbid"` model with an exact field list
+   (D-023's pattern), so the generalization only loosens *which* strict model a call uses,
+   not the "no ad-hoc dict payloads cross the gateway" invariant (locked by
+   `packages/shared/tests/test_generation_payload_schemas.py`). The tutor payload's
+   §5.30.1 PII-floor allowlist still applies to *it*; the generation payloads carry
+   curriculum content, not student PII, so they're bound only by `extra="forbid"`, not the
+   §5.30.1 field list. **Consequence:** any test double implementing the `BedrockGateway`
+   Protocol must widen its own `generate_structured` `payload` annotation to `BaseModel`
+   (contravariance) - `test_tutor_service.py`'s `_FakeGateway` was updated for this.
+
+2. **The Generator Agent picks a shape *key* from an explicit difficulty-scoped allowlist
+   (`DIFFICULTY_SHAPES`), never invents solve logic (extends D-015 into the LLM pipeline),
+   and never chooses numeric parameter bounds** - `SHAPE_PARAMETER_BOUNDS` supplies those
+   deterministically per shape, keeping "numerical magnitude" (one of §5.8.4's
+   *deterministic* complexity features) code-owned. Every model-proposed string
+   (shape_key, correct_option_generator, distractor keys) is re-validated against the same
+   registry the S4 loader uses before it's trusted; a hallucinated key rejects the
+   candidate, it never reaches `generate_variant`. Solver A/B agreement is checked as
+   *selected option letter* vs. the deterministic `correct_option`, not free-text answer
+   matching (mirrors `tutor.generate_solution`'s answer-verification).
+
+3. **A candidate that passes every automated check lands at `validation_status="pending"`,
+   never auto-`"approved"`.** `QuestionRepository.activate_template` is the only path to
+   `"approved"` and refuses anything not already `"pending"` (a pipeline-`"rejected"`
+   template can never be activated). This matches ROADMAP's literal "real run generates
+   candidates into `validation_status=pending`" and keeps a deliberate human gate before
+   AI-authored content reaches K-12 students. `get_active_questions`/`_for_skill` already
+   filter `validation_status == "approved"`, so a pending template is generated-but-not-
+   delivered. **How to apply:** a future admin/review tool (or a REPL call) activates
+   spot-checked pending templates; don't make the pipeline CLI auto-activate.
+
+## D-027 — S9 quarantine flips `active_status` only; pipeline owns `validation_status`; problem-report endpoint takes reporter id from claims (accepted, 2026-07-16)
+SPEC §5.8.7's five-distinct-user quarantine
+(`apps/learning-api/.../services/question_reports.py`) sets
+`active_status="quarantined"` via `QuestionRepository.set_active_status`, which never
+touches `validation_status` - the two lifecycles are orthogonal: `validation_status`
+(pending/approved/rejected) is the *generation pipeline's* state (D-026), `active_status`
+(active/quarantined) is the *delivery* state. Both `get_active_questions` filters require
+`active_status == "active"` AND `validation_status == "approved"`, so quarantine stops
+delivery while the template row, its variants, and all reports stay intact (SPEC §5.8.7
+"without deleting history"). The reporter's `student_external_id` is always taken from the
+authenticated token's `claims.sub`, never from the request body (SPEC §5.30.2), and only
+`Role.STUDENT` may report; repeat reports from the same student are an idempotent no-op
+(checked via `ReportRepository.get_report` before insert, so the per-`(template, student)`
+unique constraint is a backstop, not the mechanism - avoids an IntegrityError poisoning
+the request transaction). **Test note:** `test_question_reports.py` drives real
+HTTP-committed rows (D-018) so it creates a *dedicated throwaway* template/variant and
+deletes it + its variant + reports in teardown - never quarantining a real curriculum
+template in the shared dev DB. The report endpoint is Postgres-only (no Mongo/profile
+lookup), so its tests skip on Postgres alone.
+
+## D-032 — S11 SSE: coarse state-push over an in-process bus, token in the query string, and a dev-only token-mint endpoint (accepted, 2026-07-16)
+Three coupled decisions for `apps/learning-api/.../routers/stream.py` (SPEC §5.14.1):
+
+1. **The `/stream` SSE endpoint pushes a coarse "current snapshot" event, not real
+   per-node LangGraph events.** Every user action is already one `ainvoke` per HTTP
+   request that runs to completion or a paused `interrupt()` synchronously
+   (`routers/sessions.py`, D-019's per-turn model) - there is no long-running execution to
+   stream mid-turn except the Bedrock hint/solution call. `services/session_events.py` is
+   a single-process in-memory pub/sub (`dict[str, list[asyncio.Queue]]`); each mutating
+   action handler publishes the same `SessionSnapshotEvent` shape it already returned as
+   its HTTP response (`_publish_snapshot` builds it via `SessionSnapshotEvent.model_validate
+   (response.model_dump())`, since every response model's fields are a subset of the
+   snapshot's). On connect, `/stream` reads the current state straight from
+   `AsyncPostgresSaver` before replaying anything, which is what makes a page refresh
+   restore exact position - the same property `/resume` proves for plain REST, just
+   pushed instead of polled. **Consequence:** this bus is not durable and assumes one
+   Uvicorn worker (true for this app); a future multi-worker deployment would need a
+   real pub/sub (Redis, Postgres LISTEN/NOTIFY) behind the same `SessionEventBus`
+   interface, not a rewrite of the endpoint.
+
+2. **The bearer token travels as `?token=`, not `Authorization`.** The browser's native
+   `EventSource` (used specifically for its built-in auto-reconnect, satisfying the
+   ROADMAP's "browser client with auto-reconnect" requirement for free) cannot set
+   custom headers. This is a deliberate, documented trade-off, not an oversight -
+   `?token=` values can end up in server access logs, so a real deployment should treat
+   these as short-lived and never log full URLs at INFO (an S20 observability concern).
+
+3. **`POST /dev/token` (`main.py`) is a dev-only stand-in for `go.intellichoice.org`'s
+   real auth**, wrapping the existing `FakeTokenIssuer` (D-006) and 404ing whenever
+   `settings.environment != "dev"`. It exists purely so `apps/learning-web` has something
+   to call locally without a manual script step; it must never be reachable in a real
+   deployment.
+
+## D-033 — `TestClient.stream()` hangs against an intentionally-never-ending SSE response; tested via the underlying async function instead (accepted, 2026-07-16)
+`fastapi.testclient.TestClient.stream()` (httpx2's synchronous portal wrapper around the
+ASGI app, D-005) was tried first for `test_stream_and_history.py`'s SSE tests, opening a
+`GET .../stream` connection and reading only the first `data:` line before exiting the
+`with` block. It hung indefinitely (confirmed via process inspection, killed manually) -
+`/stream`'s response body generator never completes on its own (it idles on a 15s
+keepalive between pushes, exactly as designed for a real browser), and TestClient's
+blocking-portal teardown does not reliably unwind against a response that never signals
+completion. **The endpoint itself is correct** - verified manually against a live
+`uvicorn` server via `curl --max-time`, including a genuine connect -> initial snapshot
+-> live push-after-action -> clean close sequence. **How to apply:** the automated tests
+call `routers/stream._initial_snapshot(...)` directly (the same authorization + snapshot-
+shaping logic the endpoint calls before it starts streaming) instead of driving the live
+HTTP response; any future SSE endpoint in this codebase should do the same rather than
+assume `TestClient.stream()` handles an infinite generator gracefully.
+
+## D-034 — `apps/learning-web` is excluded from the uv workspace; four real bugs found via Playwright-driven manual verification (accepted, 2026-07-16)
+Adding `apps/learning-web` (S11's new Vite/React app) under `apps/*` broke `uv run`
+workspace-wide (`uv sync`/`uv run` expects every `apps/*` directory to be a Python package
+with a `pyproject.toml`). Fixed by adding `exclude = ["apps/learning-web"]` to the root
+`pyproject.toml`'s `[tool.uv.workspace]` - any future non-Python `apps/*` or `packages/*`
+directory needs the same treatment. **How to apply:** if `uv run`/`uv sync` starts failing
+with "missing a `pyproject.toml`" after adding a new top-level directory under `apps/*` or
+`packages/*`, check this exclude list first.
+
+No `chromium-cli` was available in this environment, so `apps/learning-web` was driven
+with a temporary `playwright` install in the scratch directory (`npm install playwright`
++ `npx playwright install chromium`, never added to any committed `package.json`) against
+both dev servers running locally. That real click-through - not just `tsc`/`oxlint` - is
+what caught four bugs that typechecking couldn't:
+
+1. **Stale-closure bug in `useLearningSession`:** `startSession().then(() => chooseStudent())`
+   called `chooseStudent` from a closure captured *before* `setSessionId` re-rendered the
+   component, so the closed-over `sessionId` was still `null` and the guard clause silently
+   no-op'd - the topic screen never appeared. Fixed by having every action read the current
+   session id through a ref (`sessionIdRef`) instead of the closed-over state variable.
+2. **`App.tsx` only called `chooseStudent` for the student role** - a parent's `onStart`
+   never called `/student` at all, so SPEC §5.6.1's role-based routing (auto-select /
+   multi-child interrupt) never ran. Fixed by always calling it, passing the student's own
+   id for self-select and `undefined` for a parent (letting the backend decide).
+3. **`AttendanceScreen`'s "resolved" flag was computed as `phase === "blocked" && !pending`**,
+   which is also true the instant the gate *first* blocks (no interrupt is pending yet
+   either) - so a student never saw the acknowledge/ask-branch-manager buttons, only a dead
+   end. Fixed by adding a real `attendance_resolution` field (SPEC §5.6.5's own state,
+   already computed server-side, just not exposed) to `TopicSelectionResponse`/
+   `RespondResponse`/`SessionSnapshotEvent`, and gating "resolved" on
+   `attendance_resolution === "absence_acknowledged"` specifically - `"email_requested"`
+   (approved or declined) is not terminal per §5.6.4's own decline message.
+4. **Raw internal `skill_id`s were rendered directly** in the results screen's "skills to
+   strengthen" list and the parent dashboard's mastery table - a real violation of
+   CLAUDE.md's non-negotiable #10. Fixed by resolving every skill reference to
+   `Skill.name` inside `services/history.py` before it reaches a response DTO (`skill_id`
+   never crosses that boundary), and by dropping the raw list from the results screen
+   entirely (a count only - "3 skills to strengthen, see the dashboard") since S11's
+   turn-by-turn session responses (`LearningGainResponse.unresolved_skills`) were left
+   as skill ids on purpose (SPEC §5.13.3's internal representation, unchanged to avoid
+   touching already-tested response shapes) and have no resolution endpoint available at
+   that point in the flow.
+
+## D-035 — Embedding model is Amazon Titan Text Embeddings V2 (1024-dim), reached via a new `EmbeddingProvider` Protocol separate from `BedrockProvider` (accepted, 2026-07-17)
+S12 needed the SPEC §5.25.1 `create_embedding` gateway method for the first time (deferred
+since S8/D-022 pending a real caller). Titan Text Embeddings V2 was picked over keeping
+the 1536 placeholder because it's Bedrock-native (fits the existing gateway/cost-budget/
+circuit-breaker machinery) and cheaper/smaller than Titan V1's 1536-dim output. Since no
+`rag_chunks.embedding` row had ever been written (ingestion didn't exist until this
+session), changing `EMBEDDING_DIM` 1536 -> 1024 was a plain `alter_column` migration
+(`8bcfca8c70f2`) with no data to migrate - exactly the "normal migration, not a rewrite"
+the placeholder's own S3 comment anticipated.
+
+**Titan embeddings aren't served by the Anthropic Messages API** that `AnthropicBedrock
+Provider` uses for chat/structured output (D-025) - it's a separate Bedrock model family
+invoked via `bedrock-runtime`'s `invoke_model`. Rather than force one `BedrockProvider`
+Protocol to cover both call shapes (which would make every concrete provider implement a
+method it doesn't support), `packages/adapters/.../bedrock/provider.py` now defines two
+Protocols: `BedrockProvider` (`raw_generate`, unchanged) and `EmbeddingProvider`
+(`raw_embed`, new). `AnthropicBedrockProvider` only implements the former; the new
+`TitanEmbeddingProvider` (boto3-based, never exercised against real AWS this session -
+same footing as D-025) only implements the latter; `MockBedrockProvider` implements both,
+since it's the shared dev default. `ResilientBedrockGateway.__init__` gained an optional
+`embedding_provider: EmbeddingProvider | None = None` parameter - callers that never
+embed (e.g. `learning_api`'s tutor-only gateway) don't pass one, and `create_embedding`
+raises a clear `ValueError` if called without it, rather than every construction site
+needing a provider it will never use. `MockBedrockProvider.raw_embed` returns a
+hash-seeded deterministic unit vector per text (same text -> same vector, no real
+semantic content) so ingestion tests can assert reproducibility without a real model.
+
+**How to apply:** any future caller that needs embeddings passes `embedding_provider=`
+explicitly; any future caller that only does chat/structured output is unaffected. If a
+second real embedding model is ever needed, it gets its own `EmbeddingProvider`
+implementation, not a change to this Protocol.
+
+## D-036 — New `packages/knowledge` workspace member owns manifest validation, LlamaIndex chunking, and idempotent RAG ingestion; local filesystem stands in for S3 (accepted, 2026-07-17)
+Mirrors D-014's split for `packages/curriculum`: `packages/knowledge` (`intellichoice_
+knowledge`) owns everything that's pure pipeline logic for the S12 RAG content
+foundation rather than persistence (`intellichoice_db` already owns `RagDocument`/
+`RagChunk`/`RagRepository`, D-009) - `manifest.py` (JSON-Schema + Pydantic validation of
+`knowledge-content/manifests/*.yaml`), `content_store.py` (the `ContentStore` Protocol +
+dev-fake `LocalFilesystemContentStore`, D-002's pattern), `chunking.py` (LlamaIndex
+`MarkdownNodeParser`-based structural chunking, SPEC §5.21.2), and `ingest.py`/
+`ingest_cli.py` (the pipeline + `make knowledge-load`, mirroring `intellichoice_
+curriculum.loader`/`pipeline_cli`'s shape).
+
+**Content store keys are bucket-relative paths** (a manifest entry's `source_path`, e.g.
+`public/organization-overview/content.md`) matching SPEC §5.20.3's S3 `approved/` layout
+minus that prefix - swapping `LocalFilesystemContentStore` for a real S3-backed
+implementation later is a new `ContentStore` implementation plus a config change, not a
+rewrite of `ingest.py`.
+
+**Idempotency is keyed by `source_sha256` under a stable `document_id`** (the manifest's
+natural key, D-016's pattern): unchanged content is a no-op; changed content under the
+same `document_id` deletes and replaces that document's chunks in place (`RagRepository.
+delete_chunks_for_document`) rather than accumulating versions - SPEC's `version`/
+`supersedes_document_id` fields are stored as given by the manifest but no automatic
+version-chaining is built, since no session requirement exercises it yet.
+
+## D-037 — Reranking (§5.21.7) is an LLM call (`BedrockTask.RERANK`), not a cross-encoder library (accepted, 2026-07-17)
+SPEC says "Cross-encoder or Bedrock reranker" - a cross-encoder means a new ML dependency
+(e.g. `sentence-transformers`) with its own model download/runtime footprint, which cuts
+against the user's global "minimal dependencies, prefer boring/well-documented tools"
+default. A reranker call fits the exact shape every other Bedrock task already uses:
+`RerankPayload` (query + up to 30 candidate chunk id/text pairs) -> `RerankResponse`
+(one relevance score per candidate, model never reorders/drops anything itself - the
+caller sorts/truncates deterministically, same "model proposes, code decides" split as
+D-015's shape registry) -> `intellichoice_knowledge.retrieval.retrieve` sorts and takes
+the top `top_k`. `MockBedrockProvider`'s stand-in scores by query-word overlap (no real
+semantic judgment, but deterministic and test-drivable) so dev/tests never need a real
+model. A reranker failure (timeout/circuit-open/budget) falls back to the RRF-fused order
+rather than failing the whole request - same "verified static content on Bedrock failure"
+posture as D-024's tutor fallback.
+
+**How to apply:** if a real cross-encoder is ever wanted for latency/cost reasons, it's a
+new provider behind the same `retrieve()` call site, not a redesign of the payload shape.
+
+## D-038 — A citation is only trusted after code re-verifies its quote is a real substring of the cited chunk (accepted, 2026-07-17)
+SPEC §5.21.8 lists "Citations do not support the response" as its own no-answer trigger -
+that only means something if *something* actually checks it. The RAG-answer model
+(`BedrockTask.RAG_ANSWER`) returns `LlmCitation` (just `chunk_id` + the quote it claims
+supports the answer) - a raw, unverified claim, deliberately not the SPEC §5.21.8
+`Citation` schema itself (which carries `document_title`/`document_version`/
+`supporting_quote_hash`, backend-derived fields the model never gets to assert).
+`chat_api.services.qa._verify_citations` looks up the real `RagChunk`/`RagDocument` row,
+confirms the quote is a genuine (case-insensitive) substring of the chunk's actual text,
+and only then computes `supporting_quote_hash` itself (`sha256` of the verified quote,
+never the model's own hash if it supplied one - it doesn't, by schema). A citation whose
+quote fails this check is silently dropped, not surfaced as a "maybe" citation; if none
+survive, the whole answer becomes a no-answer/escalation response rather than an
+uncited claim.
+
+`RagAnswerResponse.sources_conflict` is the model's own signal for "the passages
+disagree" (§5.21.8's other no-answer trigger, §5.29's "surface conflict and offer
+escalation") - treated as a hard override regardless of `confidence`, since a confident
+answer built on conflicting sources is exactly the failure mode this exists to prevent.
+
+**How to apply:** any future response-synthesis task that emits citations should follow
+this same raw-claim-then-verify split - never let a model-shaped schema double as the
+caller-facing "this is verified" schema.
+
+## D-039 — `role_access_filter` builds `ChunkFilters` from a server-resolved role/branch, never from query text; `ChunkFilters` gains `audiences`/`restrict_to_branch`/`as_of` (accepted, 2026-07-17)
+CLAUDE.md non-negotiable #3: authorization lives in the query layer, never in a prompt.
+`chat_api.services.role_access.resolve_role_context` maps `TokenClaims | None` to
+`(user_role, branch_external_id)` - `"public"` for anonymous, else `Role.value`; branch is
+resolved from a live `ProfileAdapter.get_student_profile` lookup for students only (the
+one role SPEC's data model makes unambiguous - a parent may have children at different
+branches, and no profile lookup exists yet for tutor/branch_manager). `role_access_filter`
+then builds the actual `ChunkFilters` - always `audiences=[public, user_role]`,
+`restrict_to_branch=True`, `as_of=now()` - entirely from these two resolved values, never
+from anything in the user's message.
+
+`ChunkFilters` (`packages/db`) gained three fields for this: `audiences: list[str] | None`
+(a chunk matches if its `audience` is *any* of these - S12's original single-value
+`audience` field is kept as-is for its one existing ingestion-verification caller);
+`restrict_to_branch: bool` (applies SPEC §5.21.3's "branch_id is null OR branch_id =
+current_branch" *unconditionally*, even when `branch_external_id` is `None` - an
+unresolved/branchless caller must only ever see org-wide chunks, never leak into
+"no branch filter at all"; S12's original bare `branch_external_id` exact-match stays
+opt-in-only, since it was never an access-control boundary); `as_of: datetime | None`
+(the `effective_from <= as_of <= effective_to` window - `None` skips the check, for S12's
+ingestion-time callers that have no "today" to filter against).
+
+**How to apply:** any new retrieval entry point must go through `role_access_filter`
+(or build a `ChunkFilters` with `restrict_to_branch=True` explicitly) - never construct
+`audiences`/`branch_external_id` from raw request input.
+
+## D-040 — `chat-api` allows fully anonymous callers; `get_optional_claims` returns `None` on a missing header but still 401s a present-but-invalid token (accepted, 2026-07-17)
+SPEC §5.19.1 makes anonymous access to public content a first-class case (public FAQ,
+branch directory, calendar, `.ics`) - unlike `learning-api`, which requires auth on every
+endpoint (S2). `chat_api.dependencies.get_optional_claims` returns `TokenClaims | None`:
+no `Authorization` header at all means "anonymous", which the Q&A graph's `resolve_role`
+node maps to `user_role="public"`; a header that *is* present but fails verification
+(expired/malformed/wrong-audience) still raises 401, exactly like the existing
+`get_current_claims` - a client with a stale token should see a clear auth failure, not a
+silent downgrade to anonymous with no explanation. `POST /chat/sessions` and `POST
+.../messages` both use `get_optional_claims`; `GET .../me` keeps requiring
+`get_current_claims` (it has nothing meaningful to return anonymously).
+
+**How to apply:** any new chat-api endpoint that should work for both anonymous and
+authenticated callers uses `get_optional_claims`, not `get_current_claims`.
+
+## D-041 — Scope Guard + Intent Router share one `BedrockTask.SCOPE_AND_INTENT` call; unavailable intents get a clear message instead of being stubbed or silently misrouted (accepted, 2026-07-17)
+SPEC's §5.19.2 workflow diagram draws Scope Guard and Intent Router as two boxes, but the
+existing `BedrockTask.SCOPE_AND_INTENT` enum member (named back in S8/D-022, unused until
+now) already implies one combined classification call, not two round-trips - splitting it
+into two calls would double latency/cost for no accuracy benefit, since both questions
+("is this in scope" and "which workflow does it need") are answered by reading the same
+query once. `ScopeAndIntentResponse.intent` is `Literal["document_qa", "branch_locator",
+"calendar", "admin_contact", "clarification"]`; only `document_qa` has a real retriever
+this session (`branch_locator`/`calendar` need MCP tools that don't exist until S14/S15,
+`admin_contact` needs Gmail/S14). Rather than stub those branches ahead of time or let an
+unbuilt intent silently fall through to `document_qa`, `unavailable_intent` returns one of
+four fixed "not yet available, here's what I can do instead" messages keyed by intent -
+consistent with this project's "don't stub ahead of time" convention (see `LearningState`'s
+own docstring) while still giving the caller an honest answer instead of a wrong one.
+
+**How to apply:** when S14/S15 build the Google Maps/Calendar/Gmail MCP tools, their real
+handling replaces the corresponding `UNAVAILABLE_INTENT_MESSAGES` entry and adds a new
+graph node/edge - `scope_guard`'s classification and routing shape doesn't need to change.
+**Update (S14):** `calendar`/`admin_contact` now have real handling (D-044) and were
+removed from `UNAVAILABLE_INTENT_MESSAGES`, exactly as anticipated here, with no change
+to `scope_guard` itself; `branch_locator` is still pending, S15 scope.
+
+**22 placeholder documents were authored** (`knowledge-content/documents/`, one manifest
+per audience per SPEC §5.20.2) - all real prose with genuine Markdown structure (multiple
+headings, at least one table, at least one list) rather than lorem ipsum, since
+structural chunking needs real boundaries to prove itself against, and 3 are deliberately
+`status: draft` (spread across audiences) so the "draft is invisible to the retriever"
+Phase 13 completion criterion has real fixtures to prove itself against without a
+separate test-only document.
+
+## D-042 — MCP tool registry has no automatic retry; a new `ToolExecutionError` wraps every handler exception (accepted, 2026-07-17)
+Phase 15's (§6.16) "Work" list names "Retries" alongside timeouts/permissions/approval/
+audit/fallbacks, but `intellichoice_shared.mcp.McpToolRegistry.call` deliberately does
+not retry a failed handler call. Both tools registered this session -
+`gmail.send_email`, `calendar.create_event` - are non-idempotent external side effects
+with no idempotency-key support in their fake transports; blindly retrying a timed-out
+send risks a duplicate. This mirrors D-022's "add a capability when there's a real
+caller that needs it" convention rather than building unused retry machinery: a future
+tool with a genuine idempotent/read-only story (e.g. a lookup) can add a `retryable`
+flag then. **A real bug found while building this:** the registry's first draft
+re-raised a handler's original exception unchanged on failure (only timeouts/validation
+got a proper `McpToolError` subclass) - callers written to `except McpToolError` (e.g.
+`learning_api.services.attendance.send_attendance_email`'s SPEC §5.29 "preserve draft"
+path) silently failed to catch a raw `ConnectionError` from a failing test double,
+caught by `test_admin_escalation.py`'s send-failure test before it shipped. Fixed by
+adding `ToolExecutionError(McpToolError)`, which wraps every generic handler exception
+(`__cause__` holds the original) so every registry-raised failure - unknown tool,
+validation, permission, timeout, or handler exception - is uniformly an `McpToolError`
+subclass. **How to apply:** any caller that wants to distinguish failure modes catches
+the specific subclass (`ToolValidationError`/`ToolPermissionError`/`ToolTimeoutError`/
+`ToolExecutionError`); a caller that just wants "did this MCP call fail at all" catches
+the base `McpToolError`.
+
+## D-043 — `interrupt_approvals` becomes app-agnostic: `learning_session_id` renamed to `session_id`, new `source_app` column, `decided_by_external_id` made nullable (accepted, 2026-07-17)
+S7's `interrupt_approvals` table (SPEC §6.9's "no external action without approval"
+audit record) was learning-api-only until this session; chat-api's new
+`admin_escalation`/`calendar_action` interrupts need to write to the same table rather
+than duplicating it, since it's the same concept (a human approved or declined a paused
+external action) regardless of which app's session the approval belongs to. A true
+column rename (`alter_column(new_column_name=...)`, not add+drop) preserves every
+existing learning-api row's data; a new `source_app: str` ("learning" | "chat")
+disambiguates which app's checkpointed session id the column now holds - one Alembic
+migration, round-tripped, with a `server_default='learning'` backfill for existing rows
+(confirmed live: pre-S14 rows read back with `source_app='learning'` after the
+migration). `decided_by_external_id` becomes nullable since chat-api allows anonymous
+callers (SPEC §5.19.1, D-040) with no external id to record - learning-api requires
+auth on every endpoint and still always supplies one. The `decision` column stays a
+plain `String` with no CHECK constraint (none existed before either) - chat-api's
+`calendar_action` records the literal 3-way choice (`"google"`/`"ics"`/`"cancel"`)
+rather than force-mapping it into learning-api's 2-value `"approved"`/`"cancelled"`
+vocabulary, since there's no reason to lose that information. **How to apply:** any
+future app/interrupt type writing to this table supplies its own `source_app` value and
+records whatever `decision` string is actually meaningful for that interrupt type - the
+column was never meant to be a closed enum.
+
+## D-044 — chat-api's `interrupt()`-gated tools reuse learning-api's `/respond` pattern instead of SPEC §5.28.2's four dedicated endpoints; `QAState.email_draft`/`calendar_event` are checkpointed directly, no D-020 indirection needed (accepted, 2026-07-17)
+SPEC §5.28.2 lists four separate endpoints for the Gmail/Calendar flows
+(`calendar-preview`/`calendar-create`/`email-preview`/`email-send`), but SPEC §5.19.2's
+own workflow diagram already describes an `Event Preview -> interrupt() -> User
+Approval -> MCP -> Create` shape - the same preview-then-approve mechanism S7/D-020/
+D-021 already built and proved for learning-api. Building four single-purpose REST
+endpoints would duplicate what one `POST /chat/sessions/{id}/respond` (mirroring
+`learning_api.routers.sessions.respond_to_interrupt`'s discriminated-union request
+body, `Command(resume=...)`, and D-021's pending-task 409-guard) already solves
+atomically. `location-consent` (S15's Maps tool) still has no equivalent yet.
+
+Unlike learning-api's attendance-email interrupt, chat-api's two new paused nodes don't
+need D-020's external-id-only interrupt-payload indirection: `QAState.email_draft` is
+typed as a narrow `EmailDraftState` (subject/body only, **no recipient** - see that
+model's own docstring) rather than the full `EmailMessage`, so `QAState`'s existing "no
+names or email addresses are stored here" invariant still holds even though the draft
+is checkpointed directly; `QAState.calendar_event` is the full `CalendarEvent` since its
+fields (title/location/description) come from public organizational documents, not a
+person, the same class of content `citations`/`answer` already checkpoint directly.
+This makes the `/respond` pending-interrupt preview (`_pending_interrupt_preview` in
+`apps/chat-api/.../routers/sessions.py`) simpler than learning-api's own
+`_pending_interrupt_response`: it reads straight from checkpointed state, no live Mongo
+re-lookup needed per request.
+
+Both new pausing nodes (`admin_escalation`, `calendar_action`) split their pre-interrupt
+work into a separate, already-completed prior node (`prepare_admin_escalation`,
+`calendar_extract`) rather than computing it inline before their own `interrupt()` call
+- D-021's "any node whose pause needs pre-work must split that work into its own
+completed node" pattern, for two compounding reasons: a resumed node replays its entire
+body from the top (D-021 gotcha #1), so inline pre-work would redundantly re-run every
+resume (wasted rate-limit budget, a second real Bedrock call); and more fundamentally, a
+node that pauses via `interrupt()` never *returns* until resumed, so anything it
+computes before the pause never reaches checkpointed state at all - the first draft of
+`admin_escalation` built its draft inline and the live `/respond` preview showed `null`
+subject/body until this was caught and fixed (see the session log's own bug-found note).
+**How to apply:** any future chat-api node that both needs pre-pause setup *and* wants
+that setup visible to a pending-interrupt preview must do the setup in a separate,
+prior, always-completing node - never inline before its own `interrupt()` call.
+
+## D-045 — Branch Locator: consent comes *before* any location is collected; the location itself travels only in the `interrupt()` resume value, never through `TurnContext`/`QAState` (accepted, 2026-07-18)
+SPEC §5.1.4 requires explicit approval before "using the user's location," and §5.1.3's
+notice text is generic (doesn't reference a specific location) - so unlike
+`admin_escalation`/`calendar_action` (D-044, which precompute a draft/event in a prior
+node before pausing), `branch_locator_consent` pauses immediately with the static
+notice, before ever touching a location at all. The caller only supplies the actual
+ZIP/city/address/precise-coordinates in the same `/respond` call as their approval
+(`chat_api.routers.sessions.LocationConsentChoice`) - this mirrors the real UX (a
+browser only calls `navigator.geolocation.getCurrentPosition()` *after* the consent
+prompt is accepted) and is what makes SPEC §5.1.3's "do not store precise coordinates
+in PostgreSQL... or application logs" achievable: the location is read once, inside
+`branch_locator_consent`'s own function body, used to call `maps.geocode`/
+`maps.compute_routes`, and discarded - it is never assigned to any `QAState` field, so
+it never reaches a LangGraph checkpoint row as *named, persisted state*.
+**Residual caveat, not fully eliminable:** LangGraph's `AsyncPostgresSaver` still
+persists the raw `Command(resume=...)` value itself as part of its own crash-safety
+bookkeeping for the paused task, so the location transits Postgres briefly at the
+framework level regardless - the same category of caveat D-032 already flagged for the
+`?token=` SSE query string. Removing this would mean disabling checkpointing for one
+specific node, which isn't supported without forking LangGraph's own architecture; not
+attempted this session. `chat_api.services.branch_locator.find_nearest_branches`
+implements all three SPEC §5.22 fallbacks locally: `maps.geocode` failure -> branch
+address list only (no distances); a `None` geocode result -> the same "give me a ZIP/
+city" message as "approved with no location"; `maps.compute_routes` failure for one
+branch -> a straight-line `haversine_km` estimate computed independently of the failed
+Maps call, flagged `is_estimate=True` in the rendered answer.
+
+## D-046 — `packages/youtube`: real LLM video classification (not a deterministic mapping), re-validated against the curriculum registry before storage (accepted, 2026-07-18)
+SPEC §5.18's sync worker needs to assign each fetched video's `topic_ids`/`skill_ids`/
+`grade_band`/`difficulty_min`/`difficulty_max` from its title/description - free prose,
+a genuine classification task. Chose a real `BedrockTask.VIDEO_CLASSIFICATION` call
+(`VideoClassificationPayload`/`Response`) over a deterministic keyword mapping: unlike
+`ai_pipeline`'s shape-key allowlist (where the model must choose from a small, fixed
+set of *code-defined* generation strategies with real solve-logic behind them, D-015/
+D-026), topic/skill assignment is closer to `CalendarExtractionResponse`'s "genuine
+free-text extraction task" (D-038) than to a closed enum a keyword rule could get right
+adjacent to codebase language directly. The model is given the *real* curriculum
+topic/skill names as its only allowed menu (`known_topic_names`/`known_skill_names`),
+and `packages/youtube/classify.py` re-validates every proposed name against that same
+registry before it ever becomes a stored `topic_id`/`skill_id` - an invented or
+misspelled name is silently dropped (same D-038/D-026 "model proposes, code
+re-derives" discipline, applied here to catalog labels instead of citations/shape
+keys). A Bedrock failure falls back to empty `topic_ids`/`skill_ids` (never a guess) -
+an unclassified video simply never matches any skill-scoped `search_catalog` call,
+so it can't surface an incorrect recommendation; it isn't dropped from the catalog
+outright, since a later re-sync may classify it. This supersedes D-031's S10 stub
+catalog for the real video-selection *content*, though `video_catalog.FALLBACK_MESSAGE`
+(the exact SPEC §5.11.6 string) carries over unchanged.
+
+## D-047 — `youtube_catalog.search` is registered on a throwaway, per-call `McpToolRegistry`, never the shared `app.state` one (accepted, 2026-07-18)
+Every MCP tool registered so far (`gmail.send_email`, `calendar.create_event`,
+`maps.geocode`, `maps.compute_routes`) is a stateless fake transport bound once at
+lifespan startup - safe to share across concurrent requests. `youtube_catalog.search`'s
+handler needs a `YoutubeRepository` bound to *this request's* DB session (and a query
+embedding computed via *this request's* Bedrock gateway call), neither of which exists
+until a request arrives. Re-registering a request-scoped handler into the shared,
+long-lived `app.state.mcp_registry` on every call would create a real race: two
+concurrent requests' registrations could interleave with each other's `.call()`
+(request A registers with session A's repo, request B overwrites the entry with
+session B's repo before A's own `.call()` runs, so A silently queries B's session).
+`learning_api.services.video_catalog.search_video` sidesteps this by building a fresh,
+local `McpToolRegistry()` inside the function call itself, registering just this one
+tool bound to the caller's own repo/embedding closure, and calling it there - cheap
+(`McpToolRegistry.__init__` is just an empty dict), and every call still gets the same
+Pydantic-argument-validation-before-execution and `mcp_call_repo`-backed audit event as
+every other tool, just via a throwaway registry instance instead of the shared one.
+**How to apply:** any future internal (no-external-side-effect) tool whose handler
+needs a request-scoped dependency (a DB session, a per-call embedding) should follow
+this same local-registry pattern rather than mutating the shared `app.state` registry.
+
+## D-048 — `apps/chat-web`: the visible conversation is built client-side, not read from `QAState`; `.ics` download is a pure client-side Blob, no server download endpoint (accepted, 2026-07-18)
+Unlike `learning_api`'s `LearningState`, `QAState` (SPEC §5.19.3) has no message-history
+field - it carries only the current turn's `query`/`answer`/`citations`/etc., replaced
+on every `ainvoke`. `apps/learning-web`'s pattern (the checkpointed snapshot *is* the
+full UI state, restored via `/stream`'s initial snapshot on reconnect) has nothing
+equivalent to read for a multi-turn transcript. `apps/chat-web`'s `useChatSession` hook
+instead builds the visible conversation as a client-only `ChatTurn[]` array, persisted
+to `sessionStorage` alongside the session id (`intellichoice.chat_transcript`) so a
+refresh replays it instantly; the SSE stream (opened once the first turn resolves, see
+below) still reconciles the *last* turn against the live checkpoint, matching what the
+backend actually holds. **Implication:** only the current session's transcript survives
+a refresh - there is no server-side conversation history to recover if `sessionStorage`
+is cleared (SPEC doesn't ask for one; `chat-api`'s own checkpoint is turn-scoped by
+design, D-041).
+
+**Related fix (same session):** opening the SSE stream immediately after `POST
+/chat/sessions` creates a session races the LangGraph checkpoint - `AsyncPostgresSaver`
+has nothing to read until the first `/messages` call completes, so `/stream` 404s once
+before `EventSource`'s built-in auto-reconnect quietly recovers (same benign-race
+category as D-032/D-033's caveats). Fixed by gating the stream-opening effect on a
+`streamReady` flag, set only after the first turn resolves (or restored `true` on mount
+if a persisted transcript already has one) - avoids the transient error entirely rather
+than relying on the reconnect to paper over it.
+
+**`.ics` download (closes S14's carry-over "chat-web's job (S16)"):** `chat_api`
+already returns the generated RFC 5545 text inline as `ics_content` on the turn
+response (S14, no server download route by design). `ChatScreen` renders a "Download
+.ics" button whenever a turn's `ics_content` is present; clicking it builds a
+`text/calendar` `Blob` client-side and triggers a normal browser download via a
+throwaway `<a download>` element - no new backend endpoint needed, since the file
+content was already fully generated server-side. Verified via a network-mocked
+Playwright run (real content can't currently exercise the "event found" branch live -
+see PROGRESS.md's S16 entry) that the downloaded bytes match the served `ics_content`
+exactly.
+
+## D-049 — Roadmap restructured after S16: expansion plan absorbed as S17–S28; former S17–S23 renumbered to S25/S29–S34 (accepted, 2026-07-18)
+The 2026-07-18 feature request (LLM question bank, exam UX, hint ladder, tutoring chat,
+memory, stage narratives, video hardening, dashboards/reports, and the chat app's real
+content/coverage/access work) was planned in
+[plans/2026-07-18-expansion-plan.md](plans/2026-07-18-expansion-plan.md) and merged into
+ROADMAP.md as twelve new sessions rather than kept as a side document, so the existing
+`/start-session`/`/end-session` workflow drives it unchanged.
+
+**Renumbering map (old → new):**
+
+| Old session | New session |
+|---|---|
+| S17 Memory system | **S25** (expanded per plan §9 — moved because consolidation wants the chat events S24 emits and the exam-finalize hook S22 adds; PROGRESS's own S16 note "S17 needs the learning/chat graphs" anticipated this) |
+| S18 Multimodal solution images | **S29** (unchanged scope) |
+| S19 Evaluation platform | **S30** (extended with plan §13 suites) |
+| S20 Observability | **S31** (unchanged scope + the D-032 `?token=` caveat called out) |
+| S21 Deployment | **S32** |
+| S22 Security hardening | **S33** |
+| S23 Load testing | **S34** |
+
+**New sessions:** S17 (test-debt cleanup + real org content, plan C1/X1), S18 (structured
+events, C2), S19 (access-aware refusals + welcome/suggestions, C3), S20 (authored question
+bank, L1), S21 (personalized hint ladder, L2), S22 (assessment policy + exam backend, L3),
+S23 (exam frontend, L4), S24 (contextual learning chat, L5), S26 (stage narratives, L7),
+S27 (YouTube hardening, L8), S28 (dashboard + report, L9). The plan's C/L/X task ids remain
+the design reference; ROADMAP carries the same content in session form.
+
+**How to apply:** every PROGRESS.md/DECISIONS.md reference written *before* 2026-07-18
+uses the old numbering (e.g. S13's "revisit at S20 (observability)" now means S31;
+PROGRESS's "Next session: S17 — Memory system" meant what is now S25). References from
+S17 onward use the new numbering. Do not renumber historical log entries - the map above
+is the translation layer. Three expansion decision gates need explicit sign-off *at the
+named session's start*, recorded in ROADMAP per session: team-member names vs the
+schema-purity denylist (S17), the §5.30.1 payload widening (S21, hard-blocks S24's chat),
+and the exam grading-model/timing choice (S22) - see plan §19.
+
+## D-050 — `org_team_members.name`/`org_branches.address/phone/email` get a documented, explicit exemption from the schema-purity denylist (accepted, 2026-07-18)
+S17's decide-at-start gate (plan §19 decision #2). `test_schema_purity.py`'s denylist exists
+to keep *student/parent/guardian* PII out of Postgres (CLAUDE.md non-negotiable #1) - it was
+never meant to block an org's own published-staff bios or branch contact info, which the
+org itself chose to publish on its public website. Chose option (a) from the plan
+(documented exemption) over (b) (RAG-chunks-only, no structured table): a structured table
+enables real filterable/citable answers ("who manages the Carrollton branch?") that chunk
+retrieval alone can't guarantee, and the exemption is narrow (two tables, explicitly
+enumerated in `ALLOWED_PII_SHAPED_COLUMNS`, not a blanket carve-out) so the test still fails
+loudly if a *student-facing* table ever grows one of these column names.
+**Revert:** drop `ALLOWED_PII_SHAPED_COLUMNS` and the two tables' `name`/`address`/`phone`/
+`email` columns; keep team/branch content RAG-only.
+
+## D-051 — `packages/webcontent` fetches the org's real, live public website (`https://www.intellichoice.org`), not a fictional placeholder (accepted, 2026-07-18)
+ROADMAP/SPEC's `intellichoice.org` domains read as a fully synthetic spec-driven example
+throughout this repo, and no real URL appears anywhere in the codebase or docs - S17 was
+about to build `packages/webcontent` against golden-HTML fixtures only, standing in for a
+site that doesn't exist (this project's usual D-002 posture). The user confirmed
+`intellichoice.org` is real - IntelliChoice, Inc. is an actual operating 501(c)(3)
+providing free math tutoring (26 real branches, ~50 real staff/volunteer leaders,
+Dallas-founded 1993) - and supplied the four real page URLs directly. This is the one
+external dependency in the project with no fake/mock: `sync_cli.py`'s `httpx` fetch always
+hits the real live site (base URL is still env-configurable, `WEBCONTENT_BASE_URL`, for a
+future staging mirror). Real names/bios/addresses now live in `knowledge-content/` and
+Postgres because they are the org's own already-public content, ingested into the org's own
+new internal tool - not third-party or user data. Extractor *unit tests* still use small,
+hand-trimmed golden-HTML fixtures (no network in tests), matching every other package's
+D-002 no-network-in-CI posture even though the sync CLI itself is a real exception.
+**Revert:** N/A - this is a factual correction, not a reversible implementation choice.
+
+## D-052 — `retrieval.retrieve()` drops rerank candidates scored exactly 0 before synthesis, instead of only sorting (accepted, 2026-07-18)
+Found via S17's own real-content ingestion: `hybrid_search`'s semantic component always
+returns up to `candidate_limit` rows via `ORDER BY cosine_distance LIMIT`, with no relevance
+floor - previously invisible because every real document was future-dated (`effective_from:
+2026-08-01`), so the visible corpus during any single request was trivially small (often
+just one hand-seeded test chunk). Once S17's three real public documents became genuinely
+retrievable "today," `MockBedrockProvider`'s reranker (word-overlap scoring) still returned a
+*sorted* list rather than a *filtered* one, and `_rag_answer_json`'s mock synthesis
+unconditionally cites `chunks[0]` - so an irrelevant real chunk could win the #1 slot and get
+cited as a false-positive answer to an unrelated query. Fix: `retrieve()` now drops any
+candidate the reranker scored exactly `0.0` (the rerank prompt's own documented scale defines
+0 as "irrelevant") before taking `top_k`. This is a real-system fidelity fix, not a test-only
+hack - a real reranker declining to endorse an irrelevant passage is exactly what §5.21.7
+describes; the mock and the production path share this code.
+**Consequence:** `apps/chat-api/tests/test_qa_graph.py`/`test_chat_endpoints.py`'s "no
+source found" tests, and `packages/knowledge/tests/test_ingest.py`'s draft-invisibility
+test, needed nonsense-marker query/chunk text (D-018's pattern) rather than plausible English
+phrases, since plausible phrases now risk a real (if weak) match against S17's real content.
+**Revert:** remove the `> 0.0` filter; restore `ranked = sorted(candidates, ...)`.
+
+## D-053 — `apps/learning-api/tests/*` HTTP-test row accumulation fixed with a before/after `DELETE` sweep fixture, not per-request transaction rollback (accepted, 2026-07-18)
+S17's test-debt item (S12/S14 carry-over). A shared-connection rollback transaction
+(mirroring `packages/db`'s `rollback_session`) was prototyped first and rejected: many of
+these tests verify state via a *second*, independent DB connection (`asyncio.run(fetch())`
+helpers like `_correct_options`), and an uncommitted transaction on one connection is
+invisible to another by Postgres's own isolation - the exact "rollback" property needed
+would have broken those assertions. Threading one shared connection through every such
+helper across 4 files (`test_learning_flow.py` alone has ~9) was a much larger, riskier
+change than the problem calls for. Instead, `apps/learning-api/tests/conftest.py` adds an
+autouse fixture that runs a dependency-ordered `DELETE` (mirroring the exact manual recipe
+S9/S12/S14 already used by hand) for the four Mongo-fixture student ids, both before *and*
+after every test in the directory - self-healing regardless of prior pollution, a no-op for
+tests that never touch Postgres. Confirmed: 727 pre-existing rows for `student-ext-4` and
+all other fixture ids cleared to 0 and stayed at 0 across 3 repeated `make test` runs.
+**Revert:** delete `apps/learning-api/tests/conftest.py`.
+
+## D-054 — Events come from the org's Tribe Events Calendar REST API, not HTML scraping; real data is entirely historical; timezone defaults to America/Chicago (accepted, 2026-07-19)
+
+S18 (plan §18-C2). While probing `/events/` for a scrape target, the response headers
+advertised `X-TEC-API-ROOT: https://www.intellichoice.org/wp-json/tribe/events/v1/` - The
+Events Calendar plugin's own JSON REST API, confirmed live to return clean structured
+fields (title/slug/start_date/end_date/description/venue/website) for all 42 real events
+covering 2021-05-06 through 2025-05-10. Chose this over HTML-scraping `/events/` (this
+session's original plan, mirroring S17's about/team/branches extractors) since the
+listing page only ever renders a fixed date window and the API is strictly richer and
+more reliable - confirmed by fetching both.
+
+Two real data-quality findings, confirmed live, that shape `packages/webcontent/
+extractors/events.py` and the query-time classification:
+- **Every one of the 42 real events is historical** - the org's own public calendar
+  hasn't been kept current since 2025-05-10. This is a fact about the source data, not a
+  bug: a live "what events are coming up?" query today correctly answers "There are no
+  upcoming events currently scheduled" (`NO_UPCOMING_EVENTS_MESSAGE`), confirmed via the
+  real dev server. Upcoming/recurring/canceled classification is proven by
+  `apps/chat-api/tests/test_calendar_events.py`'s synthetic-date unit tests instead
+  (same posture as every other "never exercised against real X" caveat in this project -
+  D-025/D-035/D-046/etc.) - this will self-resolve once the org posts a real future
+  event, or a future session seeds one for demo purposes.
+- **The API's own `timezone`/`timezone_abbr` fields report a bare UTC offset
+  (`"UTC+0"`)** - confirmed to be a WordPress site-timezone misconfiguration, not a real
+  IANA zone name `zoneinfo.ZoneInfo` (and `.ics` generation, `intellichoice_adapters.ics.
+  validate_event`) can use. Every scraped event's timezone is set to `"America/Chicago"`
+  instead (the org's Dallas home base, most branches in Texas) since no event in the
+  real dataset carries venue data that would let per-event zone resolution do better;
+  `org_branches` itself isn't universally Central (one real branch is in Flagstaff, AZ -
+  Mountain time), but no event row links to a branch to exploit that.
+- Event titles/descriptions are HTML-entity-encoded by WordPress (e.g. `&#8211;` for an
+  en dash) - found via the first live sync (several real titles use it), fixed with
+  `html.unescape()` before a title ever reaches a rendered document or a query match.
+
+**Consequence:** `OrgEvent.recurrence_rule` is populated only by tests, never by a real
+sync - this site's events plugin tier doesn't expose true recurring-series metadata
+either (weekly workshops are separate WP posts, e.g. "Week 1"/"Week 2"/.../"Week 4").
+**Revert:** switch `sync_cli.py`'s events fetch back to scraping `/events/`'s HTML and
+drop the timezone override (accept `"UTC+0"` as unusable, or ask the org for real zone
+data).
+
+## D-055 — `calendar_extract` tries `org_events` deterministically first; a new `calendar_event_listing` node answers generic "what's coming up" queries without an interrupt (accepted, 2026-07-19)
+
+S18 (plan §18-C2), rewiring SPEC §5.23's calendar flow to use the new structured table.
+`chat_api.services.calendar_events` (`classify_event`/`list_upcoming_events`/
+`find_event_by_keywords`/`to_calendar_event`) is pure Python - no LLM call anywhere
+(CLAUDE.md non-negotiable #2), a query is matched to an event by plain keyword-overlap
+scoring (deliberately conservative: a tie or zero overlap returns no match rather than
+guessing), and status is plain date arithmetic against `now`.
+
+`calendar_extract`'s new order: (1) deterministic `org_events` keyword match - if
+confident, skip retrieval and the LLM entirely; (2) else fall back to the pre-S18
+RAG+LLM chunk extraction (`services/calendar.py`, unchanged) for calendar content not
+yet migrated into the structured table; (3) else, if anything is upcoming, answer
+directly with a listing (SPEC §5.23.1's "information request", new `calendar_event_
+listing` node, no `interrupt()`) - a query like "what events are coming up?" no longer
+needs a specific event name to get a useful answer. `QAState` gained `event_listing`
+(title/starts_at/location dicts), mirroring `calendar_event`'s existing checkpointing.
+
+**Status semantics (a genuine, non-obvious split):** `OrgEvent.status` stores only the
+source's own declared override (`"canceled"`/`"changed"`, settable today only by a human
+editing the row - no real scrape signal for either exists yet) or a neutral
+`"scheduled"` default; `upcoming` vs `completed` is *never* trusted from this column
+(`chat_api.services.calendar_events.classify_event` always recomputes it against the
+current time), so a past event can never be described as upcoming regardless of how
+stale the last sync was. `OrgEventRepository.upsert_event` deliberately never overwrites
+`status` on a content-changing update, so a re-sync that only fixes an unrelated field
+(a typo, a corrected time) can't silently un-cancel an event a human had already flagged.
+
+**`calendar_no_event`'s message now depends on whether any `org_events` row exists at
+all** (`NO_UPCOMING_EVENTS_MESSAGE` if so, the pre-S18 `NO_EVENT_FOUND_MESSAGE` if the
+table is genuinely empty) - found to matter once S18's own `make org-load` populated the
+shared dev Postgres with 42 real (historical) events: `apps/chat-api/tests/
+test_calendar_action.py`'s pre-existing "no dated event in retrieved content" test had to
+start with an explicit `DELETE FROM org_events` scoped to its own rollback savepoint to
+keep testing the scenario it was actually written for (SPEC §5.29's RAG-only no-answer
+path), decoupled from whatever real event rows happen to be seeded - the same category
+of "real content collides with an empty-world test assumption" issue D-052/D-018 already
+document, resolved the same way (fix the test's setup, not the feature).
+
+No `mark_inactive_except`-style bookkeeping exists for `OrgEvent` (unlike `OrgBranch`/
+`OrgTeamMember`) - a real event doesn't "go inactive" the way a closed branch does, it
+just becomes `completed`; the org's real event history has never had one disappear from
+the source once published. `GET /chat/events?window_days=` (public-audience-only,
+anonymous-OK) shares `list_upcoming_events` with the in-graph listing node, so the
+endpoint and a chat answer can never disagree about what counts as upcoming.
+**Revert:** revert `calendar_extract` to always go through `services/calendar.py`'s
+RAG+LLM path; drop `calendar_event_listing`/`event_listing`/`GET /chat/events`.
+
+## D-056 — Access-aware refusal ships only the role-gated case; the plan's "different branch" generic message is deliberately not built (accepted, 2026-07-19)
+
+S19 (plan §18-C3). `RagRepository.count_matching_by_audience` is a metadata-only probe
+(one `GROUP BY audience` count query, branch restriction lifted, keyword-only match via
+`websearch_to_tsquery` - no embedding call, so a refusal path never pays Bedrock cost) -
+returns `{audience: count}`, never a chunk id or chunk text. `chat_api.graph.nodes.
+explain_access` runs it only when role-filtered retrieval (`answer_document_qa`) came
+back completely empty, and `role_access.build_access_hint` turns a higher-tier match into
+one of a fixed `ACCESS_HINT_MESSAGES` dict entry (priority order branch_manager > tutor >
+parent > student) - the LLM is never involved in the access decision (CLAUDE.md
+non-negotiable #3).
+
+**The plan's second case - a match under the caller's *own* audience, elsewhere, for a
+different branch, reported as a generic "that's for a different branch" message - was
+built, then deliberately removed after live verification caught it producing a false
+positive.** Asking the real dev server "What is IntelliChoice?" anonymously returned
+"That's branch-specific information for a different branch - log in to see details for
+your branch," which is wrong: the real cause was `packages/knowledge/retrieval.py`'s
+reranker scoring the real, fully public, branch-unrestricted `public-organization-
+overview` chunk at 0 for that exact query wording (a legitimate no-answer per D-052, not
+an access problem) - `count_matching_by_audience`'s own probe has no `candidate_limit`
+and never reranks, so it's a much looser filter than the real retrieval pipeline, and it
+still "found" that same public chunk once the branch restriction was lifted, wrongly
+implying a branch mismatch. The role-gated case above doesn't have the same failure mode
+in practice: even a loose match there is still evidence that role-restricted content
+mentioning the query's terms exists somewhere, which is directionally correct guidance;
+the branch-blocked case asserts a specific untrue reason ("there's a branch-specific
+answer, just not yours") when there may be no such answer anywhere. `AccessHint.
+required_role` is `str` (not `str | None`) as a result - there is no longer a
+required-role-less variant.
+**Revert:** re-add a `BRANCH_BLOCKED_MESSAGE` fallback to `build_access_hint` when the
+probe (branch restriction lifted) matches the caller's own accessible audiences; would
+need the probe to also mirror hybrid_search's `candidate_limit` + reranking to be
+trustworthy, which reintroduces the Bedrock cost this design avoided.
+
+## D-057 — `chat_suggestions` is hand-authored reference data (not scraped); welcome/follow-up selection is deterministic and category-based, no LLM (accepted, 2026-07-19)
+
+S19 (plan §18-C3, §2.2/§2.5-UX). Unlike `org_branches`/`org_team_members`/`org_events`
+(`packages/webcontent`'s scrape pipeline), `chat_suggestions` has no source page to sync
+from - it's ~14 small, hand-authored prompt strings per role/category, upserted by a
+stable natural-key `id` slug via `make chat-suggestions-load`
+(`chat_api.services.suggestions_seed`). No `content_hash`/inactive-marking machinery:
+re-running the loader always overwrites every field, which is fine for data this small
+and manually reviewed.
+
+`GET /chat/meta`'s welcome text is a **deterministic excerpt of a specific, known chunk**
+- `public-organization-overview`'s "About Us" section, fetched via a new
+`RagRepository.get_chunk_by_document_and_section(document_id, section_title)` rather than
+"the document's first chunk": `RagChunk` has no sequence/ordinal column, so nothing else
+expresses "the Nth chunk of a document" without depending on undefined row order. The
+excerpt itself (`chat_api.services.welcome._first_two_sentences`) is regex sentence-
+splitting plus a length cap, not an LLM summarization call - falls back to a static
+`FALLBACK_WELCOME_TEXT` if that chunk isn't loaded in a given environment yet, so a
+missing/reordered document never becomes a user-facing error.
+
+Per-answer follow-up chips (`chat_api.services.suggestions.followups_for_answer`) pick
+same-`category` suggestions first, then a general-pool fallback, keyed off the answered
+intent (`branch_locator`→branches, `calendar`→calendar) or the top citation's
+`document_id` (`category_for_document_id`'s keyword map) for `document_qa` answers -
+plan §18-C3 explicitly asks for "category-based, not LLM initially."
+**Revert:** drop `chat_suggestions`/the loader/`GET /chat/meta`; revert `welcome.py`/
+`suggestions.py`; remove `access_hint`/`suggested_followups` from the response DTOs.
+
+## D-058 — Any field added to `MessageResponse`/`RespondResponse` must also be added to `_initial_snapshot`, or the SSE stream silently reverts it (accepted, 2026-07-19)
+
+S19, found via live Playwright verification (not caught by `pytest`/`pyright`): a real
+`/messages` response correctly included `access_hint`/`suggested_followups`, but the
+chat-web UI showed neither - `apps/chat-web/src/hooks/useChatSession.ts` opens the SSE
+stream right after a turn resolves (D-048's own `streamReady` gating), and `routers/
+stream.py`'s `_initial_snapshot` built its `SessionSnapshotEvent` straight from `aget_
+state().values` without ever reading these two new fields, silently resetting them to
+their Pydantic defaults (`None`/`[]`) moments after the correct POST response rendered.
+`access_hint` is real checkpointed `QAState`, so reading it off `state` was a one-line
+fix; `suggested_followups` is *not* checkpointed (computed per-request from `chat_
+suggestions` + citations), so `_initial_snapshot` needed a new `db: AsyncSession`
+parameter to recompute it the same way `sessions.py`'s own `_suggested_followups` helper
+does (now shared, imported into `stream.py`) - guarded on `_pending_task_interrupt`
+rather than that helper's own internal `__interrupt__`-key check, since a checkpointed
+`state` dict has no `__interrupt__` key the way an `ainvoke` result dict does.
+**Generalizes:** this project's checkpoint-vs-response-DTO split (SessionSnapshotEvent's
+own docstring already calls it "one canonical shape") means *any* future response field
+that isn't plain checkpointed state needs the same treatment in `_initial_snapshot`, not
+just these two - worth checking explicitly whenever a new derived (non-state) field is
+added to the response DTOs.
+**Revert:** N/A - this is a bug fix, not a reversible design choice.
+
+## D-059 — S20 authored pipeline: Solver A/B reuse existing task slots; `question_validation_runs.question_template_id` is nullable; judge thresholds are a two-tier reject/borderline policy (accepted, 2026-07-19)
+
+Three coupled decisions for `generate_authored_candidate` (`packages/curriculum/.../
+ai_pipeline.py`, SPEC §5.8.2-5.8.5, plan §7):
+
+1. **Solver A and Solver B (SPEC §5.25.2's "different models") reuse the existing
+   `BedrockTask.QUESTION_GENERATION`/`QUESTION_REVIEW` slots** instead of adding a third
+   task. User-confirmed at session start over adding a dedicated `QUESTION_SOLVER_B`
+   task: the two slots already resolve to different `model_registry` entries, so this
+   gets genuinely different models for free with zero new enum surface. **How to
+   apply:** if a future session needs Solver A/B on the *same* model deliberately (e.g.
+   cost-driven), that's a `model_registry` config change, not a schema change.
+2. **`QuestionValidationRun.question_template_id` is nullable.** A candidate rejected
+   before the pipeline's final "persist" step (deterministic gate, solver disagreement,
+   judge rejection) never gets a `QuestionTemplate` row at all - matching the existing
+   "shape" pipeline's `generate_candidate` (D-026) - but ROADMAP S20's own "rejected
+   with persisted reasons" done-when criterion requires the rejection itself to survive
+   in Postgres regardless. Every rejection, with or without a template, gets its own
+   append-only `question_validation_runs` row; only a fully-passing candidate has
+   `question_template_id` set.
+3. **`QUESTION_JUDGE` uses a two-tier policy**, not a single reject/pass cutoff:
+   `is_ambiguous`/`not is_aligned`/`not is_age_appropriate`/`>1` difficulty disagreement
+   always rejects; `hint_quality_score < 2` (of 1-5) also rejects; a `hint_quality_score
+   <= 3` or exactly a `1`-off difficulty disagreement doesn't reject but sets
+   `review_priority="high"` so the item is human-reviewed first rather than queued
+   normally. Mirrors the plan's own "low scores reject, borderline sets
+   review_priority=high" wording. **How to apply:** these are placeholder thresholds,
+   same "never calibrated against real Bedrock" posture as D-025/D-035/D-046 - revisit
+   once real judge output exists.
+
+**Revert:** add a dedicated Solver B task; make `question_template_id` non-nullable and
+drop persisted-rejection audit rows for pre-persistence failures; collapse the judge
+policy to a single reject/pass threshold.
+
+## D-060 — S20 authored generation is scoped to `linear_equations` only this session (accepted, 2026-07-19)
+
+User-confirmed at session start (same "reuse `TOPIC_DIFFICULTY_SKILLS`, don't author new
+topic wiring" scope cut the S9 shape pipeline already made, D-003/D-016) over also wiring
+`fraction_operations`/`place_value` for authored generation in the same session.
+`generate_authored_candidate` raises `PipelineConfigError` for any topic outside
+`TOPIC_DIFFICULTY_SKILLS` by design, identical to the shape pipeline's existing behavior.
+**How to apply:** authoring shapes/skills/exemplars for the other two topics is future
+content work, not a gap in this session's pipeline code - see PROGRESS.md's carry-over.
+
+## D-061 — Authored near-duplicate detection uses a placeholder cosine-distance threshold; `review_cli.py`'s edit-and-rerun supersedes in place and bumps `version` (accepted, 2026-07-19)
+
+`ai_pipeline.NEAR_DUPLICATE_COSINE_DISTANCE_THRESHOLD = 0.05` (0 = identical, 2 =
+opposite) is a placeholder, same "never exercised against real AWS" caveat as
+D-025/D-035/D-046 - `MockBedrockProvider`'s hash-based embeddings are high-dimensional
+and effectively random for unrelated text, so only a near-exact-text stem collides this
+tightly in tests; real semantic near-duplicates (paraphrases) are unverified until real
+Titan embeddings exist. `review_cli.py`'s edit-and-rerun action (`QuestionRepository.
+supersede_template` + a fresh `generate_authored_candidate` call at `version + 1`) keeps
+the superseded row in place rather than deleting it (plan §7's "prior row kept"
+requirement) and re-derives the rerun's seed from the original template id's own trailing
+seed segment (`authored-{topic_id}-d{difficulty}-{seed}`) plus a fixed step, rather than
+requiring the reviewer to supply a new seed by hand.
+**Revert:** N/A for the versioning behavior (matches the plan directly); the threshold
+value itself can be tuned freely without a schema change once real embeddings exist.
+
+## D-062 — S21: `HINT_PERSONALIZATION` gets its own narrowest-necessary Bedrock payload, not a widened `BedrockTutorPayload` (accepted, 2026-07-19)
+
+User-approved widening of the SPEC §5.30.1 allowlist, scoped to this one new task
+(D-023's "narrowest documented field list for that task" rule, applied rather than
+loosened). New `HintPersonalizationPayload` (`packages/shared/.../bedrock.py`,
+`extra="forbid"`): `grade, skill, question, selected_answer, canonical_hint_text,
+misconception_tag, attempt_count, hint_level, previous_hint_summaries,
+relevant_learning_fact`. The four fields the user explicitly approved are
+`previous_hint_summaries`/`misconception_tag`/`attempt_count`/`hint_level` - all
+non-identifying, internal bookkeeping (an error-tag string, a short prior-hint text, two
+integers), never free text from the student. `canonical_hint_text` is a necessary
+addition beyond that named set: without it the model has no concrete content to
+rewrite. It is not identifying either (it's reviewed hand-authored/S20-authored
+content), but it's flagged here explicitly so the allowlist's own rationale stays
+honest about everything actually on the wire. `current_topic`/`estimated_level` (present
+in `BedrockTutorPayload`) are deliberately dropped from this payload as
+not-yet-proven-necessary for a hint rewrite. `TUTOR`'s own payload/allowlist is
+untouched - single-shot hint/solution calls still don't get this context.
+**Explicit non-goal:** no free text, no PII; `relevant_learning_fact` stays `None`
+until S25 memory, identical to `BedrockTutorPayload`'s posture today. This is a
+materially narrower ask than S24's future chat decision, which needs raw student
+free text plus a redaction pass - the two are not the same sign-off and shouldn't be
+conflated later.
+**How to apply:** any future Bedrock task added to this file should default to its own
+narrowest field list, matching this and D-023's precedent, rather than reusing or
+widening an existing payload type "because the fields are similar."
+
+## D-063 — S21: the within-question hint ladder is a graph self-loop (conditional edge back to `intervention_choice`), not an intra-node `interrupt()` loop (accepted, 2026-07-19)
+
+Progressive-disclosure hints (up to 3 levels, one question) needed a way for a student
+to ask for a harder hint on the *same* question without the graph advancing to a new
+one - the first time this codebase needed more than one round of user choice within a
+single logical sequence. Two shapes were possible: a `while` loop inside one node
+invocation (re-pausing via a fresh `interrupt()` call each round), or a conditional
+edge in `graph/build.py` routing back to a fresh execution of the same node. **Went
+with the second.** D-021 gotcha #1 (a resumed node replays its entire body from the
+top - only the `interrupt()` call itself returns the cached value) makes the first
+shape actively dangerous here: on the Nth hint request, a `while`-loop node would
+replay and re-execute every earlier round's real Bedrock call and `hint_events` write
+before reaching the new pause - O(N²) real side effects and duplicate audit rows,
+not a hypothetical. A graph-level self-loop avoids this entirely: each round is a
+brand-new node execution (`intervention_choice` unchanged in shape, still
+`interrupt()`-first with no work before it) that hits its own pause immediately, no
+replay risk. `graph/build.py` gained `_route_after_intervention_choice`, keyed off a
+new transient `LearningState.hint_ladder_awaiting_choice: bool` field (same category
+as the existing `entry_action` - meaningful only for this turn's routing decision, not
+otherwise read). `routers/sessions.py`'s `/respond` handler needed no core change - it
+already reads the next pending interrupt generically after every `Command(resume=...)`
+call, so a second pause within the same `ainvoke` surfaces exactly like the first one
+did.
+**Consequence:** `StudyRepository.update_intervention_choice` was changed from
+overwriting `hint_used`/`video_used`/`solution_used` to OR-ing the new round's flag
+into whatever the attempt already has - a round-1 "hint" then round-2 "solution" must
+not silently clear `hint_used`, or `study_outcomes.correct_label`'s support-history
+precedence could misclassify an abandoned-without-solution case.
+**How to apply:** any future node that needs more than one round of paused user input
+within one logical turn should use this same "conditional self-edge back to the node,
+node stays single-`interrupt()`-per-invocation" pattern, not a loop inside the node
+body - this is the first instance of the pattern in this codebase and is meant to set
+it, generalizing D-021's existing "split pre-work into its own completed node" guidance
+to the specific looping-interrupt case.
+
+## D-064 — S22: exam backend keeps grade-on-submit and adds a real default timer, not the plan's recommended save-then-finalize model (accepted, 2026-07-20)
+
+User-decided at session start, against both of the plan's own recommendations (plan §19
+#3-4): (1) pre/post exams keep grading each `/answers` call immediately, same as every
+prior session, rather than switching to save-then-finalize (answers saved, graded only
+at an explicit finalize); (2) pre/post exams get a real default `time_limit_seconds`
+(1200s = 20 min for the fixed 10-question set, `learning_api.services.exam_policy`)
+rather than staying untimed by default. Both are reversible - `exam_policy.py`'s
+`_POLICIES` dict is the only place either fact lives.
+
+**Consequences the plan's own text flagged for this cheaper model (§19 #3), now real:**
+an *answered* exam item can never be revisited or changed - grading already happened the
+instant it was submitted. Only *unanswered* items support skip/flag/jump-back navigation.
+S23 (exam frontend) must design its nav bar around this: clicking an answered item can
+show it read-only (no correctness shown - `AssessmentPolicy.feedback_visibility=
+"hidden_until_finalize"` still holds at the response layer even though grading is
+immediate underneath) but must not offer a resubmit affordance.
+
+**Two structural changes this forced, beyond what "keep grading immediate" alone would
+have needed:**
+1. **Phase auto-advance is removed for pre/post exams.** Previously `flow.py` transitioned
+   the phase the instant the last item got an attempt (`len(attempts) == len(items)`).
+   With skip/flag/jump navigation, "last item answered" no longer implies "the student is
+   done," so pre/post exams now require an explicit `POST .../exam/finalize` call - a real
+   "Submit exam" action, matching the plan's own frontend design (`SubmitConfirmationModal`,
+   S23) even though the backend model underneath is the cheaper one. Study phase (D-028's
+   retry ladder) is completely unaffected - it never went through this policy.
+2. **The plan's `PUT .../exam/items/{id}/answer` "save, not grade" route was not built.**
+   Its entire reason to exist (a save path distinct from grading) doesn't apply once
+   grading stays on the existing `POST .../answers` path - reusing that endpoint (now
+   masking `is_correct` for `phase in ("pre_exam", "post_exam")` in the response, though
+   the grade is still computed and stored) avoids a confusing parallel route.
+
+**Schema:** `assessment_sessions` gained `topic_id`/`policy` (JSON snapshot of the applied
+`AssessmentPolicy`, so a later constant change can't retroactively alter an in-progress
+exam)/`time_limit_seconds`/`finalized_at`. New `assessment_item_state` table
+(unseen/answered/skipped/flagged + timing columns, `time_spent_ms` unpopulated until a
+future frontend autosave tick). `assessment_attempts.selected_option` became nullable -
+`flow.finalize_exam` synthesizes an incorrect attempt (`selected_option=None`) for any
+item skipped through to the end, gated on an explicit `confirm_unanswered` flag unless the
+timer has already expired (expiry is checked lazily on the next request - no background
+scheduler exists anywhere in this codebase yet, same posture as `youtube-sync`).
+
+**Idempotency gotcha found while building this:** `finalize_exam`'s dispatch by
+`learning_session.phase` (pre_exam -> pre-exam session, post_exam -> post-exam session)
+breaks on a retried call that arrives *after* the phase has already visibly advanced to
+"study"/"completed" - the naive version raised `InvalidPhaseError` instead of the intended
+idempotent no-op. Fixed by also accepting `phase in ("study", "completed")` as valid
+dispatch targets (resolving to the pre/post session respectively) - `phase == "study"`
+structurally only ever happens after the pre-exam's `finalized_at` is already set, so that
+branch always falls through to the "already finalized, re-serve verbatim" no-op, never a
+real re-run. The router's own guard for `/exam/finalize` was loosened to match (allows
+`EXAM_PHASES` plus `"study"`/`"completed"`, not just the exam phases themselves).
+
+**Found and cleaned up during this session's own live/test verification, unrelated to the
+above but worth flagging:** `question_variants` has no cleanup path at all in
+`apps/learning-api/tests/conftest.py`'s per-student `DELETE` sweep (D-053) - rows are
+keyed by template, not student, so every HTTP-committed test that builds a pre/post exam
+leaves generated variants behind permanently. Enough accumulated across this project's
+history that `packages/curriculum/tests/test_ai_pipeline.py::
+test_solver_disagreement_rejects_without_persisting`'s deliberately-chosen seed (700666,
+picked in S17 specifically to avoid colliding with the *hand-authored* bank) coincidentally
+collided with an already-existing generated variant of shape template
+`linear_equations-d3-24` ("Solve for x: x/6 + 7 = 4"), rejecting the pipeline candidate for
+"duplicate rendered_question" before it ever reached the solver-disagreement check the test
+means to exercise. Fixed by deleting that one orphaned variant row (verified unreferenced
+by any `assessment_items`/`assessment_attempts`/`study_items`/`study_attempts`/
+`hint_events` row first); confirmed 369/369 stable across 3 repeated `make test` runs
+afterward. Not a full fix - `question_variants` accumulation is unbounded and this exact
+class of collision can recur as more variants pile up; a future session should either seed
+the RNG in the HTTP-committed test files or add a `question_variants` cleanup/dedup pass,
+neither of which this session's scope covered.
+
+## D-065 — S22.5: brand tokens live in one shared `packages/ui-brand/`, CSS/assets only (accepted, 2026-07-19)
+
+`learning-web/src/index.css` and `chat-web/src/index.css` were byte-identical before this
+session - hand-synchronized duplication already existed, so a shared source removes real
+drift risk rather than inventing new coupling. New `packages/ui-brand/` holds `tokens.css`
+(keeps the existing semantic token names: `--text`, `--accent`, etc. - only the values
+change), `base.css` (element styles factored out of the twin `index.css` files), logo
+assets, and `check_contrast.py`. Both apps import it via a relative path from `main.tsx`;
+each `vite.config.ts` gained `server.fs.allow: ["../.."]` (repo root) since the two apps
+have separate lockfiles and Vite can't infer a monorepo root on its own, so it refuses to
+serve files outside the app directory by default (dev-server only - `vite build` bundles
+fine regardless of `fs.allow`).
+**Deliberately not shared:** TSX components. Both apps' `tsconfig.app.json` `include` only
+`["src"]`, so a cross-app TSX import breaks `tsc -b` (TS6059 rootDir violation) - chrome
+markup (header/footer JSX) stays duplicated per app (~30 lines each), which is fine since
+it genuinely differs between the two apps' navigation models.
+**How to apply:** any future cross-app UI asset (icons, more tokens) belongs in
+`packages/ui-brand/` if it's CSS/static, not if it's a React component - a shared component
+library would need a project-reference/build-step change to `tsconfig` first, out of scope
+here.
+**Gotcha found while wiring this up:** the root `pyproject.toml`'s `[tool.uv.workspace]`
+globs `packages/*` expecting every directory to be a `uv` Python package - adding
+`packages/ui-brand/` (no `pyproject.toml`, it's CSS/assets only) broke `make lint`/
+`typecheck`/`test` for the *entire* monorepo (`uv` refused to resolve the workspace at
+all, not just skip the one directory) until it was added to the same `exclude` list
+`apps/learning-web`/`apps/chat-web` already use. Any future non-Python directory under
+`packages/` needs this same exclude entry, or the whole Python toolchain goes down.
+here.
+
+## D-066 — S22.5: self-hosted fonts via `@fontsource`, not the Google Fonts CDN (accepted, 2026-07-19)
+
+The live site (`www.intellichoice.org`) loads Poppins/Open Sans from Google's CDN, but both
+apps' primary users are minors - a CDN font request would ship every student's IP address
+to Google on every page load, and open-sourcing this to fonts.google.com wasn't judged
+worth it for a two-family type stack. `@fontsource/poppins` (600 weight only) and
+`@fontsource/open-sans` (400 + 700) are installed as regular npm dependencies and imported
+from each app's `main.tsx`; both are OFL/Apache-licensed and explicitly permit self-hosting.
+Bonus: local/offline dev keeps working without a network call.
+**How to apply:** any future third-party font need should default to self-hosting via
+`@fontsource` (or vendoring the font files directly) unless there's a specific reason a CDN
+is required - this is now the house rule, not a one-off.
+
+## D-067 — S22.5: deliberate WCAG contrast deviation from raw brand colors; do not "fix" back (accepted, 2026-07-19)
+
+The live site's brand green `#5eb761` on white is 2.49:1 contrast and brand pink `#e95095`
+is 3.47:1 - both fail WCAG AA's 4.5:1 text threshold (the live site itself fails this).
+Rather than silently reverting to the generic purple `#7c3aed` the codebase already had (a
+regression on brand fidelity) or shipping inaccessible text, `packages/ui-brand/tokens.css`
+uses **two tiers**: the raw brand colors are kept for identity/decorative/large-surface use
+(logo, gradient highlight sections, large headings), while a separate darkened
+"interactive" tier is used anywhere color carries text-sized meaning - links, button
+backgrounds, focus rings: green `#387e40` (4.97:1 on white) and pink `#c22f73` (5.32:1 on
+white). Purple `#7049ba` (6.27:1) already passes and needs no adjustment.
+`check_contrast.py` asserts every text/background token pair used for real text meets
+4.5:1 in both color schemes - it deliberately does not check the raw brand-tier tokens,
+since those are only ever used non-textually. **The interactive pink actually shipped is
+darker than the plan's own draft value** (`#d13a80`, 4.54:1) - that number was checked
+only against `--panel-bg` (white); this app's page background token (`--bg: #f5f5f5`,
+off-white) drops the same hex to 4.16:1, a real fail once `check_contrast.py` checked both
+surfaces the token is actually used against. `#c22f73` (4.88:1 on `--bg`, 5.32:1 on
+`--panel-bg`) is the corrected value; `--error` was darkened one step for the identical
+reason (`#dc2626` → `#d32020`).
+**Why:** accessibility for K-12 students (screen readers, low vision, guardians on older
+devices) outweighs exact-hex brand fidelity; the interactive tier still reads as clearly
+"the same green/pink family" at a glance.
+**How to apply:** if a future session is tempted to swap an interactive-tier color back to
+the raw brand hex "to match the site exactly," don't - re-run `check_contrast.py` first and
+expect it to fail. Any *new* brand color introduced later needs the same raw/interactive
+split before it's used for text.
+
+## D-068 — S22.5: dark mode keeps brand-adapted colors, not the live site's own dark CSS (accepted, 2026-07-19)
+
+The live site's `prefers-color-scheme: dark` block is untouched Impreza WordPress theme
+defaults (a different, unrelated green) - not brand truth, so S22.5 designed its own dark
+variants instead of scraping them. Near-neutral dark surfaces (bg `#131513`, panel
+`#1c1f1d`, border `#2e332f`) pair with a lightened green accent (`#7cc880`) and a new
+`--accent-contrast` token (`#0c1f10`, dark text) for solid buttons on that lightened green,
+since white-on-light-green text fails contrast in dark mode the same way raw green-on-white
+fails in light mode (D-067's same underlying problem, opposite direction). Lightened
+pink/purple (`#ef6ba6`/`#9d7fd6`) follow the same pattern.
+**How to apply:** `--accent-contrast` must be used (not assumed white) for any new
+solid-accent-background component, in both schemes - light mode's accent is dark enough for
+white text, dark mode's is not.
+
+## D-069 — S22.5: token file stays plain CSS custom properties, no Tailwind/CSS-in-JS (accepted, 2026-07-19)
+
+The existing ~680-line token-driven CSS surface (both apps' `App.css` + the twin
+`index.css`) already works and is small; introducing a build-time CSS framework or a
+runtime CSS-in-JS library to rebrand it would be a larger, riskier change than the
+rebrand itself needs. `packages/ui-brand/tokens.css` stays `:root { --token: value; }`,
+consumed via `var()` exactly as the codebase already does.
+**How to apply:** don't introduce Tailwind/styled-components/etc. as a side effect of a
+future styling task unless the task itself specifically requires it - this codebase's
+CSS approach is a deliberate, revisited-and-kept choice, not an oversight.
+
+## D-070 — S23: `exam_overview` is fetched explicitly by the frontend, not embedded in the SSE snapshot (accepted, 2026-07-20)
+
+User-decided at session start (asked directly, since the ROADMAP text's "exam_overview on
+the SSE snapshot so refresh restores the nav bar" bullet was ambiguous about *how*):
+`ExamScreen` calls the existing `GET .../exam/overview` endpoint itself - on mount, after
+every skip/flag mutation, after every answer submit, and on a 20s poll for timer resync -
+rather than `routers/sessions.py`'s `_publish_snapshot`/`SessionSnapshotEvent` growing a
+new `exam_overview` field that gets computed and pushed on every action for every session,
+including non-exam phases.
+
+**Why:** the alternative (embed in the SSE snapshot) would add an `AssessmentRepository`
+round-trip to `_publish_snapshot`, which fires on *every* action response across all
+phases (attendance, topic selection, study answers, interventions) - most of which have
+nothing to do with an exam nav bar. It also duplicates the same information two ways
+(push via SSE, pull via the existing endpoint that S22's own tests already treat as the
+refresh-restore source of truth). Fetching explicitly keeps the exam nav bar's data
+lifecycle contained to `ExamScreen`, matches the endpoint's existing "plain read, no
+`ainvoke`" contract, and costs nothing extra for every other phase.
+
+**How to apply:** if a future session wants live (sub-20s) nav-bar updates - e.g. a
+second device or a tutor view watching the same exam live - reconsider the SSE-embed
+option then; the poll-based approach here is a "good enough for one student, one device"
+tradeoff, not a structural constraint.
+
+## D-071 — S23: graph nodes omit `last_items` from their update dict instead of writing `None`, so the checkpoint never loses question content (accepted, 2026-07-20)
+
+**Found via this session's own Playwright verification** (a keyboard-only exam walk that
+refreshes mid-exam, per S23's own "Done when" criterion): after answering even one
+pre/post-exam item, a page refresh showed "Loading the next question…" forever - the nav
+bar's item statuses restored correctly (`GET exam/overview` is a separate, unaffected
+read), but the actual question content was gone.
+
+**Root cause:** `graph/nodes.py`'s `submit_answer` and `finalize_exam` nodes returned
+`"last_items": None` explicitly whenever `AnswerResult.items`/`FinalizeResult.items` was
+`None` - which is *every* pre/post-exam answer under free navigation (D-064: nothing new
+to show, the nav bar is driven by `exam/overview` instead, not by "the next question").
+LangGraph's default `LastValue` merge only overwrites a channel when its key is present
+in a node's returned dict; explicitly writing `None` **cleared** the checkpointed
+`last_items` channel (which had held the original 10-question batch since `select_topic`)
+the instant the first answer that didn't hand back new items was submitted. `/resume` and
+`/stream`'s initial-snapshot both read `state.last_items` directly, so both were affected
+- this was a real, previously-unexercised gap, not something S23 introduced (no existing
+test submitted an answer and then resumed/refreshed before this session; the closest,
+`test_restart_and_resume_continues_from_same_question`, resumes with zero answers
+submitted in between).
+
+**Fix:** both nodes now build their update dict, then only set `update["last_items"]` when
+`result.items is not None`; the key is omitted otherwise, so the channel keeps whatever it
+already held. This matches a pattern already used elsewhere in the same file (the
+`intervention_choice` node's `awaiting_next_hint` branch never touches `last_items`, which
+is *why* the in-progress hint ladder's underlying study question was already surviving a
+refresh correctly - this session generalized that same convention to `submit_answer`/
+`finalize_exam` rather than inventing a new mechanism).
+
+**How to apply:** when a graph node has "nothing new to report" for a transient `last_*`
+field, omit the key rather than writing `None`/clearing it - `None` should mean "this was
+never set" or "deliberately nothing to show" (e.g. `select_topic`'s `blocked` branch, or
+`finalize_exam` transitioning to `phase="completed"`, where no question is shown again),
+not "no update this turn." Regression test:
+`test_resume_after_an_exam_answer_still_returns_the_full_batch`
+(`apps/learning-api/tests/test_learning_flow.py`).
+
+## D-072 — S24: SPEC §5.30.1 wire allowlist extended for `TUTOR_CHAT`/`LEARNING_CHAT_INTENT` with a mandatory deterministic PII redaction pass; no dedicated prompt-injection filter (accepted, 2026-07-20)
+
+**Decided at session start** (ROADMAP's own "hard blocker" note, plan §19 risk #1, same
+D-023-class sign-off S21/D-062 already established for a narrower extension): the student's
+own free-text chat message may cross the Bedrock wire, as `redacted_message` on two new
+narrowest-necessary payloads (`LearningChatIntentPayload`, `TutorChatPayload`) - the first
+time this codebase sends anything not already fully selected by code. User-approved
+explicitly (not the plan's fallback "deterministic-only chat" option) before any chat code
+was written.
+
+**Why:** free-text is the only way a "why is my answer wrong?"/open-ended tutoring chat
+can work at all - a fixed intent menu alone can't cover "I don't get why x has to move to
+the other side" phrased a dozen different ways. The alternative (SPEC's exact §5.30.1 list,
+unextended) would have kept L5 to hint/solution/video dispatch only, per the plan's own
+"blocked" framing.
+
+**Mitigations, all built this session, none deferred:**
+- `intellichoice_shared.pii_redaction.redact_free_text` (deterministic regex: email, URL,
+  and a phone pattern requiring a 3-3-4 punctuated grouping - *not* a bare digit run,
+  deliberately, since this is a math-tutoring app where "2024 - 1998 = 26" is normal
+  student work, not a phone number) runs at the request boundary
+  (`routers/sessions.py::send_chat_message`), before the message reaches `TurnContext`,
+  the Bedrock wire, or the `tutor_chat_messages` row - the unredacted string never exists
+  past that one call.
+- Self-harm/abuse keyword screen (`tutor_chat.screen_for_safety_concern`) runs before
+  intent classification and before any Bedrock call - a fixed, age-appropriate response,
+  never LLM-improvised, `flagged_for_review=True` on the stored row for human follow-up.
+- Both new payloads are `extra="forbid"` allowlists, same D-023 discipline as every other
+  Bedrock payload - extended in `test_bedrock_payload_pii_floor.py`.
+- 90-day retention (`TutorChatMessageRepository.purge_older_than`, `make chat-purge`).
+
+**Explicitly NOT built, documented residual risk (matches plan §15's own caveat):** name
+detection in free text is unreliable and not attempted - only email/URL/phone patterns are
+redacted. No dedicated prompt-injection filter on the chat payload either (same low-risk
+judgment call D-014 already made for the admin-escalation email body) - the redacted text
+is sent as inert payload data, never re-interpreted as instructions by any downstream code.
+
+**How to apply:** any future free-text-accepting Bedrock task must run
+`redact_free_text` (or a stricter successor) before the wire and before storage, and its
+payload must appear in `test_bedrock_payload_pii_floor.py`'s allowlist set - this is now
+the established pattern for extending §5.30.1 to a new task, not a one-off.
+
+## D-073 — S24: chat is a plain service call (`nodes.run_chat_turn`), never `graph.ainvoke`/`graph.aupdate_state` - both silently discard a pending `intervention_choice` interrupt (accepted, 2026-07-20)
+
+**Found via this session's own empirical testing, not previously known:** the original
+plan (chat as a new `entry_action="chat_message"` top-level graph node, per plan §5)
+would have broken the moment a student chatted while the button-panel `AssistancePanel`
+was open - which is *every* time, since that panel only ever renders while the graph is
+paused at `intervention_choice`'s `interrupt()`. A scripted check this session ran twice:
+
+1. First against a plain `graph.ainvoke` of a new entry action - confirmed (via
+   `_get_state_values`'s own pre-existing docstring, which already warned of this for a
+   different reason) that a fresh top-level invocation on a paused thread discards the
+   pending task.
+2. Then against `graph.aupdate_state` (an attempt to sidestep the first problem by
+   patching checkpoint fields directly, no node execution) - `snap.tasks` showed the
+   pending interrupt gone immediately after one `aupdate_state` call, and the *original*
+   `intervention_choice` pause's `/respond` call then 409'd with "no interrupt is
+   pending". Both mechanisms are unsafe here, not just the first one.
+
+**Fix:** `graph/nodes.py::run_chat_turn` is a plain async function (not a `(state,
+runtime)`-shaped node), called directly from `routers/sessions.py::send_chat_message` -
+never through `graph.ainvoke`/`graph.aupdate_state`. Same "not a graph turn" precedent
+S22/S23 already established for `mark_item_skipped`/`mark_item_flagged`/
+`add_item_time` (chat has no routing consequence either), extended here to also cover
+the Bedrock calls themselves, not just a repository write. The route reads state via a
+new `_peek_state_values` (identical to `_get_state_values` minus the pending-interrupt
+409 guard - safe here specifically because this reader never invokes the graph).
+
+**Two consequences, both documented in `run_chat_turn`'s own docstring, neither fixed
+this session:**
+- Hint-ladder position for chat's `request_hint` branch is computed from
+  `hint_event_repo.get_events_for_attempt` (the durable audit table) instead of
+  `LearningState.assistance_level_by_variant` (which chat never touches). Correct for
+  chat-only use; if a student mixes chat and the original buttons for the *same* wrong
+  attempt in the *same* pause, the button panel's own checkpoint-based level (unaware of
+  chat's rows) can drift from what chat already served.
+- `bedrock_spend_cents` isn't persisted back to the checkpoint for chat's own Bedrock
+  calls, so the SPEC §5.25.1 per-session budget check chat participates in is a
+  read-only composite (checkpoint snapshot + this call's own running total), not a true
+  cross-turn cumulative for chat specifically. The per-day cost ceiling (D-072,
+  `tutor_chat_messages`-backed) is chat's actual, stronger cost control and doesn't share
+  this gap.
+
+**How to apply:** any future assistance-adjacent surface that must coexist with a
+paused `interrupt()` (not resume it, not replace it) should follow this same "plain
+service call reading a peeked snapshot, never `ainvoke`/`aupdate_state`" pattern - not
+assume a fresh top-level entry action is safe just because it doesn't call
+`interrupt()` itself. Verified live via Playwright this session: three chat turns
+(hint/why_wrong/off_topic) during an open `intervention_choice` pause, followed by the
+original "Show the solution" button - the button still worked and served the ladder's
+existing content, proving the pause survived.
+
+## D-074 — S25 memory consolidation: two entrypoints, first-contradiction-demotes/
+second-supersedes, and PII-redacted chat text is approved as consolidation input (accepted, 2026-07-20)
+
+Five coupled decisions for SPEC §5.15.4/plan §9's consolidation worker
+(`packages/memory`, new workspace member per D-009/D-014's precedent - offline pipeline
+logic shared by an app node and a CLI, not FastAPI-specific):
+
+1. **Two public entrypoints share one core (`_consolidate_events`).**
+   `consolidate_student_session` (student, session_id) backs `graph/nodes.py::
+   finalize_exam`'s inline hook (plan §9 trigger (a): fires only when a **post-exam**
+   completes, i.e. `FinalizeResult.learning_gain is not None`, not on the pre-exam->study
+   transition) - every event in that one graph thread, via a new `MemoryRepository.
+   list_events_for_session`. `consolidate_student_window` (student, [start, end)) backs
+   `consolidate_cli.py`'s weekly batch (SPEC §5.15.4's literal Sunday job; `make
+   memory-consolidate`, manual trigger only in dev - same "schedule later" posture as
+   `youtube-sync`/`webcontent-sync`). **Consequence, by design, not a bug:** since every
+   event from one learning session shares that session's single `session_id`, and the
+   plan's minimum-evidence rule requires evidence spanning >=2 *sessions* for a new fact
+   to reach `status="active"`, a `consolidate_student_session` call can never promote a
+   brand-new fact past `"provisional"` on its own - only the weekly batch (or a second
+   learning session) can. Verified in `test_full_deterministic_learning_flow`'s new S25
+   assertions: a full pre->study->post cycle really does trigger consolidation and really
+   does produce `semantic_memory` rows, and every one of them is `provisional`.
+2. **Deterministic pre-aggregation renders each `LearningEvent` into one code-owned
+   summary line** (`intellichoice_memory.events.render_event_summary`, keyed by a closed
+   set of `event_type` constants both the emitter - `learning_api.services.
+   memory_events` - and the renderer agree on) rather than sending the model a raw JSON
+   payload dump. The model only ever cites `event_id`s it was shown in this per-event
+   list (`MemoryEventSummary`) as `supporting_event_ids`; the caller re-verifies every
+   cited id resolves to a real event belonging to this student before trusting it - the
+   same "model proposes, code verifies" split D-038 established for RAG citations.
+3. **Evidence bar (plan §9 verbatim): >=3 events across >=2 distinct sessions for a new
+   fact to land `"active"`; below that it's `"provisional"`** (never read by
+   `MemoryRepository.top_fact_for_skill`, the one query every read path uses).
+4. **Contradiction is two-stage, not one-shot:** an opposite-`polarity` candidate for an
+   existing *live* (`active`/`provisional`/`contested`) fact of the same
+   `(fact_type, skill_id)` only **demotes** it to `"contested"` (`contradicts_event_count`
+   +1) on the *first* such conflict - no new row is created, matching the plan's "one bad
+   day shouldn't relabel a student." Only when the *already-`contested`* fact is
+   contradicted *again* does a new fact get created and the old one marked `"superseded"`
+   (`superseded_by_id` set, kept for audit, never deleted). A same-`polarity`
+   reconfirmation of a `contested` fact (`MemoryRepository.reconfirm_fact`) returns it to
+   `"active"` and resets the streak - contradiction isn't permanent once the original
+   belief is reconfirmed. `polarity` (`"positive"`/`"negative"`) is a new, deliberately
+   coarse top-level field on `MemoryFactCandidate` (not buried in `structured_value`) so
+   this check is code-checkable without parsing free text. Fully covered by
+   `packages/memory/tests/test_consolidation.py::
+   test_contradiction_demotes_then_supersedes_on_second_contradiction`.
+5. **PII-redacted chat text is approved as consolidation input, user-decided at session
+   start** (widening beyond the plan's own "chat turn: intent + resolution only" line for
+   what `learning_events` itself stores, not for what this one Bedrock call receives): a
+   `chat_turn` event's `structured_payload` still only ever holds `intent`/`resolved`/
+   `tutor_chat_message_id` (never the message text, satisfying `learning_events`'
+   §5.15.2 "do not retain raw conversation indefinitely" posture) - the *renderer*
+   separately looks up that id's already-redacted (`pii_redaction.redact_free_text`,
+   D-072) text from `tutor_chat_messages` and folds it into that one event's
+   `MemoryEventSummary.summary` for `MEMORY_CONSOLIDATION` only. No other Bedrock task
+   sees it. Every fact's `fact_text` is additionally screened before storage via a new
+   public `pii_redaction.contains_pii_pattern` (reuses the same email/URL/phone regexes,
+   same "floor, not a guarantee" caveat as `redact_free_text` - no name detection).
+
+**Read paths wired this session:** `tutor.py`'s `generate_hint`/`generate_solution`/
+`generate_personalized_hint` and `tutor_chat.py`'s `generate_chat_reply`/
+`explain_why_wrong` all gained an optional `relevant_learning_fact` parameter, resolved
+by a new `graph/nodes.py::_resolve_relevant_fact` helper
+(`MemoryRepository.top_fact_for_skill`) at each of their four call sites - the two
+`relevant_learning_fact=None,  # semantic memory doesn't exist until S25` breadcrumbs
+left by S8/S21/S24 are now live. `study_plan.build_study_plan` gained an optional
+`memory_repo` parameter: an `active` `weak_skill` fact breaks a `weighted_score` tie in
+that skill's favor - deliberately only a tie-break (activates only when two skills'
+measured mastery is exactly equal, most commonly "neither has a mastery row yet"), never
+an override of a real mastery-score difference. **Deliberately not touched this
+session** (despite ROADMAP's S25 read-paths bullet listing "video search"):
+`video_catalog.search_video`'s own misconception-tag/grade-band query enrichment is
+explicit, separate scope for S27 (`ROADMAP.md`'s own S27 build list) - wiring it here
+would collide with that session's planned work.
+
+**Found via this session's own `uv sync` troubleshooting, not a decision but worth
+recording:** running `uv sync --reinstall-package <pkg>` on this workspace (root
+`pyproject.toml` has `[tool.uv] package = false` and empty `dependencies`) silently
+dropped every workspace member's install down to just the root `dev` dependency group
+(ruff/pyright/pytest/httpx2) - `import intellichoice_db` (or any workspace package)
+then failed everywhere, including `make test`. Fixed with `uv sync --all-packages`,
+which reinstalled the full workspace. A bare `uv sync` (no flags) exhibited the same
+narrowed state once the environment was already in it, so this isn't a one-time fluke
+of the reinstall flag specifically - if a future session sees `ModuleNotFoundError:
+No module named 'intellichoice_*'` from `uv run`, try `uv sync --all-packages` before
+assuming a real dependency problem.
+
+## D-075 — S26 stage narratives: inline helper not a graph node, exact trigger definitions for `pre_intro`/`study_step`, and a real cross-cutting SSE bug found via live verification (accepted, 2026-07-20)
+
+Four coupled decisions for SPEC §5.10.3/§5.13.3's personalized stage narratives (plan
+§18-L7), all user-approved at session start except #4 (found mid-session, fixed the
+same session):
+
+1. **Inline service calls, not a real graph node** - ROADMAP's literal wording says
+   "`stage_narrative` graph node," but `study_step`/`study_outro` (the "study
+   completion" trigger) are reached from two different existing nodes (`submit_answer`'s
+   immediate-correct path and `intervention_choice`'s resumed-round path), not one
+   top-level entry - a real node would need new conditional-edge branches from both,
+   the first multi-trigger-path node in this codebase. Matches the "not every side
+   effect needs to be a node" precedent D-073 (chat) and S25 (memory consolidation)
+   already established: `services/stage_narrative.py::generate_stage_narrative` is
+   called inline from `graph/nodes.py::finalize_exam` (×2, `pre_outro`/`post_outro`)
+   and a shared `_fire_study_transition_narrative` helper (`submit_answer`/
+   `intervention_choice`, `study_step`/`study_outro`) - cost folds into the checkpoint's
+   `bedrock_spend_cents` the same way S25's inline consolidation does, since all four
+   are real graph turns. `build.py` needed zero new nodes/edges.
+2. **All 5 stages from the expansion plan's schema table are built**, not just the 3
+   ROADMAP's own build list literally specifies (`pre_outro`/`study_step`/
+   `study_outro`) - the user chose to also build `pre_intro` and `study_step`^ (^plan's
+   `study_step` name reused for a *skill-transition* trigger, not per-question), which
+   needed newly-invented trigger definitions ROADMAP never specified:
+   - **`pre_intro`** fires on the student's first real SSE `/stream` connect to a
+     session (`routers/stream.py::_maybe_fire_pre_intro`), not from a graph turn at
+     all - the one moment outside `TurnContext`/`bedrock_spend_cents`, so its cost is
+     recorded only on its own `stage_transitions` row (same "own audit trail, not the
+     checkpoint" posture D-073 established for chat's out-of-band spend).
+   - **`study_step`** fires only when the study plan moves to a genuinely new
+     `target_skill_id` (`flow.AnswerResult.new_target_skill_id`, a new field set only
+     by `_serve_next_base_or_complete`'s "serve the next base skill" branch) - never on
+     a same-skill retry/remediation item from the §5.11.7 ladder. Bounded to at most
+     `len(target_skill_ids)` firings per study phase (5 for the current 1:1
+     skill<->difficulty curriculum), each one a genuine new transition, not "every
+     question."
+3. **Numeric grounding lives in `packages/shared/numeric_grounding.py`**, not
+   `learning_api` - plan §18-L9 (S28, dashboard/report) already says it wants to reuse
+   "a similar concept" for report-numeric-grounding, so the check (extract numbers via
+   regex, accept exact/nearest-integer/one-decimal-rounded matches against every
+   numeric leaf in a deterministic evidence dict) is built shared-first rather than
+   duplicated later. `StageNarrativePayload` is one payload class covering all 5 stages
+   (mostly-null per call), matching `SessionSnapshotEvent`'s own "one superset shape"
+   precedent, rather than five near-duplicate payload classes.
+4. **Found via this session's own live Playwright verification, not previously known,
+   fixed this session (not deferred):** `useLearningSession.ts`'s SSE-connect
+   `useEffect` opens `EventSource` as soon as `sessionId` is set, racing ahead of the
+   `/student` call (`chooseStudent`) that actually creates the LangGraph checkpoint
+   (`resolve_student`'s first-ever run) - a fresh session's first `/stream` connect
+   therefore always 404s ("learning session not found"). Unlike a mid-stream drop after
+   a successful connect, `EventSource` does **not** retry after a non-2xx HTTP response
+   (confirmed empirically: 18s of observation, zero reconnect attempts) - so before this
+   fix, a brand-new session's tab permanently never received a single SSE push,
+   silently (every REST action still updates `snapshot` directly from its own response,
+   so the bug was invisible until something depended on an SSE-only push - exactly
+   `pre_intro`, S26's own first stage). This is a real, pre-existing, cross-cutting bug
+   predating S26, not something this session's own code introduced - only surfaced
+   because `pre_intro` was the first feature in this codebase to require an SSE push
+   with no REST-response fallback. Fixed with a new `checkpointReady` state (`true` for
+   a `sessionId` restored from `sessionStorage` - a refresh always has an
+   already-resolved checkpoint behind it per SPEC §5.14.1; `false` on every fresh
+   `startSession()`, flipped `true` only once `chooseStudent`'s response confirms
+   `resolve_student` has run) gating the SSE-connect effect. Live-reverified after the
+   fix: `EventSource` connects with a real 200 immediately once `checkpointReady` flips,
+   `pre_intro`'s narrative renders correctly (screenshot-confirmed, brand tokens
+   intact), and it does **not** reappear after "Continue" is clicked.
+
+**Verification:** `make lint && make typecheck && make test` - 420 passed (403 baseline
++ 17 new: 9 `numeric_grounding`, 5 `stage_narrative` unit tests via a scripted fake
+gateway, 3 PII-floor), stable across 3 repeated runs. Alembic `upgrade head`/
+`downgrade -1`/`upgrade head` round-tripped 3x (`stage_transitions` table). Both apps'
+`npm run build`/`npm run lint` clean. Live-verified against the real running
+`learning-api`/`learning-web` dev servers (not just `TestClient`): a scripted Python/
+`httpx` script (not `TestClient`) drove a full pre->study->post cycle over raw HTTP,
+confirming 8 real `stage_transitions` rows (`pre_intro`, `pre_outro`, `study_step` ×4,
+`study_outro`, `post_outro`), every one `generated=True` (grounded, no fallback needed)
+with real skill names/scores, none invented; a Playwright pass confirmed
+`StageTransitionScreen` itself renders correctly (narrative text, the "How we
+personalized this" `<details>` list only when evidence exists, Continue dismissal, no
+console errors), including with real rich evidence content injected from a
+server-driven session. Dev Postgres swept clean afterward via the same
+dependency-ordered `DELETE` pattern prior sessions used (extended `apps/learning-api/
+tests/conftest.py`'s own sweep to include `stage_transitions`, an independent table
+with no FK to anything else the sweep touches).
+
+## D-076 — S27 Khan Academy video bank hardening: channel pin lives in the sync layer, one combined `videos.list` call covers verification+license+captions, `prerequisite_skill_ids` is deterministic, and query enrichment never becomes a hard filter (accepted, 2026-07-20)
+
+Four coupled design choices for SPEC §5.18's hardening pass (plan §18-L8):
+
+1. **The channel-ID pin is enforced by `sync_channel` itself, not trusted from the
+   provider.** `FakeYoutubeProvider.list_uploaded_videos` no longer pre-filters by the
+   requested `channel_id` (it now returns everything in `self.videos` unconditionally)
+   - the point of the hardening is that `catalog_sync.py` re-checks each fetched
+   item's own `channel_id` field against the requested channel before it's ever
+   upserted, the same "don't trust the input, re-derive/re-check" discipline D-038/
+   D-046 already established for citations and video classification. Rejected items
+   are silently dropped and counted (`SyncSummary.videos_rejected_off_channel`), never
+   raising - an off-channel item in the fetch is an anomaly to filter, not a fetch
+   failure (SPEC §6.17's "keep the previous catalog" only applies to the fetch step
+   itself).
+2. **One `videos.list(part=status,contentDetails)`-shaped call does verification +
+   license + caption-availability together** (`YoutubeProvider.get_video_details`),
+   not three separate real API calls. A real per-caption-track *language* would need a
+   separate `captions.list` call per video - deliberately skipped this session (one
+   more unexercisable real API call, same "no real creds yet" posture as everywhere
+   else, D-002/D-025); `catalog_sync.py` instead stores the video's own
+   `RawVideoMetadata.language` as `transcript_language` whenever
+   `transcript_available` is true, an approximation good enough for the query
+   enrichment this session actually needs (§5.18.3's grade-band/misconception/mastery
+   matching, not transcript display). The verification pass runs *after* the classify/
+   embed/upsert loop and never raises past a bare `except Exception` - a real API
+   outage there must not undo an otherwise-successful sync (only the fetch step keeps
+   SPEC §6.17's "leave the previous catalog untouched" guarantee; verification is
+   pure hardening on top of an already-committed sync). `verification_failures`
+   resets to 0 on a passing check rather than being cleared to a fixed value, so it
+   reads as "failures since last recovery," and `active_status`/`verification_failures`
+   are reversible the same way `mark_inactive_except` already was (S15) - a video that
+   verifies as available again is trusted again, not held in permanent quarantine.
+3. **`prerequisite_skill_ids` is a deterministic, code-only derivation - never an LLM
+   output.** For each of a video's already-classified `skill_ids`, `catalog_sync.py`
+   looks up `CurriculumContent.prerequisite_for(skill_id)` (the same in-process
+   `prerequisites.yaml` lookup the S10 retry ladder already uses) and stores the
+   union. This keeps the "deterministic core" project rule (CLAUDE.md #2) intact even
+   though `topic_ids`/`skill_ids`/`grade_band` themselves are classified by a real
+   Bedrock call (D-046) - the *prerequisite* relationship is curriculum-authored data,
+   re-derived in code from an id the model already proposed and the classifier already
+   re-validated, not asked of the model directly.
+4. **Query enrichment (misconception tag/grade band/mastery state) only ever widens
+   the embedding query text handed to `video_catalog.search_video`'s one
+   `create_embedding` call - it never becomes an additional hard filter.**
+   `skill_id`/`difficulty` remain `search_catalog`'s only caller-supplied filters;
+   `suitability_status == "approved"` is the one new *unconditional* filter (a
+   content-policy floor, not a query parameter - no path in this session ever sets a
+   video to anything other than "approved", so this is schema readiness for a future
+   review step, not yet load-bearing). Mastery state reuses the existing
+   `WEAK_SKILL_THRESHOLD` constant (`mastery_bootstrap.py`) via a new
+   `topic_resolver.resolve_mastery_state` helper rather than inventing a new
+   threshold - two buckets (`"weak_skill"`/`"proficient"`, or `"unassessed"` with no
+   mastery row yet), matching the binary distinction `study_plan.py`'s own tie-break
+   already makes.
+
+**Consequence, not a gap:** a real `YoutubeDataApiProvider` (`packages/adapters`,
+httpx-based, same "thin wrapper" posture as `AnthropicBedrockProvider`) exists behind
+the `YoutubeProvider` Protocol but is entirely unexercised - no real YouTube Data API
+key exists yet (D-002's posture). `FakeYoutubeProvider` stays the dev/test default;
+`YoutubeSyncSettings.youtube_provider="youtube"` is the env-selection switch once a
+real `youtube_api_key` exists, mirroring `bedrock_provider`'s existing pattern.
+
+**Verification:** `make lint && make typecheck && make test` - 425 passed (420
+baseline + 5 new: 2 `packages/db/tests/test_repositories.py` - reversible verification,
+suitability-status exclusion; 2 `packages/youtube/tests/test_catalog_sync.py` -
+off-channel rejection, verification pass reversibility, plus a `prerequisite_skill_ids`
+assertion folded into the existing idempotency test; 1
+`apps/learning-api/tests/test_video_catalog.py` - a `_CapturingGateway` proving the
+enriched query text actually reaches the embedding call), stable across 3 repeated
+runs. Alembic `upgrade head`/`downgrade -1`/`upgrade head` round-tripped 3x (new
+`youtube_videos` columns; every non-nullable addition carries a `server_default`
+since the shared dev Postgres already has real S15/S17 seed rows to replay against).
+Live-verified against the real shared dev Postgres via `make youtube-sync` (fake
+provider, the only exercisable path): all 4 real videos re-synced with
+`prerequisite_skill_ids` correctly populated from their classified skills (e.g.
+`ka-two-step-eq` → `["linear_one_step"]`), `last_verified_at`/`suitability_status`/
+`verification_failures` all populated as expected, `active_status` unaffected.
+
+## D-077 — S28 progress dashboard + student report: branch-manager reuses the tutor field set (cohort deferred), `PARENT_REPORT` task reused for every audience, and `verified_facts` is a fixed-shape payload (accepted, 2026-07-20)
+
+Four coupled design choices for SPEC §5.14.2-§5.14.4 (plan §12, §18-L9):
+
+1. **Branch-manager audience reuses the tutor field set as a single-student stand-in;
+   real cross-student cohort aggregation is deferred (session-start, user-approved
+   scope decision).** SPEC/plan describe branch-manager as "cohort-level only," but
+   nothing in the Learning API domain maps students to a branch roster it can query -
+   `org_branches`/`org_team_members` (S17) are staff/location directory data, not
+   student membership, and that link only exists in Mongo (unused by learning-api so
+   far). Building a real roster + cross-student aggregate was judged well beyond this
+   session's scope; `_AUDIENCE_FIELDS["branch_manager"] = _AUDIENCE_FIELDS["tutor"]`
+   (`services/report.py`) is the interim stand-in - correct per-student field
+   exposure (no usage/mastery/time detail, same SPEC §5.14.4 exclusions as tutor),
+   just not yet aggregated across a cohort. Matches ROADMAP's own "Done when" wording,
+   which only requires student vs. parent to differ. **Carry-over**, not a bug.
+2. **`BedrockTask.PARENT_REPORT` (the SPEC §5.25.2 task table's own name) is reused for
+   all four audiences**, not a new `REPORT_INTERPRETATION` task - the plan's own prose
+   used that name generically, but the enum already had a stable, spec-named slot for
+   exactly this task family (declared in S8, unused until now, per D-022's "name it
+   when the model registry needs a stable key" convention). One
+   `ReportInterpretationPayload`/`ReportInterpretationResponse` pair covers every
+   audience; `audience` is a payload field, not a separate task. Model registry reuses
+   `settings.bedrock_tutor_model_id` (no new settings field) - same "same generative
+   task family, not a distinct capability" posture as `HINT_PERSONALIZATION`/
+   `STAGE_NARRATIVE`; easy to split into its own setting later if a
+   summarization-tuned model proves better than the tutor model.
+3. **`verified_facts` (the Bedrock payload, persisted verbatim to
+   `student_reports.verified_facts`) is always the same fixed shape - every field
+   present, with audience-excluded fields left at their Pydantic default (`None`/
+   `{}`/`[]`) rather than omitted from the dict.** Same "one wire shape,
+   audience/stage-filtered per call" precedent `StageNarrativePayload` established in
+   S26, generalized from per-stage to per-audience. Consequence worth knowing for any
+   future reader of a `verified_facts` JSON blob (or test asserting on it): "field
+   present" doesn't mean "audience-visible" - a `None`/`{}`/`[]` value is the
+   audience-gating signal, not a missing key. `ReportView.tsx`'s fact-label list
+   already renders only non-null entries, so a gated-out field simply doesn't appear
+   in the Verified section.
+4. **`student_reports` is not idempotency-keyed** (unlike `stage_transitions`'s
+   (session, stage[, skill]) key) - report generation is an explicit, user-triggered
+   "Generate report" action with no natural single-fire moment in a graph turn, so
+   every call persists a fresh row; `list_for_student`/`get_latest_for_student` serve
+   history (newest first) rather than a single canonical row. No scheduler/weekly-
+   digest job exists yet (SPEC §5.14.3's "weekly automated report" - same "manual
+   trigger only" posture as `youtube-sync`/`webcontent-sync`, deferred).
+
+**Also found via this session's own Playwright verification, not previously known:**
+the S11 carry-over ("a parent with an auto-selected single child never learns
+`student_external_id` client-side") also blocks that same parent from reaching the
+*new* dashboard/report screens through the real UI - `StartScreen`'s "View progress
+dashboard" button is gated on `studentId` being already known, and ending a session
+clears it again, so a single-child parent has no real path to the dashboard without
+first completing a full session (`ResultsScreen` has the same button). A multi-child
+parent is unaffected (the `child_selection` interrupt's `respond` call does set
+`studentId`). Not fixed this session (same root cause as the already-documented S11
+gap, out of scope); verified instead by seeding `sessionStorage`'s
+`selected_student_id` key directly (the same key the real child-selection path
+writes) before a page reload - the dashboard/report calls that follow still exercise
+the real backend and real server-side `resolve_target_student` check, just skip
+redriving the unrelated, already-covered child-selection UI flow.
+
+**Chart palette:** no chart-specific brand tokens exist yet (`packages/ui-brand`'s
+3-hue brand identity - green/pink/purple - failed the `dataviz` skill's dark-mode
+categorical validator when tried directly, lightness band FAIL on `#7cc880`/`#ef6ba6`).
+Used the skill's own pre-validated reference categorical/sequential slots (blue/aqua/
+yellow/green, both light and dark re-validated for the 2- and 4-series charts this
+screen needs) as local CSS custom properties (`--viz-series-*` on `.dashboard-charts`
+in `App.css`), not the brand's raw hues. Revisit if the brand wants bespoke chart
+theming later - this is a reasonable default, not a permanent constraint.
+
+**Verification:** `make lint && make typecheck && make test` - 441 passed (425
+baseline + 16 new: 2 `packages/db`-style repo tests via `apps/learning-api/tests/
+test_dashboard.py`, 7 `test_report.py` - audience-gating pure-function tests +
+gateway-failure/ungrounded/grounded scripted-gateway tests, 4
+`test_dashboard_report_endpoints.py` - HTTP-level wiring + role-based `verified_facts`
+gating + auth rejection, 3 new `test_bedrock_payload_pii_floor.py` cases for
+`ReportInterpretationPayload`), stable across 3 repeated runs. Alembic `upgrade head`/
+`downgrade -1`/`upgrade head` round-tripped 3x (new `student_reports` table). Both
+apps' `npm run build`/`npm run lint` clean (`apps/learning-web` only - `chat-web`
+untouched this session). Live-verified via a scripted Playwright run (temp install in
+the scratch directory, D-034 convention) against the real running `learning-api`/
+`learning-web` dev servers, driving a real pre→study(with a hint round)→post cycle
+over raw HTTP first (`student-ext-4`) so the dashboard had real non-empty data: all 6
+chart types rendered with real values, the date-range preset buttons were clickable
+and keyboard-focusable, report generation produced grounded interpretation/
+recommendations text for a real gain ("Score went from 8.0 to 10.0. That's a gain of
+2.0 points."), and a parent view (`parent-ext-1`/`student-ext-1`, zero activity)
+correctly showed the facts-only fallback text and the `tutor_review_flagged` fact the
+student view never receives - 0 console errors across both role flows. Left the real
+`student-ext-4` pre→study→post cycle (1 `learning_gain` row, ~8 `study_attempts`, 1
+`hint_events` row) plus a handful of `student_reports` rows from this session's own
+live verification in the shared dev Postgres - same "useful seed data" reasoning prior
+sessions gave, not cleaned up.
+
+## D-078 — S29 (multimodal solution images) deferred, not built (accepted, 2026-07-20)
+User-declined at session start, before any file was touched. A plan was drafted (upload
+endpoint outside the graph; consent-to-analyze folded into `intervention_choice` as a
+new `"image"` choice resumed with only an opaque `image_key`, never image bytes, so
+nothing crosses the LangGraph checkpoint boundary; `BlobStore`+`Fernet` encryption;
+`MalwareScanner` fake; new `BedrockGateway.analyze_image`; a restricted-`ast` executable
+math validator for VLM-extracted steps) but the user chose to skip the session entirely
+rather than build it, citing two reasons: (1) a real photo of a K-12 minor's solution
+work can incidentally capture a face, other homework, or a home background - a privacy
+question the spec's existing §5.1.4 consent-interrupt language and §5.17.2 storage
+policy don't actually resolve, only assume away; (2) every supporting external
+dependency (a real malware scanner, real S3 encryption-at-rest) is still on the D-002
+"no real creds yet" footing every other adapter in this project carries, so this
+session's only buildable version would be fakes stacked on fakes without answering the
+actual open question. **Nothing was built:** no `BlobStore`, `MalwareScanner`,
+`BedrockGateway.analyze_image`, upload router, executable math validator, or
+`intervention_choice` "image" choice exists anywhere in this codebase.
+
+**How to apply:** ROADMAP's S29 entry stays as the design reference (marked deferred,
+not deleted) for whichever future session picks this up. Before building, resolve the
+privacy question first - what the consent language says about incidental capture, what
+happens if a face/other person's info appears in frame, whether a parent-level
+opt-in is needed given minors are the users - not just the architecture question this
+session already settled (which was: extend the existing interrupt, ids-only through the
+resume payload, matching D-020's existing rule).
+
+## D-079 — `answer_text_leaked`'s `\b`-anchored regex never matched a negative-number answer; fixed with lookaround assertions (accepted, 2026-07-20)
+Found while building S30's hint-leak-detection golden fixture (`packages/evals/src/
+intellichoice_evals/leak_sample.py`, plan §13), not a pre-existing test failure - the
+existing unit tests (`test_hint_ladders.py`, `test_tutor_service.py`,
+`test_authored_validation.py`) all happen to use positive-integer answers, so the gap
+was invisible until a broader, format-varied fixture exercised it. `intellichoice_
+curriculum.authored_validation.answer_text_leaked` matched `correct_answer_text` with
+`re.compile(rf"\b{re.escape(correct_text)}\b")` - `\b` requires exactly one side of the
+zero-width position to be a word character, so for an answer starting with a non-word
+character (a leading `-` for a negative integer, e.g. `"-4"`) there is no boundary at
+all between a preceding space and the `-` (both non-word), and the pattern can never
+match that answer anywhere, including stated outright. Negative-integer answers are
+real and reachable in this curriculum - `templates/registry.py`'s `format_integer`
+calls `str()` on a `Fraction` whose numerator can be negative (e.g. "Solve for x: x + 10
+= 6" → x = -4) - so this was a live gap in a safety-critical check, not a theoretical
+one: **this function is the actual runtime guard** `learning_api.services.tutor.
+generate_personalized_hint`/`tutor_chat.generate_chat_reply` call on every real S21/S24
+hint/chat response before trusting it, and the S20 pipeline gate
+(`check_no_answer_leakage`) before a candidate is ever activated. A hint or chat reply
+that stated a negative correct answer outright would have been served to a student
+verbatim, undetected, by both the pipeline gate and the runtime fallback.
+
+Fixed by replacing the `\b` anchors with explicit lookaround assertions - `(?<![0-9A-Za-z])`
+before the match and `(?![0-9A-Za-z])` after - which still correctly rejects "4" embedded
+inside "24" (preceded by the digit "2") while correctly matching "-4", "4/5", or "1.5"
+regardless of what non-alphanumeric character precedes them. Verified against the full
+existing suite (no regressions - the change only makes the check *stricter*, never
+loosens it) plus the new golden fixture's 9 cases (`packages/evals/tests/
+test_leak_sample.py`), including the regression case itself
+(`verbatim_negative_integer`).
+
+**How to apply:** any future answer-leak-style check should use this lookaround pattern,
+not a bare `\b`, whenever the value being matched might itself start or end with a
+non-alphanumeric character.
+
+## D-080 — S30 Evaluation platform: registry over rewrite, judge/leak-detection wiring lives in a new `packages/evals`, exam-flow determinism stays pure-function (accepted, 2026-07-20)
+Three coupled scoping choices for SPEC §5.31/Phase 19 (plan §13):
+
+1. **The S19/S20-era golden fixtures (`qa_coverage_eval.yaml`, the 5 authored-pipeline
+   bad-item tests) were *registered*, not rewritten into a generic YAML-driven runner.**
+   ROADMAP's own S30 build bullet says "promoted into one harness," which could be read
+   as "converted to data files" - but `test_authored_pipeline.py`'s bad-item cases are
+   inherently procedural (the near-duplicate case needs two sequential candidates
+   sharing one embedding vector; the disagreement case needs a second scripted solver
+   response), and they already pass, are already well-documented, and are already
+   exactly what ROADMAP S20's own "Done when" criterion named. Rewriting working,
+   well-tested pipeline logic into a generic data-driven engine to satisfy a documentation
+   goal would be exactly the kind of premature abstraction/unnecessary rewrite CLAUDE.md's
+   global instructions warn against. Chose instead: a new `packages/evals/src/
+   intellichoice_evals/registry.py` mapping every SPEC §5.31.1-§5.31.4 named item to the
+   repo-relative test file(s) that already cover it (file-existence granularity, not
+   function-name granularity - a sensible test rename shouldn't break the registry), plus
+   an explicit `not_applicable_reason` for the few SPEC items with no matching feature
+   (image deletion event, deferred per D-078; SQL parser validation, no NL2SQL feature
+   exists per CLAUDE.md non-negotiable #2; prompt injection, deferred per S14/D-014 to
+   S33). `test_registry_coverage.py` asserts every referenced file still exists and every
+   SPEC category is represented - this is the actual regression gate for "did evaluation
+   coverage silently drop," not a rewrite of already-correct logic.
+2. **The two genuinely new pieces - LLM-as-judge and hint-leak detection - live in the
+   new `packages/evals` package, not inside either app.** `BedrockTask.LLM_JUDGE` was a
+   reserved, uncalled enum value since S8 (D-022); this session gives it a real payload/
+   response pair (`LlmJudgePayload`/`LlmJudgeResponse`, `packages/shared/bedrock.py`) and
+   its first caller (`intellichoice_evals.llm_judge.run_llm_judge`), with a judge-specific
+   settings module (`EvalSettings.bedrock_judge_model_id`, defaulting to a *different*
+   model than either app's production answerer - SPEC §5.31.3's "different model...when
+   possible," satisfied by the default alone since no real credential exists yet to
+   verify against, D-025's posture). The leak-detection evaluator
+   (`leak_sample.py`) reuses `intellichoice_curriculum.authored_validation`'s existing
+   `leak_phrase_present`/`answer_text_leaked` rather than reimplementing detection logic -
+   its value-add is the golden fixture of answer/hint format variety (negative integers,
+   fractions, decimals), which is what actually found D-079's bug. `packages/evals`
+   depends only on `intellichoice_shared`/`intellichoice_adapters`/`intellichoice_
+   curriculum` - never on either app - keeping D-009/D-014's "packages don't depend on
+   apps" direction intact; this is also why the exam-flow determinism evaluator (item 3
+   below) lives in `apps/learning-api/tests/`, not `packages/evals/tests/`, despite being
+   conceptually a SPEC §5.31.1 "evaluator" - it needs `learning_api.services.*` imports.
+3. **Exam-flow determinism stays at the pure-function level** (`grade`,
+   `weighted_score`, `support_dependency` called twice with identical inputs, asserting
+   identical output) rather than exercising `compute_learning_gain`'s DB-joined path -
+   that full path is already covered end-to-end by `test_learning_flow.py`'s real
+   pre→study→post cycles; a dedicated determinism test adds value specifically by
+   isolating the part most likely to regress silently (dict/set iteration order,
+   floating-point accumulation order) without needing a real Postgres session.
+
+**Verification that the ROADMAP "Done when" bar is real, not assumed:** grading's
+`==` was temporarily replaced with a hardcoded `True` to confirm `test_exam_flow_
+determinism.py::test_grade_is_deterministic` actually fails (it did, immediately),
+then reverted - the literal "a deliberately broken grading rule fails CI" criterion was
+checked, not just claimed.
+
+**Not built this session (all recorded reasons above, not silent gaps):** a dedicated
+prompt-injection golden fixture (deferred to S33); "SQL parser validation" (no feature
+exists to validate); the image-deletion-event evaluator (S29 deferred, D-078).
+
+## D-081 — S31 Observability: `packages/observability`, forced-mask LangSmith wiring, and two real instrumentation-ordering bugs found live against Jaeger (accepted, 2026-07-21)
+
+New `packages/observability` (`intellichoice_observability`) owns everything SPEC §5.32
+needs, mirroring D-014/D-036's "pure logic, not persistence" package split:
+`logging_config.py` (JSON `logging.Formatter` + a `PiiDenylistFilter` enforcing §5.32.3's
+"do not log" list - student name/email/precise location/images/full prompts/full
+transcripts/OAuth tokens, translated into an exact-match key denylist per D-011's
+precedent, redacting rather than raising since a logging call must never crash the
+request it's describing), `tracing.py` (OpenTelemetry SDK setup + `traced_span`/
+`traced_node` manual wrappers), `metrics.py` (the full §5.32.4 KPI list as
+`prometheus_client` counters/histograms + an HTTP timing middleware), `request_logging.py`
+(a JSON access-log middleware), and `langsmith_config.py`. Both apps depend on it;
+`packages/adapters` gained it too (the Bedrock gateway span, D-025/D-035's provider
+package, needs it - every CLI worker that calls the gateway gets tracing for free without
+its own wiring).
+
+**LangSmith (§5.32.1) is env-gated on `LANGSMITH_API_KEY` and forces
+`LANGSMITH_HIDE_INPUTS`/`LANGSMITH_HIDE_OUTPUTS=true`** rather than a selective redaction
+callable - `langgraph`/`langchain-core`'s default tracer only reads the boolean env-var
+form (`langsmith.utils.get_env_var`), not an injectable masking function, so "complete PII
+masking" (§5.32.1's literal Cloud-option requirement) is the only available granularity
+regardless. **No real LangSmith account exists** (D-002 posture, same as D-025/D-035) -
+this path is wired but unexercised; §5.32.1's self-hosted-vs-cloud contractual-review
+decision stays open, not decided here.
+
+**Alerting (§5.32.4) is Prometheus alert *rules* only** (`observability/
+prometheus-alert-rules.yml` - HTTP error rate, attendance-block rate, tutor-review-flag
+rate, Q&A no-answer rate, session-cost-vs-budget-ceiling), visible/evaluable in
+Prometheus's own `/alerts` UI. No Alertmanager/real notification channel (no Slack/email/
+PagerDuty credentials exist - D-002's posture) - rules are ready for a receiver once real
+ones exist, not yet load-bearing for paging anyone. Grafana dashboards (`observability/
+grafana/dashboards/*.json`, 3 files: Learning KPIs, Q&A KPIs, Infrastructure) are
+provisioned as code (`grafana/provisioning/`), covering every named §5.32.4 KPI except
+CPU/memory/pod count - those are container-runtime metrics (cAdvisor/node-exporter) with
+no deployed container runtime yet to scrape from (S32's decision, D-004).
+
+**`docker-compose.yml` gained `otel-collector` (OTLP receiver -> Jaeger OTLP exporter),
+`jaeger`, `prometheus`, and `grafana`** - both apps still run natively on the host (`make
+dev-learning`/`dev-chat`), reaching the collector at `localhost:4318` (published port) and
+being scraped by Prometheus via `host.docker.internal:8001`/`:8002` (Docker Desktop's
+host-from-container DNS name - a Linux dev machine would need `extra_hosts:
+host-gateway`, not added since this project's dev machines are macOS). `otel_enabled`
+defaults to `False` in both apps' `Settings` - `make test` constructs `TestClient(app)`
+dozens of times per run against the same module-level `app` singleton, and enabling
+tracing unconditionally would have made that re-entrant in ways the two bugs below made
+very concrete.
+
+**Two real bugs found via this session's own live verification against a running Jaeger,
+neither visible from unit tests, both fixed and covered by new regression tests
+(`packages/observability/tests/test_instrumentation_ordering.py`):**
+
+1. **`FastAPIInstrumentor.instrument_app` called from inside `lifespan` never wraps any
+   real request.** Starlette's `Starlette.__call__` builds and caches
+   `self.middleware_stack` on the very *first* ASGI call an app instance receives - and
+   that first call is the `"lifespan"` scope's own startup message, which is what invokes
+   `lifespan` in the first place. `instrument_app` works by monkey-patching `app.
+   build_middleware_stack`; patching it from inside the function that's already running
+   *as a result of* the first (unpatched) call patches too late. First live symptom: a
+   trace's root span was `langgraph.select_topic` (a manual span), not the expected `POST
+   /learning/sessions/{id}/topics` - DB/LangGraph spans existed and shared a trace_id
+   among themselves, but no FastAPI span ever wrapped them.
+2. **`PymongoInstrumentor().instrument()` called from inside `lifespan`, after
+   `MongoProfileAdapter` already constructed its `AsyncIOMotorClient`, produces zero Mongo
+   spans.** `pymongo.MongoClient.__init__` snapshots the *then-current* global
+   `pymongo.monitoring` listener list into its own instance at construction time - it
+   never re-checks the global list per command. `lifespan` constructs the Mongo adapter as
+   its very first step, before instrumentation used to run.
+
+**Fix:** `configure_tracing_provider()` (builds the provider, sets it global, and runs
+`PymongoInstrumentor` - no client instance needed, so `packages/adapters` never imports
+OTel) and `instrument_fastapi_app()` both now run at **module level**, immediately after
+`app = FastAPI(...)`, before any Mongo client or the app's first ASGI call of any kind.
+Only `instrument_sqlalchemy_engine()` stays inside `lifespan`, since only there does the
+per-lifespan `Engine` instance exist - `SQLAlchemyInstrumentor` instruments a specific
+engine object handed to it directly, so it doesn't share either footgun.
+`configure_tracing_provider`'s own docstring carries the full explanation for the next
+person tempted to "simplify" this back into `lifespan`.
+
+**Live-verified against the real running `learning-api` dev server + the real
+otel-collector/Jaeger/Prometheus/Grafana compose stack** (not just unit tests): a real
+`create_session -> select_student -> select_topic` HTTP flow produced one trace
+(`9c0c...`) with `POST .../topics` as the root span, `langgraph.select_topic` as its
+child, and 48 real Postgres `INSERT`/`SELECT` spans as *its* children, all one
+`trace_id`; a separate `GET /students/.../attendance` call produced a trace with
+`intellichoice.find` (a real Mongo command span) correctly nested under the FastAPI root.
+JSON access logs confirmed no `?token=` or raw query string anywhere (D-032 resolved -
+see below). Prometheus's `learning-api` scrape target reported `up`; `/metrics` showed
+real KPI values (`learning_session_starts_total 1`, `http_requests_total{path="/learning/
+sessions/{learning_session_id}/topics",status="200"} 1`) after the same flow. Grafana
+auto-provisioned all 3 dashboards + both datasources with zero manual clicks, confirmed
+via its own API. `make lint && make typecheck && make test` - 468 passed (452 -> 468, +16
+observability tests), stable across 3 repeated runs.
+
+**Resolves the standing D-032 caveat** (SSE `?token=` bearer values leaking into access
+logs): `request_logging.install_request_logging_middleware` logs the route *template*
+(`request.scope["route"].path`) and method/status/duration only - it never touches
+`request.url` or the raw query string, so a token can't leak through it by construction.
+`logging_config.configure_logging` additionally disables uvicorn's own plain-text access
+logger (`logging.getLogger("uvicorn.access").disabled = True`), which does log the full
+raw request line - there is now no logger anywhere in either app that could still leak
+one.
+
+**How to apply:** any future OTel instrumentation library added to either app must be
+evaluated for this same "does it need to run before some object is constructed/receives
+its first call" hazard - it is not specific to FastAPI or Pymongo, it's a general
+monkey-patching/global-registration risk. New KPIs go in `metrics.py` next to their SPEC
+§5.32.4 siblings; new manual spans use `traced_span`/`traced_node`, never construct a
+`Tracer` directly.
+
+## D-082 — Correction: `go.intellichoice.org`'s real production database is MySQL, not MongoDB (accepted, 2026-07-21)
+Every prior doc (SPEC.md, ARCHITECTURE.md, D-002, and this project's own `MongoProfileAdapter`/
+`mongo:7` dev-fake) assumed the existing `go.intellichoice.org` system's PII source of truth
+(names, emails, roles, parent-child links, attendance) runs on MongoDB. **This was wrong** -
+the user confirmed the real system is MySQL. SPEC.md/ARCHITECTURE.md still describe it as
+"MongoDB 7" in ~50 combined places as of this decision; that wording is stale and should not
+be trusted for this specific fact going forward.
+
+**Impact is contained, not zero.** `ProfileAdapter` (`packages/shared/src/intellichoice_shared/
+profiles.py`) is a `Protocol` returning Pydantic models (`StudentProfile`, `ParentProfile`,
+`BranchInfo`, ...) - no caller outside `MongoProfileAdapter` itself touches Mongo document
+shapes, so routers/services/graph nodes are unaffected. What does need to change, whenever the
+real integration is built: the eventual real adapter is a MySQL client (or an HTTP client, if
+`go.intellichoice.org` fronts its DB with an API rather than exposing direct DB access - still
+unknown, ask before assuming either) implementing the same `ProfileAdapter` methods, not a
+`pymongo`/`motor` client. D-002's "swap is configuration, not rework" claim still holds either
+way, since it was never about the specific engine.
+
+**Not done here:** SPEC.md/ARCHITECTURE.md's ~50 "MongoDB" references, and the local dev-fake
+(`docker-compose.yml`'s `mongo` service + `MongoProfileAdapter` + `motor` dependency), are left
+as-is for now - the user chose to log this correction only rather than do the full doc/code
+sweep. **Decide the doc/dev-fake rewrite at whichever session first needs the real
+`go.intellichoice.org` integration (S32 deployment or later)** - that session should either
+correct the wording in bulk or, if the dev-fake itself should switch engines, replace `mongo:7`
+with `mysql:8` (or similar) and rewrite `MongoProfileAdapter` as a `MySQLProfileAdapter`,
+updating `seed_mongo.py`/`mongo_fixtures.py` accordingly. Until then, treat every "MongoDB"
+mention describing the *real* `go.intellichoice.org` system (not this repo's own Postgres) as
+suspect and confirm with the user rather than relying on the doc text.
+
+## D-083 — Local dev-fake rewritten Mongo-shaped -> MySQL-shaped, following up on D-082 (accepted, 2026-07-22)
+Executes the dev-fake half of D-082's deferred work (docs are still not swept - see below).
+`MongoProfileAdapter` (`packages/adapters/.../mongo_profile_adapter.py`, `motor`-based) is now
+`MySQLProfileAdapter` (`mysql_profile_adapter.py`), built on SQLAlchemy Core (`create_async_engine`
++ `text()`) with the `aiomysql` driver, not raw `aiomysql`/`pymysql` directly. **Why SQLAlchemy
+Core instead of a raw driver:** verified via web search that no OpenTelemetry instrumentor for
+`aiomysql` exists (open-telemetry/opentelemetry-python-contrib#1787 is an open, unresolved
+request) - building on SQLAlchemy Core instead reuses `opentelemetry-instrumentation-sqlalchemy`,
+already a dependency for the Postgres engine, so `packages/observability`'s net new OTel
+dependency count is zero (down one, from removing `opentelemetry-instrumentation-pymongo`).
+
+**A second real instrumentation-ordering bug found and fixed in the same family as D-081's:**
+`SQLAlchemyInstrumentor` is a process-wide singleton - calling `.instrument(engine=...)` once per
+engine (rather than once with `engines=[...]`) silently drops every engine after the first
+(open-telemetry/opentelemetry-python-contrib#1103, verified independently via web search and a
+local repro). Both apps now construct two engines per `lifespan` (the app's own Postgres engine,
+and `MySQLProfileAdapter.engine`), so `tracing.instrument_sqlalchemy_engine` (singular) became
+`instrument_sqlalchemy_engines` (plural, `*engines` + one combined `.instrument(engines=[...])`
+call) - `packages/observability/tests/test_instrumentation_ordering.py` gained two regression
+tests for this (mirroring the existing FastAPI-ordering pair's "document the footgun" structure).
+
+**Schema:** `parent_child_links`'s old Mongo array (`child_external_ids: list[str]`) became a
+normalized junction table (one row per `(parent_external_id, child_external_id)` pair) rather than
+a JSON column - standard relational modeling, and it's what `get_parent_children` already returns.
+Created via a plain SQL init script (`mysql-init/001-schema.sql`, mounted at
+`/docker-entrypoint-initdb.d/`), not Alembic - this table set simulates an external system
+IntelliChoice doesn't own, deliberately kept out of `packages/db`'s own migrated schema. No
+`'unknown'` attendance status: a missing row is still what `AttendanceStatus.UNKNOWN` means,
+exactly preserving prior semantics.
+
+**Renamed/replaced:** `docker-compose.yml`'s `mongo:7` service -> `mysql:8.4`; `Makefile`'s `seed`
+target body (`seed_mongo` -> `seed_mysql`, target name itself was already engine-agnostic);
+`scripts/dev-up.sh`'s service references; both apps' `config.py` (`mongo_url` -> `mysql_url`, env
+`LEARNING_MONGO_URL`/`CHAT_MONGO_URL` -> `LEARNING_MYSQL_URL`/`CHAT_MYSQL_URL`) and `main.py`
+wiring (`adapter.close()` is now `await adapter.close()` - a real sync->async signature change,
+not just a rename); `packages/adapters/pyproject.toml` (`motor` -> `sqlalchemy[asyncio]` +
+`aiomysql`); all 8 test files that held a live Mongo client directly (`_mongo_available()` ->
+`_mysql_available()`, bodies rewritten - no Mongo-shaped test infra was reused, since Motor's ping
+has no MySQL equivalent).
+
+**Not done here (unchanged from D-082):** SPEC.md (41 mentions), ARCHITECTURE.md (10, including
+the `MONGO[(...)]` mermaid node and the PII-boundary table row), FINAL_ARCHITECTURE.md (4),
+ROADMAP.md (12), and CLAUDE.md (3, found during this session's inspection, not previously
+counted) still say "MongoDB" and need a wording sweep in a later docs-focused session.
+PROGRESS.md's historical session log (30 mentions) should stay as-is - it accurately reflects
+what was true/believed at each past session - except its "Current status" section, which still
+recommends "managed Mongo" for the S32 deployment decision via D-004; that line is wrong on two
+axes (wrong engine, and conceptually wrong, since `go.intellichoice.org` is a pre-existing
+external system IntelliChoice doesn't provision at all - there is no "managed Mongo/MySQL" for
+IntelliChoice's own deployment to provision on its behalf). Worth fixing before S32 (the next
+session) starts, since D-004 is "on record" as the plan. **Still unconfirmed and explicitly out
+of scope for this decision:** whether the real `go.intellichoice.org` integration is direct MySQL
+access or an HTTP API fronting it - that decides the real (non-dev-fake) adapter's implementation
+and is a separate future session's call.
+
+## D-084 — S32 deployment: ECS Fargate + RDS confirmed, real Bedrock wired in, first live staging deploy (accepted, 2026-07-22)
+Confirms D-004 as corrected by D-082/D-083: ECS Fargate (not EKS) + RDS PostgreSQL w/
+pgvector (not Aurora) + RDS MySQL (the `go.intellichoice.org` dev-fake's real-infra analog -
+IntelliChoice's own seeded fixture DB, not "provisioning Mongo/MySQL on `go.intellichoice.org`'s
+behalf"). User-approved scope this session, beyond D-004's original minimal-smoke-test framing:
+real AWS credentials, real Bedrock (not kept mocked), both frontends deployed alongside both
+backends, "close to production posture" sized for <2,000 MAU. New `terraform/modules/{vpc,ecr,
+iam,rds-postgres,rds-mysql,alb,ecs-service,ops-task,cloudfront-spa-api,observability}` +
+`terraform/environments/staging/`, two `Dockerfile`s, `.dockerignore`. No domain registered yet -
+ALB is HTTP-only (no ACM cert possible without one); both apps get real HTTPS anyway via
+CloudFront's default `*.cloudfront.net` cert.
+
+**Same-origin CloudFront design, not CORS**: `main.py`'s own comment already said *"the real
+deployment puts both apps behind `learning.intellichoice.org`"* - combined with `learning-api`'s
+routers all living under `/learning/*` and `chat-api`'s under `/chat/*`, one CloudFront
+distribution per product path-routes `/learning/*` (or `/chat/*`) to the ALB and everything else
+to S3, giving one HTTPS URL per product with zero CORS and no mixed-content problem, without a
+registered domain. A CloudFront Function (`spa-fallback.js`), not `custom_error_response`, handles
+SPA client-side routing - `custom_error_response` is distribution-wide and would have rewritten
+the *API* origin's real JSON 404/403 responses into HTML 200s too; the Function only attaches to
+the S3 (frontend) cache behavior.
+
+**Cost posture (session-long correction as it went)**: single-AZ RDS both engines, ECS Fargate on
+ARM64/Graviton (~20% cheaper, and matches building locally on Apple Silicon with no
+cross-compilation step), `desired_count=1`, no NAT Gateway - VPC interface endpoints instead
+(ECR api+dkr, Logs, Secrets Manager, bedrock-runtime), single-AZ only for the endpoints themselves
+after finding live that 2-AZ endpoints (~$73/mo for 5 endpoints) cost *more* than a NAT Gateway
+(~$33/mo), the opposite of this design's own premise - 1-AZ endpoints (~$36/mo) restores the
+"cheaper than NAT and zero general internet egress" property the design was meant to have.
+Terraform modules stay parametrized (`multi_az`, `desired_count`, `instance_class`) for a future
+`environments/prod`; this session only builds `environments/staging`.
+
+**Real Bedrock, EULA accepted via `aws bedrock create-foundation-model-agreement`** (user-approved
+at the time, given the offer token already fetched) rather than the console - closes D-025's
+long-standing "never exercised against real AWS" caveat for both `AnthropicBedrockProvider` (real
+Claude Sonnet 5 call, confirmed via a live guest chat-api query) and `TitanEmbeddingProvider`
+(real embedding call via direct CLI). ECS task role scoped to `bedrock:InvokeModel` on only the
+two configured model ARNs (no long-lived AWS keys anywhere - task execution/task roles + a
+deferred GitHub OIDC role are the only IAM principals). A monthly AWS Budget alarm
+(`module.observability`, $20 default, email notification) is the account-level backstop the
+existing per-session (~$0.50, `ResilientBedrockGateway`) and per-day (learning-api chat, $1.00)
+ceilings don't provide.
+
+**Real bugs found and fixed live against real AWS, not in review** (this session's build-time
+guesses were wrong often enough to be worth listing in full):
+- `packages/db/alembic/env.py` hardcoded `sqlalchemy.url` to `localhost` with no real env-var
+  override despite its own comment claiming one existed - fixed to read `DATABASE_URL` first,
+  fallback unchanged. Blocked a migration-runner task from ever working against RDS.
+- RDS MySQL `engine_version = "8.4.3"` doesn't exist (`InvalidParameterCombination`) - real
+  available versions confirmed via `aws rds describe-db-engine-versions`; corrected to `8.4.10`.
+- This AWS account has **Free Tier restrictions** active - `db.t4g.small` and a 7-day backup
+  retention were both rejected outright (`FreeTierRestrictionError`), not just costed
+  differently. Both RDS modules now default to `db.t4g.micro`/1-day retention, which also happens
+  to match the "<2,000 MAU, don't scale up unnecessarily" instruction.
+- ALB security group description containing an apostrophe ("CloudFront's...") was rejected by
+  EC2's security-group-description character allowlist - real AWS constraint, not a Terraform
+  bug; reworded.
+- `for_each = toset(var.allowed_security_group_ids)` in both RDS modules failed with "Invalid
+  for_each argument" the first time VPC and RDS were planned together, since the ECS tasks SG's
+  ID is only known after apply - switched to `count = length(...)` (length is static even when
+  element values aren't).
+- ALB target group name (`"${name_prefix}-${name}-tg"`) exceeded AWS's 32-char limit for
+  ALB/target-group names - shortened to `"${name}-tg"`.
+- **Real credential leak, found and remediated live**: `seed_mysql.py`'s own
+  `print(f"Seeded fixture data into {mysql_url}")` printed the *real* RDS MySQL master password
+  (a live Secrets Manager credential, not the local dev placeholder this line was written
+  against) into CloudWatch Logs - and that log output was then also displayed in the session
+  transcript. Remediated in this order: rotated the MySQL master password via
+  `terraform apply -replace=module.rds_mysql.random_password.master` (cascades to the RDS
+  instance and the Secrets Manager secret), deleted the CloudWatch log stream containing the
+  leaked value, then fixed the source (`sqlalchemy.engine.make_url(...).render_as_string(
+  hide_password=True)`) so this can't recur - re-verified clean on the next run. Root cause: the
+  line was harmless when the only ever URL in play was the local dev placeholder
+  (`intellichoice`/`intellichoice`, not a secret) and nobody had pointed `SEED_MYSQL_URL` at a
+  real credential before this session.
+- MySQL 8's default `caching_sha2_password` auth plugin needs the `cryptography` package for its
+  RSA-based full-auth handshake - missing from `packages/adapters`' dependencies entirely (not
+  just the Docker image). Undetected locally because the dev-compose container's auth cache had
+  already been warmed by many prior connections; a *fresh* RDS instance's first connections hit
+  full auth and failed (`RuntimeError: 'cryptography' package is required...`). This would have
+  broken both real deployed services' MySQL connectivity, not just the seed script - caught via
+  the ops-task dry run before either service was deployed. Added `cryptography>=42` to
+  `packages/adapters/pyproject.toml`, re-locked, re-verified full test suite green.
+- Fargate defaults to x86_64; images built locally on Apple Silicon are arm64 by default - fixed
+  by setting `runtime_platform { cpu_architecture = "ARM64" }` on both the `ecs-service` and
+  `ops-task` task definitions (matches the images as built, and is the cheaper Graviton pricing
+  tier anyway) rather than cross-compiling.
+- `aws_ecs_service.health_check_grace_period_seconds = 30` was too tight in practice - a real
+  `learning-api` rollout's first attempt failed ALB health checks and was killed before
+  accumulating the target group's own `healthy_threshold=2 x interval=15s` requirement on top of
+  Fargate ENI-attach/task-start overhead; ECS's automatic retry succeeded on attempt 2, but raised
+  to 60s to remove the margin call rather than depend on the retry.
+- **ALB idle timeout (default 60s) and CloudFront origin read timeout (default 30s) were both
+  shorter than the Bedrock gateway's own worst-case latency** (`call_timeout_s=20` x up to 3
+  attempts + backoff, ≈65s) - hit live as a real 504 through the browser when a guest chat-api
+  query's real Bedrock calls needed the `anthropic` SDK's internal retries. Raised ALB
+  `idle_timeout` to 120s and CloudFront's `origin_read_timeout`/`origin_keepalive_timeout` to 60s
+  (CloudFront's self-service maximum - beyond that needs an AWS Support quota increase, up to
+  180s). **Not fully closed, and the retries themselves have a separate likely root cause**:
+  three real guest-chat attempts all completed in a consistent ~61.5s (just over the new 60s
+  CloudFront cap, still 504ing), all via the same repeating `anthropic._base_client` "Retrying
+  request to /v1/messages" pattern; `AWS/Bedrock` CloudWatch metrics (`Invocations`,
+  `InvocationThrottles`, `InvocationServerErrors`) never populated any datapoints for this model
+  despite the calls provably succeeding at the application layer, and a direct CLI
+  `invoke-model` call (different IAM principal - the admin user, not the ECS task role) hit
+  `AccessDeniedException` again minutes after succeeding earlier. The consistent ~61.5s across
+  independent attempts (not a one-off cold-start) points to a **conservative default on-demand
+  rate limit/quota that new Bedrock model grants commonly start with**, not an infra or app bug -
+  an AWS Service Quota increase request for this model's invoke rate is the real fix, which is an
+  account-administrative action outside this session's scope (and outside Terraform/CLI's
+  reach - it requires AWS review). Stopped spending further real Bedrock calls chasing this once
+  the pattern was clear, rather than continuing to retry against a quota ceiling. A future session
+  should request the quota increase (and/or the CloudFront 180s timeout increase) before relying
+  on this path for real traffic.
+- Terraform's own execution-role/task-definition churn needed one structural fix:
+  `aws_ecs_service.this` gained `lifecycle { ignore_changes = [task_definition] }`, since
+  `deploy-staging.yml` (see below) deploys by registering a new task definition revision and
+  calling `aws ecs update-service` directly - CI never runs `terraform apply` unattended (kept
+  out of CI's blast radius by design) - without this, the next human-run `terraform apply` would
+  silently roll the service back to whatever image tag is in `terraform.tfvars`.
+
+**Not done this session**: GitHub repo creation and the GitHub OIDC deploy role / actual
+`deploy-staging.yml` CI wiring - blocked on the user completing `gh auth login` interactively,
+which was still pending when this session's other work wrapped up. `terraform/modules/iam`'s
+`create_github_oidc_provider`/`create_github_deploy_role` stay `false` until that happens; the
+module is otherwise ready (trust policy scoped to `repo:${org}/${repo}:*`). Custom domain +
+ACM + Route53 (registration guidance given separately, not scripted). Production environment.
+Real hosted Prometheus/Grafana for the deployed environment - CloudWatch Container Insights
+(enabled on the ECS cluster) covers the immediate S31-carry-over gap (CPU/memory/task-count
+metrics with a real deployed runtime to scrape) but isn't a replacement for the existing
+compose-based stack's dashboards.
+
+**Verification**: `make lint && make typecheck && make test` stayed green throughout (470
+passed, 1 skipped - the only shared-code touches were the alembic env.py fix and the
+`cryptography` dependency addition). All 24 Alembic migrations ran clean against the real RDS
+Postgres instance (`initial domain schema` through `s28_add_student_reports`). MySQL schema +
+fixture seed applied and re-verified clean against real RDS MySQL after the credential-leak fix.
+Both ECS services reached `healthy` in their target groups with real DB connectivity (`/healthz`
+exercises both the Postgres engine and the MySQL adapter at startup). A real Playwright run
+against the live CloudFront URLs (not curl) confirmed: both frontends load with 0 console/page
+errors and correct branding; a guest chat-api query round-tripped through
+CloudFront→ALB→ECS→`role_access_filter`→pgvector (empty - no `knowledge-content` ingested into
+this fresh staging DB) and correctly returned the fail-closed "no approved source" message (SPEC
+§5.29), proving the safety-critical grounding check holds even in a brand-new deployment; a
+second real query, after flipping `bedrock_provider=bedrock`, produced a genuine `anthropic._base_client`
+call trace in the live CloudWatch logs and (on the first of three attempts, before the ALB/
+CloudFront timeout fix) a real 200 response from the application layer.
+
+**Correction, same session: that 200 response was the app's fail-closed fallback, not genuine
+LLM content** - traced the response text (`OUT_OF_SCOPE_MESSAGE`) to `chat_api/graph/nodes.py`'s
+`except BedrockGatewayError: return {"scope": "out_of_scope", "intent": None}` (CLAUDE.md
+non-negotiable #5, fail closed). All three attempts that session had actually failed to reach
+Bedrock at all; the graceful-degradation design (correctly) masked every failure as a coherent-
+sounding 200. Real root cause, found via a DNS test from inside a running task: the `anthropic`
+SDK's `AnthropicBedrockMantle` client (what `AnthropicBedrockProvider` actually uses) calls
+`bedrock-mantle.<region>.api.aws` - a **different PrivateLink service entirely** from
+`bedrock-runtime.<region>.amazonaws.com` (the classic API this session's `bedrock-runtime` VPC
+endpoint covered). `bedrock-mantle.us-east-1.api.aws` resolved to a public IP (`3.214.115.45`),
+completely unreachable from the no-NAT private subnets - explaining the ~61.5s pattern (repeated
+connection timeouts, not model latency) and the earlier "quota" framing being incomplete. Fixed
+by adding a `bedrock-mantle` interface VPC endpoint alongside `bedrock-runtime` (`terraform/
+modules/vpc`) - confirmed the hostname then resolves to a private VPC IP. That surfaced a
+**second** real gap: `bedrock-mantle` uses a completely different IAM action/resource namespace
+than classic Bedrock - a live 403 named the exact requirement (`bedrock-mantle:CreateInference`
+on `arn:aws:bedrock-mantle:<region>:<account>:project/default`, a "project" resource, not
+`bedrock:InvokeModel` on a model ARN) - added as a second statement on the shared task role
+(`terraform/modules/iam`), alongside the existing one (still needed for
+`TitanEmbeddingProvider`'s separate `boto3`/`bedrock-runtime` path).
+
+**Then genuinely explored two model substitutes, both correctly ruled out** (user-directed
+troubleshooting, not this session's original plan) rather than only pursuing the Sonnet 5 quota
+increase:
+- **Claude Haiku 4.5**: real quota exists (10,000 req/min, 5M tokens/min via its cross-region
+  inference profile) and a direct CLI call succeeded in 1.8s - but only via the classic
+  `bedrock-runtime` API. On the Mantle endpoint specifically (what the app's code actually
+  calls), every model-ID format tried (`us.anthropic.claude-haiku-4-5-...`, bare
+  `claude-haiku-4-5-20251001`, `anthropic.claude-haiku-4-5-20251001-v1:0`) 404'd "does not
+  exist." Not a config problem - Haiku 4.5 simply isn't offered on the Anthropic-compatible
+  Mantle surface for this account.
+- **GPT-5.6 Luna** (`openai.gpt-5.6-luna`, confirmed via `bedrock-mantle`'s real Models API,
+  `GET /v1/models` with the same SigV4 auth helper reused from the `anthropic` package - 54
+  models listed): found via live testing (both the general docs and the model's own
+  documented-elsewhere-inconsistent compatibility table were initially wrong/incomplete) that
+  Luna requires its own dedicated path, `/openai/v1/responses` - not the generic `/v1/responses`
+  every other example shows - confirmed only via Luna's specific AWS model-card page, not the
+  general Bedrock-Mantle guide. Once called correctly, hit `access_denied: openai.gpt-5.6-luna
+  is not available for this account` - a real model-access gate, but Mantle-exclusive models
+  (no classic-`bedrock:*` presence at all) have no CLI-discoverable agreement/offer flow the way
+  Sonnet 5 did; likely console-only. Not pursued further past this point (user's call).
+- **Net effect of both detours**: two real, valuable infra fixes (kept, needed for any future
+  Mantle model regardless of which one), and definitive confirmation that
+  `anthropic.claude-sonnet-5` is a real, correctly-recognized model on Mantle for this account
+  (403 "not available for this account" - a permission/quota error - not "does not exist," the
+  error every genuinely-unavailable model gave). Reverted `terraform.tfvars` back to the code
+  default (no `bedrock_tutor_model_id` override) once this was confirmed.
+
+**Final state**: the Bedrock Mantle quota increase requests for Claude Sonnet 5 (both input and
+output tokens/minute) were submitted by the user directly via the AWS Console (`CASE_OPENED`,
+confirmed via `list-requested-service-quota-change-history-by-quota`, desired values 4,000,000
+input / 400,000 output - above the account's current-default figures cited earlier in this
+entry). Both ECS services are deployed and stable on Sonnet 5 with every infra-layer blocker
+(network, IAM) resolved; the only remaining gap is AWS's review of the pending quota request,
+which is outside this session's (or any CLI's) control. The two subsequent 504 attempts (after
+the ALB/CloudFront timeout fix, before the network/IAM fixes above) still 504'd at the CloudFront
+layer for the same underlying reason (network-unreachable, not model latency) - the code path is
+proven working (the direct Mantle calls this session made against other models succeeded
+end-to-end once network+IAM were fixed), and is now just waiting on the pending quota grant to
+serve real end-user requests.
+
+**Two more real bugs found via the user's own manual testing of the live deployment** (not this
+session's own verification scripts, which never exercised these paths):
+- **CloudFront routing gap**: both `main.py`s register a handful of routes directly on `app`
+  (not through an `APIRouter`, so no shared path prefix) - `learning-api`'s `/dev/token` and
+  `/students/{id}/attendance`, `chat-api`'s `/dev/token` and `/me`. Only `/learning/*`/`/chat/*`
+  were routed to the ALB; these fell through to each distribution's default behavior (S3) instead,
+  producing a same-origin 404 with an S3 XML body instead of the backend's real JSON one. Fixed
+  by adding these as additional `api_path_patterns` on both `cloudfront-spa-api` module calls
+  (`/dev/token`, `/students/*` for learning; `/dev/token`, `/me` for chat) - `/healthz`/`/metrics`
+  deliberately stay excluded (internal-only). Sign-in on `learning-web` was the first real path to
+  hit this, since it was never exercised by any live-verification script this session ran (those
+  all used `chat-web`'s guest mode, which never calls `/dev/token` or `/me`).
+- **Client-side "body stream already read" crash**: the CloudFront gap's non-JSON error response
+  surfaced a second, independent bug in both frontends' shared `request()` helper
+  (`apps/{learning,chat}-web/src/api/client.ts`) - `res.json()` still reads and locks the
+  response body even when it throws on invalid JSON, so the `catch` block's `res.text()` fallback
+  threw `TypeError: Failed to execute 'text' on 'Response': body stream already read` instead of
+  recovering, crashing the error path entirely (worse than the 404 it was trying to report).
+  Fixed identically in both files: read the body once as text, then attempt `JSON.parse` on that
+  string, never call two body-consuming methods on the same `Response`. This bug was strictly
+  worse than a routing gap alone would have been (a real backend 404 with a valid JSON body would
+  have hit the exact same crash, since the bug is in the success-shaped-error-body path, not
+  specific to S3's XML response) - both fixes were required together; the client-side one alone
+  would still have produced a broken UX on any future non-JSON error, and the routing fix alone
+  would have left this exact crash latent for the next non-JSON error (a real ALB/CloudFront
+  outage page, for instance). Rebuilt and redeployed both frontends (S3 sync + CloudFront
+  invalidation); re-verified live via Playwright - `learning-web`'s sign-in attempt (still 404s in
+  staging by design, `/dev/token` is intentionally disabled outside `environment=="dev"`) now
+  shows a clean "Not found" message inline instead of crashing.
+
+**User then explicitly asked to enable dev sign-in on staging and to run a full holistic test.**
+New `app_environment` Terraform variable (default `"staging"`, the safe posture) drives both
+apps' `LEARNING_ENVIRONMENT`/`CHAT_ENVIRONMENT` - set to `"dev"` in `terraform.tfvars` only after
+explicit user approval, with the trade-off spelled out (`POST /dev/token` is a documented
+"must never exist as reachable surface in a real deployment" backdoor; acceptable for a
+non-customer-facing staging environment, not for prod). This unlocked a full pass of real,
+substantive bugs the earlier guest-only verification never exercised:
+
+- **The CloudFront routing fix from earlier was only half-done.** Adding a path to a CloudFront
+  distribution's `api_path_patterns` makes CloudFront forward it to the ALB *origin* - it does
+  **not** make the ALB itself route it anywhere, since the ALB has its own separate listener
+  rules (built by the `ecs-service` module's own `path_patterns`, which were never updated to
+  match). Requests fell through to the ALB's own default fixed-response `"Not found"` (404).
+  Fixed by adding the safe, unique paths (`/students/*`, `/me`) directly to each service's own
+  `path_patterns`.
+- **`/dev/token` is a genuine cross-app path collision, not just a missing rule.** Both apps
+  register the identical literal path outside any router prefix, and both sit behind the *same*
+  shared ALB (one ALB for both, D-084's cost decision) - a plain path-pattern rule can't tell
+  which app a `/dev/token` call is for. Disambiguated via an `X-IntelliChoice-App` header the
+  `cloudfront-spa-api` module now sets on each distribution's ALB origin (`custom_header`), plus
+  two new header-matched `aws_lb_listener_rule` resources (priorities 90/190, ahead of the
+  broad 100/200 rules) routing to the correct target group. Verified by decoding both real JWTs
+  returned - `"audience":"learning"` vs `"audience":"chat"`, confirmed not cross-wired.
+- **The `"[object Object]"` fix from earlier was incomplete too.** FastAPI/Starlette always wrap
+  error bodies as `{"detail": ...}`; the earlier `client.ts` fix parsed the JSON but stored the
+  *whole wrapper object* as `ApiError.detail` instead of unwrapping it, so
+  `String(err.detail)` at every call site still rendered `"[object Object]"` for any real
+  structured backend error (as opposed to the non-JSON S3 XML case the first fix targeted).
+  Fixed in both `client.ts` files: unwrap `.detail` from the parsed body before constructing
+  `ApiError`.
+- **Neither Docker image ever included the repo-root `curriculum/`/`knowledge-content/`
+  directories** - static YAML/document source files the loader/ingest CLIs read from disk at
+  runtime (`Path(__file__).resolve().parents[4] / "curriculum" / ...`), entirely separate from
+  anything in the database. `.dockerignore` had explicitly excluded `knowledge-content/` (a
+  leftover from when it seemed unneeded). Every `curriculum-load`/`knowledge-load` attempt
+  against the real deployment failed with `FileNotFoundError` - meaning **no student could ever
+  select a topic** (`"unknown topic 'linear_equations'"`, a 400 that looked exactly like an
+  attendance-gate failure until the real response body was captured and inspected directly) and
+  chat-api's RAG had zero ingestable content. Fixed: both directories now `COPY`'d into both
+  Dockerfiles (builder and runtime stages - tiny, 32K + 200K combined), `.dockerignore`'s
+  `knowledge-content/` exclusion removed.
+- **A second, systemic instance of the exact class of bug `packages/db/alembic/env.py` already
+  had once this session**: `intellichoice_db.engine.create_engine()`'s `database_url` parameter
+  defaulted to the hardcoded `DEFAULT_DATABASE_URL` (`...@localhost:5432/...`) with no env-var
+  override at all - every standalone CLI script that calls it bare (the curriculum loader,
+  confirmed live via `ConnectionRefusedError: [Errno 111] ... ('127.0.0.1', 5432)`; almost
+  certainly `knowledge-load`/`org-load`/`youtube-sync`/`webcontent-sync`/etc. too, though not
+  each individually re-confirmed) was silently trying to reach `localhost` inside an isolated
+  Fargate task with no such thing running. Both real FastAPI apps were never affected (`main.py`
+  always passes `settings.database_url` explicitly). Fixed once at the shared source
+  (`create_engine(database_url: str | None = None)`, resolving `DATABASE_URL` env var before
+  falling back to the same hardcoded default) rather than patching each caller individually -
+  mirrors `alembic/env.py`'s existing fix, now consistent project-wide for every bare caller.
+- **Content successfully loaded against the real deployment** after the above fixes: `make
+  curriculum-load`-equivalent (`intellichoice_curriculum.loader`) - 3 topics, 10 skills, 50
+  templates, 50 sample variants. `make knowledge-load`-equivalent
+  (`intellichoice_knowledge.ingest_cli`) - 23 documents, 159 chunks (the same 22-doc corpus
+  earlier sessions built, now actually live in this deployment's real Postgres/pgvector).
+- **Rebuilt and redeployed twice more** (`s32-first-deploy-v4` for the Dockerfile content-copy
+  fix, `s32-first-deploy-v5` for the `engine.py` fix) - `make lint && make typecheck && make
+  test` stayed green throughout both (470 passed, 1 skipped), `terraform plan` clean after every
+  apply.
+- **Full holistic re-verification, real browser, real auth, real content**: student sign-in
+  (present) reaches the real "Ready to learn" screen; student sign-in (absent) reaches the exact
+  same screen (attendance isn't checked until a topic is actually selected, not at sign-in) and
+  then correctly hits a real, well-formatted "Attendance check" blocked screen with both SPEC
+  §5.6.3 choices ("Ask the Branch Manager to verify" / "Confirm I did not attend") when they try
+  to start - the fail-closed design (CLAUDE.md non-negotiable #5) is confirmed working
+  end-to-end in the real deployment, not just unit-tested. Parent sign-in reaches its own
+  landing screen (missing a dashboard link - this is the pre-existing, already-documented S11
+  parent-auto-select carry-over, not a new bug). Chat sign-in with a real role (not guest) works
+  and now surfaces real ingested content in its welcome message. Zero console/page errors across
+  every scenario.
+
+### Addendum (2026-07-23): Bedrock Mantle abandoned account-wide; Claude Haiku 4.5 via classic bedrock-runtime is the real model in use
+
+The user asked to find a real model that actually works within this account's quota while
+staying on Bedrock Mantle (the PrivateLink surface D-084 originally wired in for Claude
+Sonnet 5). A thorough, live-tested investigation found Mantle itself is the wrong surface for
+this account, not any one model on it - Claude Haiku 4.5 via **classic `bedrock-runtime`**
+(the same surface `TitanEmbeddingProvider` already used) is what's actually live in staging
+now.
+
+**What was tried on Bedrock Mantle, all confirmed live via a one-off `ops-task` Fargate
+container running SigV4-signed requests from inside the VPC (Mantle's PrivateLink endpoint
+isn't reachable any other way):**
+- **Claude Sonnet 5**: quota is 0 on Mantle (unchanged from D-084's original finding) - but
+  also, tested for the first time via the correct `/anthropic/v1/messages` path with a real
+  request body, it returns `permission_error: "anthropic.claude-sonnet-5 is not available for
+  this account... contact AWS Sales"` - the *same* access-denied gate blocking GPT-5.6, not
+  only the 0-quota issue D-084 attributed as its sole blocker. That attribution is hereby
+  corrected: Sonnet-5-on-Mantle has *two* independent blockers, and quota approval alone
+  (still pending, one of its two quota-increase cases came back `CASE_CLOSED` without
+  approval) would not have been sufficient.
+- **GPT-5.6 (Sol/Terra/Luna)**: real, generous quota (1-20M tokens/min, confirmed via
+  `list-service-quotas`), but every one hits the identical `access_denied`/`"not available for
+  this account... contact AWS Sales"` gate on invoke. `GET /v1/models` (Mantle's own bare model
+  catalog, found live - not the same as `/openai/v1/models`, which 404s) lists them as
+  `"status": "available"`, which turned out to mean "orderable," not "authorized" - a real trap
+  for future reference.
+- **Gemma 4 (E2B/26B-A4B/31B)**: real access *and* real invocation - simple schemas return in
+  ~1-2s with correct output (confirmed for all three sizes, both plain text and
+  `text.format: json_schema` structured output). But every realistic app schema tested (e.g.
+  `RagAnswerResponse`'s `$defs`/`$ref`/array-of-objects/optional-field shape) hung and timed
+  out (150s+) across every request-shaping approach tried (`text.format` strict, lenient, and
+  forced function/tool-calling) and on both E2B and the larger 31B - inlining the `$ref` didn't
+  help either, so this isn't a JSON-Pointer-resolution issue, it's the nested/array structure
+  itself defeating Mantle's constrained decoding for this model family. Not viable for this
+  app's real response shapes regardless of account access.
+- **Broader IAM was tested and ruled out as a factor**: `AmazonBedrockFullAccess` +
+  `AmazonBedrockMantleFullAccess` (AWS managed policies) were attached directly to the ECS task
+  role (temporarily - reverted after the test) and every one of the above access-denied results
+  reproduced identically. A rigorous control test (unsigned request -> `invalid_api_key:
+  "Missing 'authorization'..."`; garbage/expired signature -> `invalid_api_key: "Signature
+  expired: ..."`; correctly-signed request for a nonexistent model ->
+  `not_found_error: "...does not exist"`; correctly-signed request for a real blocked model ->
+  `access_denied: "...not available for this account"`) proves these are four genuinely
+  different failure modes, and that the access-denied gate is reached *only after* successful
+  SigV4 authentication - it's a downstream, Bedrock-internal vendor-entitlement/Marketplace-
+  subscription check, structurally separate from both IAM authorization and Service Quotas.
+  Broadening IAM cannot fix it; only an AWS Sales-mediated grant can (per the error's own
+  pointer to `aws.amazon.com/contact-us/sales-support`).
+
+**What's actually live now: Claude Haiku 4.5 via classic `bedrock-runtime`.** Real quota (5M
+tokens/min, confirmed), access already granted (this is what "AWS Marketplace -> Manage
+subscriptions" showing both Sonnet 5 and Haiku 4.5 as visible was actually indicating - it's
+how Bedrock model-access grants surface for Anthropic vendors, and Haiku's grant, unlike
+Sonnet 5's, is real). Tested live via `boto3`'s `bedrock-runtime.converse()` with forced
+tool-use, using the exact same complex `RagAnswerResponse` schema that broke Gemma 4: **1.5s
+response, correct schema-conformant output.** This is not new plumbing - it's the same
+boto3/`bedrock-runtime` client `TitanEmbeddingProvider` already used successfully, just calling
+`converse()` instead of `invoke_model()`.
+
+**Code changes:**
+- `packages/adapters/src/intellichoice_adapters/bedrock/bedrock_runtime_provider.py` -
+  `AnthropicBedrockProvider` rewritten from the `anthropic` SDK's `AnthropicBedrockMantle`
+  client (Messages API, forced single tool call) to plain `boto3` `bedrock-runtime.converse()`
+  (forced single tool call via `toolConfig`/`toolChoice`) - same class name, same constructor
+  signature, so neither `main.py` needed to change. The `anthropic` PyPI dependency is now
+  unused anywhere in the codebase and was removed from `packages/adapters/pyproject.toml`
+  (`uv lock` re-run).
+- `packages/adapters/src/intellichoice_adapters/bedrock/gateway.py` - added a
+  `_MODEL_RATES_PER_1K_CENTS` entry for the real invoked id
+  (`"us.anthropic.claude-haiku-4-5-20251001-v1:0"`), since the existing bare
+  `"anthropic.claude-haiku-4-5"` key doesn't match a real inference-profile id string.
+- Terraform: `terraform.tfvars`'s `bedrock_tutor_model_id` now points at Haiku's cross-region
+  inference profile id (feeds all five model-id env vars across both apps, per D-084's existing
+  wiring). The now-dead Bedrock Mantle IAM statement (`bedrock-mantle:CreateInference`/
+  `ListModels` on a `project/default` resource) and the `bedrock-mantle` VPC interface endpoint
+  were both removed (`terraform/modules/iam`, `terraform/modules/vpc`) - one fewer interface
+  endpoint also trims ~$7.30/mo, consistent with this deployment's cost-conscious design.
+  `terraform plan` clean (zero drift) after every apply in this sequence.
+- Python code defaults (`config.py` in both apps) were deliberately left at
+  `"anthropic.claude-sonnet-5"`, matching this project's existing convention for this exact
+  variable (Terraform's own `variables.tf` default is unchanged too) - the tfvars override is
+  the single source of the actual operational choice, easily reverted to Sonnet 5 if its
+  Mantle/quota situation ever resolves.
+- Rebuilt and redeployed both images (`s32-haiku-v1`) via the established non-Terraform deploy
+  mechanism (`aws ecs register-task-definition` + `update-service --force-new-deployment`,
+  since `lifecycle.ignore_changes` on `task_definition` means routine `terraform apply` never
+  drives real deploys). `make lint && make typecheck && make test` green (470 passed, 1 flaky
+  unrelated test-order failure confirmed non-reproducing on rerun).
+
+**Live verification**: both apps' `bedrock_call` CloudWatch logs, triggered through the real
+browser (not curl), show genuine calls - chat-api's `scope_and_intent` task (969/123 and
+968/135 input/output tokens) and learning-api's `stage_narrative` task (905/147 tokens), all
+with `model_id: "us.anthropic.claude-haiku-4-5-20251001-v1:0"` and `"repaired": false` (valid
+structured output on the first try, no repair-retry needed). Zero console/page errors.

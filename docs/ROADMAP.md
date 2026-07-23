@@ -1,0 +1,546 @@
+# IntelliChoice Implementation Roadmap
+
+This is the session-by-session plan for building the platform described in [SPEC.md](SPEC.md)
+and, from S17 onward, the 2026-07-18 expansion plan
+([plans/2026-07-18-expansion-plan.md](plans/2026-07-18-expansion-plan.md), "the plan" below).
+Each session is scoped to fit comfortably in one Claude Code session (roughly a half-day of
+focused work). Sessions within a milestone are ordered by dependency; milestones M4–M7 have
+some flexibility (see Dependency notes).
+
+**Renumbering note (2026-07-18, D-049):** sessions S17–S23 were restructured after S16 to
+absorb the expansion plan. Old S17 (Memory) is now S25; old S18 (Multimodal) is S29; old
+S19 (Evaluation) is S30; old S20 (Observability) is S31; old S21–S23 (launch track) are
+S32–S34. PROGRESS.md/DECISIONS.md entries written before this date use the old numbers —
+D-049 holds the full mapping.
+
+**How to use this file:**
+- Start each session with `/start-session S<n>` (reads this file + PROGRESS.md, confirms scope).
+- End each session with `/end-session` (runs checks, updates PROGRESS.md).
+- If a session runs long, cut scope, not quality — record the cut in PROGRESS.md as carry-over.
+
+**Guiding principle (from SPEC.md §6.25):** accurate domain logic first — attendance,
+authorization, grading, question quality, learning results. Agents, RAG, tools, and infra come
+after the core is reliable.
+
+**Dev-time substitutes:** there is no real `go.intellichoice.org`, MongoDB, or AWS yet.
+Every external dependency gets a local fake behind an interface (see DECISIONS.md D-002):
+- Auth → local fake token issuer signing JWTs with the SPEC §5.1.2 claim set
+- MongoDB → Docker container seeded with fixture users/attendance
+- Bedrock → mock provider implementing the BedrockGateway interface (real calls optional via env)
+- Gmail/Maps/Calendar MCP → console/fake transports that log instead of send
+
+---
+
+## Milestone 0 — Groundwork
+
+### Session 0 — Planning setup ✅ (done 2026-07-13)
+Roadmap, progress tracker, decision log, session skills, slim CLAUDE.md, git init.
+
+### Session 1 — Repo scaffold and local dev environment
+**Spec:** §5.2.1, §5.34.1 (structure only)
+**Build:**
+- Monorepo layout: `apps/learning-api`, `apps/chat-api`, `packages/shared` (Pydantic schemas), `packages/adapters`
+- Python 3.12 + `uv`, `ruff`, `pyright`, `pytest` configured at the root
+- `docker-compose.yml`: Postgres 16 + pgvector, MongoDB 7
+- Both FastAPI apps boot with `/healthz`; settings via pydantic-settings + `.env.example`
+- `Makefile`: `up`, `down`, `test`, `lint`, `typecheck`, `dev-learning`, `dev-chat`
+- GitHub Actions: lint + typecheck + test on PR
+**Done when:** `make up && make test && make lint && make typecheck` all pass; both apps answer `/healthz`.
+
+---
+
+## Milestone 1 — Deterministic learning core (SPEC "Product Core")
+
+### Session 2 — Auth validation and MongoDB Profile Adapter
+**Spec:** §5.1.2, §5.4.1, §5.4.3, §5.4.4, §5.6.1, Phase 3 (§6.4)
+**Build:**
+- Fake token issuer (dev only) emitting JWTs with `sub, role, audience, parental_consent_verified, consent_version, student_age_band`, etc.
+- Token-validation middleware: signature, expiry, audience (`learning` vs `chat`)
+- Read-only Mongo adapter: student profile, parent→children, grade, branch, current-week attendance, branch-manager email
+- Authorization dependency: parent-child relationship verified server-side, never trusted from the request
+- Mongo seed fixtures: 2 parents, 4 students (1-child and 2-child cases), 2 branches, attendance present/absent/missing cases
+**Done when:** Phase 3 completion criteria pass as pytest integration tests (student self-auth, parent limited to linked children, unknown attendance ≠ present).
+
+### Session 3 — PostgreSQL domain schema and migrations
+**Spec:** §5.4.2, §5.8.2, §5.15.2–5.15.3, §5.21.2, Phase 4 (§6.5)
+**Build:**
+- SQLAlchemy (async) models + Alembic migrations for: curriculum topics/skills, question templates/variants, assessment sessions/items, attempts, mastery, study sessions, learning gain, blocked sessions, problem reports, episodic events, semantic memory, RAG documents/chunks (pgvector column), evaluation results
+- External-ID-only linkage to Mongo (`student_external_id` etc.) — no PII columns, enforced by a schema test that greps models for forbidden field names
+- Repository layer skeletons with the predefined methods from §5.26.1
+**Done when:** `alembic upgrade head` from empty DB is reproducible; every table has a repository with at least one round-trip test.
+
+### Session 4 — Curriculum taxonomy and hand-authored seed questions
+**Spec:** §5.7, §5.8.1–5.8.2, §5.8.5–5.8.6, first half of Phase 5 (§6.6)
+**Build:**
+- `curriculum/internal_math/` YAML: topics, skills, prerequisites, grade→topic mapping (start with 3 topics, e.g., linear equations, fraction operations, place value)
+- Kumon reference folder with `source_manifest.yaml` (taxonomy reference only)
+- Template model: `parameter_schema`, `solution_function`, distractor generators, constraints
+- Deterministic variant generation from seeded RNG + executable validation (exactly one correct answer, unique options, no division by zero, values in range)
+- ~10 hand-authored templates per difficulty for one topic (50 total) as the seed bank; loader script into Postgres
+- Runtime random selection query (§5.8.6)
+**Done when:** every loaded template passes the §5.8.5 validation suite; variant generation is reproducible from a seed.
+**Note:** the LLM generation pipeline for scale is Session 9 — do not block on volume here.
+
+### Session 5 — Deterministic learning vertical slice
+**Spec:** §5.5.1 (flow), §5.6, §5.9, §5.10.1, §5.11.1–5.11.2, §5.13, §5.28.1, Phase 6 (§6.7)
+**Build:**
+- Endpoints from §5.28.1 (plain FastAPI services — LangGraph comes next session)
+- Attendance gate: present → continue; absent/unknown → blocked with the §5.6.3 message; acknowledged-absence record
+- Pre-exam: 10 fixed questions (2×5 difficulties), fixed set stored in `assessment_items`, Idempotency-Key on answer submission
+- Deterministic grading, weighted bootstrap score (§5.10.1 weights), weak-skill extraction
+- 5-question study plan via §5.11.2 priority rules (no interventions yet — wrong answers just advance)
+- Post-exam parallel forms (same template family, new seed), learning-gain metrics incl. `not_applicable_pre_max`
+**Done when:** an integration test drives one student through the entire flow via HTTP and asserts scores, gain, and idempotent resubmission.
+
+### Session 6 — LangGraph workflow and PostgreSQL checkpointing
+**Spec:** §5.5, §5.16, Phase 7 (§6.8)
+**Build:**
+- `LearningState` (§5.5.3) as a Pydantic model; graph nodes wrapping Session 5 services
+- Conditional routing: role → child selection, attendance branches, phase transitions
+- PostgresSaver checkpointing, `thread_id` = session, resume endpoint
+- Error/timeout branches per §5.29
+**Done when:** graph-route tests cover every branch in §5.5.1; killing the process mid-session and calling resume continues from the same question.
+
+---
+
+## Milestone 2 — Intelligence
+
+### Session 7 — Human-in-the-loop interrupts
+**Spec:** §5.1.4, §5.6.4–5.6.5, §5.11.3, Phase 8 (§6.9)
+**Build:**
+- `interrupt()` for: child selection (multi-child parents), attendance-email approval, hint/solution/video choice
+- Interrupt surfaced through the API as `pending_interrupt` + a respond endpoint with Pydantic-validated payloads
+- Attendance email draft (recipient/subject/body preview from §5.6.4) sent to a fake Gmail transport only after approval; session stays blocked
+**Done when:** no external action fires without an approval record; pending interrupts survive restart (checkpointing test).
+
+### Session 8 — Bedrock Gateway, Tutor Agent, structured outputs
+**Spec:** §5.12, §5.25, §5.27, §5.30.1, Phase 9 (§6.10)
+**Build:**
+- `BedrockGateway` with: per-call timeout, bounded retry + backoff, max-token limits, per-session cost budget, circuit breaker, model registry by task (§5.25.2)
+- Mock provider (default in dev/tests) + real Bedrock provider selected by env
+- Structured output → Pydantic validation → limited repair retry → deterministic fallback (static verified hint)
+- Tutor Agent, Hint/Solution generators (contexts from §5.11.4–5.11.5), Topic Resolver
+- PII floor: only §5.30.1 fields ever cross the gateway — enforced by a request-model test
+**Done when:** intervention flow returns validated hints/solutions; unit tests prove fallback on malformed model output; cost/token accounting is logged per call.
+
+### Session 9 — LLM question-generation and review pipeline
+**Spec:** §5.8.3–5.8.5, §5.8.7, second half of Phase 5 (§6.6)
+**Build:**
+- Offline pipeline (CLI/worker, not runtime): Generator → Solver A → Solver B → Difficulty/Ambiguity/Alignment reviewers → executable validation → dedup → activate/quarantine
+- Problem-report endpoint + 5-distinct-user quarantine rule (§5.8.7)
+- Run against mock provider in tests; real run generates candidates into `validation_status=pending`
+**Done when:** nothing reaches `active` without passing every automated check; quarantine stops delivery without deleting history.
+
+### Session 10 — Adaptive mastery and study planner
+**Spec:** §5.10, §5.11.6–5.11.7, §5.13, Phase 10 (§6.11)
+**Build:**
+- Skill-level mastery updates, difficulty routing (±1), remediation questions beyond the base 5
+- Retry policy ladder (§5.11.7) and outcome labels (`independent_correct` … `unresolved`); `correct_after_solution` excluded from independent mastery
+- Video option wired to a stub catalog (real catalog in Session 14) with the §5.11.6 fallback message
+- Tutor-review flags
+**Done when:** identical inputs reproduce identical routing and scores (deterministic evaluator tests from §5.31.1).
+
+### Session 11 — Learning frontend with SSE
+**Spec:** §5.14, Phase 11 (§6.12)
+**Build:**
+- SSE endpoint streaming LangGraph events; browser client with auto-reconnect
+- Student flow UI: child selection, attendance messages, exam screens, intervention chooser, progress/streak, growth-oriented result wording
+- Parent dashboard (§5.14.3)
+- Keep it plain: one small React (Vite) app; no state library until needed
+**Done when:** refresh mid-session restores exact position; a full pre→study→post run works in the browser against local services.
+
+---
+
+## Milestone 3 — Q&A app, RAG, and tools
+
+### Session 12 — RAG content foundation and ingestion
+**Spec:** §5.20, §5.21.1–5.21.2, Phase 13 (§6.14)
+**Build:**
+- `knowledge-content/` repo structure with synthetic placeholder docs (every file carries the DRAFT banner) and manifests + JSON schemas
+- LlamaIndex ingestion: structural chunking, metadata (audience, branch, academic_year, effective dates, status), embeddings → pgvector
+- Local filesystem stands in for S3; the loader interface takes a bucket-style path so S3 is a config change later
+**Done when:** ingestion is idempotent (re-run = no dupes via `source_sha256`); a status=draft doc is provably invisible to the retriever.
+
+### Session 13 — Advanced RAG and the Q&A graph
+**Spec:** §5.19, §5.21.3–5.21.8, Phase 14 (§6.15)
+**Build:**
+- Metadata filtering applied *before* retrieval; Postgres FTS + pgvector + Reciprocal Rank Fusion; reranker; citation-grounded `GroundedAnswer`
+- QAState graph: auth detection, role resolution, Scope Guard (out-of-scope refusal §5.19.4), Intent Router, Response Verifier
+- No-answer and conflicting-source policies; prompt-injection defenses (§5.30.4)
+- `chat-api` endpoints from §5.28.2 (messages + stream)
+**Done when:** role-filter tests prove a student query never retrieves tutor/manager chunks; unanswerable queries refuse with escalation offer instead of guessing.
+
+### Session 14 — MCP tools I: Gmail, Calendar, .ics
+**Spec:** §5.23, §5.24, Phase 15 (§6.16)
+**Build:**
+- MCP gateway/registry with Pydantic-validated tool arguments, timeouts, audit events
+- Gmail tool (fake transport in dev): admin escalation + attendance email, both behind preview → `interrupt()` → approve
+- CalendarEvent schema, Google Calendar tool (behind approval), RFC 5545 `.ics` generator with executable validation (§5.31.2)
+- Anonymous-email protections: rate limit, body length cap, header-injection sanitization
+**Done when:** tool-contract tests pass; invalid arguments never execute; every send has an approval + audit record.
+
+### Session 15 — MCP tools II: Maps locator and YouTube catalog
+**Spec:** §5.1.3, §5.18, §5.22, Phase 16 (§6.17)
+**Build:**
+- Location-consent flow; precise coordinates never persisted (assert nothing lands in DB/logs)
+- Branch locator via Maps tool (fake provider in dev) with ZIP/city fallback and straight-line estimate fallback
+- YouTube sync worker (manual trigger in dev; schedule later): catalog table from §5.18.2, embeddings, inactive marking
+- `youtube_catalog.search` internal tool wired into the Session 10 video option
+**Done when:** learning flow makes zero external YouTube calls; sync failure keeps the last valid catalog; consent tests pass.
+
+### Session 16 — Chat frontend
+**Spec:** §5.14.1 pattern applied to chat, §5.19
+**Build:**
+- Chat UI with streaming answers, citation display, approval modals (email/calendar/location), branch-locator UX, `.ics` download
+**Done when:** an anonymous user can do FAQ + locator + `.ics` end-to-end locally; a logged-in parent sees role-gated answers.
+
+---
+
+## Milestone 4 — Real chat content and coverage (plan §18 C-track)
+
+### Session 17 — Test-debt cleanup + real org content: branches, team, about ✅ (done 2026-07-19)
+**Spec:** §5.20, §5.21.1–5.21.3; plan §8, §18-C1/X1 (request items 2.3, 2.5-data, 2.2 root cause #1)
+**Decide at session start:** team-member names in Postgres vs the schema-purity denylist (plan §19 #2).
+**Build:**
+- Test-debt first (plan X1): wrap `apps/learning-api/tests/*` HTTP-committed tests in rollback/teardown (S12 "Newly observed" carry-over); fix the known-red S9 seed-collision test
+- New `packages/webcontent`: fetch/extract CLI (`make webcontent-sync`) for the four official pages (branches, our-team, events, about) → structured YAML (`knowledge-content/structured/`) + Markdown docs/manifests replacing the placeholder public docs (same `document_id`s, real `effective_from`)
+- New `org_branches`/`org_team_members` tables + repos + `make org-load` (natural-key + content_hash idempotency); `mongo_fixtures.py` branch seeds regenerated from `structured/branches.yaml`
+- Human review of the git diff is the publish gate; extraction failure leaves previous content untouched
+**Done when:** a live document_qa query about a real branch answers *today* with a citation to the ingested page; re-running sync on unchanged pages is a no-op; extractor tests run against saved golden-HTML fixtures (no network); full suite green with no HTTP-test row accumulation across 3 repeated runs.
+**Actual scope (see PROGRESS.md/DECISIONS.md D-050–D-053):** `intellichoice.org` turned out
+to be a real org (D-051), not a fictional placeholder - the user supplied the real page
+URLs. Events extraction stayed out of scope (S18, per this session's own title). Branch
+locator/geolocation fixtures (`FakeMapsProvider`/`mongo_fixtures.py`'s `BRANCH_MAIN`/
+`BRANCH_NORTH`) were deliberately *not* unified with the real 26-branch `org_branches`
+data (user-confirmed scope cut) - real branches power the RAG directory only this
+session. `retrieval.py` gained a real rerank-score filter (D-052), found necessary once
+real content was genuinely retrievable for the first time. All four "Done when" criteria
+verified live and via 3 repeated `make test` runs (270/270 stable).
+
+### Session 18 — Structured events and calendar rewiring ✅ (done 2026-07-19)
+**Spec:** §5.23; plan §18-C2 (request item 2.4)
+**Build:**
+- Events extractor in `packages/webcontent`; new `org_events` table (start/end, timezone, audience, branch, registration, RRULE, status) + repo + loader; placeholder `academic-calendar` doc replaced
+- `calendar_extract` queries `org_events` first (deterministic upcoming/completed/canceled/recurrence date logic); existing RAG-extraction path kept as fallback; `calendar_action`/`.ics` unchanged
+- Optional `GET /chat/events` + `EventsCard` in chat-web
+**Done when:** "what events are coming up?" returns real events correctly labeled current/upcoming; a past event is never described as upcoming; a canceled event says so; `.ics` generation works from a structured event row.
+**Actual scope (see PROGRESS.md/DECISIONS.md D-054/D-055):** events come from the org's
+Tribe Events Calendar REST API, not HTML scraping (found live, richer/more reliable) -
+all 42 real events are historical, so upcoming/canceled/recurring classification is
+unit-tested against synthetic dates rather than demoed live; a new `calendar_event_
+listing` node answers generic listing queries without an interrupt; `GET /chat/events`
+was built, the `EventsCard` chat-web component was not (deferred, ROADMAP marked it
+optional). All four "Done when" criteria verified (live where real data allows, tested
+otherwise); 292/292 tests passing across 3 repeated runs.
+
+### Session 19 — Access-aware refusals, welcome message, and suggestions
+**Spec:** §5.19.1–5.19.4, §5.21.3; plan §18-C3 (request items 2.1, 2.2, 2.5-UX)
+**Build:**
+- Metadata-only audience probe in `RagRepository` (counts + audiences only, content never leaves the repository layer), called only after role-filtered retrieval is empty; fixed audience→"requires X login" map in `role_access.py`; new `explain_access` graph node; `access_hint` on the message response
+- New `GET /chat/meta`: 2-line welcome grounded in the ingested about document + role-aware suggested prompts (`chat_suggestions` table + seed)
+- Deterministic follow-up suggestions per answer; chat-web `WelcomeCard`, `AccessHintBanner`, suggestion chips
+- Golden Q&A coverage eval set (~40 questions) derived from the real ingested content, as versioned fixtures
+**Done when:** an anonymous tutor-procedure question yields the role-guidance message (never content) while a tutor token gets the real answer; the probe provably returns no content fields; welcome + suggestions render per role; the coverage eval passes its agreed threshold.
+
+---
+
+## Milestone 5 — Question bank and assessment experience (plan §18 L1–L4)
+
+### Session 20 — Authored question bank: generation and validation pipeline ✅ (done 2026-07-19)
+**Spec:** §5.8.2–5.8.5; plan §7, §18-L1 (request item 1.1)
+**Build:**
+- `question_templates` gains `authoring_mode` ("shape"|"authored") + authored-content columns (stem/context block/answer_expression/canonical 3-level hint ladder/canonical solution/stem_embedding/review_priority); new `question_validation_runs` audit table; authored items get one static variant so delivery paths (§5.8.6 selection, grading, quarantine) are untouched
+- `generate_authored_candidate` pipeline: LLM generation → deterministic gate (schema, SymPy independent solve where parseable, exactly-one-correct, leakage + ladder monotonicity, hint/solution/answer agreement, wordlist/readability, embedding near-dup) → Solver A/B (different models) → `QUESTION_JUDGE` reviews → `pending`
+- New `review_cli.py` (`make question-review`): human activation via the existing `activate_template` — the pipeline can never self-approve (D-026 unchanged)
+- New deps: `sympy`; new Bedrock tasks with `MockBedrockProvider` branches
+**Done when:** every golden bad-item fixture (two correct options, leaked answer, disagreeing solution, off-grade wording, near-duplicate) is rejected with persisted reasons; nothing reaches students without human review; an approved authored item appears in a real pre-exam via the unchanged selection query.
+
+### Session 21 — Personalized hint ladder grounded in the bank ✅ (done 2026-07-19)
+**Spec:** §5.11.4–5.11.5, §5.30.1; plan §18-L2 (request item 1.3)
+**Decide at session start:** widening the §5.30.1 Bedrock allowlist (D-023; plan §19 #1) — without sign-off this session ships canonical-only ladders.
+**Build:**
+- Progressive disclosure: `assistance_level_by_variant` in `LearningState`, new `hint_events` table; hand-authored canonical ladders for the 10 existing shapes; authored items use their stored ladders
+- `HINT_PERSONALIZATION` task: rewrite of the canonical hint using wrong option/misconception tag/attempt count/hint level/`relevant_learning_fact`; deterministic leak + monotonicity checks on every output; fallback = canonical verbatim
+- Learning-web `AssistancePanel` with ladder position ("hint 2 of 3")
+**Done when:** three successive hints escalate and never reveal the answer before the final level; a personalized hint addresses the mapped misconception (scripted-gateway test); gateway failure serves the canonical hint; the PII-floor test covers the widened payload.
+**Actual scope (see PROGRESS.md/DECISIONS.md D-062/D-063):** allowlist widening was
+user-approved for `HINT_PERSONALIZATION` only (a new, separate, narrowest-necessary
+payload — `TUTOR`'s own payload is untouched). The registry actually holds **11** shapes,
+not 10 (`two_step_sub_b`/`both_sides_alt`; the roadmap text was stale) — all 11 got
+hand-authored ladders. The within-question loop is a graph-level self-loop (conditional
+edge back to `intervention_choice`), not an intra-node interrupt loop — chosen after
+verifying a `while`-loop would replay and re-run every earlier round's real Bedrock call
+on each escalation (D-021 gotcha #1); this is the first multi-round-pause node in the
+codebase and sets the pattern (D-063). Misconception-tag mapping is a coarse ordinal-rank
+heuristic (student's wrong option → same-index `common_error_tags` entry), not a true
+per-distractor-generator trace — flagged as future work in PROGRESS.md if hint quality
+demands it. All four "Done when" criteria verified live (scripted Playwright run against
+the real dev server) and via 3 repeated `make test` runs (358/358 stable).
+
+### Session 22 — Assessment policy and exam backend ✅ (done 2026-07-20)
+**Spec:** §5.9, §5.13; plan §18-L3 (request item 1.2 backend)
+**Decide at session start:** save-then-finalize grading model + whether pre/post exams are timed (plan §19 #3–4; recommendation: full model change, untimed by default with the policy field ready).
+**Build:**
+- Per-session-type `AssessmentPolicy` (timing, navigation, review, hint availability, feedback visibility); policy snapshot + `time_limit_seconds`/`finalized_at`/`topic_id` on `assessment_sessions`; new `assessment_item_state` table (saved option, unseen/answered/skipped/flagged, per-item time)
+- Exam routes: `PUT .../exam/items/{id}/answer` (save, not grade — plain repository write, not a graph turn), `/skip`, `/flag`, `GET .../exam/overview`, `POST .../exam/finalize` (grades everything into `assessment_attempts`, idempotent, graph `finalize_exam` node)
+- Correctness feedback stripped from exam-phase responses (the streak counter currently leaks it); study phase (D-028 ladder) untouched
+**Done when:** save→skip→return→finalize grades identically to the old sequential path on equal answers; finalize is idempotent and requires explicit confirmation when items are unanswered; hints are refused in pre/post and allowed in study (policy matrix test); refresh mid-exam restores item statuses.
+**Actual scope (see PROGRESS.md/DECISIONS.md D-064):** user-decided at session start
+*against* both plan recommendations — grading stayed **grade-on-submit** (each `/answers`
+call grades immediately, as every prior session did), not save-then-finalize, and pre/post
+exams got a **real default timer** (1200s), not untimed-by-default. Consequence: an
+*answered* item can never be revisited/changed, only unanswered items support skip/flag/
+jump — S23 must not build a resubmit affordance for answered items. The plan's
+`PUT .../exam/items/{id}/answer` "save, not grade" route was **not built** — its reason to
+exist doesn't apply once grading stays on the existing `POST .../answers` path (now
+masking `is_correct` for exam phases instead). Phase auto-advance was removed for pre/post
+exams (an explicit `POST .../exam/finalize` — a real "Submit exam" — is now required even
+when every item is answered, since skip/flag/jump means "last item answered" no longer
+implies "done"); study phase is untouched. All four "Done when" criteria hold under this
+adapted model (tested + live-verified against the real dev server — see PROGRESS.md).
+**Found and fixed one real cross-session issue via this session's own verification:**
+`question_variants` has no cleanup path in the test suite's per-student sweep (D-053) and
+had silently accumulated enough duplicate content over the project's history to collide
+with `test_ai_pipeline.py`'s deliberately-chosen S17 anti-collision seed — see D-064's own
+entry for the fix and the still-open follow-up.
+
+### Session 22.5 — Brand identity and design tokens ✅ (done 2026-07-19)
+**Spec:** none (off-spec visual work); plan: [plans/2026-07-19-branding-plan.md](plans/2026-07-19-branding-plan.md)
+— that file carries the full brand audit (colors/fonts/logo extracted from the live
+`www.intellichoice.org` theme CSS), token mapping, codebase recon, and per-phase task
+list; read it instead of re-deriving any of that. Frontend-only: no backend/DB/
+LangGraph/RAG/eval changes.
+**Build:**
+- `packages/ui-brand/` shared token source (tokens.css keeping the existing semantic
+  token names, base.css, logo assets, favicon, `check_contrast.py`), wired into both
+  apps (`@fontsource` Poppins 600 / Open Sans 400+700 self-hosted per the plan's BD2,
+  `server.fs.allow` in both vite configs, `main.tsx` imports)
+- App chrome: learning-web shell header+footer via the `view()` wrap described in the
+  plan's recon; chat-web logo inside the existing `.chat-header` (do **not** add a
+  shell bar there — see the plan's `calc(100svh - 48px)` caveat); DevLogin logo;
+  favicons
+- Component/screen pass per the plan: uppercase 600 action buttons with the
+  `.option`/`.card`/`.link`/`.chip` content-class exclusions; pink→purple gradient as
+  a sparse highlight device; WCAG-darkened interactive tones (plan BD3);
+  dark-scheme brand variants (plan BD4)
+- Log the plan's BD1–BD5 decisions into DECISIONS.md (next free D-numbers)
+**Done when:** both apps `npm run build` + `npm run lint` clean; a Playwright screenshot
+walk of every screen in light + dark shows the brand applied with no layout breakage;
+`check_contrast.py` passes ≥4.5:1 for every text/background token pair in both schemes;
+student-facing wording unchanged (SPEC rule 10).
+**Ordering note:** runs before S23 on purpose — the exam UI should be built on brand
+tokens once, and S23's accessibility criteria can reuse the contrast tooling introduced
+here.
+
+### Session 23 — Exam frontend: navigation, timers, accessibility ✅ (done 2026-07-20)
+**Spec:** §5.14.2; plan §10, §18-L4 (request item 1.2 frontend)
+**Build:**
+- `ExamScreen` rebuild: `QuestionNavBar` (answered/unanswered/skipped/flagged/current, click-to-jump per policy), `ExamTimer` (remaining when timed, per-question elapsed), difficulty badge (growth-framed), skip/flag, autosave tick, `SubmitConfirmationModal`
+- Keyboard navigation (arrows, 1–4 option select, Enter) + ARIA labels + `aria-live` status; correctness/streak UI removed for exam phases, kept for study
+- `exam_overview` on the SSE snapshot so refresh restores the nav bar
+**Done when:** a keyboard-only Playwright run completes a full exam including skip-and-return; no correctness signal is visible during exams; refresh mid-exam restores nav state; `tsc`/oxlint clean.
+**Note from S22 (D-064):** grading is immediate, not deferred to finalize — clicking an
+*answered* item in the nav bar must show it read-only (no correctness, matching the
+existing masked `is_correct`), never let the student change/resubmit it. Only unseen/
+skipped/flagged items are real jump targets. `GET /learning/sessions/{id}/exam/overview`
+(item statuses + `remaining_seconds`) already exists and is what S22's own tests use to
+verify refresh-restore — reuse it rather than re-deriving statuses client-side.
+**Actual scope (see PROGRESS.md/DECISIONS.md D-070/D-071):** `exam_overview` is fetched by
+`ExamScreen` directly (mount + after every mutation + a 20s poll), **not** embedded in the
+SSE snapshot as this bullet originally suggested — user-decided at session start (D-070) to
+avoid an `AssessmentRepository` round-trip on every action response for every phase, since
+the endpoint the ROADMAP text itself already treats as the refresh-restore source of truth
+covers it. New `POST .../exam/items/{id}/time` route + `AssessmentRepository.
+add_item_time` back the autosave tick (`assessment_item_state.time_spent_ms`, unpopulated
+since S22). **Found and fixed a real cross-cutting bug via this session's own Playwright
+verification, not previously known:** a mid-exam refresh restored nav-bar *statuses*
+correctly but lost the question *content* entirely (stuck on "Loading the next
+question…") — `graph/nodes.py`'s `submit_answer`/`finalize_exam` nodes were writing
+`"last_items": None` explicitly on every exam-phase answer, clearing the checkpointed
+batch LangGraph's default merge would otherwise have preserved. Fixed by omitting the key
+instead (D-071); also affects/fixes the same class of gap for a mid-hint-ladder refresh in
+`study`. All four "Done when" criteria hold (live-verified via a keyboard-only Playwright
+walk: full exam completion incl. skip-then-return-via-nav-bar, an answered item rendering
+read-only, no correctness signal in the DOM at any point, and a full-content nav-bar
+restore after a real page reload) — see PROGRESS.md for the full verification transcript.
+
+---
+
+## Milestone 6 — Tutoring chat, memory, personalization (plan §18 L5–L9)
+
+### Session 24 — Contextual learning chat ✅ (done 2026-07-20)
+**Spec:** §5.12, §5.30; plan §5, §15, §18-L5 (request item 1.6)
+**Decide at session start:** free student text to Bedrock + deterministic PII redaction (same D-023-class sign-off as S21; plan §19 #1) — hard blocker for this session. **User-approved** the full option (redaction + payload extension), not the plan's "deterministic-only chat" fallback.
+**Build:**
+- `tutor_chat` graph node: scope guard with learning intents (question_help/request_hint/request_solution/request_video/why_wrong/off_topic); the four assistance intents dispatch deterministically to the existing hint ladder, solution, and video services; free replies via a new `TUTOR_CHAT` task; per-stage gate (refused during pre/post exam)
+- `tutor_chat_messages` table (90-day retention + purge job); PII redaction screen before wire and storage; self-harm/abuse keyword screen → fixed age-appropriate response + human-review flag; per-day per-student cost ceiling
+- Chat routes + learning-web `TutorChatPanel` behind the 4-option `AssistancePanel` (Hint / Solution / Related Video / Chat)
+**Done when:** "can I get a hint?" advances the real ladder and records `hint_events`; "why is my answer wrong?" yields a misconception-grounded reply; chat refuses during exams; the cost ceiling and the PII redaction are both proven by tests; the purge job removes >90-day rows.
+**Actual scope (see DECISIONS.md D-073):** chat is **not** a graph node/`entry_action` as
+planned — empirically, both a fresh `graph.ainvoke` and `graph.aupdate_state` silently
+discard a pending `intervention_choice` interrupt (confirmed via a scripted check: `/respond`
+409'd "no interrupt is pending" immediately after one `aupdate_state` call), and that pause
+is exactly when the button-panel `AssistancePanel` — and now chat, alongside it — is shown.
+Fixed by making `graph/nodes.py::run_chat_turn` a plain service call (same "not a graph
+turn" precedent as S22/S23's skip/flag/time-tracking routes), invoked directly from
+`routers/sessions.py`, never through the graph. Two narrow, documented consequences (D-073):
+chat's own hint-ladder-level tracking reads the durable `hint_events` table instead of
+`LearningState.assistance_level_by_variant` (can drift from the button panel's own tracking
+only if a student mixes both channels for the same wrong attempt in the same pause); chat's
+Bedrock spend isn't persisted back into the checkpoint's per-session budget total (the
+per-day cost ceiling, backed by the real `tutor_chat_messages` table, is chat's actual cost
+control and doesn't share this gap). All five "Done when" criteria hold — 9 new backend
+tests plus a live Playwright run that chatted three times (hint/why_wrong/off_topic) during
+an open `intervention_choice` pause and then confirmed the original "Show the solution"
+button still worked afterward, proving the pause survived.
+
+### Session 25 — Memory system *(old S17, expanded per plan §9)* ✅ (done 2026-07-20)
+**Spec:** §5.15, Phase 17 (§6.18); plan §9, §18-L6 (request item 1.7)
+**Build:**
+- Episodic `learning_events` emission from existing nodes (answers, interventions + hint level, ladder outcomes, chat turns as intent-only, exam finalize, gain) — the backfill emit points anticipated in M1/M2
+- Consolidation worker (new workspace package; `make memory-consolidate`, EventBridge later): deterministic pre-aggregation → `MEMORY_CONSOLIDATION` call → `MemoryUpdate` → deterministic validation (evidence ids must exist/belong/fit window; closed fact-type enum; name/email screen; no personality/medical facts) → upsert
+- Anti-overinterpretation rules: new facts `provisional` until ≥3 events across ≥2 sessions; contradiction demotes (`contested`) rather than replaces; confidence decay + `expires_at`; retention jobs per §5.15.2
+- Read paths: `tutor.py`'s `relevant_learning_fact`, hint/chat payloads, study-plan tie-breaking, video search, (later) narratives and reports
+**Done when:** no semantic fact exists without valid `evidence_event_ids`; consolidation is idempotent per (student, week); a single contradicting event demotes but does not delete; a student with an established fact gets it in the tutor payload.
+
+### Session 26 — Personalized stage introductions and transitions ✅ (done 2026-07-20)
+**Spec:** §5.10.3, §5.13.3 (evidence sources); plan §18-L7 (request item 1.5)
+**Build:**
+- `stage_narrative` graph node after pre-exam finalize, study completion, and post-exam finalize (static variant at stage entry); evidence assembled deterministically (scores, weak-skill *names*, gain, planner's actual next step, memory facts where available)
+- New `STAGE_NARRATIVE` task + `stage_transitions` table; deterministic template fallback; numeric-grounding check (every number in output must exist in the evidence JSON)
+- `StageTransitionScreen` with an explicit "How we personalized this" evidence list; `stage_narrative` on the SSE snapshot
+**Done when:** the post-pre-exam screen names the student's actual weak topics and the actual adaptation; no narrative contains a number absent from its evidence; gateway failure renders the template fallback.
+**Actual scope (see DECISIONS.md D-075):** all 5 stages from the plan's schema table
+shipped (`pre_intro`/`pre_outro`/`study_step`/`study_outro`/`post_outro`), not just the
+3 this entry's own build list names - user-approved at session start, with newly-invented
+trigger definitions for the 2 ROADMAP never specified (`pre_intro`: first real SSE
+connect; `study_step`: a genuine skill transition, never a same-skill retry). Not a real
+graph node/new edges - an inline helper called from `finalize_exam`/`submit_answer`/
+`intervention_choice` (same "not every side effect needs a node" precedent as D-073),
+plus the SSE connect path for `pre_intro` specifically (outside any graph turn). All 3
+literal "Done when" criteria hold. Also found and fixed a real, pre-existing,
+cross-cutting bug via this session's own live verification: `useLearningSession.ts`'s
+SSE connect raced ahead of session checkpoint creation and silently never recovered
+(`EventSource` doesn't retry a non-2xx response) - see D-075 #4.
+
+### Session 27 — Khan Academy video bank hardening ✅ (done 2026-07-20)
+**Spec:** §5.18; plan §18-L8 (request item 1.4)
+**Build:**
+- Real `YoutubeProvider` (YouTube Data API v3) behind the existing Protocol (fake stays the dev default, D-002); catalog pinned to the official Khan Academy channel ID — off-channel ids rejected at sync
+- New columns: prerequisite skills, transcript availability/language, license, `last_verified_at`, `suitability_status`, verification failures; sync gains a verification pass (`videos.list` status → inactive on gone/private, reversible)
+- `search_video` query enrichment: misconception tag, grade band, mastery state; `suitability_status` added to catalog filters; still zero external calls at learning time
+**Done when:** only official-channel rows enter the catalog; a removed video stops being recommended after one sync; recommendation input includes grade band + misconception when available; sync failure keeps the previous catalog (existing S15 property preserved).
+
+### Session 28 — Progress dashboard and student report ✅ (done 2026-07-20)
+**Spec:** §5.14.2–5.14.4; plan §12, §18-L9 (request item 1.8)
+**Build:**
+- `services/dashboard.py`: pure-Postgres aggregates (mastery by skill, pre/post comparison, accuracy trends, time, attempts, hint/solution usage, difficulty progression) with date-range filtering pushed into SQL — no LLM in the dashboard path
+- `services/report.py`: verified facts → `REPORT_INTERPRETATION` → numeric-grounding validation (invented numbers ⇒ facts-only fallback) → `student_reports` row with Verified/Interpretation/Recommendations separated; audience variants (student/parent/tutor/branch-manager) gated server-side
+- Learning-web `StudentDashboardScreen` + `ReportView` (~one page); charts via Recharts (load the `dataviz` skill before writing chart code); parent dashboard reuses the components
+**Done when:** all listed visualizations render with range filtering; every number in a generated report traces to a stored fact; student and parent views differ per the authorization rules; a keyboard/Playwright pass is clean.
+
+---
+
+## Milestone 7 — Multimodal, quality, ops
+
+### Session 29 — Multimodal solution images *(old S18, unchanged)* — **deferred, not built (D-078)**
+**Spec:** §5.17, Phase 18 (§6.19)
+**Build (not started):**
+- Upload endpoint: type/size validation, ephemeral encrypted storage, VLM analysis (mock in dev), Pydantic + executable math validation of extracted steps, immediate deletion on success *and* failure, deletion metric
+- Image-analysis consent interrupt; VLM output feeds hints only, never the score
+**Done when:** a test proves the file is gone after both success and failure paths; no image bytes or filenames in logs/traces.
+**Deferred 2026-07-20 (user-declined at session start, see D-078):** photo uploads from K-12 minors raise a privacy/consent question the spec's existing §5.1.4/§5.17.2 language doesn't fully resolve (a "solution photo" can incidentally capture a face, other homework, or a home background), and every supporting piece (real malware scanning, real S3 encryption-at-rest) is still on the D-002 "no real creds yet" footing — this session would only stack fakes on fakes without resolving the actual open question. Revisit this entry (design reference stays as-is) once the privacy question, not just the architecture, has an answer.
+
+### Session 30 — Evaluation platform *(old S19 + plan §13 extensions)* ✅ (done 2026-07-20)
+**Spec:** §5.31, Phase 19 (§6.20); plan §13
+**Build:**
+- Golden datasets (learning + Q&A cases from §5.31.4) as versioned fixtures — including the S19/S20-era sets already created (coverage Q&A, bad-item fixtures), promoted into one harness
+- Deterministic and executable evaluators as pytest suites; LLM-as-judge harness (different model than production answerer) — runs only when creds present, otherwise skipped
+- Expansion evals per plan §13: hint leak detection, memory ground-truth/idempotency/contradiction cases, report numeric grounding, exam-flow determinism
+- CI gate: regression thresholds block merge
+**Done when:** a deliberately broken grading rule fails CI; judge harness runs against staging creds; the plan-§13 suites are wired into the same gate.
+**Shipped 2026-07-20 (see D-080 for the full design):** new `packages/evals` (registry
+mapping every SPEC §5.31.1-§5.31.4 item to its existing test coverage, rather than
+rewriting the already-passing S19/S20 fixtures into a generic data-driven engine; real
+`BedrockTask.LLM_JUDGE` wiring with a judge model distinct from the production answerer;
+a hint-leak-detection golden fixture that found and fixed a real bug, D-079: negative-
+integer answers were never caught by the old `\b`-anchored leak check). Exam-flow
+determinism landed as a pure-function evaluator in `apps/learning-api/tests/` (not
+`packages/evals`, to keep packages from depending on an app). Not built: a dedicated
+prompt-injection fixture (deferred to S33); "SQL parser validation" (no NL2SQL feature
+exists to validate, CLAUDE.md non-negotiable #2); the image-deletion-event evaluator
+(S29 deferred, D-078).
+
+### Session 31 — Observability *(old S20, unchanged scope + carried caveats)* ✅ (done 2026-07-21)
+**Spec:** §5.32, Phase 20 (§6.21)
+**Build:**
+- Structured JSON logging with the §5.32.3 PII denylist enforced by a log-schema test
+- OpenTelemetry spans across FastAPI → LangGraph → gateway → DBs → tools under one trace_id
+- LangSmith wiring with masking config; Prometheus `/metrics` with the §5.32.4 KPIs; Grafana dashboards as code
+- Resolve the standing D-032 caveat (`?token=` SSE values in access logs) before real deployment
+**Done when:** one request's full path is visible under a single trace_id locally (otel-collector + Jaeger in compose).
+**Shipped 2026-07-21 (see D-081 for the full design):** new `packages/observability`
+(JSON logging + PII denylist, OTel tracing, Prometheus KPIs, JSON access log, env-gated
+LangSmith); both apps wired at startup; `docker-compose.yml` gained `otel-collector`/
+`jaeger`/`prometheus`/`grafana` + provisioned config under `observability/`. D-032
+resolved (route-template-only access logging, uvicorn's raw access logger disabled).
+Found and fixed two real instrumentation-ordering bugs via live verification against a
+running Jaeger (`FastAPIInstrumentor`/`PymongoInstrumentor` both silently dropped spans
+when instrumented from inside `lifespan` instead of at module level) — the literal "Done
+when" criterion was verified live, not assumed: one real HTTP flow produced a single
+trace_id spanning FastAPI → LangGraph → Postgres, and a separate call produced FastAPI →
+Mongo. Alerting is rules-only (no Alertmanager/real notification channel — no creds
+exist); CPU/memory/pod-count metrics deferred to S32 (no deployed container runtime yet).
+
+---
+
+## Milestone 8 — Launch track (decision-gated)
+
+### Session 32 — Deployment architecture decision + first deploy *(old S21)* ✅ (done 2026-07-22)
+The spec prescribes AWS Organizations + EKS + Terraform + Aurora (§5.33–5.34). For a solo
+maintainer at ~1,000 MAU, my recommendation (see DECISIONS.md D-004, corrected 2026-07-22 —
+see D-082/D-083) is to **defer EKS** and launch on a simpler footprint — ECS Fargate or a
+managed container platform + RDS Postgres w/ pgvector — keeping the spec's environment
+separation and security posture. (D-004's original text also said "+ managed Mongo"; drop
+that — `go.intellichoice.org`'s real database is MySQL, not MongoDB, *and* it's pre-existing
+external infrastructure IntelliChoice doesn't own or provision, so there is no managed
+database for this project's own deployment to stand up on its behalf — only network
+reachability and read credentials to the existing system.) The apps are containerized either
+way, so EKS remains a later migration, not a rewrite. Decide this at session start, then:
+Terraform for whichever footprint, staging env, secrets, domains/TLS, CI deploy to staging.
+**Shipped 2026-07-22 (see D-084 for the full design and every real bug found/fixed live):**
+confirmed ECS Fargate + RDS PostgreSQL/pgvector + RDS MySQL. A real `intellichoice-staging`
+AWS environment is live - VPC/ALB/ECS cluster, both services healthy, both RDS instances
+migrated+seeded, both frontends on S3+CloudFront (same-origin path routing, no domain/TLS
+needed yet), real Bedrock wired in and proven working end-to-end. CI deploy to staging is not
+wired yet - blocked on the user completing `gh auth login`/GitHub repo creation; Terraform's
+GitHub OIDC role is ready but not created. Domains/TLS deferred (no domain registered).
+
+### Session 33 — Security hardening *(old S22; Phase 21, §6.22)*
+WAF/rate limiting/CAPTCHA, RBAC audit, secret rotation, dependency + container scanning,
+prompt-injection test suite, data/image-deletion verification, backup-restore test.
+
+### Session 34 — Load testing and production readiness *(old S23; Phase 22, §6.23)*
+k6 scenarios for the §6.23 targets, failure drills (DB failover, Bedrock throttling, MCP outage),
+canary pipeline (Phase 23), rollback triggers.
+
+### Parallel track (any time, non-coding) — Phase 0 legal & policy docs (§6.1)
+Privacy Notice, AI Use Notice, product Learning Notice, retention policy, etc. Drafting can
+happen in a writing-focused session; **counsel review is a launch gate, not a dev blocker.**
+Also required before launch: real accounts/credentials from §5.35 (AWS, Google Cloud, GitHub
+org, LangSmith, domains). The expansion adds two more decision gates that need sign-off
+*before their sessions*, not at launch: the §5.30.1 payload widening (S21/S24) and the
+team-member-names schema question (S17) — see plan §19.
+
+---
+
+## Dependency notes
+
+- Sessions 2→3→4→5→6 are strictly sequential (all ✅).
+- Session 7 needs 6; Session 8 is independent of 7 (can swap); 9 and 10 need 8; 11 needs 7+10. (All ✅ through S16.)
+- **Milestone 4 (S17→S18→S19) is sequential within itself** but independent of Milestones 5–6 — it can interleave with the learning track for a change of pace. S17's test-debt cleanup, however, should land before S22/S24 multiply the HTTP-test footprint.
+- **Milestone 5:** S20→S21 (hints need the canonical-content shape); S22→S23 (backend before frontend). S21 and S22 are independent of each other.
+- **Milestone 6:** S24 needs S21 (chat's Hint intent dispatches to the ladder) and S22 (per-stage policy gate). S25 needs S24 (chat events) and S22 (finalize hook) — this is why memory moved from old-S17 to S25. S26 needs S22 and is better after S25 (memory enriches the narratives) but can ship before with score-only evidence. S27 needs only S20 (optionally, for misconception tags) and real YouTube creds for its live path. S28 needs S25 (memory/chat insights in reports) and S22 (accurate time data); a facts-only report could ship earlier if resequenced.
+- S29 (multimodal) is independent — it can slot anywhere after S8; it sits in M7 to keep the expansion track uninterrupted.
+- S30–S31 touch everything; do them after the features they instrument exist. S32–S34 are last.
+- Real-credential caveat: S20/S21/S24/S26 LLM quality and S27's live sync are only *calibratable* once real Bedrock/YouTube credentials exist (D-025 posture) — every session stays buildable and testable against the mocks regardless.

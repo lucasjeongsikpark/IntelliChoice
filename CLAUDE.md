@@ -1,0 +1,65 @@
+# IntelliChoice — Project Instructions
+
+AI education platform for K–12 students (minors are the primary users). Two independently
+deployed apps sharing auth from the existing `go.intellichoice.org` system:
+
+- **Adaptive Learning** (`learning.intellichoice.org`) — attendance-gated pre-exam →
+  personalized study → post-exam → learning gain → parent reports.
+- **Organization Q&A** (`chat.intellichoice.org`) — role-aware RAG over org documents,
+  branch locator, calendar, admin escalation.
+
+## Documents — read these instead of holding the spec in your head
+
+- [docs/SPEC.md](docs/SPEC.md) — the complete detailed spec (~2,600 lines). **Do not read it
+  whole**; read only the sections the current session lists in ROADMAP.md.
+- [docs/ROADMAP.md](docs/ROADMAP.md) — session-by-session implementation plan and "done"
+  criteria. The source of truth for what to build next.
+- [docs/PROGRESS.md](docs/PROGRESS.md) — current status, session log, carry-over items.
+- [docs/DECISIONS.md](docs/DECISIONS.md) — decision log; check before re-deciding anything.
+
+## Session workflow
+
+Start every working session with `/start-session [S<n>]` and end with `/end-session`.
+Stay within the active session's roadmap scope; new discoveries become carry-over items,
+not detours.
+
+## Stack
+
+Python 3.12, FastAPI (async), LangGraph, LlamaIndex, SQLAlchemy + Alembic,
+Pydantic v2 everywhere, PostgreSQL 16 + pgvector, MongoDB (read-only adapter),
+AWS Bedrock behind a gateway, pytest. Frontends: React + Vite. Local dev: Docker Compose.
+
+## Non-negotiable rules (condensed from SPEC.md — the spec wins on detail)
+
+1. **No PII in Postgres, logs, traces, or LLM payloads.** Postgres stores only
+   `*_external_id` references; MongoDB remains the source of truth for names, emails,
+   roles, relationships, attendance (SPEC §5.4, §5.30).
+2. **Deterministic core.** Grading, attendance gating, authorization, score/gain calculation,
+   and SQL execution are never done by an LLM (SPEC §5.0, §5.26). No runtime NL2SQL.
+3. **Authorization in the backend/query layer, never in prompts.** Parent-child links are
+   verified server-side; role/branch filters are applied *before* RAG retrieval (SPEC §5.21.3,
+   §5.30.2).
+4. **Every external action needs human approval** via LangGraph `interrupt()`: emails,
+   calendar events, location use, image analysis (SPEC §5.1.4).
+5. **Fail closed.** Unknown attendance ≠ present; no RAG answer without an approved,
+   effective, citation-supported source (SPEC §5.4.4, §5.21.8, §5.29).
+6. **Structured LLM output only:** JSON-schema output → Pydantic validation → limited repair
+   retry → deterministic fallback. Invalid tool calls never execute (SPEC §5.25.3, §5.27).
+7. **All model/paid-API calls go through the gateway** with timeouts, bounded retries,
+   max-token limits, and cost accounting (SPEC §5.25.1).
+8. **Solution images are deleted immediately** after analysis, success or failure, and never
+   enter backups, traces, or logs (SPEC §5.17).
+9. **External deps behind interfaces with dev fakes** (auth, Mongo, Bedrock, Gmail/Maps/
+   Calendar, blob storage). Real clients are env-selected (DECISIONS.md D-002).
+10. Student-facing language is growth-oriented and age-appropriate; internal skill IDs stay
+    internal (SPEC §5.10.3).
+
+## Conventions
+
+- Thin route handlers; separate config / provider clients / services / routes.
+- Explicit Pydantic models at every boundary (API, graph state, tool args, LLM output).
+- Alembic migration for every schema change; migrations must replay from empty.
+- Tests accompany the session's "Done when" criteria; run `make lint typecheck test`
+  before declaring work done.
+- Never read or write `.env` or any credentials; use `.env.example` for shape.
+- Do not commit, push, or deploy unless explicitly asked.
