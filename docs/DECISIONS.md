@@ -2742,3 +2742,52 @@ browser (not curl), show genuine calls - chat-api's `scope_and_intent` task (969
 968/135 input/output tokens) and learning-api's `stage_narrative` task (905/147 tokens), all
 with `model_id: "us.anthropic.claude-haiku-4-5-20251001-v1:0"` and `"repaired": false` (valid
 structured output on the first try, no repair-retry needed). Zero console/page errors.
+
+### Addendum (2026-07-23): GitHub repo created, CI fixed, deploy-staging.yml wired - closes the last S32 carry-over item
+
+`gh auth login` (blocking since S32's initial wrap-up) is done. Created the repo
+(`lucasjeongsikpark/IntelliChoice`, private), made the project's first-ever commit (484
+files - nothing had been committed before this), pushed, and confirmed `.gitignore` already
+correctly excludes `.env*`/`*.tfvars`/`*.tfstate`/key files before doing so.
+
+**`ci.yml` had never actually run against real GitHub Actions before the repo existed, and
+failed on first real run - two distinct, real gaps found live:**
+- No Postgres/MySQL service containers at all - it assumed a local `docker-compose` database
+  that obviously isn't present on a GitHub-hosted runner. Added service containers mirroring
+  `docker-compose.yml` exactly (same images/credentials/db names, since tests rely on
+  `packages/db`'s and both apps' hardcoded localhost defaults, not env vars), plus explicit
+  steps to apply `mysql-init/001-schema.sql` (service containers don't support
+  `docker-entrypoint-initdb.d` bind mounts) and run `alembic upgrade head`.
+- Two tests (`test_branch_locator_consent_then_zip_round_trip_over_http`,
+  `test_qa_coverage_eval`) still failed even with a migrated-but-empty database - they
+  exercise real seeded fixture/content data (MySQL branch records, ingested RAG chunks)
+  rather than building isolated in-test fixtures, same as every local dev run's persistent
+  `docker-volumes/` - invisible until a genuinely fresh, unseeded database existed for the
+  first time. Added `make seed`/`make knowledge-load`-equivalent steps (both default to
+  `bedrock_provider=mock` and the same localhost credentials, so no new CI secrets needed).
+  CI is green now (both jobs, 469 passed).
+
+**GitHub OIDC deploy role wired into `terraform/modules/iam`** (deferred since S32's original
+build - the trust policy needs a real `org/repo`, which now exists): `create_github_oidc_provider`/
+`create_github_deploy_role` flipped to `true`, `github_org`/`github_repo` set in
+`terraform.tfvars`. The deploy role's permissions are narrowly scoped to exactly what
+`deploy-staging.yml` does - ECR push (scoped to the two repo ARNs), `ecs:RegisterTaskDefinition`/
+`DescribeTaskDefinition`/`DescribeServices` (AWS IAM doesn't support resource-level scoping for
+these specific actions), `ecs:UpdateService`/`RunTask`/`DescribeTasks` scoped to this one
+cluster, `iam:PassRole` limited to exactly the two known ECS role ARNs (referenced directly from
+resources already in the same module, not passed in as a variable - PassRole left broad is a
+real privilege-escalation vector), S3 sync scoped to the two frontend buckets, CloudFront
+invalidation scoped to the two distributions. `terraform plan` clean (3 resources added, 0
+changed, 0 destroyed) both before and after.
+
+**`.github/workflows/deploy-staging.yml`** (`workflow_dispatch` only for now, not `push` -
+deliberately not auto-triggering a real redeploy of live infrastructure until it's been run and
+reviewed at least once): build+push both images (ARM64) → run Alembic migrations via the
+existing one-off `ops-task` mechanism, fail the job on a non-zero exit code → redeploy both ECS
+services by patching the image field onto the currently-running task definition and registering
+a new revision + `force-new-deployment` (never `terraform apply` - the ecs-service modules'
+`lifecycle.ignore_changes = [task_definition]` exists specifically so this workflow can't be
+silently reverted by a routine apply, and so a routine apply can't silently revert *this*
+workflow's deploys either) → build both frontends with `VITE_*_API_URL=""` (same-origin
+CloudFront routing, matching the manual deploys done all session) → `aws s3 sync` + CloudFront
+invalidation → smoke test against the public CloudFront URLs.

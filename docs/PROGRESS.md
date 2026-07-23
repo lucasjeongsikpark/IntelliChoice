@@ -30,11 +30,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   retry latency (real 504s hit live); several other real AWS-constraint surprises
   (Free Tier restrictions, a nonexistent RDS engine version, a security-group
   description character limit, an ALB/target-group 32-char name limit, arm64 vs
-  Fargate's x86_64 default). **Not done this session:** GitHub repo creation and
-  `deploy-staging.yml`'s actual CI wiring - blocked on the user completing
-  `gh auth login`, still pending when this session wrapped up; the Terraform IAM
-  module's GitHub OIDC role is ready but not yet created. Custom domain (registration
-  guidance given separately). Continued troubleshooting after initial wrap-up found two
+  Fargate's x86_64 default). GitHub repo creation and CI wiring were blocked on
+  `gh auth login` at the time - **since resolved 2026-07-23, see below.** Custom domain
+  (registration guidance given separately). Continued troubleshooting after initial wrap-up found two
   more real bugs (a second Bedrock PrivateLink endpoint the app's SDK actually needs,
   `bedrock-mantle` - and a distinct IAM namespace for it). **Superseded by D-084's
   2026-07-23 addendum**: Bedrock Mantle was ultimately abandoned account-wide after a
@@ -69,8 +67,12 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   ROADMAP S17–S28; the *old* S17 (Memory system) is now **S25**, old S18–S23 are now
   S29–S34. Session references in the log below and in older DECISIONS entries use the
   old numbering — D-049 holds the translation map.
-- **Blocked on:** `deploy-staging.yml` CI wiring (S32 carry-over) needs the user to run
-  `gh auth login` and confirm GitHub repo creation - not blocking S33.
+- **Resolved 2026-07-23**: `gh auth login` done, GitHub repo created
+  (`lucasjeongsikpark/IntelliChoice`, private, first commit), `ci.yml` fixed (was never
+  run against real GitHub Actions before - missing DB service containers and seed/content
+  steps, both found live) and green, GitHub OIDC deploy role wired,
+  `deploy-staging.yml` written (`workflow_dispatch` only until it's been run once). See
+  D-084's 2026-07-23 addendum. No longer a carry-over item.
 - **S31 additions:** Observability (SPEC §5.32, Phase 20/§6.21) shipped — see D-081 for
   the full design (LangSmith forced-mask wiring, alert-rules-without-Alertmanager scope
   cut, the two live-verified instrumentation-ordering bugs and their fix). New
@@ -855,11 +857,15 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   screen with SPEC §5.6.3's two choices when starting a session - the fail-closed
   design is confirmed working end-to-end in the real deployment. Zero console errors
   across every scenario tested.
-- **Carry-over**: GitHub repo creation and `deploy-staging.yml`'s actual CI wiring -
-  blocked on the user completing `gh auth login` interactively, still pending. The
-  Terraform IAM module's GitHub OIDC role is coded and ready
-  (`create_github_oidc_provider`/`create_github_deploy_role`, both `false` until the
-  repo exists) but not yet created. Custom domain + ACM + Route53 (registration guidance
+- **GitHub repo creation and CI wiring - resolved 2026-07-23** (see D-084's addendum):
+  `gh auth login` done, repo created (`lucasjeongsikpark/IntelliChoice`, private, first
+  commit of all 484 files), `ci.yml` fixed (was never run against real GitHub Actions
+  before - missing DB service containers, then missing seed/content-load steps once DB
+  connectivity was fixed, both found live) and green, GitHub OIDC deploy role wired into
+  `terraform/modules/iam` (narrowly scoped, `terraform plan` clean before/after),
+  `deploy-staging.yml` written (`workflow_dispatch` only, not auto-triggering on push
+  until it's been run once). No longer a carry-over item.
+- **Carry-over**: Custom domain + ACM + Route53 (registration guidance
   given separately, not scripted this session). Production environment. Real hosted
   Prometheus/Grafana for the deployed environment - CloudWatch Container Insights
   (enabled) covers the immediate S31-carry-over gap (CPU/memory/task-count metrics with
