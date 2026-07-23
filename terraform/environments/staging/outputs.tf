@@ -57,3 +57,7 @@ output "cloudfront_learning_distribution_id" {
 output "cloudfront_chat_distribution_id" {
   value = module.cloudfront_chat.distribution_id
 }
+
+output "github_deploy_role_arn" {
+  value = module.iam.github_deploy_role_arn
+}

@@ -146,3 +146,83 @@ resource "aws_iam_role" "github_deploy" {
   permissions_boundary = var.deploy_role_permissions_boundary_arn != "" ? var.deploy_role_permissions_boundary_arn : null
   tags                 = var.tags
 }
+
+# Deliberately narrow: exactly what deploy-staging.yml does (build+push images,
+# register a new task-def revision, force a new deployment, run the one-off ops-task,
+# sync the built frontends, invalidate CloudFront) - never `terraform apply` (CI is
+# meant to never run that unattended, see the ecs-service modules'
+# `lifecycle.ignore_changes = [task_definition]` comment for why).
+data "aws_iam_policy_document" "github_deploy_permissions" {
+  count = var.create_github_deploy_role ? 1 : 0
+
+  statement {
+    sid       = "EcrAuth"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"] # this action doesn't support resource-level scoping
+  }
+
+  statement {
+    sid = "EcrPush"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:BatchGetImage",
+      "ecr:InitiateLayerUpload",
+      "ecr:UploadLayerPart",
+      "ecr:CompleteLayerUpload",
+      "ecr:PutImage",
+    ]
+    resources = var.ecr_repository_arns
+  }
+
+  statement {
+    sid = "EcsDeploy"
+    actions = [
+      # RegisterTaskDefinition/Describe* don't support resource-level scoping (AWS IAM
+      # limitation for these specific actions) - UpdateService/RunTask/DescribeTasks are
+      # scoped to this cluster below.
+      "ecs:RegisterTaskDefinition",
+      "ecs:DescribeTaskDefinition",
+      "ecs:DescribeServices",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "EcsClusterScoped"
+    actions = [
+      "ecs:UpdateService",
+      "ecs:RunTask",
+      "ecs:DescribeTasks",
+    ]
+    resources = [var.ecs_cluster_arn, "${var.ecs_cluster_arn}/*"]
+  }
+
+  # References the task_execution/task roles created earlier in this same module
+  # directly, not via a variable - they can't be passed in from outside since that
+  # would make the module depend on its own output.
+  statement {
+    sid       = "PassEcsRoles"
+    actions   = ["iam:PassRole"]
+    resources = [aws_iam_role.task_execution.arn, aws_iam_role.task.arn]
+  }
+
+  statement {
+    sid       = "SyncFrontendBuckets"
+    actions   = ["s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
+    resources = flatten([for arn in var.frontend_bucket_arns : [arn, "${arn}/*"]])
+  }
+
+  statement {
+    sid       = "InvalidateCloudFront"
+    actions   = ["cloudfront:CreateInvalidation"]
+    resources = var.cloudfront_distribution_arns
+  }
+}
+
+resource "aws_iam_role_policy" "github_deploy" {
+  count  = var.create_github_deploy_role ? 1 : 0
+  name   = "${var.name_prefix}-github-deploy"
+  role   = aws_iam_role.github_deploy[0].id
+  policy = data.aws_iam_policy_document.github_deploy_permissions[0].json
+}

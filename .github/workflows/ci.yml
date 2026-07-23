@@ -59,6 +59,18 @@ jobs:
       - name: Run Postgres migrations
         run: cd packages/db && uv run alembic upgrade head
 
+      # A couple of tests (branch locator, RAG citation-grounding coverage eval) exercise
+      # real seeded fixture/content data rather than building their own in-test fixtures,
+      # same as local dev's persistent docker-volumes - found live via CI failures once
+      # a genuinely fresh, unseeded database existed for the first time (S32/D-084).
+      # bedrock_provider defaults to "mock" for both CLIs, so knowledge-load makes no
+      # real AWS calls.
+      - name: Seed MySQL dev-fake fixtures
+        run: uv run python -m intellichoice_adapters.seed.seed_mysql
+
+      - name: Load knowledge-base content
+        run: uv run python -m intellichoice_knowledge.ingest_cli
+
       - name: Lint
         run: uv run ruff check .
 

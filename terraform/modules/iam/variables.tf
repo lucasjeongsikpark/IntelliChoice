@@ -56,6 +56,30 @@ variable "deploy_role_permissions_boundary_arn" {
   default     = ""
 }
 
+variable "ecr_repository_arns" {
+  description = "ECR repository ARNs the GitHub deploy role may push images to."
+  type        = list(string)
+  default     = []
+}
+
+variable "ecs_cluster_arn" {
+  description = "ECS cluster ARN the GitHub deploy role may update services / run tasks in."
+  type        = string
+  default     = ""
+}
+
+variable "frontend_bucket_arns" {
+  description = "S3 frontend bucket ARNs the GitHub deploy role may sync built assets to."
+  type        = list(string)
+  default     = []
+}
+
+variable "cloudfront_distribution_arns" {
+  description = "CloudFront distribution ARNs the GitHub deploy role may invalidate after a frontend deploy."
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

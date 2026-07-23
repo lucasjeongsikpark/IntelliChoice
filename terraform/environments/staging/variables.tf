@@ -13,6 +13,18 @@ variable "notification_email" {
   type        = string
 }
 
+variable "github_org" {
+  description = "GitHub org/user the deploy-staging.yml workflow runs from - scopes the OIDC deploy role's trust policy. Empty until the repo exists (see iam module's create_github_oidc_provider/create_github_deploy_role)."
+  type        = string
+  default     = ""
+}
+
+variable "github_repo" {
+  description = "GitHub repo name (without org prefix) the deploy-staging.yml workflow runs from."
+  type        = string
+  default     = ""
+}
+
 # Bootstrapping note: these default to a placeholder that is never actually deployed -
 # the very first applies (vpc/ecr/iam/rds) are run with `-target` before any image
 # exists in ECR at all (see the S32/D-084 execution order). Override with the real tag

@@ -129,11 +129,20 @@ module "iam" {
   log_group_arns     = local.log_group_arns
   tags               = local.common_tags
 
-  # GitHub OIDC/deploy role deliberately deferred - no repo exists yet at the point this
-  # module is first applied (S32/D-084 execution order). Flip these on and re-apply once
-  # the repo is created; see deploy-staging.yml's own setup notes.
-  create_github_oidc_provider = false
-  create_github_deploy_role   = false
+  # GitHub OIDC/deploy role: the repo now exists (S32/D-084's execution order deferred
+  # this until it did) - see deploy-staging.yml.
+  create_github_oidc_provider = true
+  create_github_deploy_role   = true
+  github_org                  = var.github_org
+  github_repo                 = var.github_repo
+
+  ecr_repository_arns  = values(module.ecr.repository_arns)
+  ecs_cluster_arn      = aws_ecs_cluster.this.arn
+  frontend_bucket_arns = [module.cloudfront_learning.bucket_arn, module.cloudfront_chat.bucket_arn]
+  cloudfront_distribution_arns = [
+    module.cloudfront_learning.distribution_arn,
+    module.cloudfront_chat.distribution_arn,
+  ]
 }
 
 module "ecs_service_learning_api" {
