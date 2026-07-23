@@ -8,6 +8,36 @@ on:
 jobs:
   lint-typecheck-test:
     runs-on: ubuntu-latest
+    # Mirrors docker-compose.yml's postgres/mysql services exactly (same images,
+    # credentials, db names) - tests rely on packages/db and both apps' hardcoded
+    # localhost defaults matching this, not env vars. Found live: this workflow had
+    # never actually run against real GitHub Actions before the repo existed, and was
+    # missing these entirely (S32/D-084).
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: intellichoice
+          POSTGRES_PASSWORD: intellichoice
+          POSTGRES_DB: intellichoice
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U intellichoice"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: intellichoice
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pintellichoice"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -19,6 +49,15 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --all-packages --all-groups
+
+      # mysql-init/001-schema.sql is normally applied by docker-compose's
+      # docker-entrypoint-initdb.d bind mount, which service containers don't support -
+      # applied explicitly here instead.
+      - name: Apply MySQL dev-fake schema
+        run: mysql -h 127.0.0.1 -P 3306 -uroot -pintellichoice < mysql-init/001-schema.sql
+
+      - name: Run Postgres migrations
+        run: cd packages/db && uv run alembic upgrade head
 
       - name: Lint
         run: uv run ruff check .
