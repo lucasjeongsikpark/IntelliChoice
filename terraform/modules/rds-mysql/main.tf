@@ -32,11 +32,6 @@ resource "aws_security_group_rule" "ingress_from_ecs" {
   source_security_group_id = var.allowed_security_group_ids[count.index]
 }
 
-resource "random_password" "master" {
-  length  = 32
-  special = false
-}
-
 resource "aws_db_instance" "this" {
   identifier     = "${var.name_prefix}-mysql"
   engine         = "mysql"
@@ -49,8 +44,11 @@ resource "aws_db_instance" "this" {
 
   db_name  = var.db_name
   username = var.master_username
-  password = random_password.master.result
   port     = 3306
+
+  # D-092 (S33): real automatic rotation, AWS-managed end to end - see the matching,
+  # more detailed comment on rds-postgres/main.tf's identical field.
+  manage_master_user_password = true
 
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.this.id]
@@ -64,17 +62,4 @@ resource "aws_db_instance" "this" {
   auto_minor_version_upgrade = true
 
   tags = var.tags
-}
-
-# LEARNING_MYSQL_URL / CHAT_MYSQL_URL's expected shape (mysql+aiomysql://user:pass@host:3306) -
-# no database name suffix, matching Settings.mysql_url's local-dev default, since
-# MySQLProfileAdapter selects the database itself (D-083).
-resource "aws_secretsmanager_secret" "mysql_url" {
-  name = "${var.name_prefix}/mysql/mysql-url"
-  tags = var.tags
-}
-
-resource "aws_secretsmanager_secret_version" "mysql_url" {
-  secret_id     = aws_secretsmanager_secret.mysql_url.id
-  secret_string = "mysql+aiomysql://${var.master_username}:${random_password.master.result}@${aws_db_instance.this.address}:3306"
 }

@@ -63,9 +63,10 @@ resource "aws_ecs_task_definition" "this" {
 
   container_definitions = jsonencode([
     {
-      name      = var.name
-      image     = var.image
-      essential = true
+      name                   = var.name
+      image                  = var.image
+      essential              = true
+      readonlyRootFilesystem = var.read_only_root_filesystem
       portMappings = [
         { containerPort = var.container_port, protocol = "tcp" }
       ]
@@ -115,6 +116,23 @@ resource "aws_ecs_service" "this" {
   # removes the margin call entirely rather than relying on the retry.
   health_check_grace_period_seconds = 60
 
+  # S34/SPEC §6.23 "rolling deployment" + Phase 23's rollback-trigger intent, the ECS-
+  # native equivalent: if a newly-deployed task definition revision never reaches a
+  # steady healthy state (e.g. it crash-loops or keeps failing target-group health
+  # checks), ECS automatically rolls the service back to the last known-good revision
+  # itself, without waiting for deploy-staging.yml's own post-deploy checks. This is a
+  # deploy-time safety net (bad task definition never becomes healthy at all); the
+  # canary bake + CloudWatch-alarm rollback in deploy-staging.yml is a complementary,
+  # separate safety net for the case a new revision *is* healthy but is quietly serving
+  # bad responses (elevated 5xx/latency) - circuit breaker alone can't catch that.
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 100
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
   depends_on = [aws_lb_listener_rule.this]
 
   # deploy-staging.yml deploys by registering a new task definition revision and calling
@@ -125,10 +143,59 @@ resource "aws_ecs_service" "this" {
   # tfvars. Terraform still owns the task definition's *shape* (cpu/memory/env/secrets) -
   # a real shape change needs a manual apply that also updates the running service
   # (this ignore only affects which revision the service points at, not template changes
-  # to aws_ecs_task_definition.this itself).
+  # to aws_ecs_task_definition.this itself). `desired_count` is ignored too, once
+  # `var.enable_autoscaling` is true (S34) - Application Auto Scaling manages the live
+  # count directly via the ECS API, outside Terraform's knowledge; without this, the next
+  # `terraform apply` would silently scale a busy service back down to `var.desired_count`.
   lifecycle {
-    ignore_changes = [task_definition]
+    ignore_changes = [task_definition, desired_count]
   }
 
   tags = var.tags
+}
+
+locals {
+  # `var.cluster_id` is the cluster ARN (`aws_ecs_cluster.this.id` in the root module) -
+  # Application Auto Scaling's resource_id needs the plain cluster *name*, the second
+  # "/"-delimited segment of an ECS cluster ARN. Avoids needing a second, redundant
+  # "cluster name" input variable alongside `cluster_id`.
+  cluster_name = element(split("/", var.cluster_id), 1)
+}
+
+# S34/SPEC §5.33.4 "HPA signals" (CPU/memory/active-requests/SSE-connections/P95
+# latency), translated to ECS's real equivalent - Fargate has no HPA, and until this
+# session nothing here auto-scaled at all (`desired_count` was a flat, fixed number).
+# CPU-utilization target-tracking is the simplest of SPEC's listed signals to wire up
+# with no extra infrastructure (ALB request-count-per-target scaling would react faster
+# to the I/O-bound concurrency this app's own S34 load test actually bottlenecked on,
+# but needs the target group's ARN suffix wired through as a second signal - left as
+# future work if CPU-based scaling proves too slow to react in practice). Bounded to a
+# modest `max_capacity` (default 3) deliberately, not "as high as possible" - this
+# account is still on Free Tier constraints (D-084) and a solo-maintainer ~1,000-MAU
+# target doesn't need enterprise-scale headroom.
+resource "aws_appautoscaling_target" "this" {
+  count              = var.enable_autoscaling ? 1 : 0
+  service_namespace  = "ecs"
+  resource_id        = "service/${local.cluster_name}/${aws_ecs_service.this.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  min_capacity       = var.autoscaling_min_capacity
+  max_capacity       = var.autoscaling_max_capacity
+}
+
+resource "aws_appautoscaling_policy" "cpu" {
+  count              = var.enable_autoscaling ? 1 : 0
+  name               = "${var.name_prefix}-${var.name}-cpu-target-tracking"
+  policy_type        = "TargetTrackingScaling"
+  service_namespace  = aws_appautoscaling_target.this[0].service_namespace
+  resource_id        = aws_appautoscaling_target.this[0].resource_id
+  scalable_dimension = aws_appautoscaling_target.this[0].scalable_dimension
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+    target_value       = var.autoscaling_cpu_target_percent
+    scale_in_cooldown  = 120
+    scale_out_cooldown = 60
+  }
 }

@@ -39,12 +39,16 @@ RUN uv sync --frozen --all-packages --no-dev
 
 FROM python:3.12-slim AS runtime
 
-# Known base-image gap, not fixed here: python:3.12-slim's perl-base package carries
-# CVE-2026-12087 (critical) + CVE-2026-48959/48962 (high), no upstream fix published yet
-# (confirmed via `docker scout cves`). Tried removing it - apt refuses (`perl-base` is
-# marked Essential; forcing removal risks destabilizing the base image for a CVE this
-# app's own code never exercises, since nothing here invokes perl). Tracked via ECR's
-# scan-on-push (S32/D-084); rebuild once Debian/the upstream image ships a fix.
+# Known base-image gap, not fixed here: python:3.12-slim's OS-level packages
+# (perl-base, ncurses, util-linux) carry several CRITICAL/HIGH CVEs with no upstream
+# Debian fix published yet (re-confirmed via a real `trivy image` scan, S33/D-089 - the
+# exact CVE set has grown since S32's original `docker scout cves` check, expected for a
+# base-image-level backlog like this, not a regression). Tried removing perl-base - apt
+# refuses (marked Essential; forcing removal risks destabilizing the base image for CVEs
+# this app's own code never exercises, since nothing here invokes perl/ncurses/
+# util-linux). Tracked automatically now via `.github/workflows/security-scan.yml`'s
+# Trivy gate (fails on any *fixable* CRITICAL/HIGH - see that file's comment) and ECR's
+# scan-on-push (S32/D-084); rebuild once Debian/the upstream image ships fixes.
 
 RUN useradd --create-home --uid 10001 appuser
 WORKDIR /app
@@ -55,8 +59,13 @@ COPY --from=builder /app/apps/learning-api /app/apps/learning-api
 COPY --from=builder /app/curriculum /app/curriculum
 COPY --from=builder /app/knowledge-content /app/knowledge-content
 
+# D-088: PYTHONDONTWRITEBYTECODE - the ECS task definition now sets
+# readonlyRootFilesystem=true (S33 Fargate hardening); Python would otherwise attempt
+# (and harmlessly fail, but still attempt) to write .pyc caches under the read-only
+# tree on every import.
 ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 USER appuser
 EXPOSE 8001
@@ -66,4 +75,12 @@ EXPOSE 8001
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/healthz', timeout=3)" || exit 1
 
-CMD ["uvicorn", "learning_api.main:app", "--host", "0.0.0.0", "--port", "8001"]
+# D-087: --proxy-headers makes Uvicorn trust X-Forwarded-For/X-Forwarded-Proto so
+# `Request.client.host` reflects the real caller, not the ALB's own address - without
+# this, every real request collapses onto one IP, making the new global rate limiter
+# (and the admin-escalation one in chat-api) useless in the real deployment.
+# --forwarded-allow-ips="*" trusts every direct connection's forwarded headers - safe
+# here specifically because this container is never reachable except from the ALB (the
+# ECS task security group only allows inbound from the ALB's security group, S32/D-084);
+# there is no other path a spoofed header could arrive by.
+CMD ["uvicorn", "learning_api.main:app", "--host", "0.0.0.0", "--port", "8001", "--proxy-headers", "--forwarded-allow-ips=*"]

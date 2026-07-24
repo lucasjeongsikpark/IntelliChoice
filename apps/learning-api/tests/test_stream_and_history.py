@@ -135,6 +135,20 @@ def test_dev_token_404s_outside_dev_environment(monkeypatch: pytest.MonkeyPatch)
     assert resp.status_code == 404
 
 
+def test_dev_token_404s_when_endpoint_flag_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-085: environment=="dev" alone must not be enough - this is the second,
+    independent gate that stops a repeat of the S32 staging misconfiguration.
+    """
+    monkeypatch.setattr(
+        main_module,
+        "get_settings",
+        lambda: Settings(environment="dev", dev_token_endpoint_enabled=False),
+    )
+    client = TestClient(app)
+    resp = client.post("/dev/token", json={"role": "student", "sub": STUDENT_UNLINKED})
+    assert resp.status_code == 404
+
+
 def test_session_event_bus_publishes_only_to_subscribers_of_that_session() -> None:
     bus = SessionEventBus()
     queue_a = bus.subscribe("session-a")

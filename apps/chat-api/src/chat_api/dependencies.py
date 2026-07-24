@@ -7,16 +7,17 @@ from intellichoice_shared.auth import Audience, TokenClaims
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.profiles import ProfileAdapter
+from intellichoice_shared.rate_limit import InMemoryRateLimiter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from chat_api.config import get_settings
 from chat_api.graph.build import QAGraph
-from chat_api.services.rate_limit import InMemoryRateLimiter
 from chat_api.services.session_events import ChatSessionEventBus
 
 
 @lru_cache
 def get_token_verifier() -> JwtTokenVerifier:
-    return JwtTokenVerifier()
+    return JwtTokenVerifier(secret=get_settings().jwt_signing_secret)
 
 
 async def get_current_claims(request: Request) -> TokenClaims:

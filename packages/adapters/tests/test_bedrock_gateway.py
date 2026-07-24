@@ -405,6 +405,77 @@ def test_create_embedding_retries_then_raises_timeout_error() -> None:
     asyncio.run(run())
 
 
+class _AlwaysFailProvider:
+    """S34: unlike `_ScriptedProvider`, never runs out of script - models a sustained
+    Bedrock throttling episode hitting many concurrent in-flight calls at once, not one
+    caller retrying sequentially.
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def raw_generate(self, **kwargs: object) -> RawGeneration:
+        self.calls += 1
+        raise ProviderCallError("simulated sustained throttling")
+
+
+def test_circuit_breaker_caps_provider_calls_even_under_a_concurrent_failure_burst() -> None:
+    """S34 SPEC §6.23 "Bedrock throttling" drill, run under real concurrency (a burst of
+    simultaneous callers, not one caller retrying sequentially - the more realistic shape
+    of a real throttling episode with >100 concurrent learning sessions in flight, per
+    §6.23's own "concurrent Bedrock requests" target). Went in expecting to find a gap:
+    `_record_failure`/`_circuit_check` are plain instance-attribute reads/writes with no
+    lock, so it seemed plausible that many coroutines could all observe "circuit closed"
+    and start their own provider call before any of them recorded a failure, letting a
+    whole burst through instead of just the first `circuit_failure_threshold`. Verified
+    the opposite: asyncio's cooperative scheduling means `_circuit_check`/`_record_
+    failure` each run to completion without yielding (no `await` inside either), and
+    `asyncio.wait_for`'s own task-creation overhead is enough of a suspension point that
+    the loop interleaves one call at a time in practice - exactly `circuit_failure_
+    threshold` calls reach the provider, then every remaining concurrent caller gets
+    `CircuitOpenError` without another provider call. A real, useful negative result, not
+    a gap - see DECISIONS.md's S34 entry.
+    """
+
+    async def run() -> None:
+        provider = _AlwaysFailProvider()
+        gateway = ResilientBedrockGateway(
+            provider=provider,
+            model_registry={BedrockTask.TUTOR: MODEL_ID},
+            max_retries=0,
+            circuit_failure_threshold=5,
+            circuit_cooldown_s=60,
+        )
+
+        async def one_call() -> Exception:
+            try:
+                await gateway.generate_structured(
+                    task=BedrockTask.TUTOR,
+                    system_prompt="system",
+                    payload=_payload(),
+                    response_model=HintResponse,
+                    max_output_tokens=200,
+                    session_spend_cents=0.0,
+                )
+                raise AssertionError("expected a failure")
+            except (BedrockTimeoutError, CircuitOpenError) as exc:
+                return exc
+
+        concurrent_burst = 30
+        results = await asyncio.gather(*(one_call() for _ in range(concurrent_burst)))
+
+        # Exactly the configured threshold actually reached the (always-failing)
+        # provider - the rest were blocked by the now-open circuit without spending
+        # another real call, even though all 30 were launched concurrently.
+        assert provider.calls == 5
+        timed_out = [r for r in results if isinstance(r, BedrockTimeoutError)]
+        circuit_blocked = [r for r in results if isinstance(r, CircuitOpenError)]
+        assert len(timed_out) == 5
+        assert len(circuit_blocked) == concurrent_burst - 5
+
+    asyncio.run(run())
+
+
 def test_create_embedding_cost_budget_exceeded_before_any_provider_call() -> None:
     async def run() -> None:
         provider = _ScriptedEmbeddingProvider([])

@@ -2,8 +2,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from intellichoice_adapters.bedrock.bedrock_runtime_provider import AnthropicBedrockProvider
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
@@ -23,9 +24,11 @@ from intellichoice_observability.tracing import (
 )
 from intellichoice_shared.auth import Audience, Role, TokenClaims
 from intellichoice_shared.bedrock import BedrockTask
+from intellichoice_shared.db_ready import ping_engine
 from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.mcp import McpTool, McpToolRegistry
 from intellichoice_shared.profiles import AttendanceStatus, ProfileAdapter
+from intellichoice_shared.rate_limit import install_global_rate_limit_middleware
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel
 
@@ -173,6 +176,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# D-087: general per-IP request cap, a stopgap against gross traffic/cost abuse until a
+# real WAF exists - see `Settings.global_rate_limit_max_per_window`'s comment.
+#
+# S34: installed BEFORE (so it ends up *inside*/wrapped-by) request_logging/http_metrics
+# below - Starlette's middleware stack is LIFO by registration order, so whichever
+# middleware is installed *last* is outermost and sees every request/response first/last.
+# The original order had rate-limit installed last (outermost), which meant a 429 short-
+# circuited before request_logging or http_metrics ever ran - real 429s from S34's own
+# load test were completely invisible in both the structured access log and Prometheus
+# metrics, not just to the rejected caller. Found live: a realistic one-shot
+# 150-concurrent-session k6 run (load-tests/k6/learning_sessions.js) tripped the
+# then-default 1,000 req/60s cap - exactly 600 setup requests (150 sessions x 4 setup
+# calls) plus 400 successful answers before the 1,000th request closed the window on
+# everyone still in flight - and none of the ~1,100 resulting 429s left any trace in the
+# access log; only the request-count math revealed it (see DECISIONS.md's S34 entry).
+install_global_rate_limit_middleware(
+    app,
+    max_per_window=get_settings().global_rate_limit_max_per_window,
+    window_s=get_settings().global_rate_limit_window_s,
+)
 # SPEC §5.32 Observability (S31) - registered at module level (not inside `lifespan`)
 # since FastAPI's middleware stack is built once and must be in place before the first
 # request; `otel_enabled`'s FastAPI/SQLAlchemy auto-instrumentation is the one piece
@@ -190,6 +213,21 @@ app.include_router(questions_router)
 async def healthz() -> dict[str, str]:
     settings = get_settings()
     return {"status": "ok", "environment": settings.environment}
+
+
+@app.get("/readyz")
+async def readyz(request: Request) -> JSONResponse:
+    """S34: the ALB target group's real health check (see `db_ready.py`'s docstring) -
+    `/healthz` above stays dependency-free.
+    """
+    postgres_ok = await ping_engine(request.app.state.db_engine)
+    mysql_ok = await ping_engine(request.app.state.profile_adapter.engine)
+    if postgres_ok and mysql_ok:
+        return JSONResponse({"status": "ready", "postgres": True, "mysql": True})
+    return JSONResponse(
+        {"status": "not_ready", "postgres": postgres_ok, "mysql": mysql_ok},
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
 
 
 @app.get("/metrics")
@@ -231,13 +269,13 @@ class DevTokenResponse(BaseModel):
 @app.post("/dev/token", response_model=DevTokenResponse)
 async def issue_dev_token(body: DevTokenRequest) -> DevTokenResponse:
     """Dev-only stand-in for `go.intellichoice.org`'s real auth (out of scope here) so
-    `apps/learning-web` has something to call locally. 404s outside `environment=="dev"`
-    rather than being wired behind a feature flag, since it must never exist as reachable
-    surface in a real deployment - wraps the existing `FakeTokenIssuer` (D-006), issues no
-    new secret.
+    `apps/learning-web` has something to call locally. 404s unless BOTH
+    `environment=="dev"` AND `dev_token_endpoint_enabled` are true (D-085) - it must
+    never exist as reachable surface in a real deployment - wraps the existing
+    `FakeTokenIssuer` (D-006), issues no new secret.
     """
     settings = get_settings()
-    if settings.environment != "dev":
+    if settings.environment != "dev" or not settings.dev_token_endpoint_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     token = FakeTokenIssuer().issue(sub=body.sub, role=body.role, audience=body.audience)
     return DevTokenResponse(token=token)

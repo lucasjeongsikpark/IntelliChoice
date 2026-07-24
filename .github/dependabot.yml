@@ -1,0 +1,43 @@
+# D-089 (S33 Security Hardening, SPEC §6.22 "dependency scanning"). Weekly, not daily -
+# solo maintainer (CLAUDE.md's own "optimize for low operational burden"), and a fixed
+# schedule is enough for dependency PRs (unlike the CI-level pip-audit/npm-audit gate in
+# security-scan.yml, which runs on every push/PR and is the actual enforcement point).
+# `open-pull-requests-limit` kept modest per ecosystem so a quiet week doesn't dump a
+# pile of PRs at once.
+version: 2
+updates:
+  # One root `uv.lock` for the whole workspace (apps/* + packages/*) - Dependabot's own
+  # `uv` ecosystem (GA since March 2025) reads pyproject.toml + uv.lock directly, no
+  # glob/per-package directories needed or supported.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "npm"
+    directory: "/apps/learning-web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/apps/chat-web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "docker"
+    directory: "/apps/learning-api"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/chat-api"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

@@ -20,6 +20,7 @@ from intellichoice_shared.auth import TokenClaims
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.profiles import ProfileAdapter
+from intellichoice_shared.rate_limit import InMemoryRateLimiter
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command, Interrupt, StateSnapshot
 from pydantic import BaseModel, Field
@@ -39,7 +40,6 @@ from chat_api.dependencies import (
 from chat_api.graph.build import AskInput, QAGraph
 from chat_api.graph.nodes import TurnContext
 from chat_api.services import suggestions
-from chat_api.services.rate_limit import InMemoryRateLimiter
 from chat_api.services.session_events import ChatSessionEventBus
 
 router = APIRouter(prefix="/chat/sessions", tags=["chat-sessions"])

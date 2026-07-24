@@ -218,6 +218,15 @@ data "aws_iam_policy_document" "github_deploy_permissions" {
     actions   = ["cloudfront:CreateInvalidation"]
     resources = var.cloudfront_distribution_arns
   }
+
+  # S34: deploy-staging.yml's post-deploy canary bake polls these alarms' state before
+  # declaring a deploy successful - DescribeAlarms doesn't support resource-level scoping
+  # (same AWS limitation as the Describe*/RegisterTaskDefinition actions above).
+  statement {
+    sid       = "CanaryAlarmCheck"
+    actions   = ["cloudwatch:DescribeAlarms"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "github_deploy" {

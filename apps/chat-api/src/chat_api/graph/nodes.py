@@ -39,6 +39,7 @@ from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.maps import GeocodeQuery
 from intellichoice_shared.mcp import McpToolError, McpToolRegistry
 from intellichoice_shared.profiles import ProfileAdapter
+from intellichoice_shared.rate_limit import InMemoryRateLimiter
 from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 from pydantic import ValidationError
@@ -49,7 +50,6 @@ from chat_api.services import calendar as calendar_service
 from chat_api.services import calendar_events as calendar_events_service
 from chat_api.services import qa, role_access
 from chat_api.services.branch_locator import BranchLocatorResult, BranchLocatorStatus
-from chat_api.services.rate_limit import InMemoryRateLimiter
 
 from .state import QAState
 

@@ -3,7 +3,7 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
-from intellichoice_db.engine import DEFAULT_DATABASE_URL
+from intellichoice_db.engine import DEFAULT_DATABASE_URL, database_url_from_component_env_vars
 from intellichoice_db.models import Base
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -18,10 +18,15 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Dev-only hardcoded default (mirrors D-006); `DATABASE_URL` env var overrides it for
+# Dev-only hardcoded default (mirrors D-006); `DATABASE_URL` env var (or, since S33/
+# D-092, the five-component `DB_USERNAME`/`DB_PASSWORD`/`DB_HOST`/`DB_PORT`/`DB_NAME`
+# fallback - see `database_url_from_component_env_vars`'s docstring) overrides it for
 # deployed environments (S32/D-084), since a migration-runner task has no `localhost` to
 # reach.
-config.set_main_option("sqlalchemy.url", os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL))
+config.set_main_option(
+    "sqlalchemy.url",
+    database_url_from_component_env_vars() or os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL),
+)
 
 target_metadata = Base.metadata
 

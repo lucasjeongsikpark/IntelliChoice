@@ -47,3 +47,15 @@ def test_dev_token_404s_outside_dev_environment(monkeypatch: pytest.MonkeyPatch)
     client = TestClient(app)
     resp = client.post("/dev/token", json={"role": "student", "sub": "student-ext-1"})
     assert resp.status_code == 404
+
+
+def test_dev_token_404s_when_endpoint_flag_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-085: mirrors learning-api's equivalent test - see that one's docstring."""
+    monkeypatch.setattr(
+        main_module,
+        "get_settings",
+        lambda: Settings(environment="dev", dev_token_endpoint_enabled=False),
+    )
+    client = TestClient(app)
+    resp = client.post("/dev/token", json={"role": "student", "sub": "student-ext-1"})
+    assert resp.status_code == 404

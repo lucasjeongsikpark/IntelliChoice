@@ -33,12 +33,8 @@ RUN uv sync --frozen --all-packages --no-dev
 
 FROM python:3.12-slim AS runtime
 
-# Known base-image gap, not fixed here: python:3.12-slim's perl-base package carries
-# CVE-2026-12087 (critical) + CVE-2026-48959/48962 (high), no upstream fix published yet
-# (confirmed via `docker scout cves`). Tried removing it - apt refuses (`perl-base` is
-# marked Essential; forcing removal risks destabilizing the base image for a CVE this
-# app's own code never exercises, since nothing here invokes perl). Tracked via ECR's
-# scan-on-push (S32/D-084); rebuild once Debian/the upstream image ships a fix.
+# Known base-image gap, not fixed here: see the matching, more detailed comment in
+# apps/learning-api/Dockerfile (identical base image, identical finding, S33/D-089).
 
 RUN useradd --create-home --uid 10001 appuser
 WORKDIR /app
@@ -49,8 +45,10 @@ COPY --from=builder /app/apps/chat-api /app/apps/chat-api
 COPY --from=builder /app/curriculum /app/curriculum
 COPY --from=builder /app/knowledge-content /app/knowledge-content
 
+# D-088: see the matching comment in apps/learning-api/Dockerfile.
 ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 USER appuser
 EXPOSE 8002
@@ -60,4 +58,7 @@ EXPOSE 8002
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/healthz', timeout=3)" || exit 1
 
-CMD ["uvicorn", "chat_api.main:app", "--host", "0.0.0.0", "--port", "8002"]
+# D-087: see the matching comment in apps/learning-api/Dockerfile - same rationale,
+# and this app's own existing admin-escalation rate limiter (SPEC §5.24.2) needed this
+# fix even more directly, since it's specifically meant to be per-caller.
+CMD ["uvicorn", "chat_api.main:app", "--host", "0.0.0.0", "--port", "8002", "--proxy-headers", "--forwarded-allow-ips=*"]

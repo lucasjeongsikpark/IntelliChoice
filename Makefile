@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging
 
 up:
 	docker compose up -d
@@ -80,3 +80,21 @@ dev-learning-web:
 
 dev-chat-web:
 	cd apps/chat-web && npm install && npm run dev
+
+# S33 (D-089/D-094): authorized OWASP ZAP baseline scan against the real staging
+# CloudFront URLs - you own this AWS account/app, so this is authorized self-testing,
+# not something requiring a paid third-party pentest engagement (that's still a real,
+# separate launch-gate item - see PROGRESS.md's S33 carry-over). Needs a live AWS
+# session (`terraform output` reads real state) - not runnable this session, blocked on
+# AWS SSO reauth; ready to run as soon as that's restored. Reports land in
+# zap-reports/ (gitignored) - review before treating any finding as real; a baseline
+# scan is noisy (informational-level findings especially) by design.
+security-scan-staging:
+	mkdir -p zap-reports
+	$(eval LEARNING_URL := $(shell cd terraform/environments/staging && terraform output -raw cloudfront_learning_domain))
+	$(eval CHAT_URL := $(shell cd terraform/environments/staging && terraform output -raw cloudfront_chat_domain))
+	docker run --rm -v $(PWD)/zap-reports:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable \
+		zap-baseline.py -t https://$(LEARNING_URL) -r learning-web-zap-report.html || true
+	docker run --rm -v $(PWD)/zap-reports:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable \
+		zap-baseline.py -t https://$(CHAT_URL) -r chat-web-zap-report.html || true
+	@echo "Reports: zap-reports/learning-web-zap-report.html, zap-reports/chat-web-zap-report.html"

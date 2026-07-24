@@ -2,8 +2,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from intellichoice_adapters.bedrock.bedrock_runtime_provider import AnthropicBedrockProvider
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
@@ -26,9 +27,14 @@ from intellichoice_observability.tracing import (
 from intellichoice_shared.auth import Audience, Role, TokenClaims
 from intellichoice_shared.bedrock import BedrockTask
 from intellichoice_shared.calendar import CalendarEvent
+from intellichoice_shared.db_ready import ping_engine
 from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.maps import GeocodeQuery, RouteQuery
 from intellichoice_shared.mcp import McpTool, McpToolRegistry
+from intellichoice_shared.rate_limit import (
+    InMemoryRateLimiter,
+    install_global_rate_limit_middleware,
+)
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from pydantic import BaseModel
 
@@ -39,7 +45,6 @@ from chat_api.routers.events import router as events_router
 from chat_api.routers.meta import router as meta_router
 from chat_api.routers.sessions import router as sessions_router
 from chat_api.routers.stream import router as stream_router
-from chat_api.services.rate_limit import InMemoryRateLimiter
 from chat_api.services.session_events import ChatSessionEventBus
 
 
@@ -180,6 +185,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# D-087: general per-IP request cap, a stopgap against gross traffic/cost abuse until a
+# real WAF exists - see `Settings.global_rate_limit_max_per_window`'s comment.
+#
+# S34: installed BEFORE (so it ends up *inside*/wrapped-by) request_logging/http_metrics
+# below - see the matching comment in `learning_api.main` for the full reasoning (a real
+# S34 load-test finding: the original order made every 429 invisible to both the access
+# log and Prometheus metrics, not just to the rejected caller).
+install_global_rate_limit_middleware(
+    app,
+    max_per_window=get_settings().global_rate_limit_max_per_window,
+    window_s=get_settings().global_rate_limit_window_s,
+)
 # SPEC §5.32 Observability (S31) - registered at module level, mirrors
 # `learning_api.main`'s same reasoning (middleware must be in place before the first
 # request; the FastAPI/SQLAlchemy auto-instrumentation stays lifespan-scoped since it
@@ -197,6 +214,21 @@ app.include_router(meta_router)
 async def healthz() -> dict[str, str]:
     settings = get_settings()
     return {"status": "ok", "environment": settings.environment}
+
+
+@app.get("/readyz")
+async def readyz(request: Request) -> JSONResponse:
+    """S34: the ALB target group's real health check - see `intellichoice_shared.
+    db_ready`'s docstring for why this is separate from `/healthz` above.
+    """
+    postgres_ok = await ping_engine(request.app.state.db_engine)
+    mysql_ok = await ping_engine(request.app.state.profile_adapter.engine)
+    if postgres_ok and mysql_ok:
+        return JSONResponse({"status": "ready", "postgres": True, "mysql": True})
+    return JSONResponse(
+        {"status": "not_ready", "postgres": postgres_ok, "mysql": mysql_ok},
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
 
 
 @app.get("/metrics")
@@ -225,11 +257,12 @@ async def issue_dev_token(body: DevTokenRequest) -> DevTokenResponse:
     """Dev-only stand-in for `go.intellichoice.org`'s real auth (out of scope here) so
     `apps/chat-web` has something to call locally - mirrors `learning_api.main.
     issue_dev_token` (D-006/D-032's pattern) verbatim, just defaulting to
-    `Audience.CHAT`. 404s outside `environment=="dev"` rather than being wired behind a
-    feature flag, since it must never exist as reachable surface in a real deployment.
+    `Audience.CHAT`. 404s unless BOTH `environment=="dev"` AND
+    `dev_token_endpoint_enabled` are true (D-085) - it must never exist as reachable
+    surface in a real deployment.
     """
     settings = get_settings()
-    if settings.environment != "dev":
+    if settings.environment != "dev" or not settings.dev_token_endpoint_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     token = FakeTokenIssuer().issue(sub=body.sub, role=body.role, audience=body.audience)
     return DevTokenResponse(token=token)

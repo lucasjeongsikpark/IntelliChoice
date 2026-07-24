@@ -116,13 +116,13 @@ flowchart TB
 
     subgraph APPS["FastAPI apps (S1)"]
         subgraph LAPI["learning-api :8001"]
-            LROUTES["routers/sessions (S5–S7)<br/>routers/questions (S9)<br/>routers/stream, routers/students (S11)"]
+            LROUTES["routers/sessions (S5–S7)<br/>routers/questions (S9)<br/>routers/stream, routers/students (S11)<br/>/healthz (liveness-only), /readyz<br/>(DB-aware, ALB target-group health<br/>check since S34) (S1/S34)"]
             LAUTH["auth deps<br/>audience=learning (S2)<br/>+ dev-only /dev/token (S11)"]
             GRAPH["LangGraph workflow (S6–S8)<br/>see diagram 2"]
             LSVC["services: attendance, grading,<br/>assessment_builder, mastery_bootstrap,<br/>study_plan, learning_gain, flow (S5)<br/>tutor, topic_resolver (S8)<br/>question_reports (S9)<br/>study_outcomes (S10)<br/>video_catalog: real Postgres+<br/>Bedrock catalog (S10 stub → S15)<br/>session_events, history (S11)<br/>tutor.generate_personalized_hint,<br/>topic_resolver.resolve_misconception_tag<br/>(S21)<br/>memory_events (6 emission points),<br/>tutor.py/tutor_chat.py/study_plan.py<br/>read `relevant_learning_fact`/<br/>weak_skill tie-break (S25)"]
         end
         subgraph CAPI["chat-api :8002"]
-            CROUTES["/healthz, /me (S1/S2)<br/>routers/sessions incl. /respond,<br/>routers/stream (S13/S14)"]
+            CROUTES["/healthz (liveness-only), /me<br/>(S1/S2)<br/>/readyz (DB-aware, ALB target-group<br/>health check since S34) (S34)<br/>routers/sessions incl. /respond,<br/>routers/stream (S13/S14)"]
             CAUTH["auth deps<br/>audience=chat (S2)<br/>optional/anonymous claims (S13)<br/>+ dev-only /dev/token (S16)"]
             QGRAPH["QAState graph (S13/S14/S15)<br/>see diagram 5"]
             CSVC["services: role_access,<br/>qa (citation grounding),<br/>session_events (S13)<br/>admin_escalation, calendar,<br/>rate_limit (S14)<br/>branch_locator (S15)"]

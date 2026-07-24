@@ -32,11 +32,6 @@ resource "aws_security_group_rule" "ingress_from_ecs" {
   source_security_group_id = var.allowed_security_group_ids[count.index]
 }
 
-resource "random_password" "master" {
-  length  = 32
-  special = false # simplifies embedding in a DSN URI without percent-encoding
-}
-
 resource "aws_db_instance" "this" {
   identifier     = "${var.name_prefix}-postgres"
   engine         = "postgres"
@@ -50,8 +45,20 @@ resource "aws_db_instance" "this" {
 
   db_name  = var.db_name
   username = var.master_username
-  password = random_password.master.result
   port     = 5432
+
+  # D-092 (S33): real automatic rotation, AWS-managed end to end - no custom rotation
+  # Lambda to deploy/maintain (the SAR-template alternative), no `random_password`
+  # resource, no manually-maintained combined-DSN secret. AWS creates its own Secrets
+  # Manager secret for the master password and rotates it automatically (defaults to
+  # every 7 days - the AWS provider doesn't currently expose a way to configure that
+  # interval, confirmed via search before choosing this design; 7 days is if anything
+  # more conservative than most manual rotation policies, not a compromise). The
+  # secret's shape is AWS's own managed JSON (`username`/`password` keys, no combined
+  # DSN) - `master_user_secret_arn` output below is consumed via ECS's per-JSON-key
+  # `secrets` extraction, not as a ready connection string; see
+  # `learning_api.config.Settings`'s component-based DSN builder.
+  manage_master_user_password = true
 
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.this.id]
@@ -65,19 +72,4 @@ resource "aws_db_instance" "this" {
   auto_minor_version_upgrade = true
 
   tags = var.tags
-}
-
-# Full connection-string secret (asyncpg-driver DSN, matching Settings.database_url's
-# expected shape) - the app reads one combined URL, not separate host/user/pass fields,
-# so ECS's `secrets` task-def block injects this one value directly into
-# LEARNING_DATABASE_URL / CHAT_DATABASE_URL (both apps share this one instance, same as
-# local dev - packages/db has no per-app schema separation today).
-resource "aws_secretsmanager_secret" "database_url" {
-  name = "${var.name_prefix}/postgres/database-url"
-  tags = var.tags
-}
-
-resource "aws_secretsmanager_secret_version" "database_url" {
-  secret_id     = aws_secretsmanager_secret.database_url.id
-  secret_string = "postgresql+asyncpg://${var.master_username}:${random_password.master.result}@${aws_db_instance.this.address}:5432/${var.db_name}"
 }

@@ -1,0 +1,134 @@
+name: Security scan
+
+# D-089 (S33 Security Hardening, SPEC §6.22 "dependency scanning" + "container
+# scanning"). Separate from ci.yml on purpose - a security-scan failure has a different
+# meaning (a known vulnerability, not a code regression) and a different owner action
+# (upgrade/ignore-with-justification, not fix a bug), so it's worth keeping the signal
+# distinct rather than folding it into the existing lint/typecheck/test job. Runs on the
+# same triggers as ci.yml so a vulnerable dependency is caught before merge, not only on
+# Dependabot's own weekly schedule (dependabot.yml is the PR-opening side of this; this
+# workflow is the enforcement side, running the same tools on every push/PR).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  python-dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --all-packages --all-groups
+
+      # --with (not a project dependency) - pip-audit is a CI-only tool, not something
+      # the app itself needs; `uv run --with` runs it inside the already-synced venv so
+      # it audits the real installed dependency set. This project's own
+      # `intellichoice-*`/`learning-api`/`chat-api` workspace packages are correctly
+      # skipped (not published to PyPI, nothing to look up) - confirmed clean locally
+      # (0 known vulnerabilities) before wiring this as a hard gate.
+      - name: pip-audit
+        run: uv run --with pip-audit pip-audit
+
+  learning-web-dependency-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/learning-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/learning-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --audit-level=high: fail on high/critical only - moderate/low findings are
+      # Dependabot's job (weekly PRs), not a merge blocker (matches this project's
+      # "low operational burden" posture, CLAUDE.md). Confirmed 0 findings locally
+      # before wiring this as a hard gate.
+      - name: npm audit
+        run: npm audit --audit-level=high
+
+  learning-api-container-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -f apps/learning-api/Dockerfile -t learning-api:scan .
+
+      # aquasecurity/trivy-action pinned by commit SHA, not a version tag - the action
+      # itself was compromised 2026-03-19 (credential-stealer injected via imposter
+      # commits into every tag from v0.0.1 through v0.34.2); v0.36.0 (this SHA) is a
+      # confirmed-clean release after the incident. A moving tag can be repointed after
+      # the fact; a commit SHA can't - exactly the property this scanner is itself
+      # here to check for in this project's own images.
+      # ignore-unfixed: true - real, current finding (verified locally before wiring
+      # this gate): python:3.12-slim's OS-level packages (perl-base, ncurses, util-
+      # linux) carry several CRITICAL/HIGH CVEs with no upstream Debian fix published
+      # yet (perl-base is apt "Essential", can't be removed - see the Dockerfile's own
+      # comment) and none of which this app's code ever exercises (no perl/ncurses/
+      # util-linux invocation anywhere in a FastAPI/uvicorn/SQLAlchemy app). Gating on
+      # those would fail every build indefinitely with nothing actionable to do about
+      # it - the standard practice for this situation is to scope the hard gate to
+      # vulnerabilities that actually have a fix available, and let Dependabot's
+      # `docker` ecosystem entries (dependabot.yml) pick up a new base-image digest
+      # once one exists. Confirmed clean (0 findings) against this exact image locally
+      # before wiring this as a hard gate.
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: "learning-api:scan"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          exit-code: "1"
+
+  chat-api-container-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -f apps/chat-api/Dockerfile -t chat-api:scan .
+
+      # See the matching comment in learning-api-container-scan above.
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: "chat-api:scan"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          exit-code: "1"
+
+  chat-web-dependency-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/chat-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/chat-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit
+        run: npm audit --audit-level=high

@@ -5,10 +5,194 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **Next session:** S33 — Security hardening (Milestone 8; SPEC §6.22): WAF/rate
-  limiting/CAPTCHA, RBAC audit, secret rotation, dependency + container scanning,
-  prompt-injection test suite, data/image-deletion verification, backup-restore test.
-  A real staging deployment now exists (S32) to harden, not just a local dev posture.
+- **Next session:** S35+ — no roadmap session past S34 is scheduled yet; S32-S34
+  (Milestone 8, the launch track) are now all shipped. Remaining pre-launch work is the
+  parallel-track legal/policy docs (§6.1, never coding-blocked) plus the carry-over items
+  below (WAF, backup-restore test, ZAP scan, real load test against live staging, RBAC
+  gap D-086) - all blocked on either AWS access or real credentials/legal review, not on
+  more building. `docs/ROADMAP.md` should get a fresh look before starting a new session.
+- **S34 (Load testing and production readiness) shipped, 2026-07-24** — see D-095 for
+  the full design, every real finding, and what's translated vs. built vs. deferred. User
+  chose full scope (both the locally-runnable load-test half and the canary-pipeline/
+  Terraform half) in one session at session start. **No live AWS access this session
+  either** (same expired `intellichoice-staging` SSO session as all of S33) - every
+  Terraform/CI change is written and `fmt`/`validate`-clean but not `apply`'d or actually
+  run; real staging-scale load testing is a carry-over.
+  **SPEC §6.23 targets the EKS/Aurora/HPA/SQS architecture this project never built**
+  (D-004/D-082/D-084's ECS Fargate divergence) - translated rather than built literally:
+  "MongoDB timeout" tested as a Postgres/MySQL connection-loss drill (both are behind
+  the new `/readyz`), "queue backlog" is N/A (no SQS/queue anywhere in this codebase).
+  **New `load-tests/`** (k6 scenarios for concurrent learning sessions + chat Q&A,
+  `sse_load.py` for concurrent SSE connections since k6 has no native SSE support,
+  `loadtest_fixtures.py` for disposable synthetic students so VUs are distinct students
+  rather than one student under artificial contention) - see its own README for the
+  full SPEC-target-to-test mapping.
+  **Two real production bugs found by a corrected k6 run (150 concurrent, one realistic
+  flow per VU, no scripting artifacts) and fixed this session:** (1) a genuinely
+  realistic 150-concurrent-session burst from one shared IP (this app's actual
+  deployment context - branches share egress IPs) tripped the existing global per-IP
+  rate limiter's 1,000 req/60s default well before every session finished, rejecting
+  ~1,100 legitimate requests - raised to 6,000 (~3x the measured real burst, math in the
+  config comment) in both apps; separately, none of those 429s were visible in the
+  access log or Prometheus metrics at all, because the rate-limit middleware was
+  registered last (Starlette LIFO stack order made it outermost, short-circuiting before
+  logging/metrics ever ran) - fixed by reordering middleware registration in both
+  `main.py`s. (2) `/healthz` never checked database connectivity, and the ALB target
+  group health-checked it anyway - a real DB outage would never have made the ALB stop
+  routing to a broken task. Fixed with a new `/readyz` (`intellichoice_shared.db_ready`,
+  pings Postgres+MySQL, 3s timeout) that staging's Terraform now uses for the ALB health
+  check instead; `/healthz` and the Docker `HEALTHCHECK` stay liveness-only on purpose.
+  **Live-verified** via a new `load-tests/drills/db_connection_loss.sh` against the real
+  local docker-compose Postgres: `/healthz` stayed 200 throughout a real stop/restart,
+  `/readyz` correctly flipped to 503 and recovered on its own ~6s after Postgres
+  returned, no app restart needed.
+  **A third finding, a capacity ceiling not a bug:** the same k6 run measured ~2.9s P95
+  latency (SPEC targets ~1s). Bumping the SQLAlchemy pool from bare defaults (15) to an
+  explicit 20 (`pool_size=10, max_overflow=10`, sized against staging RDS's real
+  `db.t4g.micro` connection ceiling, not unlimited) barely moved it (2.93s -> 2.77s) -
+  the real bottleneck is `desired_count=1` with one uvicorn worker serializing all
+  concurrent request handling on one process, not the connection pool. `pool_pre_ping=
+  True` was added alongside it for a different, drill-motivated reason (a connection
+  gone stale during a DB outage should be detected and replaced by the pool, not handed
+  out and fail on first use). The real fix for the P95 gap is the new autoscaling below.
+  **Verified, not fixed, because it was already fine:** went in expecting a concurrency
+  gap in `ResilientBedrockGateway`'s circuit breaker (unlocked instance attributes) -
+  a real concurrency test disproved it: asyncio's cooperative scheduling means exactly
+  `circuit_failure_threshold` calls reach the provider even under a 30-way concurrent
+  failure burst, not the whole burst. Kept as a regression test, a genuine negative
+  result.
+  **Verified, not built, because it was already built:** the external-tool-outage drill
+  (SPEC's "MCP outage") already had real coverage from S14/S18 (Gmail send failure /
+  Google Calendar failure both already degrade gracefully with dedicated tests) - just
+  re-confirmed both still pass.
+  **New Terraform, all unapplied (no AWS access):** `deployment_circuit_breaker` on both
+  ECS services (automatic rollback if a new revision never becomes healthy) - the
+  deploy-time safety net; a new post-deploy **canary bake** in `deploy-staging.yml` (not
+  a true weighted traffic-split canary - `desired_count=1` means there's no second task
+  to shift traffic to gradually, a deliberate solo-maintainer simplification over SPEC
+  §6.24's full canary-pipeline shape) - sleeps 3 minutes after both services report
+  stable, then polls 4 new CloudWatch alarms (per-service ALB 5xx rate + P95 latency,
+  new SNS topic reusing the budget alarm's email-notification posture) and rolls both
+  services back to their captured pre-deploy revisions on any breach - the runtime
+  safety net for a revision that's healthy but quietly wrong. New `aws_appautoscaling_
+  target`/`policy` (CPU-utilization target-tracking, 70%, min/max 1/3) - Fargate's real
+  equivalent of SPEC §5.33.4's HPA, absent entirely before this session
+  (`desired_count` was a flat fixed number). The P95 alarm threshold is 3s, not SPEC's
+  aspirational ~1s - alarming below what this architecture's current shape can already
+  meet would just teach the one human who'd see it to ignore it; closing that gap is the
+  new autoscaling's job.
+  **Tests (+5 net, 492→497, stable across 4 repeated `make test` runs, one interleaved
+  failure was the pre-existing S22.5-documented unseeded-`random.Random()` flake,
+  confirmed via an immediate clean standalone rerun, not caused by this session):** 4
+  `test_readyz.py` (2 per app), 1 Bedrock circuit-breaker concurrency test.
+  **Verification:** `make lint && make typecheck && make test` clean, `terraform fmt`/
+  `validate` clean across the whole tree. Left ~150 `loadtest-student-N` MySQL rows
+  cleaned up after use (`loadtest_fixtures.py --cleanup`); ~16,400 assessment-table rows
+  the k6 runs generated in the shared local dev Postgres were cleaned up via a targeted
+  dependency-ordered DELETE (unlike most prior sessions' "small enough to leave"
+  footprint, this one wasn't). Did **not** attempt to clean the shared dev Postgres's
+  `checkpoints` table (249,250 rows found, pre-existing, spanning many prior sessions'
+  never-cleaned-up runs per the same "Newly observed"/S12 pattern documented repeatedly
+  below - out of scope for this session, a systemic test-hygiene gap, not something S34
+  caused).
+  **Carry-over:** real load testing against the live staging ALB once AWS access
+  returns (this session's k6/SSE runs were all local-only); the WAF/backup-restore test/
+  ZAP scan carry-overs from S33 are all still open for the same reason. The D-086 RBAC
+  gap (tutor/branch_manager per-student scope) is still open, still launch-blocking.
+  ALB-request-count-based autoscaling (would react faster to this app's actual
+  I/O-bound concurrency bottleneck than CPU-based) if CPU-based scaling proves too slow
+  once real traffic exists. The long-standing `checkpoints`-table test-hygiene gap noted
+  above is worth a dedicated future cleanup pass given its now-confirmed real size.
+- **S33 (Security hardening) shipped, 2026-07-23** — see D-085 through D-094 for full
+  design/verification detail. No live AWS access existed for this entire session (the
+  `intellichoice-staging` SSO profile's session was already expired at session start and
+  stayed expired throughout) - every Terraform change is written and `validate`/`fmt`
+  clean but **not yet `apply`'d**; the user chose to deploy on their own timeline rather
+  than treat it as urgent (D-085). Code/CI/docs changes are otherwise complete and fully
+  verified locally.
+  **The most consequential finding wasn't in the original SPEC §6.22 checklist** -
+  auditing auth for the RBAC-audit item found `POST /dev/token` (a dev-only auth
+  stand-in, meant to 404 outside `environment=="dev"`) was reachable on the real live
+  staging ALB, because `terraform.tfvars` had deliberately set `app_environment="dev"`
+  mid-S32 for real-browser testing - a real, already-documented, user-approved S32
+  trade-off (not an unknown bug), with its own comment naming the exact revert
+  condition ("before this environment is treated as anything more than an internal
+  testing target"). S33 executed that revert, plus a second, independent gate
+  (`dev_token_endpoint_enabled`) so the same mistake can't reopen it alone next time
+  (D-085). The JWT signing secret's own hardcoded-public-constant fallback (D-006, safe
+  when written, no longer true once a real ALB existed) was fixed the same way -
+  settings-driven, real per-app random secrets in Secrets Manager.
+  **RBAC audit (D-086) also found a real, structural gap, left as a launch-blocking
+  carry-over at the user's own direction**: tutor/branch_manager have zero per-student
+  scope check in `learning_api.authorization.resolve_target_student` - a known,
+  deliberately-tested design choice from an earlier session (not new), blocked on a
+  tutor-assignment/branch_manager-branch data model that doesn't exist in `ProfileAdapter`
+  yet. Not independently exploitable today (no way to obtain a tutor/branch_manager token
+  without the now-closed `/dev/token`), but must be fixed before real
+  go.intellichoice.org tutor/branch_manager auth goes live.
+  **Rate limiting (D-087)** generalized beyond the existing admin-escalation-only
+  limiter - a new global per-IP cap on both apps - and found the *existing* limiter was
+  already broken in the live deployment: neither Dockerfile passed Uvicorn
+  `--proxy-headers`, so every real caller collapsed onto the ALB's own IP behind
+  `Request.client.host`. Fixed in both Dockerfiles.
+  **Fargate hardening (D-088)**: security groups audited and already correct (no
+  changes needed - ALB/RDS/VPC-endpoint ingress all already least-privilege, permissive
+  egress rules neutralized by the VPC's own no-NAT route tables); `readonlyRootFilesystem`
+  now defaults true on both API services (confirmed safe - neither app writes to local
+  disk at runtime).
+  **Dependency + container scanning (D-089)**: new `.github/dependabot.yml` +
+  `.github/workflows/security-scan.yml` (`pip-audit`, `npm audit` x2, Trivy image scans
+  x2) - every tool run for real against this project's actual dependencies/images before
+  being wired as a hard gate, all 0 findings. `aquasecurity/trivy-action` pinned by
+  commit SHA, not a version tag, after a web search surfaced a real 2026-03-19 supply-
+  chain compromise of that exact Action. Found `chat-web` has no CI job in `ci.yml` at
+  all (pre-existing, not fixed - out of scope, flagged as a carry-over).
+  **Prompt-injection test suite (D-090)** - new
+  `apps/chat-api/tests/test_prompt_injection_eval.py`, closing the item S14/S24/S30 each
+  deferred (`packages/evals/.../registry.py`'s "Prompt injection" `EvalItem` now has real
+  `test_refs`). Found a real false-failure while writing it (not a defense gap) -
+  naturally-worded adversarial queries spuriously matched real seeded content via the
+  mock reranker; fixed with the existing "zqxv" nonsense-marker convention.
+  **Data-deletion testing (D-091)**: new CLI-level test for `make chat-purge` (only
+  repository-level coverage existed before); found and fixed a real test-writing bug
+  (missing `session.commit()`), not an app bug.
+  **RDS auto-rotation (D-092)** - user-confirmed native `manage_master_user_password`
+  over a custom rotation Lambda. The real cost, discovered while implementing (not
+  upfront): RDS-managed secrets are JSON-shaped, not a ready DSN, so every real DSN
+  consumer needed a change, not just the two apps' `Settings` classes as originally
+  scoped - `packages/db/engine.py`'s `create_engine()` fallback (used by every
+  standalone CLI), `alembic/env.py`, and `seed_mysql.py` all gained the same
+  component-based DSN assembly. Both RDS Terraform modules' `random_password`+manual-
+  secret resources removed entirely.
+  **Incident-response runbook (D-093)**: new `docs/INCIDENT_RESPONSE.md`, grounded in
+  this project's own two real incidents (S32's credential leak, this session's
+  `/dev/token` finding) rather than generic boilerplate.
+  **ZAP baseline scan (D-094)**: not run (no AWS access all session) - `make
+  security-scan-staging` is ready to run once access is restored.
+  **Deferred, documented, not built this session** (D-002/D-025-style "no real creds/
+  infra yet" posture, consistent with every prior session): AWS WAF (real cost/infra,
+  user chose to defer), the backup-restore test (real, reversible, but real AWS
+  resource creation/teardown - deferred alongside WAF), CAPTCHA (no real reCAPTCHA/
+  hCaptcha creds), OAuth scope review (no real Google OAuth exists yet), a real
+  professional penetration-testing engagement (ZAP substitutes partially), image-
+  deletion testing (N/A - S29 deferred, no image-upload feature exists to test).
+  **Tests (+22 net, 470→492, stable across 3 repeated `make test` runs):** 2 dev-token-
+  flag regression tests, 4 `packages/shared/tests/test_rate_limit.py`, 5
+  `test_prompt_injection_eval.py`, 1 `test_tutor_chat_purge_cli.py`, 3
+  `packages/db/tests/test_engine_component_dsn.py`, 4+3
+  `test_config_component_dsn.py` (both apps).
+  **Verification:** `make lint && make typecheck && make test` - 492 passed, 1 skipped,
+  stable across 3 repeated runs (one interleaved failure during iteration,
+  `test_hint_reflects_the_students_actual_wrong_option`, is the pre-existing
+  S22.5-documented unseeded-`random.Random()` flake, confirmed by an immediate clean
+  rerun, not caused by this session). `terraform validate`/`fmt` clean throughout - never
+  `apply`'d (no AWS access). A real `alembic upgrade head`/`downgrade -1`/`upgrade head`
+  round-trip against the local dev Postgres confirms `alembic/env.py`'s changed URL-
+  resolution fallback chain still resolves correctly when no component env vars are set.
+  `terraform.tfvars` is gitignored in this repo (pre-existing convention, not introduced
+  this session) - the `app_environment` revert (D-085) and other tfvars edits exist only
+  in the local working tree; make sure they're not lost before this environment is next
+  applied.
 - **S32 (Deployment architecture decision + first deploy) shipped, 2026-07-22** — see
   D-084 for the full design, every real bug found and fixed live against real AWS (not
   in review), and the live-verification results; D-004 amended to "decided," no longer

@@ -2,12 +2,18 @@ output "endpoint_address" {
   value = aws_db_instance.this.address
 }
 
+output "endpoint_port" {
+  value = aws_db_instance.this.port
+}
+
 output "security_group_id" {
   value = aws_security_group.this.id
 }
 
-output "mysql_url_secret_arn" {
-  value = aws_secretsmanager_secret.mysql_url.arn
+# D-092 (S33): AWS-managed secret (real automatic rotation) - see the matching, more
+# detailed comment on rds-postgres/outputs.tf's identical output (S34: `one(...)` fix).
+output "master_user_secret_arn" {
+  value = one(aws_db_instance.this.master_user_secret[*].secret_arn)
 }
 
 output "db_name" {

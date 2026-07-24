@@ -2,6 +2,11 @@ output "alb_arn" {
   value = aws_lb.this.arn
 }
 
+output "alb_arn_suffix" {
+  description = "S34: CloudWatch's ALB metric dimensions need the ARN suffix, not the full ARN."
+  value       = aws_lb.this.arn_suffix
+}
+
 output "alb_dns_name" {
   value = aws_lb.this.dns_name
 }

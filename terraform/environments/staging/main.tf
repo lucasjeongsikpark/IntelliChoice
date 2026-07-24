@@ -122,9 +122,14 @@ module "rds_mysql" {
 }
 
 module "iam" {
-  source             = "../../modules/iam"
-  name_prefix        = var.name_prefix
-  secret_arns        = [module.rds_postgres.database_url_secret_arn, module.rds_mysql.mysql_url_secret_arn]
+  source      = "../../modules/iam"
+  name_prefix = var.name_prefix
+  secret_arns = [
+    module.rds_postgres.master_user_secret_arn,
+    module.rds_mysql.master_user_secret_arn,
+    aws_secretsmanager_secret.jwt_signing_secret_learning.arn,
+    aws_secretsmanager_secret.jwt_signing_secret_chat.arn,
+  ]
   bedrock_model_arns = local.bedrock_model_arns
   log_group_arns     = local.log_group_arns
   tags               = local.common_tags
@@ -143,6 +148,45 @@ module "iam" {
     module.cloudfront_learning.distribution_arn,
     module.cloudfront_chat.distribution_arn,
   ]
+}
+
+# D-085: real, per-app, random JWT signing secrets - replaces the hardcoded, public
+# `DEV_JWT_SECRET` module constant (D-006) that `JwtTokenVerifier` fell back to
+# unconditionally before this session, with no override path at all. Two independent
+# secrets, not one shared between the apps - see `chat_api.config.Settings.
+# jwt_signing_secret`'s comment for why. Unexercised until a real go.intellichoice.org
+# integration or a re-enabled `/dev/token` issues a token signed with the matching
+# secret (same "provisioned, not yet exercised against real traffic" posture as
+# D-025/D-035/D-046) - still real defense against someone forging a token offline using
+# the public dev constant, which is the actual risk this closes.
+resource "random_password" "jwt_signing_secret_learning" {
+  length  = 64
+  special = false
+}
+
+resource "random_password" "jwt_signing_secret_chat" {
+  length  = 64
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "jwt_signing_secret_learning" {
+  name = "${var.name_prefix}/learning-api/jwt-signing-secret"
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "jwt_signing_secret_learning" {
+  secret_id     = aws_secretsmanager_secret.jwt_signing_secret_learning.id
+  secret_string = random_password.jwt_signing_secret_learning.result
+}
+
+resource "aws_secretsmanager_secret" "jwt_signing_secret_chat" {
+  name = "${var.name_prefix}/chat-api/jwt-signing-secret"
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "jwt_signing_secret_chat" {
+  secret_id     = aws_secretsmanager_secret.jwt_signing_secret_chat.id
+  secret_string = random_password.jwt_signing_secret_chat.result
 }
 
 module "ecs_service_learning_api" {
@@ -166,20 +210,45 @@ module "ecs_service_learning_api" {
   task_role_arn          = module.iam.task_role_arn
   region                 = var.aws_region
   tags                   = local.common_tags
+  # S34: `/readyz` actually pings Postgres+MySQL, unlike `/healthz` - see
+  # `intellichoice_shared.db_ready`'s docstring for the real finding this fixes (the ALB
+  # kept routing to a task that couldn't reach its database during S34's own local
+  # DB-outage drill, since `/healthz` never reflected it).
+  health_check_path = "/readyz"
 
   environment = {
-    LEARNING_ENVIRONMENT                = var.app_environment
+    LEARNING_ENVIRONMENT = var.app_environment
+    # D-085: independent second gate on /dev/token, ANDed with LEARNING_ENVIRONMENT==
+    # "dev" in code - explicitly false here so flipping app_environment back to "dev"
+    # alone (as S32 did once, for real browser testing) doesn't reopen the endpoint by
+    # itself. Flip both deliberately, together, only for a temporary manual test.
+    LEARNING_DEV_TOKEN_ENDPOINT_ENABLED = "false"
     LEARNING_BEDROCK_PROVIDER           = var.bedrock_provider
     LEARNING_BEDROCK_AWS_REGION         = var.aws_region
     LEARNING_BEDROCK_TUTOR_MODEL_ID     = var.bedrock_tutor_model_id
     LEARNING_BEDROCK_EMBEDDING_MODEL_ID = var.bedrock_embedding_model_id
     LEARNING_OTEL_ENABLED               = "false" # no hosted collector deployed this session (D-084) - CloudWatch Logs + Container Insights cover the immediate gap
     LEARNING_LOG_LEVEL                  = "INFO"
+    # D-092 (S33): plain (non-secret) DSN components - paired with the two JSON-key-
+    # extracted secret components below, assembled into a real DSN by
+    # `Settings._build_dsns_from_managed_secret_components`.
+    LEARNING_DB_HOST       = module.rds_postgres.endpoint_address
+    LEARNING_DB_PORT       = tostring(module.rds_postgres.endpoint_port)
+    LEARNING_DB_NAME       = module.rds_postgres.db_name
+    LEARNING_MYSQL_DB_HOST = module.rds_mysql.endpoint_address
+    LEARNING_MYSQL_DB_PORT = tostring(module.rds_mysql.endpoint_port)
   }
 
   secrets = {
-    LEARNING_DATABASE_URL = module.rds_postgres.database_url_secret_arn
-    LEARNING_MYSQL_URL    = module.rds_mysql.mysql_url_secret_arn
+    # D-092 (S33): RDS's own AWS-managed, auto-rotated master-password secrets (real
+    # rotation, no custom Lambda) - JSON-shaped, so each field is extracted
+    # individually via the `:json-key::` ARN suffix rather than injected as one ready
+    # DSN (replaces the old manually-maintained combined-DSN secret entirely).
+    LEARNING_DB_USERNAME        = "${module.rds_postgres.master_user_secret_arn}:username::"
+    LEARNING_DB_PASSWORD        = "${module.rds_postgres.master_user_secret_arn}:password::"
+    LEARNING_MYSQL_DB_USERNAME  = "${module.rds_mysql.master_user_secret_arn}:username::"
+    LEARNING_MYSQL_DB_PASSWORD  = "${module.rds_mysql.master_user_secret_arn}:password::"
+    LEARNING_JWT_SIGNING_SECRET = aws_secretsmanager_secret.jwt_signing_secret_learning.arn
   }
 }
 
@@ -202,9 +271,13 @@ module "ecs_service_chat_api" {
   task_role_arn          = module.iam.task_role_arn
   region                 = var.aws_region
   tags                   = local.common_tags
+  # S34: see the matching comment on ecs_service_learning_api above.
+  health_check_path = "/readyz"
 
   environment = {
-    CHAT_ENVIRONMENT                          = var.app_environment
+    CHAT_ENVIRONMENT = var.app_environment
+    # D-085: mirrors LEARNING_DEV_TOKEN_ENDPOINT_ENABLED above - see that comment.
+    CHAT_DEV_TOKEN_ENDPOINT_ENABLED           = "false"
     CHAT_BEDROCK_PROVIDER                     = var.bedrock_provider
     CHAT_BEDROCK_AWS_REGION                   = var.aws_region
     CHAT_BEDROCK_SCOPE_AND_INTENT_MODEL_ID    = var.bedrock_tutor_model_id
@@ -214,11 +287,21 @@ module "ecs_service_chat_api" {
     CHAT_BEDROCK_EMBEDDING_MODEL_ID           = var.bedrock_embedding_model_id
     CHAT_OTEL_ENABLED                         = "false"
     CHAT_LOG_LEVEL                            = "INFO"
+    # D-092 (S33): mirrors ecs_service_learning_api's identical env block above.
+    CHAT_DB_HOST       = module.rds_postgres.endpoint_address
+    CHAT_DB_PORT       = tostring(module.rds_postgres.endpoint_port)
+    CHAT_DB_NAME       = module.rds_postgres.db_name
+    CHAT_MYSQL_DB_HOST = module.rds_mysql.endpoint_address
+    CHAT_MYSQL_DB_PORT = tostring(module.rds_mysql.endpoint_port)
   }
 
   secrets = {
-    CHAT_DATABASE_URL = module.rds_postgres.database_url_secret_arn
-    CHAT_MYSQL_URL    = module.rds_mysql.mysql_url_secret_arn
+    # D-092 (S33): mirrors ecs_service_learning_api's identical secrets block above.
+    CHAT_DB_USERNAME        = "${module.rds_postgres.master_user_secret_arn}:username::"
+    CHAT_DB_PASSWORD        = "${module.rds_postgres.master_user_secret_arn}:password::"
+    CHAT_MYSQL_DB_USERNAME  = "${module.rds_mysql.master_user_secret_arn}:username::"
+    CHAT_MYSQL_DB_PASSWORD  = "${module.rds_mysql.master_user_secret_arn}:password::"
+    CHAT_JWT_SIGNING_SECRET = aws_secretsmanager_secret.jwt_signing_secret_chat.arn
   }
 }
 
@@ -287,11 +370,23 @@ module "ops_task" {
 
   environment = {
     LEARNING_ENVIRONMENT = "staging"
+    # D-092 (S33): plain (non-secret) DSN components - `packages/db/engine.py`'s
+    # `create_engine()` fallback (every standalone CLI: curriculum loader, knowledge
+    # ingest, etc.), `alembic/env.py`, and `seed_mysql.py` all now check for these
+    # unprefixed component env vars before falling back to DATABASE_URL/
+    # SEED_MYSQL_URL - see D-092's full writeup in DECISIONS.md.
+    DB_HOST       = module.rds_postgres.endpoint_address
+    DB_PORT       = tostring(module.rds_postgres.endpoint_port)
+    DB_NAME       = module.rds_postgres.db_name
+    MYSQL_DB_HOST = module.rds_mysql.endpoint_address
+    MYSQL_DB_PORT = tostring(module.rds_mysql.endpoint_port)
   }
 
   secrets = {
-    DATABASE_URL   = module.rds_postgres.database_url_secret_arn
-    SEED_MYSQL_URL = module.rds_mysql.mysql_url_secret_arn
+    DB_USERNAME       = "${module.rds_postgres.master_user_secret_arn}:username::"
+    DB_PASSWORD       = "${module.rds_postgres.master_user_secret_arn}:password::"
+    MYSQL_DB_USERNAME = "${module.rds_mysql.master_user_secret_arn}:username::"
+    MYSQL_DB_PASSWORD = "${module.rds_mysql.master_user_secret_arn}:password::"
   }
 }
 
@@ -329,5 +424,10 @@ module "observability" {
   source             = "../../modules/observability"
   name_prefix        = var.name_prefix
   notification_email = var.notification_email
-  tags               = local.common_tags
+  alb_arn_suffix     = module.alb.alb_arn_suffix
+  services = {
+    learning-api = module.ecs_service_learning_api.target_group_arn_suffix
+    chat-api     = module.ecs_service_chat_api.target_group_arn_suffix
+  }
+  tags = local.common_tags
 }

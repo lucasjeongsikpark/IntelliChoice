@@ -16,6 +16,9 @@ deployed apps sharing auth from the existing `go.intellichoice.org` system:
   criteria. The source of truth for what to build next.
 - [docs/PROGRESS.md](docs/PROGRESS.md) — current status, session log, carry-over items.
 - [docs/DECISIONS.md](docs/DECISIONS.md) — decision log; check before re-deciding anything.
+- [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md) — the practical runbook for a real
+  incident (leaked credential, auth bypass, cost anomaly, etc.), grounded in this project's own
+  real incidents (S32/D-084, S33/D-085).
 
 ## Session workflow
 

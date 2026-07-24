@@ -17,6 +17,18 @@ variable "notification_email" {
   type        = string
 }
 
+# S34: per-service CloudWatch alarms (5xx rate + P95 latency) - the rollback-trigger gate
+# deploy-staging.yml's canary bake period polls, and general standing alerting via the
+# same SNS topic the budget alarm already emails (var.notification_email).
+variable "alb_arn_suffix" {
+  type = string
+}
+
+variable "services" {
+  description = "Map of service name -> ALB target-group ARN suffix to alarm on."
+  type        = map(string)
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

@@ -29,6 +29,10 @@ node_modules/
 *.sqlite3
 docker-volumes/
 
+# S33: OWASP ZAP scan reports (make security-scan-staging) - local scan output, not
+# something to commit.
+zap-reports/
+
 # Terraform
 **/.terraform/
 *.tfstate

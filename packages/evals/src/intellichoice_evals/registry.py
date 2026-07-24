@@ -177,12 +177,7 @@ GOLDEN_DATASET_QA = EvalCategory(
         EvalItem("Out-of-scope requests", ("apps/chat-api/tests/fixtures/qa_coverage_eval.yaml",)),
         EvalItem(
             "Prompt injection",
-            not_applicable_reason=(
-                "No dedicated prompt-injection fixture/test exists yet - D-014 (S14) "
-                "judged a fixed-template admin-escalation email (the one place free text "
-                "reaches an external system) low-risk enough to defer new filtering "
-                "machinery for. Revisit alongside S33 (security hardening)."
-            ),
+            ("apps/chat-api/tests/test_prompt_injection_eval.py",),
         ),
     ),
 )

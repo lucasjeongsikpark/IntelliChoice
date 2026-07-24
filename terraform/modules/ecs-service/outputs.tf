@@ -6,6 +6,11 @@ output "target_group_arn" {
   value = aws_lb_target_group.this.arn
 }
 
+output "target_group_arn_suffix" {
+  description = "S34: CloudWatch's ALB/target-group metric dimensions need the ARN suffix, not the full ARN."
+  value       = aws_lb_target_group.this.arn_suffix
+}
+
 output "task_definition_arn" {
   value = aws_ecs_task_definition.this.arn
 }

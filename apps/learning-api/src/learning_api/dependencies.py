@@ -10,13 +10,14 @@ from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.profiles import ProfileAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from learning_api.config import get_settings
 from learning_api.graph.build import LearningGraph
 from learning_api.services.session_events import SessionEventBus
 
 
 @lru_cache
 def get_token_verifier() -> JwtTokenVerifier:
-    return JwtTokenVerifier()
+    return JwtTokenVerifier(secret=get_settings().jwt_signing_secret)
 
 
 def get_profile_adapter(request: Request) -> ProfileAdapter:

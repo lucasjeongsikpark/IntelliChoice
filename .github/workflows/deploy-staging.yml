@@ -89,6 +89,22 @@ jobs:
           echo "Migration exit code: $EXIT_CODE"
           test "$EXIT_CODE" = "0"
 
+      # S34: captured *before* either service redeploys, so the canary-bake step below
+      # has a known-good revision to roll back to if the new one misbehaves. ECS keeps
+      # every registered task-definition revision indefinitely (nothing here deregisters
+      # old ones), so pointing a service back at this ARN is always valid.
+      - name: Capture pre-deploy task definition ARNs (rollback targets)
+        id: pre_deploy
+        run: |
+          LEARNING_PREV=$(aws ecs describe-services --cluster "$ECS_CLUSTER" \
+            --services intellichoice-staging-learning-api \
+            --query 'services[0].taskDefinition' --output text)
+          CHAT_PREV=$(aws ecs describe-services --cluster "$ECS_CLUSTER" \
+            --services intellichoice-staging-chat-api \
+            --query 'services[0].taskDefinition' --output text)
+          echo "learning=$LEARNING_PREV" >> "$GITHUB_OUTPUT"
+          echo "chat=$CHAT_PREV" >> "$GITHUB_OUTPUT"
+
       # Patches only the image field onto the currently-running task definition (same
       # env vars, roles, etc. Terraform last applied) and registers a new revision -
       # mirrors the exact manual process used all session, not `terraform apply`.
@@ -127,6 +143,54 @@ jobs:
           aws ecs update-service --cluster "$ECS_CLUSTER" --service intellichoice-staging-chat-api \
             --task-definition "$NEW_ARN" --force-new-deployment
           aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services intellichoice-staging-chat-api
+
+      # S34/SPEC §6.24 Phase 23 "Production Canary -> Metric Check -> Full Rollout",
+      # translated to this deployment's real shape: `desired_count=1` per service (D-084's
+      # cost posture) means there's no second task to shift live traffic to gradually, so
+      # this is a time-boxed *bake* (both services already serving 100% of traffic on the
+      # new revision, per `aws ecs wait services-stable` above) rather than a true
+      # weighted traffic-split canary - simpler to build/operate, matches CLAUDE.md's
+      # "optimize for reliability and low operational burden, not enterprise-scale
+      # architecture" for a solo maintainer. ECS's own `deployment_circuit_breaker`
+      # (terraform/modules/ecs-service) already catches a revision that never becomes
+      # healthy at all; this step catches the case a revision *is* healthy but is quietly
+      # serving bad responses (elevated 5xx/latency) once real traffic hits it - the
+      # circuit breaker alone can't see that. 3 minutes is a deliberately short bake for a
+      # low-traffic staging environment - long enough for a handful of real requests to
+      # land and move the ALB's 1-minute-period metrics, short enough not to block a solo
+      # maintainer's iteration loop.
+      - name: Canary bake - wait, then check for alarm breaches
+        run: |
+          echo "Baking for 3 minutes before declaring the deploy healthy..."
+          sleep 180
+          BREACHED=$(aws cloudwatch describe-alarms \
+            --alarm-names \
+              intellichoice-staging-learning-api-5xx-rate \
+              intellichoice-staging-learning-api-p95-latency \
+              intellichoice-staging-chat-api-5xx-rate \
+              intellichoice-staging-chat-api-p95-latency \
+            --state-value ALARM \
+            --query 'MetricAlarms[].AlarmName' --output text)
+          if [ -n "$BREACHED" ]; then
+            echo "ALARM BREACHED: $BREACHED"
+            echo "breached=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No alarms breached during the bake period."
+            echo "breached=false" >> "$GITHUB_OUTPUT"
+          fi
+        id: canary_check
+
+      - name: Roll back both services to their pre-deploy revisions (only if the bake failed)
+        if: steps.canary_check.outputs.breached == 'true'
+        run: |
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service intellichoice-staging-learning-api \
+            --task-definition "${{ steps.pre_deploy.outputs.learning }}" --force-new-deployment
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service intellichoice-staging-chat-api \
+            --task-definition "${{ steps.pre_deploy.outputs.chat }}" --force-new-deployment
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" \
+            --services intellichoice-staging-learning-api intellichoice-staging-chat-api
+          echo "Rolled back to the pre-deploy task definitions - failing the workflow."
+          exit 1
 
       - uses: actions/setup-node@v4
         with:

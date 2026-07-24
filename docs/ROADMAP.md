@@ -520,9 +520,19 @@ GitHub OIDC role is ready but not created. Domains/TLS deferred (no domain regis
 WAF/rate limiting/CAPTCHA, RBAC audit, secret rotation, dependency + container scanning,
 prompt-injection test suite, data/image-deletion verification, backup-restore test.
 
-### Session 34 — Load testing and production readiness *(old S23; Phase 22, §6.23)*
+### Session 34 — Load testing and production readiness *(old S23; Phase 22, §6.23)* ✅ (done 2026-07-24)
 k6 scenarios for the §6.23 targets, failure drills (DB failover, Bedrock throttling, MCP outage),
-canary pipeline (Phase 23), rollback triggers.
+canary pipeline (Phase 23), rollback triggers. **Shipped 2026-07-24 (see D-095 for the full
+design and every real finding):** all four built, several deliberately translated from SPEC's
+EKS/HPA/SQS-shaped literal wording to this project's real ECS Fargate architecture (see D-095) -
+k6 scenarios + drills run locally against docker-compose (no live AWS access this session
+either); canary pipeline is a bake-then-check gate in `deploy-staging.yml`, not a true
+traffic-split canary (`desired_count=1` has no second task to shift traffic to); rollback
+triggers are both an ECS deployment circuit breaker (deploy-time) and CloudWatch-alarm-gated
+automatic rollback (runtime). Two real production bugs found and fixed by the load test itself
+(rate-limiter self-DoS + invisible 429s, `/healthz` never checking DB connectivity). All
+Terraform is `fmt`/`validate`-clean, not `apply`'d - real load testing against live staging is a
+carry-over once AWS access returns.
 
 ### Parallel track (any time, non-coding) — Phase 0 legal & policy docs (§6.1)
 Privacy Notice, AI Use Notice, product Learning Notice, retention policy, etc. Drafting can

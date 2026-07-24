@@ -104,6 +104,22 @@ variable "enable_execute_command" {
   default     = false
 }
 
+variable "read_only_root_filesystem" {
+  description = <<-EOT
+    D-088 (S33 Fargate hardening, the ECS equivalent of SPEC §6.22's Kubernetes-shaped
+    "pod security" item - this deploys to Fargate, not EKS, per D-004/D-082-084).
+    Defaults true: neither learning-api nor chat-api writes to the local filesystem at
+    runtime (confirmed by grep - no `tempfile`/`open(..., "w")` calls anywhere in either
+    app), so a compromised process gets no writable root filesystem to persist anything
+    into. Overridable per-service in case a future service genuinely needs local scratch
+    space (Fargate has no `tmpfs` container-definition support the way EC2-launch-type
+    ECS does - a writable need would require a real ephemeral-storage volume mount, not
+    just flipping this back to false).
+  EOT
+  type        = bool
+  default     = true
+}
+
 variable "region" {
   type = string
 }
@@ -111,4 +127,29 @@ variable "region" {
 variable "tags" {
   type    = map(string)
   default = {}
+}
+
+# S34: Application Auto Scaling (Fargate's real equivalent of SPEC §5.33.4's HPA) - see
+# the matching comment on `aws_appautoscaling_target`/`aws_appautoscaling_policy` in
+# main.tf for the full reasoning.
+variable "enable_autoscaling" {
+  type    = bool
+  default = true
+}
+
+variable "autoscaling_min_capacity" {
+  description = "Should match var.desired_count - the floor Application Auto Scaling won't go below."
+  type        = number
+  default     = 1
+}
+
+variable "autoscaling_max_capacity" {
+  description = "Deliberately modest (Free Tier + solo-maintainer scale, not enterprise headroom)."
+  type        = number
+  default     = 3
+}
+
+variable "autoscaling_cpu_target_percent" {
+  type    = number
+  default = 70
 }

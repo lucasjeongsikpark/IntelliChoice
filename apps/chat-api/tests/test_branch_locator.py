@@ -15,7 +15,6 @@ from chat_api.graph.nodes import (
     LOCATION_MISSING_MESSAGE,
     TurnContext,
 )
-from chat_api.services.rate_limit import InMemoryRateLimiter
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_adapters.fake_maps import FakeMapsProvider
@@ -35,6 +34,7 @@ from intellichoice_shared.profiles import (
     ParentProfile,
     StudentProfile,
 )
+from intellichoice_shared.rate_limit import InMemoryRateLimiter
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command

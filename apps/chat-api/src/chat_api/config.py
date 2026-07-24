@@ -1,5 +1,7 @@
 from functools import lru_cache
 
+from intellichoice_adapters.fake_auth import DEV_JWT_SECRET
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,6 +11,50 @@ class Settings(BaseSettings):
     environment: str = "dev"
     database_url: str = "postgresql+asyncpg://intellichoice:intellichoice@localhost:5432/intellichoice"
     mysql_url: str = "mysql+aiomysql://intellichoice:intellichoice@localhost:3306"
+
+    # D-092: mirrors `learning_api.config.Settings`'s identical fields - see that
+    # class's comment for the full rationale (RDS `manage_master_user_password`
+    # real auto-rotation, S33).
+    db_username: str | None = None
+    db_password: str | None = None
+    db_host: str | None = None
+    db_port: str | None = None
+    db_name: str | None = None
+    mysql_db_username: str | None = None
+    mysql_db_password: str | None = None
+    mysql_db_host: str | None = None
+    mysql_db_port: str | None = None
+
+    @model_validator(mode="after")
+    def _build_dsns_from_managed_secret_components(self) -> "Settings":
+        if self.db_username and self.db_password and self.db_host and self.db_port and self.db_name:
+            self.database_url = (
+                f"postgresql+asyncpg://{self.db_username}:{self.db_password}"
+                f"@{self.db_host}:{self.db_port}/{self.db_name}"
+            )
+        mysql_components_present = (
+            self.mysql_db_username
+            and self.mysql_db_password
+            and self.mysql_db_host
+            and self.mysql_db_port
+        )
+        if mysql_components_present:
+            self.mysql_url = (
+                f"mysql+aiomysql://{self.mysql_db_username}:{self.mysql_db_password}"
+                f"@{self.mysql_db_host}:{self.mysql_db_port}"
+            )
+        return self
+
+    # D-085: mirrors `learning_api.config.Settings.dev_token_endpoint_enabled` - see
+    # that field's comment for the full rationale.
+    dev_token_endpoint_enabled: bool = True
+
+    # D-085: mirrors `learning_api.config.Settings.jwt_signing_secret` - see that
+    # field's comment. A distinct secret from learning-api's (not shared) - the two
+    # apps' tokens are already audience-scoped (`Audience.LEARNING`/`Audience.CHAT`)
+    # and mutually rejected regardless, so there's no reason to also let a compromised
+    # secret cross apps.
+    jwt_signing_secret: str = DEV_JWT_SECRET
 
     # SPEC §5.25.1 Bedrock Gateway - same "mock" (default, dev/tests) or "bedrock" (real
     # AnthropicBedrockMantle client) env-selection as `learning_api.config` (D-002).
@@ -41,6 +87,32 @@ class Settings(BaseSettings):
     # applies only to the admin-escalation send, not every chat message.
     email_rate_limit_max_per_window: int = 5
     email_rate_limit_window_s: float = 3600.0
+    # D-087: general per-IP request cap across every route (except /healthz, /metrics) -
+    # a stopgap against gross traffic/cost abuse (every request can reach Bedrock) until
+    # a real WAF exists (SPEC §6.22 lists both separately; no AWS WAF built this
+    # session). Generous by design, not a precise abuse threshold: single-process/
+    # in-memory (same D-032 caveat as the admin-escalation limiter above), so it must
+    # stay well above plausible legitimate burst traffic (including this app's own
+    # `TestClient`-driven test suite, which shares one client identity across many
+    # tests within the same rolling window) rather than precisely targeting abuse -
+    # that precision is the WAF's job once one exists.
+    #
+    # S34: the original 1,000 was *not* well above plausible legitimate burst traffic -
+    # this app is used from real school branches, where many concurrent students
+    # legitimately share one egress IP, which is exactly the key this limiter keys on.
+    # A real local k6 run (load-tests/k6/, one-shot, no retries) of 150 concurrent
+    # legitimate learning sessions produced ~2,100 requests total (~14/session: token +
+    # create + select-student + select-topic + up to 10 answers) and tripped the old
+    # 1,000 cap well before every session finished, with ~1,100 legitimate requests
+    # rejected. 6,000 gives roughly 3x that measured real burst - headroom for a larger
+    # branch and for per-session activity the bare k6 flow doesn't exercise (hints,
+    # tutor chat) - while still bounding a single runaway/malicious source (100 req/s
+    # sustained is far beyond anything an organic browser client generates). See
+    # DECISIONS.md's S34 entry for the full finding, including a related bug this also
+    # surfaced: 429s from this middleware weren't reaching the access log/metrics at
+    # all (fixed by reordering middleware registration in main.py).
+    global_rate_limit_max_per_window: int = 6000
+    global_rate_limit_window_s: float = 60.0
 
     # SPEC §5.32 Observability (S31) - off by default (D-002's "fake/off by default,
     # real opt-in" posture), same rationale as `learning_api.config.Settings.
