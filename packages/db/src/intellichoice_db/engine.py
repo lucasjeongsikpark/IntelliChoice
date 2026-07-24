@@ -2,12 +2,15 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+
+_LOCAL_HOSTS = {None, "localhost", "127.0.0.1"}
 
 # Dev-only hardcoded default, mirroring apps/learning-api/config.py (SPEC D-006 rationale):
 # this is replaced by real settings-driven config when the app wiring lands, not tuned here.
@@ -68,7 +71,25 @@ def create_engine(database_url: str | None = None) -> AsyncEngine:
         or database_url_from_component_env_vars()
         or os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
     )
-    return create_async_engine(resolved, pool_size=10, max_overflow=10, pool_pre_ping=True)
+    # S34: found live, via this exact connection attempt failing for real for the first
+    # time (first live deploy after AWS access returned) - real RDS's own default
+    # parameter group ships `rds.force_ssl=1`, which D-092's new component-based DSN
+    # assembly never accounted for (`asyncpg.exceptions.InvalidAuthorizationSpecific
+    # ationError: no pg_hba.conf entry for host "...", ... no encryption`). Detected by
+    # host, not a new setting - true for any real deployed Postgres, false for local
+    # docker-compose (which neither needs nor supports SSL) - so every caller (both
+    # apps' own connections via their settings-derived URL, plus this bare fallback's
+    # CLI/alembic callers) gets it automatically with no new plumbing. asyncpg's `ssl`
+    # connect arg needs an actual Python `True`/`SSLContext`, not a URL query-string
+    # value (SQLAlchemy's asyncpg dialect passes query params through to asyncpg
+    # verbatim as strings, with no bool coercion for `ssl` specifically) - hence
+    # `connect_args`, not `?ssl=true` in the DSN itself.
+    connect_args: dict[str, object] = {}
+    if make_url(resolved).host not in _LOCAL_HOSTS:
+        connect_args["ssl"] = True
+    return create_async_engine(
+        resolved, pool_size=10, max_overflow=10, pool_pre_ping=True, connect_args=connect_args
+    )
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

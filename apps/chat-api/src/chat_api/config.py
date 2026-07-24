@@ -3,6 +3,7 @@ from functools import lru_cache
 from intellichoice_adapters.fake_auth import DEV_JWT_SECRET
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
@@ -128,9 +129,13 @@ class Settings(BaseSettings):
     def checkpoint_database_url(self) -> str:
         """Same Postgres instance, driverless DSN - `AsyncPostgresSaver` uses `psycopg`,
         not the SQLAlchemy `asyncpg` driver `database_url` names (mirrors
-        `learning_api.config.Settings.checkpoint_database_url`).
+        `learning_api.config.Settings.checkpoint_database_url`, including S34's
+        `?sslmode=require` fix for real RDS's `rds.force_ssl=1`).
         """
-        return self.database_url.replace("postgresql+asyncpg://", "postgresql://")
+        url = self.database_url.replace("postgresql+asyncpg://", "postgresql://")
+        if make_url(url).host not in ("localhost", "127.0.0.1"):
+            url += "?sslmode=require"
+        return url
 
 
 @lru_cache

@@ -112,6 +112,13 @@ resource "aws_iam_openid_connect_provider" "github" {
 
 locals {
   github_oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : var.github_oidc_provider_arn
+
+  # S34: derived from var.ecs_cluster_arn (`arn:aws:ecs:<region>:<account>:cluster/<name>`)
+  # rather than adding three redundant input variables - same "split the ARN" pattern
+  # `ecs-service`'s own `local.cluster_name` already uses.
+  ecs_region       = split(":", var.ecs_cluster_arn)[3]
+  ecs_account_id   = split(":", var.ecs_cluster_arn)[4]
+  ecs_cluster_name = element(split("/", var.ecs_cluster_arn), 1)
 }
 
 data "aws_iam_policy_document" "github_deploy_assume" {
@@ -134,7 +141,18 @@ data "aws_iam_policy_document" "github_deploy_assume" {
       # Any branch/ref/PR in this one repo - deploy_staging.yml itself only triggers
       # on push to main, so this is a coarser ceiling than the actual trigger, not the
       # enforcement point.
-      values = ["repo:${var.github_org}/${var.github_repo}:*"]
+      #
+      # S34: `@*` after both org and repo, not the plain `org/repo` shape GitHub's own
+      # OIDC docs lead with - found live via a real `AssumeRoleWithWebIdentity` denial
+      # on this workflow's first-ever run, root-caused via CloudTrail (which logs the
+      # denied principal's actual `sub`, unlike the GitHub Actions log). This account's
+      # real token's `sub` is `repo:lucasjeongsikpark@69391959/IntelliChoice@1310320932:
+      # ref:refs/heads/main` - GitHub's newer OIDC tokens append each immutable numeric
+      # owner/repo ID after `@` (survives an org/repo rename reusing the same name, a
+      # anti-hijacking hardening GitHub added after the plain `org/repo:*` pattern this
+      # docs' examples still show was written). The `@*` requires the literal "@"
+      # marker in the real position, tighter than a bare trailing wildcard would be.
+      values = ["repo:${var.github_org}@*/${var.github_repo}@*:*"]
     }
   }
 }
@@ -188,14 +206,42 @@ data "aws_iam_policy_document" "github_deploy_permissions" {
     resources = ["*"]
   }
 
+  # S34: split out of a single over-broad "EcsClusterScoped" statement - found live via
+  # a real `ecs:RunTask` `AccessDenied` on this workflow's first-ever run.
+  # `ecs:RunTask`/`ecs:UpdateService` don't accept a *cluster* ARN as their resource at
+  # all (RunTask's resource is the task-definition ARN being run; UpdateService's is the
+  # service ARN, format `service/<cluster-name>/<service-name>`, a different ARN
+  # "resource type" segment than `cluster/<cluster-name>` entirely) - the old
+  # `[var.ecs_cluster_arn, "${var.ecs_cluster_arn}/*"]` pattern silently authorized
+  # nothing for either action; nothing had ever actually exercised `ecs:RunTask`/
+  # `ecs:UpdateService` against a real AWS account before this session (deploy-
+  # staging.yml itself was written but never run). Cluster scoping for RunTask instead
+  # uses the dedicated `ecs:cluster` condition key, AWS's documented mechanism for
+  # exactly this.
   statement {
-    sid = "EcsClusterScoped"
-    actions = [
-      "ecs:UpdateService",
-      "ecs:RunTask",
-      "ecs:DescribeTasks",
-    ]
-    resources = [var.ecs_cluster_arn, "${var.ecs_cluster_arn}/*"]
+    sid       = "EcsRunTask"
+    actions   = ["ecs:RunTask"]
+    resources = ["arn:aws:ecs:${local.ecs_region}:${local.ecs_account_id}:task-definition/${var.name_prefix}-*"]
+    condition {
+      test     = "ArnEquals"
+      variable = "ecs:cluster"
+      values   = [var.ecs_cluster_arn]
+    }
+  }
+
+  statement {
+    sid       = "EcsUpdateService"
+    actions   = ["ecs:UpdateService"]
+    resources = ["arn:aws:ecs:${local.ecs_region}:${local.ecs_account_id}:service/${local.ecs_cluster_name}/*"]
+  }
+
+  # DescribeTasks' resource is the *task* ARN (assigned dynamically at RunTask time, not
+  # knowable ahead of time by this policy) - `Resource: "*"` matches the same precedent
+  # `EcsDeploy` above already uses for the other Describe*-style actions.
+  statement {
+    sid       = "EcsDescribeTasks"
+    actions   = ["ecs:DescribeTasks"]
+    resources = ["*"]
   }
 
   # References the task_execution/task roles created earlier in this same module

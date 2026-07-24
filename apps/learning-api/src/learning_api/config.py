@@ -3,6 +3,7 @@ from functools import lru_cache
 from intellichoice_adapters.fake_auth import DEV_JWT_SECRET
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
@@ -104,8 +105,19 @@ class Settings(BaseSettings):
     def checkpoint_database_url(self) -> str:
         """Same Postgres instance, driverless DSN - `AsyncPostgresSaver` uses `psycopg`,
         not the SQLAlchemy `asyncpg` driver `database_url` names.
+
+        S34: `?sslmode=require` for any real deployed host (RDS's own default parameter
+        group ships `rds.force_ssl=1` - see `intellichoice_db.engine.create_engine`'s
+        matching comment for the real connection failure this fixes and why it's
+        detected by host, not a new setting). `psycopg` (unlike `asyncpg`) understands
+        the standard libpq `sslmode` query parameter directly in the DSN string, so this
+        needs its own fix distinct from `create_engine`'s `connect_args` approach -
+        `AsyncPostgresSaver.from_conn_string` never goes through `create_engine` at all.
         """
-        return self.database_url.replace("postgresql+asyncpg://", "postgresql://")
+        url = self.database_url.replace("postgresql+asyncpg://", "postgresql://")
+        if make_url(url).host not in ("localhost", "127.0.0.1"):
+            url += "?sslmode=require"
+        return url
 
 
 @lru_cache
