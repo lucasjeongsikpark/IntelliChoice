@@ -14,7 +14,7 @@ dependencies = [
     # a fresh RDS instance's first connections hit full auth and fail without this
     # (found live during S32/D-084's first deploy).
     "cryptography>=42",
-    "boto3>=1.35",
+    "boto3>=1.43.55",
     "icalendar>=6.1",
     "httpx>=0.28",
 ]
