@@ -29,6 +29,8 @@ ones.
 | AUD-L-06 | Minors | P3 | Open — Phase 0B | `tutor.generate_hint` is dead code that omits the leak check its live sibling applies — a trap for whoever wires it up |
 | AUD-L-03 | Money | P2 | Open — Phase 0B | `pre_intro` stage-narrative spend is never folded back into the session total, so the per-session ceiling is permanently one call short |
 | **AUD-L-07** | **Authorization** | **P1** | Open — before the gate | D-086's known tutor/branch_manager scope gap now reaches further than when it was written: it covers the S28 dashboard and report surface, so a tutor token can read any student's data and generate reports about them |
+| AUD-L-09 | Correctness | P2 | Open — Phase 0B | Numeric grounding verifies a number's *provenance*, not its *attribution*, so a report can invert a real result ("fell from 6 to 4") and still pass |
+| AUD-L-08 | Correctness | P3 | Open — Phase 0B | `normalized_gain` has no upper bound and derives its denominator from the pre *attempt count*; unreachable today only because the post form is built one-for-one from the pre form |
 | AUD-L-01 | Auth surface | P3 | Open — Phase 0B | A gated-off `/dev/token` still discloses that it exists, and the S35 deploy gate's stated rationale is wrong about why it 404s |
 
 ---
@@ -274,6 +276,80 @@ are what unblock. This finding adds two things to that record: the dashboard/rep
 scope, and the formal disposition is already scheduled for S46 (§5's "D-086 disposition
 recorded"). Fix the stale comment whenever the file is next touched.
 
+### AUD-L-09 — Numeric grounding checks provenance, not attribution (P2)
+
+- **Severity:** P2 — degraded quality in parent-facing text, with a workaround (the facts-only
+  template always shows the correct numbers)
+- **Area:** correctness / stage-narrative and report grounding
+- **Status:** open, Phase 0B
+
+**What.** `numeric_grounding.is_grounded` returns False only if the narrative contains a number
+that appears nowhere in the evidence dict. It does not check what the number is *claimed to mean*.
+So for a student who improved from 4 to 6, the sentence "your score fell from 6 to 4" is fully
+grounded — both numbers are in the evidence — and is accepted and shown. Same for swapped skills,
+inverted gains, or a pre-exam figure presented as a post-exam one.
+
+**Reproduction / evidence.** Structural, and visible in the nine-line function: it iterates
+`extract_numbers(narrative_text)` and asks only whether each has *some* match anywhere in the
+flattened evidence values. Direction, pairing, and field identity are never consulted.
+
+**Why it matters more than P2 suggests, and why it is still P2.** This is the last check between
+an LLM and a parent reading about their child's progress, and the product's whole framing is
+growth-oriented language (SPEC §5.10.3) — a narrative that inverts a real gain is worse than no
+narrative. But it is genuinely bounded: the deterministic fallback always contains the correct
+figures, the numbers themselves can never be invented, and both parent-facing surfaces show
+`verified_facts` alongside the prose, so a wrong claim sits next to the right data.
+
+**Disposition.** Phase 0B, and the honest framing is that a *complete* fix needs semantic
+verification, which is a different and much larger project. Two cheap partial mitigations worth
+considering instead: check directional claims specifically (if the evidence has a positive gain,
+reject narrative text pairing those two numbers in decreasing order), and narrow the evidence dict
+per stage so fewer unrelated numbers are available to be misattributed in the first place. Neither
+is complete; both remove the most damaging class.
+
+### AUD-L-08 — `normalized_gain` is unbounded, and its denominator comes from the attempt count (P3)
+
+- **Severity:** P3 — **not reachable today.** Recorded because it is a guard that does not exist
+  in a number shown to parents, and the thing preventing it is incidental rather than intentional.
+- **Area:** correctness / learning-gain math (SPEC §5.13.3)
+- **Status:** open, Phase 0B
+
+**What.** `learning_gain.compute_learning_gain` sets `max_score = float(len(pre_graded)) or 1.0` —
+the *count of resolved pre attempts*, not the assessment's declared item count — and then computes
+SPEC §5.13.3's `(post - pre) / (max - pre)` with no clamp on the result. If the post form ever
+carries more items than the pre form, or pre attempts are ever missing while post attempts exist,
+the quotient exceeds 1.0 and is stored and displayed as a normalized gain. The `or 1.0` guard
+protects against ZeroDivisionError but converts a zero-pre-attempt case into a denominator of 1,
+which is worse than an error: it produces a plausible-looking number.
+
+**Reproduction (empirical).** Called the real function with a fake question repo:
+
+| Case | `raw_gain` | `normalized_gain` | `status` |
+|---|---|---|---|
+| normal 10-item, pre 4 → post 6 | 2.00 | 0.333 | `None` |
+| post form longer than pre (12 vs 10) | 8.00 | **1.333** | `None` |
+| no pre attempts, post 6 correct | 6.00 | **6.0** | `None` |
+| pre 1 item wrong, post 10 correct | 10.00 | **10.0** | `None` |
+
+Note `status=None` in every row — a 1000% gain is not flagged as anomalous, it is reported as a
+valid normalized gain. It would then pass the report's numeric-grounding check, because the number
+*is* in the evidence; grounding verifies provenance, not plausibility.
+
+**Why it is nevertheless P3.** I traced whether any of those inputs can occur:
+`assessment_builder.build_post_exam` builds the post form by iterating `pre_items` and generating
+one fresh variant per pre item, so the post length **always** equals the pre length; and
+`build_pre_exam` is a fixed 5 difficulties × 2 questions with a hard `AssessmentBuildError` if any
+difficulty lacks approved templates, so a zero-item pre exam cannot be created either. S22's
+finalize grades every unanswered item incorrect, so the attempt count matches the item count. The
+bad inputs are unreachable through the real flow.
+
+**Why it is still worth fixing.** Nothing *states* that invariant where the arithmetic lives, and
+nothing tests it. The protection is a property of a different module's loop shape. An adaptive or
+variable-length post form — a plausible future change, and the kind of thing SPEC §5.13.2's
+"parallel form" language does not forbid — would silently start producing >100% gains in
+parent-facing reports, with no error and no flag. A one-line clamp plus a comment naming the
+invariant costs nothing and converts a latent correctness bug into an impossible one.
+
 ### AUD-L-01 — A gated-off `/dev/token` discloses its own existence; the S35 gate's rationale is incorrect
 
 - **Severity:** P3 (information disclosure only — no token can be minted)
@@ -388,5 +464,60 @@ returns `{}` — which under LangGraph's default merge preserves every channel, 
 re-serves the same result instead of 409ing, and it 409s explicitly when no student is selected
 rather than relying on a downstream failure.
 
-_(Phases 3.5–3.7 of the S36 plan are **not** covered — see PROGRESS.md for the explicit list of
+**Test signal — the known RNG flake is characterized more precisely than before, and it matters
+for the gate.** `test_hint_reflects_the_students_actual_wrong_option` failed once in a full run and
+once standalone this session, then passed three consecutive standalone runs and two full runs.
+PROGRESS.md's prior sessions describe confirming it "via an immediate clean standalone rerun" — but
+it reproduces standalone too (roughly 1 in 4 attempts here), so it is **purely unseeded-RNG driven,
+not test-order dependent**. That is good news for whoever fixes it: seeding the RNG in the fixture
+is sufficient, and no ordering investigation is needed. It is bad news for §2.6 criterion 4, which
+requires three consecutive green full runs — at this failure rate that is a coin flip, so the
+criterion would be met by luck rather than by signal. Fix the seed before attempting the gate.
+
+**Question bank — what is actually `approved` and deliverable today, measured.** Queried the real
+dev Postgres rather than reasoning from the seed scripts: **1 topic, 5 skills, 50 templates**, all
+`validation_status=approved` and `active_status=active`, exactly 10 templates at each difficulty
+1–5. `build_pre_exam` needs 2 per difficulty, so exam construction is satisfiable with 5× headroom
+— the bank is *sufficient*, which is worth stating separately from being *broad*. It is not broad:
+one topic, and **exactly one skill per difficulty level**, so skill and difficulty are perfectly
+collinear in this data. Any "skill-level gain" is also a difficulty-level gain, and no test using
+this bank can distinguish the two. That is the known A6/D-060 content gap (which gates the pilot,
+not the build), now quantified.
+
+**Two known carry-overs re-measured, both materially worse than last recorded** — numbers handed
+to Phase 0B rather than left as "worsening": `question_variants` is at **42,023 rows across 50
+templates**, with a worst single template at **1,559** (S23 recorded 610 on one template, so ~2.5×
+growth in one session's worth of elapsed work); the `checkpoints` table is at **264,475 rows**
+(S34 recorded 249,250). Both confirm the accumulation is ongoing rather than a one-off, which is
+the assumption the seeded backlog items were written under.
+
+**Correctness — the retry ladder matches SPEC §5.11.7 exactly, including the part that looked
+wrong.** `study_outcomes.ladder_step` maps attempt counts to moves precisely as the spec's table
+does (1st → retry, 2nd → retry with more explicit support, 3rd → easier prerequisite, 4th →
+unresolved + tutor review), all six final outcome labels exist, and mastery is recomputed only
+*after* the label is final so an assisted or unresolved answer can never inflate independent
+mastery. There is also a sensible unspecified degradation: the prerequisite drop only happens if
+the prerequisite actually has approved templates, otherwise it retries the same skill rather than
+serving nothing.
+
+I went in expecting a real bug here and did not find one. The escalation counts attempts on a
+"line" filtered by the item's `target_skill_id`, so dropping to an easier prerequisite looked like
+it would start a fresh line and make the 4th-attempt tutor-review escalation unreachable — a
+student could fail forever without ever being flagged. It does not: `create_study_item` takes
+`target_skill_id` (the base skill whose line the item belongs to) *separately* from `skill_id` (the
+skill the question is drawn from), so a prerequisite question keeps the original line's identity
+and the counter keeps climbing to the tutor-review threshold. Recording this as a negative result
+specifically because the correct behavior depends on a two-parameter distinction that is easy to
+misread as a bug, and the next person to look will otherwise re-derive the same false alarm.
+
+**Correctness — the learning-gain formulas match SPEC §5.13.3 exactly.** `Raw Gain = Post − Pre`
+and `Normalized Gain = (Post − Pre) / (Max − Pre)` are implemented literally, and the perfect-pre
+case sets `normalized_gain_status = "not_applicable_pre_max"` with `normalized_gain = None` as the
+spec requires (rather than emitting a division-by-zero or a misleading 0.0). All twelve fields
+§5.13.3 says to store are present and populated: pre/post raw, raw gain, weighted gain, normalized
+gain, skill-level gain, difficulty transition, independent-correct rate, hint dependency, solution
+dependency, unresolved skills, and response-time change. AUD-L-08 is a missing bound on the result,
+not a wrong formula.
+
+_(The rest of phase 3.5, and phases 3.6–3.7, are **not** covered — see PROGRESS.md for the explicit list of
 what remains, rather than leaving the absence to be inferred from this file.)_

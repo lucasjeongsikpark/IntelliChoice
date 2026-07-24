@@ -80,13 +80,32 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint-overwrite bug class does not recur in the learning app** (both explicit `None`
   writes are correct precisely because they erase); finalize is genuinely idempotent at both
   the flow and route layers.
-  **Not covered — three of seven phases, not started:** SPEC conformance against §5.10–5.11
-  (mastery bootstrap, retry ladder, full hint ladder, gain math, generation/validation
-  pipelines including what actually sits `approved` and deliverable in the bank today,
-  stage-narrative grounding, memory effects on tutoring payloads); independent recomputation
-  of dashboard/report numbers from raw rows versus what the API and UI show; and the
-  adversarial live runs against staging (blocked twice over — by the unapplied Terraform
-  above, and by not having reached them). **§2.6 criterion 1 is not met by this session.**
+  **Phase 3.5 (SPEC conformance) partially covered**, after the deploy freed up time:
+  learning-gain math verified against §5.13.3 formula-by-formula (both formulas literal, all
+  12 stored fields present, `not_applicable_pre_max` handled) with one finding, **AUD-L-08
+  (P3)** — `normalized_gain` is unbounded and takes its denominator from the pre *attempt
+  count*; measured 133%, 600% and 1000% outputs from the real function, all reported with
+  `status=None`, and confirmed unreachable today only because `build_post_exam` iterates the
+  pre items one-for-one. Retry ladder verified against §5.11.7 exactly, including the
+  `target_skill_id`/`skill_id` distinction that makes the prerequisite drop keep the original
+  line's attempt counter (I expected a bug here and there isn't one — recorded as a negative
+  result because it reads like one). Outcome labels: all six §5.11.7 finals produced with
+  most-revealing-first precedence. **AUD-L-09 (P2)** — numeric grounding verifies a number's
+  provenance but not its attribution, so "your score fell from 6 to 4" passes for a student
+  who went 4→6; bounded by the facts-only fallback and by `verified_facts` being displayed
+  alongside, but this is the last check between an LLM and a parent.
+  **Question bank measured, not assumed:** 1 topic, 5 skills, 50 templates, all
+  approved/active, 10 per difficulty — sufficient for exam construction with 5× headroom, but
+  exactly one skill per difficulty, so skill and difficulty are perfectly collinear and no
+  test on this data can separate them (the known A6/D-060 gap, now quantified).
+  **Two carry-overs re-measured and materially worse:** `question_variants` at **42,023 rows
+  / 1,559 on the worst template** (S23 recorded 610); `checkpoints` at **264,475** (S34
+  recorded 249,250).
+  **Still not covered:** the rest of 3.5 (mastery bootstrap, the full hint ladder end-to-end,
+  the generation/validation pipelines themselves, memory effects on tutoring payloads beyond
+  the PII path); **all of 3.6** (independent recomputation of dashboard/report numbers from
+  raw rows against what the API and UI show); and the **scoring/re-grade-consistency and
+  policy-snapshot** parts of 3.4. **§2.6 criterion 1 is not met by this session.**
   **Tests (+12 net, 497→509, stable across 3 repeated `make test` runs):** 9 for the
   staging-token gate (4 learning incl. a 3-case parametrization and a no-secret-configured
   case, 4 chat, plus the positive paths), 3 for the report cost ceiling.

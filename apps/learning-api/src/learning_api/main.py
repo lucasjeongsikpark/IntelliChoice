@@ -294,7 +294,15 @@ async def issue_dev_token(
     )
     if not (local_dev_path or staging_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    token = FakeTokenIssuer().issue(sub=body.sub, role=body.role, audience=body.audience)
+    # The issuer MUST be given the same secret the verifier uses (D-085 made verification
+    # settings-driven with a real per-app Secrets Manager value). A bare `FakeTokenIssuer()`
+    # signs with the public `DEV_JWT_SECRET` constant, which the deployed app then rejects -
+    # so on staging this endpoint minted 200s carrying tokens that every other route 401'd.
+    # Invisible locally, where both sides are the dev constant; caught only by S36's live
+    # verification, and now pinned by a regression test with a non-default secret.
+    token = FakeTokenIssuer(secret=settings.jwt_signing_secret).issue(
+        sub=body.sub, role=body.role, audience=body.audience
+    )
     if not local_dev_path:
         # An audit trail for every token minted on a deployed environment - the local-dev
         # path stays silent (it fires on every page load of the dev login screen). Role,

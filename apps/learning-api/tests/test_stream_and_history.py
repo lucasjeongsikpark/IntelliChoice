@@ -7,7 +7,12 @@ import asyncio
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from intellichoice_adapters.fake_auth import FakeTokenIssuer, JwtTokenVerifier
+from intellichoice_adapters.fake_auth import (
+    DEV_JWT_SECRET,
+    FakeTokenIssuer,
+    JwtTokenVerifier,
+    TokenError,
+)
 from intellichoice_adapters.mysql_profile_adapter import MySQLProfileAdapter
 from intellichoice_adapters.seed.mysql_fixtures import (
     STUDENT_FIRST_CHILD,
@@ -184,6 +189,48 @@ def test_dev_token_issues_a_token_on_staging_with_the_shared_secret(
     claims = JwtTokenVerifier().verify(resp.json()["token"], Audience.LEARNING)
     assert claims.sub == STUDENT_UNLINKED
     assert claims.role == Role.STUDENT
+
+
+def test_dev_token_signs_with_the_configured_secret_not_the_dev_constant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S36 regression, found live and not by any unit test. Every other test here leaves
+    `jwt_signing_secret` at its default, which *is* `DEV_JWT_SECRET` - so a bare
+    `FakeTokenIssuer()` (signing with that constant) and the settings-driven verifier
+    agreed by coincidence. On real staging, where D-085 injects a random per-app secret
+    from Secrets Manager, they did not: `/dev/token` returned 200 with a token every
+    authenticated route then rejected with 401. The endpoint was live, green, and useless.
+
+    Pinning it with a deliberately non-default secret is what makes the two sides' agreement
+    a tested property rather than a shared default.
+    """
+    real_secret = "not-the-public-dev-constant-" + "x" * 32
+    monkeypatch.setattr(
+        main_module,
+        "get_settings",
+        lambda: Settings(
+            environment="staging",
+            dev_token_endpoint_enabled=False,
+            staging_token_shared_secret=STAGING_SECRET,
+            jwt_signing_secret=real_secret,
+        ),
+    )
+    client = TestClient(app)
+
+    resp = client.post(
+        "/dev/token",
+        json={"role": "student", "sub": STUDENT_UNLINKED},
+        headers={"X-Staging-Token-Secret": STAGING_SECRET},
+    )
+    assert resp.status_code == 200
+    token = resp.json()["token"]
+
+    # Verifies under the configured secret...
+    claims = JwtTokenVerifier(secret=real_secret).verify(token, Audience.LEARNING)
+    assert claims.sub == STUDENT_UNLINKED
+    # ...and must NOT verify under the public dev constant, or the real secret is decorative.
+    with pytest.raises(TokenError):
+        JwtTokenVerifier(secret=DEV_JWT_SECRET).verify(token, Audience.LEARNING)
 
 
 @pytest.mark.parametrize(

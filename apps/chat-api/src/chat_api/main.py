@@ -274,7 +274,12 @@ async def issue_dev_token(
     )
     if not (local_dev_path or staging_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    token = FakeTokenIssuer().issue(sub=body.sub, role=body.role, audience=body.audience)
+    # S36: mirrors learning-api's identical fix - see that comment for the real staging
+    # failure this closes (issuer signed with the public dev constant, verifier used the
+    # real per-app secret, so every minted token was rejected).
+    token = FakeTokenIssuer(secret=settings.jwt_signing_secret).issue(
+        sub=body.sub, role=body.role, audience=body.audience
+    )
     if not local_dev_path:
         # S36/D-097: mirrors learning-api's audit-trail log - see that comment.
         logger.warning(
