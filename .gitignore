@@ -39,5 +39,11 @@ zap-reports/
 *.tfstate.*
 *.tfvars
 !terraform/environments/*/terraform.tfvars.example
+# S35: saved plan files are zip archives with a full copy of tfstate inside them, so they
+# carry every cleartext secret the state does (random_password results, secret_version
+# strings). *.tfstate above was already ignored for exactly that reason; a plan file is
+# the same payload under a different extension, and one was sitting untracked and
+# committable in terraform/environments/staging when this was found.
+*.tfplan
 crash.log
 crash.*.log

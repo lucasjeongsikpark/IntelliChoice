@@ -49,9 +49,43 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # S35: the image tag is derived from the commit SHA, and the ECR repositories have
+      # immutable tags on purpose (S32 hardening - an already-deployed tag can never be
+      # silently repointed at different bytes). Those two facts together mean a re-run of
+      # this workflow on an *unchanged* commit always died at the push step:
+      #   "The image tag 'gha-<sha>' already exists ... and cannot be overwritten".
+      # That is not a corner case here - re-running the deploy after fixing something
+      # *outside* the app image (Terraform, IAM, a secret, infrastructure state) is the
+      # normal repair loop, and it was structurally impossible. D-095's addendum hit this
+      # as its bug #1 and worked around it by hand-deleting the stale tags; S35 hit it
+      # again the same way, which is the signal it needed a real fix rather than a third
+      # manual cleanup.
+      #
+      # Fix: treat "an image for this exact commit already exists" as success and reuse it,
+      # rather than rebuilding and failing to push. This deliberately keeps the one-commit-
+      # one-image property (the tag stays a truthful identifier of what is running, so
+      # rollback targets stay meaningful) instead of the alternative of appending a
+      # run-scoped suffix, which would let one commit sprawl across many near-identical
+      # tags. Content-identical rebuilds are also not free on arm64 emulation, so skipping
+      # them is a real speedup on the repair loop this fix exists to serve.
+      - name: Check whether this commit's images are already in ECR
+        id: images
+        run: |
+          for app in learning-api chat-api; do
+            if aws ecr describe-images --repository-name "$app" \
+                 --image-ids imageTag="${{ steps.vars.outputs.tag }}" >/dev/null 2>&1; then
+              echo "$app already has ${{ steps.vars.outputs.tag }} - reusing it."
+              echo "${app//-/_}_exists=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$app needs a build for ${{ steps.vars.outputs.tag }}."
+              echo "${app//-/_}_exists=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
       # ARM64 to match Fargate's runtime_platform (D-084 - Fargate defaults to x86_64,
       # this deployment intentionally runs Graviton).
       - name: Build and push learning-api
+        if: steps.images.outputs.learning_api_exists == 'false'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -61,6 +95,7 @@ jobs:
           tags: ${{ env.ECR_REGISTRY }}/learning-api:${{ steps.vars.outputs.tag }}
 
       - name: Build and push chat-api
+        if: steps.images.outputs.chat_api_exists == 'false'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -167,6 +202,53 @@ jobs:
           aws ecs update-service --cluster "$ECS_CLUSTER" --service intellichoice-staging-chat-api \
             --task-definition "$NEW_ARN" --force-new-deployment
           aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services intellichoice-staging-chat-api
+
+      # S35: a live assertion that the dev-only auth stand-in is really unreachable from
+      # the public internet, checked against what is actually deployed rather than against
+      # what the config says should be deployed.
+      #
+      # This exists because of a real P0 this session found: S33/D-085 "closed"
+      # `POST /dev/token` by reverting `app_environment` to "staging" in
+      # `terraform.tfvars` - but that file is gitignored and the apply was withheld, so
+      # the fix existed only in one machine's local working tree. Both CloudFront
+      # distributions kept serving a fully functional token-minting endpoint (any role,
+      # any student) for two days, while DECISIONS.md recorded the finding as executed.
+      # Config-level intent and deployed reality had no check tying them together.
+      #
+      # A 404 is the pass condition: with the endpoint gated off, the route is never
+      # registered on the app at all. Anything else - 200, 422 (the real symptom seen
+      # this session: FastAPI validating a request body for a route that should not
+      # exist), 500 - means it is reachable and this deploy must not be declared healthy.
+      # Deliberately fails the workflow instead of triggering the rollback path below:
+      # rolling back would move to an *older* image, which is more likely to be exposed,
+      # not less.
+      - name: Verify /dev/token is unreachable from the public edge (security gate)
+        run: |
+          FAILED=0
+          for app in learning chat; do
+            DOMAIN=$(aws cloudfront list-distributions \
+              --query "DistributionList.Items[?Comment=='intellichoice-staging-${app}'].DomainName" \
+              --output text)
+            if [ -z "$DOMAIN" ]; then
+              echo "FAIL [$app]: could not resolve a CloudFront domain to check."
+              FAILED=1
+              continue
+            fi
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+              -X POST "https://${DOMAIN}/dev/token" \
+              -H 'Content-Type: application/json' \
+              -d '{"sub":"deploy-gate-probe","role":"student"}')
+            if [ "$CODE" = "404" ]; then
+              echo "OK [$app]: /dev/token -> 404 via ${DOMAIN}"
+            else
+              echo "FAIL [$app]: /dev/token -> ${CODE} via ${DOMAIN} (expected 404 - the endpoint is REACHABLE)"
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" != "0" ]; then
+            echo "Security gate failed: the dev token endpoint is reachable on the public edge."
+            exit 1
+          fi
 
       # S34/SPEC §6.24 Phase 23 "Production Canary -> Metric Check -> Full Rollout",
       # translated to this deployment's real shape: `desired_count=1` per service (D-084's
