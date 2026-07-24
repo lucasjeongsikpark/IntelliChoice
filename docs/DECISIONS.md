@@ -3594,3 +3594,135 @@ from `PendingConfirmation` to active (`PendingConfirmation: false`), so alarm no
 reach the inbox. §2.6's criterion 8 stays open regardless — a confirmed subscription is necessary
 but not sufficient; it needs an *induced* alarm proving delivery end-to-end, which is S39's
 operations-audit work.
+
+---
+
+## D-097 — S36 (AUD-L, partial): staging gets a secret-gated token path so the audits can run live; the learning-product audit found a P0 cost hole, fixed in-session (accepted, 2026-07-24)
+
+**Two decisions were taken at session start, both by the user, before any file was touched.**
+
+**1. The staging authentication question D-096 left open.** Closing the `/dev/token` P0 left live
+staging with no way to obtain a token, which blocks §2.3's adversarial end-to-end runs and §2.6's
+criterion 3 for all four audit sessions. Of D-096's three options the user chose a **staging-only
+token path gated on a real secret held in Secrets Manager**, over pulling S44's real issuer forward
+(the auth architecture choice O1–O4 depends on S42 discovery data that does not exist yet, so
+building first would mean guessing) and over auditing locally with a weakened criterion 3 (which
+forfeits the premise §2.1 rests on — that live verification finds what unit tests miss, as S23,
+S26, S28, S31, S33, S34 and S35 each demonstrated).
+
+Implementation: a third, independent way to reach `/dev/token`, deliberately unlike the two
+existing gates. Both of those are plain config values — an environment name and a boolean env var —
+and S32/S33/S35 between them proved that a plain-config gate can be flipped by one edit in one
+untracked working tree and stay wrong for two days. This one requires possession of a 64-char
+random secret, presented as `X-Staging-Token-Secret`, compared with `hmac.compare_digest` in a
+shared `intellichoice_shared.staging_secret_matches` (shared rather than mirrored per app, so the
+two fail-closed edge cases cannot drift). Failure is 404, not 401, so a caller without the secret
+learns nothing. Empty by default, so local dev, CI, tests and any future production deployment are
+unaffected and cannot enable it by accident. Both apps log every issuance on a deployed
+environment (role, audience, external id — never PII, never secret material). Deleted at S44.
+
+`session_spend_cents`-style fail-open defaults are the reason this is spelled out in
+`staging_secret_matches`'s docstring: an unconfigured secret must never be satisfiable by
+presenting an unconfigured credential.
+
+**The deploy-time security gate was extended rather than removed, and what it proves changed.**
+It no longer asserts "the endpoint does not exist" but "the endpoint is closed to everyone without
+the secret", checked two ways — no credential, and a *wrong* credential. The wrong-credential probe
+is the one that matters: a bug making the comparison vacuous would still 404 the no-header probe
+while opening the endpoint to the internet. The positive path (correct secret → 200) is
+deliberately **not** checked, because that would mean copying the secret into GitHub Actions and
+giving a second system a copy of a credential whose whole value is being held in one place; a
+silently-broken staging token path costs an audit session some confusion, a leaked one costs more.
+
+**2. Audit breadth.** The user chose full breadth over depth-on-a-subset: cover AUD-L's eleven
+areas in §2.3's risk order, capping depth, on the reasoning that an audit's job is unknown-unknowns
+and depth without breadth leaves whole areas unexamined. **That is not what happened — see the
+"what this session did not cover" section below.** Four areas were covered properly and the session
+ran out before the rest; the decision was right, the estimate was wrong.
+
+### AUD-L-02 (P0) — `POST /students/{id}/report` had no cost ceiling at all
+
+Full detail in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); recorded here because §2.4 makes a P0 a
+line-stopping event and because the bug class matters more than the instance.
+
+The gateway is stateless about spend: it enforces the per-session budget against a
+`session_spend_cents` value the *caller* supplies. Two callers supplied nothing, relying on a
+`= 0.0` default. One of them is an on-demand endpoint with no idempotency key — one fresh Bedrock
+call per click — so the check evaluated `0.0 + worst_case > 50.0` on every call and never fired.
+Not a weakened ceiling; an absent one. The only remaining limit was the global per-IP request
+limiter, raised to 6,000/60s in S34 for an unrelated reason. At the deployed model's real rates a
+report costs ~0.45 cents, so that ceiling permits roughly **$27/minute from one IP holding one
+valid token**, with the AWS Budget alarm — a lagging notification — as the only backstop.
+
+Fixed in-session, mirroring S24's existing chat precedent rather than inventing a mechanism: a
+`get_spend_cents_since` window query (no migration — `student_reports` already stores `cost_cents`
+and `created_at`), a `DAILY_REPORT_COST_CEILING_CENTS = 50.0` checked before the call, and on
+exceed a degrade to the deterministic facts-only template the gateway-failure and failed-grounding
+paths already produce, so the caller still gets their real verified numbers. Three regression
+tests, including an `_ExplodingGateway` that fails if Bedrock is reached at all and a
+just-below-threshold test, because a ceiling that blocks legitimate use is a different bug.
+
+**The generalizable part:** `session_spend_cents` is now **required** on both
+`generate_student_report` and `generate_stage_narrative`. A cost parameter with a permissive
+default *is* a fail-open default — the same class as D-096's `ecr:DescribeImages` check and D-085's
+environment-string gate, now the fourth instance in this project. Removing the default immediately
+surfaced all five call sites that had silently depended on it, which is the argument for doing it
+this way rather than fixing the one endpoint.
+
+### Other findings, logged not fixed (the audit's own rule: Phase 0B owns fixes)
+
+- **AUD-L-04 (P1)** — the one worth reading. D-072 accepted that names in free text survive
+  redaction (only email/URL/phone are pattern-matched), and that acceptance was bounded by the fact
+  that the text lived in `tutor_chat_messages`, **the only table in this codebase with a retention
+  job**. S25 then derived `semantic_memory.fact_text` from that same text, screened with the same
+  insufficient patterns, in a table with no purge — and those facts flow outward into tutoring
+  payloads and into parent-visible reports. So an accepted risk lost its mitigation without anyone
+  deciding to remove it: neither D-072 (which reasoned about a purged table) nor D-074 (which
+  reasoned about consolidation quality) records this. Needs a decision, not just a fix;
+  recommendation is a retention job for `semantic_memory` plus a note in the §6.1 privacy text,
+  since "we delete chat after 90 days" is otherwise misleading.
+- **AUD-L-05 (P2)** — `MemoryConsolidationPayload` was never added to the PII-floor allowlist test,
+  contrary to D-072's own "How to apply" clause. Nothing leaks today; the guard rail that protects
+  future sessions simply does not cover the payload closest to real student free text.
+- **AUD-L-07 (P1)** — D-086's tutor/branch_manager scope gap is unchanged but now *reaches
+  further* than its record describes: S28's dashboard and report routes arrived after it was
+  written, so a tutor token can read any student's data and generate reports about them. One
+  function, so one fix closes all 17 routes.
+- **AUD-L-03 (P2)** `pre_intro` spend is never folded back into the session total.
+  **AUD-L-06 (P3)** `tutor.generate_hint` is dead code omitting the leak check its live sibling
+  applies. **AUD-L-01 (P3)** a gated-off `/dev/token` still discloses its existence via 422/405,
+  and the S35 gate's stated rationale for trusting a 404 is factually wrong about the code (it
+  works anyway, but only because it happens to probe with a valid body — nothing recorded says it
+  must, so a reasonable future edit would turn it into decoration).
+
+### Negative results, recorded deliberately
+
+An audit whose output is only its defects cannot be distinguished from one that stopped early.
+Recorded in AUDIT_FINDINGS.md so no future session re-derives them: no Bedrock call anywhere
+bypasses the gateway (so the timeout/retry/token-cap/circuit-breaker/accounting are unavoidable,
+which is the premise AUD-L-02 depends on — checked, not assumed); every other one of the 20+
+`session_spend_cents` call sites passes a real accumulated value; all 17 learning routes enforce
+authorization, and session-scoped routes correctly key it off the *checkpoint's* student id rather
+than anything client-supplied; the SSE `?token=` path verifies audience and ownership including for
+a student-less session; **the D-071 checkpoint-overwrite bug class does not recur in the learning
+app** (both explicit `None` writes are correct *because* they erase); and finalize is genuinely
+idempotent at both the flow and route layers.
+
+### What this session did **not** cover — and why that is stated plainly
+
+Of the seven planned audit phases, **four were completed** (money, minors/PII, authorization, and
+the data-integrity defect-pattern sweep plus finalize idempotency). **Three were not started:**
+SPEC conformance against §5.10–5.11 (mastery bootstrap, retry ladder, the full hint ladder, gain
+math, the generation/validation pipelines and what actually sits `approved` in the bank today,
+stage-narrative grounding, memory effects on tutoring payloads); independent recomputation of
+dashboard and report numbers from raw rows against what the API and UI show; and the adversarial
+live runs. AUD-L is therefore **partial**, and §2.6's criterion 1 (full traceability) is not met by
+this session.
+
+The live runs have a second, independent blocker: Phase 1's code path exists only in a new
+container image, and the `terraform apply` needed before deploying it was **not run** — the
+permission was denied in-session and left with the user rather than worked around. So the
+secret-gated path is written, tested (509 passing) and `terraform validate`-clean, but **not
+applied and not deployed**. That is precisely the posture D-096 criticised S33/S34 for, and it is
+recorded as such rather than softened: apply and deploy are one operation, and until both happen
+the audit's live half cannot start.

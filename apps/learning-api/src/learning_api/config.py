@@ -68,6 +68,23 @@ class Settings(BaseSettings):
     # this to false explicitly (staging now does, in terraform).
     dev_token_endpoint_enabled: bool = True
 
+    # S36/D-097: the audit sessions' only authenticated path against live staging. Real
+    # auth does not exist until S44 (INTEGRATION_PLAN I1), and S35 closing the `/dev/token`
+    # P0 correctly left staging with no way to obtain a token at all - which blocks
+    # §2.3's adversarial end-to-end runs and §2.6's criterion 3 for all four audits.
+    #
+    # This is a *third*, independent way to reach `/dev/token`, deliberately unlike the
+    # two above: it is gated on possession of a 64-char random secret held in Secrets
+    # Manager and presented as an `X-Staging-Token-Secret` header, not on an
+    # environment-name string or a boolean env var. That distinction is the whole point -
+    # the P0 was an *unauthenticated* minting endpoint, and both prior gates were plain
+    # config values that a single tfvars edit could flip (S32 did exactly that).
+    #
+    # Empty by default, so local dev, CI, and tests are unaffected and no non-staging
+    # deployment can enable it by accident. Deleted at S44, when a real token issuer
+    # replaces it.
+    staging_token_shared_secret: str = ""
+
     # SPEC §5.25.1 Bedrock Gateway - "mock" (default, dev/tests) or "bedrock" (real
     # AnthropicBedrockMantle client, D-002's env-selected-real-client pattern).
     bedrock_provider: str = "mock"

@@ -8,9 +8,11 @@ Postgres is unreachable (D-008).
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from intellichoice_db.engine import create_engine
+from intellichoice_db.models.student_report import StudentReport
 from intellichoice_db.repositories.student_report import StudentReportRepository
 from intellichoice_shared.bedrock import (
     BedrockGatewayError,
@@ -25,7 +27,11 @@ from learning_api.services.dashboard import (
     PrePostSkillPoint,
     UsageBreakdown,
 )
-from learning_api.services.report import build_report_facts, generate_student_report
+from learning_api.services.report import (
+    DAILY_REPORT_COST_CEILING_CENTS,
+    build_report_facts,
+    generate_student_report,
+)
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -165,6 +171,7 @@ def test_gateway_failure_falls_back_to_facts_only_template() -> None:
                 repo=repo,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
+                session_spend_cents=0.0,
             )
 
             assert result.generated is False
@@ -197,6 +204,7 @@ def test_ungrounded_response_falls_back_to_facts_only_template() -> None:
                 repo=repo,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
+                session_spend_cents=0.0,
             )
 
             assert result.generated is False
@@ -223,6 +231,7 @@ def test_grounded_response_is_trusted_as_is() -> None:
                 repo=repo,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
+                session_spend_cents=0.0,
             )
 
             assert result.generated is True
@@ -231,5 +240,125 @@ def test_grounded_response_is_trusted_as_is() -> None:
             stored = await repo.list_for_student(STUDENT_ID)
             assert stored[0].generated is True
             assert stored[0].audience == "parent"
+
+    asyncio.run(run())
+
+
+class _ExplodingGateway:
+    """Fails the test if Bedrock is called at all - the ceiling must short-circuit
+    *before* the call, not bill for one and then refuse the next.
+    """
+
+    async def generate_structured(self, **kwargs) -> BedrockGenerationResult:
+        del kwargs
+        raise AssertionError("Bedrock was called despite the per-day cost ceiling")
+
+    async def create_embedding(self, *, texts: list[str], session_spend_cents: float):
+        raise NotImplementedError
+
+
+async def _seed_spend(repo: StudentReportRepository, cents: float) -> None:
+    await repo.create(
+        StudentReport(
+            student_external_id=STUDENT_ID,
+            audience="parent",
+            verified_facts={},
+            interpretation_text="seeded",
+            recommendations_text="seeded",
+            generated=True,
+            cost_cents=cents,
+        )
+    )
+
+
+def test_report_generation_stops_calling_bedrock_at_the_daily_cost_ceiling() -> None:
+    """S36/AUD-L-02 regression. Before the fix this endpoint had no cost ceiling at all:
+    it passed `session_spend_cents=0.0` on every call, so the gateway's own budget check
+    could never fire, and one authenticated caller could drive unlimited Bedrock spend
+    bounded only by a 6,000-request/60s per-IP rate limiter.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = StudentReportRepository(session)
+            await _seed_spend(repo, DAILY_REPORT_COST_CEILING_CENTS)
+
+            result = await generate_student_report(
+                gateway=_ExplodingGateway(),
+                repo=repo,
+                student_external_id=STUDENT_ID,
+                payload=_payload("parent"),
+                session_spend_cents=DAILY_REPORT_COST_CEILING_CENTS,
+            )
+
+            # Degrades to the facts-only template rather than erroring: the caller still
+            # gets their real verified numbers.
+            assert result.generated is False
+            assert result.cost_cents == 0.0
+            assert "4.0" in result.interpretation_text or "6.0" in result.interpretation_text
+
+    asyncio.run(run())
+
+
+def test_report_generation_still_runs_just_below_the_daily_cost_ceiling() -> None:
+    """The boundary in the other direction - a ceiling that also blocks legitimate use is
+    a different bug, so the threshold is pinned from both sides.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = StudentReportRepository(session)
+            await _seed_spend(repo, DAILY_REPORT_COST_CEILING_CENTS - 0.5)
+
+            result = await generate_student_report(
+                gateway=_FakeGateway(
+                    [
+                        ReportInterpretationResponse(
+                            interpretation_text="Score improved from 4.0 to 6.0.",
+                            recommendations_text="Focus on Two-Step Equations.",
+                        )
+                    ]
+                ),
+                repo=repo,
+                student_external_id=STUDENT_ID,
+                payload=_payload("parent"),
+                session_spend_cents=DAILY_REPORT_COST_CEILING_CENTS - 0.5,
+            )
+
+            assert result.generated is True
+
+    asyncio.run(run())
+
+
+def test_spend_query_only_counts_this_students_reports_inside_the_window() -> None:
+    """The ceiling must not be tripped by another student's spend, nor by this student's
+    spend from a week ago - either would deny a legitimate report.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = StudentReportRepository(session)
+            await _seed_spend(repo, 30.0)
+            await repo.create(
+                StudentReport(
+                    student_external_id="some-other-student",
+                    audience="parent",
+                    verified_facts={},
+                    interpretation_text="seeded",
+                    recommendations_text="seeded",
+                    generated=True,
+                    cost_cents=40.0,
+                )
+            )
+
+            recent = await repo.get_spend_cents_since(
+                STUDENT_ID, datetime.now(UTC) - timedelta(hours=24)
+            )
+            assert recent == pytest.approx(30.0)
+
+            future_window = await repo.get_spend_cents_since(
+                STUDENT_ID, datetime.now(UTC) + timedelta(hours=1)
+            )
+            assert future_window == pytest.approx(0.0)
 
     asyncio.run(run())

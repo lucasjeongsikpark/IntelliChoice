@@ -149,6 +149,88 @@ def test_dev_token_404s_when_endpoint_flag_disabled(monkeypatch: pytest.MonkeyPa
     assert resp.status_code == 404
 
 
+STAGING_SECRET = "s" * 64
+
+
+def _staging_settings() -> Settings:
+    """Exactly staging's real posture (S36/D-097): not a dev environment, the D-085 flag
+    off, and only the shared secret configured - so these tests prove the secret alone is
+    what opens the endpoint, not some residual dev setting.
+    """
+    return Settings(
+        environment="staging",
+        dev_token_endpoint_enabled=False,
+        staging_token_shared_secret=STAGING_SECRET,
+    )
+
+
+def test_dev_token_issues_a_token_on_staging_with_the_shared_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S36/D-097: the audit sessions' authenticated path against live staging. The point
+    of the test is the *combination* - a non-dev environment with the D-085 flag off still
+    mints a token, but only for a caller holding the Secrets-Manager secret.
+    """
+    monkeypatch.setattr(main_module, "get_settings", _staging_settings)
+    client = TestClient(app)
+
+    resp = client.post(
+        "/dev/token",
+        json={"role": "student", "sub": STUDENT_UNLINKED},
+        headers={"X-Staging-Token-Secret": STAGING_SECRET},
+    )
+
+    assert resp.status_code == 200
+    claims = JwtTokenVerifier().verify(resp.json()["token"], Audience.LEARNING)
+    assert claims.sub == STUDENT_UNLINKED
+    assert claims.role == Role.STUDENT
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        pytest.param({}, id="no_header"),
+        pytest.param({"X-Staging-Token-Secret": "wrong-secret"}, id="wrong_secret"),
+        pytest.param({"X-Staging-Token-Secret": ""}, id="empty_secret"),
+    ],
+)
+def test_dev_token_404s_on_staging_without_the_shared_secret(
+    monkeypatch: pytest.MonkeyPatch, headers: dict[str, str]
+) -> None:
+    """The gate's real job. `empty_secret` is the fail-closed case that matters most: a
+    caller presenting "" must never match, including in the (future production) case where
+    the secret itself is unset - see `staging_secret_matches`.
+    """
+    monkeypatch.setattr(main_module, "get_settings", _staging_settings)
+    client = TestClient(app)
+
+    resp = client.post(
+        "/dev/token", json={"role": "student", "sub": STUDENT_UNLINKED}, headers=headers
+    )
+
+    assert resp.status_code == 404
+
+
+def test_dev_token_404s_on_staging_when_no_secret_is_configured_at_all(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The absence of a configured credential must not be satisfiable by presenting the
+    absence of one - the fail-open shape this project has produced three times (D-096).
+    """
+    monkeypatch.setattr(
+        main_module,
+        "get_settings",
+        lambda: Settings(environment="staging", dev_token_endpoint_enabled=False),
+    )
+    client = TestClient(app)
+
+    for headers in ({}, {"X-Staging-Token-Secret": ""}):
+        resp = client.post(
+            "/dev/token", json={"role": "student", "sub": STUDENT_UNLINKED}, headers=headers
+        )
+        assert resp.status_code == 404
+
+
 def test_session_event_bus_publishes_only_to_subscribers_of_that_session() -> None:
     bus = SessionEventBus()
     queue_a = bus.subscribe("session-a")

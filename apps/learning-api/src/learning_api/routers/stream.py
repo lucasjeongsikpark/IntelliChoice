@@ -86,6 +86,13 @@ async def _maybe_fire_pre_intro(
             grade=profile.grade,
             attendance_status=state.get("attendance_status"),
         ),
+        # S36/AUD-L-02: the checkpoint's running per-session total. This call previously
+        # relied on a 0.0 default, so the gateway's session budget never applied to it.
+        # The cost still isn't written *back* into the checkpoint (deliberate, S26/D-075 -
+        # this path never touches the graph), so the total this reads stays one call behind
+        # reality; that under-accounting is logged separately as AUD-L-03. Reading the real
+        # total is still strictly better than asserting zero.
+        session_spend_cents=state.get("bedrock_spend_cents", 0.0),
     )
     return result.narrative_text, result.evidence_summary
 

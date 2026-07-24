@@ -129,6 +129,11 @@ module "iam" {
     module.rds_mysql.master_user_secret_arn,
     aws_secretsmanager_secret.jwt_signing_secret_learning.arn,
     aws_secretsmanager_secret.jwt_signing_secret_chat.arn,
+    # S36/D-097: without these two the task execution role cannot read the new secrets and
+    # both tasks fail to start with ResourceInitializationError - the secret injection
+    # happens before the container runs, so it is a startup failure, not a runtime 500.
+    aws_secretsmanager_secret.staging_token_shared_secret_learning.arn,
+    aws_secretsmanager_secret.staging_token_shared_secret_chat.arn,
   ]
   bedrock_model_arns = local.bedrock_model_arns
   log_group_arns     = local.log_group_arns
@@ -187,6 +192,50 @@ resource "aws_secretsmanager_secret" "jwt_signing_secret_chat" {
 resource "aws_secretsmanager_secret_version" "jwt_signing_secret_chat" {
   secret_id     = aws_secretsmanager_secret.jwt_signing_secret_chat.id
   secret_string = random_password.jwt_signing_secret_chat.result
+}
+
+# S36/D-097: the shared secret that gates `/dev/token` on this staging environment - the
+# audit sessions' (S36-S39) only authenticated path against live staging, since real auth
+# does not exist until S44 and S35 correctly closed the unauthenticated one.
+#
+# Deliberately a Secrets Manager value rather than a `terraform.tfvars` string or an ECS
+# env var: every prior gate on this endpoint was plain config, and S32/S33/S35 between them
+# proved that a plain-config gate can be flipped by one edit, in one untracked working
+# tree, without anything noticing for two days. Possession of a 64-char random secret is a
+# different kind of gate. Same `random_password` + `secret_version` shape as the JWT
+# secrets above, so this introduces no new pattern.
+#
+# STAGING ONLY. `terraform/environments/production` (S48) must never define these, and the
+# app-side default is the empty string, which never matches (`staging_secret_matches`).
+# Both resources and both env wirings are deleted at S44, when a real token issuer exists.
+resource "random_password" "staging_token_shared_secret_learning" {
+  length  = 64
+  special = false
+}
+
+resource "random_password" "staging_token_shared_secret_chat" {
+  length  = 64
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "staging_token_shared_secret_learning" {
+  name = "${var.name_prefix}/learning-api/staging-token-shared-secret"
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "staging_token_shared_secret_learning" {
+  secret_id     = aws_secretsmanager_secret.staging_token_shared_secret_learning.id
+  secret_string = random_password.staging_token_shared_secret_learning.result
+}
+
+resource "aws_secretsmanager_secret" "staging_token_shared_secret_chat" {
+  name = "${var.name_prefix}/chat-api/staging-token-shared-secret"
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "staging_token_shared_secret_chat" {
+  secret_id     = aws_secretsmanager_secret.staging_token_shared_secret_chat.id
+  secret_string = random_password.staging_token_shared_secret_chat.result
 }
 
 module "ecs_service_learning_api" {
@@ -249,6 +298,8 @@ module "ecs_service_learning_api" {
     LEARNING_MYSQL_DB_USERNAME  = "${module.rds_mysql.master_user_secret_arn}:username::"
     LEARNING_MYSQL_DB_PASSWORD  = "${module.rds_mysql.master_user_secret_arn}:password::"
     LEARNING_JWT_SIGNING_SECRET = aws_secretsmanager_secret.jwt_signing_secret_learning.arn
+    # S36/D-097: staging only - see the resource definition above.
+    LEARNING_STAGING_TOKEN_SHARED_SECRET = aws_secretsmanager_secret.staging_token_shared_secret_learning.arn
   }
 }
 
@@ -302,6 +353,8 @@ module "ecs_service_chat_api" {
     CHAT_MYSQL_DB_USERNAME  = "${module.rds_mysql.master_user_secret_arn}:username::"
     CHAT_MYSQL_DB_PASSWORD  = "${module.rds_mysql.master_user_secret_arn}:password::"
     CHAT_JWT_SIGNING_SECRET = aws_secretsmanager_secret.jwt_signing_secret_chat.arn
+    # S36/D-097: staging only - see the resource definition above.
+    CHAT_STAGING_TOKEN_SHARED_SECRET = aws_secretsmanager_secret.staging_token_shared_secret_chat.arn
   }
 }
 

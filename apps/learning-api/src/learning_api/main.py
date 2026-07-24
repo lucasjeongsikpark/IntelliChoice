@@ -1,8 +1,9 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from intellichoice_adapters.bedrock.bedrock_runtime_provider import AnthropicBedrockProvider
@@ -22,7 +23,7 @@ from intellichoice_observability.tracing import (
     instrument_fastapi_app,
     instrument_sqlalchemy_engines,
 )
-from intellichoice_shared.auth import Audience, Role, TokenClaims
+from intellichoice_shared.auth import Audience, Role, TokenClaims, staging_secret_matches
 from intellichoice_shared.bedrock import BedrockTask
 from intellichoice_shared.db_ready import ping_engine
 from intellichoice_shared.email import EmailMessage
@@ -41,6 +42,8 @@ from learning_api.routers.sessions import router as sessions_router
 from learning_api.routers.stream import router as stream_router
 from learning_api.routers.students import router as students_router
 from learning_api.services.session_events import SessionEventBus
+
+logger = logging.getLogger(__name__)
 
 UNKNOWN_ATTENDANCE_MESSAGE = (
     "We could not verify attendance at this time. For student safety and record "
@@ -267,15 +270,40 @@ class DevTokenResponse(BaseModel):
 
 
 @app.post("/dev/token", response_model=DevTokenResponse)
-async def issue_dev_token(body: DevTokenRequest) -> DevTokenResponse:
+async def issue_dev_token(
+    body: DevTokenRequest,
+    x_staging_token_secret: Annotated[str | None, Header()] = None,
+) -> DevTokenResponse:
     """Dev-only stand-in for `go.intellichoice.org`'s real auth (out of scope here) so
-    `apps/learning-web` has something to call locally. 404s unless BOTH
-    `environment=="dev"` AND `dev_token_endpoint_enabled` are true (D-085) - it must
-    never exist as reachable surface in a real deployment - wraps the existing
-    `FakeTokenIssuer` (D-006), issues no new secret.
+    `apps/learning-web` has something to call locally. 404s unless EITHER
+
+    - BOTH `environment=="dev"` AND `dev_token_endpoint_enabled` are true (D-085) - the
+      local-dev path; it must never exist as reachable surface in a real deployment - or
+    - `staging_token_shared_secret` is configured AND the caller presents it in
+      `X-Staging-Token-Secret` (S36/D-097, the audit sessions' only authenticated path
+      against live staging until S44 replaces it).
+
+    Wraps the existing `FakeTokenIssuer` (D-006), issues no new secret. A failure is 404,
+    not 401/403, so a caller without the secret learns nothing about whether the endpoint
+    is configured at all.
     """
     settings = get_settings()
-    if settings.environment != "dev" or not settings.dev_token_endpoint_enabled:
+    local_dev_path = settings.environment == "dev" and settings.dev_token_endpoint_enabled
+    staging_path = staging_secret_matches(
+        x_staging_token_secret, settings.staging_token_shared_secret
+    )
+    if not (local_dev_path or staging_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     token = FakeTokenIssuer().issue(sub=body.sub, role=body.role, audience=body.audience)
+    if not local_dev_path:
+        # An audit trail for every token minted on a deployed environment - the local-dev
+        # path stays silent (it fires on every page load of the dev login screen). Role,
+        # audience and the external id only: `sub` is an opaque external id, never PII
+        # (SPEC §5.30), and no secret material is logged.
+        logger.warning(
+            "staging_dev_token_issued sub=%s role=%s audience=%s",
+            body.sub,
+            body.role.value,
+            body.audience.value,
+        )
     return DevTokenResponse(token=token)

@@ -242,14 +242,30 @@ jobs:
       # any student) for two days, while DECISIONS.md recorded the finding as executed.
       # Config-level intent and deployed reality had no check tying them together.
       #
-      # A 404 is the pass condition: with the endpoint gated off, the route is never
-      # registered on the app at all. Anything else - 200, 422 (the real symptom seen
-      # this session: FastAPI validating a request body for a route that should not
-      # exist), 500 - means it is reachable and this deploy must not be declared healthy.
+      # A 404 is the pass condition. Anything else - 200, 422 (the real symptom seen this
+      # session: FastAPI validating a request body for a route that should not mint a
+      # token), 500 - means it is reachable and this deploy must not be declared healthy.
       # Deliberately fails the workflow instead of triggering the rollback path below:
       # rolling back would move to an *older* image, which is more likely to be exposed,
       # not less.
-      - name: Verify /dev/token is unreachable from the public edge (security gate)
+      #
+      # S36/D-097 changed what this step proves, and the distinction matters. `/dev/token`
+      # is now reachable on staging *for a caller holding the Secrets Manager shared
+      # secret* - the audit sessions' only authenticated path until S44. So the assertion
+      # is no longer "the endpoint does not exist" but "the endpoint is closed to everyone
+      # without the secret", which is checked two ways: no credential at all, and a wrong
+      # credential. The wrong-credential probe is the one that would catch the failure mode
+      # that actually worries me - a bug or misconfiguration that makes the comparison
+      # vacuous (an unset secret treated as a match) would still 404 the no-header probe
+      # while opening the endpoint to the whole internet.
+      #
+      # The positive path (correct secret -> 200) is deliberately NOT checked here: it
+      # would mean copying the secret into GitHub Actions, giving a second system a copy of
+      # a credential whose entire value is being held in one place. A staging token path
+      # that is silently broken costs an audit session some confusion; a leaked one costs
+      # more. For a future production environment no secret is configured at all, so both
+      # probes below assert plain unreachability there, unchanged.
+      - name: Verify /dev/token is closed on the public edge (security gate)
         run: |
           FAILED=0
           for entry in "learning:$LEARNING_CF_DOMAIN" "chat:$CHAT_CF_DOMAIN"; do
@@ -260,16 +276,28 @@ jobs:
               FAILED=1
               continue
             fi
-            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
-              -X POST "https://${DOMAIN}/dev/token" \
-              -H 'Content-Type: application/json' \
-              -d '{"sub":"deploy-gate-probe","role":"student"}')
-            if [ "$CODE" = "404" ]; then
-              echo "OK [$app]: /dev/token -> 404 via ${DOMAIN}"
-            else
-              echo "FAIL [$app]: /dev/token -> ${CODE} via ${DOMAIN} (expected 404 - the endpoint is REACHABLE)"
-              FAILED=1
-            fi
+            for probe in "no-credential:" "wrong-credential:not-the-staging-secret"; do
+              label="${probe%%:*}"
+              secret="${probe#*:}"
+              if [ -n "$secret" ]; then
+                CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+                  -X POST "https://${DOMAIN}/dev/token" \
+                  -H 'Content-Type: application/json' \
+                  -H "X-Staging-Token-Secret: ${secret}" \
+                  -d '{"sub":"deploy-gate-probe","role":"student"}')
+              else
+                CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+                  -X POST "https://${DOMAIN}/dev/token" \
+                  -H 'Content-Type: application/json' \
+                  -d '{"sub":"deploy-gate-probe","role":"student"}')
+              fi
+              if [ "$CODE" = "404" ]; then
+                echo "OK [$app/${label}]: /dev/token -> 404 via ${DOMAIN}"
+              else
+                echo "FAIL [$app/${label}]: /dev/token -> ${CODE} via ${DOMAIN} (expected 404 - the endpoint MINTS TOKENS for this caller)"
+                FAILED=1
+              fi
+            done
           done
           if [ "$FAILED" != "0" ]; then
             echo "Security gate failed: the dev token endpoint is reachable on the public edge."

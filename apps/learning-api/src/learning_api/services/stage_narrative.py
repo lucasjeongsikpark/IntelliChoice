@@ -126,7 +126,11 @@ async def generate_stage_narrative(
     learning_session_id: str,
     payload: StageNarrativePayload,
     related_skill_id: str | None = None,
-    session_spend_cents: float = 0.0,
+    # S36/AUD-L-02: no default. This used to default to 0.0 and `routers/stream.py`'s
+    # `pre_intro` call relied on it, which disabled the gateway's cost ceiling for that
+    # path. Required now, so omitting it is a typecheck failure rather than silent
+    # unbounded spend.
+    session_spend_cents: float,
 ) -> StageNarrativeResult:
     """Idempotent per (session, stage[, skill]): a second call for the same key returns
     the already-persisted narrative without a new Bedrock call (bounds `pre_intro` and

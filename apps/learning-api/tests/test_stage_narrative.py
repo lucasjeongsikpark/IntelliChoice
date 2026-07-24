@@ -115,6 +115,7 @@ def test_gateway_failure_falls_back_to_deterministic_template() -> None:
                 student_external_id=STUDENT_ID,
                 learning_session_id="session-1",
                 payload=_payload(),
+                session_spend_cents=0.0,
             )
 
             assert result.generated is False
@@ -144,6 +145,7 @@ def test_ungrounded_response_falls_back_to_deterministic_template() -> None:
                 student_external_id=STUDENT_ID,
                 learning_session_id="session-2",
                 payload=_payload(),
+                session_spend_cents=0.0,
             )
 
             assert result.generated is False
@@ -170,6 +172,7 @@ def test_grounded_response_is_trusted_as_is() -> None:
                 student_external_id=STUDENT_ID,
                 learning_session_id="session-3",
                 payload=_payload(),
+                session_spend_cents=0.0,
             )
 
             assert result.generated is True
@@ -194,6 +197,7 @@ def test_second_call_for_the_same_stage_is_idempotent_no_new_gateway_call() -> N
                 student_external_id=STUDENT_ID,
                 learning_session_id="session-4",
                 payload=_payload(stage="pre_intro", weak_skill_names=[], target_skill_name=None),
+                session_spend_cents=0.0,
             )
             second = await generate_stage_narrative(
                 gateway=gateway,
@@ -201,6 +205,7 @@ def test_second_call_for_the_same_stage_is_idempotent_no_new_gateway_call() -> N
                 student_external_id=STUDENT_ID,
                 learning_session_id="session-4",
                 payload=_payload(stage="pre_intro", weak_skill_names=[], target_skill_name=None),
+                session_spend_cents=0.0,
             )
 
             assert second.narrative_text == first.narrative_text
@@ -235,6 +240,7 @@ def test_study_step_calls_are_scoped_by_related_skill_id() -> None:
                 learning_session_id="session-5",
                 payload=_payload(stage="study_step"),
                 related_skill_id="skill-a",
+                session_spend_cents=0.0,
             )
             second = await generate_stage_narrative(
                 gateway=gateway,
@@ -243,6 +249,7 @@ def test_study_step_calls_are_scoped_by_related_skill_id() -> None:
                 learning_session_id="session-5",
                 payload=_payload(stage="study_step"),
                 related_skill_id="skill-b",
+                session_spend_cents=0.0,
             )
 
             assert first.generated is True

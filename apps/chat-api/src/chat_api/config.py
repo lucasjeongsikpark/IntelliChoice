@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     # that field's comment for the full rationale.
     dev_token_endpoint_enabled: bool = True
 
+    # S36/D-097: mirrors `learning_api.config.Settings.staging_token_shared_secret` - see
+    # that field's comment for the full rationale. A distinct secret from learning-api's,
+    # for the same reason the two `jwt_signing_secret`s are distinct.
+    staging_token_shared_secret: str = ""
+
     # D-085: mirrors `learning_api.config.Settings.jwt_signing_secret` - see that
     # field's comment. A distinct secret from learning-api's (not shared) - the two
     # apps' tokens are already audience-scoped (`Audience.LEARNING`/`Audience.CHAT`)

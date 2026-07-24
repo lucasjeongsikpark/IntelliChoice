@@ -15,7 +15,7 @@ codebase doesn't have yet (PROGRESS.md carry-over, session-start scope decision)
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from intellichoice_db.models.student_report import StudentReport
 from intellichoice_db.repositories.student_report import StudentReportRepository
@@ -33,6 +33,23 @@ from learning_api.services.dashboard import DashboardData
 logger = logging.getLogger(__name__)
 
 _MAX_OUTPUT_TOKENS = 500
+
+# S36/AUD-L-02: per-day, per-student ceiling on report-driven Bedrock spend - the sibling
+# of `tutor_chat.DAILY_COST_CEILING_CENTS`, for the same reason. `POST /students/{id}/report`
+# is an on-demand endpoint with no idempotency key (one fresh row, and one fresh Bedrock
+# call, per click), so the per-session budget SPEC §5.25.1 describes cannot apply to it -
+# there is no session. Before this ceiling existed the endpoint passed `session_spend_cents
+# =0.0` on every call, which made the gateway's own budget check unconditionally pass, so
+# a single authenticated caller's only limit was the 6,000-request/60s global per-IP rate
+# limiter - not a cost control by any reading.
+#
+# 50 cents/student/day is deliberately below chat's 100: a report is a once-or-twice-a-day
+# action for a real parent, where chat is conversational. At the deployed model's real rate
+# (Haiku 4.5, 0.1/0.5 cents per 1K in/out) a report costs roughly 0.45 cents, so this still
+# allows ~100 reports per student per day before degrading - far beyond real use, while
+# bounding abuse to cents rather than dollars per student. A placeholder until real usage
+# data exists, same posture as every other tuned constant here.
+DAILY_REPORT_COST_CEILING_CENTS = 50.0
 
 _SYSTEM_PROMPT = (
     "You are writing a short progress report for a K-12 math tutoring app. Write two "
@@ -175,9 +192,52 @@ async def generate_student_report(
     repo: StudentReportRepository,
     student_external_id: str,
     payload: ReportInterpretationPayload,
-    session_spend_cents: float = 0.0,
+    session_spend_cents: float,
 ) -> StudentReportResult:
+    """`session_spend_cents` is deliberately required, with no default. It used to default
+    to 0.0, and the only caller relied on that default - which silently disabled the
+    gateway's cost ceiling for this path entirely (AUD-L-02). A cost parameter with a
+    permissive default is a fail-open default, the bug class this project has now produced
+    four times; making it required means a future caller that forgets it fails typecheck
+    instead of quietly spending money without a ceiling.
+    """
     evidence = payload.model_dump()
+
+    spend_today = await repo.get_spend_cents_since(
+        student_external_id, datetime.now(UTC) - timedelta(hours=24)
+    )
+    if spend_today >= DAILY_REPORT_COST_CEILING_CENTS:
+        # Degrades to the same deterministic facts-only template a gateway failure or a
+        # failed grounding check already produces, rather than erroring: the caller still
+        # gets their real, verified numbers, just without the LLM's prose around them.
+        # SPEC §5.25.3/§5.27's "deterministic fallback" rule, reused rather than reinvented.
+        logger.warning(
+            "report generation hit the per-day cost ceiling (%.2f >= %.2f cents); "
+            "returning the facts-only template",
+            spend_today,
+            DAILY_REPORT_COST_CEILING_CENTS,
+        )
+        interpretation_text, recommendations_text = _fallback_texts(payload)
+        row = await repo.create(
+            StudentReport(
+                student_external_id=student_external_id,
+                audience=payload.audience,
+                verified_facts=evidence,
+                interpretation_text=interpretation_text,
+                recommendations_text=recommendations_text,
+                generated=False,
+                cost_cents=0.0,
+            )
+        )
+        return StudentReportResult(
+            interpretation_text=interpretation_text,
+            recommendations_text=recommendations_text,
+            generated=False,
+            verified_facts=evidence,
+            cost_cents=0.0,
+            created_at=row.created_at,
+        )
+
     try:
         result = await gateway.generate_structured(
             task=BedrockTask.PARENT_REPORT,

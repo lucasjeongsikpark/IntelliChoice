@@ -3,7 +3,7 @@ student-report endpoints. Separate from `routers/sessions.py` since these read
 accumulated history/aggregates across sessions, not one session's turn-by-turn flow.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -329,11 +329,19 @@ async def create_student_report(
         dashboard=data,
         relevant_learning_facts=relevant_learning_facts,
     )
+    report_repo = StudentReportRepository(db)
     result = await generate_student_report(
         gateway=gateway,
-        repo=StudentReportRepository(db),
+        repo=report_repo,
         student_external_id=target_student_id,
         payload=payload,
+        # S36/AUD-L-02: this endpoint has no session, so "spend so far" is this student's
+        # report spend over the last 24h - the same window the service's own per-day
+        # ceiling uses. Passing a real number is what makes the gateway's budget check
+        # meaningful here at all; it previously received the 0.0 default on every call.
+        session_spend_cents=await report_repo.get_spend_cents_since(
+            target_student_id, datetime.now(UTC) - timedelta(hours=24)
+        ),
     )
     return StudentReportResponse(
         audience=audience,

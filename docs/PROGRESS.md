@@ -5,7 +5,100 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **Next session: S36 (AUD-L, learning product correctness)** — the first of Phase 0A's
+- **Next session: S36 continuation (AUD-L is partial)** — see D-097 and the new
+  [docs/AUDIT_FINDINGS.md](AUDIT_FINDINGS.md). Two things must happen at its start, in
+  this order:
+  1. **`terraform apply` then commit/push/deploy, as one operation.** Phase 1's
+     secret-gated staging token path is written, tested and `validate`-clean but **not
+     applied and not deployed** — the apply was denied by a permission prompt mid-session
+     and left with the user rather than worked around. The exact command is
+     `AWS_PROFILE=intellichoice-staging terraform -chdir=terraform/environments/staging
+     apply`; the plan was read and is safe (8 adds, 1 IAM policy update, and 2
+     task-definition "destroys" that are ECS revision replacements moving nothing running —
+     services run revision 13, Terraform manages 11). Nothing reaches live staging until
+     both the apply and a deploy run, because `ignore_changes = [task_definition]` means
+     the apply never moves the services (S35's lesson).
+  2. **Finish the three uncovered audit phases** (list below).
+- **S36 (AUD-L, learning product correctness) is PARTIAL, 2026-07-24** — see D-097 for the
+  full record. Four of seven planned phases completed; **one P0 found and fixed**, six other
+  findings logged, and a deliberate set of negative results recorded.
+  **Decisions taken at session start, both by the user:** D-096's open staging-auth question
+  was answered with a **secret-gated staging token path** (a 64-char random secret in Secrets
+  Manager, presented as `X-Staging-Token-Secret`, `hmac.compare_digest`, 404 on failure,
+  empty by default so local dev/CI/tests and any future production deployment are
+  unaffected) rather than pulling S44's real issuer forward (its architecture depends on S42
+  discovery data that doesn't exist) or auditing locally with a weakened §2.6 criterion 3
+  (which forfeits the premise §2.1 rests on). Audit breadth was set to full-breadth
+  risk-ordered; that choice was right but the estimate was wrong — the session ran out after
+  four areas.
+  **P0, found and fixed in-session (AUD-L-02): `POST /students/{id}/report` had no cost
+  ceiling of any kind.** The gateway enforces its per-session budget against a
+  `session_spend_cents` value the *caller* supplies, and this caller supplied nothing,
+  relying on a `= 0.0` default — so the check evaluated `0.0 + worst_case > 50.0` on every
+  call and never fired. The endpoint has no idempotency key (one fresh Bedrock call per
+  click), so the only remaining limit was the global per-IP request cap raised to 6,000/60s
+  in S34 for an unrelated reason. At the deployed model's real rates that permits **~$27 a
+  minute from one IP holding one valid token**, with the AWS Budget alarm — a lagging
+  notification — as the only backstop. Fixed by mirroring S24's existing chat precedent: a
+  `get_spend_cents_since` window query (no migration — `student_reports` already stores
+  `cost_cents`/`created_at`), `DAILY_REPORT_COST_CEILING_CENTS = 50.0` checked before the
+  call, and on exceed a degrade to the deterministic facts-only template the
+  gateway-failure/failed-grounding paths already produce. **The generalizable half:**
+  `session_spend_cents` is now *required* on both `generate_student_report` and
+  `generate_stage_narrative` — a cost parameter with a permissive default is a fail-open
+  default, this project's fourth instance of that class after D-096's `ecr:DescribeImages`
+  check and D-085's environment-string gate. Removing it surfaced all five call sites that
+  had silently depended on it.
+  **The finding most worth reading is AUD-L-04 (P1):** D-072 accepted that names survive
+  free-text redaction (only email/URL/phone are matched), and that acceptance was bounded by
+  the text living in `tutor_chat_messages` — **the only table in this codebase with a
+  retention job**. S25 then derived `semantic_memory.fact_text` from that same text, screened
+  with the same insufficient patterns, into a table with **no purge**, and those facts flow
+  outward into tutoring payloads and parent-visible reports. An accepted risk lost its
+  mitigation without anyone deciding to remove it — D-072 reasoned about a purged table,
+  D-074 about consolidation quality, and neither records this. Needs a decision, not just a
+  fix; recommendation is a `semantic_memory` retention job plus a note in the §6.1 privacy
+  text, since "we delete chat after 90 days" is otherwise misleading.
+  **Also logged, not fixed** (the audit's own rule — Phase 0B owns fixes, P0s excepted):
+  **AUD-L-07 (P1)** D-086's tutor/branch_manager scope gap is unchanged but reaches further
+  than its record describes, since S28's dashboard/report routes arrived after it was written
+  — a tutor token can read any student's data and generate reports about them (one shared
+  function, so one fix closes all 17 routes); **AUD-L-05 (P2)**
+  `MemoryConsolidationPayload` was never added to the PII-floor allowlist test, contrary to
+  D-072's own "How to apply" clause; **AUD-L-03 (P2)** `pre_intro` spend is never folded back
+  into the session total; **AUD-L-06 (P3)** `tutor.generate_hint` is dead code omitting the
+  leak check its live sibling applies; **AUD-L-01 (P3)** a gated-off `/dev/token` still
+  discloses its existence via 422/405, and the S35 gate's stated rationale for trusting a 404
+  is factually wrong about the code — it works only because it happens to probe with a valid
+  body, and nothing recorded says it must.
+  **Negative results recorded deliberately** (an audit whose output is only its defects can't
+  be told apart from one that stopped early): no Bedrock call anywhere bypasses the gateway;
+  every other one of 20+ `session_spend_cents` call sites passes a real accumulated value;
+  all 17 learning routes enforce authorization and session-scoped routes correctly key it off
+  the *checkpoint's* student id, not anything client-supplied; the SSE `?token=` path verifies
+  audience and ownership including for a student-less session; **the S23/D-071
+  checkpoint-overwrite bug class does not recur in the learning app** (both explicit `None`
+  writes are correct precisely because they erase); finalize is genuinely idempotent at both
+  the flow and route layers.
+  **Not covered — three of seven phases, not started:** SPEC conformance against §5.10–5.11
+  (mastery bootstrap, retry ladder, full hint ladder, gain math, generation/validation
+  pipelines including what actually sits `approved` and deliverable in the bank today,
+  stage-narrative grounding, memory effects on tutoring payloads); independent recomputation
+  of dashboard/report numbers from raw rows versus what the API and UI show; and the
+  adversarial live runs against staging (blocked twice over — by the unapplied Terraform
+  above, and by not having reached them). **§2.6 criterion 1 is not met by this session.**
+  **Tests (+12 net, 497→509, stable across 3 repeated `make test` runs):** 9 for the
+  staging-token gate (4 learning incl. a 3-case parametrization and a no-secret-configured
+  case, 4 chat, plus the positive paths), 3 for the report cost ceiling.
+  **Verification:** `make lint && make typecheck` clean, `terraform fmt`/`validate` clean,
+  workflow YAML parse-checked, 509 passed / 1 skipped on two consecutive full runs (three
+  including the pre-change baseline). No live verification of anything this session — see the
+  apply blocker.
+  **Carry-over beyond the audit phases:** [docs/INTEGRATION_PLAN.md](INTEGRATION_PLAN.md) is
+  **untracked and not gitignored** despite ROADMAP/PROGRESS/CLAUDE.md all pointing at it, so a
+  fresh clone loses Milestone 9's reasoning; `knowledge-content.zip` is also untracked and
+  probably should not be committed at all.
+- **Superseded context for S36 (kept for the record)** — the first of Phase 0A's
   four audit sessions, now scoped in `docs/ROADMAP.md`'s new **Milestone 9** (added this
   session from `docs/INTEGRATION_PLAN.md` §5, which is the detailed source for everything
   S35-S51). **One decision must be made at S36's session start, before any audit work:**

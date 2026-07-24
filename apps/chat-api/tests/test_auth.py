@@ -59,3 +59,58 @@ def test_dev_token_404s_when_endpoint_flag_disabled(monkeypatch: pytest.MonkeyPa
     client = TestClient(app)
     resp = client.post("/dev/token", json={"role": "student", "sub": "student-ext-1"})
     assert resp.status_code == 404
+
+
+STAGING_SECRET = "s" * 64
+
+
+def _staging_settings() -> Settings:
+    """Exactly staging's real posture (S36/D-097): not a dev environment, the D-085 flag
+    off, and only the shared secret configured - so these tests prove the secret alone is
+    what opens the endpoint, not some residual dev setting.
+    """
+    return Settings(
+        environment="staging",
+        dev_token_endpoint_enabled=False,
+        staging_token_shared_secret=STAGING_SECRET,
+    )
+
+
+def test_dev_token_issues_a_token_on_staging_with_the_shared_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S36/D-097: mirrors learning-api's equivalent test - see that one's docstring."""
+    monkeypatch.setattr(main_module, "get_settings", _staging_settings)
+    client = TestClient(app)
+
+    resp = client.post(
+        "/dev/token",
+        json={"role": "parent", "sub": "parent-ext-1"},
+        headers={"X-Staging-Token-Secret": STAGING_SECRET},
+    )
+
+    assert resp.status_code == 200
+    claims = JwtTokenVerifier().verify(resp.json()["token"], Audience.CHAT)
+    assert claims.sub == "parent-ext-1"
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        pytest.param({}, id="no_header"),
+        pytest.param({"X-Staging-Token-Secret": "wrong-secret"}, id="wrong_secret"),
+        pytest.param({"X-Staging-Token-Secret": ""}, id="empty_secret"),
+    ],
+)
+def test_dev_token_404s_on_staging_without_the_shared_secret(
+    monkeypatch: pytest.MonkeyPatch, headers: dict[str, str]
+) -> None:
+    """S36/D-097: mirrors learning-api's equivalent test - see that one's docstring."""
+    monkeypatch.setattr(main_module, "get_settings", _staging_settings)
+    client = TestClient(app)
+
+    resp = client.post(
+        "/dev/token", json={"role": "student", "sub": "student-ext-1"}, headers=headers
+    )
+
+    assert resp.status_code == 404
