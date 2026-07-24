@@ -69,6 +69,30 @@ jobs:
           push: true
           tags: ${{ env.ECR_REGISTRY }}/chat-api:${{ steps.vars.outputs.tag }}
 
+      # S34: found live, on this workflow's first-ever real run - every deploy before
+      # this fix ran migrations against whatever image Terraform's last `ops_task` apply
+      # happened to set (`s32-haiku-v1`, since nothing here had ever patched it), not the
+      # image just built above. A migration script (or, this session, a bug fix the
+      # migration step itself depended on) added since that apply would silently never
+      # run. Mirrors "Deploy learning-api"'s own patch-image-then-register pattern below,
+      # applied to the ops-task family - `run-task` naming the bare family (no revision
+      # suffix) always resolves to the latest registered revision, so no other change is
+      # needed to pick this up.
+      - name: Deploy ops-task (patch image tag before running migrations against it)
+        run: |
+          aws ecs describe-task-definition --task-definition intellichoice-staging-ops-task \
+            --query 'taskDefinition' | \
+            python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          td = {k: d[k] for k in ('family','containerDefinitions','requiresCompatibilities','networkMode','cpu','memory','executionRoleArn','taskRoleArn','runtimePlatform') if k in d}
+          for c in td['containerDefinitions']:
+              c['image'] = c['image'].rsplit(':', 1)[0] + ':${{ steps.vars.outputs.tag }}'
+          json.dump(td, sys.stdout)
+          " > /tmp/ops-task-td.json
+          aws ecs register-task-definition --cli-input-json file:///tmp/ops-task-td.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text
+
       # One-off Fargate task, same mechanism used manually throughout S32/D-084 - never
       # baked into container startup, and never `terraform apply` (the ecs-service
       # modules' `lifecycle.ignore_changes = [task_definition]` exists specifically so
