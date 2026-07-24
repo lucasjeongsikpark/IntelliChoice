@@ -86,7 +86,7 @@ jobs:
       # this deployment intentionally runs Graviton).
       - name: Build and push learning-api
         if: steps.images.outputs.learning_api_exists == 'false'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/learning-api/Dockerfile
@@ -96,7 +96,7 @@ jobs:
 
       - name: Build and push chat-api
         if: steps.images.outputs.chat_api_exists == 'false'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/chat-api/Dockerfile
