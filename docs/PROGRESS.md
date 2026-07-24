@@ -5,12 +5,77 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **Next session:** S35+ — no roadmap session past S34 is scheduled yet; S32-S34
-  (Milestone 8, the launch track) are now all shipped. Remaining pre-launch work is the
-  parallel-track legal/policy docs (§6.1, never coding-blocked) plus the carry-over items
-  below (WAF, backup-restore test, ZAP scan, real load test against live staging, RBAC
-  gap D-086) - all blocked on either AWS access or real credentials/legal review, not on
-  more building. `docs/ROADMAP.md` should get a fresh look before starting a new session.
+- **Next session: S36 (AUD-L, learning product correctness)** — the first of Phase 0A's
+  four audit sessions, now scoped in `docs/ROADMAP.md`'s new **Milestone 9** (added this
+  session from `docs/INTEGRATION_PLAN.md` §5, which is the detailed source for everything
+  S35-S51). **One decision must be made at S36's session start, before any audit work:**
+  closing the `/dev/token` P0 (below) leaves live staging with **no usable authentication
+  path at all** - real auth doesn't exist until S44 - so S36-S39's adversarial end-to-end
+  runs and §2.6's criterion 3 ("every launch journey passing twice consecutively against
+  live staging") cannot be executed as written. Three options are laid out at the end of
+  D-096; none was chosen, because it's a real trade-off between audit fidelity and
+  re-opening auth surface on a public endpoint.
+- **S35 (Restore the deploy pipeline) substantially shipped, 2026-07-24** — see D-096 for
+  the full diagnosis and every finding. **The ten-attempt Alembic blocker is fixed and the
+  deploy is functionally restored:** both services run task-definition revision 12, 1/1,
+  both ALB target groups `healthy` under the new `/readyz` check (which pings Postgres
+  *and* MySQL, so healthy targets prove real connectivity to both from both apps), no
+  errors in either app log. The real error, finally read, was
+  `InvalidPasswordError: password authentication failed` - every S34 SSL fix had worked;
+  applying D-092's `manage_master_user_password` had rotated the master password into RDS's
+  managed secret while `ops-task` still injected the old, now-dead one. **S34's sequencing
+  was inverted:** it withheld the apply until a deploy succeeded, but the apply is what
+  rewires every consumer to the managed secret, so the deploy could never succeed first.
+  The withheld Terraform is now applied (alarms, autoscaling, circuit breaker, per-app JWT
+  secrets, old-secret cleanup).
+  **P0, live for two days: `POST /dev/token` was reachable on both public CloudFront
+  distributions** (returned 422, not 404 - the endpoint existed and was processing input,
+  so anyone could mint a token for any role and any student). S33/D-085 records this as
+  closed, and it was - in gitignored `terraform.tfvars`, in one working tree, with the
+  apply withheld. Nothing tied config-level intent to deployed reality. Now closed
+  (verified 404 through both distributions) **and** guarded by a new post-deploy step in
+  `deploy-staging.yml` that asserts it live and fails the deploy otherwise.
+  **Two hazards caught in the withheld plan before applying it**, either of which would
+  have caused an outage: `terraform.tfvars` pinned a pre-`/readyz` image while the same
+  apply flipped the health check *to* `/readyz` (bumped to `gha-6cc4a27430bd`); and
+  `ignore_changes = [task_definition]` means the apply never moves the services, so
+  **apply and deploy are one operation** - between them staging really did serve 503 with
+  both targets unhealthy.
+  **The deploy pipeline could never be re-run on an unchanged commit** (SHA-derived tag +
+  immutable ECR tags), which made the normal repair loop structurally impossible; D-095
+  hand-deleted tags to work around it and it recurred immediately. Fixed to reuse an
+  existing image for the same commit. **A fail-open bug in that fix** was caught before it
+  mattered: it used `ecr:DescribeImages`, an `implicitDeny` for the deploy role, with
+  `2>/dev/null` - so a permission error and an absent image were indistinguishable and the
+  step would have been decoration that appeared to succeed. Rewritten on `batch-get-image`
+  (permitted) and to exit non-zero rather than assume.
+  **Credential-exposure gap closed:** `*.tfstate` was gitignored but `*.tfplan` was not,
+  and a plan file is a zip containing a full cleartext copy of state - one was sitting
+  untracked and committable under `terraform/environments/staging`.
+  **Not yet green end-to-end:** the run ended red at the new security gate itself, because
+  `cloudfront:ListDistributions` isn't granted to the deploy role, so it couldn't resolve
+  the domains to probe (it failed *closed*, which is why this showed up as a red run rather
+  than a false pass). Fixed by hardcoding both domains in the workflow's `env:` (matching
+  the file's existing convention for infrastructure ids) and dry-run green against the live
+  environment, but **not yet committed or re-run** - the canary bake, frontend sync, and
+  smoke test were skipped and remain unverified live. That re-run is the first small
+  carry-over.
+  **Carry-over:** re-run the deploy to a fully green finish (canary bake + frontend sync +
+  smoke test still never verified). **The SNS alarm email subscription is still
+  `PendingConfirmation`** - until that link is clicked no alarm can reach a human, which
+  makes the canary bake's alarm check pass vacuously and blocks §2.6's criterion 8. The
+  applied `terraform.tfvars` values live only in a local working tree (gitignored by
+  pre-existing convention; real state is in the S3 backend, so reality is recoverable, but
+  a fresh clone would need them re-supplied). `AmazonBedrockMantleFullAccess` on the admin
+  group is vestigial after D-084's addendum abandoned Mantle - small least-privilege
+  cleanup. Real load testing against live staging (S34's carry-over) is now unblocked.
+- **Roadmap past S34 is now scoped**: `docs/ROADMAP.md` gained **Milestone 9** (S35-S51:
+  deploy restoration → four audit sessions → stabilization → the §2.6 gate → integration
+  discovery/adapter/auth/consent → rollout), derived from `docs/INTEGRATION_PLAN.md`, which
+  holds the detailed reasoning (immutability constraint, boundary tiers, incompatibility
+  catalog I1-I15, auth options O1-O4, residual risks R1-R7). Milestone 8 (S32-S34) is
+  otherwise all shipped. The other long-standing carry-overs (WAF, backup-restore test, ZAP
+  scan, RBAC gap D-086) are folded into that plan's Phase 0B and A7 tracks.
 - **S34 (Load testing and production readiness) shipped, 2026-07-24** — see D-095 for
   the full design, every real finding, and what's translated vs. built vs. deferred. User
   chose full scope (both the locally-runnable load-test half and the canary-pipeline/

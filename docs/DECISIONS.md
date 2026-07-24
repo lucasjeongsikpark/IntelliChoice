@@ -3354,3 +3354,224 @@ above):**
 **Tests (+22 net): 4 `test_readyz.py` (2 per app), 1 Bedrock circuit-breaker concurrency test,
 17 pre-existing bedrock-gateway tests re-verified alongside it.** `make lint && make typecheck &&
 make test` run at session end - see PROGRESS.md for the final count and stability check.
+
+### Addendum 2026-07-24: AWS access returned mid-session; real first-ever live deploy attempted, several real bugs found, still not fully working
+
+After the S34 write-up above and its own end-session, the user's `intellichoice-staging` AWS SSO
+session came back for the first time since S33 started. What follows happened live against real
+AWS, in this same session, after that point - real, not "written but unapplied" like everything
+above.
+
+**Applied for real (all narrowly `-target`ed, not a full `terraform apply` - see below for why):**
+- Both RDS instances' `manage_master_user_password=true` (D-092's migration, written in S33,
+  applied for the first time here) - in-place, ~1m32s each, no replacement, no downtime.
+- `terraform/modules/rds-postgres` and `-mysql` outputs' `master_user_secret_arn`: `[0]` indexing
+  crashed `terraform plan` outright the moment this account's real state made `master_user_secret`
+  genuinely empty pre-apply (a known Terraform/AWS-provider gap for retrofitting `manage_master_
+  user_password` onto an *existing* instance in the same apply where its secret is consumed
+  elsewhere) - fixed with `one(...)`, Terraform's built-in for "a list that's 0-or-1 elements."
+- The GitHub OIDC deploy role's trust policy (`terraform/modules/iam`): real
+  `AssumeRoleWithWebIdentity` denials on this workflow's actual first-ever run, root-caused via
+  CloudTrail (which logs the denied principal's real `sub` claim - the GitHub Actions log itself
+  doesn't). GitHub's real token was `repo:lucasjeongsikpark@69391959/IntelliChoice@1310320932:
+  ref:refs/heads/main` - immutable owner/repo IDs appended after `@`, not the plain `org/repo:*`
+  shape every example (including this file's own original D-084 write-up) assumed. Fixed with an
+  `@*` wildcard after both org and repo.
+- The same role's `ecs:RunTask`/`ecs:UpdateService` permissions: scoped to the *cluster* ARN,
+  which neither action accepts as a resource at all (RunTask needs the task-definition ARN,
+  UpdateService the service ARN - a different ARN "resource type" segment than `cluster/<name>`
+  entirely) - silently authorized nothing for either action since deploy-staging.yml had never
+  actually run before. Split into three properly-scoped statements (`ecs:cluster` condition key
+  for RunTask, service-ARN pattern for UpdateService, `Resource: "*"` for DescribeTasks, matching
+  the existing precedent for other Describe-style actions in this same policy).
+
+**Found and fixed, each only visible by actually running the real (never-before-run)
+`deploy-staging.yml` against real AWS - eight total deploy attempts, each one either fixing the
+previous bug or surfacing the next:**
+1. ECR's tag immutability (a deliberate S32 hardening setting) blocked re-pushing the same
+   commit-SHA image tag from earlier failed attempts - cleared the two stale tags manually.
+2. Real RDS ships `rds.force_ssl=1` (AWS's own default parameter group) - D-092's component-based
+   DSN assembly never requested SSL, so both apps' Postgres connections and the ops-task's Alembic
+   migrations were rejected outright (`no pg_hba.conf entry ... no encryption`). First fix
+   (`intellichoice_db.engine.create_engine`'s `connect_args`) didn't reach `packages/db/
+   alembic/env.py`, which builds its own engine via `async_engine_from_config` and never calls
+   `create_engine` at all - extracted a shared `ssl_connect_args()` helper both call.
+3. Even after that fix reached alembic, the real migration task still failed with the identical
+   error - root cause turned out to be one level up: `deploy-staging.yml` only ever patched
+   `learning-api`/`chat-api`'s task definitions with the newly-built image tag, never `ops-task`'s.
+   Every migration run (before and after the SSL fixes above) had been running against the stale
+   `s32-haiku-v1` image the whole time, which had neither fix. Added an explicit "Deploy ops-task"
+   step mirroring the existing patch-image-then-register pattern, before the migration step runs.
+4. With the real fix finally reaching the real migration task, asyncpg *did* attempt encryption -
+   and failed differently: `ssl=True` uses `ssl.create_default_context()`, which performs full
+   certificate verification against the system trust store; RDS's cert chains to Amazon's own RDS
+   CA, not present in this minimal image (`SSLCertVerificationError: self-signed certificate in
+   certificate chain`). Fixed with an explicit `SSLContext(check_hostname=False, verify_mode=
+   CERT_NONE)` - encrypt without verifying the specific CA chain, matching the posture
+   `checkpoint_database_url`'s `?sslmode=require` (not `verify-full`) already has for the
+   psycopg/LangGraph-checkpoint connection path, so both paths are consistent rather than one
+   being accidentally stricter than the other.
+
+**Still not working - stopped here at the user's direction, carried over, not a "shipped"
+close-out:** the eighth deploy attempt (commit `6cc4a27`) still failed at the same "Run Alembic
+migrations" step with exit code 1. The real cause is unknown - the local AWS CLI session (`intelli
+choice-staging` SSO profile) expired mid-investigation, before the actual CloudWatch traceback
+could be read, and re-authenticating needs an interactive browser login this session can't trigger
+on its own. GitHub Actions' own log only shows "exit code 1," never the container's real stdout/
+stderr - CloudWatch access is required to see why. **Next session should start by re-authenticating
+AWS access, then reading `/ecs/intellichoice-staging-ops-task`'s latest log stream to see the real
+error before trying anything else.**
+
+**Also still pending, deliberately not applied this session:** the full `terraform plan` (23 add /
+7 change / 12 destroy at last check) - CloudWatch alarms, Application Auto Scaling, the ECS
+deployment circuit breaker, real per-app JWT signing secrets (D-085, written in S33, still never
+applied), and cleanup of the old manually-managed RDS secrets/`random_password` resources D-092
+superseded. Sequencing was deliberate: get a real, working deploy through on the *current*
+`health_check_path`/task-definition shape first (so the `/readyz`-based health check and secrets-
+ARN changes don't land against a task that can't yet serve them), then apply the rest. That
+sequencing point is exactly where this session stopped.
+
+**Real commits pushed this addendum** (all on `main`, no PR - matches this repo's existing
+direct-to-main convention): `39f7fec` (OIDC trust policy + RunTask/UpdateService IAM fix + first
+SSL attempt), `92599ed` (alembic `ssl_connect_args` fix), `02846ca` (ops-task image-tag fix),
+`6cc4a27` (SSL cert-verification fix). The original S34 work above was `c2c5e7d` (combined with
+S33's own unpushed diff, committed together since both were fully verified and neither could be
+cleanly split file-by-file without risking an inconsistent intermediate commit).
+
+## D-096 — S35: staging deploy restored; the withheld apply was the blocker, not a consequence; a P0 auth bypass had been live for two days (accepted, 2026-07-24)
+
+**Context.** S34's addendum left the deploy failing at "Run Alembic migrations" with exit code 1
+and the real traceback never seen (that session's AWS access expired first). S35 opened with
+working AWS access — a plain IAM user in the `intellichoice-staging-admins` group
+(`AdministratorAccess`), not the SSO profile that kept expiring through S33/S34. That change of
+credential type is itself worth noting: every "no AWS access" carry-over from S33 onward was an
+SSO-session-expiry problem, and an IAM user sidesteps it.
+
+**The real Alembic error, finally read.** `asyncpg.exceptions.InvalidPasswordError: password
+authentication failed for user "intellichoice"`. Every SSL fix from `39f7fec`..`6cc4a27` had
+worked — the previous log stream shows the cert-verification failure, the next one shows TLS
+completing and authentication failing one step later. The cause was D-092's own migration:
+applying `manage_master_user_password` made RDS mint a new master password into its managed
+secret (`rds!db-13a43ef4-…`), which silently invalidated the old manually-maintained
+`intellichoice-staging/postgres/database-url` secret that `ops-task` was still injecting.
+
+**The sequencing was inverted, and that was the whole blocker.** S34's addendum deliberately
+withheld the full apply until "a real, working deploy" had gone through on the current
+task-definition shape. That ordering cannot work: the apply is what rewires every consumer to
+the managed secret, so the deploy could never succeed before it. Recorded because the reasoning
+in the addendum reads as prudent and is worth correcting explicitly — *withholding an apply is
+not automatically the safe choice; it is only safe when nothing already-applied depends on it.*
+Half of D-092 had already been applied (the RDS side), which is exactly what made the other half
+mandatory rather than optional.
+
+**P0, found by probing the live edge rather than reading config: `POST /dev/token` was reachable
+on both public CloudFront distributions.** It returned 422 (FastAPI validating a request body),
+not 404 — the endpoint existed and was processing input, so anyone on the internet could mint a
+token for any role and any student. Reachability was proven and deliberately not exploited
+further; no token was minted.
+
+The root cause is the durable lesson, not the endpoint. S33/D-085 records this finding as
+executed, and it was — in `terraform.tfvars`, which is gitignored, in one machine's working
+tree, with the apply withheld. The running tasks still carried `LEARNING_ENVIRONMENT=dev` /
+`CHAT_ENVIRONMENT=dev` on the `s32-haiku-v1` image, which also predates S33's second
+(`dev_token_endpoint_enabled`) gate. So the decision log said "closed" for two days while the
+hole was open, and *nothing in the system tied config-level intent to deployed reality.* Two
+fixes, not one:
+1. The apply + deploy actually close it (staging env + both gates + a current image).
+2. A new post-deploy step in `deploy-staging.yml` asserts `POST /dev/token` → 404 through both
+   distributions and fails the deploy otherwise — a live check against what is running, not
+   against what the config claims. It fails the workflow rather than triggering the rollback
+   path, because rollback moves to an *older* image, which is more likely exposed, not less.
+
+**Two hazards found in the withheld plan before applying it, both of which would have caused an
+outage.**
+- `terraform.tfvars` pinned `learning_api_image_tag = "s32-haiku-v1"`, an image predating
+  `/readyz`, while the same apply flips both target groups' health check *to* `/readyz` and
+  creates the deployment circuit breaker. Applying as written would have rolled both services
+  onto an image that could never pass the new health check, with the circuit breaker rolling it
+  back in a loop. Fixed by bumping both tags to `gha-6cc4a27430bd` (commit `6cc4a27`).
+- The `ecs-service` module carries `lifecycle { ignore_changes = [task_definition, ...] }`, so
+  the apply registers corrected task definitions but never points the services at them. The
+  plan's only service-level change is the circuit breaker. **The apply and the deploy are one
+  operation, not two:** between them, the running (old, `/readyz`-less) tasks fail the new health
+  check, ECS churns them, and staging serves 503. Confirmed live — both services stuck on
+  revision 9, `runningCount: 0`, both target groups `unhealthy` — and lifted only by the deploy.
+
+**A race removed rather than survived.** Nothing in Terraform's graph orders the execution-role
+policy update (which grants access to the new managed secrets) before ECS pulls those secrets,
+and a failed launch would have met the circuit breaker whose rollback target still referenced the
+dead secret. The IAM grant was applied on its own first, then the remainder.
+
+**The deploy pipeline could never be re-run on an unchanged commit — a structural defect, fixed.**
+The image tag derives from the commit SHA and the ECR repositories have immutable tags (S32
+hardening), so re-running always died with "tag already exists … cannot be overwritten". Since
+re-running after fixing something *outside* the app image (Terraform, IAM, a secret) is the normal
+repair loop, that loop was impossible. D-095's addendum hit this as its bug #1 and worked around
+it by hand-deleting tags; it recurred immediately in S35, which is what marked it as needing a
+real fix rather than a third manual cleanup. Now an existing image for the same commit is reused
+instead of rebuilt, preserving one-commit-one-image so rollback targets stay truthful.
+
+**A fail-open bug in that fix, caught before it could matter.** The first version called
+`aws ecr describe-images` with `2>/dev/null`. `ecr:DescribeImages` is an `implicitDeny` for the
+GitHub deploy role (only `ecr:BatchGetImage` is granted), so a permission error and a genuinely
+absent image were indistinguishable: the step would have reported "needs a build" on every run,
+the push would have failed on immutability again, and the whole step would have been decoration
+that *appeared* to succeed. Rewritten to use `batch-get-image` (already permitted) and to exit
+non-zero on any unexpected ECR failure instead of assuming. Worth recording as its own item
+because the bug class is the one this project keeps producing — a swallowed error defaulting to
+the permissive branch — and here it appeared in newly written *tooling*, where SPEC's fail-closed
+rule is easy to forget.
+
+**Credential-exposure gap closed.** `*.tfstate` was gitignored; `*.tfplan` was not. A saved plan
+file is a zip archive containing a full copy of `tfstate`, so it carries the same cleartext
+secrets (`random_password` results, `secret_version` strings) — and one was sitting untracked and
+committable in `terraform/environments/staging`. `*.tfplan` is now ignored and the stale file
+deleted (it had already been applied). The file was not extracted to confirm its contents, since
+that would have meant reading credentials.
+
+**Deliberately not changed.** `AmazonBedrockMantleFullAccess` on the admin group is vestigial
+after D-084's addendum abandoned Mantle account-wide — noted as a small least-privilege cleanup,
+not done here. The applied `terraform.tfvars` values still live only in a local working tree
+(gitignored by pre-existing convention); real state is recorded in the S3 backend, so reality is
+recoverable, but a future apply from a fresh clone would need those values re-supplied.
+
+**Verification (live, against real AWS, not unit tests).** Deploy run `30121133594` from commit
+`6ede7b3`: both images built and pushed, `ops-task` patched, **"Run Alembic migrations" passed for
+the first time in ten attempts**, both services deployed and `services-stable`. Precise about what
+the migration proved: its log shows only `Context impl PostgresqlImpl` / `Will assume transactional
+DDL` and no `Running upgrade` lines — the database was already at head (S32 migrated it; S33/S34
+added no migrations), so the schema work was a no-op. What was actually fixed and proven is the
+connection: the ops task can now authenticate to real RDS over TLS.
+
+Both services run revision 12, 1/1, with both ALB target groups `healthy` — and the health check
+is now `/readyz`, which pings Postgres *and* MySQL (S34's `db_ready`, 3s timeout), so a healthy
+target is direct evidence of real connectivity to both databases from both apps. Their logs show
+`Application startup complete` and a steady stream of `/readyz` 200s: ~400-540ms on the first call
+(cold connection establishment), then 5-8ms once pooled, with no errors, exceptions, or
+authentication failures. `POST /dev/token` returns `{"detail":"Not Found"}` / 404 through both
+CloudFront distributions — the P0 is closed, confirmed live.
+
+**The run still ended red, at the new security gate itself, for a third reason worth recording:**
+`cloudfront:ListDistributions` is not granted to the GitHub deploy role, so the gate could not
+resolve the domains it was supposed to probe. It failed *closed* (an unresolvable domain is a
+failure, not a pass), which is the correct behavior and why this surfaced as a red run rather than
+a false green. Fixed by hardcoding both CloudFront domains in the workflow's `env:` block —
+matching this file's existing convention for infrastructure ids (the distribution ids in the sync
+steps, the subnet/SG ids) and requiring no new permission — with the smoke test switched to the
+same two variables so the literals exist once rather than three times. The corrected gate was
+dry-run against the live environment and reports `OK` / 404 for both apps. Because the gate failed,
+the canary bake, frontend build/sync, and smoke test were skipped; the frontends were therefore not
+redeployed this run (they are unchanged since S32, so no drift).
+
+**New finding, consequential for the audit sessions: closing `/dev/token` leaves live staging with
+no usable authentication path at all.** Real auth does not exist until S44 (INTEGRATION_PLAN I1),
+and the dev stand-in was the only way to obtain a token. Everything unauthenticated still verifies
+(health, readiness, the frontends), but **the adversarial end-to-end runs S36-S39 depend on, and
+§2.6's criterion 3 — every launch journey passing twice consecutively against live staging — cannot
+be executed as written.** This is a direct, foreseeable consequence of the correct security fix,
+not a regression, and it needs an explicit answer before S36 rather than being discovered mid-audit.
+The options, none chosen here: a staging-only token path gated on a real secret held in Secrets
+Manager (not an environment string); an allowlisted issuer under the new stack's own signing keys,
+which is S44 work pulled earlier; or running the journey suites against a local stack and accepting
+that "live staging" in criterion 3 means something weaker until S44 lands. Flagged for the user to
+decide at S36's session start.

@@ -26,6 +26,13 @@ env:
   # below (mirrors how ops-task has been invoked manually all session).
   PRIVATE_SUBNET: subnet-021ec8b4b06e6d2a1
   ECS_TASKS_SG: sg-0c3191c6140f84a57
+  # S35: hardcoded to match this file's existing convention for infrastructure ids (the
+  # distribution ids in the sync steps below, the subnet/SG above). The first version of
+  # the security gate looked these up via cloudfront:ListDistributions instead and failed
+  # live: that action is not granted to the GitHub deploy role. Hardcoding needs no new
+  # permission and is no more brittle than the distribution ids already inlined below.
+  LEARNING_CF_DOMAIN: d35dfnjzmgrm01.cloudfront.net
+  CHAT_CF_DOMAIN: d222glidpp4azv.cloudfront.net
 
 jobs:
   deploy:
@@ -68,17 +75,37 @@ jobs:
       # run-scoped suffix, which would let one commit sprawl across many near-identical
       # tags. Content-identical rebuilds are also not free on arm64 emulation, so skipping
       # them is a real speedup on the repair loop this fix exists to serve.
+      # Uses batch-get-image, not the more obvious describe-images: this role is only
+      # granted ecr:BatchGetImage, and describe-images is an implicitDeny for it. The first
+      # version of this step called describe-images with 2>/dev/null, which would have
+      # silently reported "needs a build" on every run - the permission error and a
+      # genuinely absent image were indistinguishable - so the immutable-tag push would
+      # have failed again anyway and this whole step would have been decoration. Hence also
+      # the hard exit below rather than a fallback: an unreadable ECR is an error to
+      # surface, not a reason to assume anything (SPEC's fail-closed rule applies to
+      # tooling too).
       - name: Check whether this commit's images are already in ECR
         id: images
         run: |
           for app in learning-api chat-api; do
-            if aws ecr describe-images --repository-name "$app" \
-                 --image-ids imageTag="${{ steps.vars.outputs.tag }}" >/dev/null 2>&1; then
+            if ! out=$(aws ecr batch-get-image --repository-name "$app" \
+                         --image-ids imageTag="${{ steps.vars.outputs.tag }}" \
+                         --output json 2>&1); then
+              echo "FAIL: could not query ECR for $app - refusing to guess whether the image exists."
+              echo "$out"
+              exit 1
+            fi
+            found=$(printf '%s' "$out" | jq '.images | length')
+            codes=$(printf '%s' "$out" | jq -r '[.failures[].failureCode] | join(",")')
+            if [ "$found" -gt 0 ]; then
               echo "$app already has ${{ steps.vars.outputs.tag }} - reusing it."
               echo "${app//-/_}_exists=true" >> "$GITHUB_OUTPUT"
-            else
+            elif [ "$codes" = "ImageNotFound" ] || [ -z "$codes" ]; then
               echo "$app needs a build for ${{ steps.vars.outputs.tag }}."
               echo "${app//-/_}_exists=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "FAIL: unexpected ECR failure for $app: $codes"
+              exit 1
             fi
           done
 
@@ -225,12 +252,11 @@ jobs:
       - name: Verify /dev/token is unreachable from the public edge (security gate)
         run: |
           FAILED=0
-          for app in learning chat; do
-            DOMAIN=$(aws cloudfront list-distributions \
-              --query "DistributionList.Items[?Comment=='intellichoice-staging-${app}'].DomainName" \
-              --output text)
+          for entry in "learning:$LEARNING_CF_DOMAIN" "chat:$CHAT_CF_DOMAIN"; do
+            app="${entry%%:*}"
+            DOMAIN="${entry#*:}"
             if [ -z "$DOMAIN" ]; then
-              echo "FAIL [$app]: could not resolve a CloudFront domain to check."
+              echo "FAIL [$app]: no CloudFront domain configured to check."
               FAILED=1
               continue
             fi
@@ -333,6 +359,6 @@ jobs:
 
       - name: Smoke test (through the public CloudFront URLs, not curl-to-ALB)
         run: |
-          curl -sf -o /dev/null https://d35dfnjzmgrm01.cloudfront.net/
-          curl -sf -o /dev/null https://d222glidpp4azv.cloudfront.net/
+          curl -sf -o /dev/null "https://$LEARNING_CF_DOMAIN/"
+          curl -sf -o /dev/null "https://$CHAT_CF_DOMAIN/"
           echo "Both frontends responding."

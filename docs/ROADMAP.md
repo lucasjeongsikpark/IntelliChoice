@@ -530,9 +530,126 @@ either); canary pipeline is a bake-then-check gate in `deploy-staging.yml`, not 
 traffic-split canary (`desired_count=1` has no second task to shift traffic to); rollback
 triggers are both an ECS deployment circuit breaker (deploy-time) and CloudWatch-alarm-gated
 automatic rollback (runtime). Two real production bugs found and fixed by the load test itself
-(rate-limiter self-DoS + invisible 429s, `/healthz` never checking DB connectivity). All
-Terraform is `fmt`/`validate`-clean, not `apply`'d - real load testing against live staging is a
-carry-over once AWS access returns.
+(rate-limiter self-DoS + invisible 429s, `/healthz` never checking DB connectivity). All Terraform
+was `fmt`/`validate`-clean at session end. **AWS access returned mid-session after this write-up**
+(see D-095's "Addendum 2026-07-24") - two RDS instances and two IAM fixes were applied for real,
+and this project's first-ever real `deploy-staging.yml` run surfaced (and mostly fixed) several
+more real bugs, but the live deploy itself is still failing and carries over open - see
+PROGRESS.md's "Next session" for the concrete resume point. Real load testing against live
+staging is a separate, still-open carry-over once the deploy itself is unblocked.
+
+## Milestone 9 — Audit, stabilize, then integrate with the production system
+
+**[docs/INTEGRATION_PLAN.md](INTEGRATION_PLAN.md) is the detailed source for this milestone**
+(scope constraint, boundary tiers, the incompatibility catalog I1–I15, the auth-option
+comparison, accepted residual risks). The blocks below are the session-by-session view only —
+read the plan's own sections rather than duplicating its reasoning here.
+
+The governing constraint: **the production system behind intellichoice.org /
+go.intellichoice.org (`icrest`/`icweb` + the `ic` MySQL database) is immutable.** All
+compatibility logic lives in the new stack. Phase 0 exists because this project's own history
+shows that live verification finds real defects unit tests miss — S23, S26, S28, S31, S33, S34
+and S35 each did — so "497 tests pass" is not evidence of readiness for integration.
+
+### Session 35 — Restore the deploy pipeline *(INTEGRATION_PLAN §2.2)* ✅ (substantially done 2026-07-24)
+Diagnose the failing Alembic step (real traceback never seen), apply the withheld Terraform
+(canary bake + CloudWatch alarms + autoscaling + deployment circuit breaker + per-app JWT
+signing secrets), verify both service deploy steps, confirm a real image healthy under
+`/readyz`. **Shipped 2026-07-24 (see D-096):** the real error was
+`InvalidPasswordError` - D-092's `manage_master_user_password` had rotated the master password
+into RDS's managed secret while `ops-task` still injected the dead one, so **S34's decision to
+withhold the apply until a deploy succeeded was the blocker, not a safeguard**. Withheld Terraform
+applied; migrations pass; both services healthy on revision 12 under `/readyz` (which proves real
+Postgres + MySQL connectivity). **A P0 was found live: `POST /dev/token` had been reachable on both
+public CloudFront distributions for two days** because S33's fix existed only in gitignored
+`terraform.tfvars` with the apply withheld - now closed and guarded by a live post-deploy assertion.
+Also fixed: the pipeline could never be re-run on an unchanged commit (SHA tag + immutable ECR
+tags), and `*.tfplan` was not gitignored despite embedding a cleartext copy of state.
+**Open:** one re-run to a fully green finish (canary bake, frontend sync, and smoke test are still
+unverified live), and the SNS alarm email subscription is still unconfirmed. **Note for S36:**
+closing `/dev/token` leaves staging with no authentication path at all until S44, which blocks the
+audits' live end-to-end runs as specified - decide at S36's start (D-096's closing section).
+
+### Sessions 36–39 — Phase 0A audit *(INTEGRATION_PLAN §2.3)*
+Common method for all four: requirements traceability against launch-scope SPEC sections;
+defect-pattern sweeps for every bug class this project has already produced once; adversarial
+end-to-end runs against live staging (not happy paths); findings logged with severity
+(§2.4 P0–P3), reproduction, and evidence. Fixes land in Phase 0B, not mid-audit, except P0s,
+which stop the line.
+
+- **S36 — AUD-L, learning product correctness.** Assessment creation/policy snapshots,
+  generation+validation pipelines, attempt/answer flows incl. finalize idempotency,
+  deterministic scoring and re-grade consistency, mastery + retry ladder vs §5.10–5.11, the
+  full hint ladder, learning-gain math, dashboard/report numbers recomputed independently from
+  raw rows, stage-narrative grounding, memory effects on tutoring payloads.
+- **S37 — AUD-C, chat product correctness.** Retrieval quality via the existing eval harness
+  extended (paraphrase/adversarial/no-answer sets; grounded-citation and correct-refusal rates
+  as tracked metrics), pre-retrieval role/branch/date filtering for every audience incl.
+  anonymous, conversation state across turns/interrupts/reconnects, tool-call validation +
+  audit trail, citation verbatim checks, **every degraded/refusal/empty response shape actually
+  rendered** (the S22.5 blank-turn bug is the known exemplar of a class).
+- **S38 — AUD-X, cross-cutting integrity.** New-stack authn/authz boundaries (audience
+  separation, cross-student/parent attempts on every route, SSE `?token=`, dev-token gates,
+  checkpoint-thread hijack), checkpoint↔domain-table consistency after crashes mid-node/
+  mid-interrupt/mid-finalize, idempotency of every retryable write, Bedrock cost ceilings under
+  concurrency, PII floor re-verified against **live staging** logs/traces/metrics/payloads.
+- **S39 — AUD-F, frontend contracts + operations.** Scripted walk of every launch user journey
+  against the real APIs with console/network capture, CI-coverage inventory (chat-web has no CI
+  job at all), deployment drills (a deliberate bad-image deploy must demonstrably auto-roll-
+  back), scheduled-job dry runs, proof each CloudWatch alarm can fire *and reach a human*,
+  live-staging load/perf re-run.
+
+### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
+All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog: S22.5
+`access_hint` blank turn, S11 parent auto-select, chat-web CI, the unseeded-RNG flake,
+`question_variants` accumulation, the ~249k-row `checkpoints` sweep, EventBridge schedules for
+the four manual jobs (the 90-day `chat-purge` retention promise must not depend on a human
+running `make`), retention jobs for `stage_transitions`/`student_reports`, and the ≥2-task/
+autoscaling P95 fix with a live load re-baseline.
+
+### Gate — measurable exit criteria before integration discovery *(INTEGRATION_PLAN §2.6)*
+Nine criteria, evidenced in PROGRESS.md: full traceability; zero open P0/P1; every launch
+journey passing twice consecutively against live staging; 3 consecutive green full test runs
+with CI covering every deployable; 2 consecutive clean deploys incl. migrations + canary bake
+plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week; live load
+meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
+monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
+
+### Sessions 42–47 — Integration readiness and implementation *(INTEGRATION_PLAN §3, §5)*
+- **S42 — discovery, Tier 1 org asks, and the auth decision gate.** Exercise
+  `POST /api/accounts/login`, `GET /api/accounts`, `GET /api/accounts/signups` server-side from
+  AWS; icrest availability history; DB topology/network path/read-only account; DNS additions;
+  live role-string survey, timezone convention, schema snapshot. **Selects the §3.1 auth option
+  (O1 login-API delegation is the provisional recommendation) and the I11 data-path rung**,
+  recorded with §7 residual-risk acceptance in DECISIONS.md before S44 implements.
+- **S43 — `IcProfileAdapter`** (I3–I7, I15) behind the existing `ProfileAdapter` Protocol: id
+  namespacing (`acct-<id>`/`child-<id>`), attendance derivation from `signups.attended`,
+  fail-closed role mapping, branch enrichment; contract tests against captured fixtures + a
+  deploy-time schema smoke probe (I12).
+- **S44 — independent auth** (I1, I14): the selected option, token issuer with SPEC claims +
+  per-app secrets, login UI replacing `DevLoginScreen`, per-account+per-IP login rate limiting,
+  refresh/revocation, logout semantics.
+- **S45 — consent** (I9, I10): ledger (external ids + enums only, no PII), parent-grants-for-
+  child capture UI, age-band derivation, no-consent→no-token; legal text from the §6.1 track.
+- **S46 — role scoping + frontend completion** (I2, I8): student/parent-only issuance, the
+  formal D-086 disposition, entry/login/session UX end-to-end in both apps.
+- **S47 — integration-specific test pass**: E2E against a production-schema replica seeded with
+  realistic edge data (soft-deleted children, NULL attendance, unknown roles, unverified
+  accounts, duplicate signups), auth abuse tests, staleness drill, PII re-audit of the new
+  login path.
+
+### Sessions 48–51 — Rollout *(INTEGRATION_PLAN §5, §6)*
+S48 production environment (`terraform/environments/production`: multi-AZ, ≥2 tasks, deletion
+protection, dev-token gates off, domains + ACM + additive DNS, alarms to a monitored inbox);
+S49 real credentials + feature-flag audit (SES or email flag-off; Maps/Calendar/YouTube
+real-or-off) and the live connectivity path; S50 A7 close-out (WAF, backup-restore drill, ZAP
+on prod config, runbook updated for the integrated topology); S51 pilot start + graduated
+rollout (allowlist → single-branch pilot → all branches → public chat).
+
+**Dependency spine:** S35 → the four audits → stabilization → **gate** → discovery (S42) →
+adapter → auth → consent/scoping → integration testing. Parallel: A6 real content (3 of 23
+knowledge docs are real; curriculum is `linear_equations`-only authored, D-060) gates the
+*pilot*; A7 gates *public* chat promotion, not the pilot; §6.1 legal docs gate the pilot.
 
 ### Parallel track (any time, non-coding) — Phase 0 legal & policy docs (§6.1)
 Privacy Notice, AI Use Notice, product Learning Notice, retention policy, etc. Drafting can
