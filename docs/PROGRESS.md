@@ -13,6 +13,22 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   `intellichoice-staging/{learning,chat}-api/staging-token-shared-secret` from Secrets
   Manager into a shell variable — never echo it — and send it as `X-Staging-Token-Secret` on
   `POST /dev/token`. The two secrets are per-app and deliberately not interchangeable.
+  **Merged to `main`** (`1eb125a`, fast-forward, CI green). The running image is
+  `gha-d1899a483d06`, one docs-only commit behind `main` — no code or Terraform drift, so a
+  deploy from `main` now reproduces what staging is running.
+- **All four open audit dispositions are decided (D-098), none implemented — Phase 0B owns
+  them.** The Phase 0B backlog therefore has these concrete, already-decided items, on top of
+  the seeded known-issues list: **AUD-L-04** a `semantic_memory` retention job + `make
+  memory-purge`, folding in the `stage_transitions`/`student_reports` retention already on
+  carry-over, all on the EventBridge schedule, plus a §6.1 privacy-notice line that doesn't
+  imply deleting chat removes what was derived from it (before the gate); **AUD-L-03** fold
+  out-of-band `pre_intro`/chat spend back into the checkpoint's `bedrock_spend_cents`, settling
+  what D-073 and D-075 both left open — accepted knowingly, since AUD-L-02 showed what an
+  approximately-right ceiling costs; **AUD-L-09** a directional grounding check plus a narrower
+  per-stage evidence dict, with a code comment stating plainly that neither makes the check
+  sound; **AUD-L-06** delete `tutor.generate_hint` and its three tests. AUD-L-05 and AUD-L-01
+  stay open as mechanical one-fix items; AUD-L-07 keeps D-086's existing disposition (formal
+  resolution at S46, blocked until S43's adapter exists).
 - **Phase 1 shipped live, after one real defect that only the live run could find.** The
   first deploy (run `30126765810`) was **fully green on every step** — including the extended
   security gate, the canary bake, and the smoke test — and shipped a **working endpoint that

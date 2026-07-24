@@ -24,12 +24,12 @@ ones.
 | ID | Area | Severity | Status | Summary |
 |---|---|---|---|---|
 | **AUD-L-02** | **Money** | **P0** | **Fixed in S36** | `POST /students/{id}/report` had no cost ceiling of any kind — it passed `session_spend_cents=0.0`, so the gateway's budget check could never fire, and one authenticated caller could drive unbounded Bedrock spend |
-| **AUD-L-04** | **Minors / PII** | **P1** | Open — before the gate | D-072 accepted "names in free text may survive" *because* that text lived in a 90-day-purged table; S25 then derived permanent, never-purged `semantic_memory.fact_text` from it, and those facts reach parent-visible reports |
+| **AUD-L-04** | **Minors / PII** | **P1** | **Decided** — fix before the gate | D-072 accepted "names in free text may survive" *because* that text lived in a 90-day-purged table; S25 then derived permanent, never-purged `semantic_memory.fact_text` from it, and those facts reach parent-visible reports |
 | AUD-L-05 | Minors / PII | P2 | Open — Phase 0B | `MemoryConsolidationPayload` carries free text but was never added to the PII-floor allowlist test, contrary to D-072's own stated rule |
-| AUD-L-06 | Minors | P3 | Open — Phase 0B | `tutor.generate_hint` is dead code that omits the leak check its live sibling applies — a trap for whoever wires it up |
-| AUD-L-03 | Money | P2 | Open — Phase 0B | `pre_intro` stage-narrative spend is never folded back into the session total, so the per-session ceiling is permanently one call short |
+| AUD-L-06 | Minors | P3 | **Decided** — delete in Phase 0B | `tutor.generate_hint` is dead code that omits the leak check its live sibling applies — a trap for whoever wires it up |
+| AUD-L-03 | Money | P2 | **Decided** — Phase 0B | `pre_intro` stage-narrative spend is never folded back into the session total, so the per-session ceiling is permanently one call short |
 | **AUD-L-07** | **Authorization** | **P1** | Open — before the gate | D-086's known tutor/branch_manager scope gap now reaches further than when it was written: it covers the S28 dashboard and report surface, so a tutor token can read any student's data and generate reports about them |
-| AUD-L-09 | Correctness | P2 | Open — Phase 0B | Numeric grounding verifies a number's *provenance*, not its *attribution*, so a report can invert a real result ("fell from 6 to 4") and still pass |
+| AUD-L-09 | Correctness | P2 | **Decided** — Phase 0B | Numeric grounding verifies a number's *provenance*, not its *attribution*, so a report can invert a real result ("fell from 6 to 4") and still pass |
 | AUD-L-08 | Correctness | P3 | Open — Phase 0B | `normalized_gain` has no upper bound and derives its denominator from the pre *attempt count*; unreachable today only because the post form is built one-for-one from the pre form |
 | AUD-L-01 | Auth surface | P3 | Open — Phase 0B | A gated-off `/dev/token` still discloses that it exists, and the S35 deploy gate's stated rationale is wrong about why it 404s |
 
@@ -153,15 +153,24 @@ about my test, not about the system.
 pattern set); the single-hit `purge_older_than` grep; `report.py`'s `relevant_learning_facts`
 reaching the parent audience in `build_report_facts`.
 
-**Disposition — needs a decision, not just a fix.** Three options, and they are not equivalent:
-add a retention job for `semantic_memory` (restores D-072's original boundary, cheapest, and
-`stage_transitions`/`student_reports` need one anyway per the standing carry-over); stop feeding
-raw chat text into consolidation and pass only the structured event fields (removes the risk at
-the source, costs consolidation quality that D-074 deliberately bought); or accept and document
-it explicitly, which at minimum requires saying so in the privacy notice the §6.1 track is
-drafting, since "we delete chat after 90 days" would otherwise be misleading. Recommendation:
-the retention job, plus a note in the §6.1 legal text — it restores the boundary that was
-already reasoned about and approved rather than re-opening a settled quality trade-off.
+**Disposition — DECIDED (user, S36 close-out; see D-098).** Add a retention job for
+`semantic_memory`, and a line in the §6.1 privacy text. Rejected: stopping raw chat text reaching
+consolidation (removes the risk at source but spends the consolidation quality D-074 deliberately
+bought, and would partly supersede a settled decision); and accept-and-disclose (zero cost but
+makes "we delete chat after 90 days" misleading for a product whose primary users are minors).
+
+The chosen option restores exactly the boundary D-072 already reasoned about and approved, rather
+than re-opening a settled trade-off. Phase 0B work, before the §2.6 gate:
+
+1. `SemanticMemoryRepository.purge_older_than` + a `make memory-purge` CLI, mirroring
+   `TutorChatMessageRepository.purge_older_than` / `make chat-purge` exactly.
+2. Fold in the `stage_transitions` and `student_reports` retention jobs already on the standing
+   carry-over list — same pattern, same session, so this is done once rather than three times.
+3. The retention window must be **stated in the §6.1 privacy notice**, and the notice must not
+   imply that deleting chat after 90 days removes everything derived from it.
+4. All of these must run on a schedule, not by hand — the EventBridge item already seeded in
+   §2.5 covers it. A retention promise that depends on someone running `make` is not a retention
+   promise, which is the same reasoning §2.5 already applied to `chat-purge`.
 
 ### AUD-L-05 — `MemoryConsolidationPayload` was never added to the PII-floor allowlist (P2)
 
@@ -211,8 +220,13 @@ and one comment in `packages/evals`. The live hint path is `graph/nodes.py:788` 
 **Why log it at all.** It reads exactly like a supported entry point, it is covered by three
 tests that assert it works, and it is the only LLM-output path in the learning app that trusts
 the model unverified. A future session adding a "plain hint, no personalization" flow would
-reasonably call it and inherit an unguarded path. Delete it, or add the checks — either resolves
-it; leaving it as-is is the only bad option.
+reasonably call it and inherit an unguarded path.
+
+**Disposition — DECIDED (user, S36 close-out; see D-098): delete it**, along with its three tests.
+There is no caller to migrate, and the live path (`generate_personalized_hint`) already has every
+check. If a non-personalized hint flow is ever wanted, writing it fresh with the checks in place is
+easier and safer than remembering that this one lacked them. Rejected: keeping it and adding the
+checks, which would preserve unreachable code and the false impression that it is exercised.
 
 ### AUD-L-03 — `pre_intro` spend is never folded back into the session total (P2)
 
@@ -234,9 +248,19 @@ per session per stage), so the undercount is one call's worth per session, not u
 
 **Fixed in this session only in part:** the call now passes the checkpoint's real running total
 instead of the 0.0 default (as part of AUD-L-02's fix), so the ceiling at least applies. The
-write-back is the remaining half and is Phase 0B work — it needs a cost channel out of the SSE
-path and a decision about whether out-of-band spend belongs in the checkpoint at all, which is
-exactly what D-073 and D-075 each declined to settle.
+write-back is the remaining half.
+
+**Disposition — DECIDED (user, S36 close-out; see D-098): fold out-of-band spend into the
+checkpoint**, settling the question D-073 and D-075 each deliberately left open. Both `pre_intro`
+(SSE connect) and chat's own spend get a path to write their cost back into `bedrock_spend_cents`,
+so the per-session ceiling means what its name says and there is one authoritative number instead
+of two partial ones.
+
+The cost is understood and accepted: this means writing to the checkpoint from outside a graph
+turn, which is exactly what those two decisions avoided. The reason to accept it now is AUD-L-02 —
+this session has already produced one P0 from a ceiling that silently did not apply, so a ceiling
+that is merely *approximately* right is no longer a comfortable place to leave things. Phase 0B;
+the per-day ceilings remain the real bound on those surfaces in the meantime.
 
 ### AUD-L-07 — D-086's authorization gap has grown since it was recorded (P1)
 
@@ -300,12 +324,21 @@ narrative. But it is genuinely bounded: the deterministic fallback always contai
 figures, the numbers themselves can never be invented, and both parent-facing surfaces show
 `verified_facts` alongside the prose, so a wrong claim sits next to the right data.
 
-**Disposition.** Phase 0B, and the honest framing is that a *complete* fix needs semantic
-verification, which is a different and much larger project. Two cheap partial mitigations worth
-considering instead: check directional claims specifically (if the evidence has a positive gain,
-reject narrative text pairing those two numbers in decreasing order), and narrow the evidence dict
-per stage so fewer unrelated numbers are available to be misattributed in the first place. Neither
-is complete; both remove the most damaging class.
+**Disposition — DECIDED (user, S36 close-out; see D-098).** Phase 0B, two partial mitigations,
+with the incompleteness stated rather than papered over:
+
+1. **A directional check.** When the evidence carries a known gain, reject narrative text that
+   pairs those two numbers in the wrong order — this is what stops "your score fell from 6 to 4"
+   for a student who went 4→6, which is the damaging class.
+2. **Narrow the evidence dict per stage**, so each narrative is only given the fields it needs and
+   there are fewer unrelated numbers available to misattribute at all.
+
+Rejected: accept-and-rely-on-displayed-facts (defensible at current volumes, but it leaves
+unverified LLM prose as parent-facing text about a child); and real semantic verification, which is
+the only *complete* answer but is a project rather than a fix, adds a paid call per narrative, and
+would itself need a cost ceiling given AUD-L-02. **Neither chosen mitigation makes the check
+sound** — that limitation should be recorded in the code, not just here, so nobody later mistakes
+the directional check for full verification.
 
 ### AUD-L-08 — `normalized_gain` is unbounded, and its denominator comes from the attempt count (P3)
 

@@ -3771,3 +3771,66 @@ prior sessions' "confirmed via an immediate clean standalone rerun" characteriza
 just usually wins the coin flip). At that rate §2.6 criterion 4's "3 consecutive green full runs"
 would be satisfied by luck rather than by signal. Seeding the fixture's RNG is sufficient and
 should happen before the gate is attempted.
+
+---
+
+## D-098 — S36 close-out: dispositions for AUD-L-03, AUD-L-04, AUD-L-06 and AUD-L-09 (accepted, 2026-07-24)
+
+§2.4 requires every audit finding to carry a disposition, and "won't fix" to carry a written
+reason. These four were the ones whose answer was genuinely the user's rather than the code's; all
+four were decided at S36's close-out. **None is implemented here** — Phase 0B owns the fixes, which
+is the audit's own rule. Full reproduction and evidence for each finding stays in
+[AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); this entry records the decisions and what was rejected.
+
+**AUD-L-04 (P1) — a child's typed name can reach never-purged `semantic_memory.fact_text`, and
+those facts reach parent-visible reports. Decided: add a retention job, plus a line in the §6.1
+privacy notice.** Fix before the §2.6 gate. Rejected: (a) stop passing raw redacted chat text into
+consolidation — removes the risk at its source, but spends the consolidation quality D-074
+deliberately bought and would partly supersede a settled decision; (b) accept and disclose — zero
+engineering cost, but it makes "we delete chat after 90 days" materially misleading for a product
+whose primary users are minors. The chosen option restores exactly the boundary D-072 already
+reasoned about and approved, rather than re-litigating a settled trade-off.
+
+Scope, so this lands once rather than three times: `SemanticMemoryRepository.purge_older_than` +
+`make memory-purge` mirroring the existing `chat-purge` pattern; the `stage_transitions` and
+`student_reports` retention jobs already on the standing carry-over folded into the same work; the
+window stated in the §6.1 notice, which must not imply that deleting chat removes what was derived
+from it; and all of it on the EventBridge schedule §2.5 already seeded — a retention promise that
+depends on a human running `make` is not a retention promise, the same reasoning §2.5 already
+applied to `chat-purge`.
+
+**AUD-L-03 (P2) — out-of-band Bedrock spend is never folded into the checkpoint's per-session
+total. Decided: fold it in**, settling what D-073 and D-075 each deliberately left open. Both
+`pre_intro` (SSE connect) and chat's spend get a path to write their cost back into
+`bedrock_spend_cents`, so there is one authoritative number rather than two partial ones. The cost
+is accepted knowingly: it means writing to the checkpoint from outside a graph turn, which is
+precisely what those two decisions avoided. What changed is AUD-L-02 — this session produced a P0
+from a ceiling that silently did not apply, so "approximately right" is no longer a comfortable
+resting place for a spend ceiling. Rejected: keep the split and document the session ceiling as
+covering in-graph spend only (honest and zero-risk, and the per-day ceilings are arguably the
+stronger control, but it leaves two partial numbers where one true one is achievable). Phase 0B;
+the per-day ceilings remain the real bound in the meantime.
+
+**AUD-L-09 (P2) — numeric grounding verifies a number's provenance, not its attribution, so a
+report can invert a real gain and pass. Decided: two partial mitigations** — a directional check
+(reject text pairing two evidence numbers against the direction of the real gain, which is what
+stops "your score fell from 6 to 4" for a student who improved), and narrowing the evidence dict
+per stage so fewer unrelated numbers are available to misattribute. Rejected: accept and rely on
+`verified_facts` being displayed alongside (defensible at current volumes, but it leaves unverified
+LLM prose as parent-facing text about a child); and real semantic verification, the only *complete*
+answer, but a project rather than a fix, adding a paid call per narrative that would itself need a
+ceiling under AUD-L-02. **Explicitly recorded: neither mitigation makes the check sound.** That
+limitation belongs in the code as a comment, not only in the audit file, so a later reader does not
+mistake a directional check for verification.
+
+**AUD-L-06 (P3) — `tutor.generate_hint` is dead code omitting the leak check its live sibling
+applies. Decided: delete it** and its three tests. No caller to migrate; the live path already has
+every check; and writing a fresh non-personalized hint flow later with the checks in place is
+easier than remembering this one lacked them. Rejected: keep and harden, which preserves
+unreachable code plus the false impression that it is exercised.
+
+**Not asked, because they are not open questions.** AUD-L-07 already has a disposition (D-086,
+scheduled for formal resolution at S46, blocked on an adapter data model that does not exist until
+S43). AUD-L-05 and AUD-L-01 are mechanical Phase 0B items with one obvious fix each — add the
+missing PII-floor allowlist case, and correct the gate comment plus register the route
+conditionally.
