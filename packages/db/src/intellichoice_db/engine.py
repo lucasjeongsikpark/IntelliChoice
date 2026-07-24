@@ -37,6 +37,23 @@ def database_url_from_component_env_vars() -> str | None:
     return f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{name}"
 
 
+def ssl_connect_args(database_url: str) -> dict[str, object]:
+    """S34: real RDS's own default parameter group ships `rds.force_ssl=1`; local
+    docker-compose Postgres neither needs nor supports SSL. Detected by host, not a new
+    setting - shared by `create_engine` below and `packages/db/alembic/env.py` (which
+    builds its own engine via `async_engine_from_config`, not `create_engine`, so needs
+    this called separately - found live when the engine.py fix alone didn't stop a real
+    migration-task failure against real RDS). asyncpg's `ssl` connect arg needs an
+    actual Python `True`/`SSLContext`, not a URL query-string value (SQLAlchemy's
+    asyncpg dialect passes query params through to asyncpg verbatim as strings, with no
+    bool coercion for `ssl` specifically) - hence `connect_args`, not `?ssl=true` in the
+    DSN itself.
+    """
+    if make_url(database_url).host not in _LOCAL_HOSTS:
+        return {"ssl": True}
+    return {}
+
+
 def create_engine(database_url: str | None = None) -> AsyncEngine:
     """Callers that already have a real settings-derived URL (both FastAPI apps' own
     `main.py`) should keep passing it explicitly - unaffected by the env vars below.
@@ -71,24 +88,12 @@ def create_engine(database_url: str | None = None) -> AsyncEngine:
         or database_url_from_component_env_vars()
         or os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
     )
-    # S34: found live, via this exact connection attempt failing for real for the first
-    # time (first live deploy after AWS access returned) - real RDS's own default
-    # parameter group ships `rds.force_ssl=1`, which D-092's new component-based DSN
-    # assembly never accounted for (`asyncpg.exceptions.InvalidAuthorizationSpecific
-    # ationError: no pg_hba.conf entry for host "...", ... no encryption`). Detected by
-    # host, not a new setting - true for any real deployed Postgres, false for local
-    # docker-compose (which neither needs nor supports SSL) - so every caller (both
-    # apps' own connections via their settings-derived URL, plus this bare fallback's
-    # CLI/alembic callers) gets it automatically with no new plumbing. asyncpg's `ssl`
-    # connect arg needs an actual Python `True`/`SSLContext`, not a URL query-string
-    # value (SQLAlchemy's asyncpg dialect passes query params through to asyncpg
-    # verbatim as strings, with no bool coercion for `ssl` specifically) - hence
-    # `connect_args`, not `?ssl=true` in the DSN itself.
-    connect_args: dict[str, object] = {}
-    if make_url(resolved).host not in _LOCAL_HOSTS:
-        connect_args["ssl"] = True
     return create_async_engine(
-        resolved, pool_size=10, max_overflow=10, pool_pre_ping=True, connect_args=connect_args
+        resolved,
+        pool_size=10,
+        max_overflow=10,
+        pool_pre_ping=True,
+        connect_args=ssl_connect_args(resolved),
     )
 
 

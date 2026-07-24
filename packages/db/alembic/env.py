@@ -3,7 +3,11 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
-from intellichoice_db.engine import DEFAULT_DATABASE_URL, database_url_from_component_env_vars
+from intellichoice_db.engine import (
+    DEFAULT_DATABASE_URL,
+    database_url_from_component_env_vars,
+    ssl_connect_args,
+)
 from intellichoice_db.models import Base
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -73,10 +77,16 @@ async def run_async_migrations() -> None:
 
     """
 
+    # S34: `async_engine_from_config` builds its own engine directly from the
+    # `sqlalchemy.url` config option - it never goes through `intellichoice_db.engine.
+    # create_engine`, so that function's own SSL fix doesn't reach here on its own (found
+    # live: fixing `create_engine` alone did not stop a real migration-task failure
+    # against real RDS - see `ssl_connect_args`'s docstring for the full story).
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=ssl_connect_args(config.get_main_option("sqlalchemy.url") or ""),
     )
 
     async with connectable.connect() as connection:
