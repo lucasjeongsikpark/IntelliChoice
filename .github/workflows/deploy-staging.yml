@@ -192,7 +192,7 @@ jobs:
           echo "Rolled back to the pre-deploy task definitions - failing the workflow."
           exit 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
 
