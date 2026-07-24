@@ -6,7 +6,7 @@ dependencies = [
     "intellichoice-shared",
     "intellichoice-observability",
     "pyjwt>=2.9",
-    "sqlalchemy[asyncio]>=2.0.35",
+    "sqlalchemy[asyncio]>=2.0.51",
     "aiomysql>=0.2.0",
     # aiomysql's optional RSA-based full-auth path for MySQL 8's default
     # caching_sha2_password plugin - undetected locally because the dev-compose
