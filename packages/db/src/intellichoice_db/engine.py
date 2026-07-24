@@ -1,4 +1,5 @@
 import os
+import ssl
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -48,9 +49,24 @@ def ssl_connect_args(database_url: str) -> dict[str, object]:
     asyncpg dialect passes query params through to asyncpg verbatim as strings, with no
     bool coercion for `ssl` specifically) - hence `connect_args`, not `?ssl=true` in the
     DSN itself.
+
+    A bare `ssl=True` (found live, one deploy attempt later than the fix above) uses
+    `ssl.create_default_context()`, which performs *full* certificate verification -
+    RDS's certificate chains up to Amazon's own RDS CA, not one in this minimal image's
+    system trust store, so every connection failed
+    (`ssl.SSLCertVerificationError: self-signed certificate in certificate chain`).
+    `check_hostname=False`/`CERT_NONE` matches the same posture `checkpoint_database_
+    url`'s `?sslmode=require` already has for the psycopg/LangGraph-checkpoint path
+    (encrypt the connection, don't verify the specific CA chain) - reasonable given this
+    only ever connects over the private VPC network in the first place, and keeps both
+    connection paths' security posture consistent rather than one being stricter than
+    the other by accident.
     """
     if make_url(database_url).host not in _LOCAL_HOSTS:
-        return {"ssl": True}
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return {"ssl": ctx}
     return {}
 
 
