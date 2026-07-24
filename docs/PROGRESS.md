@@ -15,7 +15,7 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   live staging") cannot be executed as written. Three options are laid out at the end of
   D-096; none was chosen, because it's a real trade-off between audit fidelity and
   re-opening auth surface on a public endpoint.
-- **S35 (Restore the deploy pipeline) substantially shipped, 2026-07-24** — see D-096 for
+- **S35 (Restore the deploy pipeline) shipped, 2026-07-24** — see D-096 for
   the full diagnosis and every finding. **The ten-attempt Alembic blocker is fixed and the
   deploy is functionally restored:** both services run task-definition revision 12, 1/1,
   both ALB target groups `healthy` under the new `/readyz` check (which pings Postgres
@@ -52,18 +52,29 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **Credential-exposure gap closed:** `*.tfstate` was gitignored but `*.tfplan` was not,
   and a plan file is a zip containing a full cleartext copy of state - one was sitting
   untracked and committable under `terraform/environments/staging`.
-  **Not yet green end-to-end:** the run ended red at the new security gate itself, because
-  `cloudfront:ListDistributions` isn't granted to the deploy role, so it couldn't resolve
-  the domains to probe (it failed *closed*, which is why this showed up as a red run rather
-  than a false pass). Fixed by hardcoding both domains in the workflow's `env:` (matching
-  the file's existing convention for infrastructure ids) and dry-run green against the live
-  environment, but **not yet committed or re-run** - the canary bake, frontend sync, and
-  smoke test were skipped and remain unverified live. That re-run is the first small
-  carry-over.
-  **Carry-over:** re-run the deploy to a fully green finish (canary bake + frontend sync +
-  smoke test still never verified). **The SNS alarm email subscription is still
-  `PendingConfirmation`** - until that link is clicked no alarm can reach a human, which
-  makes the canary bake's alarm check pass vacuously and blocks §2.6's criterion 8. The
+  **A third gate failure, worth recording:** the first run after the P0 fix ended red at the
+  new security gate itself - `cloudfront:ListDistributions` isn't granted to the deploy
+  role, so it couldn't resolve the domains to probe. It failed *closed* (an unresolvable
+  domain is a failure, not a pass), which is exactly why this surfaced as a red run instead
+  of a false green. Fixed by hardcoding both domains in the workflow's `env:`, matching the
+  file's existing convention for infrastructure ids.
+  **Fully green end-to-end, run `30121887429` from `cad4e54`: this project's first
+  completely successful deploy** (13m22s, every step, `conclusion=success`), with CI green on
+  the same push. Independently re-verified afterwards rather than trusting the workflow's own
+  report: both services on task-definition revision 13 (1/1), both ALB target groups
+  `healthy` under `/readyz`, all 4 CloudWatch alarms `OK`, `POST /dev/token` -> 404 and both
+  frontends -> 200 through both CloudFront distributions. Migrations passed on **two
+  consecutive runs**, so the fix is repeatable rather than a one-off. Newly exercised live for
+  the first time ever: the `/dev/token` security gate (`OK` for both apps), S34's canary bake
+  (`No alarms breached during the bake period`), the frontend build/S3-sync/CloudFront-
+  invalidation steps, and the smoke test. The rewritten ECR check also behaved correctly
+  against the deploy role's real permissions (`needs a build for gha-cad4e54ee885` for both,
+  no permission error).
+  **Carry-over:** the SNS alarm email subscription **was** `PendingConfirmation` and is now
+  confirmed and active (`PendingConfirmation: false`), so alarms can reach the inbox. §2.6's
+  criterion 8 is still open, though: a confirmed subscription is necessary but not
+  sufficient - it needs an *induced* alarm proving end-to-end delivery, which is S39's
+  operations-audit work. The
   applied `terraform.tfvars` values live only in a local working tree (gitignored by
   pre-existing convention; real state is in the S3 backend, so reality is recoverable, but
   a fresh clone would need them re-supplied). `AmazonBedrockMantleFullAccess` on the admin

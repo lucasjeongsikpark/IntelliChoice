@@ -551,7 +551,7 @@ compatibility logic lives in the new stack. Phase 0 exists because this project'
 shows that live verification finds real defects unit tests miss — S23, S26, S28, S31, S33, S34
 and S35 each did — so "497 tests pass" is not evidence of readiness for integration.
 
-### Session 35 — Restore the deploy pipeline *(INTEGRATION_PLAN §2.2)* ✅ (substantially done 2026-07-24)
+### Session 35 — Restore the deploy pipeline *(INTEGRATION_PLAN §2.2)* ✅ (done 2026-07-24)
 Diagnose the failing Alembic step (real traceback never seen), apply the withheld Terraform
 (canary bake + CloudWatch alarms + autoscaling + deployment circuit breaker + per-app JWT
 signing secrets), verify both service deploy steps, confirm a real image healthy under
@@ -565,8 +565,11 @@ public CloudFront distributions for two days** because S33's fix existed only in
 `terraform.tfvars` with the apply withheld - now closed and guarded by a live post-deploy assertion.
 Also fixed: the pipeline could never be re-run on an unchanged commit (SHA tag + immutable ECR
 tags), and `*.tfplan` was not gitignored despite embedding a cleartext copy of state.
-**Open:** one re-run to a fully green finish (canary bake, frontend sync, and smoke test are still
-unverified live), and the SNS alarm email subscription is still unconfirmed. **Note for S36:**
+Finished on this project's **first fully green deploy** (run `30121887429`, every step, CI green on
+the same push), with the canary bake, frontend sync, and smoke test all exercised live for the first
+time and the results independently re-verified afterwards.
+**Open:** the SNS alarm email subscription is confirmed and active, but §2.6 criterion 8 needs an
+*induced* alarm proving delivery end-to-end (S39's operations audit). **Note for S36:**
 closing `/dev/token` leaves staging with no authentication path at all until S44, which blocks the
 audits' live end-to-end runs as specified - decide at S36's start (D-096's closing section).
 

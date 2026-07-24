@@ -3575,3 +3575,22 @@ Manager (not an environment string); an allowlisted issuer under the new stack's
 which is S44 work pulled earlier; or running the journey suites against a local stack and accepting
 that "live staging" in criterion 3 means something weaker until S44 lands. Flagged for the user to
 decide at S36's session start.
+
+**Closed green.** After the gate fix, run `30121887429` (commit `cad4e54`) completed with
+`conclusion=success` in 13m22s — **every step, this project's first fully successful deploy** —
+with CI green on the same push. Newly exercised live for the first time: the `/dev/token` security
+gate (`OK` for both apps), S34's canary bake (`No alarms breached during the bake period`), the
+frontend build/S3-sync/CloudFront-invalidation steps, and the smoke test. The rewritten ECR check
+behaved correctly against the deploy role's real permissions (`needs a build for gha-cad4e54ee885`
+for both repos, no permission error). Migrations passed on two consecutive runs, so the fix is
+repeatable, not a one-off. Independently re-verified after the run rather than trusting the
+workflow's own report: both services on revision 13 (1/1), both target groups `healthy`, all 4
+alarms `OK`, `POST /dev/token` -> 404 and both frontends -> 200 through both CloudFront
+distributions. `make lint && make typecheck && make test` — 497 passed, 1 skipped (no Python
+changed this session; run to confirm no regression).
+
+**SNS subscription confirmed** (post-session check): the alerts topic's email subscription moved
+from `PendingConfirmation` to active (`PendingConfirmation: false`), so alarm notifications can
+reach the inbox. §2.6's criterion 8 stays open regardless — a confirmed subscription is necessary
+but not sufficient; it needs an *induced* alarm proving delivery end-to-end, which is S39's
+operations-audit work.
