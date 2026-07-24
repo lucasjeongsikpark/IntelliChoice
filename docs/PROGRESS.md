@@ -5,20 +5,30 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **Next session: S36 continuation (AUD-L is partial)** — see D-097 and the new
-  [docs/AUDIT_FINDINGS.md](AUDIT_FINDINGS.md). Two things must happen at its start, in
-  this order:
-  1. **`terraform apply` then commit/push/deploy, as one operation.** Phase 1's
-     secret-gated staging token path is written, tested and `validate`-clean but **not
-     applied and not deployed** — the apply was denied by a permission prompt mid-session
-     and left with the user rather than worked around. The exact command is
-     `AWS_PROFILE=intellichoice-staging terraform -chdir=terraform/environments/staging
-     apply`; the plan was read and is safe (8 adds, 1 IAM policy update, and 2
-     task-definition "destroys" that are ECS revision replacements moving nothing running —
-     services run revision 13, Terraform manages 11). Nothing reaches live staging until
-     both the apply and a deploy run, because `ignore_changes = [task_definition]` means
-     the apply never moves the services (S35's lesson).
-  2. **Finish the three uncovered audit phases** (list below).
+- **Next session: S36 continuation (AUD-L is partial)** — see D-097 + its addendum and the
+  new [docs/AUDIT_FINDINGS.md](AUDIT_FINDINGS.md). **Phase 1 is now applied, deployed and
+  live-verified**, so the continuation session starts directly on the uncovered audit phases
+  (listed below) with a working authenticated path against live staging.
+  **How to obtain a staging token** (the continuation session will need this): fetch
+  `intellichoice-staging/{learning,chat}-api/staging-token-shared-secret` from Secrets
+  Manager into a shell variable — never echo it — and send it as `X-Staging-Token-Secret` on
+  `POST /dev/token`. The two secrets are per-app and deliberately not interchangeable.
+- **Phase 1 shipped live, after one real defect that only the live run could find.** The
+  first deploy (run `30126765810`) was **fully green on every step** — including the extended
+  security gate, the canary bake, and the smoke test — and shipped a **working endpoint that
+  issued unusable tokens**: `/dev/token` returned 200 while every authenticated route
+  rejected the JWT with 401. Both handlers built a bare `FakeTokenIssuer()`, which signs with
+  the public `DEV_JWT_SECRET` constant, while the verifier has been settings-driven since
+  D-085 and uses the real per-app Secrets Manager secret. Locally and in CI both sides *are*
+  the dev constant, so all 509 tests agreed by coincidence. Fixed (pass
+  `settings.jwt_signing_secret` to the issuer in both apps) and pinned by a regression test
+  that uses a non-default secret and asserts both directions — verifies under the configured
+  secret, and does **not** verify under `DEV_JWT_SECRET`, since otherwise D-085's secret
+  would be decorative. Redeployed and re-verified.
+  **The generalizable lesson, recorded in D-097's addendum:** every gate this pipeline has —
+  `/healthz`, `/readyz`, the security gate, the canary bake, the smoke test — is a liveness
+  or negative check, and all of them passed while the feature was inert. **A green deploy
+  proves deployment, not function.** Closing that is S39/AUD-F's scripted-journey work.
 - **S36 (AUD-L, learning product correctness) is PARTIAL, 2026-07-24** — see D-097 for the
   full record. Four of seven planned phases completed; **one P0 found and fixed**, six other
   findings logged, and a deliberate set of negative results recorded.
@@ -109,10 +119,17 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **Tests (+12 net, 497→509, stable across 3 repeated `make test` runs):** 9 for the
   staging-token gate (4 learning incl. a 3-case parametrization and a no-secret-configured
   case, 4 chat, plus the positive paths), 3 for the report cost ceiling.
+  **Tests are 510 after the auth fix's regression test** (497 -> 510 net).
   **Verification:** `make lint && make typecheck` clean, `terraform fmt`/`validate` clean,
-  workflow YAML parse-checked, 509 passed / 1 skipped on two consecutive full runs (three
-  including the pre-change baseline). No live verification of anything this session — see the
-  apply blocker.
+  workflow YAML parse-checked, 510 passed / 1 skipped. **Live-verified against real staging**
+  (not just the workflow's own report): both services on task-definition revision 16, 1/1;
+  `POST /dev/token` -> 404 for both a no-credential and a wrong-credential probe on both
+  CloudFront distributions; -> 200 with the correct per-app secret; **chat's secret rejected
+  by learning-api** (404), so the two secrets really are not interchangeable; and a minted
+  token now authenticates a real `GET /me` request. The Terraform apply was verified
+  independently too: both secrets created, both task-definition families at revision 14 with
+  the secret wired, all six ARNs present in the execution role's `ReadAppSecrets` policy, and
+  the services untouched on revision 13 until the deploy moved them.
   **Carry-over beyond the audit phases:** [docs/INTEGRATION_PLAN.md](INTEGRATION_PLAN.md) is
   **untracked and not gitignored** despite ROADMAP/PROGRESS/CLAUDE.md all pointing at it, so a
   fresh clone loses Milestone 9's reasoning; `knowledge-content.zip` is also untracked and

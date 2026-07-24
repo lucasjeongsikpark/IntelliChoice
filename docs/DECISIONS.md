@@ -3726,3 +3726,48 @@ secret-gated path is written, tested (509 passing) and `terraform validate`-clea
 applied and not deployed**. That is precisely the posture D-096 criticised S33/S34 for, and it is
 recorded as such rather than softened: apply and deploy are one operation, and until both happen
 the audit's live half cannot start.
+
+### D-097 addendum — the staging token path shipped green and useless; live verification caught it
+
+The first deploy of Phase 1 (run `30126765810`, fully `success`, every step including the extended
+security gate, the canary bake, and the smoke test) produced a **working endpoint that issued
+unusable tokens.** `/dev/token` returned 200 with a real JWT, and every authenticated route then
+rejected that JWT with 401.
+
+Cause: both handlers constructed a bare `FakeTokenIssuer()`, which signs with the public
+`DEV_JWT_SECRET` module constant, while `get_token_verifier()` has been settings-driven since
+D-085 and uses the real random per-app secret injected from Secrets Manager. **Locally and in CI
+both sides are the dev constant**, so the two agreed by coincidence and all 509 tests passed. Only
+a real deployment, where D-085's secret differs from the constant, separates them.
+
+This is worth recording for three reasons beyond the fix itself:
+
+1. **It is the exact failure the gate's own comment predicted.** When deciding not to probe the
+   positive path in CI (to avoid copying the secret into GitHub Actions), the reasoning written into
+   `deploy-staging.yml` was that "a staging token path that is silently broken costs an audit
+   session some confusion; a leaked one costs more." That trade-off still stands, but the predicted
+   cost was then immediately incurred. The mitigation is not to reverse the trade-off — it is that
+   **the positive path must be verified out-of-band after any deploy that touches auth**, which is
+   now written down rather than remembered.
+2. **Green deploys prove deployment, not function.** Every gate this project has built — health
+   checks, `/readyz`, the security gate, the canary bake, the smoke test — passed while the feature
+   was inert. They are all *negative* or *liveness* checks; none of them exercises a real
+   authenticated flow. That is a structural gap in the pipeline, not a mistake in any one gate, and
+   it is AUD-F/S39's to close (§2.3's "scripted walk of every launch user journey").
+3. **It is the same shape as the bug class this session already logged four times** — a permissive
+   default (`FakeTokenIssuer()`'s default argument) silently substituting for real configuration.
+   AUD-L-02's fix removed two such defaults from cost parameters; this one was in an auth
+   constructor, one file away, and was missed while doing exactly that work.
+
+Fixed by passing `settings.jwt_signing_secret` to the issuer in both apps. The regression test uses
+a deliberately non-default secret and asserts **both** directions: the token verifies under the
+configured secret, and does *not* verify under `DEV_JWT_SECRET` — because if it did, D-085's real
+secret would be decorative and an attacker could forge tokens offline with a public constant.
+
+**Also refined, and it affects the gate:** the long-standing
+`test_hint_reflects_the_students_actual_wrong_option` flake reproduces **standalone**, roughly 1 in
+4 attempts, so it is purely unseeded-RNG driven rather than test-order dependent — which contradicts
+prior sessions' "confirmed via an immediate clean standalone rerun" characterization (that rerun
+just usually wins the coin flip). At that rate §2.6 criterion 4's "3 consecutive green full runs"
+would be satisfied by luck rather than by signal. Seeding the fixture's RNG is sufficient and
+should happen before the gate is attempted.
