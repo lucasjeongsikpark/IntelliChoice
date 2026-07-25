@@ -571,7 +571,9 @@ access follows from `role` alone.
 and the timezone convention are answered. What remains genuinely unknown: where MySQL runs and
 whether AWS can reach it (confirmed undocumented — no CI, IaC, deploy script, or host reference
 anywhere), API reliability history (no monitoring of any kind exists, so no data exists to request),
-and DNS ownership. The drafted request is [S42_ORG_ASKS.md](S42_ORG_ASKS.md).
+and DNS ownership. The request itself is drafted in a working file kept **outside this repo**
+(gitignored — outbound communication drafts are not committed); the *findings* it rests on are all
+in D-099, which is.
 
 **§7 gains one standing note.** Every `/api/accounts/*` route beyond login/register is reachable by
 any authenticated account regardless of role (code-verified in the analysis docs). We inherit no

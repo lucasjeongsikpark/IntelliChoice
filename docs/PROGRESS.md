@@ -44,7 +44,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   uptime monitor exists, so no data exists to ask for), and DNS ownership.
   `db.config.js`, the Gmail service-account key, and `data.sql` were deliberately **not opened**
   (credentials, and a dump that may carry student PII).
-- **S42's Tier 1 org asks are drafted** in [docs/S42_ORG_ASKS.md](S42_ORG_ASKS.md), ready for
+- **S42's Tier 1 org asks are drafted** in a working file kept **outside this repo**
+  (`docs/S42_ORG_ASKS.md`, gitignored — an outbound communication draft, deliberately never
+  committed), ready for
   the user to review and send. Not sent — I can't, and two judgment calls are flagged in the
   file: whether to include the paragraph disclosing that write-capable DB credentials sit in the
   production repo (true and material, but it may land better in conversation than in a

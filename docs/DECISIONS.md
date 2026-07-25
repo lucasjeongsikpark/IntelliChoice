@@ -3890,7 +3890,8 @@ differently from icrest we will disagree with what a branch manager sees in thei
 
 So it becomes a **decision for the org** rather than a question: follow real Central time with DST
 (correct, disagrees with their reports for most of the year) or match the fixed −6 (consistent,
-knowingly wrong part of the year). Recorded in [S42_ORG_ASKS.md](S42_ORG_ASKS.md) §4. No default is
+knowingly wrong part of the year). The question is drafted for the org in a working file kept
+**outside this repo** (an outbound communication draft, deliberately not committed). No default is
 assumed here, because either choice produces a wrong answer in some window and the org owns which
 wrongness is acceptable.
 
