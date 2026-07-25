@@ -528,3 +528,49 @@ promotion, not the pilot.
   unknowns fail closed and are surfaced by metric (I7).
 - **A3 (assumption)** — additive DNS records are permitted; otherwise CloudFront
   default domains (reduced scope).
+
+---
+
+## 8. Pre-discovery findings (2026-07-25) — read before executing S42
+
+The production repos (`IntelliChoice-web/`: `icrest`, `icweb`, and their own
+`docs/codebase-analysis/`) were read at S36 close-out. **D-099 in
+[DECISIONS.md](DECISIONS.md) holds the detail and the citations**; this section records only what it
+changes in the sections above, so nobody re-derives it.
+
+**§1 (facts) gains three corrections.**
+- `signups` has **two** attendance columns, not one: `attended` (nullable, manager-recorded) and
+  `attendanceClaimed` (non-null, self-reported). §1 describes only the first.
+- `accounts` also carries `chapterRole` and a free-text comma-separated `permissions` override, both
+  able to grant access independently of `role`.
+- The stored timezone is **UTC**, and the business timezone is a **hardcoded fixed UTC−6** applied in
+  three report queries — US Central Standard Time, therefore an hour wrong for the ~8 months a year
+  Central observes DST. A production defect, not ours to fix, but load-bearing for attendance.
+
+**§3.2 / I11 — rung 1 is confirmed viable; the Tier 1 DB ask is no longer on the critical path.**
+`GET /api/accounts/signups` does return `attended` (verified in `getSignups`: the `Signup` include
+carries no `attributes` restriction, and past sessions are included with `required: true`), scoped to
+the authenticated account, and its background-check gate exempts `Student` and `Parent` — the only
+roles we issue at launch. So the API-only rung covers auth, profile, children, and attendance. Rungs
+2–4 remain documented fallbacks; they are no longer things to ask for up front.
+
+**§3.2 / I7 — role mapping must ignore two extra inputs.** Fail-closed mapping has to treat
+`chapterRole` and `permissions` as inputs it does not understand, rather than assuming effective
+access follows from `role` alone.
+
+**S43 gains two hard requirements** (both in D-099, both easy to get wrong):
+1. **`attendanceClaimed` must never gate an exam.** It is the convenient field precisely because it
+   is never null, which is what makes it a fail-open trap. Only `attended === true` means present.
+2. **The signups response is PII-bearing** (`firstName`, `lastName`, full `children`). Project to
+   external ids at the adapter boundary, before anything is returned, logged, traced, or cached.
+
+**§5's S42 row shrinks accordingly.** "Whether signups carries `attended`", the role-string survey,
+and the timezone convention are answered. What remains genuinely unknown: where MySQL runs and
+whether AWS can reach it (confirmed undocumented — no CI, IaC, deploy script, or host reference
+anywhere), API reliability history (no monitoring of any kind exists, so no data exists to request),
+and DNS ownership. The drafted request is [S42_ORG_ASKS.md](S42_ORG_ASKS.md).
+
+**§7 gains one standing note.** Every `/api/accounts/*` route beyond login/register is reachable by
+any authenticated account regardless of role (code-verified in the analysis docs). We inherit no
+duty to fix it, but the login API must be treated as authenticating only — never as an authorization
+oracle. Our authorization stays server-side in the new stack, which is already the rule.

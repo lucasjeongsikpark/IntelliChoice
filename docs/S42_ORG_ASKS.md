@@ -1,100 +1,110 @@
 # S42 Tier 1 org asks — draft request
 
-Drafted S36 close-out (2026-07-24) so the items with human lead time can start moving while the
-Phase 0A audits continue. Source: [INTEGRATION_PLAN.md](INTEGRATION_PLAN.md) §4's "additive
-shared-infrastructure asks", the S42 row in §5, and I11's data-access ladder.
+Drafted S36 close-out (2026-07-24), then **cut down substantially on 2026-07-25** after reading the
+production repos at `IntelliChoice-web/` (`icrest`, `icweb`, and their `docs/codebase-analysis/`).
+Four of the original asks were answerable from the code, and one of them removed the slowest item
+from the critical path entirely. Findings recorded in D-099; sources cited there.
 
-**Two things to check before sending** — see "Notes for Jeongsik" at the bottom:
+**What changed:** the original draft asked for a read-only database account "in case the API can't
+serve attendance." It can — verified in the controller — so **section C is gone**. What remains is
+two questions the code genuinely cannot answer, two DNS records, and one decision that only the org
+can make.
 
-1. Whether to include the credential-hygiene paragraph, which discloses that write-capable
-   database credentials are committed to the production repository. It is true, it is relevant,
-   and it may be better raised in person than in writing.
-2. Section C asks to *begin provisioning* something we may turn out not to need. That is
-   deliberate — provisioning has lead time — but it is your call whether to ask now or wait.
+**One thing to check before sending** — the credential-hygiene paragraph is still included and is
+still a judgment call; see the note at the bottom.
 
 ---
 
 ## The message
 
-**Subject:** Two new subdomains and a few questions about the current system
+**Subject:** Two new subdomains, and two questions about the current system
 
 Hi [name],
 
-I'm building the two new student-facing apps — an adaptive learning tool and an org Q&A
-assistant — on separate infrastructure from the current site. They're at the stage where they
-need to talk to the existing account system, and that turns out to need a small number of things
-from you.
+I'm building the two new student-facing apps — an adaptive learning tool and an org Q&A assistant —
+on separate infrastructure from the current site. They're at the point of needing to talk to the
+existing account system, and there are a few things I need from you.
 
 **The short version: nothing about the current system changes.** No code changes to the site or
-the API, no database schema changes, no changes to how anyone logs in today, and no modification
-to any existing DNS record. Everything below is either a question or something added alongside
-what already exists. I've designed the integration this way on purpose, so the current system
-stays exactly as it is and all the compatibility work sits on my side.
+API, no database schema changes, no change to how anyone logs in today, and no existing DNS record
+touched. Everything below is either a question or something added alongside what's already there.
+I've deliberately designed it so all the compatibility work sits on my side.
 
-Grouped by what each item needs from you, easiest first.
+I've read through the `icrest`/`icweb` code, so I've been able to answer most of my own questions.
+These are the ones the code can't tell me.
 
-### A. Questions I can't answer from the code (no access needed)
+### 1. Where does the MySQL database actually run, and can it be reached from outside?
 
-These are the ones blocking design decisions, so they're the most useful to me soonest — even
-partial or approximate answers help.
+Same machine as the API, a managed service, something else? I'm asking because there's no
+deployment configuration anywhere in the repositories — no IaC, no deploy script, no hosting
+provider config, and the committed database settings point at `localhost`. So the code genuinely
+cannot tell me, and I'd rather ask than guess.
 
-1. **Where does the MySQL database actually run?** Same host as the API, a managed service, a
-   separate machine? I'm trying to work out whether it's reachable from our AWS environment at
-   all, and the repositories don't say.
-2. **How reliable has the API been over the last few months?** Rough uptime, known outages, any
-   recurring maintenance windows. The new apps will depend on it for login, so I need to know
-   what to plan for when it's unavailable.
-3. **What timezone do stored dates use** — UTC, or local time? This one matters more than it
-   sounds: attendance decides whether a student can start a session, so being an hour off in the
-   wrong direction means the wrong answer.
-4. **What role values actually exist in the accounts table today?** The field is free text, so
-   I'd like the real list rather than the ones I've inferred. Anything unexpected in there needs
-   handling before launch, and I'd rather find it now than in front of a student.
+I most likely **don't** need database access — see the note at the end — but I do need to know
+whether it's reachable in principle, because that decides my fallback if the API turns out not to
+be enough.
 
-### B. Two new DNS records (additive only)
+### 2. Has the API had noticeable outages?
 
-The apps need to live at `learning.intellichoice.org` and `chat.intellichoice.org`, plus one
-sender domain for the emails they send (attendance notices and admin escalations).
+I'm not expecting numbers. There's no monitoring, error tracking, or uptime checking configured
+anywhere in the codebase, so I don't think precise uptime data exists to be looked up.
 
-These are **new records only — no existing record is edited or removed**, so the current site and
-email are unaffected. I'll send the exact records to add once you confirm who manages DNS and how
-you'd like to receive them.
+What's actually useful is whatever you've observed: does it go down? Does anyone notice before a
+user complains? Is there a restart routine when it misbehaves? The new apps will depend on this API
+for login, so I need to know what to design for — and "we don't really know" is a perfectly useful
+answer that tells me to assume the worst and fail gracefully.
 
-If DNS additions aren't possible for any reason, that's workable: the apps can ship on their
-default cloud URLs instead. They'd be functional but ugly, so I'd rather not, but it isn't a
-blocker.
+### 3. Two new DNS records (additive only)
 
-### C. Possibly a read-only database account — worth starting now
+The apps need to live at `learning.intellichoice.org` and `chat.intellichoice.org`, plus one sender
+subdomain for the emails they send (attendance notices, admin escalations).
 
-I'm testing whether the existing API alone can supply everything the new apps need. If it can, I
-need nothing here at all.
+**New records only — nothing existing is edited or removed**, so the current site and email keep
+working exactly as they do. Tell me who manages DNS and how you'd like to receive the exact records,
+and I'll send them over.
 
-If it can't, the fallback is a **read-only** database account plus a private network path from our
-AWS environment (a VPN or SSH tunnel — whichever fits how you run things). Since provisioning
-that sort of thing usually takes longer than deciding you need it, it's worth starting the
-conversation now even though I may come back and say we don't.
+If DNS additions aren't possible, the apps can ship on their default cloud URLs. Functional, just
+ugly — not a blocker.
 
-To be specific about scope if it goes ahead: read-only, five tables (`accounts`, `children`,
-`locations`, `calendars`, `signups`), a new account rather than an existing one, and no write
-permission of any kind.
+### 4. A decision I need from you: which timezone is correct?
 
-**Please don't send any credential by email or chat.** I'll set up somewhere appropriate for it
-when we get there.
+This is the one I'd most like a real answer on, because I found something in the code and I don't
+want to copy it blindly.
 
-### On the existing database credentials
+Session times are stored in UTC. But the reports convert them to a **fixed UTC−6** — the offset is
+hardcoded in three separate queries. UTC−6 is US Central Standard Time, which is correct in winter;
+from mid-March to early November, US Central is actually UTC−5. So during those months the reports
+appear to shift session dates by an hour, which can push a late-evening session into the wrong day.
 
-Related, and worth saying plainly: the current production repository contains database
-credentials with write access, along with a Google service-account key. I'm not planning to touch
-or reuse either — the new apps get their own, separately managed. But since they're in the
-repository, anyone with repository access effectively has write access to the live database, which
-you may want to look at independently of this project.
+I'm not proposing to change anything on your side. I need to know which behavior my apps should
+match:
 
-### What I need from you
+- **Follow real Central time including daylight saving** — correct, but my apps and your reports
+  will disagree by an hour for about eight months of the year.
+- **Match the existing fixed UTC−6** — consistent with your reports, knowingly wrong for part of
+  the year.
 
-The four questions in section A are the useful ones to start with, and the DNS owner's name. The
-rest can wait until I've finished testing the API path.
+This matters more than it sounds: my apps use session attendance to decide whether a student may
+start a session, so being a day off in the wrong direction means telling a student they weren't
+there when they were. Also worth confirming: is the organization actually in US Central?
 
-Happy to walk through any of this on a call if that's easier than email.
+### 5. And one thing I want to flag
+
+The current repository contains database credentials with write access, plus a Google
+service-account key. I'm not going to touch or reuse either — the new apps get their own,
+separately managed. But since they're committed, anyone with repository access effectively has
+write access to the live database, which you may want to look at independently of this project.
+
+### What I need first
+
+Questions 1, 2 and 4, plus the DNS owner's name. Question 4 is the one that changes what I build,
+so it's the most valuable.
+
+On database access: I checked, and the existing API does return the attendance data I need, so I
+don't expect to ask for a database account at all. If that changes I'll come back — I mention it
+only so question 1 doesn't read as a request for credentials.
+
+Happy to talk any of this through on a call.
 
 Thanks,
 Jeongsik
@@ -103,32 +113,32 @@ Jeongsik
 
 ## Notes for Jeongsik
 
-**On the credential paragraph.** I included it because it's true, it's material, and section C
-would look odd without it — you're asking for a *new* read-only account when write-capable
-credentials already exist, and the obvious question is "why not use those?" The answer is that
-they should be treated as compromised. Two things to weigh: it reads as criticism of whoever
-committed them, and it's the kind of finding that lands better in conversation than in a written
-record that may get forwarded. Cutting it is fine — section C still stands on least-privilege
-grounds alone. If you cut it, raise it separately; it shouldn't go unsaid.
+**What the code answered, so I stopped asking** (detail and citations in D-099):
 
-**On section C's framing.** INTEGRATION_PLAN's I11 ladder says to descend only as far as discovery
-forces, and rung 1 (API-only) needs no ask at all. So asking now for something we may not need is
-a mild deviation. I framed it as "worth starting" rather than "I need," because provisioning and
-network changes are exactly where weeks disappear, and a conditional heads-up costs less than a
-second round trip. If you'd rather hold it back entirely, delete section C and the credential
-paragraph and send the rest — nothing else depends on it.
+| Original ask | Outcome |
+|---|---|
+| What role values exist? | **Answered** — `Parent`, `Student`, `Tutor`, `Manager`. Dropped from the message; a live-value confirmation folds into S42's own API testing instead of costing someone a query. |
+| What timezone do stored dates use? | **Answered, and upgraded** — UTC storage, fixed UTC−6 in reports. Now a decision request (§4) rather than a question, which is a much better use of their attention. |
+| Read-only DB account (original section C) | **Removed** — `GET /api/accounts/signups` returns `attended`, so the API-only rung works. This was the slowest ask; it's gone. |
+| Where does MySQL run? | Still an ask (§1) — genuinely undocumented, and now I can say precisely why. |
+| API reliability | Still an ask (§2), but reframed — no monitoring exists, so I ask for observations rather than data they don't have. |
 
-**What I deliberately did not ask for**, because §4 rules it out and asking would signal that the
-constraint isn't understood: any code change to the site or API, schema changes, rotating the
-legacy JWT secret or HMAC key, moving or replicating the database from the production side,
-reusing `office@intellichoice.org` as a sender, nav links or any in-product entry point, and
-changes to the registration flow to capture consent.
+**On the credential paragraph (§5).** Kept, but it's still your call. It reads as criticism of
+whoever committed them, and it may land better in conversation than in a forwardable email. It's
+also less load-bearing now: the original draft needed it to justify asking for a *new* read-only
+account, and that ask is gone. So cutting it costs the message nothing — but don't let it go unsaid
+somewhere.
 
-**Tone choices.** Reassurance leads, because "integrating with the production system" is alarming
-to whoever owns it, and every following ask is easier to read once that's settled. Items are
-ordered by what they cost the recipient rather than by what I want most. The timezone question
-carries its one-line justification because it's the item most likely to be dismissed as trivial,
-and it is the one most likely to produce a wrong answer in front of a student.
+**Tone choices.** Reassurance still leads, because "integrating with the production system" is
+alarming to whoever owns it. Saying up front that I read the code and answered most of my own
+questions is doing real work here: it shows the asks are a residue rather than an opening bid, and
+§4 lands as "I found something, help me decide" rather than "your system is wrong." I also stated
+explicitly that I don't expect to need DB access, because §1 would otherwise read as a
+credentials request with extra steps.
 
-**Left as placeholders on purpose:** the recipient's name, the DNS owner, and the exact DNS
-records — those depend on who this goes to.
+**What I deliberately did not ask for**, because §4 of the plan rules it out: any code change to
+site or API, schema changes, rotating the JWT secret or HMAC key, moving or replicating the
+database, reusing `office@intellichoice.org` as sender, nav links or in-product entry points, and
+changes to the registration flow for consent.
+
+**Left as placeholders:** recipient name, DNS owner, and the exact DNS records.

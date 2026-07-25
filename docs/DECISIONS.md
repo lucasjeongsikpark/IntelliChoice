@@ -3834,3 +3834,113 @@ scheduled for formal resolution at S46, blocked on an adapter data model that do
 S43). AUD-L-05 and AUD-L-01 are mechanical Phase 0B items with one obvious fix each — add the
 missing PII-floor allowlist case, and correct the gate comment plus register the route
 conditionally.
+
+---
+
+## D-099 — Pre-discovery findings from reading the production repos: four S42 asks answered, I11 rung 1 confirmed viable, two new integration traps (accepted, 2026-07-25)
+
+The user pointed at `IntelliChoice-web/` (`icrest`, `icweb`, plus an existing
+`docs/codebase-analysis/` set) and asked whether the S42 org asks could be answered there. Most
+could. This entry records what the code establishes, so S42's discovery starts from a much smaller
+unknown set — and records two things that change what S43 must build.
+
+**Method note:** `icrest/app/config/db.config.js` and
+`icrest/app/config/intellichoice-sendmail-84c660284c34.json` were **not opened** — they are, per the
+analysis docs, a plaintext DB credential file and a Google service-account private key. Nothing
+below depends on their contents. `icrest/data.sql` was also left unread (a dump that may carry real
+student PII).
+
+### Answered: the four role strings
+
+`Parent`, `Student`, `Tutor`, `Manager` — free text on `accounts.role` with **no DB-level
+constraint** (`account.model.js`), so the code gives intent, not guaranteed reality. Confirming the
+live distinct values folds into S42's own API exercise rather than costing someone a query.
+
+**Two columns §1's schema note does not mention**, both relevant to role mapping: `chapterRole` (a
+separate optional string — President/Vice President/Treasurer/Secretary — granting a `/chapter`
+permission) and `permissions`, a **free-text comma-separated override string** that can grant
+route prefixes independently of role. I7's fail-closed role mapping must treat both as inputs it
+does not understand and ignore them, rather than being surprised later by an account whose
+effective access does not follow from `role` alone.
+
+### Answered, and upgraded from a question to a decision: the timezone convention
+
+- `calendars.startTime` is `Sequelize.DATE` (MySQL `DATETIME`).
+- `new Sequelize(...)` in `models/index.js` passes **no `timezone` option**, so Sequelize's default
+  `+00:00` applies — **stored values are UTC**.
+- Three report queries convert with a hardcoded `CONVERT_TZ(startTime, '+0:00', '-6:00')`
+  (`report.controller.js:53`, `:71`, `:89`) — so the business timezone is a **fixed UTC−6**.
+
+UTC−6 is US Central *Standard* Time. From mid-March to early November US Central is UTC−5, so for
+roughly eight months a year those reports bucket sessions by a date computed from the wrong offset —
+enough to move a late-evening session into the adjacent day. **This is a production defect and is
+therefore not ours to fix** (the immutability constraint), but it is directly load-bearing for us:
+attendance gating asks "was this student present on this session's day", and if we compute that day
+differently from icrest we will disagree with what a branch manager sees in their own report.
+
+So it becomes a **decision for the org** rather than a question: follow real Central time with DST
+(correct, disagrees with their reports for most of the year) or match the fixed −6 (consistent,
+knowingly wrong part of the year). Recorded in [S42_ORG_ASKS.md](S42_ORG_ASKS.md) §4. No default is
+assumed here, because either choice produces a wrong answer in some window and the org owns which
+wrongness is acceptable.
+
+### Answered, and it removes the slowest ask: I11 rung 1 is viable for attendance
+
+The plan's S42 row lists "whether signups carries `attended`" as an open discovery item, and the
+whole read-only-DB-account ask (I11 rung 2) exists as the fallback if it does not.
+
+**It does.** `account.controller.js:getSignups` includes the `Signup` model with **no `attributes`
+restriction**, so every Signup column is serialized — including `attended` (nullable boolean) — for
+both current `calendars` and `pastCalendars` (the latter with `required: true`, so past sessions come
+back with their signup rows attached). Scoped to the authenticated account
+(`where: {accountId: account.id}`), which is exactly the shape the new stack needs.
+
+The endpoint's `authBackgroundCheckNeeded` gate **returns early for `Student` and `Parent`** before
+the background-check test, so it never blocks the only audiences we issue tokens for at launch (I8).
+
+Consequence: **rung 1 (API-only) covers auth, own profile, children, and attendance.** Per I11 that
+rung "needs no ask at all", so the read-only DB account and the private network path drop off the
+critical path. They stay on the ladder as a documented fallback, not a request.
+
+### New trap 1 — `attendanceClaimed` must never gate an exam
+
+`signups` carries **two** attendance columns, not the one §1 describes: `attended` (nullable
+boolean, recorded by a branch manager) and `attendanceClaimed` (**non-null** boolean, a self-report).
+
+`attendanceClaimed` is the more convenient field — it is never null, so it never forces the
+unknown-attendance branch — which is exactly what makes it dangerous. Wiring it would let a student
+self-certify attendance to unlock an exam, converting SPEC §5.4.4's fail-closed gate into a
+fail-open one. **Only `attended === true` may mean present.** `attendanceClaimed` must be ignored
+entirely, and S43's adapter should carry a comment saying so, since the next person to read the
+schema will see a tidy non-null boolean and reasonably reach for it.
+
+### New trap 2 — the signups response is PII-bearing
+
+`getSignups` returns `data.account` with `firstName`, `lastName`, and the full `children` objects
+(names, grade levels). So the one endpoint we most need is also one that hands back names of minors.
+
+`IcProfileAdapter` must project to external ids and attendance state **at the boundary**, before
+anything is returned, logged, traced, or cached — and the raw response must never reach a log line,
+a span attribute, or Postgres (CLAUDE.md rule 1, SPEC §5.30). This is a real constraint on S43's
+implementation, not a general reminder: the natural implementation (log the response while
+developing the adapter) violates it.
+
+### Still genuinely unknown after reading everything
+
+- **Where MySQL runs, and whether it is reachable from AWS.** Confirmed undocumented rather than
+  merely unfound: no CI, no IaC, no deploy script, no hosting-provider config in either repo, and
+  the analysis doc's own deployment diagram labels the host "Unknown / not in repo". The committed
+  config points at `localhost`, so production must be running hand-edited values.
+- **API reliability history.** No metrics, no `/metrics`, no error tracking, no uptime monitor, no
+  alert routing exists anywhere — so there is no data to request. The ask was reframed to seek
+  observations instead, since anecdote is the only truth available.
+- **DNS ownership**, unchanged.
+
+### Also noted, for §7 residual risks rather than action
+
+The analysis docs record (code-verified) that every `/api/accounts/*` route beyond login/register is
+reachable by any authenticated account regardless of role, with permission strings enforced only in
+some controllers. We inherit no obligation to fix it, but it bears on how much the login API can be
+trusted as an authorization oracle: it authenticates, and we should treat it as doing nothing more
+than that. Our own authorization stays entirely server-side in the new stack, which is already the
+rule (CLAUDE.md non-negotiable 3) — this just removes any temptation to relax it.

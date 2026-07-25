@@ -16,6 +16,31 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **Merged to `main`** (`1eb125a`, fast-forward, CI green). The running image is
   `gha-d1899a483d06`, one docs-only commit behind `main` — no code or Terraform drift, so a
   deploy from `main` now reproduces what staging is running.
+- **Pre-discovery pass over the production repos (2026-07-25, D-099) answered four of the S42
+  asks and cut the slowest one entirely.** The user pointed at `IntelliChoice-web/`; most questions
+  turned out to be answerable from `icrest` plus its existing `docs/codebase-analysis/`.
+  **The biggest result: I11 rung 1 (API-only) is confirmed viable**, because
+  `GET /api/accounts/signups` really does return `attended` (the `Signup` include carries no
+  `attributes` restriction; past sessions come back with `required: true`) and its background-check
+  gate exempts exactly the `Student`/`Parent` roles we issue at launch. Per I11 that rung needs no
+  ask at all, so **the read-only DB account and private network path are off the critical path** —
+  still documented fallbacks, no longer requests.
+  **Answered:** the four role strings (`Parent`/`Student`/`Tutor`/`Manager`, free text, no DB
+  constraint); and the timezone convention, which upgraded from a question into a **decision for the
+  org** — storage is UTC, but reports apply a *hardcoded fixed UTC−6* in three queries, i.e. US
+  Central Standard Time, so they are an hour off for the ~8 months Central observes DST. A
+  production defect, not ours to fix, but attendance gating depends on computing the same session
+  day icrest does, so the org has to choose which behavior we match.
+  **Two new traps for S43, both easy to get wrong:** `signups` has a *second* attendance column,
+  `attendanceClaimed` (non-null, self-reported) alongside `attended` (nullable, manager-recorded) —
+  the convenient one is the fail-open one, and only `attended === true` may gate an exam; and the
+  signups response is **PII-bearing** (`firstName`, `lastName`, full `children`), so the adapter must
+  project at the boundary before anything is returned, logged, traced or cached.
+  **Still unknown:** where MySQL runs and whether AWS can reach it (confirmed *undocumented* — no
+  CI, IaC, deploy script or host reference anywhere), API reliability (no metrics/error-tracking/
+  uptime monitor exists, so no data exists to ask for), and DNS ownership.
+  `db.config.js`, the Gmail service-account key, and `data.sql` were deliberately **not opened**
+  (credentials, and a dump that may carry student PII).
 - **S42's Tier 1 org asks are drafted** in [docs/S42_ORG_ASKS.md](S42_ORG_ASKS.md), ready for
   the user to review and send. Not sent — I can't, and two judgment calls are flagged in the
   file: whether to include the paragraph disclosing that write-capable DB credentials sit in the
