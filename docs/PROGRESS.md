@@ -16,6 +16,15 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **Merged to `main`** (`1eb125a`, fast-forward, CI green). The running image is
   `gha-d1899a483d06`, one docs-only commit behind `main` — no code or Terraform drift, so a
   deploy from `main` now reproduces what staging is running.
+- **S42's Tier 1 org asks are drafted** in [docs/S42_ORG_ASKS.md](S42_ORG_ASKS.md), ready for
+  the user to review and send. Not sent — I can't, and two judgment calls are flagged in the
+  file: whether to include the paragraph disclosing that write-capable DB credentials sit in the
+  production repo (true and material, but it may land better in conversation than in a
+  forwardable email), and whether to ask now for the possibly-unneeded read-only DB account
+  (I11's ladder says descend only as far as discovery forces, but provisioning is where weeks
+  disappear). Drafted early on purpose: these items are blocked on other people, so their clock
+  runs whether or not anyone is at the keyboard, which is the one thing on this backlog that is
+  true of.
 - **All four open audit dispositions are decided (D-098), none implemented — Phase 0B owns
   them.** The Phase 0B backlog therefore has these concrete, already-decided items, on top of
   the seeded known-issues list: **AUD-L-04** a `semantic_memory` retention job + `make
