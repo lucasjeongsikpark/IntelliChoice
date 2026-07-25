@@ -170,14 +170,37 @@ GOLDEN_DATASET_QA = EvalCategory(
         EvalItem("Branch questions", ("apps/chat-api/tests/test_branch_locator.py",)),
         EvalItem("Academic calendar", ("apps/chat-api/tests/test_calendar_events.py",)),
         EvalItem("Conflicting sources", ("apps/chat-api/tests/test_qa_service.py",)),
-        EvalItem("No-answer cases", ("apps/chat-api/tests/fixtures/qa_coverage_eval.yaml",)),
+        EvalItem(
+            "No-answer cases",
+            (
+                "apps/chat-api/tests/fixtures/qa_coverage_eval.yaml",
+                # S37/AUD-C: the paid run is what actually measures this. Under the
+                # default mock the `no_answer` category scores 0/8 by construction
+                # (`_rag_answer_json` always answers from the first chunk), so the
+                # mock-backed file above records the case set, not the capability.
+                "apps/chat-api/tests/test_qa_coverage_eval_real_bedrock.py",
+            ),
+        ),
         EvalItem("Maps tool", ("apps/chat-api/tests/test_branch_locator.py",)),
         EvalItem("Calendar tool", ("apps/chat-api/tests/test_calendar_action.py",)),
         EvalItem("Gmail escalation", ("apps/chat-api/tests/test_admin_escalation.py",)),
         EvalItem("Out-of-scope requests", ("apps/chat-api/tests/fixtures/qa_coverage_eval.yaml",)),
         EvalItem(
             "Prompt injection",
-            ("apps/chat-api/tests/test_prompt_injection_eval.py",),
+            (
+                "apps/chat-api/tests/test_prompt_injection_eval.py",
+                # S37/AUD-C added an `adversarial` category to the coverage fixture so
+                # the same pressure is tracked as a *rate* comparable across runs and
+                # across providers, not only as per-case invariants.
+                "apps/chat-api/tests/fixtures/qa_coverage_eval.yaml",
+            ),
+        ),
+        EvalItem(
+            "Paraphrase robustness",
+            (
+                "apps/chat-api/tests/fixtures/qa_coverage_eval.yaml",
+                "apps/chat-api/tests/test_qa_coverage_eval_real_bedrock.py",
+            ),
         ),
     ),
 )

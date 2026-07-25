@@ -585,12 +585,26 @@ which stop the line.
   deterministic scoring and re-grade consistency, mastery + retry ladder vs §5.10–5.11, the
   full hint ladder, learning-gain math, dashboard/report numbers recomputed independently from
   raw rows, stage-narrative grounding, memory effects on tutoring payloads.
-- **S37 — AUD-C, chat product correctness.** Retrieval quality via the existing eval harness
-  extended (paraphrase/adversarial/no-answer sets; grounded-citation and correct-refusal rates
-  as tracked metrics), pre-retrieval role/branch/date filtering for every audience incl.
-  anonymous, conversation state across turns/interrupts/reconnects, tool-call validation +
-  audit trail, citation verbatim checks, **every degraded/refusal/empty response shape actually
-  rendered** (the S22.5 blank-turn bug is the known exemplar of a class).
+- **S37 — AUD-C, chat product correctness.** ⏸ partial (2026-07-25, D-101) Retrieval quality via the
+  existing eval harness extended (paraphrase/adversarial/no-answer sets; grounded-citation and
+  correct-refusal rates as tracked metrics), pre-retrieval role/branch/date filtering for every
+  audience incl. anonymous, conversation state across turns/interrupts/reconnects, tool-call
+  validation + audit trail, citation verbatim checks, **every degraded/refusal/empty response shape
+  actually rendered** (the S22.5 blank-turn bug is the known exemplar of a class).
+  **Shipped:** 16 findings (AUD-C-01..16), three P1 — a thread-ownership hole verified live, a scope
+  prompt that refuses "What is IntelliChoice?", and precise coordinates persisting in
+  `checkpoint_writes`. The eval was measured against **both** the mock and real Bedrock, which is what
+  showed that the suite's 100% scores were measuring `MockBedrockProvider` rather than retrieval.
+  **Why ⏸ and not ✅ — two sub-items of this line are not met as written.** (1) "every
+  degraded/refusal/empty response shape **actually rendered**": all 14 shapes were enumerated against
+  `ChatScreen`/`App` and two were found broken (AUD-C-04, AUD-C-10), but by reading the render code,
+  not by rendering a page — no browser automation exists in this environment. (2) "reconnects" was
+  exercised programmatically (`_initial_snapshot` plus the event bus, which is how the anonymous
+  eavesdrop in AUD-C-01 was demonstrated), not by dropping and resuming a real SSE connection.
+  **This is the same gap S36 left**, and it now blocks the same thing twice: the browser-driven half
+  of §2.3 is uncovered for both the learning and the chat app. Fold it into S39 (AUD-F), which already
+  owns scripted journeys with console/network capture, or run it wherever browser tooling first
+  becomes available.
 - **S38 — AUD-X, cross-cutting integrity.** New-stack authn/authz boundaries (audience
   separation, cross-student/parent attempts on every route, SSE `?token=`, dev-token gates,
   checkpoint-thread hijack), checkpoint↔domain-table consistency after crashes mid-node/

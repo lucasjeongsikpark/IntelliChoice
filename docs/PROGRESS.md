@@ -5,7 +5,74 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **Next session: S37 (AUD-C, chat product correctness)** — or, if you want AUD-L fully closed
+- **Next session: S38 (AUD-X, cross-cutting integrity).** Two things S37 leaves on its doorstep:
+  **(a)** whether staging's ingested RAG corpus carries *real* Titan vectors or `MockBedrockProvider`
+  hash vectors (**AUD-C-16**) — if the latter, staging's semantic retrieval is currently noise and
+  only keyword search works; RDS is in private subnets so S37's live pass could not see it. **(b)**
+  AUD-C-01 is an authorization finding S38's own scope (cross-caller access on every route) should
+  re-test from its side.
+- **S37 shipped ⏸ partial, 2026-07-25 (D-101): AUD-C, 16 findings (AUD-C-01..16), three P1.**
+  **⏸ not ✅:** two sub-items of the roadmap line are not met as written — "every degraded/refusal/
+  empty response shape **actually rendered**" was done by enumerating all 14 shapes against the
+  render code (finding two broken ones) rather than by rendering a page, and "reconnects" was
+  exercised programmatically rather than by dropping a real SSE connection. No browser automation
+  exists in this environment. **This is the same gap S36 left**, so the browser-driven half of §2.3
+  is now uncovered for both apps; fold it into S39 (AUD-F), which already owns scripted journeys
+  with console/network capture.
+  Traceability over SPEC §5.19–§5.24/§5.25.3/§5.29/§5.30.2/§5.30.4, defect-pattern sweeps,
+  API-level adversarial runs, and a bounded **live-staging** pass. Retrieval quality measured
+  **twice** — mock and real Bedrock (Haiku 4.5 + Titan v2, **76.7¢, 13m17s**). Test *count* is
+  unchanged at **513 passed / 2 skipped** (was 513/1): the coverage eval is still one test, now
+  scoring 61 fixture cases instead of 40, and the new paid runner is the second skip. The audit's
+  own probes were deliberately not left behind as tests — they belong to the findings, and the
+  regression tests for them land with the Phase 0B fixes.
+  **The headline is that the golden Q&A eval was measuring the mock, and its 100% scores were hiding
+  real defects.** Against a real model the same fixture scores `grounded` **11.1%** (was 100%) and
+  `role_gated` **0%** (was 100%) — not because retrieval is bad, but because a real classifier
+  correctly refuses 10 of those 14 cases *before retrieval runs*: they are keyword lists
+  (`"Baton Rouge Carver Public Library Terrace Street Saturday hours"`) and nonsense markers
+  (`"zqxveval1 handbook"`), written that way on purpose to survive the mock's word-overlap reranker.
+  The newly added `no_answer` set inverts it — **0/8 mock, 8/8 real** — because the mock always
+  answers from the first chunk with confidence 0.8, so it can never decline. The fixture now has
+  `paraphrase`, `no_answer`, `adversarial` and `role_gated_question` categories, scoring moved to
+  `packages/evals/qa_coverage.py` so both runners compute identically, and the quality categories are
+  **measured, not gated** — no threshold was invented before the first measurement.
+  **Three P1s.** **AUD-C-01:** `POST /messages` has no thread-ownership check *and* an anonymous turn
+  rewrites `user_external_id` to `None`, disabling the checks `/respond` and `/stream` do perform —
+  **verified live on staging**: an unauthenticated caller continued a tutor's thread, got the tutor's
+  answer and citation back, and resolved its interrupt (all 200). Locally, tutor-audience text
+  reached the anonymous response verbatim. Logged not fixed (§2.4 reserves mid-audit fixes for P0s);
+  the P0 argument is in D-101, and its two halves must be fixed together with AUD-C-04.
+  **AUD-C-02:** the `SCOPE_AND_INTENT` prompt omits SPEC §5.19.4's *first* supported topic
+  ("IntelliChoice organization"), so live staging refuses **"What is IntelliChoice?"** as out of
+  scope, 5/5 — invisible to every test because the mock's keyword tuple contains `"intellichoice"`.
+  **AUD-C-03:** the locator's precise coordinates persist in `checkpoint_writes.__resume__` after the
+  turn and after two more turns, with nothing purging them, against a consent notice that promises
+  verbatim not to store them — D-045 called this "briefly" and called removal infeasible; both are
+  wrong, and a targeted delete works.
+  **Also found:** **AUD-C-06** §18-C3's access-aware refusal fires **0 times in 8** under a real model
+  (its precondition is zero-row retrieval, which real hybrid search never produces); **AUD-C-04** a
+  paused turn returns the *previous* turn's answer/citations and `ics_content` sticks forever;
+  **AUD-C-07** an embedding failure or exhausted budget on the retrieval path is an unhandled 500;
+  **AUD-C-08** a Bedrock outage answers every in-scope question with the out-of-scope refusal;
+  **AUD-C-09** §5.21.3's `academic_year` predicate is never applied; **AUD-C-10** any API error leaves
+  chat-web stuck on `Thinking…` forever (a §2.6 criterion-3 blank state); **AUD-C-11** the no-source
+  refusal ships *with* citations attached.
+  **The strongest negative result:** pre-retrieval role/branch/date filtering held for all five
+  audiences against the **real** corpus, run twice — once as-is and once inside a rolled-back
+  transaction with the 2026-08-01 date gate opened so the 19 gated real documents went live. No role
+  ever retrieved outside `{public, its own tier}`; draft, future-dated, expired and other-branch
+  chunks were each individually excluded. Only `academic_year` failed.
+  **One method lesson (D-101 §5):** the first coordinate probe used `CAST(blob AS text) LIKE` and
+  reported clean — checkpoint blobs are msgpack, so that check cannot see a float and would have
+  certified a database full of coordinates. §2.6 criterion 9 is exactly the criterion a badly-shaped
+  grep appears to satisfy.
+  **Verification:** `make lint` clean, `make typecheck` clean (pyright 0 errors), **513 passed /
+  2 skipped**. **Not covered:** LLM-judge answer quality, multi-turn context (`standalone_query` is
+  still always `query` — a pre-existing carry-over), and browser-driven runs — no browser automation
+  exists here, so the frontend findings are code enumeration plus API evidence, not a rendered page.
+  **Cost:** 76.7¢ for the full paid eval plus ~25¢ of targeted diagnostic re-runs.
+- **Superseded next-session line (kept for the record): S37 (AUD-C, chat product correctness)** — or, if you want AUD-L fully closed
   first, the **browser-driven adversarial runs + the live-staging half of §2.3**, which are the
   only AUD-L areas still uncovered (list below). **AWS is authenticated** (IAM user
   `jeongsik-staging-admin`, re-authenticated 2026-07-25), so the live half is unblocked, not
@@ -1261,6 +1328,32 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   rows for the fixture student used).
 
 ## Session log
+
+_Note: this section holds only S32 and S37. S33–S36 recorded themselves in the "Current
+status" block above instead, which is where this project's detailed log actually lives —
+recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S37 — AUD-C, chat product correctness (2026-07-25) ⏸ partial
+- **Audited the chat product against SPEC §5.19–§5.24, §5.25.3, §5.29, §5.30.2/.4**: traceability,
+  defect-pattern sweeps, API-level adversarial runs, and a bounded live-staging pass. 16 findings
+  (AUD-C-01..16), three P1, all logged in AUDIT_FINDINGS.md with reproductions; none fixed, per
+  §2.4's rule that mid-audit fixes are reserved for P0s.
+- **Extended the golden Q&A eval and measured it twice.** Fixture 40 → 61 cases with `paraphrase`,
+  `no_answer`, `adversarial` and `role_gated_question`; scoring extracted to
+  `packages/evals/qa_coverage.py` so both runners compute identically; new opt-in, spend-capped
+  `test_qa_coverage_eval_real_bedrock.py`. The real run (Haiku 4.5 + Titan v2, 76.7¢) showed the
+  suite's 100% scores were measuring `MockBedrockProvider`, not retrieval — `grounded` 11.1% and
+  `role_gated` 0% real vs 100% mock, `no_answer` 8/8 real vs 0/8 mock.
+- **Three P1s:** AUD-C-01 `/messages` has no ownership check and an anonymous turn erases the owner
+  `/respond` and `/stream` check (verified live on staging, with tutor text reaching an anonymous
+  response locally); AUD-C-02 the scope prompt omits SPEC §5.19.4's first topic so live staging
+  refuses "What is IntelliChoice?" 5/5; AUD-C-03 precise coordinates persist in
+  `checkpoint_writes.__resume__` against a consent notice promising otherwise.
+- Verification: `make lint` clean, `make typecheck` clean (pyright 0 errors), **513 passed /
+  2 skipped**. Dev DB verified intact afterwards (23 documents / 159 chunks, zero probe leftovers).
+- Carry-over: browser-driven rendering and SSE-drop verification (the ⏸); whether staging's corpus
+  holds real or mock embedding vectors (AUD-C-16) — first thing for S38's live pass.
+- New decisions: **D-101**.
 
 ### Session 32 — Deployment architecture decision + first deploy (2026-07-22) ✅
 - **Decision-gated session, decided at start**: confirmed D-004 as corrected by

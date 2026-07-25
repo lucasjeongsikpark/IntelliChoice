@@ -40,6 +40,22 @@ ones.
 | AUD-L-16 | Design integrity | P3 | Open — Phase 0B | Both policy snapshots (`assessment_sessions.policy`, `study_sessions.intervention_policy`) are written at creation and never read back; only `time_limit_seconds` governs behavior, via a separate column |
 | AUD-L-17 | Test integrity | P3 | **Fixed in S36 continuation** | The default mock's own hint boilerplate (`Level 1`) tripped the runtime answer-leak check whenever the served answer was `"1"`, making a hint test fail 8 times in 60 runs; `hint_events.was_personalized` still records no reason code, so the real rate is unmeasurable |
 | AUD-L-01 | Auth surface | P3 | Open — Phase 0B | A gated-off `/dev/token` still discloses that it exists, and the S35 deploy gate's stated rationale is wrong about why it 404s |
+| **AUD-C-01** | **Authorization** | **P1** | Open — before the gate | `POST /messages` has no thread-ownership check *and* an anonymous turn erases the owner that `/respond` and `/stream` do check. Live-verified on staging: an unauthenticated caller continued a tutor's thread, received the tutor's answer and citation, and resolved its interrupt. Locally, tutor-audience text reached the anonymous response verbatim |
+| **AUD-C-02** | **Launch journey** | **P1** | Open — before the gate | The `SCOPE_AND_INTENT` prompt's topic list omits SPEC §5.19.4's first supported topic ("IntelliChoice organization"), so live staging refuses **"What is IntelliChoice?"** as out of scope, 5/5. The mock's keyword list contains `"intellichoice"`, so no test could see it |
+| **AUD-C-03** | **Minors / PII** | **P1** | Open — before the gate | A caller's precise coordinates persist indefinitely in `checkpoint_writes.__resume__`, contradicting the consent notice's verbatim promise not to store them. D-045 called this "briefly"; nothing purges it, and D-045's "not eliminable" is wrong — a targeted delete works |
+| AUD-C-04 | Correctness / UX | P2 | Open — Phase 0B | A turn that pauses on `interrupt()` returns the *previous* turn's answer, citations and access hint (pausing nodes never return, so nothing resets them); `ics_content` is never cleared by anything and sticks to every later turn. The leak vehicle in AUD-C-01 |
+| AUD-C-05 | Test integrity | P2 | **Partly addressed in S37** | The golden Q&A eval measures `MockBedrockProvider`, not retrieval: a real model rejects 10 of its 14 gating cases before retrieval runs, and `no_answer` scores 0/8 under the mock vs 8/8 real. Fixture extended and re-scored this session; the mock's quality categories are now measured, not gated |
+| AUD-C-06 | SPEC conformance | P2 | Open — Phase 0B | SPEC §18-C3's access-aware refusal fired **0 times in 8** under a real model: its precondition is zero-row retrieval, which real hybrid search essentially never produces. A parent gets "no approved source" instead of "log in to see the parent handbook" |
+| AUD-C-07 | Robustness | P2 | Open — Phase 0B | An embedding-provider failure or an exhausted budget on the retrieval path is an unhandled **500** — `retrieve()`'s `create_embedding` is the one uncaught gateway call, and chat-api has no exception handler. Violates §5.29's Bedrock-timeout row |
+| AUD-C-08 | UX / diagnosability | P2 | Open — Phase 0B | A total Bedrock outage, or an exhausted cost ceiling, answers every in-scope question with the *out-of-scope* refusal — fail-closed but user-misleading, and indistinguishable from a genuine refusal in logs |
+| AUD-C-09 | SPEC conformance | P2 | Open — Phase 0B | §5.21.3's sixth predicate (`academic_year = requested_year`) is never applied at query time; a 2019-2020 chunk was retrievable by every audience. Fully masked while the corpus holds one academic year |
+| AUD-C-10 | Frontend contract | P2 | Open — Phase 0B | Any API error leaves chat-web's turn stuck on `Thinking…` permanently — the transcript entry keeps `response: null` and nothing clears it. A §2.6 criterion-3 blank/stuck state, reachable from AUD-C-07 |
+| AUD-C-11 | Correctness / UX | P2 | Open — Phase 0B | The low-confidence branch returns the "I don't have an approved source" message *with* verified citations attached, so the UI shows a source beside a sentence denying one exists. Observed live |
+| AUD-C-12 | SPEC conformance | P3 | Open — Phase 0B | §5.21.8's "retrieval score is below threshold" do-not-answer trigger has no implementation: the only filter is `rerank > 0.0`, and the 0.4 threshold gates the model's self-reported confidence, not retrieval |
+| AUD-C-13 | Grounding | P3 | Open — Phase 0B | The citation verbatim check accepts any non-empty substring, so a one-character quote verifies against nearly any chunk; only the quote's hash is stored, so it cannot be re-examined |
+| AUD-C-14 | Contracts | P3 | Open — Phase 0B | `RespondResponse` omits `scope`/`intent`, so every SSE snapshot published after a `/respond` nulls them for connected clients — D-058's class, in the direction that decision did not name |
+| AUD-C-15 | Audit trail | P3 | Open — Phase 0B | `McpToolRegistry.call` raises on an unknown tool *before* any audit write, so the one call shape a wiring bug or injection would produce is the one that leaves no `mcp_tool_calls` row |
+| AUD-C-16 | Data integrity | P3 | Open — Phase 0B | Stored embeddings are provider-specific with no provenance column and no re-embed path; switching `BEDROCK_PROVIDER` silently degrades semantic search to noise while keyword search masks it. Whether staging's corpus has real or mock vectors is **unknown** |
 
 ---
 
@@ -898,3 +914,359 @@ _(Still **not** covered: the browser-driven adversarial runs — refresh mid-exa
 expired timers, dropped SSE — and the live-staging half of §2.3. See PROGRESS.md for the explicit
 list, rather than leaving the absence to be inferred from this file. The API-level adversarial
 probes that *were* run are the ones evidenced above and in AUD-L-10/11.)_
+
+---
+
+## S37 — AUD-C (chat product correctness)
+
+Method as §2.3 requires: traceability over SPEC §5.19–§5.24, §5.25.3, §5.29's chat rows and
+§5.30.2/§5.30.4; defect-pattern sweeps for every class this project has already produced; and
+adversarial runs — local against the real graph and real Postgres, plus a bounded pass against
+**live staging** (`d222glidpp4azv.cloudfront.net`). Retrieval quality was measured twice, once with
+`MockBedrockProvider` and once against **real Bedrock** (Haiku 4.5 + Titan v2, 76.7¢, 13m17s), which
+is what made AUD-C-05 and AUD-C-06 visible at all.
+
+### AUD-C-01 — `/messages` has no thread-ownership check, and an anonymous turn *erases* the owner the other two endpoints check (P1)
+
+- **Severity:** P1. §2.4 lists authorization bypass under P0; this is held at P1 only because
+  exploitation requires the thread's `uuid4` session id, which is never published, never in a URL
+  bar, and not enumerable. The P0 argument is recorded below — it is not a comfortable margin.
+- **Reproduction (live staging, deployed config, this session):**
+  1. `POST /chat/sessions` → session id.
+  2. `POST /chat/sessions/{id}/messages` with a **tutor** bearer token → grounded answer, and the
+     thread's checkpointed `user_external_id` becomes `aud-c-tutor`.
+  3. `POST /chat/sessions/{id}/messages` with **no Authorization header at all** → **HTTP 200**.
+     The response body carries the tutor's previous answer *and* its citation
+     (`public-organization-overview`) verbatim.
+  4. `POST /chat/sessions/{id}/respond` with no token → **HTTP 200**. It succeeds because step 3
+     rewrote `user_external_id` to `None`.
+- **Locally, with a tutor-audience chunk that only a tutor could retrieve**, step 3's response
+  contained the tutor-only text verbatim (`"Confidential tutor procedure: … the pager rota and the
+  incident register are kept behind the lanyard cabinet"`), i.e. content the pre-retrieval filter
+  had correctly withheld from anonymous callers one turn earlier. The same text was then served
+  again by `GET /stream`'s initial snapshot, and every *subsequent* tutor turn was pushed to an
+  event-bus subscriber that attached while the thread was owner-less — the SSE access check runs
+  once, at connect time, and is never re-evaluated when ownership returns.
+- **Two independent defects compose here.** The leak vehicle is AUD-C-04 (stale presentation
+  fields); the authorization hole is this one. Either alone is much less serious. Fixing only
+  AUD-C-04 would still leave an unauthenticated caller able to drive, and resolve interrupts on,
+  someone else's thread.
+- **Why it is asymmetric, and therefore unintentional.** `respond_to_interrupt` and
+  `_initial_snapshot` contain the *same* five-line owner check. `post_message` does not — and it is
+  the only one of the three that *writes* the field the other two read.
+- **P0 argument, recorded rather than acted on.** Content that SPEC §5.21.3 requires be filtered
+  before retrieval reaches a caller who may not retrieve it, and a documented access boundary is
+  removable by an unauthenticated request. What holds it at P1: the attacker must already hold a
+  128-bit session id, staging has no real users, and `/dev/token` is secret-gated. §2.4 reserves
+  mid-audit fixes for P0s, so this is logged, not fixed — but it is the first item of Phase 0B, and
+  both halves must land together.
+- **Fix shape:** apply the existing owner check in `post_message`, and make `resolve_role` refuse to
+  *downgrade* a thread's `user_external_id` from a value to `None`.
+
+### AUD-C-02 — The scope guard's own topic list omits the organization, so "What is IntelliChoice?" is refused as out of scope (P1)
+
+- **Severity:** P1 — a launch journey is broken for what is plausibly the most common question an
+  anonymous visitor asks, on the deployed system, today.
+- **Reproduction (live staging, 5/5):**
+
+  | query | scope | intent | citations |
+  |---|---|---|---|
+  | `What is IntelliChoice?` | **out_of_scope** | clarification | — |
+  | `Who leads IntelliChoice, and what did they do before?` | **out_of_scope** | document_qa | — |
+  | (same query, repeated) | **out_of_scope** | document_qa | — |
+  | `Who is on the IntelliChoice leadership team?` | **out_of_scope** | clarification | — |
+  | `Tell me about the people who run IntelliChoice` | **out_of_scope** | clarification | — |
+
+  Each returns SPEC §5.19.4's refusal — *"I cannot answer unrelated general-purpose questions"* —
+  while `public-organization-overview` and `public-our-team` are approved, effective today, and
+  ingested (the same corpus answers other questions with citations in the same session).
+- **Root cause, and it is one line.** SPEC §5.19.4's supported-topic list begins with
+  **"IntelliChoice organization"**. The `SCOPE_AND_INTENT` system prompt in
+  `chat_api/graph/nodes.py` enumerates *"branches, schedules, volunteering, student learning, parent
+  information, tutor/branch procedures, the academic calendar, and learning-app support"* — the
+  organization itself is missing, as is §5.19.4's "student participation". A real classifier obeys
+  the list it was given.
+- **Why no test caught it.** `MockBedrockProvider._scope_and_intent_json` keys on a keyword tuple
+  that *does* contain `"intellichoice"`, so every mock-backed test scores these queries in scope.
+  The prompt text is never asserted against SPEC's list anywhere.
+- **Note:** two of the five runs returned `in_scope=false` alongside `intent=document_qa` — the
+  model contradicting itself within one structured response. The pipeline resolves that toward
+  refusal (fail-closed, correct), but it is a signal the prompt is confusing the classifier.
+
+### AUD-C-03 — The caller's precise coordinates are stored indefinitely in `checkpoint_writes`, contradicting the consent notice shown to them (P1)
+
+- **Severity:** P1 — minors' precise location, against an explicit promise. Same shape as AUD-L-04:
+  an accepted residual risk whose mitigating assumption stopped holding.
+- **What the product promises**, verbatim in `LOCATION_CONSENT_NOTICE` (SPEC §5.1.3):
+  *"IntelliChoice will not permanently store your precise location."*
+- **What is stored.** After one locator turn with `latitude=32.9876543, longitude=-96.7654321`,
+  decoding the checkpoint tables with LangGraph's own serializer finds the coordinates in
+  **`checkpoint_writes`, channel `__resume__`**, twice:
+  `{'approved': True, 'zip_code': None, 'city': None, 'address': None, 'latitude': 32.9876543,
+  'longitude': -96.7654321}`. They are still present after **two further turns** on the thread, and
+  no job deletes them — `chat-purge`'s 90-day retention covers `tutor_chat_messages`, not the
+  checkpoint tables, and PROGRESS.md already tracks ~268k checkpoint rows accumulating unswept.
+- **D-045 anticipated the mechanism and understated the duration.** It records that the saver
+  "persists the raw `Command(resume=…)` value … so the location transits Postgres **briefly** at the
+  framework level". Measured, "briefly" is "for the lifetime of the thread, which nothing bounds".
+- **D-045 also overstates the difficulty.** It concludes removal "would mean disabling checkpointing
+  for one specific node". It would not: `DELETE FROM checkpoint_writes WHERE thread_id = :t AND
+  channel = '__resume__'` immediately after the locator node completes removes the value while
+  keeping crash-safety for the window it exists to cover. A retention job over the checkpoint tables
+  (already on the Phase 0B list for volume reasons) would bound it as a backstop.
+- **Method note:** the first version of this check used `CAST(blob AS text) LIKE '%32.98%'` and
+  reported zero hits. Checkpoint blobs are msgpack, so a float is eight binary bytes and a bytea
+  cast renders as hex — that check would have certified a database full of coordinates as clean. It
+  is recorded because it is the kind of PII probe that silently passes.
+
+### AUD-C-04 — A turn that pauses on `interrupt()` returns the *previous* turn's answer, citations and access hint; `ics_content` never clears at all (P2)
+
+- **Reproduction (local, real graph):** ask a document question (grounded answer + citation
+  `public-organization-overview`), then on the same thread ask to contact an administrator. The
+  second turn's response repeats the first turn's answer *and* its citation, with
+  `pending_interrupt: email_approval` beside them. In chat-web that renders the previous answer, its
+  citation chip, and any escalation/access-hint banner as if they answered the new question, while
+  the approval modal sits on top.
+- **Root cause.** Every terminal node explicitly resets the presentation fields (`answer`,
+  `citations`, `confidence`, `missing_information`, `escalation_recommended`, `access_hint`). A node
+  that pauses via `interrupt()` **never returns**, so nothing is reset and `ainvoke` hands back the
+  channels as the previous turn left them. All three interrupt paths are affected
+  (`admin_escalation`, `calendar_action`, `branch_locator_consent`). On a session's *first* turn the
+  same code path returns `answer: null` — harmless only because a modal happens to cover it.
+- **`ics_content` is worse: it is never reset by anything.** Measured across a real sequence —
+  calendar turn → `.ics` choice → two unrelated document questions — `ics_content` was still
+  populated on every later turn. chat-web renders a "Download .ics" button on each of those answers,
+  all serving the original event.
+- **Fix shape:** clear the presentation fields in `resolve_role`, which already runs first on every
+  turn and already sets `query`/`standalone_query`.
+
+### AUD-C-05 — The golden Q&A eval measures `MockBedrockProvider`, not retrieval; a real model rejects 10 of its 14 gating cases before retrieval runs (P2)
+
+- **What the suite reported before this session:** refusal correctness 100%, no-hallucination 100%,
+  citation grounding 100% (9/9) — all gated in CI.
+- **The same fixture against real Bedrock:**
+
+  | category | mock | real Bedrock |
+  |---|---|---|
+  | `grounded` | 100% (9/9) | **11.1% (1/9)** |
+  | `role_gated` (marker-based) | 100% (5/5) | **0% (0/5)** |
+  | `out_of_scope` | 100% | 100% |
+  | `no_source` | 100% | 100% |
+  | `adversarial` (added S37) | 100% | 83.3% |
+  | `paraphrase` (added S37) | 28.6% | 42.9% |
+  | `no_answer` (added S37) | **0% (0/8)** | **100% (8/8)** |
+  | **grounded_citation_rate** | 68.8% | 25.0% |
+  | **correct_refusal_rate** | 79.5% | 87.2% |
+
+- **The collapse is not retrieval quality — it is the fixture.** Per-case diagnosis shows 7 of 9
+  `grounded` cases and all 5 `role_gated` cases never reached retrieval: the real classifier returned
+  `clarification` or `out_of_scope` and the graph refused first. That is *correct behavior* on those
+  inputs. `"Baton Rouge Carver Public Library Terrace Street Saturday hours"` is a keyword list, not
+  a question; `"zqxveval1 handbook"` is gibberish. Both were written that way deliberately — the
+  fixture's own docstring explains that literal words from the target chunk were required to survive
+  the mock's word-overlap reranker, and that nonsense markers were required to avoid coincidental
+  matches. The suite was reverse-engineered into the mock's shape until a real model rejects it.
+- **The two suites are close to inverted.** `no_answer` — plausible in-scope questions the corpus
+  cannot answer — scores 0/8 under the mock and 8/8 under the real model. The mock cannot ever pass
+  it: `_rag_answer_json` always answers from the first context chunk with a fixed confidence of 0.8,
+  so every unanswerable question is answered from an unrelated document with a *verified* citation
+  ("Does IntelliChoice provide transportation?" → a branch manager's biography, cited).
+- **What this means for the §2.6 gate.** The 100% figures certify the mock, not the product. This
+  session left the mock run in place as a deterministic CI gate for the categories it can genuinely
+  decide (routing, filtering, deterministic citation verification, adversarial containment) and moved
+  the retrieval-quality categories to measured-not-gated, with the real-Bedrock run as the instrument
+  — see `apps/chat-api/tests/test_qa_coverage_eval_real_bedrock.py` (opt-in, three spend ceilings).
+- **One genuine pipeline result inside the noise:** `grounded-overview-2` did run end to end under
+  the real model — 8 chunks retrieved including the correct document — and still produced no citation
+  and confidence 0.0. n=1, but it is the only case where the real pipeline was actually exercised and
+  it declined to cite a document it had in hand.
+
+### AUD-C-06 — SPEC §18-C3's access-aware refusal never fires under a real model (P2)
+
+- **Measured 0 for 8.** Five marker-based `role_gated` cases and three newly written as real
+  questions against seeded gated content ("How many sessions can my child miss before losing their
+  place?", with a parent-audience chunk that answers exactly that). Under real Bedrock **not one**
+  produced an `access_hint`.
+- **Two distinct causes, both structural.** The marker cases are refused as out of scope before
+  retrieval. The realistic ones reach `document_qa` and retrieve **8 chunks** — all public, because
+  the pre-retrieval filter correctly withheld the gated ones — so retrieval is *non-empty* and
+  `_route_after_answer_document_qa` sends them to `synthesize_answer`, never to `explain_access`.
+  The feature's entire precondition is `retrieved_chunk_ids == []`, a lexical-emptiness condition
+  that real hybrid search over a non-trivial corpus essentially never produces.
+- **User-visible effect:** a parent asking a question the parent handbook answers is told *"I don't
+  have an approved source for that yet"* rather than *"that's in the parent handbook — log in"*, even
+  though `count_matching_by_audience` would have found it. The refusal is safe but unhelpful, which
+  is precisely the outcome S19 built the feature to avoid.
+- **Safety half held:** no gated content leaked in any of the 8 (consistent with the phase-B result
+  below).
+- **Fix shape:** run the access probe whenever the answer is a no-source refusal, not only when
+  retrieval returned zero rows.
+
+### AUD-C-07 — An embedding failure or an exhausted budget on the retrieval path is an unhandled 500 (P2)
+
+- **Reproduction:** with the generation provider healthy and the embedding provider raising,
+  `POST /messages` returns **HTTP 500** for both a `document_qa` query and a `calendar` query.
+- **Cause.** `scope_guard` catches `BedrockGatewayError` and `retrieve`'s *rerank* call catches it,
+  but `retrieve`'s `create_embedding` call is unguarded, and no exception handler exists in
+  `chat_api.main`. `CostBudgetExceededError` and `CircuitOpenError` are the same exception family, so
+  a budget exhausted at exactly that point produces a 500 too.
+- **Reachability is not exotic:** generation and embeddings are different models from different
+  families (`AnthropicBedrockProvider` vs `TitanEmbeddingProvider`) with separate quotas and separate
+  model-access enablement. Titan throttling, or Titan access lapsing in the region, takes out every
+  document question while classification keeps working. The shared circuit breaker also allows a
+  half-open window where generation succeeds and the embedding call re-fails.
+- **§5.29 requires "bounded retry and smaller-model fallback" for a Bedrock timeout.** A 500 is
+  neither. Same class as AUD-L-11, and it is the most likely real-world trigger of AUD-C-10.
+
+### AUD-C-08 — A total Bedrock outage answers every in-scope question with the out-of-scope refusal (P2)
+
+- **Reproduction:** with every provider call failing, `POST /messages` returns 200 and SPEC §5.19.4's
+  *"I cannot answer unrelated general-purpose questions."* Same for an exhausted session budget,
+  which trips on the first `scope_guard` call.
+- This is `scope_guard`'s deliberate fail-closed branch, and failing closed is right. The problem is
+  the *message*: during an outage the product tells a user their in-scope question was off-topic, and
+  a user who has exhausted the cost ceiling is told the same thing. §5.29's common mechanisms list
+  "user-safe error message"; this is a user-*misleading* one. There is no operator-visible difference
+  either — the response is identical to a genuine refusal.
+
+### AUD-C-09 — §5.21.3's `academic_year` predicate is not implemented (P2)
+
+- SPEC §5.21.3 lists six pre-retrieval predicates. Five are enforced. `academic_year = requested_year`
+  is not: `ChunkFilters.academic_year` exists and `_apply_filters` honours it, but
+  `role_access.role_access_filter` never sets it and no caller does.
+- **Measured:** a chunk seeded with `academic_year = "2019-2020"` was retrieved by every audience
+  including anonymous, in the same run where draft, future-dated, expired and other-branch chunks
+  were all correctly excluded.
+- **Entirely masked today** — all 23 documents and 159 chunks are `2026-2027` — and unmasks the first
+  time a second year is ingested, which is inherent to a yearly-refreshed handbook corpus. Same shape
+  as AUD-L-12: correct code, never wired, hidden by uniform data.
+
+### AUD-C-10 — chat-web leaves a permanent "Thinking…" bubble on any API error (P2)
+
+- `sendMessage` appends `{query, response: null}`, then awaits `postMessage`. On any throw, `run`'s
+  catch sets the error banner and **the transcript entry keeps `response: null` forever**;
+  `ChatScreen` renders `!turn.response` as a `Thinking…` bubble with no timeout and no retry. A 500
+  (AUD-C-07), a 409, a 401 or a dropped connection all land here.
+- §2.6 criterion 3 requires "zero blank/stuck states" on every launch journey. This is one, and it is
+  reachable from the most ordinary failure there is.
+- **Same class as the S22.5 blank-turn bug**, which is the seeded Phase 0B exemplar: a render gated
+  on a field that is legitimately absent. The full response-shape × render enumeration this session
+  ran is below; this and AUD-C-04 are the two shapes that render wrongly.
+
+### AUD-C-11 — The no-source refusal is returned *with* citations attached (P2)
+
+- **Observed live:** turn 1 of the staging session returned
+  `answer: "I don't have an approved source for that yet…"` together with
+  `citations: ["public-organization-overview"]` and `confidence: 0.4`.
+- **Cause:** `qa.answer_question`'s low-confidence branch is `_no_answer(NO_SOURCE_MESSAGE, verified)`
+  — it passes the verified citations *into* the no-answer result. chat-web then renders the refusal
+  text with a citation chip under it. A reader is being shown a source next to a sentence saying no
+  source exists. (The conflict branch does this deliberately and correctly; the low-confidence branch
+  appears to have inherited it.)
+
+### AUD-C-12 — §5.21.8's "retrieval score below threshold" has no implementation (P3)
+
+- SPEC §5.21.8 lists "Retrieval score is below threshold" as a do-not-answer trigger. The only
+  score-based filter in the pipeline is `retrieve()`'s `rerank_score > 0.0` (D-052), and the only
+  threshold is `groundedness_confidence_threshold` (0.4), which gates the *model's self-reported
+  confidence about its own answer*, not retrieval. A chunk the reranker scored 0.01 is passed to
+  synthesis exactly like one scored 0.99. No minimum-relevance setting exists.
+
+### AUD-C-13 — The citation verbatim check accepts a one-character quote (P3)
+
+- `qa._verify_citations` accepts a citation when `quote.lower() in chunk.chunk_text.lower()` and the
+  quote is non-empty. There is no minimum length and no requirement that the quote overlap the
+  answer, so `"a"` verifies against nearly any chunk. Only the quote's **hash** is stored
+  (`supporting_quote_hash`, per SPEC's Citation schema), so nothing downstream can re-examine what
+  was actually quoted. The defense is real but its floor is one character.
+
+### AUD-C-14 — `RespondResponse` omits `scope` and `intent`, so the post-resume SSE snapshot nulls them (P3)
+
+- `MessageResponse` and `SessionSnapshotEvent` both carry `scope`/`intent`; `RespondResponse` does
+  not. `_publish_snapshot` validates the snapshot from `response.model_dump()`, so every broadcast
+  after a `/respond` sets both to `null` for any connected client. Exactly the class D-058 was written
+  to prevent ("any field added to `MessageResponse` must also be added to `_initial_snapshot`"), in
+  the one direction that decision did not name. chat-web does not currently render either field, so
+  the impact today is nil — logged because the next field added here may not be inert.
+
+### AUD-C-15 — An unknown-tool call raises without writing an audit row (P3)
+
+- `McpToolRegistry.call` raises `McpToolError(f"unknown tool {tool_name!r}")` **before** `start` is
+  set and before any `_audit` call. Every other failure path (permission, validation, timeout,
+  execution) writes an `mcp_tool_calls` row with `success=False`. A call to an unregistered tool —
+  the shape a prompt-injection or a wiring bug would produce — leaves no trace at all.
+
+### AUD-C-16 — Stored embeddings are provider-specific, with no provenance and no re-embed path (P3)
+
+- `rag_chunks.embedding` records no model or provider. Switching `BEDROCK_PROVIDER` between `mock`
+  and `bedrock` silently invalidates every stored vector: a real Titan query vector compared against
+  `MockBedrockProvider`'s hash-based vectors is noise, and nothing detects it — keyword search keeps
+  working, so the system degrades to lexical-only retrieval while appearing healthy.
+- This session hit it directly: the real-Bedrock eval had to re-embed all 144 approved chunks inside
+  its rolled-back transaction to measure anything meaningful. There is no `make` target for that and
+  no way to tell from the database which provider produced what.
+- **Not yet checked against staging** (RDS is in private subnets and this session's live pass was
+  black-box over the API): whether staging's corpus was ingested with real Titan vectors or mock ones
+  is unknown, and if it were mock, staging's semantic half is currently noise. Recorded as the first
+  thing S38's live pass should settle.
+
+### Areas audited with no finding — S37
+
+**Pre-retrieval filtering holds for every audience, on real content.** Five audiences (anonymous/
+public, student, parent, tutor, branch_manager) × eight queries drawn from the real documents' own
+wording, run twice: once against the corpus as it stands, and once inside a rolled-back transaction
+with every `effective_from` pulled back a day so the 19 date-gated real documents become live. **No
+role retrieved a chunk outside `{public, its own role}` in either pass** — anonymous saw only public
+in all 51 hits; student, parent, tutor and branch_manager each saw only public plus their own tier.
+This is the check that most needed real content rather than synthetic seeds, and it passed cleanly.
+
+**Four of §5.21.3's other five predicates verified individually**, with purpose-built chunks that
+differ in exactly one attribute: a `draft` chunk, a chunk with `effective_from` 30 days in the
+future, one with `effective_to` a day in the past, and one tagged to `branch-B`. None was ever
+returned. A `branch-A` chunk *was* returned to a branch-A student and correctly withheld from a
+branchless one; an org-wide (`branch_external_id IS NULL`) chunk reached both. Only `academic_year`
+failed (AUD-C-09).
+
+**The access-hint probe leaks nothing it shouldn't.** `count_matching_by_audience` clears only the
+audience allowlist; `status = approved` and the date window still apply, so the probe cannot reveal
+that draft or expired content exists, and it returns counts grouped by audience — never ids, never
+text. `build_access_hint`'s priority order is backend-authored and never model-proposed.
+
+**Prompt-injection containment held under real Bedrock.** Five of six adversarial cases passed
+(role-claim in the query text, system-override instruction, citation bait, document enumeration, PII
+bait): none leaked seeded gated text and none cited outside the public allowlist. The sixth
+(`adversarial-false-premise`) failed only its forbidden-string check by repeating the fabricated
+time back in its answer — worth a closer read next session, but no content-boundary was crossed.
+
+**Interrupt-approval and tool-call audit rows are written correctly.** Approving an email escalation
+and completing a locator turn produced `interrupt_approvals` rows with the right `interrupt_type`,
+`decision` and `source_app = "chat"`, and `mcp_tool_calls` rows for `maps.geocode` /
+`maps.compute_routes` / `gmail.send_email` with `success` and `duration_ms`. `ToolCallAuditEvent`
+carries no PII by construction — tool name, external id, success, exception *type*. The one gap is
+AUD-C-15.
+
+**A thread with a pending interrupt correctly rejects new messages.** `_reject_if_paused` returned
+409 for both an anonymous caller and a second authenticated caller, so D-021's "a fresh `ainvoke`
+silently discards a paused task" trap is genuinely closed. `/respond` also correctly 409s on a
+mismatched `interrupt_type` and on "no interrupt is pending".
+
+**Response-shape × render enumeration (the S22.5 class).** All fourteen shapes the API can emit were
+enumerated against `ChatScreen`/`App`: grounded answer, no-source refusal, conflict message,
+out-of-scope refusal, clarification, access hint, event listing, `.ics` result, rate-limited
+escalation, email sent/declined/failed, location declined/missing, and each of the three pending
+interrupts. **Twelve render correctly.** The two that do not are AUD-C-04 (a paused turn renders the
+previous turn's answer) and AUD-C-10 (an errored turn renders `Thinking…` forever). One latent
+gap: `App.tsx` renders a modal only for the three known `interrupt_type` values, and
+`busy = pending !== null` — a fourth interrupt type added later would disable the composer with no
+modal to resolve it, deadlocking the session. Not reachable today.
+
+**Anonymous access works end to end on live staging.** `POST /chat/sessions` and `/messages` with no
+token returned in-scope answers with real citations from the deployed corpus, confirming both that
+§5.19.1's anonymous tier is genuinely open and that staging's RAG content is ingested and effective
+— which S36's experience with empty learning tables made worth checking rather than assuming.
+
+_(Not covered this session: the LLM-judge dimensions of answer quality — `packages/evals/llm_judge.py`
+exists and is unused by this suite; multi-turn conversational context, which `QAState` does not yet
+implement (`standalone_query` is always identical to `query`, a known carry-over); and browser-driven
+runs, since no browser automation exists in this environment — the frontend findings above are from
+code enumeration plus API-level evidence, not from a rendered page.)_

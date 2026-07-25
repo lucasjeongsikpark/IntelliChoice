@@ -138,7 +138,7 @@ flowchart TB
         YT["packages/youtube (S15)<br/>classify: re-validate against<br/>curriculum registry (D-046)<br/>catalog_sync · sync_cli<br/>channel-pin filter, prerequisite<br/>derivation, verification pass (S27)"]
         WEB["packages/webcontent (S17)<br/>fetch (real live site, D-051) ·<br/>extractors (about/branches/team) ·<br/>render · org_load · sync_cli"]
         MEM["packages/memory (S25)<br/>consolidation.py: session-scoped +<br/>weekly-window entrypoints, one<br/>shared core · events.py (emit/<br/>render vocabulary) · consolidate_cli"]
-        EVALS["packages/evals (S30)<br/>registry.py: SPEC §5.31 category→<br/>test-file index, not a reimplementation<br/>· llm_judge.py: BedrockTask.LLM_JUDGE's<br/>first caller, judge model ≠ production<br/>answerer · leak_sample.py: golden<br/>fixture reusing curriculum's leak<br/>checks (found/fixed D-079)<br/>test-time only, no runtime caller"]
+        EVALS["packages/evals (S30, S37)<br/>registry.py: SPEC §5.31 category→<br/>test-file index, not a reimplementation<br/>· llm_judge.py: BedrockTask.LLM_JUDGE's<br/>first caller, judge model ≠ production<br/>answerer · leak_sample.py: golden<br/>fixture reusing curriculum's leak<br/>checks (found/fixed D-079)<br/>· qa_coverage.py (S37): pure scoring for<br/>the Q&A coverage eval, shared by the<br/>mock CI gate and the paid real-Bedrock<br/>run so both compute the same metric<br/>test-time only, no runtime caller"]
     end
 
     subgraph OFFLINE["Offline pipelines (not request paths)"]

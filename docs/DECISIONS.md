@@ -4097,3 +4097,80 @@ five `aud-student-*` accounts plus `aud-parent` were added to local dev MySQL in
 `seed()` deletes only fixture students' attendance and would have reverted them mid-audit. They are
 local-only and disposable. `question_variants` is now **43,375** (S36 recorded 42,023) and
 `checkpoints` **268,793** (S36 recorded 264,475) — both still growing, Phase 0B's sweep unchanged.
+
+## D-101 — S37 (AUD-C, chat product correctness): the golden eval was measuring the mock, three P1s found, and the retrieval-quality categories are now measured rather than gated (accepted, 2026-07-25)
+
+**Context.** S37 is the chat half of the Phase 0A audit (INTEGRATION_PLAN §2.3). Baseline green
+(513 passed, lint/typecheck clean). Per the session-start decision the retrieval eval was run
+**both** ways — the deterministic mock as a CI gate, and one paid run against real Bedrock (Haiku
+4.5 + Titan v2, **76.7¢, 13m17s**) as the actual measurement — and the audit was done locally first
+with a bounded live pass against deployed staging at the end.
+
+**Sixteen findings (AUD-C-01..16), three of them P1.** Full reproductions in
+[AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); the decisions worth recording here are the ones that shape
+what the next sessions do.
+
+**1. Severity call on AUD-C-01: P1, not P0 — recorded because it is close.** An anonymous
+`POST /messages` on a known session id is accepted on an authenticated caller's thread *and* rewrites
+`user_external_id` to `None`, after which `/respond` and `/stream` — which both *do* check ownership
+— admit the same caller. Verified live on staging end to end, and locally the anonymous response
+contained tutor-audience text verbatim. §2.4 lists authorization bypass under P0, and content the
+pre-retrieval filter withheld one turn earlier does reach an unauthorized caller. Held at P1 because
+exploitation requires a 128-bit session id that is never published or enumerable, and staging has no
+real users. Following §2.4's rule that mid-audit fixes are reserved for P0s, it was logged rather
+than fixed — the same discipline D-100 applied to AUD-L-10. **It is the first item of Phase 0B, and
+its two halves (the missing check, and AUD-C-04's stale fields) must land together**: fixing only the
+field-clearing removes the leak but still lets an unauthenticated caller drive someone else's thread.
+
+**2. The golden Q&A eval was measuring `MockBedrockProvider`, and its 100% scores concealed two real
+defects.** Against real Bedrock the same fixture scores `grounded` 11.1% (was 100%) and `role_gated`
+0% (was 100%) — because a real classifier refuses 10 of those 14 cases *before retrieval*, correctly:
+they are keyword lists and nonsense markers, written that way deliberately to survive the mock's
+word-overlap reranker. Meanwhile `no_answer` — plausible questions the corpus cannot answer, added
+this session — scores **0/8 mock, 8/8 real**, because the mock always answers from the first chunk
+with confidence 0.8. **Decision: keep the mock run as the CI gate only for what it can genuinely
+decide** (routing, filtering, deterministic citation verification, adversarial containment) and move
+`paraphrase`, `no_answer` and `role_gated_question` to measured-and-reported, with
+`test_qa_coverage_eval_real_bedrock.py` (opt-in, three spend ceilings, corpus re-embedded in a
+rolled-back transaction) as the instrument. **No thresholds were invented for the real run** — a bar
+set before the first measurement is a guess dressed as a gate; S37 recorded the numbers, a later
+session can turn them into thresholds with evidence.
+
+**3. Two defects only a real model could show, both one-line-ish fixes.** AUD-C-02: the
+`SCOPE_AND_INTENT` prompt enumerates SPEC §5.19.4's topics but **omits the first one, "IntelliChoice
+organization"**, so live staging refuses *"What is IntelliChoice?"* as out of scope, 5/5 — while the
+mock's keyword tuple contains `"intellichoice"`, which is why no test could ever see it. AUD-C-06:
+§18-C3's access-aware refusal fired **0 times in 8**, because its precondition is zero-row retrieval
+and real hybrid search essentially never returns zero rows; the feature is effectively dead in
+production and its 100% mock score is what hid that.
+
+**4. D-045's residual caveat is upgraded to a finding (AUD-C-03), and its "not eliminable" is
+withdrawn.** D-045 recorded that the locator's precise coordinates "transit Postgres **briefly**" in
+the checkpointer's resume bookkeeping. Measured: they sit in `checkpoint_writes.__resume__` after the
+turn and after two further turns, nothing purges the checkpoint tables, and the consent notice the
+product shows says verbatim *"IntelliChoice will not permanently store your precise location."* D-045
+also concluded removal would require disabling checkpointing for one node; it would not — a targeted
+`DELETE … WHERE channel = '__resume__'` after the node completes preserves the crash-safety window
+the value exists for. **Third instance of the same pattern** (after AUD-L-04 and D-072): an accepted
+residual risk with no expiry date and no owner, which stops being "accepted" the moment the
+assumption behind it lapses.
+
+**5. Method note worth keeping: one PII probe silently passed before it was written correctly.** The
+first coordinate check used `CAST(blob AS text) LIKE '%32.98%'` and reported zero hits — checkpoint
+blobs are msgpack, so a float is eight binary bytes and a bytea cast renders as hex. That check would
+have certified a database full of coordinates as clean. §2.6 criterion 9 ("zero PII in live staging
+logs/traces/metrics/payloads") is exactly the kind of criterion a badly-shaped grep can appear to
+satisfy; the decode-then-walk approach in this session's probe is the shape to reuse.
+
+**What was *not* found, and is worth as much:** pre-retrieval role/branch/date filtering held for all
+five audiences against the **real** corpus, in both a today pass and a rolled-back pass with the
+2026-08-01 date gate opened — no role ever retrieved outside `{public, its own tier}`, and draft,
+future-dated, expired and other-branch chunks were each individually excluded. Only `academic_year`
+(AUD-C-09) is missing. Prompt-injection containment held under a real model, interrupt and tool-call
+audit rows are written correctly, and a paused thread correctly rejects new messages.
+
+**Carry-over into S38 (AUD-X), stated rather than left to inference:** whether staging's ingested
+corpus carries *real* Titan vectors or mock ones is unknown (AUD-C-16) — RDS is in private subnets
+and this session's live pass was black-box over the API. If they are mock vectors, staging's semantic
+retrieval is currently noise and only keyword search is working. That is the first thing S38's live
+pass should settle.

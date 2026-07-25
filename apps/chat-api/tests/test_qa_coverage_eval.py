@@ -3,83 +3,61 @@ config changes, derived from real ingested content plus synthetic role-gated fix
 (see `tests/fixtures/qa_coverage_eval.yaml`'s own docstring for the full design and the
 mock-reranker query-wording caveat).
 
-Split threshold (user-confirmed at S19 start, given only 3 of the 22 seeded documents
-are `effective_from` today - PROGRESS.md's date-gate carryover): refusal-correctness and
-no-hallucination need a high bar across the whole 40-question set (they don't depend on
-real content being effective); citation-grounding is measured only over the subset
-targeting the 3 currently-effective real documents, at a lower, separately-tracked
-threshold - self-resolving once more real content passes 2026-08-01.
+This is the **mock-backed** run: deterministic, free, and part of every `make test`.
+S37/AUD-C added `paraphrase`, `no_answer` and `adversarial` cases and moved scoring into
+`intellichoice_evals.qa_coverage` so this run and the paid one
+(`test_qa_coverage_eval_real_bedrock.py`) compute their numbers identically.
+
+**What a threshold here does and does not mean.** `MockBedrockProvider`'s reranker scores
+literal query/chunk word overlap and its scope guard is a keyword gate, so the categories
+below split into two kinds. Refusal-shaped categories are mostly decided by routing,
+filtering and the deterministic citation verifier - real code paths the mock does not
+stand in for - so they are gated at a high bar. Retrieval-*quality* categories are
+decided by the reranker, i.e. by the mock itself, so gating them would pin the mock's
+string matching in place and call it quality. `paraphrase`, `no_answer` and
+`role_gated_question` are therefore measured and reported, not asserted: their value is
+the comparison against the real-Bedrock run, and S37/AUD-C recorded both numbers in
+docs/AUDIT_FINDINGS.md. All three score at or near zero here for one shared reason - the
+mock always answers from the first retrieved chunk with a fixed confidence of 0.8, so it
+can neither decline to answer nor route an unanswerable question to the access hint.
 """
 
 import asyncio
-from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
 
 import pytest
-import yaml
-from chat_api.graph.build import AskInput, build_graph
-from chat_api.graph.nodes import TurnContext
-from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
-from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
-from intellichoice_db.models.rag import RagChunk, RagDocument
-from intellichoice_db.repositories.interrupts import InterruptApprovalRepository
-from intellichoice_db.repositories.mcp import McpToolCallRepository
-from intellichoice_db.repositories.org import OrgEventRepository
-from intellichoice_db.repositories.rag import RagRepository
-from intellichoice_shared.bedrock import BedrockTask
-from intellichoice_shared.mcp import McpToolRegistry
-from intellichoice_shared.profiles import (
-    AttendanceStatus,
-    BranchInfo,
-    ParentProfile,
-    StudentProfile,
-)
-from intellichoice_shared.rate_limit import InMemoryRateLimiter
-from langchain_core.runnables import RunnableConfig
-from langgraph.checkpoint.memory import InMemorySaver
+from intellichoice_evals.qa_coverage import assert_categories_present, format_report, score
 
 from .conftest import postgres_skip_reason, rollback_session
+from .qa_coverage_runner import run_all
 
 pytestmark = pytest.mark.skipif(
     (_reason := postgres_skip_reason()) is not None, reason=_reason or ""
 )
 
-FIXTURE_PATH = Path(__file__).parent / "fixtures" / "qa_coverage_eval.yaml"
+# Gated categories, and why each bar sits where it does (S19 for the first three, S37
+# for `adversarial`). `grounded` keeps its original 0.85: its queries were worded to
+# survive the mock's word overlap, so it measures "did the filter+fusion+verify chain
+# still deliver the right document", not semantic search quality.
+MOCK_THRESHOLDS = {
+    "role_gated": 0.95,
+    "out_of_scope": 0.95,
+    "no_source": 0.95,
+    "grounded": 0.85,
+    # Every adversarial defense in this suite is architectural (pre-retrieval filtering,
+    # deterministic citation verification, backend-authored access hints), so none of it
+    # depends on model quality and the bar is the same for the mock and for a real model.
+    "adversarial": 1.0,
+}
 
-# Agreed thresholds (plan §13 / S19 session-start decision) - see module docstring.
-# The mock's deterministic keyword/hash-based retrieval currently hits 9/9 (100%) on the
-# `grounded` subset with this fixture set's wording - 0.85 leaves room for one case to
-# regress before failing the suite, rather than requiring a perfect score forever.
-REFUSAL_CORRECTNESS_THRESHOLD = 0.95
-NO_HALLUCINATION_THRESHOLD = 0.95
-CITATION_GROUNDING_THRESHOLD = 0.85
-
-
-class _FakeProfileAdapter:
-    async def get_student_profile(self, student_external_id: str) -> StudentProfile | None:
-        return None
-
-    async def get_parent_profile(self, parent_external_id: str) -> ParentProfile | None:
-        raise NotImplementedError
-
-    async def get_parent_children(self, parent_external_id: str) -> list[str]:
-        raise NotImplementedError
-
-    async def get_current_week_attendance(self, student_external_id: str) -> AttendanceStatus:
-        raise NotImplementedError
-
-    async def get_branch(self, branch_external_id: str) -> BranchInfo | None:
-        raise NotImplementedError
-
-    async def get_branch_manager_email(self, branch_external_id: str) -> str | None:
-        raise NotImplementedError
-
-    async def list_branches(self) -> list[BranchInfo]:
-        raise NotImplementedError
+# Measured and printed, never asserted - see the module docstring.
+MOCK_MEASURED_ONLY = ("paraphrase", "no_answer", "role_gated_question")
 
 
-def _gateway() -> ResilientBedrockGateway:
+def _gateway():
+    from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
+    from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
+    from intellichoice_shared.bedrock import BedrockTask
+
     mock = MockBedrockProvider()
     return ResilientBedrockGateway(
         provider=mock,
@@ -95,122 +73,25 @@ def _gateway() -> ResilientBedrockGateway:
     )
 
 
-def _config(thread_id: str) -> RunnableConfig:
-    return {"configurable": {"thread_id": thread_id}}
-
-
-async def _seed_chunk(session, *, audience: str, chunk_text: str) -> None:
-    repo = RagRepository(session)
-    document = await repo.create_document(
-        RagDocument(
-            title=f"Eval {audience} document",
-            source_path=f"eval/{audience}/doc.md",
-            audience=audience,
-            academic_year="2026-2027",
-            effective_from=datetime.now(UTC),
-            status="approved",
-            source_sha256="b" * 64,
-        )
-    )
-    embedding_result = await _gateway().create_embedding(
-        texts=[chunk_text], session_spend_cents=0.0
-    )
-    chunk = await repo.add_chunk(
-        RagChunk(
-            document_id=document.document_id,
-            chunk_text=chunk_text,
-            document_title=document.title,
-            audience=audience,
-            access_level=audience,
-            academic_year="2026-2027",
-            effective_from=document.effective_from,
-            status="approved",
-            source_sha256="b" * 64,
-            embedding=embedding_result.vectors[0],
-        )
-    )
-    await repo.refresh_search_vectors(document.document_id)
-    del chunk
-
-
-async def _ask(session, *, query: str, thread_id: str) -> dict:
-    graph = build_graph(InMemorySaver())
-    ctx = TurnContext(
-        claims=None,
-        profile_adapter=_FakeProfileAdapter(),
-        rag_repo=RagRepository(session),
-        bedrock_gateway=_gateway(),
-        interrupt_repo=InterruptApprovalRepository(session),
-        mcp_registry=McpToolRegistry(),
-        mcp_call_repo=McpToolCallRepository(session),
-        org_event_repo=OrgEventRepository(session),
-        rate_limiter=InMemoryRateLimiter(max_per_window=1000, window_s=3600.0),
-        admin_escalation_email="admin@example.test",
-        query=query,
-    )
-    return await graph.ainvoke(
-        AskInput(session_id=thread_id, query=query), config=_config(thread_id), context=ctx
-    )
-
-
-def _load_cases() -> list[dict[str, Any]]:
-    return yaml.safe_load(FIXTURE_PATH.read_text())["cases"]
-
-
-def test_qa_coverage_eval() -> None:
-    cases = _load_cases()
-
-    async def run() -> list[tuple[dict[str, Any], dict]]:
-        results = []
+def test_qa_coverage_eval(capsys: pytest.CaptureFixture[str]) -> None:
+    async def run():
         async with rollback_session() as session:
-            for case in cases:
-                if "seed" in case:
-                    await _seed_chunk(session, **case["seed"])
-                if "extra_seed" in case:
-                    await _seed_chunk(session, **case["extra_seed"])
-                result = await _ask(session, query=case["query"], thread_id=f"eval-{case['id']}")
-                results.append((case, result))
-        return results
+            return await run_all(session, _gateway())
 
-    results = asyncio.run(run())
+    scores = score(asyncio.run(run()))
 
-    # --- refusal correctness: role_gated cases get the right role-guidance hint ---
-    role_gated = [(c, r) for c, r in results if c["category"] == "role_gated"]
-    correct_role_gated = [
-        c["id"]
-        for c, r in role_gated
-        if r.get("access_hint") is not None
-        and r["access_hint"].get("required_role") == c["expected_required_role"]
-        and not r.get("citations")
+    with capsys.disabled():
+        print("\n--- qa coverage eval (MockBedrockProvider) ---")
+        print(format_report(scores))
+
+    assert_categories_present(
+        scores, list(MOCK_THRESHOLDS) + list(MOCK_MEASURED_ONLY)
+    )
+
+    failures = [
+        f"{category} {scores[category].rate:.2f} below {threshold} "
+        f"- failed: {scores[category].failed}"
+        for category, threshold in MOCK_THRESHOLDS.items()
+        if scores[category].rate < threshold
     ]
-    role_gated_rate = len(correct_role_gated) / len(role_gated) if role_gated else 1.0
-
-    # --- no-hallucination: out_of_scope/no_source never fabricate a citation ---
-    refusal_cases = [(c, r) for c, r in results if c["category"] in ("out_of_scope", "no_source")]
-    correct_refusal = [c["id"] for c, r in refusal_cases if not r.get("citations")]
-    refusal_rate = len(correct_refusal) / len(refusal_cases) if refusal_cases else 1.0
-
-    # --- citation grounding: only over `grounded` cases (real, effective-today docs) ---
-    grounded_cases = [(c, r) for c, r in results if c["category"] == "grounded"]
-    correct_grounded = [
-        c["id"]
-        for c, r in grounded_cases
-        if any(
-            citation.get("source_reference") == c["expected_document_id"]
-            for citation in (r.get("citations") or [])
-        )
-    ]
-    grounded_rate = len(correct_grounded) / len(grounded_cases) if grounded_cases else 1.0
-
-    assert role_gated_rate >= REFUSAL_CORRECTNESS_THRESHOLD, (
-        f"role-gated correctness {role_gated_rate:.2f} below "
-        f"{REFUSAL_CORRECTNESS_THRESHOLD} - passed: {correct_role_gated}"
-    )
-    assert refusal_rate >= NO_HALLUCINATION_THRESHOLD, (
-        f"no-hallucination rate {refusal_rate:.2f} below {NO_HALLUCINATION_THRESHOLD} - "
-        f"passed: {correct_refusal}"
-    )
-    assert grounded_rate >= CITATION_GROUNDING_THRESHOLD, (
-        f"citation-grounding rate {grounded_rate:.2f} below "
-        f"{CITATION_GROUNDING_THRESHOLD} - passed: {correct_grounded}"
-    )
+    assert not failures, "\n".join(failures)
