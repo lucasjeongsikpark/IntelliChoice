@@ -37,6 +37,19 @@ def _hint_personalization_json(payload: dict) -> dict:
     default-mock-driven ladder-escalation tests see genuinely different text per level
     without a bespoke scripted gateway, and the "a personalized hint addresses the
     mapped misconception" done-when criterion has something concrete to assert on.
+
+    The level marker is `L{level}`, not `Level {level}`, and that spacing is
+    load-bearing - do not "tidy" it back. `tutor.generate_personalized_hint` rejects any
+    hint in which `answer_text_leaked` finds the question's correct answer standing
+    alone, and a bare `1` in `Level 1` *is* the correct answer for the ~6% of this
+    bank's variants whose answer is exactly "1". So the mock's own text made the mock's
+    own hint unusable, at a rate set by an unseeded per-request RNG choosing the
+    variant - measured at 8 failures in 60 standalone runs of
+    `test_hint_reflects_the_students_actual_wrong_option` (S36 continuation; D-097
+    recorded this flake as unseeded-RNG-driven, which is the mechanism, but attributed
+    it to the fixture rather than to this string). Gluing the digit to a letter puts an
+    alphanumeric on one side of it, which is exactly what that check's lookarounds
+    require in order not to match.
     """
     level = payload.get("hint_level", 1)
     misconception = payload.get("misconception_tag") or "the general approach"
@@ -44,7 +57,7 @@ def _hint_personalization_json(payload: dict) -> dict:
     canonical = payload.get("canonical_hint_text", "")
     return {
         "hint_text": (
-            f"Level {level} hint, addressing {misconception}: {canonical} "
+            f"Hint L{level}, addressing {misconception}: {canonical} "
             f"Focus on {skill} and try the next step."
         ),
         "concept_reminder": f"Remember the core idea behind {skill}.",

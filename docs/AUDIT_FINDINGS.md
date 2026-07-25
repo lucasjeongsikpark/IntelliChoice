@@ -30,7 +30,15 @@ ones.
 | AUD-L-03 | Money | P2 | **Decided** — Phase 0B | `pre_intro` stage-narrative spend is never folded back into the session total, so the per-session ceiling is permanently one call short |
 | **AUD-L-07** | **Authorization** | **P1** | Open — before the gate | D-086's known tutor/branch_manager scope gap now reaches further than when it was written: it covers the S28 dashboard and report surface, so a tutor token can read any student's data and generate reports about them |
 | AUD-L-09 | Correctness | P2 | **Decided** — Phase 0B | Numeric grounding verifies a number's *provenance*, not its *attribution*, so a report can invert a real result ("fell from 6 to 4") and still pass |
-| AUD-L-08 | Correctness | P3 | Open — Phase 0B | `normalized_gain` has no upper bound and derives its denominator from the pre *attempt count*; unreachable today only because the post form is built one-for-one from the pre form |
+| **AUD-L-10** | **Data integrity / scoring** | **P1** | Open — before the gate | The server marks an exam item `answered` and then accepts more answers for it; exam scores are computed over the *attempt* count, so one changed answer rescores a 10-item exam as 10/11 and silently removes the `not_applicable_pre_max` flag. Enforced client-side only |
+| AUD-L-11 | Robustness / contracts | P2 | Open — Phase 0B | `UnknownQuestionVariantError` is raised at four sites and caught nowhere, so an answer POST with an unknown or not-currently-served variant returns an unhandled **500** instead of a 4xx |
+| AUD-L-12 | SPEC conformance | P2 | Open — Phase 0B | `recommended_difficulty` is computed, stored and displayed but routes nothing; two docstrings claim it seeds `starting_difficulty` and it does not. Masked only by the 1:1 skill↔difficulty bank |
+| AUD-L-13 | Minors / correctness | P2 | Open — Phase 0B | Memory consolidation verifies a fact's evidence provenance and cross-session repetition, never the claim against the measured mastery score in the same database — a `strength` fact coexists with `weighted_score = 0.0` for that skill |
+| AUD-L-14 | Correctness / parent-visible | P2 | Open — Phase 0B | `time_spent_minutes` sums a client-populated telemetry column and ignores the always-populated `assessment_attempts.response_time_ms`, so a report shows `0.0` minutes beside `attempts_count: 26` — inside `verified_facts` |
+| AUD-L-15 | Correctness / parent-visible | P2 | Open — Phase 0B | Mastery excludes the post-exam by construction while "skills to strengthen" is post-exam-derived, and both are shown together labeled `date_range_label: "all time"` — one skill reads mastery 1.000 *and* "needs work" |
+| AUD-L-08 | Correctness | P3 | Open — Phase 0B | `normalized_gain` has no bound in either direction and derives its denominator from the pre *attempt count*. **Reachability corrected in the S36 continuation:** −200% reached on an ordinary journey, and >1 reachable via AUD-L-10's duplicate attempts |
+| AUD-L-16 | Design integrity | P3 | Open — Phase 0B | Both policy snapshots (`assessment_sessions.policy`, `study_sessions.intervention_policy`) are written at creation and never read back; only `time_limit_seconds` governs behavior, via a separate column |
+| AUD-L-17 | Test integrity | P3 | **Fixed in S36 continuation** | The default mock's own hint boilerplate (`Level 1`) tripped the runtime answer-leak check whenever the served answer was `"1"`, making a hint test fail 8 times in 60 runs; `hint_events.was_personalized` still records no reason code, so the real rate is unmeasurable |
 | AUD-L-01 | Auth surface | P3 | Open — Phase 0B | A gated-off `/dev/token` still discloses that it exists, and the S35 deploy gate's stated rationale is wrong about why it 404s |
 
 ---
@@ -342,8 +350,8 @@ the directional check for full verification.
 
 ### AUD-L-08 — `normalized_gain` is unbounded, and its denominator comes from the attempt count (P3)
 
-- **Severity:** P3 — **not reachable today.** Recorded because it is a guard that does not exist
-  in a number shown to parents, and the thing preventing it is incidental rather than intentional.
+- **Severity:** P3 — but see the reachability correction at the end of this entry; "not reachable
+  today" was wrong in two ways.
 - **Area:** correctness / learning-gain math (SPEC §5.13.3)
 - **Status:** open, Phase 0B
 
@@ -382,6 +390,31 @@ variable-length post form — a plausible future change, and the kind of thing S
 "parallel form" language does not forbid — would silently start producing >100% gains in
 parent-facing reports, with no error and no flag. A one-line clamp plus a comment naming the
 invariant costs nothing and converts a latent correctness bug into an impossible one.
+
+**Reachability correction (S36 continuation).** The "not reachable today" claim above was wrong
+in two independent ways, both found by driving real journeys through the real API rather than
+calling the function with fabricated inputs:
+
+1. **The negative direction is reachable right now, with no unusual setup.** A student driven
+   8/10 → 4/10 through the ordinary flow was stored with
+   `normalized_gain = -2.0` and `normalized_gain_status = NULL` — a −200% "normalized learning
+   gain", flagged valid. The entry above only considered the `> 1` direction, so the *unbounded*
+   framing was right and the *unreachable* framing was not.
+2. **The `> 1` direction is reachable too, via AUD-L-10.** The reasoning above ("the post length
+   always equals the pre length") is true of *item* counts, but this arithmetic uses **attempt**
+   counts, and AUD-L-10 shows attempts are not one-for-one with items: a second answer to one
+   post-exam item pushes `post_raw` above `max_score`. The stated invariant does not protect the
+   quantity the code actually divides by.
+
+Also worth recording, because it is the opposite of the expected failure: an extra *pre* attempt
+takes the `pre_raw >= max_score` branch **off**, so a genuine 10/10 pre-exam stops reporting
+`not_applicable_pre_max` and starts reporting a computed `normalized_gain` instead. The flag that
+exists to mark this case unmeasurable disappears exactly when it applies.
+
+**Bound on user exposure (checked, not assumed).** `normalized_gain` appears in
+`apps/learning-web/src/types.ts` but is rendered by **no screen or component**, so −200% is not
+displayed today. It *is* passed into `StageNarrativePayload` (`nodes.py:650`), so it can shape the
+`post_outro` narrative text a student reads.
 
 ### AUD-L-01 — A gated-off `/dev/token` discloses its own existence; the S35 gate's rationale is incorrect
 
@@ -434,6 +467,250 @@ absent for every request shape. The second is the real fix but touches how both 
 `Settings` are read at import time, and the existing tests monkeypatch `get_settings` on the
 module *after* import — so it needs a small test-approach change, which is Phase 0B work, not
 mid-audit work.
+
+## S36 continuation — the four uncovered audit areas (2026-07-25)
+
+The S36 session covered money, minors/PII, authorization and the data-integrity pattern sweep,
+and ran out. This continuation covers the rest: §3.4's scoring / re-grade-consistency /
+policy-snapshot remainder, §3.5's mastery + hint ladder + generation pipeline + memory work, and
+all of §3.6 (independent recomputation). Method note: §3.6 could not be done against the existing
+database because every learning table except `student_reports` and `stage_transitions` was empty,
+so **four complete journeys were driven through the real local API first** — improving (3→9), flat
+(6→6), regressing (8→4) and pre-max (10→9) — and every number below is recomputed from those raw
+rows with SQL that never calls the code under audit.
+
+### AUD-L-10 — The server marks an exam item `answered`, then accepts more answers for it; scores are attempt-counted (P1)
+
+- **Severity:** P1 — fail-open on a data-integrity invariant the server already has the state to
+  enforce. Not P0: there is no production traffic, and the shipped UI closes the common path.
+- **Area:** data integrity / deterministic scoring (SPEC §5.9.2, §5.13.3)
+- **Status:** open, fix before the gate
+
+**What.** `_mark_item_answered` sets `assessment_items.status = "answered"` on every submission and
+`GET /exam/overview` reports it, so the server knows an item is done. Nothing on the answer path
+reads it. Idempotency is keyed `(assessment_session_id, question_variant_id, Idempotency-Key)`, so a
+second submission for the same item under a *different* key grades and inserts a second attempt —
+it does not replace the first, and both count.
+
+**Reproduction (live, local API).**
+
+```
+answer item 0 wrong  (Idempotency-Key: change-1) -> 200
+answer item 0 right  (Idempotency-Key: change-2) -> 200
+attempt rows for that one item                   -> 2      (a,d,f / d,d,t)
+answer the other 9 items once each, finalize     -> 200
+pre-exam totals                                  -> 11 attempts / 10 correct   (10 items served)
+```
+
+and without any phase manipulation:
+
+```
+answer an item, confirm overview reports status=answered
+answer it again with a new key -> 200, attempt rows = 2
+```
+
+Of every assessment session in the local database, exactly one has `attempts > items`, and it is
+this probe — so this does not otherwise occur, it is simply unguarded.
+
+**Why it corrupts scores.** `learning_gain.compute_learning_gain`:
+
+```python
+pre_raw   = count(correct pre attempts)
+max_score = len(pre_graded)            # ATTEMPT count, not item count
+normalized_gain = (post_raw - pre_raw) / (max_score - pre_raw)
+```
+
+One changed answer on a 10-item exam gives `pre_raw=10, max_score=11`: the exam scores 10/11, and
+the `pre_raw >= max_score` branch stops firing, so `not_applicable_pre_max` is silently replaced by
+a computed `normalized_gain`. A duplicate *post* attempt pushes `post_raw` above `max_score`,
+producing AUD-L-08's `> 1` case. Changing an answer from wrong to right therefore *lowers* the
+score, which is the opposite of what a student would expect.
+
+**Why the shipped UI mostly hides it, and why that is not enough.**
+`ExamScreen` gates on `isReadOnly = isExamPhase && currentOverviewItem?.status === "answered"` and
+renders "You've already answered this question - it's locked in and can't be changed." But the
+optional chaining makes the guard default to **permissive**: when `currentOverviewItem` is
+undefined — overview not yet fetched, or its fetch failed — re-answering is allowed. And
+`submitAnswer` mints `crypto.randomUUID()` per call, so SPEC §5.9.2's idempotency key can never
+match a prior submission and is inert for the purpose the spec cites it for. `busy={false}` is
+hardcoded at all six screen call sites in `App.tsx`, so there is no in-flight guard either;
+double-click is prevented only incidentally, by `setSelected(null)` disabling the button on
+re-render. Any non-browser client is unguarded entirely.
+
+**Recommendation.** Reject (or treat as idempotent) an answer for an item already `answered`,
+server-side, in the same place the status is written; and derive `max_score` from the declared item
+count rather than the attempt count. The second half also closes AUD-L-08's reachable path.
+
+### AUD-L-11 — `UnknownQuestionVariantError` is caught nowhere: unhandled 500 (P2)
+
+- **Severity:** P2 · **Area:** robustness / API contracts · **Status:** open, Phase 0B
+
+Raised at `flow.py` lines 295, 416, 422 and 697; `grep` finds no `except` for it in any router, in
+the graph, or in `main.py`. Live: `POST /answers` with `question_variant_id="does-not-exist"` →
+**500 Internal Server Error**. Also reached by answering a valid variant that is not the currently
+served study item — a stale tab, or a retry landing after the phase advanced (observed while
+probing AUD-L-10).
+
+The correct pattern already exists one file away: `POST /sessions/{id}/chat` validates the same
+thing and returns 400. 500s inflate error-rate metrics and can trip the CloudWatch alarms S34
+added, so this is noise in exactly the signal S39 will rely on.
+
+### AUD-L-12 — `recommended_difficulty` is computed, stored and displayed, but routes nothing (P2)
+
+- **Severity:** P2 · **Area:** SPEC conformance (§5.11.2 rules 2–3) · **Status:** open, Phase 0B
+
+`mastery_bootstrap.recommended_difficulty` implements the rule correctly (modal assessed tier,
+nudged ±1 by accuracy, clamped 1–5) and `flow.py:233` stores it per skill. Two docstrings claim it
+drives routing — `mastery_bootstrap.py:7` ("for difficulty routing (§5.11.2 rules 2-3)") and
+`study_plan.py:5-7` ("`recommended_difficulty` (from bootstrap mastery) **seeds the session's
+`starting_difficulty`**"). Neither is true: `build_study_plan` reads it into `recommended`
+(line 133), packs it into the ranking tuple (138), and drops it — line 142 unpacks only `skill_id`.
+`starting_difficulty` is assigned `first_item.difficulty` (line 169). Its only other readers are
+display surfaces (`students.py:130`, `history.py:110`).
+
+**Evidence.** `aud-student-regressing`'s weakest skill `linear_distribute` has
+`weighted_score = 0.0` and `recommended_difficulty = 4` — stepped *down* from tier 5 because
+accuracy was 0 — yet the study session was created with `starting_difficulty = 5`. The student was
+served the tier they had just failed, with the model's step-down recommendation unused in the same
+transaction.
+
+Masked today because the bank is 1:1 skill↔difficulty (the D-060/A6 collinearity, which
+`study_plan.py:7-8` acknowledges: "a skill *is* its difficulty tier"), so ranking by weakest skill
+accidentally yields a defensible tier. It stops being accidental the moment real content has more
+than one skill per tier. Either wire it up or delete it and correct both docstrings — a computed,
+stored, displayed number that influences nothing is worse than an absent one.
+
+### AUD-L-13 — Memory consolidation verifies provenance and repetition, never the claim against measured mastery (P2)
+
+- **Severity:** P2 · **Area:** minors / correctness · **Status:** open, Phase 0B
+
+`consolidation.py` verifies that a candidate fact's cited `evidence_event_ids` exist, demotes an
+opposite-polarity fact to `contested` rather than replacing it, and requires ≥2 sessions of
+evidence before promoting `provisional` → `active`. It never compares the fact against
+`mastery.weighted_score` for the same skill, which is in the same database and the same transaction.
+
+**Evidence.** `aud-student-regressing` has `mastery.weighted_score = 0.0` for `linear_distribute`
+and an accepted `strength` fact for that same skill — *"Shows independent strength in this
+skill."* — citing real events. Across all four journeys **all 20 facts are `strength` and zero
+`weak_skill` facts exist**, including for the student who went 8→4 and whose own
+`learning_gain.unresolved_skills` names `linear_distribute`.
+
+**Bound, and it is a real bound.** `_resolve_relevant_fact` uses `top_fact_for_skill`, which
+excludes `provisional`/`contested`/`superseded`/expired, so only `active` facts reach tutoring
+payloads and parent-visible reports — and everything here is `provisional`. Nothing prevents it
+after a second session, though, because the promotion criterion is repetition, not consistency.
+
+Same class as AUD-L-09 (provenance verified, attribution not), one layer earlier in the pipeline,
+and it concerns claims about a child's ability that AUD-L-04 already showed reach parents.
+A deterministic floor — refuse a `strength` fact for a skill whose measured mastery is below
+`WEAK_SKILL_THRESHOLD`, and vice versa — is cheap and does not depend on model quality.
+
+### AUD-L-14 — `time_spent_minutes` reads best-effort client telemetry and ignores the always-populated server column (P2)
+
+- **Severity:** P2 — a wrong parent-visible number, presented as a *verified fact*. Fails low.
+- **Area:** correctness / reporting · **Status:** open, Phase 0B
+
+`build_dashboard` computes `time_spent_minutes = total_time_ms / 60000`, where
+`total_assessment_time_ms_in_range` sums `AssessmentItemState.time_spent_ms` — populated only by
+S23's autosave tick (`POST /exam/items/{id}/time`), sent by the frontend. Meanwhile
+`assessment_attempts.response_time_ms` is `NOT NULL` and written on every answer.
+
+**Evidence.** The four journeys produced **140 `assessment_item_state` rows with
+`sum(time_spent_ms) = 0`**, while the same students' attempts hold 41,250 ms per exam (≥82.5 s
+each across both exams). `POST /students/{id}/report` accordingly returned, inside
+`verified_facts`: `attempts_count: 26` and `time_spent_minutes: 0.0`. `verified_facts` is the
+grounding set the narrative is checked against, so "0.0 minutes" is presented as verified.
+
+The repository docstring claims item-state is "the only populated per-question timing source in
+this schema". Half true: `study_attempts` genuinely has no response-time column, so study time
+really is unavailable — but for exams an always-populated source exists and is ignored.
+
+Frontend fragility compounds it: `ExamScreen` records time in a `useEffect` **cleanup** (fires on
+item/phase change or unmount), gated on `currentOverviewItem?.assessment_item_id` being present,
+and `useLearningSession.recordItemTime` swallows every failure with `.catch(() => {})`. A hard
+refresh, a closed tab, a failed overview fetch, or any non-browser client yields 0.0.
+
+### AUD-L-15 — Mastery and "skills to strengthen" use different windows and are shown together as "all time" (P2)
+
+- **Severity:** P2 · **Area:** correctness / reporting · **Status:** open, Phase 0B
+
+`_recompute_all_skill_mastery` accepts only `pre_assessment_session_id` and `study_session_id`;
+the post-exam is **structurally excluded**, and its docstring says so ("every skill touched by the
+pre-exam or study phase"). `unresolved_skills` / `weak_skill_names` come from `learning_gain`,
+which is post-exam-derived. Both land in one report payload.
+
+**Evidence** — `aud-student-premax` (10/10 pre, 9/10 post):
+
+| skill | `mastery_by_skill` | listed in `unresolved_skills` |
+|---|---|---|
+| `linear_distribute` | **1.000** | **yes** |
+
+The same report's `interpretation_text` reads *"Skills to strengthen: Solve linear equations
+requiring distribution and combining like terms"* while `mastery_by_skill` gives that skill 1.0,
+and `verified_facts.date_range_label` says **"all time"** — which misdescribes mastery, since
+mastery never sees the post-exam. A parent sees 100% mastery and "needs work" for one skill in one
+view, both labeled verified.
+
+**The arithmetic is correct.** Recomputing mastery from raw rows restricted to the pre+study window
+reproduces all five skills exactly (`linear_both_sides` 1.0000, `linear_distribute` 0.0000,
+`linear_neg_frac_coeff` 1.0000, `linear_one_step` 1.0000, `linear_two_step` 1.0000). This is a
+windowing and labeling defect, not a computation defect — the fix is to state each number's window,
+and to decide deliberately whether mastery should include the post-exam.
+
+### AUD-L-16 — Both policy snapshots are write-only (P3)
+
+- **Severity:** P3 (no behavioral defect today) · **Area:** design integrity (SPEC §5.9/§5.13)
+- **Status:** open, Phase 0B
+
+`assessment_sessions.policy` and `study_sessions.intervention_policy` are written at creation and
+**never read back anywhere**. The only consumers of `exam_policy` in either app are the two
+`get_policy()` calls in `assessment_builder`, both at creation time. Only `time_limit_seconds`
+governs runtime behavior, and it does so through its own denormalized column
+(`flow.py:142-144`), not through the snapshot.
+
+`hints_allowed`, `navigation` and `feedback_visibility` are enforced — where at all — by hardcoded
+phase-string checks: chat returns 409 unless `phase == "study"` (its comment says it is "matching
+`exam_policy`'s `hints_allowed=False`", i.e. the policy is documentation, not the mechanism), and
+intervention interrupts are only ever created on the study path. Those checks agree with the
+snapshot today, but a policy change would apply retroactively to in-flight sessions — the one thing
+snapshotting exists to prevent. `intervention_policy` is a hardcoded `{"hints_enabled": True}`
+literal at `study_plan.py:152`.
+
+### AUD-L-17 — The default mock's hint boilerplate tripped the runtime leak check; `was_personalized` records no reason (P3, mock half fixed in-session)
+
+- **Severity:** P3 · **Area:** test integrity + observability · **Status:** mock fixed; the
+  observability half is open, Phase 0B
+
+D-097's addendum recorded the long-standing
+`test_hint_reflects_the_students_actual_wrong_option` flake as unseeded-RNG-driven at ~1 in 4 and
+prescribed "seeding the fixture's RNG". The mechanism was RNG-driven; the attribution was wrong,
+and no fixture RNG exists to seed — `_turn_context` constructs `random.Random()` per request
+inside the route handler.
+
+**Real cause.** `tutor.generate_personalized_hint` discards any hint in which
+`answer_text_leaked` finds the served question's correct answer standing alone, substituting the
+canonical ladder text. `MockBedrockProvider`'s personalization stand-in prefixed its output with
+`Level {level} hint`, and `answer_text_leaked("Level 1 hint…", "1")` is `True` — a bare `1` with
+non-alphanumerics on both sides. ~6% of this bank's variants have the answer `"1"`, and the
+unseeded per-request RNG chooses the variant, so the test failed whenever that variant was served.
+Measured **8 failures in 60 standalone runs** (13%), not 1 in 4; every failure returned the level-1
+canonical text verbatim, confirming the fallback path.
+
+**Fixed** by changing the marker to `Hint L{level}` — gluing the digit to a letter satisfies the
+check's lookarounds — with the reason written into the docstring so it is not "tidied" back.
+**60/60 passing** afterwards, against 52/60 before. Pinned by a new deterministic guard,
+`packages/curriculum/tests/test_mock_hint_is_leak_clean.py`, which asserts the mock's output is
+leak-clean for every reachable short answer at every level of every shape ladder, and that it still
+names the misconception and varies by level.
+
+**The half that is not fixed, and matters more.** `hint_events.was_personalized` is a single
+boolean with no reason code, so *gateway failure*, *leaked answer*, *ladder monotonicity violation*
+and *model set `answer_revealed`* are indistinguishable after the fact. `answer_text_leaked` is a
+boundary-anchored substring match and roughly 54% of this bank's variants have a single-digit
+answer, so any real model hint whose prose contains that digit standing alone ("Step 1", "try 2
+more") is silently downgraded to the canonical hint. It fails safe — the student gets a generic
+hint, never a leaked answer — but the rate is unmeasurable from what is stored, which means the
+quality cost of a safety check cannot be observed in production.
 
 ### Areas audited with no finding
 
@@ -552,5 +829,72 @@ gain, skill-level gain, difficulty transition, independent-correct rate, hint de
 dependency, unresolved skills, and response-time change. AUD-L-08 is a missing bound on the result,
 not a wrong formula.
 
-_(The rest of phase 3.5, and phases 3.6–3.7, are **not** covered — see PROGRESS.md for the explicit list of
-what remains, rather than leaving the absence to be inferred from this file.)_
+### Areas audited with no finding — S36 continuation
+
+**Scoring is deterministic, and stored rather than re-derived.** All 93 stored
+`assessment_attempts` satisfy `is_correct == (selected_option == correct_option)` — zero
+disagreements. `resolve_graded_attempts` uses `attempt.is_correct` for assessment attempts, so a
+later edit to a variant cannot retroactively re-grade a past exam. Zero attempt rows disagree with
+their variant's *current* `correct_option`, so no drift has occurred either. Every field SPEC §5.9.3
+requires on an attempt is present, including `correct_option` frozen at submission time.
+
+**Template edits cannot retroactively move historical analytics.** `skill_id` and
+`difficulty_label` *are* read live from `question_templates` when grading attempts for mastery and
+gain, which looked like a re-grade-consistency hole. It is not: templates are versioned by creating
+new rows, and `supersede_template` only flips `validation_status` while keeping the prior row — so
+the fields the analytics read are immutable per row.
+
+**Unanswered items fail closed.** A skipped item and a never-visited item both received attempts
+with `selected_option = NULL, is_correct = false` under a `finalize-unanswered-*` key; totals stayed
+10 attempts / 8 correct on a 10-item exam. Unknown is not treated as correct.
+
+**Exam assistance cannot leak in, matching `hints_allowed=False`.** During `pre_exam`: `/respond`
+with `intervention_choice` → 409 "no interrupt is pending"; `/chat` → 409 "chat is only available
+during study"; a wrong answer produces no interrupt and withholds correctness (`is_correct: null`,
+matching `feedback_visibility=hidden_until_finalize`). The enforcement is structural rather than
+policy-driven (AUD-L-16), but it holds.
+
+**SPEC §5.9.1 exam composition is exact.** Every pre- and post-exam served 2 questions per
+difficulty tier 1–5, total 10, verified by joining `assessment_items` through `question_variants` to
+`question_templates.difficulty_label` for two students across four exams.
+
+**SPEC §5.10.1's weights and formula are literal.** `DIFFICULTY_WEIGHTS = {1: 1.0, 2: 1.4, 3: 1.9,
+4: 2.5, 5: 3.2}` matches the spec's example exactly, and `weighted_score` is exactly
+`Σ(weight where correct) / Σ(weight)`.
+
+**SPEC §5.11.1's `base_problem_count = 5` holds.** The 6 study items per journey are 5 base + 1
+remediation; §5.11.1 says remediation is "tracked separately", so 6 is conformant, not off-by-one.
+
+**The hint ladder is correct end-to-end, driven live.** Three levels served in order, all texts
+distinct, `answer_revealed=False` throughout, none containing the question's real answer text, and a
+fourth request closes the ladder with 409 rather than looping or re-serving. All three rounds landed
+in `hint_events`.
+
+**Question-bank integrity is clean** across 50 templates / 43k variants: zero duplicate option sets,
+zero `correct_option` outside `a–d`, zero null option text, zero empty `rendered_question`, zero
+difficulty outside 1–5, zero templates without variants.
+
+**Dashboard and report numbers reconcile against independent SQL.** `overall_accuracy` recomputed
+bit-identically (`0.9230769230769231`, 24/26); `accuracy_trend` matched (17/26 = 0.6538);
+`mastery_by_skill` matched all five skills exactly once restricted to its real window;
+`pre_post_by_skill` reconciled item-by-item against difficulty tiers. The only report numbers that
+did **not** reconcile are AUD-L-14 and AUD-L-15.
+
+**`starting_difficulty` is not inverted** — I suspected it was, since a 10/10 student got tier 1
+while an 8/10 student got tier 5. That is §5.11.2 rule 1 (lowest mastery first) working: the 8/10
+student's two misses were both tier 5, and a perfect scorer ties on every skill so the documented
+curriculum-order tie-break decides. Recorded because it reads like a bug.
+
+**My own first recomputation was wrong, not the API.** An initial independent mastery calculation
+disagreed with the dashboard on two skills (0.6 vs 1.0) because it summed *all* attempts while
+mastery covers pre+study only. Recorded so the next session does not repeat it — and it is what led
+to AUD-L-15.
+
+**Note, not a finding:** `accuracy_trend` and `overall_accuracy` count hint-assisted corrects as
+correct, while mastery counts only `independent_correct`. Both appear on one dashboard. Defensible
+(one is "accuracy", the other "independent mastery") but the labels do not say so.
+
+_(Still **not** covered: the browser-driven adversarial runs — refresh mid-exam, concurrent tabs,
+expired timers, dropped SSE — and the live-staging half of §2.3. See PROGRESS.md for the explicit
+list, rather than leaving the absence to be inferred from this file. The API-level adversarial
+probes that *were* run are the ones evidenced above and in AUD-L-10/11.)_
