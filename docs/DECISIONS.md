@@ -3872,8 +3872,18 @@ effective access does not follow from `role` alone.
   (`report.controller.js:53`, `:71`, `:89`) — so the business timezone is a **fixed UTC−6**.
 
 UTC−6 is US Central *Standard* Time. From mid-March to early November US Central is UTC−5, so for
-roughly eight months a year those reports bucket sessions by a date computed from the wrong offset —
-enough to move a late-evening session into the adjacent day. **This is a production defect and is
+roughly eight months a year the reports render every session time **one hour earlier than it really
+was**.
+
+**Correction (same day).** This entry first claimed the mis-offset could "move a late-evening session
+into the adjacent day". That is wrong, and the arithmetic was checked rather than reasoned about:
+the report's derived local time is always exactly one hour earlier than true local time during DST,
+so the *date* only differs when a session starts between 00:00 and 00:59 local — verified against
+`America/Chicago` for winter/evening/late-evening/after-midnight cases. A 19:00 or 23:30 session
+keeps the correct date. For a K-12 tutoring organization the breaking window is essentially never
+occupied, so **the everyday symptom is a one-hour display discrepancy, not mis-dated sessions.**
+That materially lowers the severity: it remains worth asking which convention to match, but it is
+not true that their reports mis-date sessions. **This is a production defect and is
 therefore not ours to fix** (the immutability constraint), but it is directly load-bearing for us:
 attendance gating asks "was this student present on this session's day", and if we compute that day
 differently from icrest we will disagree with what a branch manager sees in their own report.

@@ -544,8 +544,11 @@ changes in the sections above, so nobody re-derives it.
 - `accounts` also carries `chapterRole` and a free-text comma-separated `permissions` override, both
   able to grant access independently of `role`.
 - The stored timezone is **UTC**, and the business timezone is a **hardcoded fixed UTC−6** applied in
-  three report queries — US Central Standard Time, therefore an hour wrong for the ~8 months a year
-  Central observes DST. A production defect, not ours to fix, but load-bearing for attendance.
+  three report queries — US Central Standard Time, therefore rendering session times **one hour
+  earlier than reality** for the ~8 months a year Central observes DST. Session *dates* stay correct
+  except for sessions starting between 00:00 and 00:59 local (verified arithmetic; see D-099's
+  correction). A production defect, not ours to fix, and lower-severity than first recorded — but we
+  still have to decide which convention our own time handling matches.
 
 **§3.2 / I11 — rung 1 is confirmed viable; the Tier 1 DB ask is no longer on the critical path.**
 `GET /api/accounts/signups` does return `attended` (verified in `getSignups`: the `Signup` include

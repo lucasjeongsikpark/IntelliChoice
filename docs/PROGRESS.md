@@ -28,9 +28,12 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **Answered:** the four role strings (`Parent`/`Student`/`Tutor`/`Manager`, free text, no DB
   constraint); and the timezone convention, which upgraded from a question into a **decision for the
   org** — storage is UTC, but reports apply a *hardcoded fixed UTC−6* in three queries, i.e. US
-  Central Standard Time, so they are an hour off for the ~8 months Central observes DST. A
-  production defect, not ours to fix, but attendance gating depends on computing the same session
-  day icrest does, so the org has to choose which behavior we match.
+  Central Standard Time, so for the ~8 months Central observes DST their reports render session
+  times **one hour earlier than reality**. **Corrected same day:** I first wrote that this
+  mis-dates late-evening sessions; checking the arithmetic against `America/Chicago` shows the date
+  only breaks for sessions starting 00:00-00:59 local, which a K-12 org essentially never has — so
+  the real symptom is a one-hour display discrepancy, and the severity is lower than first recorded.
+  Still worth a decision (which convention our apps match), just not the alarm I first raised.
   **Two new traps for S43, both easy to get wrong:** `signups` has a *second* attendance column,
   `attendanceClaimed` (non-null, self-reported) alongside `attended` (nullable, manager-recorded) —
   the convenient one is the fail-open one, and only `attended === true` may gate an exam; and the
