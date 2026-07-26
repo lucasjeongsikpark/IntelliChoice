@@ -58,9 +58,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **(b) Partial — one alarm induced genuinely, three on the delivery leg only.**
   `chat-api-p95-latency` went `OK → ALARM` on its own evaluation from real 30-second latency, and
   **delivery is proven by SNS's own metrics rather than inferred**: 4 delivered / 0 failed across
-  the four inductions, against a 3-hour baseline of zero. The other three have **no unauthenticated
-  path to induce** (see the secrets item above), so `set-alarm-state` proves each alarm's action
-  wiring reaches a delivering subscriber but *not* that its metric detects the condition.
+  the four inductions, against a 3-hour baseline of zero — and **the maintainer confirmed all four
+  emails arrived (2026-07-26)**, which is the half no AWS API can evidence, since `Delivered` means
+  SNS handed off to SES rather than that the mail cleared spam filtering. **So criterion 8's
+  "reaching a monitored inbox" half is met for all four alarms.** The other three have **no
+  unauthenticated path to induce** (see the secrets item above), so what stays unproven is narrower
+  than it was: their *detection* leg — that the metric and threshold fire on the real condition —
+  not their delivery.
   **(d) Partial — and it produced a new P1, AUD-F-14.** 45 guest turns, all 200: **1.62 s unloaded
   → p50 26.92 s / p95 32.14 s at concurrency 5**, ~10× the 3 s threshold at a concurrency that is
   not a stress test. **Autoscaling cannot react**: it is CPU target-tracking at 70% and the workload

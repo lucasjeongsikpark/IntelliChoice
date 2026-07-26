@@ -2296,6 +2296,12 @@ alarm**: `NumberOfMessagesPublished` 1, **`NumberOfNotificationsDelivered` 1**,
 **4 delivered, 0 failed**, to the one confirmed email subscription on
 `intellichoice-staging-alerts`.
 
+**Human receipt confirmed by the maintainer, 2026-07-26: all four emails arrived.** Recorded
+explicitly because it is the half of criterion 8 that no AWS API can evidence — `Delivered` means
+SNS handed the message to SES, not that it survived spam filtering into a monitored inbox. **So the
+"reaching a monitored inbox" half of criterion 8 is now met for all four alarms**; what remains
+partial is the *detection* half for the three that could only be driven with `set-alarm-state`.
+
 **The other three used `set-alarm-state`, and that is a real limit, not a formality.** No
 unauthenticated path exists to induce them: every learning route depends on `get_current_claims`,
 and chat has no reachable 5xx (a malformed session id and a nonexistent one both return **200** —
