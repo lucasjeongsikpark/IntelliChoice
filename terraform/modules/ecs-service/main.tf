@@ -61,7 +61,7 @@ resource "aws_ecs_task_definition" "this" {
     operating_system_family = "LINUX"
   }
 
-  container_definitions = jsonencode([
+  container_definitions = jsonencode(concat([
     {
       name                   = var.name
       image                  = var.image
@@ -81,9 +81,77 @@ resource "aws_ecs_task_definition" "this" {
         }
       }
     }
-  ])
+    ],
+    # S39: the OTLP collector the app's `OTEL_ENABLED=true` path exports to. See
+    # variables.tf's `enable_otel_sidecar` for why this is a sidecar and not a service.
+    var.enable_otel_sidecar ? [
+      {
+        name   = "otel-collector"
+        image  = var.otel_collector_image
+        cpu    = var.otel_collector_cpu
+        memory = var.otel_collector_memory
+        # Deliberately NOT essential: a collector that fails to start must not take a
+        # healthy API down with it. Losing traces is a diagnostic gap; losing the service
+        # is an outage, and this is being added *to* an environment the audits depend on.
+        essential = false
+        # The collector writes its own queue/checkpoint state, so it cannot run with the
+        # read-only root filesystem D-088 gives the app containers.
+        readonlyRootFilesystem = false
+        environment = [
+          # AWS's distro ships a built-in config that accepts OTLP and exports to X-Ray;
+          # naming it here avoids mounting a config file into Fargate (which would need a
+          # volume or a rebuilt image).
+          { name = "AOT_CONFIG_CONTENT", value = local.otel_collector_config },
+        ]
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            "awslogs-group"         = aws_cloudwatch_log_group.this.name
+            "awslogs-region"        = var.region
+            "awslogs-stream-prefix" = "otel-collector"
+          }
+        }
+      }
+    ] : []
+  ))
 
   tags = var.tags
+}
+
+locals {
+  # OTLP in (what `packages/observability` speaks) → X-Ray out (queryable with the AWS CLI,
+  # which is what the §2.6 criterion-9 PII scan needs). Batching keeps the export off the
+  # request path.
+  #
+  # `awsxray` is used rather than an OTLP-to-CloudWatch path because X-Ray segments can be
+  # fetched and walked as structured documents (`aws xray batch-get-traces`), and a PII scan
+  # that cannot parse its own target is the mistake D-101 §5 records: a `CAST(blob AS text)
+  # LIKE` check over msgpack certified a database full of coordinates as clean.
+  otel_collector_config = yamlencode({
+    receivers = {
+      otlp = {
+        protocols = {
+          http = { endpoint = "0.0.0.0:4318" }
+          grpc = { endpoint = "0.0.0.0:4317" }
+        }
+      }
+    }
+    processors = {
+      batch = { timeout = "5s", send_batch_size = 50 }
+    }
+    exporters = {
+      awsxray = { region = var.region }
+    }
+    service = {
+      pipelines = {
+        traces = {
+          receivers  = ["otlp"]
+          processors = ["batch"]
+          exporters  = ["awsxray"]
+        }
+      }
+    }
+  })
 }
 
 resource "aws_ecs_service" "this" {

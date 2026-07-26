@@ -621,7 +621,7 @@ which stop the line.
   staging services, so the "**traces**" half of the PII-floor line is unevidenced rather than
   passing (logs, stored payloads and metrics are all clean, each with a positive control). Enabling
   it is a deploy-time config change, folded into S39 along with the same criterion-9 requirement.
-- **S39 — AUD-F, frontend contracts + operations.** Scripted walk of every launch user journey
+- **S39 — AUD-F, frontend contracts + operations.** ⏸ partial (2026-07-25, D-103) Scripted walk of every launch user journey
   against the real APIs with console/network capture, CI-coverage inventory (chat-web has no CI
   job at all), deployment drills (a deliberate bad-image deploy must demonstrably auto-roll-
   back), scheduled-job dry runs, proof each CloudWatch alarm can fire *and reach a human*,
@@ -631,6 +631,24 @@ which stop the line.
   **induced-alarm delivery proof** S35 left open, and **enabling `OTEL_ENABLED` on the two staging
   services then re-running the PII scan against traces** — the one S38 sub-item that could not be
   evidenced, and a §2.6 criterion-9 requirement in its own right.
+  **Shipped:** browser automation now exists (Playwright in `e2e/`, `make e2e`), and **the
+  browser-driven half of §2.3 is closed for both apps** — all 18 chat response shapes render, and
+  AUD-C-04/10/11 are reproduced visually, confirming S37's code-reading conclusion. 9 findings
+  (AUD-F-01..09), one P1: `App.tsx`'s inline-arrow callbacks sit in `ExamScreen` effect dependency
+  arrays, so **885 `POST .../time` fire during a 15-second dwell on one question and 76
+  `GET exam/overview` per 10-item exam at a median 30 ms gap against a declared 20 s poll**. It
+  also corrects AUD-L-14's evidence. AUD-F-09 fixed in-session — a defect in this session's own
+  change that would have crash-looped every later deploy.
+  **Why ⏸ — the four remaining items all mutate staging** and this session had no standing
+  authorization for them: the `terraform apply` of the ADOT sidecar (written, plan clean), the
+  induced-alarm proof, the bad-image rollback drill, and the live load run. Baseline recorded for
+  the trace work: **X-Ray held 0 traces over 6 hours**.
+  **Two findings change Phase 0B's shape.** **AUD-F-06:** no EventBridge rule or schedule exists at
+  all, so criterion 6's ≥1-week unattended clock has not started — **the earliest gate pass is one
+  week after the schedules land**, which makes them an early-S40 item; and only **three** of the
+  four jobs are schedulable, since `webcontent-sync` rewrites tracked content and wants a human
+  diff review. **AUD-F-02:** criterion 3's "zero console errors" is unmeetable until the
+  post-finalize 409 burst (35 in 96 ms) is fixed.
 
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog: S22.5

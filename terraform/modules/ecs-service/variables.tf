@@ -153,3 +153,42 @@ variable "autoscaling_cpu_target_percent" {
   type    = number
   default = 70
 }
+
+# S39 (AUD-F): the OTLP collector both apps' `OTEL_ENABLED=true` path needs.
+#
+# `packages/observability`'s `configure_tracing` exports OTLP/HTTP to an endpoint; locally
+# that is docker-compose's `otel-collector`, and staging had no equivalent at all - which
+# is why S38 could not evidence the "traces" half of its PII-floor line (D-102) and why
+# §2.6 criterion 9 stayed open. Flipping `OTEL_ENABLED` without this exports into a void.
+#
+# Deployed as a sidecar in the same task rather than a standalone collector service: the
+# app reaches it on localhost (no service discovery, no extra ALB target, no cross-task
+# network hop), it scales with the app by construction, and there is one less thing for a
+# solo maintainer to operate. The trade-off is that a collector restart takes the task
+# with it - acceptable because traces are diagnostic, not load-bearing.
+variable "enable_otel_sidecar" {
+  description = "Run an aws-otel-collector sidecar exporting spans to AWS X-Ray."
+  type        = bool
+  default     = false
+}
+
+variable "otel_collector_image" {
+  description = <<-EOT
+    AWS's distro of the OpenTelemetry Collector. Pinned rather than :latest so a deploy
+    cannot silently change the collector - the same reason deploy-staging.yml tags images
+    by commit SHA instead of appending to a mutable tag (D-096).
+  EOT
+  type        = string
+  default     = "public.ecr.aws/aws-observability/aws-otel-collector:v0.43.3"
+}
+
+variable "otel_collector_cpu" {
+  description = "Reserved for the sidecar out of the task's total cpu/memory."
+  type        = number
+  default     = 128
+}
+
+variable "otel_collector_memory" {
+  type    = number
+  default = 256
+}

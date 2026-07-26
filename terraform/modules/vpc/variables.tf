@@ -32,6 +32,20 @@ variable "bedrock_runtime_endpoint_enabled" {
   default     = true
 }
 
+variable "xray_endpoint_enabled" {
+  description = <<-EOT
+    Include the xray interface endpoint. Required for the OTel sidecar's `awsxray`
+    exporter to reach the X-Ray API at all: S39's first traced deploy had the app
+    exporting and the collector receiving, then failing every export with
+    `Post "https://xray.us-east-1.amazonaws.com/TraceSegments": context deadline
+    exceeded` - the same NAT-less unroutability that broke the sidecar's own image pull
+    (AUD-F-10), one layer further in. Split out from `enable_interface_endpoints` and
+    wired to `enable_otel_tracing` so the ~$7.30/mo is not paid when tracing is off.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "Common tags applied to all resources."
   type        = map(string)

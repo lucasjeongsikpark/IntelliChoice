@@ -1,0 +1,187 @@
+/**
+ * Renders every response shape the chat API can emit, in a real browser.
+ *
+ * This is the sub-item that kept S37 at ⏸: it enumerated all fourteen shapes against
+ * the render code and reported twelve correct, but never rendered one. The two it
+ * called broken (AUD-C-04, AUD-C-10) have their own tests at the bottom, written to
+ * *pass when the bug is present* and named so, so Phase 0B's fix flips them from
+ * documented-defect to regression — see the comment on each.
+ */
+
+import { CHAT_API, CHAT_WEB } from "../../config";
+import { expect, test } from "../../fixtures/capture";
+import { SHAPES, SHAPE_NAMES } from "../../fixtures/chat-shapes";
+import { ask, stubChat } from "../../fixtures/stub-chat";
+import { seedGuest } from "../../fixtures/session";
+
+/** The bubble that appears while a turn is in flight, and AUD-C-10's stuck state. */
+const THINKING = "Thinking…";
+
+test.beforeEach(async ({ page }) => {
+  await seedGuest(page);
+});
+
+test("the fourteen shapes are the fourteen the API declares (drift control)", async ({
+  page,
+  audit,
+}) => {
+  // Guards the whole file: if `MessageResponse` grows a field, these fixtures are stale
+  // and every render below is auditing a shape the backend no longer emits. Runs one
+  // *real*, un-stubbed turn and compares field sets.
+  await page.goto(CHAT_WEB);
+  const response = await page.request.post(`${CHAT_API}/chat/sessions`, {
+    failOnStatusCode: false,
+  });
+  test.skip(response.status() !== 200, "chat-api not reachable for the drift control");
+  const { chat_session_id: sessionId } = (await response.json()) as { chat_session_id: string };
+  const turn = await page.request.post(`${CHAT_API}/chat/sessions/${sessionId}/messages`, {
+    data: { query: "What are the Saturday hours?" },
+    failOnStatusCode: false,
+  });
+  expect(turn.status()).toBe(200);
+  const live = Object.keys((await turn.json()) as Record<string, unknown>).sort();
+  const fixture = Object.keys(SHAPES["grounded answer"]).sort();
+  audit.note(`live /messages fields: ${live.join(",")}`);
+  expect(live, "the API's field set drifted from e2e/fixtures/chat-shapes.ts").toEqual(fixture);
+});
+
+for (const name of SHAPE_NAMES) {
+  test(`renders: ${name}`, async ({ page, audit }) => {
+    const shape = SHAPES[name];
+    await stubChat(page, { message: shape });
+    await page.goto(CHAT_WEB);
+    await ask(page, `probe: ${name}`);
+
+    // Every shape must leave the turn resolved - no permanent Thinking… bubble.
+    await expect(page.getByText(THINKING)).toHaveCount(0, { timeout: 20_000 });
+
+    if (shape.pending_interrupt) {
+      // An interrupt shape has no answer text; what must be visible is the modal that
+      // resolves it. `App.tsx` renders one per known interrupt_type.
+      const interruptType = shape.pending_interrupt.interrupt_type as string;
+      await expect(
+        page.locator(".modal-overlay .modal"),
+        `${interruptType} produced no visible modal - the composer is disabled with nothing to resolve it`,
+      ).toBeVisible();
+      audit.note(`${interruptType}: modal rendered`);
+    } else {
+      // An answer shape must show its own text. A shape whose answer never reaches the
+      // DOM is the S22.5 blank-turn class.
+      await expect(
+        page.getByText(shape.answer!.slice(0, 40), { exact: false }),
+        `answer text for "${name}" never rendered`,
+      ).toBeVisible();
+    }
+
+    if (shape.citations.length > 0) {
+      await expect(page.locator(".citation-chip")).toHaveCount(shape.citations.length);
+    }
+    if (shape.escalation_recommended) {
+      await expect(page.locator(".escalation-banner")).toBeVisible();
+    }
+    if (shape.access_hint) {
+      await expect(page.getByText(shape.access_hint.message)).toBeVisible();
+    }
+    if (shape.ics_content) {
+      await expect(page.getByRole("button", { name: /download \.ics/i })).toBeVisible();
+    }
+    if (shape.suggested_followups.length > 0) {
+      await expect(page.locator(".suggestion-chips .chip")).toHaveCount(
+        shape.suggested_followups.length,
+      );
+    }
+  });
+}
+
+test("AUD-C-11 rendered: the no-source refusal shows a citation beside a sentence denying one exists", async ({
+  page,
+}) => {
+  // Not a harness artifact - S37 observed this shape live. The finding is that the two
+  // render *together*, which only a rendered page can show.
+  await stubChat(page, { message: SHAPES["no-source refusal with citations (AUD-C-11)"] });
+  await page.goto(CHAT_WEB);
+  await ask(page, "something no document covers");
+
+  const bubble = page.locator(".message-row.assistant .bubble").last();
+  await expect(bubble).toContainText("don't have an approved source");
+  await expect(bubble.locator(".citation-chip")).toHaveCount(1);
+  await expect(bubble.locator(".citation-chip")).toContainText("Branch Handbook");
+});
+
+test("AUD-C-10 rendered: an API error leaves the turn on Thinking… permanently", async ({
+  page,
+  audit,
+}) => {
+  // Written to PASS while the defect exists, so the assertion states the *current*
+  // behavior. Phase 0B's fix will fail this test, which is the intent: the failure is
+  // the signal to invert it into a regression test.
+  // The 500 is the subject of the test, and Chromium logs its own console error for any
+  // failed fetch ("Failed to load resource: ... 500"), which is the browser reporting
+  // the stub rather than a defect. Both are allowed here and nowhere else.
+  audit.allow({
+    statuses: [500],
+    serverErrors: true,
+    consoleErrors: ["Failed to load resource"],
+  });
+  await stubChat(page, { message: 500 });
+  await page.goto(CHAT_WEB);
+  await ask(page, "this turn will 500");
+
+  await expect(page.getByText(THINKING)).toBeVisible();
+  // The error text renders too - but below the transcript, while the bubble itself
+  // never resolves. Both being true at once is the finding.
+  await expect(page.locator("p.error")).toBeVisible();
+  await page.waitForTimeout(3000);
+  await expect(
+    page.getByText(THINKING),
+    "the stuck bubble cleared on its own - AUD-C-10 may be fixed; re-check the finding",
+  ).toBeVisible();
+  audit.note("AUD-C-10 reproduced in a browser: Thinking… persists 3s after a 500, error text also shown");
+});
+
+test("AUD-C-04 rendered: a paused turn shows the previous turn's answer and citations", async ({
+  page,
+  audit,
+}) => {
+  // Two turns: the first grounded, the second pausing on an interrupt. The interrupt
+  // shape carries the *previous* answer because pausing nodes never return, so nothing
+  // resets those fields (AUD-C-04). Rendered, that is a stale answer sitting above a
+  // modal about something else.
+  const previous = SHAPES["grounded answer"];
+  const paused = {
+    ...SHAPES["email_approval interrupt"],
+    // What the API actually returns: the interrupt plus the prior turn's presentation.
+    answer: previous.answer,
+    citations: previous.citations,
+  };
+  await stubChat(page, { message: paused });
+  await page.goto(CHAT_WEB);
+  await ask(page, "email an administrator about something else entirely");
+
+  const bubble = page.locator(".message-row.assistant .bubble").last();
+  await expect(bubble).toContainText("open 9am to 1pm on Saturdays");
+  await expect(bubble.locator(".citation-chip")).toHaveCount(1);
+  await expect(page.getByText(/Question from a student about Saturday hours/)).toBeVisible();
+  audit.note(
+    "AUD-C-04 reproduced in a browser: the paused turn's bubble shows the prior answer + citation while the approval modal is open",
+  );
+});
+
+test("the composer is disabled while an interrupt is pending, and re-enabled after resolving it", async ({
+  page,
+}) => {
+  // S37's latent gap: `busy = pending !== null`, so an unrecognised interrupt_type would
+  // disable the composer with no modal to clear it. This proves the *known* types do
+  // clear, which is what makes the latent case a real (if unreachable) deadlock.
+  await stubChat(page, {
+    message: SHAPES["email_approval interrupt"],
+    respond: SHAPES["email sent"],
+  });
+  await page.goto(CHAT_WEB);
+  await ask(page, "please email an administrator");
+
+  await expect(page.locator("textarea")).toBeDisabled();
+  await page.getByRole("button", { name: /approve & send/i }).click();
+  await expect(page.locator("textarea")).toBeEnabled({ timeout: 20_000 });
+  await expect(page.getByText("I've sent your question")).toBeVisible();
+});

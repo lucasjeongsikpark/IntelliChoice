@@ -1,0 +1,19 @@
+{
+  "name": "e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Browser-driven journey audit for both frontends (S39/AUD-F).",
+  "scripts": {
+    "test": "playwright test",
+    "test:learning": "playwright test tests/learning",
+    "test:chat": "playwright test tests/chat",
+    "typecheck": "tsc --noEmit",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.0",
+    "@types/node": "^26.1.1",
+    "typescript": "~6.0.2"
+  }
+}

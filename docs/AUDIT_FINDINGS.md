@@ -65,6 +65,22 @@ ones.
 | **AUD-X-08** | **Money** | **P1** | Open — before the gate | Every per-day cost ceiling is read-then-act with the cost row committed at teardown. **10 concurrent reports produced 8 generated reports and 8.0× the ceiling**, while the sequential control correctly degraded — a correct check with no serialization. Weakens AUD-L-02's P0 fix; a single caller can drive it since AUD-X-04 leaves the route non-idempotent |
 | AUD-X-06 | Test integrity | P3 | **Fixed in S38** | A hint test asserted a plain substring where the product's `answer_text_leaked` is boundary-aware, so it demanded more than the product guarantees and the mock's own `hint lN` prefix collided whenever the drawn answer was `"1"`–`"3"` (**17.9%** of the bank; measured **15/70**). Fixed by asserting the product's own rule: **0/40**, and three consecutive green suites. **AUD-L-17 did not regress** — it pinned a *different* test, still 0/20; its mock change *unmasked* this one |
 
+| **AUD-F-01** | **Cost / latency** | **P1** | Open — before the gate | `App.tsx` passes `onFetchOverview` and `onRecordTime` as **inline arrows**, so they are new identities on every render, and both sit in `ExamScreen` effect dependency arrays — every render tears the effect down and re-runs it. Measured: **885 `POST /exam/items/{id}/time` in a 15-second dwell on one question (~59/s)**, each carrying the ~20 ms gap between two renders; and **76 `GET /exam/overview` for a single 10-item exam, median 30 ms apart against the declared `OVERVIEW_POLL_MS = 20000`** — a ~667× amplification. Both are database writes/reads on the main journey's hot path |
+| **AUD-F-02** | **Frontend contract** | **P2** | Open — Phase 0B | After `POST /exam/finalize` returns 200 the client keeps calling the exam endpoints: **35 × 409 in a 96 ms burst** (33 `exam/overview` + 2 `exam/items/{id}/time`), zero after 5 s, with no exam screen even mounted. Each failed fetch is a browser console error, so **§2.6 criterion 3's "zero console errors" cannot be met while this exists**. Same root cause as AUD-F-01 |
+| **AUD-F-03** | **Launch journey** | **P2** | Open — Phase 0B | A refresh mid-exam does **not** restore position: measured going from **"Question 3 of 10" to "Question 1 of 10"**. SPEC Phase 11's own "done when" is that a refresh restores the exact position, and `useLearningSession`'s docstring cites that requirement verbatim — but the display position is `ExamScreen` component state and is never persisted, while the hook only restores the *session*. Recoverable via the nav bar, which is what keeps it off P1 |
+| AUD-F-04 | Frontend contract | P3 | Open — Phase 0B | A dismissed stage narrative **returns after a refresh**: dismissal is React state (`dismissedNarrative`, keyed by the narrative text) while `stage_narrative` persists in the snapshot, so the gate that sits ahead of every phase branch closes again. One extra click clears it (verified), which is the whole of the severity argument |
+| AUD-F-05 | Frontend contract | P3 | Open — Phase 0B | The stage narrative **displaces the screen the student is already using**, because `App.tsx` gates it ahead of every phase branch and it arrives over SSE after that screen renders. The topic list is interactive for a measured **~26 ms** before being replaced; the same swap detaches the Submit-answer and retry-ladder buttons mid-click. Too narrow for a human to lose a click to (the one click that landed still reached the API), but it makes every scripted journey need retry logic — which is how it was found |
+| **AUD-F-06** | **Operations** | **P2** | Open — before the gate | **No scheduled jobs exist at all**: zero EventBridge rules and zero EventBridge Scheduler schedules in the account. The four jobs are `make` targets a human runs — and only **three** of them are schedulable at all: `webcontent-sync` rewrites tracked `knowledge-content/` files and asks for a human diff review, so §2.5's work item should be re-scoped to three. §2.6 criterion 6 ("all scheduled jobs ran on schedule for ≥ 1 week with zero manual intervention") is therefore not merely unmet but **unstartable** — the one-week clock cannot begin until the schedules land, so **the earliest possible gate pass is one week after that Phase 0B item ships**. A scheduling fact about the whole milestone, not just a defect |
+| **AUD-F-07** | **Money** | **P2** | Open — Phase 0B | `make memory-consolidate` processes **160 students and reports 145.97 cents in one unattended run**, and **150 of the 159 students with memory rows are `loadtest-student-N` fixtures left behind by S34's load test** — 94% of the job's paid work is synthetic. Locally the provider is the mock, so the figure is the accounting layer's projection rather than a real charge; against staging's real Bedrock it would be real money, recurring on every scheduled run. Must be resolved *before* AUD-F-06's schedules are created, not after |
+| AUD-F-08 | CI coverage | P3 | Open — Phase 0B | CI builds and tests `learning-web` but has **no job for `chat-web`** (already on the Phase 0B list) and none for the new `e2e/` harness. Two of the four deployables are therefore unbuilt by CI, against §2.6 criterion 4's "CI builds and tests every deployable" |
+| AUD-F-09 | Deploy pipeline | P2 | **Fixed in S39** | `deploy-staging.yml` rewrote the image tag on **every** container in the task definition. Harmless with one container — but the moment the OTel sidecar was added it would have rewritten `aws-otel-collector:v0.43.3` to `aws-otel-collector:gha-<sha>`, an image that does not exist, and every deploy would have crash-looped into a circuit-breaker rollback. Caught while adding the sidecar, before it shipped; the patch is now scoped to the app container by name, with an assertion that exactly one matches |
+
+| **AUD-F-11** | **Deploy pipeline / security** | **P2** | **Fixed in S39 continuation** | `terraform.tfvars` pinned `learning/chat_api_image_tag = "gha-6cc4a27430bd"` while both services were running `gha-d1899a483d06` — pushed six hours later, and **the commit that fixed `/dev/token` being signed with the public dev constant instead of the real secret**. So `terraform apply` registered task-definition revisions that silently reverted a security fix, and any operator who applied and then pointed a service at the new revision (rather than letting CI patch the tag) would have deployed it. Terraform cannot detect this: the tag exists and pulls fine. Only diffing the registered revision against what is *running* shows it. Found by doing exactly that before deploying the sidecar |
+
+| **AUD-F-12** | **Observability / infrastructure** | **P2** | **Fixed in S39 continuation** | **The OTel collector accepted every span and discarded every one**, because the VPC has no `xray` interface endpoint and no NAT — AUD-F-10's root cause one layer further in. `Exporting failed. Rejecting data. {"name": "awsxray", "error": "Post \"https://xray.us-east-1.amazonaws.com/TraceSegments\": context deadline exceeded", "rejected_items": 64}`, repeating. **Nothing detected it**: the collector is `essential: false` and starts perfectly healthy, the app's export succeeds into it, both services stayed green, and no alarm watches export failures. Fixed with a single-AZ `xray` endpoint wired to `enable_otel_tracing` (~$7.30/mo, matching the existing five endpoints' cost posture); traces went from **0 to 650** on the next traffic run |
+
+| **AUD-F-10** | **Infrastructure** | **P2** | **Fixed in S39 continuation** | **The ECS tasks cannot pull from `public.ecr.aws`.** They run in private subnets with `ecr.dkr`/`ecr.api` interface endpoints and an S3 gateway but **zero NAT gateways** (D-084's cost posture), and no interface endpoint exists for *public* ECR. Found live on the first sidecar deploy: `CannotPullContainerError ... dial tcp 75.2.101.78:443: i/o timeout`, retried 7×, services rolled back to the pre-sidecar revision and verified healthy. Fixed by mirroring the collector into this account's private ECR (`scripts/mirror-otel-collector.sh`, repository created, Terraform rewired) — **the mirror push itself did not complete before the AWS session expired**, so the image is not yet in ECR. **Live hazard while that is true:** the latest task-definition revision (18) still references the unreachable public image, and `deploy-staging.yml` patches whatever the *latest* revision is — so **the next CI deploy would fail the same way** until the mirror is pushed or `enable_otel_tracing` is set false and re-applied |
+
 ---
 
 ## S36 — AUD-L (learning product correctness)
@@ -1773,3 +1789,253 @@ staging** and is recorded there.)_
   `test_mock_hint_is_leak_clean.py` asserts the mock's hint against `answer_text_leaked` for every
   reachable answer, and it passes — correctly. It could not have caught this, because the defect
   was in a *different* test's stricter assertion, not in the mock.
+
+---
+
+## S39 — AUD-F (frontend contracts + operations)
+
+**Method.** The browser-driven half of §2.3, which S36 and S37 each left uncovered because no
+browser automation existed in this environment. A Playwright harness now lives in
+[e2e/](../e2e/) (`make e2e`), chromium-only, one worker, zero retries. Every run attaches a
+console/network capture to the page and enforces §2.6 criterion 3's three properties at
+teardown over the whole run rather than at any single assertion: zero console errors, zero
+5xx, zero blank/stuck states. A test that deliberately drives an error path narrows that check
+with an explicit, greppable `audit.allow({...})`; the default is strict.
+
+**The harness carries its own positive control** (`tests/smoke.spec.ts`), for the reason D-101 §5
+and D-102 record: a probe that can only return "clean" is not a measurement. It produces a
+console error and a failed request on purpose and asserts the fixture saw both.
+
+**Three hypotheses were formed and then disproved by measurement**, which is worth recording
+because each would have been a plausible finding written up from code reading alone:
+- *"The requested hint is displaced before the student can read it."* Measured: the hint panel
+  survives **14.7 s** of no interaction. Not a defect. The journey walk's apparent disappearance
+  was the graph having already advanced past that pause.
+- *"The SSE stream reconnects ~2×/second."* Suggested by 71 `net::ERR_ABORTED` entries against
+  the stream URL in one 38-second run. Measured with the student idle: **0 stream reopens in
+  20 s**. The aborts are the session hook's own `EventSource` cleanup on screen swaps — expected
+  behavior, and the harness now excludes them rather than reporting a phantom.
+- *"The attendance gate is bypassed for an absent student."* The browser reached a stage
+  narrative instead of the gate, which looked like a fail-closed violation. Checked directly at
+  the API for both fixtures first: the gate fires at `/topics`, not at `/student` — absent →
+  `phase: blocked`, present → `pre_exam`. **The gate is correct and the test was asserting at the
+  wrong step.** Rule 5 holds.
+
+### AUD-F-01 — Inline-arrow callbacks in effect dependency arrays fire two endpoints per render (P1)
+
+`App.tsx` passes `onFetchOverview={() => void session.fetchExamOverview()}` and
+`onRecordTime={(id, ms) => session.recordItemTime(id, ms)}` — new function identities on every
+render. `ExamScreen` lists both in effect dependency arrays: the overview poll effect
+(`[isExamPhase, phase, onFetchOverview]`) and the view-time autosave effect
+(`[currentDisplayOrder, phase, currentOverviewItem?.assessment_item_id, onRecordTime]`). Every
+App render therefore tears both effects down and re-runs them — the poll fires an immediate
+fetch and installs a fresh interval, and the autosave's *cleanup* reports elapsed time and its
+body immediately resets `viewStartRef`.
+
+**Measured, with the student sitting on one question for 15 seconds and touching nothing:**
+
+- **885 `POST /exam/items/{id}/time` requests** (~59/second), values
+  `[21, 24, 19, 18, 17, 19, 18, 19, 17, 17, 19, 18, …]`, **max 94 ms**. Each report covers the
+  gap between two renders, not time on task.
+- **76 `GET /exam/overview` for one 10-item exam** — 7.6 per answer submitted — at a **median
+  gap of 30 ms** against the code's own `OVERVIEW_POLL_MS = 20000`, a ~667× amplification.
+
+Both endpoints hit the database (`add_item_time` does a read-modify-write on
+`assessment_item_state`). §2.4 puts "cost or latency out of bounds" at P1, and this is on the
+hot path of the primary launch journey at 1,000-MAU scale, so P1 is the reading recorded here.
+The fix is small — memoize both callbacks, or drop them from the dependency arrays via a ref —
+but it must be **re-verified by counting requests**, not by observing that the screen still
+works, because the screen has always still worked.
+
+**Bearing on AUD-L-14, which needs re-examination rather than a fix as written.** The server
+*accumulates* (`state.time_spent_ms += elapsed_ms`), and the browser's 885 reports total
+**15,591 ms for a 15,000 ms dwell** — approximately correct. So client telemetry is not
+inherently zero, and S36's "140 item-state rows summing to 0 ms" is most consistent with those
+journeys having been driven **through the API with no browser in the loop**, which is exactly
+how S36 drove them. AUD-L-14's underlying point stands (the report depends on client telemetry
+while ignoring the always-populated `assessment_attempts.response_time_ms`), but its headline
+evidence should be re-measured with a browser before anything is built on it.
+
+### AUD-F-02 — The client keeps calling exam endpoints after finalize, flooding the console with 409s (P2)
+
+After `POST /exam/finalize` returns 200: **35 requests rejected 409 in a 96 ms burst** — 33
+`GET /exam/overview` and 2 `POST /exam/items/{id}/time` — and **zero arriving more than 5 s
+later**, with no exam screen mounted at the end of the window. Timestamped precisely to
+separate a leaked interval (unbounded) from a remount burst (bounded); it is the latter, driven
+by AUD-F-01's per-render effect churn as the app transitions out of the exam phase.
+
+Bounded, self-limiting, and invisible to the student — but each failed fetch is a browser
+console error, so a single journey accumulates **35–59** of them. **§2.6 criterion 3 requires
+zero console errors on every launch journey, so the criterion cannot be met until this is
+fixed**, independently of any user-visible symptom. Reproduced by
+`tests/learning/post-finalize-poll.spec.ts`, which is marked `test.fail()` so the suite stays
+green while the count keeps being measured on every run; when Phase 0B fixes it the test passes
+unexpectedly and fails the run, which is the signal to promote it to a regression test.
+
+### AUD-F-03 — A refresh mid-exam does not restore the student's position (P2)
+
+Answer two questions, refresh: **"Pre-exam Question 3 of 10" becomes "Pre-exam Question 1 of
+10"**. The session, the answers and the read-only locks all survive — only the position is lost,
+because `sessionId` is persisted in `sessionStorage` while `currentDisplayOrder` is `ExamScreen`
+state that a reload discards.
+
+SPEC Phase 11's own "done when" is that a page refresh restores the exact position, and
+`useLearningSession`'s docstring cites it verbatim as the reason the session id is persisted at
+all — so this is a documented requirement that no test covered. P2 rather than P1 because the
+student can navigate forward with the nav bar and loses no work.
+
+### AUD-F-04 / AUD-F-05 — Stage narratives return after a refresh, and displace live screens (P3, P3)
+
+`App.tsx` gates `stage_narrative` ahead of every phase branch and tracks dismissal in React
+state keyed by the narrative text. Two consequences, both measured:
+
+- **After a reload the narrative returns** (`"Welcome back! Let's see what you remember today."`)
+  because the snapshot still carries it and the dismissal did not survive. One further click
+  clears it and the exam returns — verified, and the whole of why this is P3.
+- **The narrative displaces a screen already in use.** The topic list renders from the `/student`
+  response and is interactive for a measured **~26 ms** before the SSE snapshot carrying the
+  narrative replaces it; the same swap detaches the Submit-answer and ladder buttons mid-click.
+  A human is unlikely to lose a click to a 26 ms window, and the one scripted click that landed
+  inside it still reached `POST /topics` — so the real cost is that every automated journey needs
+  retry logic, which is how this was found in the first place.
+
+### AUD-F-06 — No scheduled jobs exist, so criterion 6's clock has not started (P2)
+
+`aws events list-rules` and `aws scheduler list-schedules` both return **empty**. All four jobs
+run clean when invoked by hand (`chat-purge`: 0 rows older than 90 days; `memory-consolidate`:
+160 students; `youtube-sync`: 4 updated; `webcontent-sync`: 5 sections / 50 members / 26
+branches / 42 events) — but nothing invokes them.
+
+**Only three of the four are schedulable at all, which changes the Phase 0B work item.**
+`make webcontent-sync` **rewrote seven tracked files** under `knowledge-content/` when run here,
+and prints "Review the git diff before running `make org-load`/`make knowledge-load`" — it is a
+content-authoring step that expects a human to inspect its output, not an unattended job. It also
+**broke the test suite** while those edits were in the working tree
+(`test_ingestion_creates_all_documents_then_is_idempotent_on_rerun`), which is how it was noticed;
+reverting the files restored 513 passed. Scheduling it in ECS would additionally fail outright
+against D-088's `readonlyRootFilesystem = true`. §2.5's "EventBridge schedules for the four manual
+jobs" should therefore be re-scoped to **three** (`chat-purge`, `memory-consolidate`,
+`youtube-sync`), with `webcontent-sync` left manual and that decision recorded.
+
+The consequence is a schedule fact, not just a defect: §2.6 criterion 6 requires the jobs to have
+run **unattended for ≥ 1 week**, so **the earliest the gate can pass is one week after the
+EventBridge schedules land in Phase 0B**. That should be sequenced early in S40–S41 rather than
+late, or it becomes the critical path to S42 on its own. It also means the 90-day `chat-purge`
+retention promise currently depends entirely on a human remembering to run `make`.
+
+### AUD-F-07 — The memory-consolidation job spends 94% of its budget on load-test fixtures (P2)
+
+One `make memory-consolidate` run: **160 students, 577 facts added, 145.97 cents**. Of the 159
+distinct students with `semantic_memory` rows, **150 are `loadtest-student-N`** — disposable
+fixtures S34's load test created and never removed.
+
+Locally the provider is `MockBedrockProvider`, so that figure is what the cost-accounting layer
+would charge rather than a real charge; the same job against staging's real Bedrock spends real
+money, and would do so on **every** scheduled run once AUD-F-06 is addressed. Ordering matters:
+clean the fixtures (or scope the job to real students) **before** creating the schedule, not
+after. Same family as AUD-L-02 and AUD-X-08 — a paid path with no bound on how much work it
+decides to do.
+
+### AUD-F-08 — Two of four deployables have no CI job (P3)
+
+`ci.yml` has `lint-typecheck-test` (Python) and `learning-web` (lint + typecheck + build).
+**`chat-web` has no job**, already known and on the Phase 0B list, and the new `e2e/` harness has
+none either. Against criterion 4's "CI builds and tests every deployable", two of four are
+uncovered. Recorded rather than fixed here because §2.5 already owns chat-web CI; the e2e harness
+should join the same job when it lands.
+
+### AUD-F-09 — The deploy workflow would have crash-looped the new sidecar (P2, fixed in S39)
+
+`deploy-staging.yml` patched the image tag with `for c in td['containerDefinitions']` — every
+container, not just the app's. Correct while each task had exactly one container, and silently
+fatal the moment Terraform added the `aws-otel-collector` sidecar: the loop would have rewritten
+`aws-otel-collector:v0.43.3` to `aws-otel-collector:gha-<sha>`, an image that does not exist,
+and every subsequent deploy would have failed to start and rolled back via the circuit breaker.
+
+Found by reading the deploy path *before* applying the sidecar rather than by watching a deploy
+fail. Fixed in the same session because it is a defect in the change being made, not a
+pre-existing product defect: the patch now selects the app container by name and asserts exactly
+one match, so a future container-name change fails loudly instead of mis-tagging.
+
+### Negative results, S39
+
+All of the following were exercised **in a real browser** and behaved correctly.
+
+- **Every chat response shape renders.** All **18** payload shapes the API can emit — S37's
+  fourteen, with the email and location outcomes split into their sub-variants — rendered
+  correctly, including citations, escalation banner, access hint, `.ics` download button,
+  suggestion chips, and a visible modal for each of the three interrupt types. **S37's
+  code-reading conclusion is confirmed by rendering**, which is what its ⏸ was waiting for.
+- **The fixtures are not fiction.** A drift control runs one *real*, un-stubbed turn and asserts
+  the live `/messages` field set equals the fixtures' — so a backend change that outgrew these
+  shapes fails the suite instead of letting it audit a payload the API no longer sends.
+- **AUD-C-04, AUD-C-10 and AUD-C-11 reproduced visually**, not just at the API: the paused turn
+  renders the previous turn's answer *and* citation above an unrelated approval modal; an errored
+  turn keeps a `Thinking…` bubble indefinitely while the error text renders separately below; and
+  the no-source refusal renders a citation chip beside the sentence denying a source exists.
+- **The composer locks and unlocks correctly** around a pending interrupt — which is what makes
+  S37's "a fourth interrupt type would deadlock the session" a genuine latent gap rather than a
+  live one.
+- **Attendance fails closed in the browser for both cases.** Absent (`student-ext-2`) and
+  **unknown-attendance** (`student-ext-3`, no row at all) students both reach the gate and never
+  reach an exam screen; the branch-manager path shows the email draft with both Send and Decline
+  before anything is sent (SPEC §5.1.4), and declining leaves the gate closed.
+- **The parent journeys work.** A two-child parent is offered exactly both children and the
+  selection sticks; a **single-child parent is auto-selected** without being asked, so S11's
+  auto-select gap does not reproduce here.
+- **Chat answers render for every audience** — guest and signed-in student, parent, tutor and
+  branch_manager — plus out-of-scope refusal, welcome-card suggestion chips, new-chat reset, real
+  login-screen sign-in, and transcript restoration across a refresh.
+- **The branch locator asks consent before collecting anything**, renders the notice text,
+  disables the composer while pending, honors "Don't use my location", and returns a rendered
+  answer when a ZIP is shared.
+- **No SSE reconnect storm**: 0 stream reopens in 20 s of idle.
+- **X-Ray held 0 traces over 6 hours** before any change — a clean baseline for the trace work,
+  recorded so that traces appearing after the sidecar deploys means something.
+
+### AUD-F-10 — Private-subnet tasks cannot reach public.ecr.aws, so the sidecar could not be pulled (P2)
+
+The VPC has interface endpoints for `ecr.dkr`, `ecr.api`, `secretsmanager`, `logs` and
+`bedrock-runtime`, an S3 gateway endpoint for image layers, and **no NAT gateway** — deliberate,
+per D-084's cost posture. Private ECR works through those endpoints; `public.ecr.aws` is a
+separate registry with **no interface endpoint at all**, so it is simply unroutable from a task.
+
+Nothing predicted this. It appeared the moment the sidecar deployed:
+
+```
+CannotPullContainerError: pull image manifest has been retried 7 time(s): failed to resolve ref
+public.ecr.aws/aws-observability/aws-otel-collector:v0.43.3: ... dial tcp 75.2.101.78:443: i/o timeout
+```
+
+`essential: false` on the sidecar did **not** help, and the reason is worth recording: a
+non-essential container that *exits* leaves the task running, but one that cannot be **pulled**
+fails the whole task before it starts. Non-essential protects against a crashing collector, not
+against an unreachable image.
+
+**Handled, and the state is precise.** Both services were rolled back to the pre-sidecar revision
+and re-verified through the public edge — frontends 200, learning `/readyz` **200** (which proves
+real Postgres *and* MySQL connectivity), chat `/me` 401, `/dev/token` **404** with no credential,
+so S35's security gate is intact. An `aws-otel-collector` repository now exists in this account's
+private ECR, `scripts/mirror-otel-collector.sh` pins the version and pushes **linux/arm64** (to
+match `runtime_platform`, since an amd64 image on an ARM64 task fails with an exec-format error
+that looks nothing like a platform mismatch), and Terraform points the sidecar at the mirror.
+**The push did not finish before the AWS session expired**, so the mirror is empty.
+
+**The one thing that must be done first next session.** Task-definition revision 18 is the latest
+and still references the public image, and `deploy-staging.yml` resolves
+`--task-definition intellichoice-staging-<svc>` to the *latest* revision before patching it — so
+**the next CI deploy inherits the unreachable sidecar and fails** (safely: the circuit breaker
+rolls it back, as it just did). Either run the mirror script, or set `enable_otel_tracing = false`
+and re-apply, before the next push to `main`.
+
+**Closed in the S39 continuation.** The mirror was pushed (`sha256:ba3c3f06…`, 39 MB,
+`linux/arm64` confirmed against `runtime_platform`), Terraform re-applied, and both services
+deployed onto the sidecar revision cleanly — `COMPLETED`, both `otel-collector` containers
+RUNNING, both target groups healthy, the hazard above de-armed because the latest revision now
+names the private mirror. **One addition to the script:** the anonymous pull failed with
+`toomanyrequests: Rate exceeded`. `public.ecr.aws` rate-limits unauthenticated pulls, and
+`aws ecr-public get-login-password | docker login public.ecr.aws` clears it — worth knowing before
+concluding the image is gone.
+
+_(Not covered this session: the study → post-exam → results segment of the student walk, and
+every operations item that mutates staging. See PROGRESS.md for exactly what and why.)_

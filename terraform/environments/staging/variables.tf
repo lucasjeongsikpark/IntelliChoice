@@ -70,6 +70,28 @@ variable "app_environment" {
   default = "staging"
 }
 
+# S39 (AUD-F): turns on distributed tracing for both services - the aws-otel-collector
+# sidecar plus `*_OTEL_ENABLED=true`. Both halves are needed together: the flag alone
+# exports OTLP into nothing (which is the state S38 found and could not evidence against,
+# D-102), and the sidecar alone collects nothing.
+#
+# Defaults true because §2.6 criterion 9 requires the PII floor to be verified against
+# live staging *traces*, and an audit criterion that depends on someone remembering to set
+# a flag is not a criterion. Costs: one small sidecar per task plus X-Ray ingest, both
+# negligible at this scale - X-Ray's free tier covers 100k traces/month.
+variable "enable_otel_tracing" {
+  type    = bool
+  default = true
+}
+
+# Pinned, and pinned in two places on purpose: this value and the `VERSION` that
+# scripts/mirror-otel-collector.sh pushed must agree, or the deploy fails at image pull.
+# ECR's IMMUTABLE tag policy means a given version tag always means the same image.
+variable "otel_collector_version" {
+  type    = string
+  default = "v0.43.3"
+}
+
 locals {
   common_tags = {
     Project     = "IntelliChoice"

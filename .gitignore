@@ -50,3 +50,11 @@ crash.*.log
 
 # Outbound communication drafts - kept local, never committed (S36)
 docs/S42_ORG_ASKS.md
+
+# S39: Playwright browser-audit output (console/network capture, traces, reports) -
+# local evidence, regenerated every run.
+e2e/artifacts/
+e2e/playwright-report/
+e2e/test-results/
+# Playwright also drops a `.last-run.json` here if invoked from the repo root.
+test-results/

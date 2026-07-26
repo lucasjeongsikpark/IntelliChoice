@@ -194,6 +194,13 @@ jobs:
       # Patches only the image field onto the currently-running task definition (same
       # env vars, roles, etc. Terraform last applied) and registers a new revision -
       # mirrors the exact manual process used all session, not `terraform apply`.
+      #
+      # S39: the patch is scoped to the *app* container by name. It used to rewrite the tag
+      # on every container in the definition, which was harmless while there was only one -
+      # but the moment Terraform added the aws-otel-collector sidecar, that loop would have
+      # rewritten `aws-otel-collector:v0.43.3` to `aws-otel-collector:gha-<sha>`, an image
+      # that does not exist, and every deploy would have crash-looped into a circuit-breaker
+      # rollback. Caught while adding the sidecar, before it shipped.
       - name: Deploy learning-api
         run: |
           aws ecs describe-task-definition --task-definition intellichoice-staging-learning-api \
@@ -202,8 +209,9 @@ jobs:
           import json, sys
           d = json.load(sys.stdin)
           td = {k: d[k] for k in ('family','containerDefinitions','requiresCompatibilities','networkMode','cpu','memory','executionRoleArn','taskRoleArn','runtimePlatform') if k in d}
-          for c in td['containerDefinitions']:
-              c['image'] = c['image'].rsplit(':', 1)[0] + ':${{ steps.vars.outputs.tag }}'
+          app = [c for c in td['containerDefinitions'] if c['name'] == 'learning-api']
+          assert len(app) == 1, f\"expected exactly one 'learning-api' container, found {len(app)}\"
+          app[0]['image'] = app[0]['image'].rsplit(':', 1)[0] + ':${{ steps.vars.outputs.tag }}'
           json.dump(td, sys.stdout)
           " > /tmp/learning-api-td.json
           NEW_ARN=$(aws ecs register-task-definition --cli-input-json file:///tmp/learning-api-td.json \
@@ -220,8 +228,9 @@ jobs:
           import json, sys
           d = json.load(sys.stdin)
           td = {k: d[k] for k in ('family','containerDefinitions','requiresCompatibilities','networkMode','cpu','memory','executionRoleArn','taskRoleArn','runtimePlatform') if k in d}
-          for c in td['containerDefinitions']:
-              c['image'] = c['image'].rsplit(':', 1)[0] + ':${{ steps.vars.outputs.tag }}'
+          app = [c for c in td['containerDefinitions'] if c['name'] == 'chat-api']
+          assert len(app) == 1, f\"expected exactly one 'chat-api' container, found {len(app)}\"
+          app[0]['image'] = app[0]['image'].rsplit(':', 1)[0] + ':${{ steps.vars.outputs.tag }}'
           json.dump(td, sys.stdout)
           " > /tmp/chat-api-td.json
           NEW_ARN=$(aws ecs register-task-definition --cli-input-json file:///tmp/chat-api-td.json \

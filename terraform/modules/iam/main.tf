@@ -81,6 +81,22 @@ data "aws_iam_policy_document" "task_bedrock" {
     ]
     resources = ["*"]
   }
+
+  # S39: what the aws-otel-collector sidecar needs to ship spans to X-Ray. None of these
+  # actions support resource-level scoping (X-Ray segments have no ARN to name), so `*` is
+  # the only expressible form - the same situation as the SSM statement above. Granted to
+  # the task role because the sidecar shares it with the app container.
+  statement {
+    sid = "OtelCollectorXRayExport"
+    actions = [
+      "xray:PutTraceSegments",
+      "xray:PutTelemetryRecords",
+      "xray:GetSamplingRules",
+      "xray:GetSamplingTargets",
+      "xray:GetSamplingStatisticSummaries",
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "task_bedrock" {

@@ -4293,3 +4293,108 @@ a positive control ran in the same batch. Logs Insights `stats count()` over the
 shape that works. **Every "we found nothing" claim in this audit carries a positive control for this
 reason** — including the two new findings: AUD-X-07 has a consistent-path control arm and AUD-X-08 a
 sequential one, and both passed.
+
+## D-103 — S39 (AUD-F, frontend contracts + operations): a browser harness that found a per-render request storm, and three hypotheses measurement killed (accepted, 2026-07-25)
+
+**Context.** S39 is the last Phase 0A audit (INTEGRATION_PLAN §2.3) and it carried three items
+from earlier sessions on top of its own line: the browser-driven half of §2.3 for *both* apps
+(S36 and S37 each left it), the induced-alarm delivery proof S35 left open, and enabling
+`OTEL_ENABLED` on the two staging services (S38's one unevidenced sub-item). Full reproductions
+are in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); recorded here are the decisions that shape later
+sessions.
+
+**1. Browser automation now exists, and it is Playwright in a root `e2e/`.** The gap that kept
+both S36 and S37 at ⏸ was tooling, not intent. Chosen over vitest + jsdom because the sub-item
+that was actually outstanding — "every degraded/refusal/empty response shape **actually
+rendered**", plus console/network capture and real SSE behavior — is precisely what jsdom cannot
+do; a lighter tool would have re-labelled the gap rather than closed it. Chromium only, one
+worker, **zero retries** (an audit wants the first result, and a retry that passes hides the
+flake criterion 4 exists to eliminate). §2.6 criterion 3's three properties are enforced at
+teardown across the whole run, not per assertion, so a journey cannot pass by never looking; a
+test that drives an error path narrows the check with an explicit `audit.allow({...})`.
+
+**2. The single most productive finding came from a defect class no API-level audit could see.**
+AUD-F-01: `App.tsx` passes `onFetchOverview` and `onRecordTime` as inline arrows, both live in
+`ExamScreen` effect dependency arrays, so **every render re-runs both effects**. Measured with
+the student sitting on one question for 15 seconds and touching nothing: **885
+`POST /exam/items/{id}/time` (~59/s)**, each carrying the ~20 ms gap between two renders, and
+**76 `GET /exam/overview` for one 10-item exam at a median 30 ms gap against the declared
+`OVERVIEW_POLL_MS = 20000`** — a ~667× amplification of a database read on the primary journey's
+hot path. Held at P1 under §2.4's "cost or latency out of bounds". **The fix is one line per
+callback and must be re-verified by counting requests**, not by checking that the screen still
+works — the screen has always worked, which is exactly why three prior audits never saw this.
+Same shape as D-102 §5's rule for AUD-X-08: the verification, not the fix, is the hard part.
+
+**3. This corrects the evidence behind AUD-L-14, and the correction is the transferable part.**
+The server *accumulates* item time (`time_spent_ms += elapsed_ms`) and the browser's 885 reports
+total **15,591 ms for a 15,000 ms dwell** — approximately right. So client telemetry is not
+inherently zero, and S36's "140 item-state rows summing to 0 ms" is most consistent with S36's
+journeys having been driven **through the API with no browser in the loop** — which is how S36
+drove them, by necessity. AUD-L-14's substantive point survives (the report ignores the
+always-populated `assessment_attempts.response_time_ms`), but its headline number is an artifact
+of the harness that produced it. **A measurement taken without the client is not a measurement
+of the client**, and S36 could not have known that, because no browser existed to check with.
+
+**4. Three plausible findings were killed by measuring them.** Each would have been written up
+with a straight face from code reading. *The hint is displaced before it can be read* — it
+survives 14.7 s untouched. *The SSE stream reconnects ~2×/second* — suggested by 71
+`net::ERR_ABORTED` entries, actually 0 reopens in 20 s of idle; the aborts are the hook's own
+`EventSource` cleanup, and the harness now excludes them instead of reporting a phantom. *The
+attendance gate is bypassed for an absent student* — the gate fires at `/topics`, not at
+`/student`, verified at the API for both fixtures before anything was written down; rule 5 holds
+and the test was asserting at the wrong step. Recorded because the failure mode of a
+browser-driven audit is over-reporting: every timing artifact looks like a defect until measured.
+
+**5. A defect in this session's own change, caught before it shipped (AUD-F-09).**
+`deploy-staging.yml` rewrote the image tag on *every* container in a task definition — correct
+with one container, silently fatal with two. Adding the OTel sidecar would have rewritten
+`aws-otel-collector:v0.43.3` to `aws-otel-collector:gha-<sha>` and crash-looped every subsequent
+deploy into a circuit-breaker rollback. Fixed in-session (scoped to the app container by name,
+with an assertion that exactly one matches) because it is a defect *in the change being made*,
+not a pre-existing product defect §2.4 would defer. **Reading the deploy path before applying
+infrastructure is cheaper than watching a rollback**, and this is the second time a
+config/deployed-reality mismatch has bitten this project (D-096 was the first).
+
+**6. Criterion 6 is a schedule constraint on the whole milestone, not a defect (AUD-F-06).**
+`aws events list-rules` and `aws scheduler list-schedules` are both **empty** — no job is
+scheduled anywhere; all four are `make` targets a human runs. §2.6 criterion 6 requires them to
+have run unattended for **≥ 1 week**, so **the earliest possible gate pass is one week after the
+EventBridge schedules land in Phase 0B**. That makes the schedules an early-S40 item rather than
+a late one, or they become the critical path to S42 by themselves. Related and sequenced with it:
+AUD-F-07 — `make memory-consolidate` reports **145.97 cents for 160 students, 150 of whom are
+`loadtest-student-N` fixtures left by S34**. Clean the fixtures *before* creating the schedule,
+or the first scheduled run starts spending real Bedrock money on synthetic students every day.
+
+**7. The sidecar was applied, and the deploy taught us something the plan could not (AUD-F-10).**
+`terraform apply` succeeded: the sidecar is in both task definitions, the X-Ray grant is live. The
+**deploy** then failed with `CannotPullContainerError ... dial tcp 75.2.101.78:443: i/o timeout` —
+the tasks run in private subnets with `ecr.dkr`/`ecr.api` interface endpoints and **no NAT
+gateway**, and **no interface endpoint exists for `public.ecr.aws`**. Both services were rolled
+back and re-verified healthy through the public edge (`/readyz` 200, `/dev/token` 404). Two things
+worth carrying forward. **`essential: false` did not help**, and the distinction is the lesson: a
+non-essential container that *exits* leaves the task running, but one that cannot be *pulled* fails
+the task before it starts — non-essential protects against a crashing collector, not an unreachable
+image. And **mirroring one image into private ECR is the right fix, not a NAT gateway** (~$32/month
+to pull a single image would quietly undo D-084's whole cost posture). `scripts/mirror-otel-
+collector.sh` pins the version and pushes linux/arm64 to match `runtime_platform`. **The push did
+not finish before the AWS session expired, which leaves a live hazard**: revision 18 is the latest
+and still names the public image, and `deploy-staging.yml` patches the latest revision — so the next
+CI deploy inherits it and fails (safely). Clear it before the next push to `main`; PROGRESS.md leads
+with it.
+
+**7b. What is still built but not run, and why.** The ADOT sidecar (a non-essential
+`aws-otel-collector` container per task, OTLP in → X-Ray out), the X-Ray IAM grant, and
+`enable_otel_tracing` defaulting true are written and `terraform validate`/`plan` clean — the
+plan is exactly "2 to add, 1 to change, 2 to destroy". The alarm induction, the deliberate bad-image
+rollback drill and the live load run were not reached — the AWS session expired during the sidecar
+work. A clean pre-change baseline is recorded so the trace work can be evidenced when it resumes:
+**X-Ray held 0 traces over 6 hours**. The accidental bad-image deploy above did demonstrate the
+rollback path on a real failure, which is useful but is *not* criterion 5's requirement: that asks
+for a deliberate drill, so it still needs running. The sidecar is
+deliberately `essential: false` — a collector that fails to start must not take a healthy API
+down with it, least of all in the environment the remaining audits depend on.
+
+**Verification.** `make lint` clean, `make typecheck` clean (pyright 0 errors), **513 passed / 2
+skipped**, three consecutive runs. Test count unchanged: the browser harness is a separate suite
+(`make e2e`), and per S37/S38's precedent the audit's probes are not folded into the Python suite —
+regression tests land with the Phase 0B fixes.

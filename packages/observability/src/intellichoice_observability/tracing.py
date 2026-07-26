@@ -17,7 +17,8 @@ code never has to branch on whether tracing is on.
 """
 
 import functools
-from collections.abc import Awaitable, Callable, Iterator
+import re
+from collections.abc import Awaitable, Callable, Iterator, Sequence
 from contextlib import contextmanager
 from typing import TypeVar
 
@@ -27,14 +28,92 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, SpanExporter
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    SimpleSpanProcessor,
+    SpanExporter,
+    SpanExportResult,
+)
 from opentelemetry.trace import Tracer
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 _StateT = TypeVar("_StateT")
 
 _tracer: Tracer = trace.get_tracer("intellichoice")
+
+
+# Credential shapes that must never leave the process inside a span (SPEC §5.30).
+#
+# Found live, not predicted (S39 continuation, AUD-F-13): `FastAPIInstrumentor` sets
+# `http.url` to the *full* request URL, query string included, and the learning app's SSE
+# stream authenticates as `GET /learning/sessions/{id}/stream?token=<JWT>` - so the first
+# hour of real tracing on staging put a 455-character bearer token into X-Ray. The app's
+# own access logger was unaffected: it records a templated `path` and drops the query
+# string, which is why S38's log scan was clean and is exactly why this needed a second,
+# independent scan of a second store.
+_REDACTIONS = (
+    # `?token=` / `&token=` in a URL - the SSE case above.
+    (re.compile(r"([?&](?:token|access_token|api_key)=)[^&\s]+", re.IGNORECASE), r"\1REDACTED"),
+    # A bare JWT anywhere (header value, message, manually-set attribute).
+    (re.compile(r"eyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.?[A-Za-z0-9_-]*"), "REDACTED-JWT"),
+    (re.compile(r"([Bb]earer\s+)\S+"), r"\1REDACTED"),
+)
+
+
+def _redact(value: object) -> object:
+    if not isinstance(value, str):
+        return value
+    for pattern, replacement in _REDACTIONS:
+        value = pattern.sub(replacement, value)
+    return value
+
+
+class RedactingSpanExporter(SpanExporter):
+    """Strips credentials from span attributes at the **export boundary**.
+
+    Deliberately here rather than in a `server_request_hook`. A hook does work today -
+    the instrumentation sets `http.url` before calling it, so an override wins - but that
+    is an ordering guarantee no library promises, and this file already documents two
+    upstream ordering footguns that silently dropped spans (`build_middleware_stack`
+    caching, and `SQLAlchemyInstrumentor`'s process-wide singleton). A leak that returns
+    silently on a dependency bump is worse than one that never existed, and export is the
+    one point every span from every instrumentation must pass through - including
+    SQLAlchemy's, the manual `traced_span()` wrappers, and anything added later.
+    """
+
+    def __init__(self, inner: SpanExporter) -> None:
+        self._inner = inner
+
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        return self._inner.export([self._redacted(span) for span in spans])
+
+    @staticmethod
+    def _redacted(span: ReadableSpan) -> ReadableSpan:
+        attributes = dict(span.attributes or {})
+        cleaned = {key: _redact(value) for key, value in attributes.items()}
+        if cleaned == attributes:
+            return span
+        return ReadableSpan(
+            name=span.name,
+            context=span.get_span_context(),
+            parent=span.parent,
+            resource=span.resource,
+            attributes=cleaned,  # type: ignore[arg-type]
+            events=span.events,
+            links=span.links,
+            kind=span.kind,
+            status=span.status,
+            start_time=span.start_time,
+            end_time=span.end_time,
+            instrumentation_scope=span.instrumentation_scope,
+        )
+
+    def shutdown(self) -> None:
+        self._inner.shutdown()
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        return self._inner.force_flush(timeout_millis)
 
 
 def build_tracer_provider(
@@ -44,13 +123,18 @@ def build_tracer_provider(
     exported synchronously via `SimpleSpanProcessor` so a test can assert on it
     immediately without a manual flush) - production callers pass `otlp_endpoint`
     instead and get a real `OTLPSpanExporter` batched via `BatchSpanProcessor`.
+
+    Both branches are wrapped in `RedactingSpanExporter`, so a test asserting on the
+    in-memory exporter is asserting on the same redaction production gets. Wrapping only
+    the production branch would make the test path structurally unable to catch a
+    regression in the thing it exists to check.
     """
     provider = TracerProvider(resource=Resource.create({SERVICE_NAME: service_name}))
     if span_exporter is not None:
-        provider.add_span_processor(SimpleSpanProcessor(span_exporter))
+        provider.add_span_processor(SimpleSpanProcessor(RedactingSpanExporter(span_exporter)))
     else:
         exporter = OTLPSpanExporter(endpoint=f"{otlp_endpoint}/v1/traces")
-        provider.add_span_processor(BatchSpanProcessor(exporter))
+        provider.add_span_processor(BatchSpanProcessor(RedactingSpanExporter(exporter)))
     return provider
 
 

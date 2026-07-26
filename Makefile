@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck
 
 up:
 	docker compose up -d
@@ -80,6 +80,26 @@ dev-learning-web:
 
 dev-chat-web:
 	cd apps/chat-web && npm install && npm run dev
+
+# S39 (AUD-F): browser-driven journey audit. Playwright starts both APIs and both vite
+# dev servers itself, so the only prerequisite is `make up` (Postgres + MySQL) plus a
+# migrated/seeded database. Console and network capture from every run lands in
+# e2e/artifacts/ (gitignored) - journeys.jsonl is the greppable record.
+e2e-install:
+	cd e2e && npm install && npx playwright install chromium
+
+e2e:
+	cd e2e && npx playwright test
+
+# Same suite against the real staging CloudFront distributions. `/dev/token` is
+# secret-gated there (D-097), so the harness mints tokens out of band and seeds
+# localStorage - export the two per-app secrets first, and never echo them:
+#   export STAGING_TOKEN_SECRET_LEARNING=$$(aws secretsmanager get-secret-value ... )
+e2e-staging:
+	cd e2e && E2E_TARGET=staging npx playwright test
+
+e2e-typecheck:
+	cd e2e && npx tsc --noEmit
 
 # S33 (D-089/D-094): authorized OWASP ZAP baseline scan against the real staging
 # CloudFront URLs - you own this AWS account/app, so this is authorized self-testing,

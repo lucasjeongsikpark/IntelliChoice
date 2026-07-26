@@ -109,6 +109,13 @@ locals {
     # that surface blocked account-wide by an AWS-Sales-only access gate - Claude
     # Haiku 4.5 via this classic bedrock-runtime surface is what the app actually uses.
     var.bedrock_runtime_endpoint_enabled ? ["bedrock-runtime"] : [],
+    # "xray" is what the OTel sidecar's `awsxray` exporter posts segments to. Same
+    # lesson as bedrock-runtime above, and as the sidecar's own image pull (AUD-F-10):
+    # in a NAT-less VPC, every AWS API the tasks call needs its own endpoint, and the
+    # failure surfaces only at runtime - `terraform plan` cannot see it, and here neither
+    # could the collector's health, which starts and accepts spans perfectly well before
+    # discarding them ("Exporting failed. Rejecting data ... rejected_items: 64").
+    var.xray_endpoint_enabled ? ["xray"] : [],
   )
 }
 

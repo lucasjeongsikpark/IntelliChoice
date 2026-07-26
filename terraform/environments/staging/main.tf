@@ -7,6 +7,12 @@ locals {
   learning_api_image = "${local.learning_api_ecr_url}:${var.learning_api_image_tag}"
   chat_api_image     = "${local.chat_api_ecr_url}:${var.chat_api_image_tag}"
 
+  # S39: the OTel collector sidecar, from this account's *private* ECR mirror rather than
+  # public.ecr.aws - the tasks have no NAT and cannot reach the public registry. Populate
+  # the mirror with scripts/mirror-otel-collector.sh before changing the version here, or
+  # the deploy fails at image pull and rolls back.
+  otel_collector_image = "${module.ecr.repository_urls["aws-otel-collector"]}:${var.otel_collector_version}"
+
   # Bedrock model ARNs, computed from the same model IDs the apps are configured with so
   # IAM permissions always match what the app will actually request (S32/D-084). Two
   # shapes exist and need different handling:
@@ -44,7 +50,10 @@ locals {
 module "vpc" {
   source      = "../../modules/vpc"
   name_prefix = var.name_prefix
-  tags        = local.common_tags
+  # Tied to the tracing flag rather than defaulted on: the endpoint bills per hour
+  # whether or not a span ever crosses it, and it is useless when the sidecar is absent.
+  xray_endpoint_enabled = var.enable_otel_tracing
+  tags                  = local.common_tags
 }
 
 module "alb" {
@@ -98,8 +107,20 @@ resource "aws_ecs_cluster" "this" {
 }
 
 module "ecr" {
-  source           = "../../modules/ecr"
-  repository_names = ["learning-api", "chat-api"]
+  source = "../../modules/ecr"
+  # S39: `aws-otel-collector` is a **mirror** of `public.ecr.aws/aws-observability/
+  # aws-otel-collector`, not something this repo builds. It has to live in private ECR
+  # because the ECS tasks run in private subnets with **no NAT gateway** (D-084's cost
+  # posture) - they reach private ECR through the `ecr.dkr`/`ecr.api` interface endpoints
+  # and S3 for layers, and `public.ecr.aws` is simply unroutable from there. Found live:
+  # the first sidecar deploy failed with `CannotPullContainerError ... dial tcp
+  # 75.2.101.78:443: i/o timeout` and retried until it was rolled back. A public-ECR
+  # interface endpoint does not exist, so mirroring is the fix; a NAT gateway (~$32/mo for
+  # one image pull) is not.
+  #
+  # Populate it with scripts/mirror-otel-collector.sh, which pins the digest and pushes
+  # linux/arm64 to match `runtime_platform`.
+  repository_names = ["learning-api", "chat-api", "aws-otel-collector"]
   tags             = local.common_tags
 }
 
@@ -265,6 +286,11 @@ module "ecs_service_learning_api" {
   # DB-outage drill, since `/healthz` never reflected it).
   health_check_path = "/readyz"
 
+  # S39: gives `LEARNING_OTEL_ENABLED=true` below something to export to. See the module's
+  # `enable_otel_sidecar` variable for why a sidecar rather than a collector service.
+  enable_otel_sidecar  = var.enable_otel_tracing
+  otel_collector_image = local.otel_collector_image
+
   environment = {
     LEARNING_ENVIRONMENT = var.app_environment
     # D-085: independent second gate on /dev/token, ANDed with LEARNING_ENVIRONMENT==
@@ -276,8 +302,14 @@ module "ecs_service_learning_api" {
     LEARNING_BEDROCK_AWS_REGION         = var.aws_region
     LEARNING_BEDROCK_TUTOR_MODEL_ID     = var.bedrock_tutor_model_id
     LEARNING_BEDROCK_EMBEDDING_MODEL_ID = var.bedrock_embedding_model_id
-    LEARNING_OTEL_ENABLED               = "false" # no hosted collector deployed this session (D-084) - CloudWatch Logs + Container Insights cover the immediate gap
-    LEARNING_LOG_LEVEL                  = "INFO"
+    # S39: was hardcoded "false" through S38 because no collector existed in staging, which
+    # is exactly why S38 could not evidence the "traces" half of its PII-floor line (D-102)
+    # and why §2.6 criterion 9 stayed open. Now paired with the sidecar above; the app's
+    # default endpoint (`http://localhost:4318`) already points at it, since awsvpc network
+    # mode shares localhost across containers in a task.
+    LEARNING_OTEL_ENABLED                = var.enable_otel_tracing ? "true" : "false"
+    LEARNING_OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318"
+    LEARNING_LOG_LEVEL                   = "INFO"
     # D-092 (S33): plain (non-secret) DSN components - paired with the two JSON-key-
     # extracted secret components below, assembled into a real DSN by
     # `Settings._build_dsns_from_managed_secret_components`.
@@ -325,6 +357,10 @@ module "ecs_service_chat_api" {
   # S34: see the matching comment on ecs_service_learning_api above.
   health_check_path = "/readyz"
 
+  # S39: see the matching comment on ecs_service_learning_api above.
+  enable_otel_sidecar  = var.enable_otel_tracing
+  otel_collector_image = local.otel_collector_image
+
   environment = {
     CHAT_ENVIRONMENT = var.app_environment
     # D-085: mirrors LEARNING_DEV_TOKEN_ENDPOINT_ENABLED above - see that comment.
@@ -336,8 +372,10 @@ module "ecs_service_chat_api" {
     CHAT_BEDROCK_RAG_ANSWER_MODEL_ID          = var.bedrock_tutor_model_id
     CHAT_BEDROCK_CALENDAR_EXTRACTION_MODEL_ID = var.bedrock_tutor_model_id
     CHAT_BEDROCK_EMBEDDING_MODEL_ID           = var.bedrock_embedding_model_id
-    CHAT_OTEL_ENABLED                         = "false"
-    CHAT_LOG_LEVEL                            = "INFO"
+    # S39: see the matching LEARNING_OTEL_ENABLED comment above.
+    CHAT_OTEL_ENABLED                = var.enable_otel_tracing ? "true" : "false"
+    CHAT_OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318"
+    CHAT_LOG_LEVEL                   = "INFO"
     # D-092 (S33): mirrors ecs_service_learning_api's identical env block above.
     CHAT_DB_HOST       = module.rds_postgres.endpoint_address
     CHAT_DB_PORT       = tostring(module.rds_postgres.endpoint_port)
