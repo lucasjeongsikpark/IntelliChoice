@@ -4174,3 +4174,122 @@ corpus carries *real* Titan vectors or mock ones is unknown (AUD-C-16) — RDS i
 and this session's live pass was black-box over the API. If they are mock vectors, staging's semantic
 retrieval is currently noise and only keyword search is working. That is the first thing S38's live
 pass should settle.
+
+---
+
+## D-102 — S38 (AUD-X, cross-cutting integrity): AUD-C-16 settled as a P1, five authz/idempotency findings, and the two deferred areas closed with two more P1s (accepted, 2026-07-25)
+
+**Context.** S38 is the cross-cutting half of the Phase 0A audit (INTEGRATION_PLAN §2.3). It ran in
+two passes. The first covered AUD-C-16, authn/authz boundaries, idempotency and the live-staging PII
+floor, and deliberately deferred crash-consistency and cost ceilings under concurrency. This pass
+closed both deferred areas and fixed the one thing blocking the test baseline. Full reproductions are
+in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); recorded here are the decisions that shape later sessions.
+
+**1. AUD-C-16 upgraded P3 → P1: staging's semantic retrieval has never worked.** Staging's corpus is
+**159/159 `MockBedrockProvider` hash vectors** while both deployed services query with real Titan v2,
+so every semantic search compares a real query vector against hash noise. Measured, not inferred: the
+same query against the stored mock vectors peaks at cosine **+0.065–0.074** — indistinguishable from
+the 1/√1024 ≈ 0.031 chance floor — versus **+0.19–0.41** when the same chunks are embedded with real
+Titan in memory. Live, the seven `paraphrase` fixture cases cite the expected document **1/7**. Both
+controls were run before trusting the discriminator (local dev scores 159/159 at cosine 1.000000; a
+real Titan vector scores −0.0029 against its mock counterpart), because a discriminator that can only
+return one answer is not a measurement. **What moves it off P3 is not the misconfiguration — it is
+that nothing anywhere detects it**, so the fix that matters is the startup assertion that the
+configured embedding model matches what the corpus was built with, not the re-ingest.
+
+**2. The recurring structural bug now has a name, and it has appeared in both apps in consecutive
+sessions.** AUD-X-01: `POST /sessions/{id}/student` is the one learning route that *writes*
+`student_external_id`, and the one route that does not check the existing value — 17 others authorize
+against the checkpointed value correctly. A different student claimed an in-progress session, the
+owner got **403 on their own exam**, and their `in_progress` row was orphaned; **reproduced end to end
+on live staging**. That is verbatim the shape of AUD-C-01 in the chat app (`post_message`). The
+pattern to state for Phase 0B: **the route that writes an identity field is the one most likely to
+skip checking it**, and the fix pattern already exists in this codebase —
+`await_child_selection` compares `claims.sub` against the *checkpointed* owner and correctly denied
+every non-owner, including the child the interrupt is about.
+
+**3. AUD-X-02 is a child-safety requirement with no implementation and no possible failing test.**
+SPEC §5.1.2 requires verifying `parental_consent_verified=true`; that claim plus `account_status` and
+`consent_status` are carried in every token and read by **nothing**. A token with
+`account_status="suspended"`, `consent_status="revoked"`, `parental_consent_verified=False`,
+`student_age_band="under_13"` behaved **identically to a fully-consented one on all 18 learning
+routes**. Held at P1 (the only issuer today is `FakeTokenIssuer`, which hardcodes permissive values,
+and `/dev/token` is secret-gated). **The decision recorded here is about placement:** S45's design is
+"no-consent → no-token", i.e. enforcement at issuance rather than at the API, which is defensible —
+but nothing recorded the move, and the failure mode is specific. If S44 builds the issuer and S45
+builds the ledger and neither adds a consuming-side assertion, §5.1.2 stays unmet and **no test will
+notice**, because the claim is already present and already ignored. A fixture that always sets the
+safe value is not coverage. S44 and S45 each own half; whichever lands second must add the assertion.
+
+**4. Crash-consistency (AUD-X-07, P1): the two stores commit at two different times, in a fixed
+order.** LangGraph's `AsyncPostgresSaver` commits the checkpoint on its own psycopg connection at the
+end of each superstep; the domain rows commit in FastAPI's `get_db_session` teardown, *after* the
+route returns. Anything failing in between keeps the checkpoint and rolls back the rows. Reproduced at
+both seams the roadmap names, and both end states are **unrecoverable through the API**: mid-finalize
+leaves a scored exam `in_progress` with a dangling `study_session_id`, and a reloading client is
+served a study question and then **500s forever**; mid-interrupt leaves a pending
+`intervention_choice` for an attempt row that does not exist, `/respond` **500s**, and the interrupt
+never clears. **The trigger needs no bug at all — ECS drains tasks on every deploy**, which is exactly
+this window. Held at P1 rather than P0 because nothing is silently misattributed (the exam row stays
+truthfully `in_progress`); what keeps it off P2 is that recovery needs operator DB surgery.
+**The cheap mitigation is the second one, not the first:** 84 `assert … is not None` statements
+across `learning-api/src` and the `packages/db` repositories (35 in `graph/nodes.py`) are load-bearing
+cross-store invariant checks written as a statement Python deletes under `-O`. Replacing the ones on
+checkpointed ids with a reconciliation path would have turned both dead ends into ordinary recoverable
+turns without touching the commit ordering.
+
+**5. Cost ceilings under concurrency (AUD-X-08, P1): AUD-L-02's P0 fix is correct and unserialized.**
+The daily report ceiling reads the spend and then spends, and the row carrying the cost commits at
+teardown — so concurrent callers read the same pre-call value *and* a staggered caller reads a stale
+one. **10 concurrent reports: all 200, 8 generated, 8.0× the ceiling**, while the sequential control
+arm correctly degraded to the facts-only template. Recorded deliberately: **the sequential test passes
+today and would keep passing after a bad fix**, so whatever lands in Phase 0B must be re-verified with
+a concurrent arm. §2.4 puts "uncontrolled spend" under P0 and that reading is defensible, since the
+multiplier is the caller's own concurrency; held at P1 because each call is still token-capped, the
+route needs a valid token, and there are no real users. Two more ceilings share the shape and were
+**not** separately measured (tutor-chat per-day; the per-session gateway budget, which is stateless
+with respect to spend by construction — `session_spend_cents` is a caller-supplied argument at ~20
+call sites).
+
+**6. AUD-X-06 fixed in-session, and the method lesson is the transferable part.** A hint test asserted
+`correct_answer_text not in hint_text` — a plain substring — where the product's rule
+(`answer_text_leaked`) is boundary-aware and deliberately ignores a digit adjacent to another
+alphanumeric. **The test demanded more than the product guarantees**, and the mock's own `hint lN`
+prefix collided whenever the drawn answer was `"1"`–`"3"`: **17.9% of the bank's 51,613 variants**,
+against a measured **15/70 (21%)**. Fixed by asserting the two functions `tutor.py` itself calls:
+**0/40 after**, and three consecutive green suites. Fixed mid-audit despite §2.4's P0-only rule
+because it is a test defect that left the baseline intermittently red, which blocks §2.6 criterion 4
+independently of the audit.
+**The earlier draft of this finding was wrong in a way worth recording.** It reported AUD-L-17's fix
+as regressed and hypothesized that the question bank had grown. Neither holds: AUD-L-17 pinned a
+*different* test (`test_hint_reflects_the_students_actual_wrong_option`, still **0/20** today), so
+there was no contradiction to explain — and a 60/60 run at a 17.9% failure rate has probability
+≈1×10⁻⁶, which is itself the tell that two tests were being compared. What AUD-L-17 actually did was
+**unmask** this flake: its `Level 1` → `Hint L1` change stopped the *runtime* leak check from firing,
+so the mock's hint was served for the first time instead of being replaced by canonical text, and only
+then could the substring assertion see it. **A fix that makes a mock's output survive a guard can
+expose a second defect one file away**, and "measure before diagnosing" (D-100) has to extend to
+measuring *which test* the prior measurement was about.
+
+**Verification.** `make lint` clean, `make typecheck` clean (pyright 0 errors), **513 passed / 2
+skipped**, run **three consecutive times** after the probes were removed. Test count is unchanged: the
+audit's probes were deliberately not left behind as tests (S37's precedent) — regression tests land
+with the Phase 0B fixes, and AUD-X-06's fix changed an assertion rather than adding a test.
+
+**Why S38 is ⏸ and not ✅.** One sub-item of its roadmap line cannot be evidenced: "PII floor
+re-verified against live staging logs/**traces**/metrics/payloads". `OTEL_ENABLED` is **false** on both
+staging services, so the traces half is unevidenced rather than passing — and the same gap blocks §2.6
+criterion 9. Logs (15 patterns × 30 days × both log groups, zero hits against positive controls
+returning 32,744 and 2), stored payloads (all 1,552 `checkpoint_writes` + 181 `checkpoint_blobs` rows
+deserialized and walked as objects, zero PII, with local dev as a positive control reproducing
+AUD-C-03 independently) and metrics (bounded enum labels only) are all clean. Enabling OTEL on staging
+is a deploy-time config change and was left for the operations session (S39) rather than done inside
+an audit.
+
+**Method note carried forward from D-101 §5, because it recurred immediately.** The first live PII log
+scan reported zero hits for *everything*, including strings that are demonstrably present, because
+`filter-log-events --max-items` paginates and only the first page was read. It was caught only because
+a positive control ran in the same batch. Logs Insights `stats count()` over the whole window is the
+shape that works. **Every "we found nothing" claim in this audit carries a positive control for this
+reason** — including the two new findings: AUD-X-07 has a consistent-path control arm and AUD-X-08 a
+sequential one, and both passed.

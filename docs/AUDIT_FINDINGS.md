@@ -55,7 +55,15 @@ ones.
 | AUD-C-13 | Grounding | P3 | Open — Phase 0B | The citation verbatim check accepts any non-empty substring, so a one-character quote verifies against nearly any chunk; only the quote's hash is stored, so it cannot be re-examined |
 | AUD-C-14 | Contracts | P3 | Open — Phase 0B | `RespondResponse` omits `scope`/`intent`, so every SSE snapshot published after a `/respond` nulls them for connected clients — D-058's class, in the direction that decision did not name |
 | AUD-C-15 | Audit trail | P3 | Open — Phase 0B | `McpToolRegistry.call` raises on an unknown tool *before* any audit write, so the one call shape a wiring bug or injection would produce is the one that leaves no `mcp_tool_calls` row |
-| AUD-C-16 | Data integrity | P3 | Open — Phase 0B | Stored embeddings are provider-specific with no provenance column and no re-embed path; switching `BEDROCK_PROVIDER` silently degrades semantic search to noise while keyword search masks it. Whether staging's corpus has real or mock vectors is **unknown** |
+| **AUD-C-16** | **Launch journey / data integrity** | **P3 → P1** | Open — before the gate | Stored embeddings are provider-specific with no provenance column and no re-embed path. **Settled by S38: staging's corpus is 159/159 `MockBedrockProvider` hash vectors** while both deployed services query with real Titan v2, so staging's semantic channel returns noise (peak cosine +0.074 vs +0.41 with real vectors) and hybrid search there has always been lexical-only. Live paraphrase citation rate **1/7** |
+| **AUD-X-01** | **Authorization** | **P1** | Open — before the gate | `POST /sessions/{id}/student` never checks who already owns the session: a different student claimed an in-progress exam session, the owner was **locked out with 403**, and their `in_progress` assessment row was orphaned. Same structure as AUD-C-01 — the one route that *writes* the identity field all 17 others read is the one that does not check it |
+| **AUD-X-02** | **Minors / child safety** | **P1** | Open — before the gate | SPEC §5.1.2's *"should verify `parental_consent_verified=true`"* has no implementation: that claim plus `account_status` and `consent_status` are carried in every token and read by **nothing**. A `suspended`/`revoked`/unverified/`under_13` token behaved identically to a consented one on all 18 learning routes |
+| AUD-X-03 | Data integrity | P2 | Open — Phase 0B | `POST /sessions/{id}/topics` replayed builds a **second exam** (+1 session, +10 items, different variants) and orphans the first. Guarded only by a per-hook-instance `busyRef` in one client, with `busy={false}` hardcoded at the call site — AUD-L-10's pattern again |
+| AUD-X-04 | Money / correctness | P3 | Open — Phase 0B | `POST /students/{id}/report` has no idempotency key: two clicks, two paid Bedrock calls, two rows. P3 only because AUD-L-02's daily ceiling now bounds the spend |
+| **AUD-X-05** | **Authorization** | **P1** | Open — before the gate | AUD-L-07's tutor/branch_manager fall-through extends to **writes**: a tutor token answered and **finalized another student's exam** (200), and can bind any session to any student id. Fabricated attempts are indistinguishable from the student's own and feed scoring, mastery and learning-gain |
+| **AUD-X-07** | **Data integrity / launch journey** | **P1** | Open — before the gate | The checkpoint commits inside `ainvoke` while domain rows commit at FastAPI dependency teardown, so any failure between them keeps the graph's state and discards the database's. Reproduced at both seams: mid-finalize leaves a scored exam `in_progress` with a dangling `study_session_id` (a reloading client is served a study question, then **500s forever**), and mid-interrupt leaves a pending `intervention_choice` for an attempt row that does not exist (`/respond` **500s** and the interrupt never clears). A task stop during any deploy enters this window with no bug required |
+| **AUD-X-08** | **Money** | **P1** | Open — before the gate | Every per-day cost ceiling is read-then-act with the cost row committed at teardown. **10 concurrent reports produced 8 generated reports and 8.0× the ceiling**, while the sequential control correctly degraded — a correct check with no serialization. Weakens AUD-L-02's P0 fix; a single caller can drive it since AUD-X-04 leaves the route non-idempotent |
+| AUD-X-06 | Test integrity | P3 | **Fixed in S38** | A hint test asserted a plain substring where the product's `answer_text_leaked` is boundary-aware, so it demanded more than the product guarantees and the mock's own `hint lN` prefix collided whenever the drawn answer was `"1"`–`"3"` (**17.9%** of the bank; measured **15/70**). Fixed by asserting the product's own rule: **0/40**, and three consecutive green suites. **AUD-L-17 did not regress** — it pinned a *different* test, still 0/20; its mock change *unmasked* this one |
 
 ---
 
@@ -1270,3 +1278,498 @@ exists and is unused by this suite; multi-turn conversational context, which `QA
 implement (`standalone_query` is always identical to `query`, a known carry-over); and browser-driven
 runs, since no browser automation exists in this environment — the frontend findings above are from
 code enumeration plus API-level evidence, not from a rendered page.)_
+
+---
+
+## S38 — AUD-X (cross-cutting integrity)
+
+Scope per §2.3's AUD-X paragraph, risk-ordered and deliberately bounded at session start:
+(0) settle AUD-C-16 against staging, (1) authn/authz boundaries across every route,
+(2) idempotency of every retryable write, (3) the PII floor re-verified against **live staging**.
+
+Crash-consistency (mid-node / mid-interrupt / mid-finalize) and cost ceilings under concurrency
+were deferred when the session first ran and are **now covered** — AUD-X-07 and AUD-X-08, both P1,
+both reproduced with sequential/consistent control arms. AUD-X-06 was also fixed, because it left
+the test baseline intermittently red and so blocked §2.6 criterion 4 regardless of the audit.
+
+### AUD-C-16 (settled) — Staging's corpus is entirely mock hash vectors; its semantic channel has never worked (P3 → **P1**)
+
+S37 left this as the first question for S38's live pass: real Titan vectors or `MockBedrockProvider`
+hash vectors? **Mock, all of them.**
+
+- **Method — an exact, free discriminator.** `MockBedrockProvider._deterministic_vector` is a pure
+  function of the embedded text, and `_persist_chunks` embeds exactly `draft.chunk_text`, which is
+  stored verbatim. So recomputing the mock vector from the stored text and taking the cosine against
+  the stored vector answers the question with no Bedrock call at all.
+- **Both controls were run before trusting it.** Positive: the local dev corpus scores
+  **159/159 at cosine 1.000000**. Negative: a real Titan v2 vector for the same text scores
+  **−0.002925** against its mock counterpart — so "not-mock" would have been distinguishable had it
+  been true. A discriminator that can only return one answer is not a measurement.
+- **Result on staging** (one-off Fargate `ops-task` in the private subnets, the same mechanism the
+  deploy uses for Alembic; read-only `SELECT`s; ids and cosines printed, never chunk text):
+
+  ```
+  PROBE totals chunks=159 embedded=159 docs=23
+  PROBE rag_chunks verdict mock_like=159/159
+  PROBE youtube_videos verdict mock_like=0/0   (no rows)
+  ```
+
+- **The runtime half, which is what makes it live.** Both deployed services run
+  `BEDROCK_PROVIDER=bedrock` with `amazon.titan-embed-text-v2:0`. Every semantic search on staging
+  therefore compares a real Titan query vector against hash noise.
+- **The effect is measured, not inferred.** Same real Titan query vector, same corpus text, one
+  variable — what the *chunk* vectors are (A: the stored mock vectors, B: the same 89 public
+  approved chunks embedded with real Titan in memory, never written):
+
+  | query | A — stored mock, top-1 | B — real Titan, top-1 |
+  |---|---|---|
+  | "What kind of help do you offer families whose kids are struggling in math class?" | `public-student-participation-guide` **+0.065** | `public-organization-overview` **+0.409** |
+  | "Do students pay anything to join the tutoring program?" | `public-volunteer-guide` +0.074 | `public-volunteer-guide` +0.254 |
+  | "How long has this organization been running, and who does it serve?" | `public-our-team` +0.065 | `public-organization-overview` **+0.190** |
+
+  Arm A's similarities are indistinguishable from chance: random unit vectors in 1024 dimensions sit
+  at |cos| ≈ 1/√1024 ≈ 0.031, and the best of 89 draws landing at 0.065–0.074 is exactly that
+  distribution's tail. Arm A is not a weak ranking, it is **no ranking**.
+- **User-visible, on the deployed system, today.** The seven `paraphrase` fixture cases — written
+  specifically to reuse no rare word from the target chunk, so only the semantic channel can find
+  them — run anonymously against live staging cite the expected document **1/7**. Of the three that
+  actually reached retrieval as `document_qa`, two returned *"I don't have an approved source for
+  that yet"* about documents that are approved, effective and ingested. (Two of the other four were
+  refused by AUD-C-02's scope gap — independently reconfirmed here — and two routed to
+  `branch_locator`, which is correct behavior and returned proper `location_consent` interrupts,
+  not blank turns.)
+- **Severity: P1, upgraded from P3.** §2.4's P1 is "a launch journey broken". Asking a question in
+  your own words rather than the document's is the ordinary case, not an edge case, and on staging
+  that path is answered by keyword overlap alone. It also invalidates any retrieval-quality claim
+  made *about staging*, including S37's live observations, and §2.6 criterion 3 cannot be evidenced
+  on a corpus whose retrieval half is inert. **Counter-argument, recorded:** keyword search still
+  answers lexically-close questions (S37 saw real citations live), there are no real users, and the
+  fix is mechanical. What moves it off P3 is not the misconfiguration — it is that nothing anywhere
+  detects it.
+- **Note on framing, corrected against a first reading.** This is not a mock-vs-real *mismatch*
+  problem. A mock-embedded corpus has no semantic signal even when queried by the mock, because the
+  vectors are hashes of text rather than representations of it. So staging has not "regressed" —
+  its semantic channel has never worked, and neither has local dev's. What the real-provider runtime
+  changes is only that nothing will ever coincidentally line up again.
+- **Fix shape (Phase 0B):** a provenance column on `rag_chunks` (model id + provider) written at
+  ingestion, a `make knowledge-reembed` target, a startup or readiness assertion that the configured
+  embedding model matches what the corpus was built with, and a re-ingest of staging under
+  `BEDROCK_PROVIDER=bedrock`. The assertion is the part that matters — the other three are one-time.
+
+### AUD-X-01 — `POST /sessions/{id}/student` never checks who owns the session; any student can seize another's in-progress exam and lock them out (P1)
+
+- **Severity:** P1. §2.4 puts authorization bypass under P0; this is held at P1 on the same
+  reasoning AUD-C-01 was, and the reasoning is weaker here in one respect and stronger in another:
+  the attacker still needs a `uuid4` session id, but unlike the chat case the victim **loses
+  access to their own data permanently**, so this is a destructive write, not only a read.
+- **Reproduction (local, real graph, real Postgres):**
+
+  | step | result |
+  |---|---|
+  | `student-ext-1` builds a pre-exam session and answers an item | 200, attempt persisted |
+  | `student-ext-4` (different branch, no relationship) `POST /sessions/{A's id}/student {"student_id": "student-ext-4"}` | **200** |
+  | `student-ext-1` re-reads their own exam overview | **403** — *"Students may only access their own records"* |
+  | `student-ext-4` reads the overview | 409 — the claim reset `phase` to `student_selected`, so there is no exam to read |
+
+  A's `assessment_sessions` row stays `in_progress` with `student_external_id = student-ext-1`
+  forever: the data is not misattributed, it is **orphaned**, and A has no route back to it.
+- **Confirmed on live staging** (`d35dfnjzmgrm01.cloudfront.net`, deployed config, two
+  secret-gated `/dev/token` student tokens):
+
+  ```
+  A creates + owns session:                200 phase=student_selected
+  A selects topic:                         200 phase=blocked        (attendance gate, fail-closed)
+  B claims A's session:                    200 phase=student_selected
+  A reads own overview AFTER B's claim:    403 "Students may only access their own records"
+  A tries to answer in own session AFTER:  403 "Students may only access their own records"
+  ```
+
+  The lockout reproduces exactly. The *orphaned in-progress exam* half is local-only evidence:
+  staging's synthetic students have no attendance rows, so A's session stopped at `phase=blocked`
+  and never built an exam. The authorization defect is identical either way; only the size of what
+  the owner loses differs.
+- **Root cause, and it is the same shape as AUD-C-01 in the other app.** Seventeen learning
+  routes authorize by calling `resolve_target_student(claims, state["student_external_id"], …)`
+  — the checkpoint's value, never the client's, which S36 recorded as a negative result and which
+  is correct. `select_student` is the eighteenth route, it is **not** one of them, and it is the
+  route that *writes* `student_external_id`. It validates the *requested* student against the
+  caller's claims (`graph/nodes.py: resolve_student`) and never reads the existing value. **The
+  one route that writes the field every other route reads is the one route that does not check
+  it** — stated almost verbatim in AUD-C-01 about `post_message`. Two independent apps, same
+  structure, found in consecutive audits.
+- **The owner can do it to themselves.** The same call replayed by the legitimate owner also
+  resets `phase` and 409s their own overview — see AUD-X-03; `busy={false}` is hardcoded at that
+  call site too.
+- **Fix shape:** in `resolve_student`, refuse to change `student_external_id` once it is set to a
+  different value (a rebind is only legitimate for a parent switching children, which routes
+  through `await_child_selection` and already carries its own check).
+
+### AUD-X-02 — SPEC §5.1.2's `parental_consent_verified` check does not exist; three consent/account claims are carried in every token and read by nothing (P1)
+
+- **What SPEC says**, §5.1.2, verbatim: *"`learning.intellichoice.org` must not use a
+  student-facing notice as a substitute for parental consent for users under 13. It should verify
+  `parental_consent_verified=true` from the existing system"*. `account_status` and
+  `consent_status` are in the same required claim list.
+- **What exists.** `TokenClaims` carries all three. `grep` across both apps finds **zero**
+  readers outside the model definition and the dev issuer. Both `get_current_claims` functions
+  check signature, expiry and audience, and stop there.
+- **Measured, not inferred.** A token with `account_status="suspended"`,
+  `consent_status="revoked"`, `parental_consent_verified=False`, `student_age_band="under_13"` —
+  same signature, same audience — was run against all 18 learning routes. It behaved **identically
+  to a fully-consented active token on every one**: created sessions, selected topics, read the
+  dashboard, generated a report, finalized an exam.
+- **Why no test catches it.** Three test files construct these claims; all three pass the
+  permissive value. No test asserts the restrictive path, because there is no restrictive path.
+- **The seam this actually lives in, stated plainly.** S45 owns consent and the roadmap's design
+  is *"no-consent → no-token"* — enforcement at issuance rather than at the API. That is a
+  defensible placement, but nothing records the decision to move the check out of the consuming
+  app that SPEC assigns it to, and the failure mode is specific: if S44 builds the issuer and S45
+  builds the ledger, and neither adds a consuming-side assertion, §5.1.2 stays unmet and **no test
+  anywhere will notice**, because the claim is already present and already ignored. A fixture that
+  always sets the safe value is not coverage.
+- **Severity: P1, not P0.** The only issuer today is `FakeTokenIssuer`, which hardcodes the
+  permissive defaults, and `/dev/token` is secret-gated on staging — so no token with these values
+  can currently be minted by anyone but this audit. It is a child-safety requirement with no
+  implementation and no test, on a platform whose primary users are minors, and it must not be
+  allowed to fall between S44 and S45.
+
+### AUD-X-03 — `POST /sessions/{id}/topics` is a non-idempotent exam-creating write; a replay silently abandons the first exam (P2)
+
+- **Measured by row counts, not response codes:** replaying `/topics` on a session that already
+  built a pre-exam returns **200** and adds **+1 `assessment_sessions`, +10 `assessment_items`**,
+  with a **different variant set** (`same_variants=False`). The first exam is left `in_progress`
+  and unreachable; any attempts already recorded against it are stranded.
+- **The only guard is client-side and single-instance.** `useLearningSession.run()` holds a
+  `busyRef` that swallows a second in-flight call — per hook instance. Two tabs, a refresh
+  mid-request, a retrying proxy or any non-browser client bypasses it, and the server has no guard
+  at all. `TopicSelectScreen` is passed `busy={false}` hardcoded at its `App.tsx` call site, so the
+  button is not even visually disabled — **the same hardcoded-`busy` pattern AUD-L-10 found at
+  ExamScreen's six call sites**.
+- Contributes to the standing `question_variants` accumulation carry-over: every abandoned exam
+  is a fresh variant draw.
+
+### AUD-X-04 — `POST /students/{id}/report` remains non-idempotent: one click, one paid call, one row (P3)
+
+- Confirmed by row count: two identical calls → **+1 `student_reports` row each**, both 200. There
+  is no idempotency key on this route, as AUD-L-02 noted in passing.
+- **P3, not higher, and only because AUD-L-02's fix landed.** Before S36 this was the unbounded
+  spend path; the `DAILY_REPORT_COST_CEILING_CENTS = 50.0` window now caps the damage at a day's
+  ceiling, so what remains is duplicated work and duplicated rows rather than uncontrolled cost.
+
+### AUD-X-05 — AUD-L-07 extends to *writes*: a tutor token can answer and finalize another student's exam (P1, extends AUD-L-07)
+
+- AUD-L-07 recorded that `resolve_target_student` returns without a check for tutor and
+  branch_manager, and described the impact as reading any student's data and generating reports.
+  The route × caller matrix shows the same fall-through covers **every mutating session route**:
+
+  | route | tutor on another student's session |
+  |---|---|
+  | `POST /sessions/{}/answers` | **ALLOW 200** — an attempt is graded and persisted |
+  | `POST /sessions/{}/topics` | ALLOW 200 |
+  | `POST /sessions/{}/resume` | ALLOW 200 |
+  | `POST /sessions/{}/exam/finalize` | **ALLOW 200** — the exam is scored and closed |
+  | `POST /sessions/{}/student` | ALLOW 200 — and `resolve_student` binds the session to *any* id (`target = requested_student_id or claims.sub`, unvalidated for this role) |
+  | `GET /sessions/{}/stream` | stream opens |
+
+- **Why this matters beyond the existing finding:** answers submitted by someone other than the
+  student are indistinguishable from the student's own in `assessment_attempts`, and they feed
+  scoring, mastery and learning-gain. A read-scope gap discloses data; a write-scope gap
+  *fabricates* it. The one-line fix AUD-L-07 proposes closes both, which is the argument for
+  keeping it a single finding rather than splitting it.
+
+### AUD-X-07 — The checkpoint commits before the domain transaction, so a failure between them leaves the graph ahead of the database and the session permanently stuck (P1)
+
+- **Severity: P1** — §2.4's "a launch journey broken". Both reproduced instances leave the
+  student in a state with **no route forward**: every subsequent request 500s, and the exam they
+  completed is orphaned. **Counter-argument for P0 ("data corruption"), recorded:** nothing is
+  silently *misattributed* — the exam row stays truthfully `in_progress` and the checkpoint is
+  merely ahead — and recovery needs a failure event rather than an attacker. What keeps it at P1
+  rather than P2 is that the end state is unrecoverable through the API and needs operator DB
+  surgery. Held at P1 on the same reasoning as AUD-C-01 and AUD-X-01.
+
+- **The structure, which is the finding.** Two independent stores commit at two different times,
+  in a fixed order, with no coordination:
+
+  | # | when | what commits | connection |
+  |---|---|---|---|
+  | 1 | end of each superstep, inside `graph.ainvoke` | the **checkpoint** | `AsyncPostgresSaver`'s own psycopg pool |
+  | 2 | FastAPI dependency teardown, **after the route returns** | the **domain rows** | the SQLAlchemy engine |
+
+  `get_db_session` yields the session and only then calls `await session.commit()`
+  ([learning-api dependencies.py:53-55](apps/learning-api/src/learning_api/dependencies.py#L53-L55));
+  `main.py` documents that the saver "opens its own psycopg connections, separate from the
+  SQLAlchemy engine". So step 1 always precedes step 2, and **anything that fails in between keeps
+  the checkpoint and discards the rows** — FastAPI throws the exception in at the `yield`, so
+  `session.commit()` is skipped and the session closes with a rollback. `apps/chat-api`'s
+  dependency is **identical** ([dependencies.py:86-88](apps/chat-api/src/chat_api/dependencies.py#L86-L88)),
+  so the seam exists in both apps.
+
+- **Reproduced twice, at the two seams §2.3 names.** The induced failure is a raise at
+  `_publish_snapshot` ([sessions.py:601](apps/learning-api/src/learning_api/routers/sessions.py#L601)) —
+  the real statement that sits in that window — against the real graph and real Postgres, with row
+  counts read on a second connection.
+
+  **(a) mid-finalize.** A 10-item pre-exam, all answered, then finalize:
+
+  | | checkpoint | database |
+  |---|---|---|
+  | after the crash | `phase=study`, `study_session_id=f530cf42…` | exam still `in_progress`; **0** `study_sessions` rows with that id; **0** `learning_gain` |
+
+  The student's completed exam is never scored, and the checkpoint's `study_session_id` is a
+  dangling reference. **What a reloading client then does, in order:** `POST /resume` → **200**,
+  `phase=study`, and it **serves a study question**; the student answers it → **500**; every retry
+  → **500**; `GET /exam/overview` → **409** *"session is not in an exam phase (phase=study)"*, so
+  there is no way back to the exam either. The session is a dead end that still renders a question.
+  (Probe 2 appeared to self-heal only because it called finalize a *second* time explicitly — a
+  client that reads `phase=study` never would.)
+
+  **(b) mid-interrupt.** `submit_answer → intervention_choice` is the graph's one multi-superstep
+  turn. A wrong study answer writes a `study_attempts` row, then pauses on `interrupt()`:
+
+  | | checkpoint | database |
+  |---|---|---|
+  | after the crash | `phase=study`, pending task `intervention_choice`, interrupt `intervention_choice` | **0** `study_attempts` rows |
+
+  `POST /respond {"choice":"hint"}` → **500**, `hint_events` **0**, and the pending interrupt
+  **never clears** (still `intervention_choice` afterwards). The student is paused on an interrupt
+  that cannot be resolved and cannot answer anything else.
+
+- **A negative result that sharpens it: the ordinary answer path does *not* diverge.** A pre-exam
+  answer crashed at the same point left `assessment_attempts` at 0, the checkpoint at
+  `phase=pre_exam`, and the overview showing every item `unseen` — consistent, because that route's
+  entire effect lives in domain tables with nothing durable in the checkpoint to get ahead. A
+  same-`Idempotency-Key` replay then produced exactly 1 attempt. **The seam only bites where the
+  checkpoint carries a domain-row id**, which is what makes the two reproduced cases the dangerous
+  ones rather than a general property of every route.
+
+- **Why the 500s are unhandled: the checkpoint holds row ids and the code `assert`s the rows
+  exist.** Both dead ends are bare asserts on a lookup the checkpoint promised —
+  [study.py:45](packages/db/src/intellichoice_db/repositories/study.py#L45) `assert attempt is not
+  None` (via `state.last_study_attempt_id`) and
+  [sessions.py:874](apps/learning-api/src/learning_api/routers/sessions.py#L874) `assert session_row
+  is not None`. The pattern is **84 instances** of `assert … is not None` across `learning-api/src`
+  and the `packages/db` repositories, **35 in `graph/nodes.py` alone**. They are load-bearing
+  invariant checks on cross-store consistency, expressed as a statement Python removes entirely
+  under `-O`.
+
+- **Realistic triggers, since the reproduction used injection.** The one that needs no bug at all
+  is **a task stop between the two commits** — ECS drains tasks on **every deploy**, and S35 made
+  deploys routine, so this window is entered on a schedule. Others: any unhandled exception after
+  `ainvoke` in a route that already wrote rows (the MySQL-backed `_pending_interrupt_response` sits
+  exactly there for `child_selection` and `email_approval`), a lost database connection at commit
+  time, and a worker OOM. **Two candidates were checked and ruled out**, and both are worth
+  recording so nobody re-derives them: `LearningGainResponse` makes `normalized_gain` and
+  `normalized_gain_status` optional, so AUD-L-08's NULL status does **not** raise here; and
+  `SessionSnapshotEvent` is a deliberately all-optional superset, so `_publish_snapshot`'s own
+  `model_validate` is not itself a realistic raiser. `_publish_snapshot` is the *location* of the
+  window, not the cause.
+
+- **The chat app inherits the same seam with an audit-trail consequence.** `mcp_tool_calls` is
+  written on the domain session while the tool result lands in the checkpoint, so the same window
+  drops the SPEC §5.1.4 approval/audit row while keeping the effect — the same direction as
+  AUD-C-15, reached by a different route. Not separately reproduced this session.
+
+- **Fix shape (Phase 0B), in order of value.** (1) Commit the domain session *before* the
+  checkpoint, or bring both under one transaction — LangGraph's saver accepts an external
+  connection, which is the only real fix for the ordering. (2) Failing that, make the divergence
+  *recoverable* rather than fatal: replace the asserts on checkpointed ids with a reconciliation
+  path (missing row → rebuild or roll the phase back) so a stuck session self-heals on the next
+  request. (3) A consistency check at session read time comparing `phase` against the rows it
+  implies. (2) is the cheap one and would have converted both reproduced dead ends into ordinary
+  recoverable turns.
+
+### AUD-X-08 — Every per-day cost ceiling is a read-then-act race: 10 concurrent reports spent 8× the ceiling (P1, weakens AUD-L-02's P0 fix)
+
+- **Severity: P1, with the P0 reading recorded.** §2.4 puts "uncontrolled spend" under P0, and
+  there is a real argument for it: the daily ceiling is *the* control bounding this route's spend,
+  and the multiplier is the caller's concurrency, which the caller chooses. It is held at P1 on the
+  same basis as the other findings here — `/dev/token` is secret-gated on staging, there are no
+  real users, and each individual call is still token-capped by the gateway, so what a caller gets
+  is a multiple of one report's cost rather than unbounded spend. **This is the top money item for
+  Phase 0B**, and unlike AUD-L-02 it was not fixed in-session (§2.4 reserves that for P0s).
+- **The shape.** `generate_student_report` reads the spend, then spends:
+
+  ```python
+  spend_today = await repo.get_spend_cents_since(student_external_id, now - 24h)   # report.py:206
+  if spend_today >= DAILY_REPORT_COST_CEILING_CENTS: ...return the facts-only fallback
+  result = await gateway.generate_structured(...)                                  # report.py:242
+  ```
+
+  There are **two** windows, not one. Concurrent callers all read the same pre-call value; and
+  because the row carrying `cost_cents` is committed by the **dependency teardown after the
+  response** (AUD-X-07's ordering), even a *staggered* caller that starts after an earlier call has
+  finished its Bedrock request still reads a stale spend.
+- **Measured, with the sequential control that makes it meaningful.** Local, real Postgres, real
+  graph, `MockBedrockProvider` (the gateway's cost accounting is provider-independent, so the
+  arithmetic is real even though the calls are free). The ceiling was monkeypatched down to exactly
+  one report's measured cost so that 10 requests can reach it — the race is scale-invariant:
+
+  | arm | result |
+  |---|---|
+  | one report, to calibrate | `generated=True`, **0.0819¢** |
+  | **sequential control** — ceiling = 0.0819¢, second report | `generated=False`, cost **0.0** — *the ceiling works correctly when nothing races* |
+  | **10 concurrent**, ceiling = 0.0819¢, zero prior spend | **all 200**, **8 of 10 generated**, total **0.6552¢** = **8.0× the ceiling** |
+
+  The control arm is the point: this is not a broken check, it is a correct check with no
+  serialization around it. (8 rather than 10 because two requests happened to read a spend that had
+  already committed — the exact multiple is a timing artifact; the direction is not.)
+- **A single authenticated caller can drive it**, because AUD-X-04 records that this route has no
+  idempotency key: 10 identical concurrent POSTs are 10 accepted paid calls. Via AUD-X-05's
+  tutor/branch_manager write fall-through, the same loop can be aimed at any student.
+- **Two more ceilings have the identical shape.** Neither was separately measured; both are named
+  so the gap is legible rather than inferred:
+  - `nodes.py:1126` — the tutor-chat per-day ceiling, read from `tutor_chat_messages` and committed
+    at teardown. Same read-then-act, same commit lag.
+  - The per-session gateway budget (`_session_budget_cents`, default 50¢). The gateway is
+    **stateless with respect to spend** — `session_spend_cents` is a caller-supplied argument
+    ([gateway.py:136](packages/adapters/src/intellichoice_adapters/bedrock/gateway.py#L136)), read
+    from `state.bedrock_spend_cents` at ~20 call sites — so concurrent turns on one thread each
+    read the same checkpointed total and each receive a full budget. Related and already known:
+    `run_chat_turn`'s docstring records that chat's own calls are **never persisted back** into
+    `bedrock_spend_cents` (D-072), so that ceiling already under-counts by design.
+- **Fix shape (Phase 0B):** make the reservation atomic rather than advisory — a single
+  `INSERT … SELECT` guarded by the ceiling, or `SELECT … FOR UPDATE` on a per-student spend row, so
+  the check and the debit happen in one statement. An idempotency key on the route (AUD-X-04) is a
+  partial mitigation for the duplicate-click case but does nothing for distinct concurrent requests.
+  Whatever lands must be re-verified **with a concurrent arm**, since the sequential test passes
+  today and would keep passing.
+
+### Areas audited with no finding — S38
+
+**The token layer holds on every axis tested.** Every route in both apps (18 learning + 6 chat)
+was called with thirteen caller shapes. Anonymous, expired, bad-signature, `alg: none`, and
+**wrong-audience tokens in all three directions** (chat→learning, go→learning, learning→chat)
+returned **401 on every authenticated route, without exception**. `JwtTokenVerifier` pins
+`algorithms=["HS256"]`, so the unsigned-token attack is rejected at the library boundary rather
+than by a claim check that could be reordered away.
+
+**Cross-caller isolation holds wherever `resolve_target_student` is actually called.** A different
+student and an unlinked parent got **403 on every one of the 18 learning routes**. The failures
+above are all *missing calls* to that helper (AUD-X-01) or *fall-through inside* it (AUD-X-05) —
+the helper itself is correct for the roles it checks.
+
+**The interrupt-resume path is stricter than the rest of the app, and is the pattern to copy.**
+`/respond` against a genuinely pending `child_selection` interrupt denied **every** non-owner —
+another parent, a tutor, and even the child the interrupt is about — with 403. It is stricter
+because `await_child_selection` compares `ctx.claims.sub` against the **checkpointed**
+`parent_external_id` rather than going through the role-based helper. That is exactly the check
+AUD-X-01 and AUD-X-05 are missing, already written and working, one file away.
+
+**SSE `?token=` is not a weak spot.** Ownership and audience are both enforced on the query-string
+path (other student 403, chat-audience 401, `alg:none` 401, missing token 422), and a tutor's
+stream opening is AUD-X-05, not a stream-specific gap. **The token does not reach application
+logs**: the access-log middleware records the *route template*
+(`/learning/sessions/{learning_session_id}/stream`), so neither the JWT nor the session id is
+written — verified by making a real `?token=` request and grepping the log.
+
+**Idempotency holds everywhere it was implemented.** Same-`Idempotency-Key` answer replays produce
+**zero** new `assessment_attempts`; double finalize produces zero new completions; duplicate
+problem reports dedupe per reporter. AUD-L-10's defect is specific and remains exactly as it was
+recorded — a *fresh* key on an already-answered item adds an attempt (+1, reconfirmed here from
+S38's side). Two identical chat questions produce two full turns, which is correct behavior, not a
+missing dedupe.
+
+**§2.6 criterion 9, logs half: clean, with the positive control that makes that meaningful.**
+Fifteen patterns — six exact fixture names, both manager emails, both street addresses, the four
+branch coordinates, and shape patterns for email/JWT/`Bearer `/`token=`/PII field names/echoed
+query and answer text — over **30 days of both application log groups**: **zero hits**, while the
+two positive controls in the same batch returned **32,744** and **2**. *The first version of this
+scan reported zero for everything including strings that are demonstrably present*, because
+`filter-log-events --max-items` paginates and only the first page's count was read. That is
+D-101 §5's failure mode reproduced exactly one session later, caught only because a positive
+control was run. Logs Insights `stats count()` over the whole window is the shape that works.
+
+**§2.6 criterion 9, stored-payload half: staging's checkpoints are clean, scanned in full.** All
+**1,552 `checkpoint_writes` and 181 `checkpoint_blobs`** rows on staging — the entire tables, not a
+sample — deserialized with the checkpointer's own serde and walked as objects: **zero coordinates,
+zero names, zero emails, zero JWTs**. The one `street-address` hit is public branch-directory text
+inside a RAG `answer`, which is the product working. The same scanner run against local dev as a
+positive control found **24 keyed coordinate values across 12 `__resume__` rows**, independently
+reproducing AUD-C-03 by a different method than S37 used.
+
+**Metrics carry no identifiers by construction.** Every Prometheus metric uses bounded enum
+labels (`result`, `phase`, `support_type`) — no ids, no free text, no unbounded cardinality.
+
+**`/metrics` and `/healthz` are not publicly reachable.** The staging CloudFront distribution
+forwards only `/chat/*`, `/dev/token` and `/me` to the ALB; everything else falls through to the
+SPA origin. A `curl` of `/metrics` returns **200 with `text/html`** — the SPA's `index.html`, not
+the metrics endpoint. Worth stating because the status code alone reads as an exposed endpoint.
+
+**AUD-L-01 reconfirmed on the deployed chat app** (it was recorded against learning): missing and
+wrong `X-Staging-Token-Secret` both 404 correctly, while `GET /dev/token` → **405** and
+`POST` with `{}` → **422** each disclose that the route exists.
+
+**Crash-consistency and cost ceilings are covered** — see AUD-X-07 and AUD-X-08. Both carry a
+control arm rather than only a failure arm, and both controls passed: the ordinary pre-exam answer
+path stays *consistent* across the same induced crash (checkpoint and rows both roll back, and a
+same-key replay produces exactly one attempt), and the report ceiling *correctly* degrades to the
+facts-only template when requests do not overlap. The defects are specific to where the checkpoint
+carries a domain-row id, and to concurrency.
+
+_(Limits that remain, stated because they bound what criterion 9 can currently claim: **traces cannot be audited at all — `OTEL_ENABLED` is
+`false` on both staging services**, so the "traces" half of criterion 9 is unevidenced rather than
+passing; and **AUD-C-03's coordinates are absent from staging only because no locator turn has
+ever completed there**, not because anything prevents them — the 22 `__resume__` rows are other
+interrupt types. The full route × caller matrix ran against the real local APIs rather than
+staging — driving 13 caller shapes × 18 routes live would have created far more residue than the
+finding warrants — but **AUD-X-01, the most serious of them, was reproduced end to end on live
+staging** and is recorded there.)_
+
+### AUD-X-06 — A hint test asserted a stricter rule than the product's own leak check (P3, fixed in S38)
+
+- **Found by the routine baseline re-run**, on a working tree containing **only documentation
+  changes**: `test_hint_ladder_escalates_through_three_levels_without_leaking_answer` failed —
+  512 passed, 1 failed.
+- **Measured before diagnosing** (D-100's own lesson), twice, with random ordering disabled:
+  **7/30** at discovery and **8/40** on re-measurement — **15/70 (21%)** combined. The cause is
+  the handler's unseeded `random.Random()` per request, not test order.
+- **The failing assertion, and every failure had the same shape** — the answer digit equals the
+  hint level, so answer `"1"` fails on round 1, `"2"` on round 2, `"3"` on round 3:
+
+  ```
+  AssertionError: assert '3' not in 'hint l3, addressing sign_error: subtract that number ...'
+  ```
+
+- **Root cause.** The test asserted `correct_answer_text.lower() not in
+  intervention["hint_text"].lower()` — a **plain substring check**. The product's rule,
+  `authored_validation.answer_text_leaked`, is a boundary-aware regex that deliberately *does not*
+  fire for a digit adjacent to another alphanumeric: it would not flag `hint l3` for the answer
+  `"3"`, because the `3` is preceded by `l`. **The test asserted something stricter than the
+  product guarantees**, and the mock's own boilerplate is what tripped it.
+- **The rate is a property of the bank's answer distribution, not its size.** Of the bank's
+  **51,613 variants, 9,215 (17.9%)** have a correct answer of `"1"`, `"2"` or `"3"` — which is the
+  measured 15/70 (21%). The earlier draft of this finding guessed "the question bank has grown";
+  that hypothesis is **withdrawn**, and it was never needed, because —
+- **AUD-L-17 did not regress. This finding originally conflated two different tests.** AUD-L-17
+  diagnosed and pinned `test_hint_reflects_the_students_actual_wrong_option`
+  (`test_learning_flow.py:1292`), which is **still 0 failures in 20 runs** today. The 60/60 it
+  recorded was that test's, not this one's — so there was no contradiction to explain. (A 60/60 run
+  at a 17.9% per-run failure rate has probability 0.821^60 ≈ 1×10⁻⁶, which is itself the tell that
+  two different tests were being compared.)
+- **What AUD-L-17 actually did was *unmask* this flake, and the mechanism is verifiable in one
+  line.** Before it, the mock emitted `Level 1`, where the digit is space-delimited — so
+  `answer_text_leaked` **fired**, the tutor discarded the personalized hint and substituted the
+  canonical ladder text, and the canonical text carries no bare digit, so the substring assertion
+  passed. After the change to `Hint L1` the runtime check **stopped** firing, the mock's own hint
+  was served for the first time, and the substring assertion started seeing `hint l1`:
+
+  | mock prefix | runtime check (`answer_text_leaked`, answer `"1"`) | plain substring | escalation test |
+  |---|---|---|---|
+  | `Level 1` (before AUD-L-17) | **leak → canonical served** | leak | passes |
+  | `Hint L1` (after AUD-L-17) | no leak → **mock hint served** | leak | **fails 21%** |
+
+- **The transferable part.** AUD-L-17 concluded "the mock's own boilerplate made the mock's own
+  hint unusable" and adjusted the boilerplate — which was correct for the test it was fixing, and
+  is precisely what exposed a *second*, independent defect one file away. The durable coupling is
+  between a **test assertion** and a **mock string**, neither of which is the product; any fix
+  applied to the mock only moves which answers collide.
+- **Fix applied (in-session, because it blocked the baseline rather than the product):** the
+  assertion now calls the two functions `tutor.py:240` itself calls — `leak_phrase_present` and
+  `answer_text_leaked` — so the test asserts exactly the guarantee the product makes. The mock was
+  **not** touched, on this finding's own reasoning. **0 failures in 40 runs** after (8/40 before),
+  and `make lint typecheck test` green **three consecutive times** — the run count §2.6
+  criterion 4 asks for.
+- **Note on why the S36-continuation guard did not catch it.**
+  `test_mock_hint_is_leak_clean.py` asserts the mock's hint against `answer_text_leaked` for every
+  reachable answer, and it passes — correctly. It could not have caught this, because the defect
+  was in a *different* test's stricter assertion, not in the mock.

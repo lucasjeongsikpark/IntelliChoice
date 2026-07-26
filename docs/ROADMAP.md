@@ -605,16 +605,32 @@ which stop the line.
   of §2.3 is uncovered for both the learning and the chat app. Fold it into S39 (AUD-F), which already
   owns scripted journeys with console/network capture, or run it wherever browser tooling first
   becomes available.
-- **S38 — AUD-X, cross-cutting integrity.** New-stack authn/authz boundaries (audience
-  separation, cross-student/parent attempts on every route, SSE `?token=`, dev-token gates,
-  checkpoint-thread hijack), checkpoint↔domain-table consistency after crashes mid-node/
-  mid-interrupt/mid-finalize, idempotency of every retryable write, Bedrock cost ceilings under
-  concurrency, PII floor re-verified against **live staging** logs/traces/metrics/payloads.
+- **S38 — AUD-X, cross-cutting integrity.** ⏸ partial (2026-07-25, D-102) New-stack authn/authz
+  boundaries (audience separation, cross-student/parent attempts on every route, SSE `?token=`,
+  dev-token gates, checkpoint-thread hijack), checkpoint↔domain-table consistency after crashes
+  mid-node/mid-interrupt/mid-finalize, idempotency of every retryable write, Bedrock cost ceilings
+  under concurrency, PII floor re-verified against **live staging** logs/traces/metrics/payloads.
+  **Shipped:** 8 findings (AUD-X-01..08) plus AUD-C-16 settled and upgraded **P3 → P1** — staging's
+  corpus is 159/159 mock hash vectors, so its semantic channel has never worked. Five P1: a
+  session-hijack write reproduced on live staging (AUD-X-01), SPEC §5.1.2's `parental_consent_
+  verified` check absent entirely (AUD-X-02), a tutor token finalizing another student's exam
+  (AUD-X-05), checkpoint↔domain divergence leaving sessions in an unrecoverable 500 loop
+  (AUD-X-07), and every per-day cost ceiling racing under concurrency at **8× the ceiling**
+  (AUD-X-08). AUD-X-06 fixed in-session because it left the test baseline intermittently red.
+  **Why ⏸ and not ✅ — one sub-item cannot be evidenced:** `OTEL_ENABLED` is **false** on both
+  staging services, so the "**traces**" half of the PII-floor line is unevidenced rather than
+  passing (logs, stored payloads and metrics are all clean, each with a positive control). Enabling
+  it is a deploy-time config change, folded into S39 along with the same criterion-9 requirement.
 - **S39 — AUD-F, frontend contracts + operations.** Scripted walk of every launch user journey
   against the real APIs with console/network capture, CI-coverage inventory (chat-web has no CI
   job at all), deployment drills (a deliberate bad-image deploy must demonstrably auto-roll-
   back), scheduled-job dry runs, proof each CloudWatch alarm can fire *and reach a human*,
   live-staging load/perf re-run.
+  **Carries three items from earlier sessions:** the **browser-driven half of §2.3** for *both*
+  apps (S36 and S37 each left it — no browser automation exists in this environment yet), the
+  **induced-alarm delivery proof** S35 left open, and **enabling `OTEL_ENABLED` on the two staging
+  services then re-running the PII scan against traces** — the one S38 sub-item that could not be
+  evidenced, and a §2.6 criterion-9 requirement in its own right.
 
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog: S22.5
@@ -623,6 +639,10 @@ All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog
 the four manual jobs (the 90-day `chat-purge` retention promise must not depend on a human
 running `make`), retention jobs for `stage_transitions`/`student_reports`, and the ≥2-task/
 autoscaling P95 fix with a live load re-baseline.
+**Two S38 P1s need a specific verification shape, not just a fix (D-102):** AUD-X-08's ceiling
+race must be re-verified **with a concurrent arm** — the sequential test passes today and would
+keep passing after a bad fix — and AUD-X-07's cheap remedy is replacing the `assert`s on
+checkpointed row ids with a reconciliation path, *not* reordering the two commits.
 
 ### Gate — measurable exit criteria before integration discovery *(INTEGRATION_PLAN §2.6)*
 Nine criteria, evidenced in PROGRESS.md: full traceability; zero open P0/P1; every launch

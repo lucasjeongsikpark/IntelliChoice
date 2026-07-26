@@ -5,12 +5,87 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **Next session: S38 (AUD-X, cross-cutting integrity).** Two things S37 leaves on its doorstep:
-  **(a)** whether staging's ingested RAG corpus carries *real* Titan vectors or `MockBedrockProvider`
-  hash vectors (**AUD-C-16**) — if the latter, staging's semantic retrieval is currently noise and
-  only keyword search works; RDS is in private subnets so S37's live pass could not see it. **(b)**
-  AUD-C-01 is an authorization finding S38's own scope (cross-caller access on every route) should
-  re-test from its side.
+- **Next session: S39 (AUD-F, frontend contracts + operations)** — the last of the four Phase 0A
+  audits. It now carries **three** things beyond its own line: **(a)** the browser-driven half of
+  §2.3, uncovered for **both** apps (S36 and S37 each left it; no browser automation exists in this
+  environment yet); **(b)** enabling `OTEL_ENABLED` on the two staging services and re-running the
+  PII scan against **traces** — the one S38 sub-item that could not be evidenced, and the same gap
+  blocks §2.6 criterion 9; **(c)** its own existing scope, which already includes the induced-alarm
+  proof S35 left open.
+- **Phase 0B (S40–41) now has four P1s queued from S38** on top of the six from S36/S37, and two
+  of them are structural rather than local: **AUD-X-07** (checkpoint commits before the domain
+  transaction — the fix that matters is replacing the `assert`s on checkpointed ids with a
+  reconciliation path, not reordering the commits) and **AUD-X-08** (every per-day cost ceiling is
+  a read-then-act race; **whatever lands must be re-verified with a concurrent arm**, because the
+  sequential test passes today and would keep passing after a bad fix).
+- **S38 shipped ⏸ partial, 2026-07-25 (D-102): AUD-X, 8 findings (AUD-X-01..08 plus AUD-C-16
+  settled), five P1, one fixed in-session.**
+  **⏸ not ✅ for one reason:** its roadmap line says "PII floor re-verified against live staging
+  logs/**traces**/metrics/payloads", and `OTEL_ENABLED` is **false** on both staging services, so
+  the traces half is unevidenced rather than passing. Logs, stored payloads and metrics are all
+  clean *with positive controls*. Enabling OTEL is a deploy-time config change, left to S39 rather
+  than done inside an audit.
+  **AUD-C-16 is settled and upgraded P3 → P1: staging's semantic retrieval has never worked.**
+  The corpus is **159/159 `MockBedrockProvider` hash vectors** while both deployed services query
+  with real Titan v2. Measured: stored-mock vectors peak at cosine **+0.065–0.074**, which is the
+  1/√1024 ≈ 0.031 chance floor, versus **+0.19–0.41** for the same chunks embedded with real Titan.
+  Live, the seven `paraphrase` cases cite the expected document **1/7**. Both controls ran before
+  the discriminator was trusted. What moves it off P3 is not the misconfiguration but that
+  **nothing anywhere detects it** — so the fix that matters is a startup assertion that the
+  configured embedding model matches the corpus, not the re-ingest.
+  **The two P1s from the deferred areas, both reproduced with control arms.**
+  **AUD-X-07:** the checkpoint commits inside `ainvoke` (its own psycopg connection, per superstep)
+  while domain rows commit in FastAPI's dependency teardown *after the route returns*, so any
+  failure between them keeps the graph's state and discards the database's. Mid-finalize leaves a
+  scored exam `in_progress` with a dangling `study_session_id` — a reloading client is served a
+  study question and then **500s forever**; mid-interrupt leaves a pending `intervention_choice`
+  for an attempt row that does not exist, `/respond` **500s**, and the interrupt never clears. Both
+  end states are unrecoverable through the API. **The trigger needs no bug: ECS drains tasks on
+  every deploy.** The control arm passed — the ordinary answer path stays consistent across the
+  same crash — which is what localises the defect to routes whose checkpoint carries a row id.
+  84 `assert … is not None` statements (35 in `graph/nodes.py`) are load-bearing cross-store
+  invariant checks written as a statement `-O` deletes.
+  **AUD-X-08:** **10 concurrent reports → all 200, 8 generated, 8.0× the ceiling**, while the
+  sequential control correctly degraded to the facts-only template. A correct check with no
+  serialization around it, which weakens AUD-L-02's P0 fix; a single caller can drive it because
+  AUD-X-04 leaves the route non-idempotent. Two more ceilings share the shape and were not
+  separately measured.
+  **The authorization findings.** **AUD-X-01** (P1, **reproduced end to end on live staging**):
+  `POST /sessions/{id}/student` is the one learning route that *writes* `student_external_id` and
+  the one that never checks the existing value — a different student claimed an in-progress
+  session, the owner got **403 on their own exam**, and their row was orphaned. That is verbatim
+  AUD-C-01's shape in the other app, found in consecutive sessions. **AUD-X-02** (P1): SPEC
+  §5.1.2's `parental_consent_verified` check **does not exist** — that claim plus `account_status`
+  and `consent_status` are read by nothing, and a `suspended`/`revoked`/`under_13` token behaved
+  identically to a consented one on **all 18 routes**. It sits in the seam between S44 and S45;
+  whichever lands second must add the consuming-side assertion, or §5.1.2 stays unmet with no test
+  noticing. **AUD-X-05** (P1): AUD-L-07's tutor fall-through extends to **writes** — a tutor token
+  answered and **finalized another student's exam**. **AUD-X-03/04** (P2/P3): `/topics` replayed
+  builds a second exam and orphans the first; `/report` has no idempotency key.
+  **AUD-X-06 fixed in-session** (a test defect that left the baseline intermittently red, so it
+  blocked §2.6 criterion 4 independently of the audit): a hint test asserted a plain substring
+  where the product's `answer_text_leaked` is boundary-aware, so it **demanded more than the
+  product guarantees** and the mock's own `hint lN` prefix collided whenever the drawn answer was
+  `"1"`–`"3"` — **17.9%** of the bank's 51,613 variants, measured at **15/70 (21%)**. Now asserts
+  the two functions `tutor.py` itself calls: **0/40**. **The earlier diagnosis of this was wrong
+  and the correction is the transferable part:** AUD-L-17 did **not** regress — it pinned a
+  *different* test (still 0/20), so the "bank has grown" hypothesis was explaining a contradiction
+  that never existed. What AUD-L-17 actually did was **unmask** this flake, by stopping the runtime
+  leak check from firing so the mock's hint was served for the first time.
+  **Strong negative results, all with positive controls** (D-101 §5's lesson, which recurred
+  immediately — the first live log scan reported zero for strings that are demonstrably present,
+  because `filter-log-events --max-items` paginates): the token layer held on **every** axis
+  (anonymous, expired, bad-signature, `alg:none`, wrong-audience in all three directions → 401 on
+  every authenticated route in both apps, 13 caller shapes × 24 routes); cross-caller isolation
+  held on **all 18** learning routes wherever `resolve_target_student` is actually called, so the
+  failures are missing calls, not a broken helper; the interrupt-resume path is **stricter** than
+  the rest of the app and is the pattern to copy; SSE `?token=` is not a weak spot and the token
+  never reaches logs; idempotency holds everywhere it was implemented; all **1,552
+  `checkpoint_writes` + 181 `checkpoint_blobs`** staging rows deserialized and walked as objects
+  showed zero PII, with local dev as a positive control reproducing AUD-C-03 by a different method.
+  **Verification:** `make lint` clean, `make typecheck` clean (pyright 0 errors), **513 passed / 2
+  skipped**, run **three consecutive times** after the probes were removed. Test count unchanged —
+  the audit's probes were deliberately not left behind as tests (S37's precedent).
 - **S37 shipped ⏸ partial, 2026-07-25 (D-101): AUD-C, 16 findings (AUD-C-01..16), three P1.**
   **⏸ not ✅:** two sub-items of the roadmap line are not met as written — "every degraded/refusal/
   empty response shape **actually rendered**" was done by enumerating all 14 shapes against the

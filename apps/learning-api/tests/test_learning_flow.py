@@ -15,6 +15,10 @@ from intellichoice_adapters.seed.mysql_fixtures import (
     STUDENT_UNLINKED,
     seed,
 )
+from intellichoice_curriculum.authored_validation import (
+    answer_text_leaked,
+    leak_phrase_present,
+)
 from intellichoice_curriculum.loader import load_curriculum_and_templates
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.models.assessment import BlockedSession
@@ -1177,7 +1181,16 @@ def test_hint_ladder_escalates_through_three_levels_without_leaking_answer() -> 
             intervention = respond_body["intervention"]
             assert intervention["type"] == "hint"
             assert intervention["answer_revealed"] is False
-            assert correct_answer_text.lower() not in intervention["hint_text"].lower()
+            # AUD-X-06: assert the rule the product enforces (`tutor.py`'s runtime check),
+            # not a plain substring. A plain `in` check is *stricter* than the product's
+            # guarantee - `answer_text_leaked` deliberately ignores a digit adjacent to
+            # another alphanumeric - so it flagged the mock's own "Hint L3" prefix as a
+            # leak of the answer "3" whenever the drawn variant's answer was 1, 2 or 3
+            # (measured: 8 failures in 40 runs, always answer == str(level)). Tightening
+            # the mock's prefix was AUD-L-17's fix and only moved which answers collide.
+            hint_text = intervention["hint_text"]
+            assert not leak_phrase_present(hint_text)
+            assert not answer_text_leaked(hint_text, correct_answer_text)
             hint_levels_seen.append(intervention["hint_level"])
             hint_texts.append(intervention["hint_text"])
 
