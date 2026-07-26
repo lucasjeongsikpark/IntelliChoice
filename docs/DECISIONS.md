@@ -4398,3 +4398,102 @@ down with it, least of all in the environment the remaining audits depend on.
 skipped**, three consecutive runs. Test count unchanged: the browser harness is a separate suite
 (`make e2e`), and per S37/S38's precedent the audit's probes are not folded into the Python suite —
 regression tests land with the Phase 0B fixes.
+
+## D-104 — S39 continuation (operations): the sidecar reached X-Ray, and the traces it finally produced contained a bearer token (accepted, 2026-07-26)
+
+**Context.** S39 shipped ⏸ partial because its four operations items all mutate live staging and
+the session had no standing authorization for them. This continuation carried that authorization.
+Full reproductions are in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md); recorded here are the decisions
+that outlive the session.
+
+**1. Every AWS API a NAT-less task calls needs its own endpoint, and only runtime reveals which.**
+AUD-F-10 was the sidecar's image (`public.ecr.aws`, unroutable). AUD-F-12 was the sidecar's
+*destination* (`xray.us-east-1.amazonaws.com`, also unroutable) — the same defect twice in one
+feature, each found only by running it. `terraform plan` cannot see reachability, and neither could
+the collector's health: it starts fine, accepts spans fine, and discards them with a WARN in a log
+stream nobody reads. Fixed with a single-AZ `xray` interface endpoint gated on
+`enable_otel_tracing` (~$7.30/mo, matching the five existing endpoints; a NAT for the same traffic
+would be ~$32 and would undo D-084's posture). **The generalisable rule for this VPC:** adding any
+new AWS-API caller means asking which endpoint it needs *before* deploying, because the failure
+mode is silent success.
+
+**2. A scan that cannot fail is not evidence, so the guard belongs in the tool.**
+`scripts/scan_xray_pii.py` refuses to report clean unless a positive control fires all 20 patterns
+first, and treats **zero traces scanned as an explicit FAIL**. That second guard is not
+hypothetical: for the first hour of this session the trace store was empty (AUD-F-12) while both
+services reported healthy, so "no PII in traces" was *literally true and completely worthless*.
+Criterion 9 would have been signed off on an empty corpus. This is D-101 §5 and D-102's log-scan
+pagination bug in a third form, so it is now structural rather than remembered.
+
+**3. Coverage controls, not just positive controls.** A positive control proves the detector works;
+it says nothing about whether the detector was pointed at the interesting data. So the locator
+consent flow was driven with known precise coordinates, and the resulting `/respond` segment was
+proven to be *in the scanned set* before its cleanliness was believed. Request bodies turn out not
+to be captured into spans — a real negative result, worth more than the absence of a hit.
+**Corollary, recorded because it recurs:** the scan's first run reported 17 coordinate "hits" that
+were all epoch `start_time` values (`39.85` inside `1785093039.8546414`). Boundary-awareness, and
+control-testing the fix in *both* directions. AUD-X-06 was the same mistake in a test assertion one
+session earlier.
+
+**4. A PII floor is per-store and is not inherited (AUD-F-13, the P1).** Enabling tracing put a
+455-character bearer JWT into X-Ray, because the SSE stream authenticates as `?token=<JWT>`
+(`EventSource` cannot set headers) and `FastAPIInstrumentor` records the full URL. **The same
+request is sanitized in the access log and not in the trace** — the app's logger templates the path
+and drops the query string, deliberately, which is exactly why S38's log scan came back clean.
+Instrumentation added later does not honour the sanitisation the application wrote for itself, so
+every new store re-opens the question rather than inheriting the answer. Fixed in-session on
+D-103 §5's rule: enabling tracing is this session's change, and this is a defect *in* that change.
+
+**5. Redact at the export boundary, not in a request hook.** A `server_request_hook` override was
+measured to work — the instrumentation sets `http.url` before calling it — and was still rejected.
+That ordering is an implementation detail no library documents, `tracing.py` already records two
+upstream ordering footguns that silently dropped every span, and a leak that returns quietly on a
+dependency bump is worse than one that never existed. `RedactingSpanExporter` sits where every span
+from every instrumentation must pass, including SQLAlchemy's, the manual `traced_span()` wrappers,
+and whatever is added next. It wraps **both** branches of `build_tracer_provider`, so the test path
+exercises the same redaction production gets; wrapping only production would make the test
+structurally incapable of catching the regression it exists to catch.
+
+**6. Config-level intent and deployed reality disagreed for the third time (AUD-F-11).**
+`terraform.tfvars` pinned an app image six hours older than the running one — and older than the
+commit that fixed `/dev/token` being signed with the public dev constant. `terraform apply` was
+therefore registering revisions that silently reverted a security fix, invisibly, because CI
+patches the tag on the path normally used. D-096 (P0, open endpoint for two days) and AUD-F-09 (the
+per-container tag rewrite) are the first two instances. **The practice that caught all three is the
+same:** diff what is registered against what is *running* before deploying, and never trust a
+comment asserting a pin is current.
+
+**7. A scaling policy wired to the wrong signal is worse than none (AUD-F-14, the second P1).**
+Five concurrent guest turns produced **p95 32 s against a 3 s threshold**, all 200s, while CPU
+**peaked at 15.19%** against a 70% target-tracking goal — so `desiredCount` never left 1 and
+**criterion 7's "≥2 tasks under load" is unreachable as configured.** D-095 diagnosed the
+single-uvicorn-worker serialization correctly and added this autoscaling as the fix; what a
+docker-compose run against `MockBedrockProvider` could not reveal is that the fix responds to a
+signal the bottleneck never moves. **Generalisable:** for an I/O-bound service, CPU is not a
+capacity signal - scale on `ALBRequestCountPerTarget` or on the latency alarm that already exists.
+The autoscaling was never wrong on paper, and that is exactly why it survived two sessions
+unexamined.
+
+**8. Every measurement apparatus in this session needed its own correctness check, and three of
+them failed it first.** The trace scanner reported 17 coordinate hits that were epoch timestamps;
+the availability poller first targeted an S3-served page that answers 200 with the API dead, then
+reported `non-200=200` because its summary still compared against `200` after the target changed;
+and once AUD-F-13's redaction shipped, the scanner reported **205 hits that were all the fix
+working** (`token=REDACTED` matches "any non-empty token"). None of these were the system under
+test. **A check that cannot fail and a check that cannot pass are the same bug**, and the habit that
+caught all three is control-testing the instrument in *both* directions before believing either
+result - which is now built into the scanner's positive control and its zero-traces FAIL.
+
+**9. Operational facts worth carrying, not decisions.** The AWS session expires roughly hourly and
+expired mid-`apply` twice across S39 and this continuation — plan operations work in sub-hour
+units and re-check `aws sts get-caller-identity` before anything long. `public.ecr.aws`
+rate-limits anonymous pulls (`toomanyrequests`); `aws ecr-public get-login-password | docker login
+public.ecr.aws` clears it. boto3 cannot read the CLI's `aws login` token cache without
+`botocore[crt]`, so scripts and Terraform both need
+`eval "$(aws configure export-credentials --profile … --format env)"`.
+
+Alarms: `deploy-staging.yml`'s canary bake rolls a deploy back if any of the four alarms is in
+ALARM, so an induction must never overlap a deploy and must never be left lit. `set-alarm-state`
+is **transient** - the next real evaluation overrides it, so clearing an alarm by hand does not
+settle it; wait for a real datapoint. ALB metrics publish with ~1.5-2 min lag, so an alarm fires
+minutes *after* its breach window closes - do not extend a load run because it has not tripped yet.

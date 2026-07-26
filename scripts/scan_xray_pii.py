@@ -83,6 +83,13 @@ def _fixture_patterns() -> list[Pattern]:
 
 # Shape patterns catch PII this project has not seeded but could still leak - a real
 # caller's coordinates (AUD-C-03), a token in a URL (SSE `?token=`), an echoed answer.
+#
+# `(?!REDACTED)` on the credential patterns is load-bearing, not tidiness. Once AUD-F-13's
+# `RedactingSpanExporter` shipped, every SSE span legitimately reads `?token=REDACTED` - and
+# a value pattern matching "any non-empty token" happily matches the placeholder. The first
+# run after the fix deployed reported **205 hits that were all the fix working**. A scan
+# that cries wolf on its own remedy gets ignored, which costs exactly as much as a scan that
+# misses a leak.
 SHAPE_PATTERNS = [
     Pattern(
         "shape:email",
@@ -96,8 +103,18 @@ SHAPE_PATTERNS = [
         r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}",
         "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.sig",
     ),
-    Pattern("shape:bearer", "regex", r"[Bb]earer\s+[A-Za-z0-9._-]{8,}", "Bearer abcdefgh12345678"),
-    Pattern("shape:token-query", "regex", r"[?&]token=[^&\s\"]+", "/stream?token=abc123"),
+    Pattern(
+        "shape:bearer",
+        "regex",
+        r"[Bb]earer\s+(?!REDACTED)[A-Za-z0-9._-]{8,}",
+        "Bearer abcdefgh12345678",
+    ),
+    Pattern(
+        "shape:token-query",
+        "regex",
+        r"[?&](?:token|access_token|api_key)=(?!REDACTED)[^&\s\"]+",
+        "/stream?token=abc123",
+    ),
     Pattern(
         "shape:pii-field-name",
         "regex",

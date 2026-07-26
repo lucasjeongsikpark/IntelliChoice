@@ -75,6 +75,10 @@ ones.
 | AUD-F-08 | CI coverage | P3 | Open — Phase 0B | CI builds and tests `learning-web` but has **no job for `chat-web`** (already on the Phase 0B list) and none for the new `e2e/` harness. Two of the four deployables are therefore unbuilt by CI, against §2.6 criterion 4's "CI builds and tests every deployable" |
 | AUD-F-09 | Deploy pipeline | P2 | **Fixed in S39** | `deploy-staging.yml` rewrote the image tag on **every** container in the task definition. Harmless with one container — but the moment the OTel sidecar was added it would have rewritten `aws-otel-collector:v0.43.3` to `aws-otel-collector:gha-<sha>`, an image that does not exist, and every deploy would have crash-looped into a circuit-breaker rollback. Caught while adding the sidecar, before it shipped; the patch is now scoped to the app container by name, with an assertion that exactly one matches |
 
+| **AUD-F-14** | **Capacity / latency** | **P1** | Open — before the gate | **Five concurrent chat turns take ~30 s each, and the autoscaling policy cannot see it.** Measured live: 1.62 s unloaded → p50 **26.92 s** / p95 **32.14 s** at concurrency 5, all 200s (it queues, it does not fail). ALB p95 per minute 3.56 → 31.97 → 30.96 → 30.98 s against a 3.0 s threshold. The defect is not the capacity fact but that **nothing can react**: Application Auto Scaling is a single `ECSServiceAverageCPUUtilization` target-tracking policy at 70%, and this workload waits on Bedrock rather than computing — CPU **peaked at 15.19%** during the 31 s window, so `desiredCount` never left 1. **Criterion 7's "≥2 tasks under load" is unreachable as configured.** Sharpens D-095: S34 diagnosed the single-worker bottleneck correctly and added autoscaling that the bottleneck cannot trigger — invisible from a docker-compose run against the mock |
+
+| **AUD-F-13** | **Credential in observability store** | **P1** | **Fixed in S39 continuation** | **A bearer JWT is recorded in `http.url` on every SSE connection.** `EventSource` cannot set an `Authorization` header, so the stream authenticates as `?token=<JWT>`, and `FastAPIInstrumentor` records the full URL — a 455-character live token into X-Ray. The app's own access logger was unaffected (templated path, query string dropped), which is exactly why S38's log scan was clean: **the same request is sanitized in one store and not the other**, so a PII floor has to be re-established per store rather than inherited. Bounded impact (1-hour TTL, AWS access required, the captured token was already expired) so held at P1 — but it captures live credentials the moment authenticated traffic runs with tracing on. Fixed at the export boundary rather than in a request hook, with a regression test driving the real instrumentation and confirmed to fail without the fix |
+
 | **AUD-F-11** | **Deploy pipeline / security** | **P2** | **Fixed in S39 continuation** | `terraform.tfvars` pinned `learning/chat_api_image_tag = "gha-6cc4a27430bd"` while both services were running `gha-d1899a483d06` — pushed six hours later, and **the commit that fixed `/dev/token` being signed with the public dev constant instead of the real secret**. So `terraform apply` registered task-definition revisions that silently reverted a security fix, and any operator who applied and then pointed a service at the new revision (rather than letting CI patch the tag) would have deployed it. Terraform cannot detect this: the tag exists and pulls fine. Only diffing the registered revision against what is *running* shows it. Found by doing exactly that before deploying the sidecar |
 
 | **AUD-F-12** | **Observability / infrastructure** | **P2** | **Fixed in S39 continuation** | **The OTel collector accepted every span and discarded every one**, because the VPC has no `xray` interface endpoint and no NAT — AUD-F-10's root cause one layer further in. `Exporting failed. Rejecting data. {"name": "awsxray", "error": "Post \"https://xray.us-east-1.amazonaws.com/TraceSegments\": context deadline exceeded", "rejected_items": 64}`, repeating. **Nothing detected it**: the collector is `essential: false` and starts perfectly healthy, the app's export succeeds into it, both services stayed green, and no alarm watches export failures. Fixed with a single-AZ `xray` endpoint wired to `enable_otel_tracing` (~$7.30/mo, matching the existing five endpoints' cost posture); traces went from **0 to 650** on the next traffic run |
@@ -2037,5 +2041,279 @@ names the private mirror. **One addition to the script:** the anonymous pull fai
 `aws ecr-public get-login-password | docker login public.ecr.aws` clears it — worth knowing before
 concluding the image is gone.
 
-_(Not covered this session: the study → post-exam → results segment of the student walk, and
-every operations item that mutates staging. See PROGRESS.md for exactly what and why.)_
+### AUD-F-11 — Terraform's image pin had gone stale behind deployed reality, so `apply` reverted a security fix (P2, fixed in the S39 continuation)
+
+`terraform.tfvars` pinned both services at `gha-6cc4a27430bd`. Both services were *running*
+`gha-d1899a483d06`. The gap matters because of which commit that is:
+
+| tag | commit | pushed to ECR | what it is |
+|---|---|---|---|
+| `gha-6cc4a27430bd` | 6cc4a27 | 2026-07-24 10:34 | the asyncpg SSL fix |
+| `gha-d1899a483d06` | d1899a4 | 2026-07-24 **16:31** | **"`/dev/token` signed with the public dev constant, not the real secret"** |
+
+So every `terraform apply` registered a task-definition revision that **silently reverted a
+security fix**, and an operator who applied and then pointed the service at the new revision —
+the natural reading of "apply, then deploy what I just applied" — would have deployed the
+regression. CI never noticed because `deploy-staging.yml` patches the image tag on top of
+whatever Terraform registered, so the stale pin is invisible on the path that is normally used.
+
+**Why nothing could have caught it.** `terraform plan` is clean: the tag exists in ECR and pulls
+fine. `terraform validate` is clean. The tfvars comment even asserted the pin was "latest on
+main", true when written and false six hours later. The only thing that reveals it is diffing the
+*registered* revision against the *running* one, which is what found it here — done because
+D-103 §5's lesson was to read the deploy path before applying, and the same discipline applied one
+step further.
+
+**Fixed** by bumping the pin to `gha-d1899a483d06` with a comment stating the failure mode, and
+the sidecar revision was then verified to differ from the running revision in exactly one
+dimension (OTel on, sidecar added) before deploying. **Third occurrence of this project's
+recurring shape:** config-level intent and deployed reality disagreeing with nothing tying them
+together — D-096 (P0, `/dev/token` open for two days) and AUD-F-09 (the per-container tag rewrite)
+are the first two.
+
+### AUD-F-12 — The collector accepted every span and discarded every one, and nothing detected it (P2, fixed in the S39 continuation)
+
+With the sidecar finally running, no trace reached X-Ray. The app was exporting correctly and the
+collector was receiving correctly; the **export leg** failed, every time:
+
+```
+Exporting failed. Rejecting data. {"kind": "exporter", "data_type": "traces", "name": "awsxray",
+ "error": "Post \"https://xray.us-east-1.amazonaws.com/TraceSegments\": context deadline exceeded",
+ "rejected_items": 64}
+```
+
+**AUD-F-10's root cause, one layer further in.** No NAT gateway, and no interface endpoint for
+`xray` — so in this VPC, every AWS API the tasks call needs its own endpoint, and X-Ray had been
+overlooked exactly as public ECR was. The lesson generalises past both: **`terraform plan` cannot
+see reachability**, and each of these appeared only at runtime.
+
+**The part that makes it a finding rather than a config oversight is that nothing detected it.**
+The sidecar is `essential: false` and starts perfectly healthy. The app's own export succeeds — it
+hands spans to a local collector that accepts them. Both services stayed green, both target
+groups healthy, no alarm watches collector export failures, and the only evidence was a WARN
+buried in a sidecar log stream nobody reads. **Criterion 9 would have been reported "clean" from
+an empty trace store** — which is precisely why `scripts/scan_xray_pii.py` treats zero traces
+scanned as an explicit FAIL rather than a pass. That guard, not the endpoint, is the durable fix.
+
+**Fixed** with a single-AZ `xray` interface endpoint (`var.xray_endpoint_enabled`, wired to
+`enable_otel_tracing` so it is not paid for when tracing is off), matching the cost posture of the
+existing five (~$7.30/mo; a NAT to carry the same traffic would be ~$32). Traces went from the
+recorded baseline of **0 over 6 hours** to **650** on the next traffic run. The failures logged
+*after* the endpoint went live were the batch queue draining spans buffered during the outage —
+identical `rejected_items: 64` each time — not new failures, which is worth stating because they
+read exactly like an unfixed problem for several minutes.
+
+### AUD-F-13 — A bearer JWT is recorded in `http.url` on every SSE connection (P1, fixed in the S39 continuation)
+
+The very first PII scan of real traces found a **455-character JWT** in a span attribute:
+
+```
+$.http.request.url   http://d35dfnjzmgrm01.cloudfront.net/learning/sessions/
+                     65bb3d96-.../stream?token=<JWT>
+```
+
+**Mechanism.** The SSE stream authenticates via a query parameter because `EventSource` cannot
+set an `Authorization` header, and `FastAPIInstrumentor` sets `http.url` to the **full** request
+URL, query string included. Reproduced locally in three lines: `http.route` is templated and
+`http.target` is the bare path — **`http.url` alone carries the credential.**
+
+**The same request is sanitized in one store and not the other**, which is the transferable part.
+Access log and trace segment for the identical request (`trace_id 3a10417997b2a36996a5fb2c75194901`,
+19:44:47 UTC, 401):
+
+```
+log:   {"event": "http_request", "path": "/learning/sessions/{learning_session_id}/stream", "status_code": 401}
+trace: http.request.url = ".../stream?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+The app's own access logger templates the path and drops the query string — deliberately. That is
+why **S38's log scan was clean and this trace scan was not**, and why a PII floor has to be
+re-established per store rather than inherited: instrumentation added later does not honour the
+sanitisation the application wrote for itself.
+
+**Impact, bounded honestly.** Token TTL is 1 hour, so a captured token is usable for at most an
+hour after issuance; reading it requires AWS access to this account; and the one token actually
+captured was **already expired when recorded** (hence the 401). X-Ray has no delete API, so it
+ages out with the 30-day retention. Held at **P1 rather than P0** on that basis — but it becomes a
+live-credential capture the moment authenticated traffic runs with tracing on, which the load run
+and any `make e2e` against staging both do.
+
+**Fixed in-session**, on the D-103 §5 rule: enabling tracing on staging is this session's own
+change, and this is a defect in that change rather than a pre-existing product defect §2.4 would
+defer. Redaction happens in a `RedactingSpanExporter` at the **export boundary**, not in a
+`server_request_hook`. The hook does work — measured, the instrumentation sets `http.url` before
+calling it, so an override wins — but that is an ordering guarantee no library documents, and
+`tracing.py` already records two upstream ordering footguns that silently dropped spans. Export is
+the one point every span from every instrumentation must cross. **The regression test drives the
+real instrumentation** (a FastAPI app, a real SSE-shaped route, `TestClient`) rather than the
+regex, because the defect was about which attribute the instrumentation populates, not about the
+pattern — and it was confirmed to fail with redaction disabled before being trusted. A second test
+asserts ordinary attributes survive, since a redactor that rewrote everything would also pass the
+first one.
+
+**Re-verified live on staging after the CI deploy (`bccc3ac`, task-definition revision 21)**, which
+matters because the local test proves the code and not the deployment. Three SSE requests carrying a
+deliberately fake JWT — a 401 is irrelevant, since the URL is recorded either way, which is what
+makes this testable **without holding a real credential**:
+
+```
+$.http.request.url = .../learning/sessions/00000000-0000-4000-8000-000000000001/stream?token=REDACTED
+leaked_jwt: False | redacted: True   (×3)
+```
+
+The path and session id survive, so the span stays diagnostically useful. Found live, fixed,
+deployed through the normal pipeline, and re-verified live by the same scanner that found it.
+**Both services confirmed**, which matters because chat's stream takes the same optional `?token=`
+(SPEC §5.19.1) and the fix lives in shared `packages/observability` rather than in either app:
+
+```
+chat-api:     .../chat/sessions/88cd4977-.../stream?token=REDACTED   leaked=False redacted=True (×2)
+learning-api: .../learning/sessions/00000000-.../stream?token=REDACTED  leaked=False redacted=True (×3)
+```
+
+**Still to do before the gate:** a re-scan against *authenticated* traffic — see the coverage limit
+below.
+
+### Criterion 9, traces half: clean, with both a positive control and a coverage control
+
+**1,925 traces / 9,614 segments / 749,155 strings** scanned clean over a 2-hour window, and the
+apparatus matters more than the number:
+
+- **Positive control, every run: 20/20 patterns fired** against a synthetic segment. Without it,
+  "clean" is unfalsifiable — the failure mode S38 hit and D-101 §5 recorded.
+- **Coverage control.** The one request that carried precise coordinates in its body (a guest
+  locator consent flow, `latitude: 39.781712, longitude: -89.650143`) was proven to be *in the
+  scanned set* — session `fa31a009-…`, with a `langgraph.branch_locator_consent` subsegment — and
+  **no coordinate appeared anywhere in it.** Request bodies are not captured into spans. Without
+  this control, a clean result could equally mean the interesting request was never scanned.
+- **17 hits in the first run were all false positives**, and the fix is recorded because the shape
+  recurs: `39.85` as a *substring* matches the epoch `start_time` on every segment
+  (`1785093039.8546414`). Now boundary-aware and control-tested both ways — epochs do not match,
+  `39.850012` does. Same mistake AUD-X-06 records in a test assertion one session earlier.
+- **One narrow allowlist, printed rather than silent:** `sql.sanitized_query` legitimately contains
+  the column names `manager_email, address, latitude, longitude`. That is schema, not data, and its
+  presence alongside no parameter values is evidence the stripping works. A coordinate *value* in a
+  sanitized query would still be reported.
+
+**Coverage limit, stated plainly.** Only guest and unauthenticated traffic could be driven — the
+per-app `STAGING_TOKEN_SECRET_*` values were not available to this session, and reading them out
+of Secrets Manager is not something an audit should do. Authenticated journeys are where names and
+emails would actually enter a span, so **the trace scan is real but narrow**; it must be re-run
+against authenticated traffic before the gate. AUD-F-13 was found in unauthenticated traffic only
+because a stale browser token happened to be retrying.
+
+### AUD-F-14 — Five concurrent chat turns take 30 seconds each, and the autoscaling policy cannot see it (P1)
+
+**Measured on live staging**, 45 guest RAG turns against real Bedrock, all **200** — no errors, no
+timeouts. The service queues rather than failing, which is the right failure mode, and then:
+
+| condition | response time |
+|---|---|
+| unloaded, single turn | **1.62–1.88 s** |
+| 5 concurrent turns | p50 **26.92 s**, p95 **32.14 s**, max **33.41 s** |
+
+ALB-observed p95 per minute: **3.56 → 31.97 → 30.96 → 30.98 s** against the alarm's 3.0 s
+threshold — roughly **10× out of bounds at a concurrency of five**, which for a launch aimed at
+~1,000 MAU is not a stress test.
+
+**The part that is a defect rather than a capacity fact: nothing can react to it.** Application
+Auto Scaling is configured (min 1, max 3) with a single **`ECSServiceAverageCPUUtilization`
+target-tracking policy at 70%**. The workload is I/O-bound — it is waiting on Bedrock, not
+computing — so during the window where p95 sat at 31 s, CPU **peaked at 15.19%** against an idle
+baseline of ~1.3%:
+
+```
+15:43  CPU max  1.44%   p95  3.56s
+15:44  CPU max 15.19%   p95 31.97s     <- worst CPU of the whole run, still 55 points below target
+15:45  CPU max 12.56%   p95 30.96s
+15:46  CPU max  9.11%   p95 30.98s
+```
+
+`desiredCount` never left **1**. So the scaling policy will not fire at any latency this workload
+can produce, and **§2.6 criterion 7's "live load meeting the S34-calibrated thresholds with ≥2
+tasks" is unreachable as configured** — not because scaling is absent, but because it is wired to
+the one signal that stays flat. The fix is a different signal (`ALBRequestCountPerTarget`
+target-tracking, or a step policy on the p95 latency alarm that already exists), or a higher static
+`desired_count`; the choice belongs in Phase 0B alongside the item the roadmap already carries.
+
+**This also sharpens D-095's diagnosis rather than contradicting it.** S34 concluded "the real
+bottleneck is that `desired_count=1` with one uvicorn worker means all concurrent request handling
+serializes on one Python process… the real fix for the P95 gap is capacity, not code," and added
+this autoscaling. Correct on the cause. What could not be seen from a docker-compose run against
+`MockBedrockProvider` — S34 had no live AWS session (D-095) — is that **the capacity fix it added
+cannot be triggered by the bottleneck it diagnosed.** S34 measured 2.77 s p95 at 150 concurrent
+sessions with a mock; real Bedrock puts ~2 s of I/O wait into every turn, and five of those
+serialized is 30 s at a CPU cost of nothing.
+
+### Criterion 5 — deliberate bad-image deploy, auto-rolled back, with downtime measured
+
+A revision was registered with an unpullable tag on the **essential** container (`gha-deadbeefdead0`),
+so the task fails before any bad code serves a request — the breaker is what is under test.
+
+```
+15:28:11  task 1 started -> CannotPullContainerError, pull retried 7 time(s), not found
+15:30:21  task 2 started -> same
+15:32:34  task 3 started -> same
+15:39:09  task 4 started -> same
+15:42:06  deployment failed: tasks failed to start
+15:42:06  rolling back to deployment ecs-svc/5798213581200726447
+```
+
+`failedTasks` reached **3**, the threshold for a single-task service; the bad deployment ended
+`FAILED`/`DRAINING` with 0 running, and revision 21 returned as `PRIMARY`. **13 m 55 s** from bad
+deploy to rollback — worth knowing, because it is the floor on how long a bad deploy is stuck
+before ECS gives up.
+
+**Zero downtime, measured rather than assumed: 200 edge probes across the whole window
+(20:27:56 → 20:44:56), every one a 401 from the application, zero 5xx and zero connection
+failures.** `minimum_healthy_percent = 100` kept the old task serving the entire time.
+
+**Two tooling mistakes made while measuring this, both recorded because they are the recurring
+shape of this project's near-misses.** (1) The poller first targeted the CloudFront **root**, which
+is the S3-hosted SPA and returns 200 with the API completely dead — the availability number would
+have been meaningless. It was changed to `/learning/*`, one of the three behaviours CloudFront
+forwards to the ALB, where a 401 proves the application answered. (2) The script's summary line
+still compared against literal `200` after that change, so it reported `non-200=200` — every probe
+"failing" when every probe was the expected 401. The raw log settled it. **A check that cannot
+fail, and a check that cannot pass, are the same bug.**
+
+**Cleanup:** revision 22 was deregistered. Leaving a poisoned revision as the family's *latest* is
+precisely AUD-F-10's trap, since `update-service` against a bare family name resolves to latest.
+
+### Criterion 8 — one alarm induced genuinely end to end, three on the delivery leg only
+
+**`chat-api-p95-latency`: fully induced, detection and delivery.** Real 30-second latency drove it
+`OK → ALARM` at 15:48:54 on its own evaluation, citing the actual datapoints:
+
+```
+Threshold Crossed: 3 datapoints [30.955 (20:45), 31.966 (20:44), 3.558 (20:43)]
+were greater than the threshold (3.0).
+```
+
+and the topic action executed. **Delivery is proven by SNS's own metrics, not inferred from the
+alarm**: `NumberOfMessagesPublished` 1, **`NumberOfNotificationsDelivered` 1**,
+`NumberOfNotificationsFailed` 0, against a three-hour baseline of zero. Across all four inductions:
+**4 delivered, 0 failed**, to the one confirmed email subscription on
+`intellichoice-staging-alerts`.
+
+**The other three used `set-alarm-state`, and that is a real limit, not a formality.** No
+unauthenticated path exists to induce them: every learning route depends on `get_current_claims`,
+and chat has no reachable 5xx (a malformed session id and a nonexistent one both return **200** —
+any string is a valid LangGraph thread id for a guest, which is AUD-C-01's shape again). So for
+`learning-api-5xx-rate`, `learning-api-p95-latency` and `chat-api-5xx-rate`, what is proven is that
+**each alarm's own action wiring reaches a delivering subscriber** — worth having, since a
+mis-wired action on one alarm would otherwise be invisible — but **not** that the metric and
+threshold detect the condition they exist for. Those three need `STAGING_TOKEN_SECRET_*` and stay
+**partial**.
+
+**Two operational facts learned here, both of which will bite whoever repeats this.**
+**(1) An alarm fires several minutes after the breach ends.** ALB metrics publish with ~1.5–2 min
+lag (a period's `SampleCount` was watched growing 9 → 20 after the minute closed), so the p95 alarm
+transitioned at 15:48:54 for a window that closed at 15:46. An interim conclusion that a short
+burst *cannot* fire it was wrong, and the correction is the useful part: the lag **delays** firing,
+it does not prevent it — so do not extend a load run just because the alarm has not tripped yet.
+**(2) `set-alarm-state` is transient and the next real evaluation overrides it.** The p95 alarm was
+manually cleared to OK, then legitimately returned to ALARM minutes later on the tail of the load
+data. **This matters beyond tidiness: `deploy-staging.yml`'s canary-bake step rolls a deploy back
+if any of these four alarms is in ALARM**, so an induction left lit — or cleared too early and
+re-firing — breaks the next deploy. Staging was left with all four settled `OK` naturally.

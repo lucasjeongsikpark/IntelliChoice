@@ -5,38 +5,76 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **⚠️ DO THIS FIRST — the next CI deploy to staging will fail until it is done.** S39 applied the
-  OTel sidecar to Terraform, and task-definition **revision 18 (the latest) references
-  `public.ecr.aws/aws-observability/aws-otel-collector:v0.43.3`, which the tasks cannot pull** —
-  private subnets, no NAT (AUD-F-10). `deploy-staging.yml` patches whatever the *latest* revision
-  is, so it inherits the unreachable sidecar. It fails safely (circuit breaker rolls back, as it
-  already did once), but it fails. **Two ways to clear it, either is fine:** run
-  `scripts/mirror-otel-collector.sh` to populate the private-ECR mirror Terraform now points at,
-  **or** set `enable_otel_tracing = false` in `terraform.tfvars` and re-apply.
-  **Staging itself is healthy and clean** on the pre-sidecar revision :16 — verified through the
-  public edge after the rollback: frontends 200, learning `/readyz` **200** (real Postgres + MySQL),
-  chat `/me` 401, `/dev/token` **404** with no credential (S35's gate intact).
-- **AWS re-authentication is required** (`aws login`) — the session expired part-way through the
-  operations work. Then: `--profile jeongsik-staging-admin` for the CLI, and
+- **AUD-F-10's CI hazard is cleared — the "DO THIS FIRST" that led this file is done.** The mirror
+  is pushed (`aws-otel-collector:v0.43.3`, `linux/arm64` verified against `runtime_platform`),
+  Terraform re-applied, and both services are deployed onto the sidecar. **Staging is healthy and
+  tracing:** frontends 200, chat `/me` 401, `/dev/token` **404 for both a missing and a wrong
+  secret** (S35's gate intact), both `otel-collector` containers RUNNING, both target groups
+  healthy. One wrinkle worth keeping: `public.ecr.aws` rate-limits anonymous pulls
+  (`toomanyrequests`) — `aws ecr-public get-login-password | docker login public.ecr.aws` first.
+- **AWS sessions expire roughly hourly** and expired mid-`apply` twice now (S39 and this
+  continuation). Re-auth with `aws login`, then `--profile jeongsik-staging-admin` for the CLI and
   `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"` for
-  Terraform, whose SDK cannot read the CLI's token cache.
-- **Next session: S39 continuation (the operations half), then S40.** Three of the four items are
-  untouched and one is half-done:
-  **(a) Half-done.** The `terraform apply` **succeeded** — the sidecar is in the task definitions
-  (`essential: false`, pinned), the X-Ray IAM grant is live, and an `aws-otel-collector` ECR
-  repository exists. The **deploy failed on AUD-F-10** and was rolled back. What remains: push the
-  mirror, re-deploy, confirm traces arrive, then run the PII scan against them **with a positive
-  control**. **Baseline recorded for the after-comparison: X-Ray held 0 traces over 6 hours.**
-  Closes S38's one unevidenced sub-item and §2.6 criterion 9.
-  **(b)** Induce all **4** SNS-backed alarms (`{learning,chat}-api-{5xx-rate,p95-latency}`) and
-  prove each reaches a human — S35's open item, criterion 8. Prefer genuinely inducing (real 5xx,
-  real latency under the load run) over `set-alarm-state`, which proves only the delivery leg.
-  **(c)** The bad-image deploy drill (criterion 5's demonstrated auto-rollback).
-  **(d)** The live load/perf re-run under the agreed ~$5 cap.
-  **Do (a) before (c)** — land the sidecar on a good deploy before deliberately breaking one.
-  **A note on (c):** the accidental bad-image deploy above already demonstrated the rollback path
-  working on a real failure, which is useful evidence but not criterion 5's requirement — that asks
-  for a *deliberate* drill, so run it properly anyway.
+  Terraform *and* for `scripts/scan_xray_pii.py` — boto3 cannot read the CLI's token cache without
+  `botocore[crt]`. **Plan operations work in sub-hour units** and re-check
+  `aws sts get-caller-identity` before starting anything long.
+- **⚠️ The one thing to hand over: `STAGING_TOKEN_SECRET_LEARNING` / `_CHAT` were never available
+  to this session, and that is now the binding constraint on three gate criteria.** Every learning
+  route requires `get_current_claims`, so with no token there is **no** unauthenticated path that
+  can produce a 5xx or a slow response — the learning app's two alarms are only reachable via
+  `set-alarm-state` (delivery leg only), the load run is guest-chat-only, and the criterion-9 trace
+  scan covered **guest traffic only**, which is *not* where names and emails would enter a span.
+  Export both (never echoed) and these close quickly; without them they stay provisional no matter
+  how many sessions run.
+- **S39 continuation shipped 2026-07-26 (D-104): items (a) done, (b)–(d) partial — 4 new findings,
+  one P1 fixed in-session, and the tracing work found a credential leak.**
+  **(a) Done, and it closes S38's unevidenced sub-item plus criterion 9's trace half.** Traces went
+  from the recorded baseline of **0 over 6 hours** to **650**, then **1,925 traces / 9,614 segments
+  / 749,155 strings scanned CLEAN**, re-confirmed afterwards over the load-run window (**1,286
+  traces / 5,439 segments / 452,312 strings**, the richest content of the session) — with a positive
+  control firing **20/20** every run *and* a coverage control proving the one request carrying
+  precise coordinates was in the scanned set.
+  Request bodies are not captured into spans. **Two defects had to be fixed to get there**
+  (AUD-F-12, no `xray` VPC endpoint — the collector accepted and discarded every span with nothing
+  detecting it; AUD-F-11, a stale Terraform image pin that made `apply` silently revert a security
+  fix), **and the scan then found AUD-F-13, the P1:** a bearer JWT recorded in `http.url` on every
+  SSE connection, because `EventSource` cannot set an `Authorization` header and
+  `FastAPIInstrumentor` records the full URL. **The same request is sanitized in the access log and
+  not in the trace** — which is exactly why S38's log scan was clean, and the reason a PII floor has
+  to be re-established per store rather than inherited. Fixed at the export boundary
+  (`RedactingSpanExporter`), with a regression test that drives the real instrumentation and was
+  confirmed to fail with the fix disabled. Deployed via CI (`bccc3ac`).
+  **AUD-F-09's fix is now verified on a real deploy**, not just by reading: revision 21 patched the
+  app image and left `aws-otel-collector:v0.43.3` untouched, which is the two-container case the fix
+  was written for and could not previously be tested against.
+  **(c) Done — criterion 5's auto-rollback is demonstrated deliberately.** An unpullable tag on the
+  *essential* container: 4 task attempts, each `CannotPullContainerError` retried 7×, `failedTasks`
+  hit 3, and ECS rolled back on its own at 15:42:06 — **13 m 55 s** end to end, which is the floor
+  on how long a bad deploy stays stuck. **Zero downtime measured, not assumed: 200 edge probes
+  across the window, every one a 401 from the application, zero 5xx.** Revision 22 was then
+  deregistered — leaving a poisoned revision as the family's *latest* is exactly AUD-F-10's trap.
+  Combined with the green CI deploy above, criterion 5 needs **one more clean deploy** for its
+  "2 consecutive".
+  **(b) Partial — one alarm induced genuinely, three on the delivery leg only.**
+  `chat-api-p95-latency` went `OK → ALARM` on its own evaluation from real 30-second latency, and
+  **delivery is proven by SNS's own metrics rather than inferred**: 4 delivered / 0 failed across
+  the four inductions, against a 3-hour baseline of zero. The other three have **no unauthenticated
+  path to induce** (see the secrets item above), so `set-alarm-state` proves each alarm's action
+  wiring reaches a delivering subscriber but *not* that its metric detects the condition.
+  **(d) Partial — and it produced a new P1, AUD-F-14.** 45 guest turns, all 200: **1.62 s unloaded
+  → p50 26.92 s / p95 32.14 s at concurrency 5**, ~10× the 3 s threshold at a concurrency that is
+  not a stress test. **Autoscaling cannot react**: it is CPU target-tracking at 70% and the workload
+  waits on Bedrock, so CPU **peaked at 15.19%** while p95 sat at 31 s and `desiredCount` never left
+  1 — so **criterion 7's "≥2 tasks under load" is unreachable as configured.** Guest-chat-only, so
+  the authenticated path stays unmeasured. Spend ~$0.20 of the ~$5 cap.
+  **Three sequencing facts worth keeping, each learned the hard way.**
+  (i) `deploy-staging.yml`'s canary bake checks these exact four alarms and rolls back if any is in
+  ALARM — **never induce an alarm while a deploy is in flight, and never leave one lit.**
+  (ii) `set-alarm-state` is **transient**: the next real evaluation overrides it, so a manually
+  cleared alarm can re-fire minutes later on trailing data. All four were left settled `OK`
+  *naturally*.
+  (iii) ALB metrics publish with ~1.5–2 min lag, so **an alarm fires minutes after the breach window
+  closes** — do not extend a load run just because it has not tripped yet.
 - **S39 shipped ⏸ partial, 2026-07-25 (D-103): AUD-F, 9 findings (AUD-F-01..09), one P1, one fixed
   in-session. Browser automation now exists** — a Playwright harness in [e2e/](../e2e/),
   `make e2e`, 46+ journeys with console/network capture.

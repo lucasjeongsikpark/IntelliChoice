@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck scan-traces
 
 up:
 	docker compose up -d
@@ -100,6 +100,15 @@ e2e-staging:
 
 e2e-typecheck:
 	cd e2e && npx tsc --noEmit
+
+# S39 continuation (D-104): §2.6 criterion 9's trace half. Runs a positive control over
+# all 20 patterns before it will report anything, and FAILS on zero traces scanned - an
+# empty trace store certified "no PII" for the first hour of this session's tracing
+# (AUD-F-12), which is the false negative this target exists to make impossible.
+# boto3 cannot read the CLI's `aws login` cache without botocore[crt], hence the export.
+scan-traces:
+	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
+	  uv run python -u scripts/scan_xray_pii.py --hours $${HOURS:-6}
 
 # S33 (D-089/D-094): authorized OWASP ZAP baseline scan against the real staging
 # CloudFront URLs - you own this AWS account/app, so this is authorized self-testing,
