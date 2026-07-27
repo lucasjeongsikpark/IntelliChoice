@@ -5,6 +5,26 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ Criterion 6's ≥1-week clock started 2026-07-26. The earliest possible gate pass is
+  2026-08-02**, and only if the schedules run untouched. **Two schedules are ENABLED**
+  (`intellichoice-staging-chat-purge` daily 18:10 UTC, `intellichoice-staging-memory-consolidate`
+  Sundays 18:30 UTC) and **`youtube-sync` is deliberately DISABLED** — see D-105 §4. What to check
+  each day: the first `chat-purge` run is **18:10 UTC on 2026-07-27**, and any non-zero-exit
+  ops-task run now emails the alerts topic, so **silence is the pass signal**. Do not disable or
+  re-apply over these without noting it — an interruption restarts the week.
+- **S40 opened 2026-07-26 (D-105): AUD-F-06 fixed, AUD-F-07's premise corrected, and one new P1
+  (AUD-F-15) that only a scheduled run could have found.** `chat-purge` had **never once executed
+  against the deployed database** — it read `LEARNING_`-prefixed settings that the ops task does not
+  set, so it silently used its `localhost` default and the first scheduled run died on
+  `127.0.0.1:5432`. So SPEC's 90-day retention promise had never actually been kept. Fixed, with a
+  guard test over every standalone CLI (third instance of this shape). **Also: the failure
+  notification I added was itself dead on arrival** — the rule fired, `FailedInvocations = 1`, SNS
+  delivered 0, because the topic policy did not allow `events.amazonaws.com`; CloudWatch *alarms*
+  publish to the same topic fine on the default policy, which is what made it worth testing rather
+  than reasoning about. Fixed and re-verified with two further deliberate failures.
+  **AUD-F-07 was a false premise:** staging has **zero** `loadtest-` rows (`semantic_memory` empty
+  entirely), so nothing was blocked on fixture cleanup — the 150 are local-only, per D-095's
+  docker-compose load test. Cleaning the local dev DB is optional hygiene, still outstanding.
 - **AUD-F-10's CI hazard is cleared — the "DO THIS FIRST" that led this file is done.** The mirror
   is pushed (`aws-otel-collector:v0.43.3`, `linux/arm64` verified against `runtime_platform`),
   Terraform re-applied, and both services are deployed onto the sidecar. **Staging is healthy and

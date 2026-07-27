@@ -4497,3 +4497,78 @@ ALARM, so an induction must never overlap a deploy and must never be left lit. `
 is **transient** - the next real evaluation overrides it, so clearing an alarm by hand does not
 settle it; wait for a real datapoint. ALB metrics publish with ~1.5-2 min lag, so an alarm fires
 minutes *after* its breach window closes - do not extend a load run because it has not tripped yet.
+
+## D-105 — S40: the maintenance jobs run unattended, and testing them found that two of the three should not (accepted, 2026-07-26)
+
+**Context.** AUD-F-06 left §2.6 criterion 6's clock unstarted: no EventBridge rule or schedule
+existed anywhere, so every recurring job — including the 90-day `chat-purge` retention promise —
+depended on a human running `make`. Criterion 6 requires ≥ 1 week of unattended runs, which makes
+this the one gate item bounded by the calendar rather than by effort, so it was sequenced first in
+Phase 0B rather than last.
+
+**1. EventBridge Scheduler, not an EventBridge rule with a cron.** Scheduler is the purpose-built
+service: explicit `schedule_expression_timezone` (so a DST change cannot silently move a job), a
+per-target `retry_policy`, and a flexible-time-window control. A rule + target would need all three
+hand-rolled. Boring and well-documented, which is the standing preference.
+
+**2. Retry counts are a cost decision, not a reliability one.** `chat-purge` and `youtube-sync` get
+2 retries — idempotent and free. `memory-consolidate` gets **zero**, because its spend bound
+(`bedrock_run_budget_cents`, default 200) is per *run*: three attempts is three budgets, up to 600
+cents. It is idempotent per (student, week), so retrying would be *correct* and still cost more than
+the failure it papers over. A missed week surfaces on the failure alarm and can be run by hand.
+
+**3. A schedule without failure notification is not finished.** An EventBridge rule now watches any
+non-zero-exit `ops-task` run and routes it to the existing alerts topic, with an input transformer
+so the email says which job died and why rather than dumping the raw event. This is AUD-F-12's
+lesson applied *before* it could recur: a nightly job that exits 1 every time is indistinguishable,
+in every console, from one that works.
+
+**4. "Schedulable" and "safe to schedule unattended" are different questions, and the second one
+needs the deployed environment to answer.** AUD-F-06 counted three schedulable jobs from a local
+run. Two of them read `MEMORY_*`/`YOUTUBE_*`-prefixed settings the ops task never set, and both
+default to `bedrock_provider = "mock"`. **A mocked job does not fail — it succeeds and writes
+fabricated data into the real database, on a weekly cadence.** That is strictly worse than an
+outage, and AUD-C-16 is what it looks like discovered later: staging's entire RAG corpus is mock
+hash vectors because ingestion ran with the mock, undetected for weeks. So `memory-consolidate` is
+now wired explicitly (including pointing its model id at the one IAM actually grants — its default
+is Sonnet 5, which this task role cannot invoke, so the unwired job would have been *either* mocked
+or denied), and **`youtube-sync` is DISABLED** until a real API key exists. Two enabled jobs, not
+three. **The generalisable rule: a job that can run with a fake provider must be explicitly
+configured or explicitly disabled, never left to a default**, because the failure is silent and
+indistinguishable from success in the data.
+
+**5. The failure notification was itself broken on arrival, and only a deliberate failure found
+it.** The rule fired — `Invocations = 1` — with `FailedInvocations = 1` and SNS delivering **0**:
+the topic policy did not permit `events.amazonaws.com` to publish. **CloudWatch alarms publish to
+that same topic fine on the default policy**, which is why this needed measuring rather than
+reasoning: the working service gave false confidence about a different one. The two AWS services are
+not interchangeable here. Fixed by an explicit topic policy that reproduces the default statement
+verbatim — dropping it would revoke the account's own Subscribe rights and orphan the email
+subscription — plus a `SourceAccount`-scoped `events.amazonaws.com` grant. Re-verified with two
+further deliberate failures: both delivered.
+
+**6. AUD-F-15 (P1): the retention job had never run against real data, and only a scheduled run
+could have shown it.** `create_engine(get_settings().database_url)` reads `LEARNING_`-prefixed
+component vars; the ops task supplies D-092's unprefixed ones; so `settings.database_url` silently
+kept its `localhost` default and the first scheduled run died on `127.0.0.1:5432`. **Locally this is
+undetectable in principle** — on a developer's machine localhost *is* the database, so `make
+chat-purge` and a real CLI-level test both pass. Third instance of the shape (`create_engine`'s
+docstring records the S32 `curriculum-load` one), so the remedy is a guard test asserting every
+standalone CLI calls `create_engine()` bare, **with a negative arm** asserting the two FastAPI apps
+still pass theirs explicitly — an over-applied guard gets deleted by the next person it obstructs.
+
+**7. AUD-F-07's premise was wrong, and the correction is the same one D-103 §3 made.** Staging has
+**zero** `loadtest-` rows — `semantic_memory` is empty entirely — so the "clean the fixtures before
+scheduling or the job spends real money on synthetic students" constraint was never load-bearing.
+The 150 fixtures are local-only, which follows directly from D-095: S34's load test ran against
+docker-compose because that session had no live AWS. **A measurement taken locally is not a
+measurement of staging**, exactly as a measurement taken without a browser was not a measurement of
+the client. Checked against staging directly before acting on it, which is why an hour of fixture
+cleanup did not get spent for nothing.
+
+**Verification.** `make lint` clean, `make typecheck` clean (pyright 0 errors), **519 passed / 2
+skipped** (+4: the CLI guard's three parametrised cases plus its negative arm). The guard was
+confirmed to flag the old `create_engine` form and pass the new one. Schedules verified live:
+`chat-purge` ENABLED, `memory-consolidate` ENABLED, `youtube-sync` DISABLED, the one-shot probe
+schedule deleted, and the Scheduler→RunTask path proven end to end (a task started by
+`chronos-schedule/…`, which is how AUD-F-15 surfaced).

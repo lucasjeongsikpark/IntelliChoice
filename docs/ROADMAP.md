@@ -653,14 +653,24 @@ which stop the line.
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog: S22.5
 `access_hint` blank turn, S11 parent auto-select, chat-web CI, the unseeded-RNG flake,
-`question_variants` accumulation, the ~249k-row `checkpoints` sweep, EventBridge schedules for
-the four manual jobs (the 90-day `chat-purge` retention promise must not depend on a human
-running `make`), retention jobs for `stage_transitions`/`student_reports`, and the ≥2-task/
+`question_variants` accumulation, the ~249k-row `checkpoints` sweep, ~~EventBridge schedules for
+the four manual jobs~~, retention jobs for `stage_transitions`/`student_reports`, and the ≥2-task/
 autoscaling P95 fix with a live load re-baseline.
+**✅ EventBridge schedules landed 2026-07-26 (D-105), first item of S40** — deliberately first,
+because criterion 6's ≥1-week unattended clock is the only gate item bounded by the calendar. It
+started **2026-07-26**, so the earliest possible gate pass is **2026-08-02**. Re-scoped from four
+jobs to **two enabled** (`chat-purge` daily, `memory-consolidate` weekly): `webcontent-sync` expects
+a human diff review, and `youtube-sync` is DISABLED because it would refresh the catalog from a
+*fake* provider every week. Building it found **AUD-F-15 (P1)** — `chat-purge` had never once run
+against the deployed database, so the 90-day retention promise had never been kept.
 **Two S38 P1s need a specific verification shape, not just a fix (D-102):** AUD-X-08's ceiling
 race must be re-verified **with a concurrent arm** — the sequential test passes today and would
 keep passing after a bad fix — and AUD-X-07's cheap remedy is replacing the `assert`s on
 checkpointed row ids with a reconciliation path, *not* reordering the two commits.
+**AUD-F-14 adds a third of that kind:** the ≥2-task/autoscaling fix must change the scaling
+*signal*, not just the task count — the current CPU target-tracking policy cannot fire on an
+I/O-bound workload (CPU peaked at 15% while p95 sat at 31s), so raising `max_capacity` alone would
+change nothing.
 
 ### Gate — measurable exit criteria before integration discovery *(INTEGRATION_PLAN §2.6)*
 Nine criteria, evidenced in PROGRESS.md: full traceability; zero open P0/P1; every launch

@@ -75,6 +75,8 @@ ones.
 | AUD-F-08 | CI coverage | P3 | Open — Phase 0B | CI builds and tests `learning-web` but has **no job for `chat-web`** (already on the Phase 0B list) and none for the new `e2e/` harness. Two of the four deployables are therefore unbuilt by CI, against §2.6 criterion 4's "CI builds and tests every deployable" |
 | AUD-F-09 | Deploy pipeline | P2 | **Fixed in S39** | `deploy-staging.yml` rewrote the image tag on **every** container in the task definition. Harmless with one container — but the moment the OTel sidecar was added it would have rewritten `aws-otel-collector:v0.43.3` to `aws-otel-collector:gha-<sha>`, an image that does not exist, and every deploy would have crash-looped into a circuit-breaker rollback. Caught while adding the sidecar, before it shipped; the patch is now scoped to the app container by name, with an assertion that exactly one matches |
 
+| **AUD-F-15** | **Retention / deployment config** | **P1** | **Fixed in S40** | **`chat-purge` could not reach the database in the deployed environment at all, so the 90-day retention promise had never once executed against real data.** It called `create_engine(get_settings().database_url)`, and `learning_api.config` uses `env_prefix="LEARNING_"` — so inside the ops task, which supplies D-092's *unprefixed* components, `settings.database_url` silently stayed at its hardcoded `localhost` default. The first scheduled run died with `ConnectionRefusedError: Connect call failed ('127.0.0.1', 5432)`. Invisible locally by construction: on a developer's machine localhost **is** the database, so every `make chat-purge` and every unit test passed. **Third instance of this exact shape** (`create_engine`'s own docstring records the S32/D-084 `curriculum-load` one), so the fix ships with a guard test over every standalone CLI plus a negative arm asserting the two FastAPI apps still pass their URL explicitly |
+
 | **AUD-F-14** | **Capacity / latency** | **P1** | Open — before the gate | **Five concurrent chat turns take ~30 s each, and the autoscaling policy cannot see it.** Measured live: 1.62 s unloaded → p50 **26.92 s** / p95 **32.14 s** at concurrency 5, all 200s (it queues, it does not fail). ALB p95 per minute 3.56 → 31.97 → 30.96 → 30.98 s against a 3.0 s threshold. The defect is not the capacity fact but that **nothing can react**: Application Auto Scaling is a single `ECSServiceAverageCPUUtilization` target-tracking policy at 70%, and this workload waits on Bedrock rather than computing — CPU **peaked at 15.19%** during the 31 s window, so `desiredCount` never left 1. **Criterion 7's "≥2 tasks under load" is unreachable as configured.** Sharpens D-095: S34 diagnosed the single-worker bottleneck correctly and added autoscaling that the bottleneck cannot trigger — invisible from a docker-compose run against the mock |
 
 | **AUD-F-13** | **Credential in observability store** | **P1** | **Fixed in S39 continuation** | **A bearer JWT is recorded in `http.url` on every SSE connection.** `EventSource` cannot set an `Authorization` header, so the stream authenticates as `?token=<JWT>`, and `FastAPIInstrumentor` records the full URL — a 455-character live token into X-Ray. The app's own access logger was unaffected (templated path, query string dropped), which is exactly why S38's log scan was clean: **the same request is sanitized in one store and not the other**, so a PII floor has to be re-established per store rather than inherited. Bounded impact (1-hour TTL, AWS access required, the captured token was already expired) so held at P1 — but it captures live credentials the moment authenticated traffic runs with tracing on. Fixed at the export boundary rather than in a request hook, with a regression test driving the real instrumentation and confirmed to fail without the fix |
@@ -1921,6 +1923,36 @@ against D-088's `readonlyRootFilesystem = true`. §2.5's "EventBridge schedules 
 jobs" should therefore be re-scoped to **three** (`chat-purge`, `memory-consolidate`,
 `youtube-sync`), with `webcontent-sync` left manual and that decision recorded.
 
+**Fixed in S40, and building it changed the answer twice.** `terraform/modules/scheduled-jobs`
+creates EventBridge **Scheduler** schedules (not a rule + cron: explicit timezone, per-target retry
+policy, per-job enable gate) targeting the existing ops task with a command override, plus an
+EventBridge rule on any non-zero-exit ops-task run routed to the alerts topic.
+
+**Re-scoped again: three schedulable jobs became *two* enabled ones.** This finding counted three
+from a *local* run, and running them against the deployed environment is what showed the
+difference. `memory-consolidate` and `youtube-sync` read `MEMORY_*`/`YOUTUBE_*`-prefixed settings
+that the ops task never set, and both default to **`bedrock_provider = "mock"`**. A mocked
+scheduled job does not fail - **it succeeds and writes fabricated data into the real database on a
+weekly cadence**, which is strictly worse than an outage, and AUD-C-16 is precisely what that looks
+like discovered months later. `memory-consolidate` is now wired explicitly - including pointing
+`MEMORY_BEDROCK_CONSOLIDATION_MODEL_ID` at the model IAM actually grants, since its own default is
+Sonnet 5 which this task role cannot invoke, so the unwired job would have been *either* mocked or
+denied. **`youtube-sync` is DISABLED**: `youtube_provider` defaults to `"fake"` and no real key
+exists (D-002's posture, still true), so an unattended run would refresh the catalog from a fake
+source every week.
+
+**The failure notification was itself dead on arrival, and only a test caught it.** The rule fired
+correctly - `Invocations = 1` - and `FailedInvocations = 1` while SNS delivered **0**: the topic
+policy did not permit `events.amazonaws.com` to publish. **CloudWatch *alarms* publish to that same
+topic fine on the default policy alone** (4 delivered during S39's induction), which is exactly why
+this was worth measuring rather than reasoning about - the working service gave false confidence
+about a different one. Fixed with an explicit topic policy that reproduces the default statement
+verbatim (dropping it would revoke the account's own Subscribe rights and orphan the email
+subscription) plus an `events.amazonaws.com` publish grant scoped by `SourceAccount`. Re-verified:
+the next two deliberate failures both delivered, 0 failed. **The notification built to stop a
+scheduled job failing unnoticed would itself have failed unnoticed** - AUD-F-12's shape reproduced
+inside its own remedy, one session later.
+
 The consequence is a schedule fact, not just a defect: §2.6 criterion 6 requires the jobs to have
 run **unattended for ≥ 1 week**, so **the earliest the gate can pass is one week after the
 EventBridge schedules land in Phase 0B**. That should be sequenced early in S40–S41 rather than
@@ -1932,6 +1964,18 @@ retention promise currently depends entirely on a human remembering to run `make
 One `make memory-consolidate` run: **160 students, 577 facts added, 145.97 cents**. Of the 159
 distinct students with `semantic_memory` rows, **150 are `loadtest-student-N`** — disposable
 fixtures S34's load test created and never removed.
+
+**Premise corrected in S40: staging has *zero* `loadtest-` rows** - its `semantic_memory` table is
+empty entirely, and `learning_events`/`stage_transitions`/`assessment_sessions` contain no
+loadtest-prefixed ids at all (checked directly against staging Postgres via the ops task). The 150
+fixtures are **local-only**, which follows from D-095: S34's load test ran against docker-compose
+because that session had no live AWS access. So the ordering constraint below - clean the fixtures
+*before* creating the schedule - **was not actually load-bearing**, and no scheduled run was ever
+going to spend Bedrock money on synthetic students. Cleaning the local dev database is now
+optional hygiene (it does make `make memory-consolidate` locally report 160 students and 145.97
+cents, which is noise that could mask a real regression). Recorded because the reasoning was sound
+and the premise was still wrong: **a measurement taken locally is not a measurement of staging**,
+the same correction D-103 §3 made about browser-vs-API evidence.
 
 Locally the provider is `MockBedrockProvider`, so that figure is what the cost-accounting layer
 would charge rather than a real charge; the same job against staging's real Bedrock spends real
@@ -2201,6 +2245,42 @@ of Secrets Manager is not something an audit should do. Authenticated journeys a
 emails would actually enter a span, so **the trace scan is real but narrow**; it must be re-run
 against authenticated traffic before the gate. AUD-F-13 was found in unauthenticated traffic only
 because a stale browser token happened to be retrying.
+
+### AUD-F-15 — `chat-purge` had never run against the deployed database, so the 90-day retention promise was never kept (P1, fixed in S40)
+
+Found by the **first ever scheduled run** of the job, which is the only thing that could have found
+it:
+
+```
+ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 5432)
+```
+
+**Mechanism.** The CLI called `create_engine(get_settings().database_url)`.
+`learning_api.config.Settings` sets `env_prefix = "LEARNING_"`, so it looks for
+`LEARNING_DB_HOST`/`LEARNING_DB_PORT`/… — while the **ops task** supplies D-092's *unprefixed*
+`DB_HOST`/`DB_PORT`/`DB_NAME` plus credentials from Secrets Manager, which is what
+`create_engine()`'s bare fallback resolves. Finding none of its prefixed variables, the settings
+object kept `database_url`'s hardcoded default: `postgresql+asyncpg://…@localhost:5432/…`.
+
+**Why three prior audits and a CLI-level test all missed it.** On a developer's machine, and in CI,
+**localhost genuinely is the database**. `make chat-purge` worked. `test_tutor_chat_purge_cli.py`
+worked — it exercises the real cutoff arithmetic against a real Postgres, which is worth having and
+is orthogonal to this. Every signal available without a deployment said the job was fine. The
+consequence is not a crash but an unkept promise: SPEC's 90-day tutor-chat retention **had never
+once executed against real data**, and would not have until someone ran it by hand inside the VPC.
+
+**Fix:** `create_engine()`, bare, matching `consolidate_cli` and `sync_cli`. Local behaviour is
+unchanged (no components set → `DATABASE_URL` → the same localhost default).
+
+**Third instance of one shape, so the fix is a guard rather than a patch.** `create_engine`'s own
+docstring already records the S32/D-084 instance (`curriculum-load` against real RDS, same
+`ConnectionRefusedError`). `packages/db/tests/test_standalone_clis_use_the_env_fallback.py` now
+asserts every standalone CLI calls `create_engine()` with no argument, **with a negative arm**
+asserting the two FastAPI apps still pass theirs explicitly — because a blanket "never pass an
+argument" rule would be wrong for them, and a guard that over-applies gets deleted by the next
+person who trips over it. Deliberately a source-level check: the behaviour to guard is "does not
+read the app's prefixed settings", and the only runtime condition that reveals it is having no
+database at localhost — which is exactly what a developer's machine cannot reproduce.
 
 ### AUD-F-14 — Five concurrent chat turns take 30 seconds each, and the autoscaling policy cannot see it (P1)
 
