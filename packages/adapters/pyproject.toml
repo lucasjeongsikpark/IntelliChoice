@@ -6,7 +6,7 @@ dependencies = [
     "intellichoice-shared",
     "intellichoice-observability",
     "pyjwt>=2.9",
-    "sqlalchemy[asyncio]>=2.0.35",
+    "sqlalchemy[asyncio]>=2.0.51",
     "aiomysql>=0.2.0",
     # aiomysql's optional RSA-based full-auth path for MySQL 8's default
     # caching_sha2_password plugin - undetected locally because the dev-compose
@@ -14,7 +14,7 @@ dependencies = [
     # a fresh RDS instance's first connections hit full auth and fail without this
     # (found live during S32/D-084's first deploy).
     "cryptography>=42",
-    "boto3>=1.35",
+    "boto3>=1.43.55",
     "icalendar>=6.1",
     "httpx>=0.28",
 ]
