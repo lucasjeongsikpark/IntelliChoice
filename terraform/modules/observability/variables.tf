@@ -33,3 +33,8 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "account_id" {
+  description = "This account's id, used in the SNS topic policy's SourceOwner/SourceAccount conditions."
+  type        = string
+}

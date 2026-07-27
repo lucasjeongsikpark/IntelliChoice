@@ -61,3 +61,12 @@ output "cloudfront_chat_distribution_id" {
 output "github_deploy_role_arn" {
   value = module.iam.github_deploy_role_arn
 }
+
+output "scheduled_job_names" {
+  description = "S40/AUD-F-06: the unattended maintenance schedules, for criterion 6's evidence."
+  value       = module.scheduled_jobs.schedule_names
+}
+
+output "scheduled_job_expressions" {
+  value = module.scheduled_jobs.schedule_expressions
+}

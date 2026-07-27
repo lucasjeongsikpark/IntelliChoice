@@ -38,6 +38,57 @@ resource "aws_sns_topic_subscription" "alerts_email" {
   endpoint  = var.notification_email
 }
 
+# S40: without this, an EventBridge **rule** cannot publish here, and it fails *silently*
+# from the publisher's point of view - measured, not assumed: the scheduled-job failure rule
+# fired with `Invocations = 1` and `FailedInvocations = 1` while SNS delivered **0**. The
+# notification built to stop a scheduled job from failing unnoticed would itself have failed
+# unnoticed, which is AUD-F-12's shape reproduced inside its own remedy.
+#
+# CloudWatch **alarms** already published fine on the default policy alone (4 delivered
+# during S39's induction), which is exactly why this was worth testing rather than reasoning
+# about: the two AWS services are not equivalent here, and the working one gave false
+# confidence about the other.
+#
+# This resource *replaces* the implicit default policy, so the first statement reproduces it
+# verbatim - dropping it would revoke the account's own Subscribe/SetTopicAttributes rights
+# and orphan the email subscription.
+resource "aws_sns_topic_policy" "alerts" {
+  arn = aws_sns_topic.alerts.arn
+
+  policy = jsonencode({
+    Version = "2008-10-17"
+    Id      = "${var.name_prefix}-alerts-policy"
+    Statement = [
+      {
+        Sid       = "__default_statement_ID"
+        Effect    = "Allow"
+        Principal = { AWS = "*" }
+        Action = [
+          "SNS:GetTopicAttributes",
+          "SNS:SetTopicAttributes",
+          "SNS:AddPermission",
+          "SNS:RemovePermission",
+          "SNS:DeleteTopic",
+          "SNS:Subscribe",
+          "SNS:ListSubscriptionsByTopic",
+          "SNS:Publish",
+        ]
+        Resource  = aws_sns_topic.alerts.arn
+        Condition = { StringEquals = { "AWS:SourceOwner" = var.account_id } }
+      },
+      {
+        Sid       = "AllowEventBridgePublish"
+        Effect    = "Allow"
+        Principal = { Service = "events.amazonaws.com" }
+        Action    = "SNS:Publish"
+        Resource  = aws_sns_topic.alerts.arn
+        # Confused-deputy guard: only rules in this account may publish here.
+        Condition = { StringEquals = { "AWS:SourceAccount" = var.account_id } }
+      },
+    ]
+  })
+}
+
 resource "aws_cloudwatch_metric_alarm" "target_5xx" {
   for_each            = var.services
   alarm_name          = "${var.name_prefix}-${each.key}-5xx-rate"

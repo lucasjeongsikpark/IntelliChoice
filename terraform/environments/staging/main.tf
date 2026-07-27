@@ -461,6 +461,17 @@ module "ops_task" {
 
   environment = {
     LEARNING_ENVIRONMENT = "staging"
+
+    # S40: the scheduled memory-consolidation job reads MEMORY_*-prefixed settings, and
+    # every one of them defaults to something wrong for this environment:
+    # `bedrock_provider` defaults to "mock" (a scheduled run would write mock-generated
+    # facts into the real database - AUD-C-16's failure, automated weekly), and
+    # `bedrock_consolidation_model_id` defaults to Sonnet 5, which this account's task role
+    # is not granted (local.bedrock_model_arns is computed from the two *configured* ids),
+    # so it would be denied even with the provider set. Both must be explicit.
+    MEMORY_BEDROCK_PROVIDER               = var.bedrock_provider
+    MEMORY_BEDROCK_AWS_REGION             = var.aws_region
+    MEMORY_BEDROCK_CONSOLIDATION_MODEL_ID = var.bedrock_tutor_model_id
     # D-092 (S33): plain (non-secret) DSN components - `packages/db/engine.py`'s
     # `create_engine()` fallback (every standalone CLI: curriculum loader, knowledge
     # ingest, etc.), `alembic/env.py`, and `seed_mysql.py` all now check for these
@@ -514,11 +525,40 @@ module "cloudfront_chat" {
 module "observability" {
   source             = "../../modules/observability"
   name_prefix        = var.name_prefix
+  account_id         = data.aws_caller_identity.current.account_id
   notification_email = var.notification_email
   alb_arn_suffix     = module.alb.alb_arn_suffix
   services = {
     learning-api = module.ecs_service_learning_api.target_group_arn_suffix
     chat-api     = module.ecs_service_chat_api.target_group_arn_suffix
   }
+  tags = local.common_tags
+}
+
+# S40 (AUD-F-06): the three schedulable maintenance jobs, running unattended. Sequenced
+# early in Phase 0B because §2.6 criterion 6 requires >= 1 week of unattended runs, which
+# makes this the only gate item bounded by the calendar rather than by effort - the earliest
+# possible gate pass is one week after these land.
+module "scheduled_jobs" {
+  source      = "../../modules/scheduled-jobs"
+  name_prefix = var.name_prefix
+  account_id  = data.aws_caller_identity.current.account_id
+
+  ecs_cluster_arn = aws_ecs_cluster.this.arn
+  # Family-level ARN (no ":<revision>"): every run resolves to the latest revision the
+  # deploy workflow registered. See the variable's own docstring for why.
+  ops_task_definition_arn_prefix = "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:task-definition/${var.name_prefix}-ops-task"
+  ops_container_name             = "ops-task"
+  ops_task_log_group             = module.ops_task.log_group_name
+
+  pass_role_arns = [
+    module.iam.task_execution_role_arn,
+    module.iam.task_role_arn,
+  ]
+
+  subnet_ids        = module.vpc.private_subnet_ids
+  security_group_id = aws_security_group.ecs_tasks.id
+  alerts_topic_arn  = module.observability.sns_topic_arn
+
   tags = local.common_tags
 }
