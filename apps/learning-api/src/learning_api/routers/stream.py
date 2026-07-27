@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from intellichoice_adapters.fake_auth import TokenError
 from intellichoice_db.repositories.stage_transition import StageTransitionRepository
-from intellichoice_shared.auth import Audience
+from intellichoice_shared.auth import Audience, account_refusal_reason
 from intellichoice_shared.bedrock import BedrockGateway, StageNarrativePayload
 from intellichoice_shared.profiles import ProfileAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -105,12 +105,20 @@ async def _initial_snapshot(
     bedrock_gateway: BedrockGateway,
     token: str,
 ) -> SessionSnapshotEvent:
+    # SSE authenticates via `?token=` because `EventSource` cannot set a header, so it
+    # verifies here rather than through `get_current_claims` - which means AUD-X-02's
+    # consent gate has to be repeated, not inherited. Exactly the shape of AUD-F-13: the
+    # same request was sanitized in the access log and not in the trace because the two
+    # paths were written separately.
     try:
         claims = get_token_verifier().verify(token, Audience.LEARNING)
     except TokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=exc.reason.value
         ) from exc
+    refusal = account_refusal_reason(claims)
+    if refusal is not None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=refusal)
 
     snapshot = await graph.aget_state(_graph_config(learning_session_id))
     if not snapshot.values:
@@ -119,7 +127,9 @@ async def _initial_snapshot(
         )
     state = snapshot.values
     if state.get("student_external_id") is not None:
-        await resolve_target_student(claims, state["student_external_id"], profile_adapter)
+        await resolve_target_student(
+            claims, state["student_external_id"], profile_adapter, access="read"
+        )
     elif claims.sub != state.get("user_external_id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="token does not match this session"

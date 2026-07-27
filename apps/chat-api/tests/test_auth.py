@@ -114,3 +114,59 @@ def test_dev_token_404s_on_staging_without_the_shared_secret(
     )
 
     assert resp.status_code == 404
+
+
+CONSENT_REFUSALS = [
+    pytest.param({"account_status": "suspended"}, id="suspended-account"),
+    pytest.param({"consent_status": "revoked"}, id="revoked-consent"),
+    pytest.param(
+        {"parental_consent_verified": False, "student_age_band": "under_13"},
+        id="unverified-parental-consent",
+    ),
+]
+
+
+@pytest.mark.parametrize("claim_overrides", CONSENT_REFUSALS)
+def test_account_and_consent_state_is_enforced(claim_overrides: dict) -> None:
+    """AUD-X-02 (S40, D-107). SPEC §5.1.2's claims were read by nothing in either app.
+
+    403, not 401: the signature is valid and the token is genuine - the account may not
+    use the product. Asserted per-claim rather than with one all-bad token because a
+    single token failing three rules passes even if only one is implemented.
+    """
+    token = issuer.issue(
+        sub="student-ext-1", role=Role.STUDENT, audience=Audience.CHAT, **claim_overrides
+    )
+    with TestClient(app) as client:
+        response = client.get("/me", headers=_auth_header(token))
+    assert response.status_code == 403
+
+
+def test_a_fully_consented_token_is_still_accepted() -> None:
+    """The control. Every refusal test above passes trivially if `/me` 403s for everyone."""
+    token = issuer.issue(sub="student-ext-1", role=Role.STUDENT, audience=Audience.CHAT)
+    with TestClient(app) as client:
+        response = client.get("/me", headers=_auth_header(token))
+    assert response.status_code == 200
+
+
+def test_a_withdrawn_consent_does_not_silently_downgrade_to_anonymous() -> None:
+    """`get_optional_claims` treats a missing header as anonymous, so the tempting
+    reading of a revoked token is "fall back to public access". It is refused instead,
+    on the same reasoning that function already applies to an expired token: a caller
+    whose consent was withdrawn gets a clear signal, not quietly reduced scope. The
+    anonymous arm proves the endpoint really does serve callers with no token at all.
+    """
+    revoked = issuer.issue(
+        sub="student-ext-1",
+        role=Role.STUDENT,
+        audience=Audience.CHAT,
+        consent_status="revoked",
+    )
+    with TestClient(app) as client:
+        anonymous_response = client.post("/chat/sessions", json={})
+        revoked_response = client.post(
+            "/chat/sessions", json={}, headers=_auth_header(revoked)
+        )
+    assert anonymous_response.status_code in (200, 201)
+    assert revoked_response.status_code == 403

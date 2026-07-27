@@ -15,7 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from intellichoice_adapters.fake_auth import TokenError
-from intellichoice_shared.auth import Audience
+from intellichoice_shared.auth import Audience, account_refusal_reason
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from chat_api.dependencies import get_db_session, get_graph, get_session_events, get_token_verifier
@@ -42,12 +42,18 @@ async def _initial_snapshot(
 ) -> SessionSnapshotEvent:
     claims = None
     if token is not None:
+        # Repeated rather than inherited: `EventSource` cannot set a header, so this path
+        # verifies its own `?token=` and never passes through `get_optional_claims`
+        # (AUD-X-02).
         try:
             claims = get_token_verifier().verify(token, Audience.CHAT)
         except TokenError as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail=exc.reason.value
             ) from exc
+        refusal = account_refusal_reason(claims)
+        if refusal is not None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=refusal)
 
     snapshot = await graph.aget_state(_graph_config(chat_session_id))
     if not snapshot.values:

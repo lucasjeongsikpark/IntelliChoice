@@ -7,7 +7,11 @@ from typing import cast
 
 from intellichoice_curriculum.generation import generate_variant
 from intellichoice_curriculum.templates.registry import ParameterSchema
-from intellichoice_db.models.questions import QuestionTemplate, QuestionVariant
+from intellichoice_db.models.questions import (
+    VARIANT_ORIGIN_RUNTIME,
+    QuestionTemplate,
+    QuestionVariant,
+)
 from intellichoice_db.repositories.questions import QuestionRepository
 
 _MAX_REGENERATION_ATTEMPTS = 20
@@ -49,6 +53,10 @@ async def generate_and_store_variant(
 
     return await question_repo.create_variant(
         QuestionVariant(
+            # One row per question served, so this is the unbounded population and must
+            # never enter SPEC §5.8.3's dedup check (D-106). Matches the column default;
+            # stated anyway because this is the write site that made the difference.
+            origin=VARIANT_ORIGIN_RUNTIME,
             question_template_id=template.question_template_id,
             random_seed=candidate.random_seed,
             rendered_question=candidate.rendered_question,

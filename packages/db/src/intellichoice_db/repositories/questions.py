@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_db.models.questions import (
+    VARIANT_ORIGIN_CANONICAL,
     QuestionTemplate,
     QuestionValidationRun,
     QuestionVariant,
@@ -56,12 +57,32 @@ class QuestionRepository:
         return list(result.scalars().all())
 
     async def rendered_question_exists(self, rendered_question: str) -> bool:
-        """SPEC §5.8.3 "Deduplication" step - checked against every variant ever
-        persisted (not just the current pipeline run's in-memory set), so a re-run of the
-        generation pipeline can't reintroduce a question a previous run already produced.
+        """SPEC §5.8.3 "Deduplication" step - checked against every *canonical* variant
+        ever persisted (not just the current pipeline run's in-memory set), so a re-run of
+        the generation pipeline can't reintroduce a question a previous run already
+        produced.
+
+        S40 (D-106) scoped this to `VARIANT_ORIGIN_CANONICAL`. It previously compared
+        against every row in the table, which silently included the runtime instances the
+        exam and study builders mint per serving - re-renderings of already-approved
+        templates at fresh seeds, one row per question shown to any student, ever. That
+        made a *content* question ("is this a new question?") depend on a *usage* fact
+        ("how much has the app been run?"), and the dedup population grew without bound:
+        60,906 rows against 50 templates when this was fixed, 93.5% of them referenced by
+        nothing at all.
+
+        The failure it produced was not a missed duplicate but a false positive, and it
+        recurred four times. `test_solver_disagreement_rejects_without_persisting` picks a
+        deliberate seed so its candidate reaches the solver-agreement check; each time
+        traffic happened to mint a runtime variant rendering that same text, the candidate
+        was rejected for "duplicate rendered_question" first and the test failed. S17, S22
+        and S31 each fixed it by deleting the one offending row, which is why it came
+        back. Scoped this way the population is bounded by the template count and cannot
+        grow with use.
         """
         stmt = select(QuestionVariant.question_variant_id).where(
-            QuestionVariant.rendered_question == rendered_question
+            QuestionVariant.rendered_question == rendered_question,
+            QuestionVariant.origin == VARIANT_ORIGIN_CANONICAL,
         )
         result = await self._session.execute(stmt)
         return result.first() is not None

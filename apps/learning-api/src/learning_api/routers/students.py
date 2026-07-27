@@ -141,7 +141,9 @@ async def get_student_sessions(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> StudentHistoryResponse:
-    target_student_id = await resolve_target_student(claims, student_id, profile_adapter)
+    target_student_id = await resolve_target_student(
+        claims, student_id, profile_adapter, access="read"
+    )
     history = await build_student_history(
         student_id=target_student_id,
         mastery_repo=MasteryRepository(db),
@@ -274,7 +276,9 @@ async def get_student_dashboard(
     start: Annotated[datetime | None, Query()] = None,
     end: Annotated[datetime | None, Query()] = None,
 ) -> DashboardResponse:
-    target_student_id = await resolve_target_student(claims, student_id, profile_adapter)
+    target_student_id = await resolve_target_student(
+        claims, student_id, profile_adapter, access="read"
+    )
     data = await _build_dashboard_data(target_student_id, start, end, db)
     return DashboardResponse.from_data(target_student_id, data)
 
@@ -309,7 +313,19 @@ async def create_student_report(
     start: Annotated[datetime | None, Query()] = None,
     end: Annotated[datetime | None, Query()] = None,
 ) -> StudentReportResponse:
-    target_student_id = await resolve_target_student(claims, student_id, profile_adapter)
+    # "read" despite being a POST, and the distinction is worth stating because it looks
+    # wrong at a glance. `access` classifies what the caller learns or changes *about the
+    # student*, not whether a row is written. This route derives a document from data the
+    # caller can already read through `/dashboard` and `/sessions`; it adds no new fact
+    # about the student and cannot corrupt one. AUD-L-07 files it under the tutor
+    # read-scope gap that D-086 accepted and S43/S46 close - classifying it "write" would
+    # end tutor report generation outright (with no assignment model, every student is
+    # "unlinked"), which is a product decision those sessions own, not a side effect of
+    # AUD-X-05's fix. Its actual write concerns are idempotency (AUD-X-04) and spend
+    # (AUD-L-02's ceiling), both handled on their own terms.
+    target_student_id = await resolve_target_student(
+        claims, student_id, profile_adapter, access="read"
+    )
     # Audience is always the caller's own role - never a client-supplied field (CLAUDE.md
     # non-negotiable #3). Role enum values already match SPEC §5.14.2-§5.14.4's audience
     # names exactly.
@@ -360,7 +376,9 @@ async def list_student_reports(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> list[StudentReportResponse]:
-    target_student_id = await resolve_target_student(claims, student_id, profile_adapter)
+    target_student_id = await resolve_target_student(
+        claims, student_id, profile_adapter, access="read"
+    )
     audience = claims.role.value
     rows = await StudentReportRepository(db).list_for_student(target_student_id, audience=audience)
     return [
