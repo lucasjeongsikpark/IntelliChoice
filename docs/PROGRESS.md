@@ -17,7 +17,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   against the deployed database** — it read `LEARNING_`-prefixed settings that the ops task does not
   set, so it silently used its `localhost` default and the first scheduled run died on
   `127.0.0.1:5432`. So SPEC's 90-day retention promise had never actually been kept. Fixed, with a
-  guard test over every standalone CLI (third instance of this shape). **Also: the failure
+  guard test over every standalone CLI (third instance of this shape), **and verified on the real
+  path after deploying**: a one-shot Scheduler probe ran `startedBy chronos-schedule/…` on the
+  rebuilt image, exit **0**, logging `purged 0 tutor_chat_messages row(s) older than 90 days`. **Also: the failure
   notification I added was itself dead on arrival** — the rule fired, `FailedInvocations = 1`, SNS
   delivered 0, because the topic policy did not allow `events.amazonaws.com`; CloudWatch *alarms*
   publish to the same topic fine on the default policy, which is what made it worth testing rather
@@ -25,6 +27,14 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **AUD-F-07 was a false premise:** staging has **zero** `loadtest-` rows (`semantic_memory` empty
   entirely), so nothing was blocked on fixture cleanup — the 150 are local-only, per D-095's
   docker-compose load test. Cleaning the local dev DB is optional hygiene, still outstanding.
+- **Criterion 5 may now be complete — one judgement call is yours.** Two consecutive
+  workflow deploys went green end to end including migrations, the `/dev/token` security gate, the
+  3-minute canary bake and the smoke test (`bccc3ac` run 30218489130, `73396c1` run 30233724547),
+  and the deliberate auto-rollback drill is demonstrated. **The nuance:** the bad-image drill sits
+  chronologically *between* those two deploys. It was an out-of-band `update-service`, not a
+  pipeline deploy, so on the natural reading the two pipeline deploys are consecutive — but if
+  "consecutive" is meant to exclude any failed deployment in between, one more workflow run settles
+  it, and re-running on an unchanged commit is cheap now that S35's ECR-reuse fix exists.
 - **AUD-F-10's CI hazard is cleared — the "DO THIS FIRST" that led this file is done.** The mirror
   is pushed (`aws-otel-collector:v0.43.3`, `linux/arm64` verified against `runtime_platform`),
   Terraform re-applied, and both services are deployed onto the sidecar. **Staging is healthy and

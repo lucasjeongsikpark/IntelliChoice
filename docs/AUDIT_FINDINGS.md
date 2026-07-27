@@ -2272,6 +2272,21 @@ once executed against real data**, and would not have until someone ran it by ha
 **Fix:** `create_engine()`, bare, matching `consolidate_cli` and `sync_cli`. Local behaviour is
 unchanged (no components set → `DATABASE_URL` → the same localhost default).
 
+**Verified on the real path after deploying, not just locally** — the fix is in app code, so only a
+deployed run proves it. A one-shot Scheduler probe was fired against the rebuilt image:
+
+```
+startedBy: chronos-schedule/probe-chat-purge-af    (i.e. EventBridge Scheduler, not run-task)
+taskDefinition: intellichoice-staging-ops-task:17  (the image containing the fix)
+exitCode: 0
+log: "purged 0 tutor_chat_messages row(s) older than 90 days"
+```
+
+`0` is the correct answer here — staging holds no tutor-chat rows past the cutoff — and it is
+distinguishable from the failure it replaced, because the broken form could not reach a database at
+all. **The same probe technique is what found the defect and what confirmed the fix**, and it cost
+about two minutes each time; waiting for 18:10 UTC would have deferred both by a day.
+
 **Third instance of one shape, so the fix is a guard rather than a patch.** `create_engine`'s own
 docstring already records the S32/D-084 instance (`curriculum-load` against real RDS, same
 `ConnectionRefusedError`). `packages/db/tests/test_standalone_clis_use_the_env_fallback.py` now
