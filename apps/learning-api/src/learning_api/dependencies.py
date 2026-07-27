@@ -3,7 +3,7 @@ from functools import lru_cache
 
 from fastapi import HTTPException, Request, status
 from intellichoice_adapters.fake_auth import JwtTokenVerifier, TokenError
-from intellichoice_shared.auth import Audience, TokenClaims
+from intellichoice_shared.auth import Audience, TokenClaims, account_refusal_reason
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.email import EmailTransport
 from intellichoice_shared.mcp import McpToolRegistry
@@ -56,6 +56,15 @@ async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 
 async def get_current_claims(request: Request) -> TokenClaims:
+    """Signature/expiry/audience, then SPEC §5.1.2's account and consent state.
+
+    AUD-X-02 (S40, D-107): the second half did not exist. A token with
+    `account_status="suspended"`, `consent_status="revoked"`,
+    `parental_consent_verified=False` and `student_age_band="under_13"` behaved
+    identically to a consented one on **all 18 learning routes** - this app requires auth
+    everywhere, so this one function is the whole enforcement surface. 403 rather than
+    401: the token is genuine, the account may not use the product.
+    """
     auth_header = request.headers.get("authorization")
     if not auth_header or not auth_header.lower().startswith("bearer "):
         raise HTTPException(
@@ -63,8 +72,12 @@ async def get_current_claims(request: Request) -> TokenClaims:
         )
     token = auth_header.split(" ", 1)[1]
     try:
-        return get_token_verifier().verify(token, Audience.LEARNING)
+        claims = get_token_verifier().verify(token, Audience.LEARNING)
     except TokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=exc.reason.value
         ) from exc
+    refusal = account_refusal_reason(claims)
+    if refusal is not None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=refusal)
+    return claims

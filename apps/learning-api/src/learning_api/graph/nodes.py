@@ -201,6 +201,33 @@ async def resolve_student(state: LearningState, runtime: Runtime[TurnContext]) -
     ctx = _ctx(runtime)
     claims = ctx.claims
     requested_student_id = ctx.requested_student_id
+    existing_student_id = state.student_external_id
+
+    def bind(target: str) -> str:
+        """AUD-X-01 (S40, D-107): refuse to move a session to a different student.
+
+        Seventeen learning routes authorize by passing the *checkpoint's*
+        `student_external_id` to `authorization.resolve_target_student`. This node is the
+        eighteenth route's entry point and the only place that *writes* that field - and
+        it validated the requested student against the caller's own claims while never
+        reading the value already there. So any caller holding a session id could bind it
+        to themselves: the original owner was locked out of their own exam with 403 and
+        their `in_progress` row was orphaned with no route back to it (verified on live
+        staging). Applied to every role, before the role split, because the tutor and
+        branch-manager branch below accepts an unvalidated `requested_student_id` and is
+        the widest version of the same hole (AUD-X-05).
+
+        The one legitimate rebind - a parent switching children - never reaches here: it
+        pauses at `await_child_selection`, which re-checks the live parent-child link on
+        resume. A session is per-student by construction (it owns an exam, a study plan
+        and a mastery trail), so switching students within one is not a supported action
+        for anybody; the parent's route to a second child is a second session.
+        """
+        if existing_student_id is not None and existing_student_id != target:
+            # Deliberately does not name the owner - the caller has already proven only
+            # that they hold a session id.
+            raise PermissionError("This session already belongs to another student")
+        return target
 
     if claims.role == Role.STUDENT:
         target = requested_student_id or claims.sub
@@ -209,7 +236,7 @@ async def resolve_student(state: LearningState, runtime: Runtime[TurnContext]) -
         return {
             "user_external_id": claims.sub,
             "user_role": claims.role.value,
-            "student_external_id": target,
+            "student_external_id": bind(target),
             "phase": "student_selected",
         }
 
@@ -222,7 +249,7 @@ async def resolve_student(state: LearningState, runtime: Runtime[TurnContext]) -
                 "user_external_id": claims.sub,
                 "user_role": claims.role.value,
                 "parent_external_id": claims.sub,
-                "student_external_id": requested_student_id,
+                "student_external_id": bind(requested_student_id),
                 "phase": "student_selected",
             }
         if len(linked_children) == 1:
@@ -230,7 +257,7 @@ async def resolve_student(state: LearningState, runtime: Runtime[TurnContext]) -
                 "user_external_id": claims.sub,
                 "user_role": claims.role.value,
                 "parent_external_id": claims.sub,
-                "student_external_id": linked_children[0],
+                "student_external_id": bind(linked_children[0]),
                 "phase": "student_selected",
             }
         return {
@@ -240,13 +267,18 @@ async def resolve_student(state: LearningState, runtime: Runtime[TurnContext]) -
             "phase": "awaiting_child_selection",
         }
 
-    # Tutor / branch manager: no per-student scope check in this session (see
-    # `authorization.resolve_target_student`'s matching comment).
+    # Tutor / branch manager: still no per-student *scope* check - that needs the
+    # tutor-assignment / branch-roster data `ProfileAdapter` does not carry until S43's
+    # `IcProfileAdapter` (D-086, AUD-L-07), so the read-scope gap is a recorded, accepted
+    # risk rather than an oversight. `bind` below closes the part that does not need that
+    # data: a tutor can no longer *seize* a session that already belongs to a student
+    # (AUD-X-05's `select_student` row). Writes through the other session routes are
+    # blocked separately, in `authorization.resolve_target_student`.
     target = requested_student_id or claims.sub
     return {
         "user_external_id": claims.sub,
         "user_role": claims.role.value,
-        "student_external_id": target,
+        "student_external_id": bind(target),
         "phase": "student_selected",
     }
 

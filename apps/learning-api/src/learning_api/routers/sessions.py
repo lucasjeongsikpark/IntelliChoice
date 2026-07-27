@@ -560,7 +560,9 @@ async def select_topic(
     # Re-verify the bearer token still grants access to this session's student, since
     # the token holder may differ from whoever created the session (SPEC §5.6.1 -
     # authorization is never trusted from session state alone).
-    await resolve_target_student(claims, state["student_external_id"], profile_adapter)
+    await resolve_target_student(
+        claims, state["student_external_id"], profile_adapter, access="write"
+    )
 
     curriculum_repo = CurriculumRepository(db)
     if await curriculum_repo.get_topic(body.topic_id) is None:
@@ -622,7 +624,9 @@ async def resolve_attendance_choice(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student first"
         )
-    await resolve_target_student(claims, state["student_external_id"], profile_adapter)
+    await resolve_target_student(
+        claims, state["student_external_id"], profile_adapter, access="write"
+    )
     if state.get("phase") != "blocked":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -681,7 +685,9 @@ async def submit_answer(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student before answering"
         )
-    await resolve_target_student(claims, state["student_external_id"], profile_adapter)
+    await resolve_target_student(
+        claims, state["student_external_id"], profile_adapter, access="write"
+    )
     submitted_phase = state.get("phase")
     if submitted_phase not in ("pre_exam", "study", "post_exam"):
         raise HTTPException(
@@ -776,7 +782,9 @@ async def _exam_phase_state(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student first"
         )
-    await resolve_target_student(claims, state["student_external_id"], profile_adapter)
+    await resolve_target_student(
+        claims, state["student_external_id"], profile_adapter, access="write"
+    )
     if state.get("phase") not in EXAM_PHASES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -933,7 +941,9 @@ async def finalize_exam(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student first"
         )
-    await resolve_target_student(claims, state["student_external_id"], profile_adapter)
+    await resolve_target_student(
+        claims, state["student_external_id"], profile_adapter, access="write"
+    )
     if state.get("phase") not in (*EXAM_PHASES, "study", "completed"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1006,7 +1016,9 @@ async def send_chat_message(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student first"
         )
-    await resolve_target_student(claims, state["student_external_id"], profile_adapter)
+    await resolve_target_student(
+        claims, state["student_external_id"], profile_adapter, access="write"
+    )
     if state.get("phase") != "study":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1078,7 +1090,9 @@ async def respond_to_interrupt(
     # `student_external_id` isn't set yet mid child-selection - `resolve_student`'s own
     # fresh linked-children re-check on resume is the guard for that one (SPEC §5.6.1).
     if state.get("student_external_id") is not None:
-        await resolve_target_student(claims, state["student_external_id"], profile_adapter)
+        await resolve_target_student(
+            claims, state["student_external_id"], profile_adapter, access="write"
+        )
 
     resume_value: object
     if isinstance(body, ChildSelectionChoice):
@@ -1167,7 +1181,9 @@ async def resume_session(
         )
     state = snapshot.values
     if state.get("student_external_id") is not None:
-        await resolve_target_student(claims, state["student_external_id"], profile_adapter)
+        await resolve_target_student(
+            claims, state["student_external_id"], profile_adapter, access="write"
+        )
     elif claims.sub != state.get("user_external_id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="token does not match this session"

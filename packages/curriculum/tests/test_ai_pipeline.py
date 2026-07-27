@@ -22,7 +22,12 @@ from intellichoice_curriculum import ai_pipeline
 from intellichoice_curriculum.ai_pipeline import PipelineConfigError, generate_candidate
 from intellichoice_curriculum.content import load_curriculum
 from intellichoice_db.engine import create_engine
-from intellichoice_db.models.questions import QuestionTemplate
+from intellichoice_db.models.questions import (
+    VARIANT_ORIGIN_CANONICAL,
+    VARIANT_ORIGIN_RUNTIME,
+    QuestionTemplate,
+    QuestionVariant,
+)
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_shared.bedrock import (
     AlignmentReviewResponse,
@@ -383,6 +388,82 @@ def test_duplicate_rendered_question_rejects() -> None:
             )
             assert second.status == "rejected"
             assert any("duplicate" in r for r in second.reasons)
+
+    asyncio.run(run())
+
+
+def test_runtime_variant_with_identical_text_does_not_block_the_pipeline() -> None:
+    """S40 regression (D-106), the negative arm of the test above.
+
+    A *runtime* variant carrying the identical `rendered_question` must not reject the
+    candidate, where a canonical one must. Before this fix `rendered_question_exists`
+    compared against every row in `question_variants`, which includes the instance the
+    exam builder mints for every question ever served - so the pipeline's verdict on a
+    candidate drifted with how much the app had been used. That produced four false
+    "duplicate rendered_question" rejections across S17, S22, S31 and S40, each one
+    masking the check the failing test actually meant to exercise, and each one "fixed"
+    by deleting the offending row.
+
+    The two arms have to be read together: scoping the check too far would silently
+    disable deduplication altogether, and only `test_duplicate_rendered_question_rejects`
+    would notice.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        seed = 771337
+
+        # Pass 1: discover what this seed renders, then throw the whole thing away.
+        async with _rollback_session() as session:
+            probe = await generate_candidate(
+                session=session,
+                gateway=_ScriptedGateway(),
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=seed,
+                session_spend_cents=0.0,
+            )
+            assert probe.status == "pending", probe.reasons
+            assert probe.question_variant_id is not None
+            variant = await QuestionRepository(session).get_variant(probe.question_variant_id)
+            assert variant is not None
+            rendered = variant.rendered_question
+            # The pipeline's own write must be canonical, or the arm above is vacuous.
+            assert variant.origin == VARIANT_ORIGIN_CANONICAL
+
+        # Pass 2: same seed, but the text now already exists as a runtime instance of a
+        # different, already-approved template - exactly the shape that kept recurring.
+        async with _rollback_session() as session:
+            repo = QuestionRepository(session)
+            host = (await repo.get_active_questions("linear_equations", difficulty=2))[0]
+            await repo.create_variant(
+                QuestionVariant(
+                    origin=VARIANT_ORIGIN_RUNTIME,
+                    question_template_id=host.question_template_id,
+                    random_seed=1,
+                    rendered_question=rendered,
+                    option_a="1",
+                    option_b="2",
+                    option_c="3",
+                    option_d="4",
+                    correct_option="a",
+                    parameter_values={},
+                )
+            )
+            assert not await repo.rendered_question_exists(rendered)
+
+            outcome = await generate_candidate(
+                session=session,
+                gateway=_ScriptedGateway(),
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=seed,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "pending", outcome.reasons
+            assert not any("duplicate" in r for r in outcome.reasons)
 
     asyncio.run(run())
 

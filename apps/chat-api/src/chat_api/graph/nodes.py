@@ -137,19 +137,47 @@ async def resolve_role(state: QAState, runtime: Runtime[TurnContext]) -> dict:
     """SPEC §5.19.2 "Detect authentication -> Resolve role". Anonymous is a valid,
     first-class case here (unlike `learning_api`) - `ctx.claims` may be `None`.
     """
-    del state
     ctx = _ctx(runtime)
     assert ctx.query is not None
     user_role, branch_external_id = await role_access.resolve_role_context(
         ctx.claims, ctx.profile_adapter
     )
+    # AUD-C-01's second half (S40, D-107). This wrote `None` for an anonymous turn, so an
+    # anonymous message on an owned thread did not merely go unchecked - it *erased the
+    # owner*, permanently disabling the checks `/respond` and `/stream` do perform against
+    # this exact field. One unauthenticated request downgraded a tutor's session to
+    # ownerless for good. The route now refuses that request, and the state never drops an
+    # owner it already has, so neither half depends on the other being correct.
+    owner = ctx.claims.sub if ctx.claims is not None else state.user_external_id
     return {
-        "user_external_id": ctx.claims.sub if ctx.claims is not None else None,
+        "user_external_id": owner,
         "authenticated": ctx.claims is not None,
         "user_role": user_role,
         "branch_external_id": branch_external_id,
         "query": ctx.query,
         "standalone_query": ctx.query,
+        # AUD-C-04 (S40, D-107): clear last turn's result here, at the one node every
+        # turn passes through first.
+        #
+        # A node that pauses on `interrupt()` never returns, so it never writes these
+        # fields - and `/messages` builds its response by reading them straight off the
+        # result. A paused turn therefore answered with the *previous* turn's answer,
+        # citations and access hint, which is what made AUD-C-01 a disclosure rather than
+        # just a missing check: the anonymous caller was handed the tutor's answer because
+        # it was still sitting in state. `ics_content` was worse - nothing anywhere
+        # cleared it, so a calendar download stuck to every later turn in the session.
+        #
+        # Resetting on entry rather than in each pausing node is the point: there are
+        # several pausing nodes and the next one added would have to remember.
+        "answer": None,
+        "citations": None,
+        "confidence": None,
+        "missing_information": None,
+        "escalation_recommended": False,
+        "access_hint": None,
+        "ics_content": None,
+        "retrieved_chunk_ids": None,
+        "event_listing": None,
     }
 
 

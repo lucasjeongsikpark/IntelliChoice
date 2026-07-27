@@ -9,6 +9,18 @@ from intellichoice_db.models.rag import EMBEDDING_DIM
 
 # SPEC §5.8.2 question_template fields.
 
+# S40 (D-106): which population a `QuestionVariant` belongs to, for SPEC §5.8.3's
+# deduplication check. Deliberately *not* named "authored" - `QuestionTemplate.
+# authoring_mode` already uses that word for an unrelated distinction (shape-generated
+# vs statically-authored templates), and a variant of either kind can be canonical.
+VARIANT_ORIGIN_CANONICAL = "canonical"
+"""The one rendering that *defines* a template - written by the curriculum loader and by
+the AI authoring pipeline, exactly one per template."""
+
+VARIANT_ORIGIN_RUNTIME = "runtime"
+"""A re-rendering of an already-approved template at a fresh seed, minted per serving by
+the exam/study builders. Unbounded in count; never part of the dedup population."""
+
 
 class QuestionTemplate(Base):
     __tablename__ = "question_templates"
@@ -71,6 +83,17 @@ class QuestionVariant(Base):
     parameter_values: Mapped[dict] = mapped_column(JSON, nullable=False)
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+    # S40 (D-106). Defaults to "runtime" on purpose: a writer that forgets to declare
+    # itself stays *out* of the dedup population, which degrades to a missed duplicate.
+    # The other default would let a forgotten runtime write back into the population and
+    # reintroduce the exact accumulation bug this column exists to end.
+    origin: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=VARIANT_ORIGIN_RUNTIME,
+        server_default=VARIANT_ORIGIN_RUNTIME,
     )
 
     template: Mapped[QuestionTemplate] = relationship(back_populates="variants")

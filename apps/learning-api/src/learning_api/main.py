@@ -251,7 +251,9 @@ async def get_attendance(
     claims: Annotated[TokenClaims, Depends(get_current_claims)],
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
 ) -> AttendanceResponse:
-    target_student_id = await resolve_target_student(claims, student_id, profile_adapter)
+    target_student_id = await resolve_target_student(
+        claims, student_id, profile_adapter, access="read"
+    )
     attendance = await profile_adapter.get_current_week_attendance(target_student_id)
     message = UNKNOWN_ATTENDANCE_MESSAGE if attendance == AttendanceStatus.UNKNOWN else None
     return AttendanceResponse(

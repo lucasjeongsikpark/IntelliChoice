@@ -14,7 +14,11 @@ from dataclasses import dataclass
 
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.models.curriculum import Skill, Topic
-from intellichoice_db.models.questions import QuestionTemplate, QuestionVariant
+from intellichoice_db.models.questions import (
+    VARIANT_ORIGIN_CANONICAL,
+    QuestionTemplate,
+    QuestionVariant,
+)
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -133,6 +137,8 @@ async def _load_templates(
 
         await repo.create_variant(
             QuestionVariant(
+                # The seed bank's one defining rendering per template (D-106).
+                origin=VARIANT_ORIGIN_CANONICAL,
                 question_template_id=template.question_template_id,
                 random_seed=variant.random_seed,
                 rendered_question=variant.rendered_question,

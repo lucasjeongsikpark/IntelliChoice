@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from intellichoice_db.models.questions import (
+    VARIANT_ORIGIN_CANONICAL,
     QuestionTemplate,
     QuestionValidationRun,
     QuestionVariant,
@@ -566,6 +567,8 @@ async def generate_candidate(
     )
     persisted_variant = await repo.create_variant(
         QuestionVariant(
+            # The newly authored template's defining rendering (D-106).
+            origin=VARIANT_ORIGIN_CANONICAL,
             question_template_id=template.question_template_id,
             random_seed=variant.random_seed,
             rendered_question=variant.rendered_question,
@@ -840,6 +843,11 @@ async def generate_authored_candidate(
     )
     persisted_variant = await repo.create_variant(
         QuestionVariant(
+            # The newly authored template's defining rendering (D-106). An
+            # `authoring_mode="authored"` template has exactly this one variant and never
+            # gains runtime ones, but it is still declared explicitly rather than left to
+            # the column default, which is "runtime".
+            origin=VARIANT_ORIGIN_CANONICAL,
             question_template_id=template.question_template_id,
             random_seed=seed,
             rendered_question=rendered_question,

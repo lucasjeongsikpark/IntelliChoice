@@ -268,10 +268,93 @@ def test_parent_cannot_select_unlinked_student() -> None:
 
 
 def test_tutor_role_resolves_without_scope_check() -> None:
+    """Unchanged by S40: a tutor may still *open* a session naming any student, because
+    the per-student scope check needs an assignment model that arrives with S43's
+    `IcProfileAdapter` (D-086). What S40 closed is the tutor seizing a session that is
+    already someone's, and writing through it - see the two tests below and
+    `authorization.resolve_target_student`.
+    """
     claims = _claims("tutor-ext-1", Role.TUTOR)
     result = asyncio.run(
         _select_student(claims, "t-tutor", requested_student_id="student-ext-1")
     )
+    assert result["phase"] == "student_selected"
+    assert result["student_external_id"] == "student-ext-1"
+
+
+async def _select_student_twice(
+    first: TokenClaims,
+    second: TokenClaims,
+    thread_id: str,
+    *,
+    second_requested_student_id: str | None = None,
+    **ctx_kwargs,
+) -> dict:
+    """Two `select_student` turns against **one** saver, which is the whole point: the
+    defect only exists because the second turn never read what the first one wrote.
+    `_select_student` builds a fresh `InMemorySaver` per call and so cannot express it.
+    """
+    graph = build_graph(InMemorySaver())
+    await graph.ainvoke(
+        EntryInput(session_id=thread_id, entry_action="select_student"),
+        config=_config(thread_id),
+        context=_turn_context(first, **ctx_kwargs),
+    )
+    return await graph.ainvoke(
+        EntryInput(session_id=thread_id, entry_action="select_student"),
+        config=_config(thread_id),
+        context=_turn_context(
+            second, requested_student_id=second_requested_student_id, **ctx_kwargs
+        ),
+    )
+
+
+def test_a_second_student_cannot_seize_an_owned_session() -> None:
+    """AUD-X-01 (S40, D-107).
+
+    Reproduced on live staging before the fix: B claimed A's in-progress session and got
+    200, then A received **403 on their own exam** and their `in_progress` row was
+    orphaned with no route back to it. The attacker needs only a session id - every other
+    learning route authorizes against the checkpoint's `student_external_id`, and this was
+    the one route that wrote it without ever reading it.
+    """
+    owner = _claims("student-ext-1", Role.STUDENT)
+    attacker = _claims("student-ext-4", Role.STUDENT)
+    try:
+        asyncio.run(_select_student_twice(owner, attacker, "t-seize"))
+        raise AssertionError("expected PermissionError")
+    except PermissionError as exc:
+        # Must not disclose the owner: the caller has proven only that they hold an id.
+        assert "student-ext-1" not in str(exc)
+
+
+def test_a_tutor_cannot_seize_an_owned_session() -> None:
+    """AUD-X-01 / AUD-X-05: the tutor branch takes `requested_student_id` unvalidated, so
+    it is the widest version of the same hole - a tutor could rebind any session to any
+    id at all. The scope check still cannot be written (D-086), but the *rebind* needs no
+    assignment data to refuse.
+    """
+    owner = _claims("student-ext-1", Role.STUDENT)
+    tutor = _claims("tutor-ext-1", Role.TUTOR)
+    try:
+        asyncio.run(
+            _select_student_twice(
+                owner, tutor, "t-seize-tutor", second_requested_student_id="student-ext-9"
+            )
+        )
+        raise AssertionError("expected PermissionError")
+    except PermissionError:
+        pass
+
+
+def test_the_owner_may_replay_their_own_selection() -> None:
+    """The negative arm. A guard that refused *every* second call would also break the
+    legitimate replay - the client calls this route with `busy={false}` hardcoded at the
+    call site (AUD-X-03), so a double-submit is ordinary. Only a change of student is
+    refused.
+    """
+    owner = _claims("student-ext-1", Role.STUDENT)
+    result = asyncio.run(_select_student_twice(owner, owner, "t-replay"))
     assert result["phase"] == "student_selected"
     assert result["student_external_id"] == "student-ext-1"
 

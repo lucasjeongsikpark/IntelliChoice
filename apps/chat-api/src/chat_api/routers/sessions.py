@@ -225,15 +225,45 @@ def _pending_interrupt_preview(pending: Interrupt, state: dict) -> dict:
     return {"interrupt_type": interrupt_type}
 
 
-async def _reject_if_paused(graph: QAGraph, chat_session_id: str) -> None:
+def _assert_session_access(snapshot_values: dict, claims: TokenClaims | None) -> None:
+    """AUD-C-01 (S40, D-107): the thread-ownership check `/respond` and `/stream` perform,
+    applied to `/messages` too.
+
+    `/messages` had none. Verified live on staging before the fix: an **unauthenticated**
+    caller continued a tutor's thread, received the tutor's answer and citation back, and
+    resolved its interrupt - all 200. Locally, tutor-audience text reached the anonymous
+    response verbatim.
+
+    An anonymous caller on an owned session is refused rather than served a public-scope
+    answer. That looks harsher than SPEC §5.19.1's anonymous-is-first-class rule, but the
+    session is someone else's: `/respond` and `/stream` already answer it exactly this way,
+    and a new anonymous session is one `POST /chat/sessions` away.
+    """
+    owner = snapshot_values.get("user_external_id")
+    if owner is not None and (claims is None or claims.sub != owner):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="token does not match this session"
+        )
+
+
+async def _reject_if_paused(
+    graph: QAGraph, chat_session_id: str, claims: TokenClaims | None
+) -> None:
     """`/messages` is the one entry point that may legitimately see *no* prior state
     (a session's first message) - unlike `learning_api`'s `_get_state_values`, this
     never 404s on that case, only 409s if a task is genuinely paused (D-021 gotcha #2:
     a fresh, non-`Command` `ainvoke` on a thread with a paused task silently discards
     it instead of resuming it).
+
+    Also the ownership gate, because this is already the one place `/messages` reads the
+    checkpoint - keeping them together means a future caller cannot pick up the paused
+    check and quietly leave the access check behind.
     """
     snapshot = await graph.aget_state(_graph_config(chat_session_id))
-    if snapshot.values and _pending_task_interrupt(snapshot) is not None:
+    if not snapshot.values:
+        return
+    _assert_session_access(snapshot.values, claims)
+    if _pending_task_interrupt(snapshot) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="a pending interrupt must be resolved via /respond before continuing",
@@ -293,7 +323,7 @@ async def post_message(
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> MessageResponse:
-    await _reject_if_paused(graph, chat_session_id)
+    await _reject_if_paused(graph, chat_session_id, claims)
     ctx = _turn_context(
         claims=claims,
         profile_adapter=profile_adapter,
@@ -371,11 +401,7 @@ async def respond_to_interrupt(
             f"{body.interrupt_type!r}",
         )
 
-    owner = snapshot_values.get("user_external_id")
-    if owner is not None and (claims is None or claims.sub != owner):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="token does not match this session"
-        )
+    _assert_session_access(snapshot_values, claims)
 
     if isinstance(body, EmailApprovalChoice):
         resume_value: object = {"approved": body.approved}
