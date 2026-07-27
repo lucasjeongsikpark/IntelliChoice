@@ -15,7 +15,7 @@ dependencies = [
     # (found live during S32/D-084's first deploy).
     "cryptography>=42",
     "boto3>=1.43.55",
-    "icalendar>=6.1",
+    "icalendar>=7.2.2",
     "httpx>=0.28",
 ]
 

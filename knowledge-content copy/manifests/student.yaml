@@ -1,0 +1,40 @@
+audience: student
+documents:
+  - document_id: student-student-handbook
+    title: Student Handbook
+    source_path: student/student-handbook/content.md
+    audience: student
+    access_level: student
+    branch_external_id: null
+    academic_year: "2026-2027"
+    effective_from: "2026-08-01"
+    effective_to: null
+    version: 1
+    status: approved
+    supersedes_document_id: null
+
+  - document_id: student-code-of-conduct
+    title: Code of Conduct
+    source_path: student/code-of-conduct/content.md
+    audience: student
+    access_level: student
+    branch_external_id: null
+    academic_year: "2026-2027"
+    effective_from: "2026-08-01"
+    effective_to: null
+    version: 1
+    status: approved
+    supersedes_document_id: null
+
+  - document_id: student-learning-platform-guide
+    title: Learning Platform Guide
+    source_path: student/learning-platform-guide/content.md
+    audience: student
+    access_level: student
+    branch_external_id: null
+    academic_year: "2026-2027"
+    effective_from: "2026-08-01"
+    effective_to: null
+    version: 1
+    status: approved
+    supersedes_document_id: null
