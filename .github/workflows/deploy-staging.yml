@@ -201,6 +201,31 @@ jobs:
           echo "Seed exit code: $EXIT_CODE"
           test "$EXIT_CODE" = "0"
 
+      # AUD-C-16: staging's corpus was 159/159 MockBedrockProvider hash vectors while
+      # both services queried with real Titan v2 - the semantic channel returned noise
+      # and nothing detected it. This re-embeds every chunk whose stored provenance does
+      # not match the configured provider/model (a current corpus is a no-op, so later
+      # deploys pay nothing) and MUST run after migrations (the provenance columns) and
+      # before the service rollouts: chat-api's /readyz now fails closed on a mismatched
+      # corpus, so rolling out first would fail the ALB health check and circuit-break
+      # the deploy. The shared task role already carries the embedding-model Bedrock
+      # grant and the ops task the D-092 Postgres env; only the provider env is set here.
+      - name: Re-embed RAG corpus (provenance-aware, no-op when current)
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition intellichoice-staging-ops-task \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$PRIVATE_SUBNET],securityGroups=[$ECS_TASKS_SG],assignPublicIp=DISABLED}" \
+            --overrides '{"containerOverrides":[{"name":"ops-task","command":["python","-m","intellichoice_knowledge.reembed_cli"],"environment":[{"name":"KNOWLEDGE_BEDROCK_PROVIDER","value":"bedrock"},{"name":"KNOWLEDGE_BEDROCK_AWS_REGION","value":"us-east-1"}]}]}' \
+            --query 'tasks[0].taskArn' --output text)
+          echo "Reembed task: $TASK_ARN"
+          aws ecs wait tasks-stopped --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+          EXIT_CODE=$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "Reembed exit code: $EXIT_CODE"
+          test "$EXIT_CODE" = "0"
+
       # S34: captured *before* either service redeploys, so the canary-bake step below
       # has a known-good revision to roll back to if the new one misbehaves. ECS keeps
       # every registered task-definition revision indefinitely (nothing here deregisters

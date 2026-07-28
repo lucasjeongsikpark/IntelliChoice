@@ -16,6 +16,7 @@ from intellichoice_adapters.fake_email import FakeEmailTransport
 from intellichoice_adapters.fake_maps import FakeMapsProvider
 from intellichoice_adapters.mysql_profile_adapter import MySQLProfileAdapter
 from intellichoice_db.engine import create_engine, create_session_factory
+from intellichoice_db.repositories.rag import RagRepository
 from intellichoice_observability.langsmith_config import configure_langsmith
 from intellichoice_observability.logging_config import configure_logging
 from intellichoice_observability.metrics import install_http_metrics_middleware, render_metrics
@@ -223,13 +224,40 @@ async def healthz() -> dict[str, str]:
 async def readyz(request: Request) -> JSONResponse:
     """S34: the ALB target group's real health check - see `intellichoice_shared.
     db_ready`'s docstring for why this is separate from `/healthz` above.
+
+    AUD-C-16: also fails closed when any stored rag_chunks embedding was not produced
+    by the configured embedding provider/model. Staging served real Titan query vectors
+    against mock hash vectors for weeks - retrieval was noise and nothing detected it.
+    A mismatched corpus means every semantic search is wrong, so the service is not
+    ready; `make knowledge-reembed` (run by the deploy after migrations) clears it.
+    An *empty* corpus passes - fresh environments boot before first ingestion, and the
+    no-approved-source refusal (SPEC §5.21.8) already covers the no-corpus case.
     """
+    settings = get_settings()
     postgres_ok = await ping_engine(request.app.state.db_engine)
     mysql_ok = await ping_engine(request.app.state.profile_adapter.engine)
-    if postgres_ok and mysql_ok:
-        return JSONResponse({"status": "ready", "postgres": True, "mysql": True})
+    corpus_mismatches: int | None = None
+    if postgres_ok:
+        async with request.app.state.db_session_factory() as session:
+            corpus_mismatches = await RagRepository(
+                session
+            ).count_embedding_provenance_mismatches(
+                embedding_provider=settings.bedrock_provider,
+                embedding_model_id=settings.bedrock_embedding_model_id,
+            )
+    corpus_ok = corpus_mismatches == 0
+    if postgres_ok and mysql_ok and corpus_ok:
+        return JSONResponse(
+            {"status": "ready", "postgres": True, "mysql": True, "corpus": True}
+        )
     return JSONResponse(
-        {"status": "not_ready", "postgres": postgres_ok, "mysql": mysql_ok},
+        {
+            "status": "not_ready",
+            "postgres": postgres_ok,
+            "mysql": mysql_ok,
+            "corpus": corpus_ok,
+            "corpus_embedding_mismatches": corpus_mismatches,
+        },
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
     )
 

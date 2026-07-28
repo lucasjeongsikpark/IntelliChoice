@@ -118,6 +118,48 @@ class RagRepository:
         )
         await self._session.flush()
 
+    async def count_embedding_provenance_mismatches(
+        self, *, embedding_provider: str, embedding_model_id: str
+    ) -> int:
+        """AUD-C-16: how many chunks carry an embedding that was NOT produced by the
+        given provider/model. NULL provenance (pre-provenance rows) counts as a mismatch
+        - that is the fail-closed reading, and it is what let staging serve real Titan
+        queries against mock hash vectors undetected. chat-api's /readyz gates on this
+        being zero.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(RagChunk)
+            .where(
+                or_(
+                    RagChunk.embedding_provider.is_distinct_from(embedding_provider),
+                    RagChunk.embedding_model_id.is_distinct_from(embedding_model_id),
+                )
+            )
+        )
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())
+
+    async def get_embedding_provenance_mismatched_chunks(
+        self, *, embedding_provider: str, embedding_model_id: str
+    ) -> list[RagChunk]:
+        """The rows behind `count_embedding_provenance_mismatches`, ordered by document
+        so the re-embed path can batch one embedding call per document (the same shape
+        ingestion uses).
+        """
+        stmt = (
+            select(RagChunk)
+            .where(
+                or_(
+                    RagChunk.embedding_provider.is_distinct_from(embedding_provider),
+                    RagChunk.embedding_model_id.is_distinct_from(embedding_model_id),
+                )
+            )
+            .order_by(RagChunk.document_id, RagChunk.chunk_id)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def search_document_chunks(self, filters: ChunkFilters, query: str) -> list[RagChunk]:
         """SPEC §5.26.1 predefined method. A plain substring `ILIKE` match, filter-first
         (SPEC §5.20.1's "approved only" plus §5.21.3's metadata filters) - kept as the

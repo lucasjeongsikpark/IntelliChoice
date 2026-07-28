@@ -59,6 +59,7 @@ async def _persist_chunks(
     source_sha256: str,
     gateway: BedrockGateway,
     session_spend_cents: float,
+    embedding_provider: str,
 ) -> tuple[int, float]:
     drafts = chunk_markdown(text, document_id=entry.document_id)
     embedding_result = await gateway.create_embedding(
@@ -86,6 +87,11 @@ async def _persist_chunks(
                 status=entry.status,
                 source_sha256=source_sha256,
                 embedding=vector,
+                # AUD-C-16: provenance is stamped at write time. The provider string
+                # comes from the caller's settings (the same value that selected the
+                # provider), the model id from the gateway's own result.
+                embedding_provider=embedding_provider,
+                embedding_model_id=embedding_result.model_id,
             )
         )
         persisted.append(chunk)
@@ -106,6 +112,7 @@ async def ingest_entry(
     content_store: ContentStore,
     gateway: BedrockGateway,
     session_spend_cents: float,
+    embedding_provider: str,
 ) -> tuple[str, int, float]:
     """Ingests one manifest entry. Returns (outcome, chunks_created, cost_cents) where
     outcome is "created" | "updated" | "unchanged".
@@ -152,6 +159,7 @@ async def ingest_entry(
         source_sha256,
         gateway,
         session_spend_cents,
+        embedding_provider,
     )
     return outcome, chunks_created, cost_cents
 
@@ -162,6 +170,7 @@ async def run_ingestion(
     content_store: ContentStore,
     gateway: BedrockGateway,
     run_budget_cents: float,
+    embedding_provider: str,
 ) -> IngestSummary:
     summary = IngestSummary()
     spend = 0.0
@@ -174,6 +183,7 @@ async def run_ingestion(
             content_store=content_store,
             gateway=gateway,
             session_spend_cents=spend,
+            embedding_provider=embedding_provider,
         )
         spend += cost_cents
         summary.total_cost_cents += cost_cents

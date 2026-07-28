@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck scan-traces
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck scan-traces
 
 up:
 	docker compose up -d
@@ -32,6 +32,12 @@ question-review:
 
 knowledge-load:
 	uv run python -m intellichoice_knowledge.ingest_cli
+
+# AUD-C-16: re-embeds every rag_chunks row whose embedding provenance doesn't match the
+# configured provider/model (NULL provenance counts as a mismatch). Idempotent - a
+# current corpus is a no-op. chat-api /readyz fails closed until this has run.
+knowledge-reembed:
+	uv run python -m intellichoice_knowledge.reembed_cli
 
 youtube-sync:
 	uv run python -m intellichoice_youtube.sync_cli
