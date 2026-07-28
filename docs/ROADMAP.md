@@ -716,12 +716,35 @@ demonstrated auto-rollback; the "consecutive" ambiguity D-105 left open is settl
 `c58d1fe` has no failed deployment between them on either reading). **6 is on the calendar**, earliest
 2026-08-02. **4 is half met**: the test half is green and D-106 removed the recurring flake source,
 but CI on `main` still runs only `lint-typecheck-test` and `learning-web`, so `chat-web` and `e2e/`
-remain unbuilt by CI (AUD-F-08). **2 needs seven more P1s** (was nine; AUD-L-10 and AUD-X-08 closed in S42/D-110). **3 is code-complete and one deploy
+remain unbuilt by CI (AUD-F-08). **2 needs seven more P1s** (was nine; AUD-L-10 and AUD-X-08 closed in S42/D-110, but AUD-F-19 is a
+new one, so the net is eight). **3 is NOT met, and is no longer "one deploy short" — S42 ran the
+staging suite for the first time and it came back 40 passed / 10 failed / 3 skipped.** The ten are
+two real findings, not harness noise: **AUD-F-19 (P1)** — on real Bedrock "What are the Saturday
+hours?" routes to `location_consent` 3/3 and is never answered, and "How do I enroll a student?"
+returned three different products in three identical calls (latency ruled out: a guest turn takes
+**1.4 s**) — and **AUD-F-20 (P2)** — staging's seeded attendance is written for
+`current_week_key()` *at seed time*, so the "present this week" fixture is now blocked and every
+learning journey fails. The gate is behaving correctly on stale data. **Criterion 3 evidence on
+staging therefore has a weekly expiry** unless the deploy re-seeds. Original standing: **3 was code-complete and one deploy
 short**: AUD-F-02 and the e2e intermittency are both fixed and the suite is green three runs
 running locally, but the criterion asks for two consecutive passes **against live staging** and the
-fixes are frontend code staging has not been given — merge to `main`, let `deploy-staging.yml`
-run, then `make e2e-staging` twice. Two conditional `test.skip()`s (no suggestion chips; no
-dashboard entry point) should stop being conditional before the criterion is claimed.
+fixes are frontend code staging has not been given — deploy, then `make e2e-staging` twice. Two
+conditional `test.skip()`s (no suggestion chips; no dashboard entry point) should stop being
+conditional before the criterion is claimed.
+**⚠️ Corrected in S42: a merge to `main` does *not* deploy.** Both this file and PROGRESS.md said
+it did, for several sessions. `deploy-staging.yml` is `workflow_dispatch:` only — the `push`
+trigger is commented out on purpose ("not something that should fire unattended on every push
+until it's been run and reviewed at least once"), and that comment has been overtaken by the six
+reviewed runs since. Deploying is `gh workflow run deploy-staging.yml --ref main`. The trap is
+that `gh run list --workflow=deploy-staging.yml --limit=1` happily returns the *previous*
+successful run, so a check written to confirm "the deploy succeeded" passes against a deploy that
+never happened — which is exactly what it did here before the head SHA was compared.
+**⚠️ And `make e2e-staging` did not point at staging (AUD-F-17, fixed).** `E2E_TARGET=staging`
+selects the auth path, not the browser's target — `config.ts` defaults the web URLs to
+`localhost:5173`/`5174` regardless — so the suite ran against localhost and returned **2 passed,
+everything else connection-refused**. Fixed in the Makefile. **Two false premises about this one
+criterion, both previously recorded as working**; a step called "the one thing left" should be
+executed once before it is believed.
 **7, 8 and 9 are undone but no longer blocked** — the "missing" staging token secrets
 were always retrievable from Secrets Manager (D-107 §10), so the authenticated load run, the two
 learning-app alarm inductions on their real condition, and an authenticated-traffic trace scan are

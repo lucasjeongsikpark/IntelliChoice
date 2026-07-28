@@ -95,8 +95,22 @@ e2e:
 # secret-gated there (D-097), so the harness mints tokens out of band and seeds
 # localStorage - export the two per-app secrets first, and never echo them:
 #   export STAGING_TOKEN_SECRET_LEARNING=$$(aws secretsmanager get-secret-value ... )
+#
+# S42: the two URLs are set here, and that is the fix, not a convenience. `E2E_TARGET=
+# staging` alone does NOT retarget the browser - `config.ts` defaults LEARNING_WEB/
+# CHAT_WEB to localhost regardless of target, and only `LEARNING_WEB_URL`/`CHAT_WEB_URL`
+# move them. So this target used to run the whole staging suite against localhost:5173,
+# where nothing was listening: 2 passed, everything else failed on ERR_CONNECTION_REFUSED.
+# It had never been run, which is why criterion 3's staging half stayed open.
+# Domains match deploy-staging.yml's LEARNING_CF_DOMAIN/CHAT_CF_DOMAIN.
+STAGING_LEARNING_WEB_URL ?= https://d35dfnjzmgrm01.cloudfront.net
+STAGING_CHAT_WEB_URL ?= https://d222glidpp4azv.cloudfront.net
+
 e2e-staging:
-	cd e2e && E2E_TARGET=staging npx playwright test
+	cd e2e && E2E_TARGET=staging \
+		LEARNING_WEB_URL=$(STAGING_LEARNING_WEB_URL) \
+		CHAT_WEB_URL=$(STAGING_CHAT_WEB_URL) \
+		npx playwright test
 
 e2e-typecheck:
 	cd e2e && npx tsc --noEmit

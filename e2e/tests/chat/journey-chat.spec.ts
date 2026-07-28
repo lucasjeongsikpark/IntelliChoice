@@ -8,7 +8,7 @@
  * half that was missing.
  */
 
-import { CHAT_WEB, FIXTURES } from "../../config";
+import { CHAT_WEB, FIXTURES, TARGET } from "../../config";
 import { expect, test } from "../../fixtures/capture";
 import {
   expectNotBlank,
@@ -170,6 +170,12 @@ test("a new chat clears the transcript and the composer stays usable", async ({ 
 });
 
 test("signing in through the real login screen reaches a usable chat", async ({ page }) => {
+  // The only test here whose subject *is* the login screen, so it is the only one that
+  // must not take `signInViaUi`'s staging shortcut. On staging that screen cannot work
+  // by design - `/dev/token` is secret-gated (D-097) and the frontend sends no header -
+  // so this asserts nothing there and skips explicitly rather than passing vacuously.
+  // The real login screen is S44's subject; this skip should disappear with it.
+  test.skip(TARGET === "staging", "the dev-login screen is secret-gated on staging (D-097)");
   await signInViaUi(page, CHAT_WEB, FIXTURES.studentPresent);
   await expect(page.locator(".composer textarea")).toBeVisible();
   await ask(page, "What are the Saturday hours?");
