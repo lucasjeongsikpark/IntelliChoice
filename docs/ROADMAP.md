@@ -745,13 +745,26 @@ selects the auth path, not the browser's target — `config.ts` defaults the web
 everything else connection-refused**. Fixed in the Makefile. **Two false premises about this one
 criterion, both previously recorded as working**; a step called "the one thing left" should be
 executed once before it is believed.
+**⚠️ Criterion 2 cannot be met on the current ordering, and this needs a decision before it is
+planned around.** It demands zero open P1s, but **AUD-L-07's remaining read half is explicitly
+scheduled for S43/S46** — it needs the assignment/branch-roster model `ProfileAdapter` gains in S43,
+and both sessions come *after* the gate. Two ways out, and it is a product call: (a) fail closed now,
+refusing tutor/branch_manager *reads* of dashboards and reports too — cheap, but S40 already showed
+this ends tutor report generation outright until S46; or (b) accept it as documented §7
+residual risk and let S43/S46 close it properly. (b) is the recommendation: the exposure is a tutor
+reading students they are not assigned to, in a system with no real users, and (a) removes a
+shipped feature to satisfy a checklist item.
 **7, 8 and 9 are undone but no longer blocked** — the "missing" staging token secrets
 were always retrievable from Secrets Manager (D-107 §10), so the authenticated load run, the two
 learning-app alarm inductions on their real condition, and an authenticated-traffic trace scan are
 all now reachable. **1** is unassessed since S37.
 
 ### Sessions 42–47 — Integration readiness and implementation *(INTEGRATION_PLAN §3, §5)*
-- **S42 — discovery, Tier 1 org asks, and the auth decision gate.** Exercise
+- **S42 — discovery, Tier 1 org asks, and the auth decision gate. ⚠️ NOT STARTED.** The session
+  numbered S42 (2026-07-27, D-110) spent itself on Phase 0B P1s instead — the spine puts the gate
+  *before* discovery, criterion 2 needed the P1s, and everything below is blocked on the org
+  replying rather than on code. **This scope is fully outstanding and its asks have external lead
+  time, so send them before the next session rather than at the start of it.** Exercise
   `POST /api/accounts/login`, `GET /api/accounts`, `GET /api/accounts/signups` server-side from
   AWS; icrest availability history; DB topology/network path/read-only account; DNS additions;
   live role-string survey, timezone convention, schema snapshot. **Selects the §3.1 auth option

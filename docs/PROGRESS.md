@@ -1777,6 +1777,81 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
+### S42 — Phase 0B: the integrity/concurrency cluster (2026-07-27) ⏸ partial
+- **Scope note: this was not S42's roadmap scope.** S42 is "discovery, Tier 1 org asks, and the auth
+  decision gate", and **none of that was done** — it remains fully outstanding. The dependency spine
+  puts the gate *before* discovery, S42's own asks are mostly external (org DB topology, network
+  path, read-only account, DNS, live role survey), and gate criterion 2 needs the P1s gone. So the
+  session took the integrity/concurrency cluster instead. The session number is used for continuity;
+  the discovery work is unstarted.
+- **AUD-L-10 (P1) fixed with a unique constraint, not a check (D-110 §1).** Uniqueness on
+  `assessment_attempts` tightened from `(session, variant, idempotency_key)` to `(session, variant)`.
+  A status check in Python is the same read-then-act shape this cluster exists to remove: **with the
+  constraint dropped, four concurrent answers all return 200 while the sequential test still
+  passes.** The `flow` pre-flight is kept and was nearly cut — disabling it changed no test outcome,
+  which by D-109 §(iii) is a line to delete, until measurement showed a refused duplicate that
+  reaches `graph.ainvoke` leaves **+2 `checkpoints` / +4 `checkpoint_writes`** behind. It is now
+  covered by a checkpoint row count. Conversely a defensive denominator recount in
+  `compute_learning_gain` was **not** added, because with the constraint no test could watch it
+  matter; the assumption is documented at the line instead.
+- **AUD-X-08 (P1) fixed with a reserve-then-settle ledger (D-110 §2).** New `cost_reservations`
+  table: the worst-case cost is reserved in its own immediately-committed transaction *before* the
+  model call and settled with the real cost after, serialized by
+  `pg_advisory_xact_lock(hashtext(scope||subject))`. `INSERT … SELECT` alone does not serialize under
+  READ COMMITTED — **removing the lock grants 10 of 10 reservations against a ceiling of 3 while all
+  three sequential tests pass.** Both ceilings converted (report, tutor chat); the two spend readers
+  that *were* the defect are deleted rather than left for a future ceiling to wire itself to.
+- **The AUD-X-08 reproduction had to be repaired before it could reproduce, and this is the most
+  transferable thing in the session.** Ten genuinely concurrent reports (10 in flight, measured)
+  against the **unfixed** ceiling produced **1 generated, 1.0× the ceiling** — it looked already
+  fixed. The race window is the length of the model call and `MockBedrockProvider` returns in ~0 ms.
+  At a realistic 250 ms: **10/10 and 10.0×**, worse than S38's 8×. After the fix, same probe:
+  **1/10 and 1.0×**. A cost-race test built on the mock's speed would have certified this fixed while
+  it was wide open.
+- **Reservation estimates are constants, guarded by a drift test.** Adding `worst_case_cost_cents`
+  to the `BedrockGateway` Protocol cost **70 typecheck errors across ~13 scripted test fakes**, so
+  the method stayed on the concrete gateway. `test_cost_reservation_estimates.py` asserts each
+  constant still bounds the real gateway's arithmetic for every model in the rate table — and
+  **failed on the first constants written** (0.5 against real worst cases of 1.35 and 2.625).
+- **AUD-X-07 (P1) half fixed; it stays open (D-110 §3).** `services/checkpoint_reconcile.py` rolls a
+  checkpoint *backwards* to what the database supports when it names a row that does not exist,
+  wired into `_get_state_values` and `/resume`, counted by `learning_checkpoint_repairs_total`.
+  Seam (a) mid-finalize is fixed and S38's reproduction is now a test that fails
+  `'study' == 'pre_exam'` with the fix disabled. **Seam (b) mid-interrupt is not fixed and no
+  detection code for it shipped** — recovery means *completing* a paused LangGraph node, not editing
+  channel values, and a detect-but-cannot-act branch is code no test can watch mattering. Fix
+  shape (1), the commit ordering itself, is untouched.
+- **Two false premises about criterion 3 corrected, and they had compounded (D-110 §4–5).**
+  (i) **Merging to `main` does not deploy** — `deploy-staging.yml` is `workflow_dispatch:` only.
+  A watcher built on `gh run list --limit=1` reported `COMPLETED: success` seconds after the merge
+  because it matched the *previous* run; comparing head SHA caught it. (ii) **`make e2e-staging` did
+  not point at staging** — `E2E_TARGET=staging` selects the auth path, not the browser target, so the
+  suite ran against `localhost:5173`: **2 passed, everything else `ERR_CONNECTION_REFUSED`**
+  (AUD-F-17). (iii) With that fixed, **all ten journey specs used a dev-login screen that is
+  secret-gated on staging**: 34 passed / 18 failed, all 18 that (AUD-F-18). Each defect hid the next.
+- **The first real staging run: 40 passed / 10 failed / 3 skipped. Criterion 3 is NOT met**, and the
+  ten are two real findings, diagnosed against staging directly rather than through the browser
+  (D-110 §6). **AUD-F-19 (P1, new):** *"What are the Saturday hours?"* → `location_consent` 3/3 with
+  `answer: null`, and *"How do I enroll a student?"* returned a scope refusal, a no-source refusal and
+  an `email_approval` interrupt across three identical calls. **Latency was the obvious hypothesis
+  and it is wrong — a guest turn takes 1.4 s.** **AUD-F-20 (P2, new):** seeded attendance is written
+  for `current_week_key()` at seed time, so the "present this week" fixture is now blocked and every
+  learning journey fails; the gate is behaving correctly on stale data, and criterion 3 evidence on
+  staging therefore has a **weekly expiry**.
+- **Verification:** `make lint` clean, `make typecheck` clean (pyright 0 errors), **552 passed / 2
+  skipped across three consecutive whole-suite runs** (537 at session start). e2e harness typechecks
+  clean. Both migrations **replay from empty** and survive a downgrade → re-upgrade cycle. PR #31
+  merged with all 7 CI checks green and **deployed to staging, verified by head SHA** (`1d2436a`):
+  migrations, `/dev/token` gate, canary bake and smoke test all green, rollback skipped.
+- **Carry-over:** AUD-X-07 seam (b) and fix shape (1); AUD-F-19 and AUD-F-20 (neither attempted —
+  re-seeding staging mutates the environment and needs its own decision, and F-19 belongs with the
+  C-02/C-16 cluster); the per-session gateway budget, still stateless by design (D-072); enabling
+  `deploy-staging.yml`'s `push` trigger now that the "run and review it once" comment is seven runs
+  stale; **gate criterion 2 cannot be met on the current ordering** — AUD-L-07's remaining half needs
+  S43's roster model, scheduled *after* the gate, so it needs either a fail-closed read refusal
+  (which removes tutor report generation) or explicit §7 residual-risk acceptance.
+- **New decisions:** **D-110**.
+
 ### S41 — Phase 0B: the criterion-3 cluster (2026-07-27) ⏸ partial
 - **AUD-F-01 (P1) fixed and re-verified by counting requests, not by looking at the screen
   (D-109 §1).** `App.tsx` passed `onFetchOverview`/`onRecordTime` as inline arrows into two
