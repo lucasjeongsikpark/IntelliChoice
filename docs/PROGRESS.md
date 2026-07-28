@@ -5,6 +5,26 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-111 deployed and verified live 2026-07-28: staging e2e went 40/10/3 → 47 passed /
+  2 failed / 4 skipped.** PR #32 merged (all 9 checks green, including the first runs of the new
+  `chat-web`/`e2e-typecheck` jobs), deploy run `30385498488` verified against the merge SHA
+  (`40acf59`), and the new re-seed step ran and exited 0 on its first execution — **AUD-F-20 is
+  verified end to end**, all five attendance-blocked learning journeys now pass.
+  **Do not read the chat side as fixed:** all AUD-F-19 chat specs passed *this run*, but F-19 is
+  non-determinism (three different answers on identical calls in S42) and the corpus is still mock
+  vectors (C-16) — one green run is exactly what a non-deterministic defect produces sometimes.
+  F-19 stays open; the chat cluster stays next.
+  **The two survivors are new staging-only observations** — both specs had never actually
+  executed against staging before (blocked at `/topics` until today), so this is first light, not
+  regression: **(i)** `time-telemetry.spec.ts` — after 15 s on one question the longest reported
+  dwell is **1,989 ms**, AUD-F-01's exact signature, despite the deployed `main` containing S41's
+  fix; suspect a stale CloudFront asset or a staging-latency interaction — check the served bundle
+  identity first (AUD-F-16's ask, still unshipped). **(ii)** the main student journey stalls
+  post-finalize: a stage narrative holds the screen while the phase poll times out at 60 s —
+  AUD-F-04/05's displacement family widening under staging latency (locally the narrative window
+  is ~26 ms; on staging it is seconds). Neither has an ID minted — diagnose before filing.
+  Note the harness discipline that made this readable: AUD-F-03/F-04's specs are `test.fail()`
+  expected-failures, so "47 passed" already accounts for two known-open findings failing on cue.
 - **✅ Backlog-cleanup mini-session shipped 2026-07-28 (D-111): AUD-F-08 and AUD-F-20 closed,
   AUD-C-02's code half done, D-082's Mongo→MySQL doc sweep finally executed.** lint clean, pyright
   clean, **554 passed / 2 skipped** (552 baseline + two new guard tests). This supersedes the
