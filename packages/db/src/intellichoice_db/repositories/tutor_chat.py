@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import cast
 
-from sqlalchemy import CursorResult, delete, func, select
+from sqlalchemy import CursorResult, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_db.models.tutor_chat import TutorChatMessage
@@ -33,19 +33,13 @@ class TutorChatMessageRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_spend_cents_since(self, student_external_id: str, since: datetime) -> float:
-        """Sum of `cost_cents` for this student's chat turns at or after `since` - the
-        per-day cost-ceiling check reads this before every Bedrock-calling dispatch
-        branch (SPEC §5.25.1 per-session budget's sibling: a per-*day* ceiling, since
-        chat is the first surface a student can trigger LLM spend repeatedly across many
-        sessions in one day).
-        """
-        stmt = select(func.coalesce(func.sum(TutorChatMessage.cost_cents), 0.0)).where(
-            TutorChatMessage.student_external_id == student_external_id,
-            TutorChatMessage.created_at >= since,
-        )
-        result = await self._session.execute(stmt)
-        return float(result.scalar_one())
+    # `get_spend_cents_since` was removed in S42 (AUD-X-08). It summed `cost_cents` from
+    # this table for the per-day chat ceiling, and that read was the defect: these rows
+    # commit at request teardown, so concurrent turns each saw a stale total and each
+    # received a full ceiling. The ceiling now reads `cost_reservations`, where a turn is
+    # visible while it is still in flight. Deleted rather than left in place, because a
+    # spend reader that no ceiling consults is how the next ceiling gets wired to the
+    # wrong source. `cost_cents` stays on the row as the per-turn audit record.
 
     async def purge_older_than(self, cutoff: datetime) -> int:
         """SPEC §15's 90-day retention - deletes every turn older than `cutoff`,

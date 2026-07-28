@@ -544,15 +544,9 @@ def test_tutor_chat_message_repository_round_trip() -> None:
                 )
             )
 
-            spend_since_2024 = await chats.get_spend_cents_since(
-                "student-ext-1", datetime(2024, 1, 1, tzinfo=UTC)
-            )
-            spend_since_2019 = await chats.get_spend_cents_since(
-                "student-ext-1", datetime(2019, 1, 1, tzinfo=UTC)
-            )
-            assert spend_since_2024 == pytest.approx(recent.cost_cents)
-            assert spend_since_2019 == pytest.approx(old.cost_cents + recent.cost_cents)
-
+            # The per-day spend window moved to `cost_reservations` in S42 (AUD-X-08);
+            # `test_cost_reservation.py` covers the windowing that used to be asserted
+            # here. `cost_cents` remains on the row as the per-turn audit record.
             purged = await chats.purge_older_than(datetime(2024, 1, 1, tzinfo=UTC))
             assert purged == 1
             remaining = await session.execute(

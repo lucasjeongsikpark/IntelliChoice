@@ -6,6 +6,7 @@ surface's own edge cases.
 """
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi.testclient import TestClient
@@ -136,6 +137,50 @@ def _attempt_count(assessment_session_id: str) -> int:
             async with session_scope(session_factory) as session:
                 repo = AssessmentRepository(session)
                 return len(await repo.get_attempts(assessment_session_id))
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _attempts_for_variant(assessment_session_id: str, question_variant_id: str) -> list[bool]:
+    """`is_correct` of every attempt recorded for one item, in insertion order - so a test
+    can tell "the first answer stands" from "the second answer replaced it" (AUD-L-10).
+    """
+
+    async def fetch() -> list[bool]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                repo = AssessmentRepository(session)
+                attempts = await repo.get_attempts(assessment_session_id)
+                return [
+                    a.is_correct for a in attempts if a.question_variant_id == question_variant_id
+                ]
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _checkpoint_row_counts(thread_id: str) -> tuple[int, int]:
+    """(`checkpoints`, `checkpoint_writes`) rows for one thread. Lets a test assert that a
+    request the server *refused* did not still advance the graph's own store.
+    """
+
+    async def fetch() -> tuple[int, int]:
+        engine = create_engine()
+        try:
+            async with engine.connect() as conn:
+                checkpoints = await conn.execute(
+                    text("SELECT count(*) FROM checkpoints WHERE thread_id = :t"), {"t": thread_id}
+                )
+                writes = await conn.execute(
+                    text("SELECT count(*) FROM checkpoint_writes WHERE thread_id = :t"),
+                    {"t": thread_id},
+                )
+                return int(checkpoints.scalar_one()), int(writes.scalar_one())
         finally:
             await engine.dispose()
 
@@ -410,6 +455,136 @@ def test_finalize_is_idempotent_no_duplicate_attempts() -> None:
         assert second.status_code == 200
         assert second.json() == first.json()
         assert _attempt_count(pre_assessment_session_id) == 10
+
+
+def test_changing_an_answer_is_refused_and_leaves_one_attempt_per_item() -> None:
+    """AUD-L-10. The server marked an item `answered` and then accepted more answers for
+    it: a resubmission under a *different* `Idempotency-Key` graded and inserted a second
+    attempt rather than replacing the first, and both counted. Scores are attempt-counted
+    (`learning_gain.compute_learning_gain`'s `max_score`), so one changed answer rescored a
+    10-item exam as 10/11 and silently dropped the `not_applicable_pre_max` flag.
+
+    The counted assertion is the point, as it was for AUD-F-01: the endpoint returned 200
+    and the screen looked right, which is why three audits walked past it.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, pre_items = _start_pre_exam(client, headers)
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        pre_assessment_session_id = _pre_assessment_session_id(session_id)
+
+        first_variant = pre_items[0]["question_variant_id"]
+        correct = pre_correct[first_variant]
+
+        wrong_resp = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "change-1"},
+            json={
+                "question_variant_id": first_variant,
+                "selected_option": _other_option(correct),
+                "response_time_ms": 2000,
+            },
+        )
+        assert wrong_resp.status_code == 200
+        # `is_correct` is withheld on the wire during an exam (D-064), so correctness is
+        # read from the recorded attempt instead.
+        assert _attempts_for_variant(pre_assessment_session_id, first_variant) == [False]
+
+        # The same submission retried is still idempotent - the key does what it always did.
+        replay = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "change-1"},
+            json={
+                "question_variant_id": first_variant,
+                "selected_option": _other_option(correct),
+                "response_time_ms": 2000,
+            },
+        )
+        assert replay.status_code == 200
+        assert _attempt_count(pre_assessment_session_id) == 1
+
+        # A *different* key for the same item is a second answer, not a retry.
+        checkpoints_before = _checkpoint_row_counts(session_id)
+        changed = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "change-2"},
+            json={
+                "question_variant_id": first_variant,
+                "selected_option": correct,
+                "response_time_ms": 2000,
+            },
+        )
+        assert changed.status_code == 409
+        assert "already been answered" in changed.json()["detail"]
+        # Still one attempt, and still the *wrong* one: the change was refused, not applied.
+        assert _attempts_for_variant(pre_assessment_session_id, first_variant) == [False]
+        # And the refusal cost nothing durable. This covers the router's pre-flight
+        # specifically: the unique constraint alone also returns 409, but only after the
+        # request has run a graph turn, and a rejected turn measurably left +2 `checkpoints`
+        # / +4 `checkpoint_writes` behind - unbounded growth on a duplicate click, and
+        # AUD-X-07's checkpoint-ahead-of-database shape opened by an ordinary client bug.
+        assert _checkpoint_row_counts(session_id) == checkpoints_before
+
+        for index, item in enumerate(pre_items[1:], start=1):
+            variant_id = item["question_variant_id"]
+            resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"change-rest-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+            assert resp.status_code == 200
+
+        finalize_resp = client.post(
+            f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
+        )
+        assert finalize_resp.status_code == 200
+        # 10, not 11: the scoring denominator is one-per-item again, and the first answer
+        # is the one that stands (grade-on-submit locks the item, D-064).
+        assert _attempt_count(pre_assessment_session_id) == 10
+
+
+def test_concurrent_answers_to_one_item_produce_one_attempt() -> None:
+    """The concurrent arm of AUD-L-10, and the reason the fix is a unique constraint rather
+    than only a check in `flow`. `ensure_item_unanswered` is read-then-act: two requests
+    that both read "no attempt yet" would both insert, and the sequential test above would
+    keep passing. Same verification shape D-102 requires of AUD-X-08.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, pre_items = _start_pre_exam(client, headers)
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        pre_assessment_session_id = _pre_assessment_session_id(session_id)
+
+        variant_id = pre_items[0]["question_variant_id"]
+        correct = pre_correct[variant_id]
+
+        def answer(key: str, option: str) -> int:
+            return client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": key},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": option,
+                    "response_time_ms": 2000,
+                },
+            ).status_code
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = [
+                pool.submit(answer, f"race-{i}", correct if i % 2 else _other_option(correct))
+                for i in range(4)
+            ]
+            statuses = sorted(future.result() for future in futures)
+
+        # Exactly one winner. The losers are refused, not absorbed: a client that thinks it
+        # changed an answer must find out it did not.
+        assert statuses.count(200) == 1, statuses
+        assert statuses.count(409) == 3, statuses
+        assert _attempt_count(pre_assessment_session_id) == 1
 
 
 def test_expired_exam_rejects_new_answers_and_finalizes_without_confirmation() -> None:

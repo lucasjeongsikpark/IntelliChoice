@@ -90,8 +90,17 @@ class AssessmentAttempt(Base):
     """Deterministic pre/post-exam grading record (SPEC §5.9.3). No LLM involved."""
 
     __tablename__ = "assessment_attempts"
+    # One attempt per item per exam (AUD-L-10). `idempotency_key` used to be part of this
+    # key, which meant a resubmission under a *new* key inserted a second graded attempt -
+    # and scoring counts attempts (`learning_gain.compute_learning_gain`'s `max_score`), so
+    # a changed answer rescored a 10-item exam as 10/11. The key deduplicates retries; it
+    # was never meant to license a second answer.
     __table_args__ = (
-        UniqueConstraint("assessment_session_id", "question_variant_id", "idempotency_key"),
+        UniqueConstraint(
+            "assessment_session_id",
+            "question_variant_id",
+            name="uq_assessment_attempts_session_variant",
+        ),
     )
 
     attempt_id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)

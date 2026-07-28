@@ -35,7 +35,11 @@ from intellichoice_shared.profiles import ProfileAdapter
 from learning_api.services import mastery_bootstrap, study_outcomes
 from learning_api.services.assessment_builder import build_post_exam, build_pre_exam
 from learning_api.services.attendance import check_attendance_gate
-from learning_api.services.grading import grade, record_assessment_attempt_idempotent
+from learning_api.services.grading import (
+    ItemAlreadyAnsweredError,
+    grade,
+    record_assessment_attempt_idempotent,
+)
 from learning_api.services.learning_gain import LearningGainResult, compute_learning_gain
 from learning_api.services.study_plan import build_study_plan, create_study_item
 
@@ -294,6 +298,12 @@ async def _submit_pre_exam_answer(
     if variant is None:
         raise UnknownQuestionVariantError(question_variant_id)
 
+    await ensure_item_unanswered(
+        assessment_repo,
+        learning_session.pre_assessment_session_id,
+        question_variant_id,
+        idempotency_key,
+    )
     attempt, _ = await record_assessment_attempt_idempotent(
         assessment_repo=assessment_repo,
         student_external_id=student_id,
@@ -303,6 +313,7 @@ async def _submit_pre_exam_answer(
         selected_option=selected_option,
         response_time_ms=response_time_ms,
         idempotency_key=idempotency_key,
+        on_duplicate_item="conflict",
     )
     await _mark_item_answered(
         assessment_repo, learning_session.pre_assessment_session_id, question_variant_id
@@ -311,6 +322,35 @@ async def _submit_pre_exam_answer(
     return AnswerResult(
         is_correct=attempt.is_correct, phase="pre_exam", items=None, learning_gain=None
     )
+
+
+async def ensure_item_unanswered(
+    assessment_repo: AssessmentRepository,
+    assessment_session_id: str,
+    question_variant_id: str,
+    idempotency_key: str,
+) -> None:
+    """AUD-L-10: refuse a second answer to an item that already has one.
+
+    Public because the route pre-flights it before `graph.ainvoke`, so the ordinary
+    duplicate-click case gets a clean 409 without a graph turn. Called here too, so the
+    invariant does not depend on which caller reaches the service.
+
+    This is a read-then-act check and therefore *not* the enforcement - two concurrent
+    submissions under different keys can both pass it. `uq_assessment_attempts_session_
+    variant` is what makes the invariant true; this exists to turn the common case into a
+    409 rather than an IntegrityError.
+    """
+    replay = await assessment_repo.get_attempt_by_idempotency_key(
+        assessment_session_id, question_variant_id, idempotency_key
+    )
+    if replay is not None:
+        # A retry of this exact submission - `record_assessment_attempt_idempotent` will
+        # serve the stored result (SPEC §5.9.2). Not a second answer.
+        return
+    attempts = await assessment_repo.get_attempts(assessment_session_id)
+    if any(a.question_variant_id == question_variant_id for a in attempts):
+        raise ItemAlreadyAnsweredError(question_variant_id)
 
 
 async def _mark_item_answered(
@@ -696,6 +736,12 @@ async def _submit_post_exam_answer(
     if variant is None:
         raise UnknownQuestionVariantError(question_variant_id)
 
+    await ensure_item_unanswered(
+        assessment_repo,
+        learning_session.post_assessment_session_id,
+        question_variant_id,
+        idempotency_key,
+    )
     attempt, _ = await record_assessment_attempt_idempotent(
         assessment_repo=assessment_repo,
         student_external_id=student_id,
@@ -705,6 +751,7 @@ async def _submit_post_exam_answer(
         selected_option=selected_option,
         response_time_ms=response_time_ms,
         idempotency_key=idempotency_key,
+        on_duplicate_item="conflict",
     )
     await _mark_item_answered(
         assessment_repo, learning_session.post_assessment_session_id, question_variant_id
@@ -895,6 +942,9 @@ async def finalize_exam(
             selected_option=None,
             response_time_ms=0,
             idempotency_key=f"finalize-unanswered-{item.assessment_item_id}",
+            # A concurrent finalize that got there first has already synthesized this
+            # item's incorrect attempt; that row is the right one to keep.
+            on_duplicate_item="keep_existing",
         )
         await assessment_repo.set_item_status(item.assessment_item_id, "answered")
 

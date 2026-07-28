@@ -43,6 +43,15 @@ SUPPORT_USAGE = Counter(
     labelnames=("support_type",),  # "hint" | "solution" | "video"
 )
 RETRIES = Counter("learning_retry_total", "Study-ladder retry attempts")
+# AUD-X-07: a session whose checkpoint referenced a domain row that did not exist, rolled
+# back so the student can continue. Should be flat at zero; any movement means requests are
+# dying between the checkpoint commit and the domain commit, which a deploy's task drain
+# can cause on its own - so this is the signal that the underlying ordering, still
+# unfixed, is actually being hit rather than merely reachable.
+CHECKPOINT_REPAIRS = Counter(
+    "learning_checkpoint_repairs_total",
+    "Checkpoints rolled back to match the database (AUD-X-07)",
+)
 TUTOR_REVIEW_FLAGGED = Counter(
     "learning_tutor_review_flagged_total", "Skills that exhausted the retry ladder unresolved"
 )

@@ -34,6 +34,37 @@ both a user decision against the plan's own recommendation, see D-064.
   selection, and question validation are code, never an LLM (non-negotiable #2). The S9 AI
   pipeline only proposes *shape keys from an allowlist*; every output is re-validated
   deterministically before persistence (D-026).
+- **Authorization distinguishes reading a student's data from changing it** — every learning
+  route passes a required `access: "read" | "write"` to `resolve_target_student` (S40, D-107).
+  Required rather than defaulted because the recurring defect in this codebase is a route
+  quietly getting the permissive branch: AUD-C-01, AUD-X-01 and AUD-X-05 were each "the one
+  route nobody classified", so a new route cannot compile without answering the question. The
+  tutor/branch_manager roles currently have no per-student scope check for *reads* — D-086's
+  accepted risk, awaiting the assignment/branch-roster data `IcProfileAdapter` brings in S43 —
+  but their *writes* fail closed, because a read gap discloses data that exists while a write
+  gap fabricates data that does not, indistinguishably, into scoring and parent-visible reports.
+- **A session's owner is write-once** — the routes that read `student_external_id`/
+  `user_external_id` out of the checkpoint are only sound if the route that *writes* it also
+  checks it, which for a long time it did not: any holder of a session id could rebind it and
+  lock the owner out (S40, AUD-X-01/AUD-C-01). Identity is now never moved to a different
+  subject and never downgraded to `None` by an anonymous turn. The one legitimate rebind — a
+  parent switching children — goes through `await_child_selection`, which re-checks the live
+  parent-child link on resume.
+- **Account and consent state is checked at every authenticated entry point, not inherited** —
+  SPEC §5.1.2's `account_status`/`consent_status`/`parental_consent_verified` are enforced by
+  `intellichoice_shared.auth.account_refusal_reason`, called from both apps' `get_current_claims`
+  **and from both SSE routes separately** (S40, D-107). The streams authenticate via `?token=`
+  because `EventSource` cannot set a header, so they never pass through the dependency — the same
+  split-path structure that let a bearer token reach X-Ray in AUD-F-13 while the access log stayed
+  clean. **A security floor has to be re-established per entry point rather than assumed from a
+  sibling.** The function returns a reason instead of raising, so the shared package carries no
+  FastAPI dependency.
+- **`question_variants` holds two populations and only one is comparable** — the single canonical
+  rendering that *defines* a template (loader / AI pipeline, one per template) versus the runtime
+  instance minted per question served. SPEC §5.8.3's dedup compares against `origin="canonical"`
+  only (S40, D-106). Comparing against both made a *content* question ("is this a new question?")
+  depend on a *usage* fact ("how much has the app been run?"), and the dedup population grew
+  without bound with traffic — 60,906 rows against 50 templates when this was separated.
 - **External actions are interrupt-gated** — child selection, attendance emails, and the
   hint/solution/video choice each pause via LangGraph `interrupt()` and survive restart via
   the Postgres checkpointer (S7); chat-api's admin-escalation email and calendar action

@@ -4,6 +4,7 @@ approval (SPEC §5.1.4, Phase 8 §6.9). See the S5/S6/S7 session plans in docs/P
 for which of the nine spec'd endpoints are deferred and why.
 """
 
+import logging
 import random
 import uuid
 from datetime import UTC, datetime
@@ -11,6 +12,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from intellichoice_db.repositories.assessment import AssessmentRepository
+from intellichoice_db.repositories.cost_reservation import CostReservationRepository
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.hints import HintEventRepository
 from intellichoice_db.repositories.interrupts import InterruptApprovalRepository
@@ -22,7 +24,7 @@ from intellichoice_db.repositories.stage_transition import StageTransitionReposi
 from intellichoice_db.repositories.study import StudyRepository
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_db.repositories.youtube import YoutubeRepository
-from intellichoice_observability.metrics import SESSION_STARTS
+from intellichoice_observability.metrics import CHECKPOINT_REPAIRS, SESSION_STARTS
 from intellichoice_shared.auth import TokenClaims
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.mcp import McpToolRegistry
@@ -36,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from learning_api.authorization import resolve_target_student
 from learning_api.dependencies import (
     get_bedrock_gateway,
+    get_cost_ledger,
     get_current_claims,
     get_db_session,
     get_graph,
@@ -46,12 +49,14 @@ from learning_api.dependencies import (
 from learning_api.graph import nodes
 from learning_api.graph.build import EntryInput, LearningGraph
 from learning_api.graph.nodes import TurnContext
-from learning_api.services import attendance, flow
+from learning_api.services import attendance, checkpoint_reconcile, flow
 from learning_api.services.assessment_builder import AssessmentBuildError
 from learning_api.services.session_events import SessionEventBus
 from learning_api.services.study_plan import StudyPlanBuildError
 
 EXAM_PHASES = ("pre_exam", "post_exam")
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/learning/sessions", tags=["learning-sessions"])
 
@@ -344,7 +349,36 @@ def _graph_config(learning_session_id: str) -> RunnableConfig:
     return {"configurable": {"thread_id": learning_session_id}}
 
 
-async def _get_state_values(graph: LearningGraph, learning_session_id: str) -> dict:
+async def _reconcile_checkpoint(
+    graph: LearningGraph, learning_session_id: str, state: dict, db: AsyncSession
+) -> dict:
+    """AUD-X-07: roll the checkpoint back if it references a domain row that does not
+    exist, and return the state to act on. A no-op for every consistent session, which is
+    all of them unless a request died between the checkpoint commit and the domain commit.
+
+    Runs before the phase is read rather than inside a node: the whole failure mode is
+    that the *routing* is ahead of the data, so a node dispatched on the bad phase has
+    already made the wrong decision.
+    """
+    repair = await checkpoint_reconcile.find_repair(
+        state=state,
+        assessment_repo=AssessmentRepository(db),
+        study_repo=StudyRepository(db),
+    )
+    if repair is None:
+        return state
+    logger.warning(
+        "reconciling learning session %s: %s", learning_session_id, repair.reason
+    )
+    CHECKPOINT_REPAIRS.inc()
+    await graph.aupdate_state(_graph_config(learning_session_id), repair.updates)
+    snapshot = await graph.aget_state(_graph_config(learning_session_id))
+    return snapshot.values
+
+
+async def _get_state_values(
+    graph: LearningGraph, learning_session_id: str, db: AsyncSession
+) -> dict:
     snapshot = await graph.aget_state(_graph_config(learning_session_id))
     if not snapshot.values:
         raise HTTPException(
@@ -359,7 +393,7 @@ async def _get_state_values(graph: LearningGraph, learning_session_id: str) -> d
             status_code=status.HTTP_409_CONFLICT,
             detail="a pending interrupt must be resolved via /respond before continuing",
         )
-    return snapshot.values
+    return await _reconcile_checkpoint(graph, learning_session_id, snapshot.values, db)
 
 
 async def _peek_state_values(graph: LearningGraph, learning_session_id: str) -> dict:
@@ -436,6 +470,7 @@ def _turn_context(
     db: AsyncSession,
     mcp_registry: McpToolRegistry,
     bedrock_gateway: BedrockGateway,
+    cost_ledger: CostReservationRepository,
     requested_student_id: str | None = None,
     topic_id: str | None = None,
     question_variant_id: str | None = None,
@@ -462,6 +497,7 @@ def _turn_context(
         mcp_registry=mcp_registry,
         mcp_call_repo=McpToolCallRepository(db),
         bedrock_gateway=bedrock_gateway,
+        cost_ledger=cost_ledger,
         rng=random.Random(),
         requested_student_id=requested_student_id,
         topic_id=topic_id,
@@ -501,12 +537,14 @@ async def select_student(
     claims: Annotated[TokenClaims, Depends(get_current_claims)],
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
     events: Annotated[SessionEventBus, Depends(get_session_events)],
 ) -> LearningSessionResponse:
     ctx = _turn_context(
+        cost_ledger=cost_ledger,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -547,12 +585,13 @@ async def select_topic(
     claims: Annotated[TokenClaims, Depends(get_current_claims)],
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
     events: Annotated[SessionEventBus, Depends(get_session_events)],
 ) -> TopicSelectionResponse:
-    state = await _get_state_values(graph, learning_session_id)
+    state = await _get_state_values(graph, learning_session_id, db)
     if state.get("student_external_id") is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student before a topic"
@@ -571,6 +610,7 @@ async def select_topic(
         )
 
     ctx = _turn_context(
+        cost_ledger=cost_ledger,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -613,13 +653,14 @@ async def resolve_attendance_choice(
     claims: Annotated[TokenClaims, Depends(get_current_claims)],
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
     events: Annotated[SessionEventBus, Depends(get_session_events)],
 ) -> TopicSelectionResponse:
     """SPEC §5.6.3's two choices, offered after `/topics` returns `phase="blocked"`."""
-    state = await _get_state_values(graph, learning_session_id)
+    state = await _get_state_values(graph, learning_session_id, db)
     if state.get("student_external_id") is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student first"
@@ -634,6 +675,7 @@ async def resolve_attendance_choice(
         )
 
     ctx = _turn_context(
+        cost_ledger=cost_ledger,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -674,13 +716,14 @@ async def submit_answer(
     claims: Annotated[TokenClaims, Depends(get_current_claims)],
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
     events: Annotated[SessionEventBus, Depends(get_session_events)],
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
 ) -> AnswerResponse:
-    state = await _get_state_values(graph, learning_session_id)
+    state = await _get_state_values(graph, learning_session_id, db)
     if state.get("student_external_id") is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student before answering"
@@ -697,15 +740,27 @@ async def submit_answer(
     if submitted_phase in EXAM_PHASES:
         exam_session_id = _active_exam_session_id(state)
         assert exam_session_id is not None
-        exam_session_row = await AssessmentRepository(db).get_session(exam_session_id)
+        assessment_repo = AssessmentRepository(db)
+        exam_session_row = await assessment_repo.get_session(exam_session_id)
         assert exam_session_row is not None
         if flow.is_exam_expired(exam_session_row, datetime.now(UTC)):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="exam time limit exceeded - finalize to submit",
             )
+        # AUD-L-10, pre-flighted here so a duplicate answer never starts a graph turn.
+        # `flow` re-checks and the unique constraint enforces; this only shapes the error.
+        try:
+            await flow.ensure_item_unanswered(
+                assessment_repo, exam_session_id, body.question_variant_id, idempotency_key
+            )
+        except flow.ItemAlreadyAnsweredError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+            ) from exc
 
     ctx = _turn_context(
+        cost_ledger=cost_ledger,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -726,6 +781,10 @@ async def submit_answer(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
         ) from exc
+    except flow.ItemAlreadyAnsweredError as exc:
+        # The pre-flight above catches the ordinary case; this is the concurrent one, where
+        # the unique constraint rejected the insert after both requests read no attempt.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     pending = _result_interrupt(result)
     if pending is not None:
@@ -772,12 +831,13 @@ async def _exam_phase_state(
     learning_session_id: str,
     claims: TokenClaims,
     profile_adapter: ProfileAdapter,
+    db: AsyncSession,
 ) -> tuple[dict, str]:
     """Shared guard for the skip/flag/overview endpoints below: session exists, caller is
     authorized for its student, and it's actually in an exam phase. Returns
     `(state, active_exam_session_id)`.
     """
-    state = await _get_state_values(graph, learning_session_id)
+    state = await _get_state_values(graph, learning_session_id, db)
     if state.get("student_external_id") is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student first"
@@ -809,7 +869,7 @@ async def skip_exam_item(
     graph" precedent `/answers` itself already documents.
     """
     _, exam_session_id = await _exam_phase_state(
-        graph, learning_session_id, claims, profile_adapter
+        graph, learning_session_id, claims, profile_adapter, db
     )
     try:
         await flow.mark_item_skipped(AssessmentRepository(db), exam_session_id, assessment_item_id)
@@ -828,7 +888,7 @@ async def flag_exam_item(
     graph: Annotated[LearningGraph, Depends(get_graph)],
 ) -> None:
     _, exam_session_id = await _exam_phase_state(
-        graph, learning_session_id, claims, profile_adapter
+        graph, learning_session_id, claims, profile_adapter, db
     )
     try:
         await flow.mark_item_flagged(
@@ -852,7 +912,7 @@ async def record_exam_item_time(
     repository write as skip/flag - no graph turn, no routing consequence.
     """
     _, exam_session_id = await _exam_phase_state(
-        graph, learning_session_id, claims, profile_adapter
+        graph, learning_session_id, claims, profile_adapter, db
     )
     try:
         await flow.record_item_time(
@@ -874,7 +934,7 @@ async def exam_overview(
     mid-exam refresh (SPEC §5.16's checkpoint-restore property, extended to nav state).
     """
     state, exam_session_id = await _exam_phase_state(
-        graph, learning_session_id, claims, profile_adapter
+        graph, learning_session_id, claims, profile_adapter, db
     )
     assessment_repo = AssessmentRepository(db)
     question_repo = QuestionRepository(db)
@@ -922,6 +982,7 @@ async def finalize_exam(
     claims: Annotated[TokenClaims, Depends(get_current_claims)],
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -936,7 +997,7 @@ async def finalize_exam(
     so this guard deliberately allows those two phases through as well, not just
     `EXAM_PHASES` itself.
     """
-    state = await _get_state_values(graph, learning_session_id)
+    state = await _get_state_values(graph, learning_session_id, db)
     if state.get("student_external_id") is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="select a student first"
@@ -951,6 +1012,7 @@ async def finalize_exam(
         )
 
     ctx = _turn_context(
+        cost_ledger=cost_ledger,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -993,6 +1055,7 @@ async def send_chat_message(
     claims: Annotated[TokenClaims, Depends(get_current_claims)],
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -1031,6 +1094,7 @@ async def send_chat_message(
         )
 
     ctx = _turn_context(
+        cost_ledger=cost_ledger,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -1059,6 +1123,7 @@ async def respond_to_interrupt(
     claims: Annotated[TokenClaims, Depends(get_current_claims)],
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -1108,6 +1173,7 @@ async def respond_to_interrupt(
     # must be supplied again here or the replay takes the wrong branch (it's never
     # `acknowledge`, since that path never interrupts in the first place).
     ctx = _turn_context(
+        cost_ledger=cost_ledger,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -1160,6 +1226,7 @@ async def resume_session(
     claims: Annotated[TokenClaims, Depends(get_current_claims)],
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -1199,7 +1266,14 @@ async def resume_session(
         _publish_snapshot(events, response)
         return response
 
+    # AUD-X-07: this route reads the snapshot directly rather than through
+    # `_get_state_values`, and it is the entry point in the reproduction - a session that
+    # lost its finalize between the two commits resumed 200 with `phase=study` and served
+    # a study question that then 500'd on every answer. Reconcile before invoking.
+    state = await _reconcile_checkpoint(graph, learning_session_id, state, db)
+
     ctx = _turn_context(
+        cost_ledger=cost_ledger,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,

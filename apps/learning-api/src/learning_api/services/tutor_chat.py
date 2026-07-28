@@ -84,6 +84,22 @@ _WHY_WRONG_SYSTEM_PROMPT = (
 
 _MAX_CHAT_REPLY_TOKENS = 400
 
+# AUD-X-08: what one chat turn reserves against the per-day ceiling before it runs,
+# replaced by the turn's real accumulated cost once it finishes. Covers the most expensive
+# shape a turn can take - the intent classification every turn pays for (150 output
+# tokens), plus the largest single content generation it can route to (a solution, 800).
+# A hint turn therefore over-reserves briefly, which is the safe direction for a ceiling.
+# `test_cost_reservation_estimates.py` asserts this still bounds the real gateway's own
+# worst case for both calls, so a pricing change cannot silently make it too small.
+#
+# 2.625 cents is the worst case on the most expensive priced model (Sonnet 5), which is
+# also the unpriced-model fallback rate; the deployed model (Haiku 4.5) is 0.875. Rounded
+# up to 3.0. Against the 100-cent ceiling that still allows 33 simultaneous turns before
+# any student is degraded, and `settle` returns the difference as soon as the turn ends.
+INTENT_CLASSIFICATION_TOKENS = 150
+MAX_TURN_CONTENT_TOKENS = 800
+TURN_RESERVATION_ESTIMATE_CENTS = 3.0
+
 
 def screen_for_safety_concern(message: str) -> bool:
     lowered = message.lower()
