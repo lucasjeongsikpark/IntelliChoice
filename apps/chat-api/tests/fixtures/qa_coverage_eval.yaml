@@ -251,6 +251,21 @@ cases:
     category: paraphrase
     query: "Do you run anything in Louisiana, and when are those sessions open?"
     expected_document_id: public-branch-directory
+  # AUD-C-02 probes: the scope prompt shipped without §5.19.4's "IntelliChoice
+  # organization" and "Student participation" topics, so under real Bedrock the most
+  # basic organization question was refused as out of scope before retrieval ran. The
+  # mock cannot see this ("intellichoice" is in its own keyword gate), which is why
+  # these live in the measured-not-gated paraphrase category: their number only means
+  # something in the CHAT_EVAL_REAL_BEDROCK run. The prompt string itself is guarded
+  # by test_scope_prompt_spec_coverage.py.
+  - id: paraphrase-organization-1
+    category: paraphrase
+    query: "What is IntelliChoice?"
+    expected_document_id: public-organization-overview
+  - id: paraphrase-organization-2
+    category: paraphrase
+    query: "How does my child take part in IntelliChoice, and what does joining involve?"
+    expected_document_id: public-organization-overview
 
   # --- no_answer (S37/AUD-C) ----------------------------------------------------
   # In scope, entirely plausible, and genuinely absent from the corpus. Unlike

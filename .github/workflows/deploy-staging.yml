@@ -1,9 +1,13 @@
 name: Deploy to Staging
 
-# Manual trigger only for now (workflow_dispatch) - this redeploys real AWS
-# infrastructure (S32/D-084's intellichoice-staging environment), not something that
-# should fire unattended on every push until it's been run and reviewed at least once.
-# Flip on the `push` trigger below once that's happened.
+# Manual trigger only (workflow_dispatch) - this redeploys real AWS infrastructure
+# (S32/D-084's intellichoice-staging environment). The original condition for enabling
+# the `push` trigger ("run and reviewed at least once") has long been met - six reviewed
+# runs as of 2026-07-27 - but enabling it is a deliberate deploy-behaviour decision that
+# has not been taken. Until it is: deploy with
+#   gh workflow run deploy-staging.yml --ref main
+# and verify by pinning the run id or head SHA, never by "the latest run is green"
+# (see PROGRESS.md's S42 correction - a watcher once matched the *previous* run).
 on:
   workflow_dispatch: {}
   # push:
@@ -173,6 +177,28 @@ jobs:
           EXIT_CODE=$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
             --query 'tasks[0].containers[0].exitCode' --output text)
           echo "Migration exit code: $EXIT_CODE"
+          test "$EXIT_CODE" = "0"
+
+      # AUD-F-20: attendance fixtures are written for current_week_key() at seed time,
+      # so a staging seeded in week N returns phase=blocked for every learning journey
+      # in week N+1 (the gate failing closed on aged-out data, correctly). Re-seeding on
+      # every deploy keeps criterion-3 evidence valid in any week a deploy happens. The
+      # seeder is idempotent by design, and the ops task already carries the
+      # MYSQL_DB_HOST/PORT env vars and MYSQL_DB_USERNAME/PASSWORD secrets it reads.
+      - name: Re-seed MySQL dev-fake fixtures
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition intellichoice-staging-ops-task \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$PRIVATE_SUBNET],securityGroups=[$ECS_TASKS_SG],assignPublicIp=DISABLED}" \
+            --overrides '{"containerOverrides":[{"name":"ops-task","command":["python","-m","intellichoice_adapters.seed.seed_mysql"]}]}' \
+            --query 'tasks[0].taskArn' --output text)
+          echo "Seed task: $TASK_ARN"
+          aws ecs wait tasks-stopped --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+          EXIT_CODE=$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "Seed exit code: $EXIT_CODE"
           test "$EXIT_CODE" = "0"
 
       # S34: captured *before* either service redeploys, so the canary-bake step below

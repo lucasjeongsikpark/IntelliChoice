@@ -102,3 +102,49 @@ jobs:
 
       - name: Typecheck + build
         run: npm run build
+
+  chat-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/chat-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/chat-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck + build
+        run: npm run build
+
+  # The e2e harness is TypeScript that only `playwright test` otherwise compiles;
+  # typecheck it here so harness breakage surfaces on the PR, not mid-audit.
+  # Running the browser suite itself needs live app servers, so it stays out of CI.
+  e2e-typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck

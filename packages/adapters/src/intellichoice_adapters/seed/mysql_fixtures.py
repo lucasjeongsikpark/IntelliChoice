@@ -94,21 +94,21 @@ _BRANCHES = [
     },
 ]
 
+# week_key is filled in by seed() at call time. This used to be baked in at import
+# time, which both duplicated seed()'s own current_week_key() call and made the rows
+# stale in any process that imports early and seeds late (AUD-F-20's shape).
 _ATTENDANCE = [
     {
         "student_external_id": STUDENT_ONLY_CHILD,
-        "week_key": current_week_key(),
         "status": "present",
     },
     {
         "student_external_id": STUDENT_FIRST_CHILD,
-        "week_key": current_week_key(),
         "status": "absent",
     },
     # STUDENT_SECOND_CHILD intentionally has no attendance row -> unknown.
     {
         "student_external_id": STUDENT_UNLINKED,
-        "week_key": current_week_key(),
         "status": "present",
     },
 ]
@@ -180,7 +180,7 @@ async def seed(mysql_url: str, database_name: str = "intellichoice") -> None:
                         "INSERT INTO attendance (student_external_id, week_key, status) "
                         "VALUES (:student_external_id, :week_key, :status)"
                     ),
-                    record,
+                    {**record, "week_key": week},
                 )
     finally:
         await engine.dispose()
