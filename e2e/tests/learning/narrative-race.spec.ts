@@ -71,8 +71,23 @@ test("a click landing in that window is discarded (the student loses the interac
     .waitForRequest((request) => request.url().includes("/topics"), { timeout: 8000 })
     .then(() => true)
     .catch(() => false);
-  await page.locator(".card-list button").first().click({ timeout: 5000, force: true });
+  // The click is allowed to fail. Playwright throws "element was detached from the DOM" when
+  // the narrative replaces the topic list mid-click - which is not an accident of the harness,
+  // it *is* the event this test exists to observe, and letting it throw made the probe fail the
+  // suite on its own subject (one whole-suite run in S41, having passed the run before). So the
+  // outcome is captured, in keeping with the "recorded, not asserted" note below.
+  const clickLanded = await page
+    .locator(".card-list button")
+    .first()
+    .click({ timeout: 5000, force: true })
+    .then(() => true)
+    .catch(() => false);
   const reached = await topicsCall;
+  audit.note(
+    clickLanded
+      ? "the click completed against a stable element"
+      : "the element was detached mid-click - the narrative displaced the topic list inside the window",
+  );
   audit.note(`POST /topics reached the API: ${reached}`);
   // Deliberately not asserted: the window is ~26ms, so whether a scripted click lands
   // inside it varies per run. What this probe contributes is the recorded outcome, and an

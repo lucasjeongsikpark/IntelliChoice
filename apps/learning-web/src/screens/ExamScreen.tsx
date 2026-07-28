@@ -68,6 +68,18 @@ export function ExamScreen({
   const [modalOpen, setModalOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
+  // AUD-F-02: `POST /exam/finalize` closes the exam server-side, but this screen stays
+  // mounted until the phase-change snapshot arrives over SSE. Anything it sends in that
+  // window - the poll's next tick, or the view-time flush in the autosave effect's cleanup
+  // as it unmounts - lands on a closed exam and is rejected 409. Each rejection is a
+  // browser console error, and §2.6 criterion 3 requires zero of those. Nothing is lost by
+  // suppressing them: the last question's timing already reached the server as that
+  // answer's own `response_time_ms`.
+  //
+  // Cleared on every phase change, so the post-exam gets its own guard rather than
+  // inheriting the pre-exam's.
+  const finalizedRef = useRef(false);
+
   // Reset all per-phase-instance state when the phase itself changes (pre_exam -> study
   // -> post_exam) - this screen stays mounted across all three, so state from the prior
   // phase must not bleed into the next.
@@ -77,6 +89,9 @@ export function ExamScreen({
     setAnsweredSelections({});
     setSelected(null);
     setModalOpen(false);
+    // React runs every cleanup before any effect body, so the autosave cleanup for the
+    // outgoing phase has already read the old value by the time this clears it.
+    finalizedRef.current = false;
   }, [phase]);
 
   // Batched pre/post-exam items arrive once at the phase transition (SPEC §5.9.2's fixed
@@ -90,7 +105,10 @@ export function ExamScreen({
   useEffect(() => {
     if (!isExamPhase) return;
     onFetchOverview();
-    const id = window.setInterval(onFetchOverview, OVERVIEW_POLL_MS);
+    const id = window.setInterval(() => {
+      if (finalizedRef.current) return;
+      onFetchOverview();
+    }, OVERVIEW_POLL_MS);
     return () => window.clearInterval(id);
   }, [isExamPhase, phase, onFetchOverview]);
 
@@ -104,12 +122,14 @@ export function ExamScreen({
 
   // View-time autosave tick: flushes accumulated time for the item being left whenever
   // the student navigates away (nav-bar jump, submit-and-advance) or the screen unmounts.
+  // The `finalizedRef` check is AUD-F-02's: unmounting *because the exam was finalized* is
+  // the one case where this flush has nowhere valid to land.
   const viewStartRef = useRef<number>(Date.now());
   useEffect(() => {
     viewStartRef.current = Date.now();
     const assessmentItemId = currentOverviewItem?.assessment_item_id;
     return () => {
-      if (assessmentItemId) {
+      if (assessmentItemId && !finalizedRef.current) {
         onRecordTime(assessmentItemId, Date.now() - viewStartRef.current);
       }
     };
@@ -166,16 +186,28 @@ export function ExamScreen({
     setStatusMessage(`Jumped to question ${displayOrder + 1}.`);
   }
 
+  // Both finalize paths raise `finalizedRef` *before* awaiting, and lower it again only if
+  // the call fails. Setting it afterwards is too late and measurably so: `finalizeExam`
+  // calls `setSnapshot` inside the awaited request, so React can flush that render - and
+  // unmount this screen, running the view-time cleanup - in a microtask that lands before
+  // the `await` here resumes. Instrumented during S41: the flush reported
+  // `phase=pre_exam finalized=false` for the last item every single run.
   async function handleExpire() {
     setStatusMessage("Time's up. Submitting your exam now.");
+    finalizedRef.current = true;
     const ok = await onFinalize(false);
-    if (!ok) setModalOpen(true);
+    if (!ok) {
+      finalizedRef.current = false;
+      setModalOpen(true);
+    }
   }
 
   async function handleFinalizeConfirm() {
     const hasUnanswered = overview?.items.some((item) => item.status !== "answered") ?? false;
+    finalizedRef.current = true;
     const ok = await onFinalize(hasUnanswered);
     if (ok) setModalOpen(false);
+    else finalizedRef.current = false;
   }
 
   function handleContainerKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {

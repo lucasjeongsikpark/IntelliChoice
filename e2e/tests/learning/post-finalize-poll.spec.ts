@@ -1,12 +1,23 @@
 /**
- * AUD-F probe: after `POST /exam/finalize` succeeds, the client keeps polling
- * `GET /exam/overview` and posting `/exam/items/{id}/time`, and the server answers 409
- * to every one. Each failed fetch is a browser console error, so a single journey
- * accumulates dozens - which is a direct §2.6 criterion-3 failure ("zero console
- * errors") independent of any user-visible symptom.
+ * AUD-F-02 regression test (S41): after `POST /exam/finalize` succeeds the client must
+ * stop talking to the exam endpoints.
  *
- * Observed incidentally by the journey walk (38-50 console errors per run). This
- * isolates it: finalize, then sit still and count.
+ * It used to keep polling `GET /exam/overview` and posting `/exam/items/{id}/time` into a
+ * closed exam, and the server answers 409 to every one. Each failed fetch is a browser
+ * console error, so a single journey accumulated dozens - a direct §2.6 criterion-3
+ * failure ("zero console errors") independent of any user-visible symptom.
+ *
+ * Measured across the two fixes, because they are not the same defect:
+ *
+ *   before                        35 × 409 in a 96 ms burst
+ *   after the AUD-F-01 fix alone   1 × 409  (POST .../time)
+ *   after the AUD-F-02 guard       0
+ *
+ * That middle row is why the AUD-F-01 fix was not allowed to close this. The burst was
+ * effect churn, but the last request is not: the view-time autosave flushes on unmount, and
+ * the screen unmounts *because* the exam was finalized, so one 409 survives a fix that
+ * removes every other one. `ExamScreen` now tracks the finalize in a ref and suppresses
+ * both the flush and the poll tick. Confirmed to fail with that guard reverted.
  */
 
 import { FIXTURES, LEARNING_WEB } from "../../config";
@@ -23,12 +34,9 @@ import {
 
 test.describe.configure({ timeout: 300_000 });
 
-// CONFIRMED DEFECT (AUD-F-02): 35 × 409 in a 96ms burst after finalize succeeds, each one
-// a browser console error. Expected-to-fail so the count keeps being measured every run.
 test("no request 409s after the exam is finalized", async ({ page, audit }) => {
-  test.fail();
-  // The 409s are the subject; without these allowances the teardown check reports them
-  // instead of this test's own assertion.
+  // The 409s are this test's subject: it must be the assertion below that reports them,
+  // with their count and timing, not a teardown check that only says "a request failed".
   audit.allow({ statuses: [409], consoleErrors: ["Failed to load resource"] });
 
   await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);

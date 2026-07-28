@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import "./App.css";
 import * as api from "./api/client";
 import { useLearningSession } from "./hooks/useLearningSession";
@@ -30,7 +30,11 @@ function App() {
   const [view, setView] = useState<View>("session");
 
   const session = useLearningSession(token);
-  const { snapshot } = session;
+  // `fetchExamOverview`/`recordItemTime` are pulled out by name rather than read off
+  // `session` at the call site: the hook returns a fresh object every render, so a
+  // `useCallback` depending on `session` would be re-created every render and reintroduce
+  // AUD-F-01. The two functions themselves are memoized on `[token]` (useLearningSession.ts).
+  const { snapshot, fetchExamOverview, recordItemTime } = session;
 
   const [streak, setStreak] = useState(0);
   const [counts, setCounts] = useState({ hint: 0, solution: 0, video: 0 });
@@ -52,6 +56,17 @@ function App() {
       setCounts((c) => ({ ...c, [type]: c[type] + 1 }));
     }
   }, [snapshot?.intervention]);
+
+  // AUD-F-01: `ExamScreen` lists both of these in effect dependency arrays (the overview
+  // poll and the view-time autosave), so an inline arrow - a new identity on every render -
+  // tears both effects down and re-runs them on every SSE snapshot. Measured before the fix,
+  // with the student sitting on one question for 15 seconds and touching nothing: 899
+  // `POST .../time` reports (longest 68ms) and 903 `GET .../exam/overview` against a declared
+  // 20-second poll. `useLearningSession` already memoizes both on `[token]` alone, so the fix
+  // is to stop re-wrapping them - see docs/DECISIONS.md D-103 §2.
+  const handleFetchOverview = useCallback(() => {
+    void fetchExamOverview();
+  }, [fetchExamOverview]);
 
   async function handleLogin(chosenRole: Role, chosenSub: string) {
     setLoginBusy(true);
@@ -239,10 +254,8 @@ function App() {
           onFlag={(assessmentItemId, flagged) =>
             void session.flagExamItem(assessmentItemId, flagged)
           }
-          onRecordTime={(assessmentItemId, elapsedMs) =>
-            session.recordItemTime(assessmentItemId, elapsedMs)
-          }
-          onFetchOverview={() => void session.fetchExamOverview()}
+          onRecordTime={recordItemTime}
+          onFetchOverview={handleFetchOverview}
           onFinalize={async (confirmUnanswered) =>
             (await session.finalizeExam(confirmUnanswered)) !== null
           }
