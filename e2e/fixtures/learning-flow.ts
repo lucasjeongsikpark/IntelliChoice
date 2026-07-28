@@ -113,11 +113,26 @@ export async function answerCurrentQuestion(page: Page): Promise<boolean> {
     const submit = page.getByRole("button", { name: /^submit answer$/i });
     if ((await submit.count()) === 0) return false;
     const options = page.locator(".options button.option");
-    if ((await options.count()) === 0) return false;
+    if ((await options.count()) === 0) {
+      // A re-render can empty the option list for a moment. Returning false here would
+      // report "no answerable question", which `answerWholeExam` reads as the end of the
+      // exam - so a transient race would silently truncate the walk instead of failing it.
+      await page.waitForTimeout(250);
+      continue;
+    }
     // Any option: correctness is not what this journey is testing, and picking the first
     // every time keeps the walk deterministic.
+    //
+    // `isEnabled()` with no timeout waits the full 15 s for an element detached under it and
+    // then *throws*, escaping this retry loop entirely - which is how the student walk failed
+    // one whole-suite run in S41 after passing the two before it. Every other interaction in
+    // this file already degrades to a retry rather than an exception; this one did not.
     const first = options.first();
-    if (!(await first.isEnabled())) return false;
+    const enabled = await first.isEnabled({ timeout: 2000 }).catch(() => false);
+    if (!enabled) {
+      await page.waitForTimeout(250);
+      continue;
+    }
     if ((await stableClick(first)) && (await stableClick(submit))) return true;
   }
   return false;

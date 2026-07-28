@@ -3,6 +3,7 @@ from functools import lru_cache
 
 from fastapi import HTTPException, Request, status
 from intellichoice_adapters.fake_auth import JwtTokenVerifier, TokenError
+from intellichoice_db.repositories.cost_reservation import CostReservationRepository
 from intellichoice_shared.auth import Audience, TokenClaims, account_refusal_reason
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.email import EmailTransport
@@ -34,6 +35,14 @@ def get_mcp_registry(request: Request) -> McpToolRegistry:
 
 def get_bedrock_gateway(request: Request) -> BedrockGateway:
     return request.app.state.bedrock_gateway
+
+
+def get_cost_ledger(request: Request) -> CostReservationRepository:
+    """AUD-X-08's spend ledger. Built from the session *factory*, not from
+    `get_db_session`: a reservation has to commit before the model call returns, and the
+    request session does not commit until dependency teardown, after the response.
+    """
+    return CostReservationRepository(request.app.state.db_session_factory)
 
 
 def get_graph(request: Request) -> LearningGraph:

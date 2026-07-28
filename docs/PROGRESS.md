@@ -5,8 +5,134 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **Next session: the remaining P1s, or S42 discovery once the gate clears.** **Seven P1s remain**
+  (AUD-L-10 and AUD-X-08 came off the list in S42): AUD-L-04, AUD-L-07 (read half), AUD-C-02,
+  AUD-C-03, AUD-C-16 (P3 → P1), AUD-X-07 (**half fixed**), AUD-F-14.
+  **Two still carry a required verification *shape*, not just a fix:** AUD-X-07's remaining half is
+  seam (b), mid-interrupt, where recovery means *completing* a paused LangGraph node rather than
+  editing channel values — detection alone is not shippable, and fix shape (1), the commit ordering
+  itself, is untouched; and AUD-F-14's ≥2-task fix must change the scaling *signal*, since CPU
+  target-tracking cannot fire on an I/O-bound workload (CPU peaked at 15% while p95 sat at 31 s).
+  **Two cheap ones are worth taking first:** AUD-C-02 is a one-line prompt fix (its test must run
+  against a real provider — the mock's keyword list contains `"intellichoice"`, which is why no test
+  could see it), and AUD-F-08 is two CI jobs that finish criterion 4's other half.
+  **Still not on staging:** criterion 3 remains code-complete and one deploy short. S41's *and*
+  S42's work were committed but the staging deploy and the two `make e2e-staging` runs are the
+  remaining step.
+- **✅ S42 shipped 2026-07-27 (D-110): the integrity/concurrency cluster — AUD-L-10 and AUD-X-08
+  fixed, AUD-X-07 half fixed.** lint clean, pyright clean, **552 passed / 2 skipped across three
+  consecutive whole-suite runs**, from 537 at session start. Taken instead of S42's scheduled
+  discovery work because the dependency spine puts the gate *before* discovery, S42's own asks are
+  mostly external (org DB topology, DNS, a read-only account), and criterion 2 needs the P1s gone.
+  **Four things worth carrying as method:**
+  **(i) The mock provider was hiding the money bug, and the unfixed code measured as clean.**
+  AUD-X-08's concurrent arm on the *unfixed* ceiling produced **1 of 10 generated, 1.0× the
+  ceiling** — it looked already fixed. The race window is the length of the model call, and
+  `MockBedrockProvider` returns in ~0 ms. Giving it a realistic 250 ms (against S39's measured p50
+  of 26.9 s on real Bedrock) produced **10/10 and 10.0×**, worse than S38's 8×. After the fix, same
+  probe, **1/10 and 1.0×**. A cost-race test built on the mock's speed would have certified this
+  fixed while it was wide open — third instance of the D-101 §5 shape.
+  **(ii) Two fixes were nearly deleted as unnecessary, and one measurement decided each way.**
+  AUD-L-10's Python pre-flight changed no test outcome once the unique constraint existed, which by
+  D-109 §(iii) is a line to cut — until measuring showed a refused duplicate that reaches
+  `graph.ainvoke` leaves **+2 `checkpoints` / +4 `checkpoint_writes`** behind. It stays, and the
+  assertion protecting it is now a checkpoint row count. Conversely a defensive denominator recount
+  in `compute_learning_gain` was **not** added, because with the constraint no test could watch it
+  matter.
+  **(iii) A regression test passed for the wrong reason, twice, before it was right.** The
+  route-level ledger test first used `STUDENT_UNLINKED`, whose report never generates at all, so
+  `generated is False` proved nothing and it passed with the ceiling *disabled*. Fixing that, it
+  still passed with the ceiling disabled — the gateway's 50-cent session budget was catching it
+  instead. It is now confirmed to fail only when both ledger reads are bypassed, and its docstring
+  says exactly what it can and cannot isolate.
+  **(iv) The drift guard caught its own constants.** `test_cost_reservation_estimates.py` failed on
+  the first reservation constants written (0.5 against real worst cases of 1.35 and 2.625), before
+  anything shipped.
+- **⚠️ One thing found in passing that is not fixed.** Adding `worst_case_cost_cents` to the
+  `BedrockGateway` Protocol produced **70 typecheck errors across ~13 scripted test fakes** that
+  would each need a pricing method they never call. The method stayed on the concrete gateway and
+  the reservation estimates are constants guarded by a drift test instead. Worth knowing before
+  anyone else tries to widen that Protocol: it is expensive to extend.
+- **✅ S41 shipped 2026-07-27 (D-109): the criterion-3 cluster is done — AUD-F-01 (P1) and
+  AUD-F-02 (P2) fixed, three harness races fixed, and the suite is green three runs running.**
+  **52/1/0, 51/2/0, 52/1/0** (passed / skipped / failed) against **48 passed, 3 failed, 2 skipped**
+  at session start. Python side unchanged: lint clean, pyright clean, 537 passed / 2 skipped.
+  Four things worth carrying as *method*, because four separate hypotheses were wrong and a
+  measurement caught each one:
+  **(i) "Same root cause" was an assumption, and the middle measurement is what disproved it.**
+  Fixing AUD-F-01 took the post-finalize burst from **35 × 409 to 1**, and 1 looks like noise —
+  closing AUD-F-02 there would have been defensible and wrong. That survivor is a different defect
+  (the view-time flush on unmount, where the unmount *is* the finalize), so criterion 3's zero-
+  console-errors would still have failed, for a reason the closing note claimed was handled.
+  **(ii) The AUD-F-02 fix is about *when*, and three readings of the component got it wrong.**
+  A `finalizedRef` set after `await onFinalize(...)` changes nothing: `finalizeExam` calls
+  `setSnapshot` **inside** the awaited request, so React unmounts the screen in a microtask that
+  lands first. One temporary `console.warn` in the cleanup settled in a single run what deduction
+  had failed at three times.
+  **(iii) A change was reverted rather than shipped.** Scoping the flush to exam phases looked
+  right and had a confident comment. A control run showed the test passes without it — so the
+  explanation was wrong and no test covered the line. Every shipped line here was watched
+  mattering, which is D-107 §1's bar for tests applied to product code.
+  **(iv) The intermittency was three unrelated harness bugs, and each passed the run before it
+  failed.** Only one is the shared-state story S39 recorded. Fixing the diagnosis would not have
+  found the other two; running the suite again did.
+- **⚠️ Two things found in passing that are not fixed.** **AUD-F-16 (P2, new):** the browser audit
+  had been measuring **two-day-old API code** — `reuseExistingServer: true` plus `uvicorn`
+  processes up since 2026-07-25 21:31, i.e. predating S40's four authorization fixes. Playwright
+  restarts the *frontends* every run and reuses the *APIs*, which is the worst version, because
+  nothing looks stale. Every S39/S40 `local` e2e result is of an unknown application version. **And
+  a tracked directory, `knowledge-content copy/`, disappeared from the working tree mid-session**
+  (33 files) and was restored with `git checkout`. Not pytest and not `make e2e` — both were
+  re-run afterwards with the directory intact. Cause unknown; worth a glance at `git status` before
+  trusting a clean tree. (It looks like an accidentally committed Finder duplicate of
+  `knowledge-content/`; deleting it deliberately is a reasonable separate call.)
+- **✅ S40 continuation shipped 2026-07-27 (D-106/D-107/D-108): four authorization P1s fixed and
+  live-verified, the D-053 recurrence ended structurally, and 19 PRs merged.** Details in the
+  session-log entry below. Three things worth carrying forward as *method*, each of which nearly
+  produced a wrong result in this session:
+  **(i) A regression test that has never been seen to fail is an assertion about nothing.** All 18
+  new tests were run with their own fix disabled; **two passed**, and had to be rewritten. The
+  AUD-C-04 test used two ordinary turns — an ordinary turn overwrites every field on its way
+  through, so the stale read it was meant to catch was invisible. It needed a genuinely *paused*
+  turn.
+  **(ii) A live probe that cannot express the failure proves nothing.** AUD-X-02's first staging
+  probe returned 200 for all three bad-claim tokens and nearly shipped as a pass. `DevTokenRequest`
+  accepts only `role`/`sub`/`audience` and silently drops the rest, so staging minted a fully
+  consented token every time. **`/dev/token` cannot express a non-consented account** — no probe
+  built on it can ever test that gate. Real verification needed tokens signed with staging's own JWT
+  secret. Same class as D-101 §5's positive-control lesson and D-105 §5's dead notification.
+  **(iii) An existing test caught a defensible-looking fix that would have removed a product
+  feature.** `POST /students/{id}/report` was classified as a write; the suite failed, because with
+  no assignment model every student is "unlinked", so tutor report generation would have ended
+  outright. AUD-L-07 files that under the read-scope gap S43/S46 own.
+- **⚠️ CORRECTION: `STAGING_TOKEN_SECRET_LEARNING`/`_CHAT` were never missing, and three sessions
+  scoped around a constraint that does not exist.** S38, S39 and S40 each recorded these as "the one
+  thing to hand over" and "the binding constraint on three gate criteria". They are Terraform
+  `random_password` resources in Secrets Manager (`terraform/environments/staging/main.tf`) — never
+  handed to a human, so never losable. Recover without echoing:
+  `aws secretsmanager get-secret-value --profile jeongsik-staging-admin --region us-east-1
+  --secret-id intellichoice-staging/{learning,chat}-api/staging-token-shared-secret --query
+  SecretString --output text`. Verified live 2026-07-27: both mint tokens, chat `/me` 200, and every
+  S40 fix was re-verified on authenticated staging paths as a result. **The authenticated halves of
+  criteria 7 and 8 are therefore reachable and no longer blocked** — they are simply not yet done.
+  Staging's real JWT signing secret is at the same path with `jwt-signing-secret`, which is what
+  lets a probe carry arbitrary claims. **Generalisable: before recording anything as blocked on a
+  missing credential, check whether Terraform generated it.**
+- **✅ Criterion 5's open judgement call is settled.** The prior entry left it on whether
+  "consecutive" excludes a failed deployment in between, since the bad-image rollback drill sat
+  chronologically between `bccc3ac` and `73396c1`. There are now **six consecutive successful
+  `deploy-staging.yml` runs**, and `73396c1` → `c58d1fe` is a clean consecutive pair with **no
+  failed deployment between them** on either reading. Combined with the demonstrated auto-rollback,
+  **criterion 5 is met.**
+- **Criterion 4 is half met.** Three consecutive green `make lint typecheck test` runs, repeatedly,
+  and the D-106 fix removes the recurring source of baseline flake. **But CI on `main` still runs
+  only `lint-typecheck-test` and `learning-web`** — `chat-web` and the `e2e/` harness have no build
+  or test job, so "CI builds and tests every deployable" remains unmet (AUD-F-08). Both frontends
+  were verified by hand this session, including TypeScript 7 on chat-web, which no CI job would have
+  caught.
 - **⚠️ Criterion 6's ≥1-week clock started 2026-07-26. The earliest possible gate pass is
-  2026-08-02**, and only if the schedules run untouched. **Two schedules are ENABLED**
+  2026-08-02**, and only if the schedules run untouched. **Nothing in the S40 continuation went near
+  the schedules.** **Two schedules are ENABLED**
   (`intellichoice-staging-chat-purge` daily 18:10 UTC, `intellichoice-staging-memory-consolidate`
   Sundays 18:30 UTC) and **`youtube-sync` is deliberately DISABLED** — see D-105 §4. What to check
   each day: the first `chat-purge` run is **18:10 UTC on 2026-07-27**, and any non-zero-exit
@@ -48,14 +174,17 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   Terraform *and* for `scripts/scan_xray_pii.py` — boto3 cannot read the CLI's token cache without
   `botocore[crt]`. **Plan operations work in sub-hour units** and re-check
   `aws sts get-caller-identity` before starting anything long.
-- **⚠️ The one thing to hand over: `STAGING_TOKEN_SECRET_LEARNING` / `_CHAT` were never available
-  to this session, and that is now the binding constraint on three gate criteria.** Every learning
-  route requires `get_current_claims`, so with no token there is **no** unauthenticated path that
-  can produce a 5xx or a slow response — the learning app's two alarms are only reachable via
-  `set-alarm-state` (delivery leg only), the load run is guest-chat-only, and the criterion-9 trace
-  scan covered **guest traffic only**, which is *not* where names and emails would enter a span.
-  Export both (never echoed) and these close quickly; without them they stay provisional no matter
-  how many sessions run.
+- **~~⚠️ The one thing to hand over: `STAGING_TOKEN_SECRET_LEARNING` / `_CHAT` were never available
+  to this session, and that is now the binding constraint on three gate criteria.~~** **The premise
+  was false — see the CORRECTION item at the top of this block (2026-07-27).** The secrets were
+  always retrievable from Secrets Manager. **What remains true, and is the useful part of this
+  item:** every learning route requires `get_current_claims`, so there is no *unauthenticated* path
+  that can produce a 5xx or a slow response — which is why the learning app's two alarms were
+  induced on the `set-alarm-state` delivery leg only, the load run was guest-chat-only, and the
+  criterion-9 trace scan covered **guest traffic only**, which is *not* where names and emails would
+  enter a span. Those three remain **undone**, but they are no longer **blocked**: with a token in
+  hand, S41 can induce the two learning alarms on their real condition, re-run the load test on the
+  authenticated path, and re-scan traces over authenticated traffic.
 - **S39 continuation shipped 2026-07-26 (D-104): items (a) done, (b)–(d) partial — 4 new findings,
   one P1 fixed in-session, and the tracing work found a credential leak.**
   **(a) Done, and it closes S38's unevidenced sub-item plus criterion 9's trace half.** Traces went
@@ -1583,9 +1712,82 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Session log
 
-_Note: this section holds only S32 and S37. S33–S36 recorded themselves in the "Current
-status" block above instead, which is where this project's detailed log actually lives —
+_Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
+"Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S41 — Phase 0B: the criterion-3 cluster (2026-07-27) ⏸ partial
+- **AUD-F-01 (P1) fixed and re-verified by counting requests, not by looking at the screen
+  (D-109 §1).** `App.tsx` passed `onFetchOverview`/`onRecordTime` as inline arrows into two
+  `ExamScreen` effect dependency arrays; it now destructures the hook's already-memoized functions
+  by name. Same 15-second dwell on one question: **899 → 1 `POST .../time`** (longest report
+  **68 ms → 15,009 ms**, i.e. the real dwell) and **903 → 2 `GET /exam/overview`**. The obvious
+  version of this fix is a trap — a `useCallback` over `session.fetchExamOverview` makes
+  `exhaustive-deps` demand `session`, which is a fresh object every render, so obeying the linter
+  silently reinstates the defect.
+- **AUD-F-02 (P2) fixed, and "same root cause as AUD-F-01" turned out to be wrong (D-109 §2–3).**
+  The AUD-F-01 fix took the post-finalize burst from **35 × 409 to 1**, and that survivor is a
+  different defect: the view-time flush on unmount, where the unmount *is* the finalize. The
+  `finalizedRef` guard must be raised **before** awaiting `onFinalize` — `finalizeExam` calls
+  `setSnapshot` inside the awaited request, so React unmounts the screen in a microtask that lands
+  before the `await` resumes. **0 × 409, 0 console errors.**
+- **Both probes promoted from `test.fail()` to regression tests**, each watched failing with its
+  own fix reverted (D-107 §1). `time-telemetry` now asserts the request *counts* as well as the
+  dwell value: a fix that made reports accurate while leaving the churn would still be a database
+  write per render.
+- **The e2e intermittency was three unrelated harness races, not one shared-state story
+  (D-109 §5).** A parent journey asserting on three locators that a stage narrative matches none of
+  (this one genuinely is shared state — narratives only exist once an account has history); a chat
+  journey whose second turn is the branch-locator prompt verbatim, so it waits 90 s for an answer
+  the product is correctly withholding; and two Playwright calls that **throw** where this
+  harness's own convention is to degrade to a retry. **Each passed the run before it failed.**
+- **Verification:** `make lint` clean, `make typecheck` clean (pyright 0 errors), **537 passed / 2
+  skipped** (unchanged — no backend change). **e2e green three consecutive whole-suite runs:
+  52/1/0, 51/2/0, 52/1/0** (passed/skipped/failed), against **48 passed / 3 failed / 2 skipped** at
+  session start. Both frontends and the e2e harness typecheck and lint clean.
+- **One change reverted rather than shipped (D-109 §4):** scoping the view-time flush to exam
+  phases looked right and had a confident comment; a control run showed the test passes without it,
+  so the explanation was wrong and no test covered the line.
+- **Carry-over:** criterion 3 needs the deploy (see Current status); **AUD-F-16 (new P2)** —
+  `reuseExistingServer: true` had the audit measuring two-day-old API code, so every S39/S40
+  `local` e2e result is of an unknown application version; two conditional `test.skip()`s that
+  should stop being conditional; whether study-phase time is ever attributed to a stale exam item
+  (the question left open by the reverted change); the unexplained disappearance of the tracked
+  `knowledge-content copy/` directory, restored via `git checkout`.
+- **New decisions:** **D-109**.
+
+### S40 continuation — Phase 0B: the authorization cluster (2026-07-27) ⏸ partial
+- **Unbroke the baseline structurally (D-106).** The session opened red:
+  `test_solver_disagreement_rejects_without_persisting` failed 5/5, **the fourth recurrence of
+  D-053**. `question_variants` held two populations under one table and SPEC §5.8.3's dedup compared
+  against both, so a *content* question ("is this a new question?") was answered by a *usage* fact
+  ("how much has the app been run?") — **60,906 rows against 50 templates, 93.5% referenced by
+  nothing**. Fixed with an explicit `origin` column, an Alembic migration, and a two-armed
+  regression test. S17/S22/S31 each deleted the offending row; **it is still in the database and the
+  suite passes**, which is the evidence the fix is structural rather than postponed.
+- **Four authorization P1s fixed, each live-verified with a before/after pair (D-107).**
+  **AUD-X-01** — the one route that *writes* `student_external_id` never read it; live pre-fix, B
+  seized A's session (200), A was locked out of their own exam (403), and a tutor rebound it to
+  **`student-ext-77`, an id that does not exist** (200). **AUD-X-05** — the tutor fall-through
+  extends to writes (a tutor answered and finalized another student's exam); `access` is now a
+  **required** argument and writes fail closed, with the read half explicitly left to S43/S46.
+  **AUD-X-02** — SPEC §5.1.2's consent claims were read by **nothing**; enforced in shared code
+  across **four** call sites, because both SSE routes verify `?token=` directly and bypass
+  `get_current_claims`. **AUD-C-01 + AUD-C-04** (together, per D-101) — `/messages` had no ownership
+  check and an anonymous turn *erased* the owner; separately, a paused turn answered with the
+  previous turn's answer, which is what made C-01 a disclosure rather than a missing check.
+- **Merged 19 pending PRs and cleaned the branch list (D-108).** The repo had **24 open PRs and zero
+  ever merged**. Every dependabot PR's CI was stale (2026-07-24, pre-S40), so they were verified as a
+  *combination* in an integration branch, not on their own badges. Five held back with written
+  reasons. `main` is now the only branch.
+- **Verification:** `make lint` clean, `make typecheck` clean (pyright 0 errors), **537 passed / 2
+  skipped, three consecutive runs** (519 → 537; 18 regression tests). **Every new test was confirmed
+  to fail with its own fix disabled** — which is how two of them were found to be asserting nothing.
+  Migration replays from empty. CI green on every PR; deployed via the pipeline (`c58d1fe`).
+- **Carry-over:** the `question_variants` orphan sweep (56,938 rows) and the `checkpoints` sweep
+  (325,606) — now optional hygiene rather than prerequisites; AUD-L-07's read half (S43/S46); the
+  five held-back dependency PRs; e2e suite intermittency (49–50/51) still blocking criterion 3.
+- **New decisions:** **D-106**, **D-107**, **D-108**.
 
 ### S37 — AUD-C, chat product correctness (2026-07-25) ⏸ partial
 - **Audited the chat product against SPEC §5.19–§5.24, §5.25.3, §5.29, §5.30.2/.4**: traceability,

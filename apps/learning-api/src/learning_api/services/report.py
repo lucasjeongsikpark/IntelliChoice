@@ -15,9 +15,14 @@ codebase doesn't have yet (PROGRESS.md carry-over, session-start scope decision)
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 
+from intellichoice_db.models.cost_reservation import SCOPE_STUDENT_REPORT
 from intellichoice_db.models.student_report import StudentReport
+from intellichoice_db.repositories.cost_reservation import (
+    CeilingReachedError,
+    CostReservationRepository,
+)
 from intellichoice_db.repositories.student_report import StudentReportRepository
 from intellichoice_shared.bedrock import (
     BedrockGateway,
@@ -50,6 +55,20 @@ _MAX_OUTPUT_TOKENS = 500
 # bounding abuse to cents rather than dollars per student. A placeholder until real usage
 # data exists, same posture as every other tuned constant here.
 DAILY_REPORT_COST_CEILING_CENTS = 50.0
+
+# AUD-X-08: what one report call reserves against the ceiling *before* it runs, replaced
+# by the real cost once it returns. Must be an over-estimate - under-reserving reopens the
+# race it exists to close, since a caller could slip in under a total that is about to
+# grow. `test_cost_reservation_estimates.py` asserts this still bounds the real gateway's
+# own `worst_case_cost_cents` for PARENT_REPORT at `_MAX_OUTPUT_TOKENS`, so a model or
+# pricing change that invalidates it fails the suite rather than quietly under-counting.
+#
+# 1.35 cents is the worst case on the most expensive priced model (Sonnet 5 at 0.3/1.5 per
+# 1K, over the gateway's 2000-input-token assumption plus 500 output), which is also the
+# unpriced-model fallback rate. Rounded up. The deployed model (Haiku 4.5) is 0.45. The
+# over-estimate is only charged while the call is in flight - `settle` replaces it with
+# the real cost within the same request - so it costs throughput nothing in practice.
+REPORT_RESERVATION_ESTIMATE_CENTS = 1.5
 
 _SYSTEM_PROMPT = (
     "You are writing a short progress report for a K-12 math tutoring app. Write two "
@@ -190,6 +209,7 @@ async def generate_student_report(
     *,
     gateway: BedrockGateway,
     repo: StudentReportRepository,
+    cost_ledger: CostReservationRepository,
     student_external_id: str,
     payload: ReportInterpretationPayload,
     session_spend_cents: float,
@@ -200,23 +220,28 @@ async def generate_student_report(
     permissive default is a fail-open default, the bug class this project has now produced
     four times; making it required means a future caller that forgets it fails typecheck
     instead of quietly spending money without a ceiling.
+
+    `cost_ledger` is required for the same reason, and closes AUD-X-08: the ceiling used to
+    be `read spend, then spend`, with the spending row committed at request teardown, so
+    concurrent callers each read a stale total and 10 concurrent reports cost 10x the
+    ceiling. The reservation below is committed before the model call, so an in-flight call
+    is visible to every other caller.
     """
     evidence = payload.model_dump()
 
-    spend_today = await repo.get_spend_cents_since(
-        student_external_id, datetime.now(UTC) - timedelta(hours=24)
-    )
-    if spend_today >= DAILY_REPORT_COST_CEILING_CENTS:
+    try:
+        reservation = await cost_ledger.reserve(
+            scope=SCOPE_STUDENT_REPORT,
+            subject_external_id=student_external_id,
+            estimate_cents=REPORT_RESERVATION_ESTIMATE_CENTS,
+            ceiling_cents=DAILY_REPORT_COST_CEILING_CENTS,
+        )
+    except CeilingReachedError as exc:
         # Degrades to the same deterministic facts-only template a gateway failure or a
         # failed grounding check already produces, rather than erroring: the caller still
         # gets their real, verified numbers, just without the LLM's prose around them.
         # SPEC §5.25.3/§5.27's "deterministic fallback" rule, reused rather than reinvented.
-        logger.warning(
-            "report generation hit the per-day cost ceiling (%.2f >= %.2f cents); "
-            "returning the facts-only template",
-            spend_today,
-            DAILY_REPORT_COST_CEILING_CENTS,
-        )
+        logger.warning("report generation hit the per-day cost ceiling: %s", exc)
         interpretation_text, recommendations_text = _fallback_texts(payload)
         row = await repo.create(
             StudentReport(
@@ -262,6 +287,11 @@ async def generate_student_report(
             logger.warning("report failed numeric grounding; using facts-only template")
             interpretation_text, recommendations_text = _fallback_texts(payload)
             cost_cents, generated = result.cost_cents, False
+
+    # Replace the estimate with what the call actually cost. A failed call still costs
+    # whatever it burned before failing (`exc.cost_cents`), so this runs on every path out
+    # of the try/except above - an unsettled reservation stays charged at its estimate.
+    await cost_ledger.settle(reservation.reservation_id, cost_cents)
 
     row = await repo.create(
         StudentReport(

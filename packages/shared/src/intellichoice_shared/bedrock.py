@@ -882,6 +882,12 @@ class CircuitOpenError(BedrockGatewayError):
 
 
 class BedrockGateway(Protocol):
+    # Deliberately *not* including `worst_case_cost_cents` (AUD-X-08's reservation
+    # estimate), which `ResilientBedrockGateway` does expose. It is a pricing question,
+    # not a generation one, and putting it here would oblige every scripted test fake to
+    # implement a method it never calls. The per-surface estimates are constants instead,
+    # kept honest by `test_cost_reservation_estimates.py`, which asserts each one still
+    # bounds the real gateway's own worst case.
     async def generate_structured(
         self,
         *,

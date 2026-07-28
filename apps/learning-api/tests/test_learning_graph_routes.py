@@ -133,6 +133,9 @@ def _turn_context(claims: TokenClaims, **kwargs) -> TurnContext:
         youtube_repo=None,  # type: ignore[arg-type]
         hint_event_repo=None,  # type: ignore[arg-type]
         memory_repo=None,  # type: ignore[arg-type]
+        # These tests never reach a node that reserves spend (S42/AUD-X-08); a `None`
+        # here fails loudly if one ever starts, which is the right failure.
+        cost_ledger=None,  # type: ignore[arg-type]
         stage_transition_repo=None,  # type: ignore[arg-type]
         interrupt_repo=kwargs.pop("interrupt_repo", FakeInterruptApprovalRepository()),
         mcp_registry=kwargs.pop("mcp_registry", _registry_for(email_transport)),

@@ -3,11 +3,13 @@ student-report endpoints. Separate from `routers/sessions.py` since these read
 accumulated history/aggregates across sessions, not one session's turn-by-turn flow.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from intellichoice_db.models.cost_reservation import SCOPE_STUDENT_REPORT
 from intellichoice_db.repositories.assessment import AssessmentRepository
+from intellichoice_db.repositories.cost_reservation import CostReservationRepository
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.dashboard import DashboardRepository
 from intellichoice_db.repositories.mastery import MasteryRepository
@@ -24,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from learning_api.authorization import resolve_target_student
 from learning_api.dependencies import (
     get_bedrock_gateway,
+    get_cost_ledger,
     get_current_claims,
     get_db_session,
     get_profile_adapter,
@@ -310,6 +313,7 @@ async def create_student_report(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
+    cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
     start: Annotated[datetime | None, Query()] = None,
     end: Annotated[datetime | None, Query()] = None,
 ) -> StudentReportResponse:
@@ -349,14 +353,20 @@ async def create_student_report(
     result = await generate_student_report(
         gateway=gateway,
         repo=report_repo,
+        cost_ledger=cost_ledger,
         student_external_id=target_student_id,
         payload=payload,
         # S36/AUD-L-02: this endpoint has no session, so "spend so far" is this student's
         # report spend over the last 24h - the same window the service's own per-day
         # ceiling uses. Passing a real number is what makes the gateway's budget check
         # meaningful here at all; it previously received the 0.0 default on every call.
-        session_spend_cents=await report_repo.get_spend_cents_since(
-            target_student_id, datetime.now(UTC) - timedelta(hours=24)
+        #
+        # S42/AUD-X-08: read from the reservation ledger rather than `student_reports`, so
+        # calls that are still in flight are counted. The old read saw only rows committed
+        # at a previous request's teardown, which is precisely the stale value that let ten
+        # concurrent reports each believe they were the first.
+        session_spend_cents=await cost_ledger.spend_cents_since(
+            scope=SCOPE_STUDENT_REPORT, subject_external_id=target_student_id
         ),
     )
     return StudentReportResponse(

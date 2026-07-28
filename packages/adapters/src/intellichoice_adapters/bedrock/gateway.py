@@ -114,6 +114,20 @@ class ResilientBedrockGateway:
         rate = _EMBEDDING_RATE_PER_1K_CENTS.get(model_id, _DEFAULT_EMBEDDING_RATE_PER_1K_CENTS)
         return (input_tokens / 1000) * rate
 
+    def worst_case_cost_cents(self, task: BedrockTask, max_output_tokens: int) -> float:
+        """The most one `generate_structured` call for this task can cost.
+
+        Public so a caller can *reserve* this amount against a per-day ceiling before
+        making the call (AUD-X-08's reserve-then-settle). Deliberately the same number the
+        session-budget check below uses, so the two ceilings cannot disagree about what a
+        call is worth. The 2000-token input assumption is that check's, inherited here
+        rather than re-guessed.
+        """
+        model_id = self._model_registry.get(task)
+        if model_id is None:
+            raise ValueError(f"no Bedrock model configured for task {task!r}")
+        return self._cost_cents(model_id, 2000, min(max_output_tokens, _HARD_MAX_OUTPUT_TOKENS))
+
     async def generate_structured(
         self,
         *,

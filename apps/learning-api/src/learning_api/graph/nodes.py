@@ -10,16 +10,22 @@ live connections). Only `LearningState` is persisted by the `PostgresSaver`.
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from intellichoice_curriculum.hint_ladders import SHAPE_HINT_LADDERS
+from intellichoice_db.models.cost_reservation import SCOPE_TUTOR_CHAT
 from intellichoice_db.models.hints import HintEvent
 from intellichoice_db.models.interrupts import InterruptApproval
 from intellichoice_db.models.mastery import StudyAttempt
 from intellichoice_db.models.questions import QuestionTemplate
 from intellichoice_db.models.tutor_chat import TutorChatMessage
 from intellichoice_db.repositories.assessment import AssessmentRepository
+from intellichoice_db.repositories.cost_reservation import (
+    CeilingReachedError,
+    CostReservationRepository,
+    Reservation,
+)
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.hints import HintEventRepository
 from intellichoice_db.repositories.interrupts import InterruptApprovalRepository
@@ -90,6 +96,10 @@ class TurnContext:
     mcp_registry: McpToolRegistry
     mcp_call_repo: McpToolCallRepository
     bedrock_gateway: BedrockGateway
+    # AUD-X-08's spend ledger. Unlike every repo above it is bound to the session
+    # *factory*, not this request's session: a reservation must commit before the model
+    # call returns, and the request session commits only at dependency teardown.
+    cost_ledger: CostReservationRepository
     rng: Any
     requested_student_id: str | None = None
     topic_id: str | None = None
@@ -1115,11 +1125,16 @@ async def run_chat_turn(
     assert ctx.question_variant_id is not None
     message = ctx.student_message
     cost = 0.0
+    # Set once the turn holds a spend reservation; settled with the real cost on every
+    # path out of this node (AUD-X-08).
+    reservation: Reservation | None = None
 
     async def _finish(
         *, intent: str, reply_text: str, flagged: bool = False, resolved: bool = True
     ) -> ChatTurnResult:
         assert ctx.tutor_chat_repo is not None
+        if reservation is not None:
+            await ctx.cost_ledger.settle(reservation.reservation_id, cost)
         chat_message = await ctx.tutor_chat_repo.record(
             TutorChatMessage(
                 student_external_id=student_external_id,
@@ -1154,9 +1169,18 @@ async def run_chat_turn(
             resolved=False,
         )
 
-    since = datetime.now(UTC) - timedelta(hours=24)
-    spend_today = await ctx.tutor_chat_repo.get_spend_cents_since(student_external_id, since)
-    if spend_today >= tutor_chat_service.DAILY_COST_CEILING_CENTS:
+    # AUD-X-08: reserve this turn's worst-case cost before making any call. The old check
+    # read `tutor_chat_messages` and then spent, with the cost row committed at request
+    # teardown - so concurrent turns each read a stale total and each received a full
+    # ceiling. The reservation commits immediately, so an in-flight turn is visible.
+    try:
+        reservation = await ctx.cost_ledger.reserve(
+            scope=SCOPE_TUTOR_CHAT,
+            subject_external_id=student_external_id,
+            estimate_cents=tutor_chat_service.TURN_RESERVATION_ESTIMATE_CENTS,
+            ceiling_cents=tutor_chat_service.DAILY_COST_CEILING_CENTS,
+        )
+    except CeilingReachedError:
         return await _finish(
             intent="cost_ceiling",
             reply_text=tutor_chat_service.CEILING_EXCEEDED_RESPONSE,

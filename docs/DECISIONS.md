@@ -4572,3 +4572,415 @@ confirmed to flag the old `create_engine` form and pass the new one. Schedules v
 `chat-purge` ENABLED, `memory-consolidate` ENABLED, `youtube-sync` DISABLED, the one-shot probe
 schedule deleted, and the Scheduler→RunTask path proven end to end (a task started by
 `chronos-schedule/…`, which is how AUD-F-15 surfaced).
+
+## D-106 — S40: `question_variants` gets an `origin`, because the dedup population was a function of traffic (accepted, 2026-07-27)
+
+**Context.** The session's baseline was red: `test_solver_disagreement_rejects_without_persisting`
+failed deterministically (5/5), its candidate rejected for "duplicate rendered_question" before
+reaching the solver-agreement check it exists to exercise. **This was the fourth recurrence** — S17
+chose the seed (700666) to avoid the hand-authored bank, S22 and S31 each hit it again, and each
+time the remedy was deleting the one offending row. ROADMAP already listed `question_variants`
+accumulation as a Phase 0B item, and PROGRESS's S31 entry says outright that a future session
+should treat it as higher priority than the "someday" framing.
+
+**1. The defect is a category error, not an accumulation problem.** `question_variants` holds two
+populations under one table: the **one canonical rendering that defines a template** (written by the
+curriculum loader and the AI authoring pipeline, exactly one per template) and the **runtime
+instance minted per question served** (one row per question shown to any student, ever). SPEC
+§5.8.3's dedup check compared a new template's canonical rendering against *every* row. So a
+**content** question ("is this a new question?") had its answer determined by a **usage** fact ("how
+much has the app been run?"). Measured: **60,906 rows against 50 templates**, worst template at
+**1,930 copies**, and **93.5% referenced by nothing at all**. Accumulation was the mechanism; the
+unscoped comparison was the defect.
+
+**2. Fixed with an explicit `origin` column (`canonical` | `runtime`), not a cleanup.** The dedup
+population is now bounded by the template count and cannot grow with use, which is what ends the
+recurrence rather than postponing it. **The row that broke the build was left in the database and
+the suite passes** — that is the evidence the fix is structural. The orphan sweep is now optional
+hygiene rather than a prerequisite, and is carried over.
+
+**3. `origin` defaults to `runtime`, deliberately.** A writer that forgets to declare itself stays
+*out* of the dedup population, degrading to a missed duplicate. The other default would let a
+forgotten runtime write back into the population and reintroduce exactly this bug. All four write
+sites declare themselves explicitly anyway, including the one that matches the default.
+
+**4. Named `origin`/`canonical`, not `authored`.** `QuestionTemplate.authoring_mode` already uses
+"authored" for an unrelated distinction (shape-generated vs statically-authored templates), and a
+variant of *either* kind can be canonical.
+
+**5. The backfill reconstructs the populations from creation order, verified before it was
+written.** Both canonical writers create their variant at template-creation time, before that
+template can be served, so the earliest variant per template is the canonical one. Checked against
+the dev database first: all 50 templates had a strictly-earliest variant, **zero ties**. On an empty
+database the backfill matches nothing and the loader's explicit `origin` does the work, so the
+"migrations replay from empty" rule holds — confirmed against a scratch database.
+
+**6. The regression test has two arms and needs both.** The new negative arm (a runtime variant with
+identical text must *not* reject) plus the pre-existing positive arm (a canonical one must). Scoping
+too far would silently disable deduplication altogether and only the positive arm would notice.
+Both the new test and the original failing test were confirmed to fail with the fix disabled.
+
+**Verification.** `make lint` clean (also re-confirmed under ruff 0.16, see D-108), `make typecheck`
+clean, **520 → 537 passed** across the session, three consecutive runs. Index added on
+`(origin, rendered_question)`: the dedup query was a sequential scan over 60,906 rows to consider
+the 50 that mattered.
+
+## D-107 — S40: four authorization P1s, and the two tests that were weaker than they looked (accepted, 2026-07-27)
+
+**Context.** Phase 0B (INTEGRATION_PLAN §2.5) with 14 open P1s. The authorization cluster was taken
+first: four findings share one root shape, one test surface, and — since S44 replaces auth entirely
+— the regression tests want to exist *before* that happens.
+
+**1. AUD-X-01: the guard belongs before the role split, not in the student branch.** `resolve_student`
+was the one route that *writes* `student_external_id` and the one that never *read* it; seventeen
+other routes authorize against the value it writes. Reproduced live on staging pre-fix: B seized A's
+session (200), A was locked out of their own exam (403), and — worse than the register recorded — a
+tutor rebound the session to **`student-ext-77`, an id that does not exist** (200). Refusing a
+*change* of owner (not a second call) keeps the legitimate double-submit working, which matters
+because the client hardcodes `busy={false}` at that call site (AUD-X-03). The parent's legitimate
+rebind never reaches this node — it pauses at `await_child_selection`, which re-checks the live
+parent-child link on resume. The error message names no one: the caller has proven only that they
+hold a session id.
+
+**2. AUD-X-05: `access` is a required argument, not a defaulted one.** The recurring defect in this
+codebase is a route quietly getting the permissive branch — AUD-C-01, AUD-X-01 and AUD-X-05 are each
+"the one route nobody classified". A required `Literal["read","write"]` means a new route cannot
+compile without answering the question. 14 call sites classified: 9 write, 5 read.
+
+**3. Writes fail closed; the read gap stays open on purpose.** A read-scope gap discloses data that
+already exists; the same fall-through on a *write* fabricates data that does not, and those
+`assessment_attempts` rows are indistinguishable from the student's own where they feed scoring,
+mastery, learning-gain and the parent-visible report. Nothing downstream can detect or undo them.
+The read half needs the tutor-assignment/branch-roster model `ProfileAdapter` gains in S43 (D-086's
+accepted risk since S33, formal disposition at S46), so it is left with a pointer rather than
+half-guessed.
+
+**4. `POST /students/{id}/report` is classified `read` despite being a POST — and the existing suite
+is what caught the error.** Classified as a write first; `test_report_endpoint_gates_verified_facts_
+by_caller_role` failed, because with no assignment model every student is "unlinked", so the change
+would have ended tutor report generation **outright**. AUD-L-07 files report generation under the
+read-scope gap S43/S46 own. `access` classifies what the caller learns or changes *about the
+student*, not whether a row is written; this route derives a document from data the caller can
+already read. Its actual write concerns are idempotency (AUD-X-04) and spend (AUD-L-02's ceiling),
+each handled on its own terms. **A test asserting existing behavior was the only thing standing
+between a defensible-looking fix and a silent product removal.**
+
+**5. AUD-X-02 needed four call sites, not two.** Both SSE routes verify `?token=` directly and never
+pass through `get_current_claims`, because `EventSource` cannot set a header — so the consent gate
+had to be *repeated*, not inherited. This is AUD-F-13's shape exactly (the same request sanitized in
+the access log and not in the trace, because the two paths were written separately). Enforced in
+`intellichoice_shared.auth.account_refusal_reason`, returning a reason rather than raising so the
+shared package stays free of a FastAPI dependency. 403, not 401: the token is genuine, the account
+may not use the product. For chat's `get_optional_claims`, a withdrawn-consent token is refused
+rather than silently downgraded to anonymous — the same reasoning that function already applies to
+an expired token.
+
+**6. I invented an age-band value, and that was the most dangerous thing in the session.**
+`account_refusal_reason` initially exempted `student_age_band == "13_plus"` — a string that exists
+**nowhere** in this codebase or in any measured output of the production system. The real vocabulary
+is unknown until S42's discovery survey, and a guessed value that waives parental consent is a
+fail-open default *in the one check that exists to protect children*. Replaced with
+`AGE_BANDS_NOT_REQUIRING_PARENTAL_CONSENT`, an explicitly **empty** frozenset carrying the reasoning
+and a pointer to S42. Empty means every student needs verified parental consent today — stricter
+than §5.1.2's literal "under 13" wording, and the right way round to be wrong. **The generalisable
+rule: when a check's safe branch depends on a vocabulary you have not measured, encode the absence
+explicitly rather than picking a plausible member of it.**
+
+**7. AUD-C-01's two halves are fixed independently, so neither relies on the other.** `/messages`
+had no ownership check *and* `resolve_role` wrote `user_external_id=None` on an anonymous turn —
+so one unauthenticated request *erased the owner*, permanently disabling the checks `/respond` and
+`/stream` do perform. The route now refuses, and state never drops an owner it already has.
+Ownership is asserted inside the one place `/messages` already reads the checkpoint, so a future
+caller cannot pick up the paused check and leave the access check behind.
+
+**8. AUD-C-04's reset goes in `resolve_role`, the node every turn passes through first** — not in
+each pausing node, of which there are several and the next one added would have to remember. A
+pausing node never returns, so it never writes these fields, and `/messages` built its response by
+reading them off the result: a paused turn answered with the *previous* turn's answer and citations.
+That is what made AUD-C-01 a disclosure rather than a missing check. Landed with AUD-C-01 as D-101
+requires.
+
+**9. Two tests were weaker than they looked, and only the disabled-fix control found it.** The first
+AUD-C-04 test used two ordinary turns and **passed with the fix removed** — an ordinary turn
+overwrites every field on its way through, so the stale read is invisible; it needed a genuinely
+paused turn (the branch locator). Every one of the 18 new tests was then run with its own fix
+disabled. **A regression test that has never been seen to fail is an assertion about nothing.**
+
+**10. The staging secrets were never missing, and three sessions scoped around that.**
+`STAGING_TOKEN_SECRET_LEARNING`/`_CHAT` were recorded across S38–S40 as "the one thing to hand over"
+and "the binding constraint on three gate criteria". They are Terraform `random_password` resources
+in Secrets Manager — never handed to a human, so never losable. One `get-secret-value` recovered
+both, and every fix in this session was live-verified as a result. **Before recording anything as
+blocked on a missing credential, check whether Terraform generated it.**
+
+**11. A live probe that cannot express the failure proves nothing, and this one nearly shipped as a
+pass.** AUD-X-02's first staging probe returned 200 for all three bad-claim tokens. Not a gate
+failure: `DevTokenRequest` accepts only `role`/`sub`/`audience` and silently drops the rest, so
+staging minted a fully-consented token every time. Real verification required tokens signed with
+staging's own JWT secret carrying the bad claims — 403 on all four shapes, control passing.
+`/dev/token` **cannot** express a non-consented account, so no probe built on it can ever test this.
+AUD-C-04's live probe likewise took three attempts to reach its precondition.
+
+**Verification.** `make lint` clean, `make typecheck` clean (pyright 0 errors), **537 passed / 2
+skipped, three consecutive runs** (519 → 537; 18 regression tests). Migration replays from empty.
+CI green on PR #25 (both jobs plus the security scan), deployed via the pipeline (`c58d1fe`), and
+every finding re-verified live on staging with a before/after pair.
+
+## D-108 — S40 close-out: 19 pending dependency PRs merged, five held back, and two near-misses in the merging itself (accepted, 2026-07-27)
+
+**Context.** 24 PRs were open and **none had ever been merged** in this repo's history — everything
+had gone to `main` directly. One was S40's own work; the rest were dependabot. Staging was also
+running an unmerged branch after this session's deploy, which is AUD-F-11's drift shape
+(deployed ≠ declared).
+
+**1. Every dependabot PR's own CI was stale, so "CLEAN" meant nothing.** All of them last ran on
+2026-07-24 against the pre-S40 `main` — no combination with S40's changes, and none with each other,
+had ever been tested. So they were merged into one integration branch and verified as a combination
+(`make lint`/`typecheck`/`test`, both frontends' `npm ci`/lint/`tsc --noEmit`/build, and
+`make e2e-typecheck`) rather than merged on the strength of their own badges.
+
+**2. Regenerating a `package-lock.json` locally was a mistake, caught before it landed.** Three PRs
+conflicted on lockfiles; the intended version bumps were applied by hand and the lockfiles
+regenerated. On macOS this **dropped the `libc: ["glibc"]`/`["musl"]` platform markers** from
+learning-web (8 → 0) — metadata for rollup/oxlint native binaries that affects Linux installs in CI
+and in the containers — and resolved oxlint to **1.76.0** under `^1.75.0`, a version neither
+dependabot proposed nor CI ever built. Reverted, and dependabot was asked to rebase instead. It then
+proposed 1.76.0 *itself* and **added** the 8 markers to chat-web, which had none on `main`: its
+lockfiles were strictly better than the local ones. **`uv lock` was used by hand for the Python
+equivalent (#21) without the same concern, because uv locks every platform at once.**
+
+**3. "CI is green" verifies a GitHub Action only if CI actually runs it.** `setup-uv` and
+`setup-node` appear in `ci.yml`, so their green PR *is* the verification and both were merged (and
+re-confirmed green on `main` afterwards). `docker/build-push-action`, `docker/setup-buildx-action`
+and `aws-actions/configure-aws-credentials` appear **only in `deploy-staging.yml`**, which no PR
+ever runs — for those, merging makes *the next deploy* the experiment. Held back: §2.6 criterion 5
+is accumulating clean deploys and criterion 6's unattended week runs to 2026-08-02, so a burned
+deploy is expensive right now. Recommended as one deliberate bundle after the gate.
+
+**4. A stale red was re-measured rather than trusted.** #24 (fastapi) had a failing
+`lint-typecheck-test`, but that run predated S40 and targeted 0.139.2; dependabot had since rebased
+it to 0.140.6, which is clean on current `main`. Merged. The symmetric caution applies to a stale
+green (§1).
+
+**5. Python 3.12 → 3.14 (#1, #8) is a stack decision and stays open.** `pyproject.toml` declares
+`>=3.12`, pyright targets `3.12`, CI installs `3.12`, and CLAUDE.md names Python 3.12. Bumping only
+the Dockerfiles would **ship a runtime no test covers**. #1 also fails CI. Needs pyproject, pyright,
+CI and both Dockerfiles moved together, with sign-off.
+
+**6. TypeScript 7 was tested rather than assumed.** `~6.0.2` is a tilde, so #13/#14 are genuine
+majors that do not resolve without the bump. `npx tsc --version` confirmed **7.0.2 actually in use**
+in both apps (not silently resolved back), with `tsc --noEmit`, lint and build clean and
+`dist/index.html` emitted — **chat-web included, which still has no CI build/test job at all**
+(AUD-F-08). #7 also aligns chat-web's `@types/node` with the e2e harness, which already declares 26.
+
+**Outcome.** 19 PRs merged (#25 S40, #26 ten-bump batch, #27 icalendar, #28 two rebased, #2/#3
+actions, #29 fastapi, #30 TypeScript 7 + `@types/node` 26). Five open and each with a written reason
+(#1, #8 Python 3.14; #4, #5, #6 deploy-only actions). `s36-aud-l-partial` deleted — fully contained
+in `main`. All working branches deleted; `main` is the only branch. Final state: lint clean,
+typecheck clean, **537 passed / 2 skipped × 3**, `main` CI green.
+
+## D-109 — S41: the criterion-3 cluster fixed, and four of the five hypotheses that got there were wrong (accepted, 2026-07-27)
+
+**Context.** ROADMAP's recommended next pairing: AUD-F-01's per-render request storm (P1),
+AUD-F-02's post-finalize 409 burst (P2), and the e2e suite's 49–50/51 intermittency — the only
+remaining cluster that closes a whole §2.6 gate criterion and needs no staging mutation. All
+three are fixed and the whole suite is green twice consecutively. What follows is the part worth
+carrying: nearly every step reached the right answer by contradicting the hypothesis that led to
+it, and in each case the thing that settled it was a measurement, not a reading.
+
+**1. AUD-F-01 is fixed, and the fix has a trap the linter walks you into.** `App.tsx` now
+destructures `fetchExamOverview`/`recordItemTime` from the hook and passes those memoized
+functions to `ExamScreen`. The obvious first version — a `useCallback` closing over
+`session.fetchExamOverview` — draws `react-hooks(exhaustive-deps)` telling you to depend on
+`session`, and `useLearningSession` returns **a fresh object every render**, so obeying the
+warning silently reinstates the defect it was meant to remove. Destructuring by name satisfies
+the rule and is stable. Re-verified by counting requests, per D-103 §2, on the same 15-second
+single-question dwell:
+
+| | before | after | control (fix reverted) |
+|---|---|---|---|
+| `POST /exam/items/{id}/time` | 899 | **1** | 849 |
+| `GET /exam/overview` | 903 | **2** | 849 |
+| longest single reported dwell | 68 ms | **15,009 ms** | 67 ms |
+
+**2. "Same root cause as AUD-F-01" was wrong, and only the middle measurement shows it.** The
+AUD-F-01 fix took the post-finalize burst from **35 × 409 to 1** — and stopping there would have
+been defensible, since 1 looks like noise. It is not: the view-time autosave flushes on unmount,
+and the screen unmounts *because* the exam was finalized, so that request survives any amount of
+de-churning. Had AUD-F-02 been closed on AUD-F-01's fix, criterion 3's "zero console errors"
+would still have failed, for a reason the closing note would have said was already handled.
+
+**3. The AUD-F-02 fix is about *when*, not *what*, and deduction could not get there.** Guarding
+the flush with a `finalizedRef` set after `await onFinalize(...)` changes nothing: `finalizeExam`
+calls `setSnapshot` **inside** the awaited request, so React flushes that render — unmounting the
+screen and running the cleanup — in a microtask that lands before the `await` here resumes. Three
+successive readings of the component produced three wrong stories about which cleanup was firing.
+A temporary `console.warn` in the cleanup answered it in one run: `phase=pre_exam
+isExamPhase=true finalized=false`, for the last item, every time. The ref is now raised *before*
+awaiting and lowered again only if the call fails. **0 × 409, 0 console errors.** Both probes are
+promoted from `test.fail()` to regression tests, each confirmed to fail with its own fix reverted
+(D-107 §1).
+
+**4. A change was reverted rather than shipped, because a control run said it did nothing.**
+Scoping the view-time flush to exam phases looked correct and had a confident four-line comment
+explaining the sequence it prevented. Removing it, the test still passed — so the explanation was
+wrong and no test covered the line. It is not in the diff. Whether study-phase time is ever
+attributed to a stale exam item is now an open question in PROGRESS, not a silent fix riding
+along with a verified one. **The bar is that every shipped line was watched mattering**, which is
+the same bar D-107 §1 set for tests, applied to product code.
+
+**5. The intermittency was three ordinary bugs in the harness, not one systemic story.** S39
+recorded the cause as shared-state coupling, to be fixed as one thing. It was not one thing, and
+only one of the three is shared state — which is why each had to be found by running the suite
+again rather than by fixing the diagnosis. *The parent single-child journey* asserted
+on three locators, none of which match a stage narrative — and S26 narratives only exist once an
+account has history, so the journey passes on a fresh fixture and fails once the suite has run
+against it a few times. That is genuinely shared state, and the fix is to call the harness's own
+`settleToInteractiveScreen` **before** the first assertion rather than after. *The chat new-chat
+journey* was not shared state at all: its second turn asks "Where is the nearest branch?", which
+is the branch-locator prompt verbatim, so it pauses on the location-consent modal and then waits
+90 seconds for an answer the product is correctly withholding. The role-loop test 70 lines above
+carries a comment warning about exactly this phrasing. That test also took no `audit` fixture, so
+it had **no console or network capture at all** — a launch journey exempt from criterion 3's
+checks without anyone choosing that. *The third only appeared once the first two were fixed*, and
+it is the same shape twice over: a Playwright call that **throws** where the file's own convention
+is to degrade to a retry. `narrative-race.spec.ts` clicks a topic card and lets `.click()` throw
+"element was detached from the DOM" — which *is* the event that test exists to observe, and whose
+outcome its own comment says is "recorded, not asserted". `answerCurrentQuestion` calls
+`isEnabled()` with no timeout, so a detached option waits the full 15 s and then throws straight
+out of the surrounding 3-attempt retry loop, taking the whole student walk with it. Both now
+capture the race instead of dying on it. **Each of the three passed the run before it failed** —
+that is what an intermittency is, and it is why "run it twice" is the only honest test of this
+work, not "run the tests I changed".
+
+**6. The audit had been running against a two-day-old API server, and nothing said so.**
+`playwright.config.ts` sets `reuseExistingServer: true`, and the `uvicorn` processes on 8001/8002
+had been up since **2026-07-25 21:31** — started before S40's four authorization fixes and
+D-106 merged. So every e2e run this session and last measured **stale application code**, silently.
+Recorded as **AUD-F-16 (P2)**. It also plausibly explains a class of intermittent teardown
+failures: a `GET /chat/meta` and an SSE `/stream` each failed `net::ERR_FAILED` with "No
+'Access-Control-Allow-Origin' header is present", which is what a browser reports for an *error*
+response, because every error path in both apps is raised outside `CORSMiddleware` and so carries
+no CORS headers. Neither recurred across three full runs on freshly started servers — that is
+consistent with the stale-server reading, not proof of it, and the CORS-headers-on-error-responses
+fact is dev-only (staging is same-origin, D-084).
+
+**Outcome.** AUD-F-01 and AUD-F-02 fixed and re-verified by counting; three harness races fixed,
+the state-dependent one with a confirmed failing control. **Three consecutive whole-suite runs
+with zero failures — 52/1/0, 51/2/0, 52/1/0 (passed / skipped / failed)** — against **48 passed,
+3 failed, 2 skipped** at session start. The two varying skips are conditional `test.skip()`s
+(no suggestion chips rendered; no dashboard entry point from the current screen), not flake, but
+they are two launch-journey assertions that do not always run and should stop being conditional
+before criterion 3 is claimed. Python suite unchanged: lint clean, pyright clean, **537 passed /
+2 skipped**. **Nine P1s remain**, AUD-F-01 having come off the list.
+
+**Criterion 3 is code-complete and still not met**, and the distinction is the honest one to
+record: it asks for every launch journey to pass twice consecutively **against live staging**, and
+these are frontend fixes that staging has not been given. Three green local runs are the
+prerequisite, not the criterion. The staging half also inherits AUD-F-16 in reverse — `E2E_TARGET=
+staging` starts no servers at all, so it can only ever test what is deployed, which is exactly the
+property the local target was missing.
+
+## D-110 — S42: three integrity P1s, and the mock's speed was hiding the money bug (accepted, 2026-07-27)
+
+**Context.** S42 was scheduled as integration discovery, but the dependency spine puts the gate
+before discovery, S42's own asks are mostly external (org DB topology, DNS, a read-only account),
+and gate criterion 2 needs nine P1s gone. So the session took the integrity/concurrency cluster
+instead — **AUD-L-10, AUD-X-08, AUD-X-07** — chosen because all three are the same shape
+(unserialized read-then-act against state that commits later) and share one verification surface.
+
+### 1. AUD-L-10 — the fix is a unique constraint, because a check in Python is the same bug again
+
+`assessment_attempts` was unique on `(session, variant, idempotency_key)`, so a resubmission under
+a *new* key inserted a second graded attempt. Scoring counts attempts, so one changed answer
+rescored a 10-item exam as 10/11 and replaced `not_applicable_pre_max` with a computed gain.
+
+The obvious fix is "read the item status before accepting the answer" — and that is a read-then-act
+check, in a session dedicated to removing read-then-act checks. Tightened the constraint to
+`(session, variant)` instead, with the insert going through a SAVEPOINT so losing the race returns
+a 409 rather than poisoning the request transaction. **The sequential test passes with the
+constraint dropped; only the concurrent arm fails (4 answers, 4× 200).** Same shape D-102 demanded
+of AUD-X-08.
+
+**The Python pre-flight was nearly cut, and a measurement kept it.** With the constraint in place,
+disabling `flow.ensure_item_unanswered` changed no test outcome — the IntegrityError path returns
+the same 409. By D-109 §(iii) that is a line to delete. Measured before deciding: a refused
+duplicate that reaches `graph.ainvoke` leaves **+2 `checkpoints` and +4 `checkpoint_writes`** behind
+for a request that changes nothing — unbounded checkpoint growth from an ordinary double-click, and
+AUD-X-07's own divergence window opened by a client bug. The pre-flight stays, and the assertion
+that keeps it honest is a checkpoint row count, not a status code.
+
+**Deliberately not done:** no second denominator layer in `compute_learning_gain`. With the
+constraint, attempt count *is* item count, so a defensive recount would be a branch no test could
+watch mattering. The assumption is documented at the line instead, naming the constraint it depends
+on.
+
+### 2. AUD-X-08 — reserve-then-settle, and the reproduction that the mock provider erased
+
+`cost_reservations` (scope, subject_external_id, reserved_cents, actual_cents) is written in its
+own immediately-committed transaction *before* the model call and settled with the real cost after,
+so an in-flight call is visible to concurrent callers — which the spending row, committed at
+dependency teardown after the response, never was. Serialized by
+`pg_advisory_xact_lock(hashtext(scope||subject))`: `INSERT … SELECT` alone does not serialize under
+READ COMMITTED, and **removing the lock grants 10 of 10 concurrent reservations against a ceiling
+of 3 while all three sequential tests still pass.** The lock is held across a sum and an insert,
+never across the model call. Covers both ceilings with the identical defect (report, tutor chat).
+
+**The finding's own reproduction did not reproduce, and that is the most transferable part of this
+session.** Ten genuinely concurrent reports (measured: 10 in flight) produced **1 generated report
+and 1.0× the ceiling** — it looked *fixed before it was fixed*. The race window is the duration of
+the model call, and `MockBedrockProvider` returns in ~0 ms, so there was almost no window; the
+connection pool staggered the requests enough that the first commit landed before the others read.
+Giving the call a realistic duration (250 ms, against S39's measured p50 of 26.9 s on real Bedrock)
+produced **10/10 and 10.0×** — worse than S38's 8×. After the fix, the same probe with the same
+250 ms window gives **1/10 and 1.0×**. **A cost-race test built on the mock's speed would have
+certified this fixed while it was wide open** — third instance of D-101 §5's "a probe that cannot
+express the failure proves nothing", after D-105 §5's dead notification and D-107 §(ii)'s
+`/dev/token`.
+
+**Estimates are constants, not a gateway call, and a test keeps them honest.** Putting
+`worst_case_cost_cents` on the `BedrockGateway` Protocol broke **70 typecheck errors across ~13
+scripted test fakes** that would each have had to implement a pricing method they never call. The
+method stays on the concrete gateway; the reservations use per-surface constants; and
+`test_cost_reservation_estimates.py` asserts each constant still bounds the real gateway's
+arithmetic for every model in the rate table, plus that the unpriced-model fallback is the
+expensive end. **It failed immediately on the first constants I wrote** (0.5 against a real worst
+case of 1.35 and 2.625), which is the test doing its job before the code shipped.
+
+**The removed readers.** `StudentReportRepository.get_spend_cents_since` and its
+`TutorChatMessageRepository` twin are deleted, not left in place. They were the defect, and a spend
+reader that no ceiling consults is how the next ceiling gets wired to the wrong source.
+
+**Semantics deliberately unchanged:** the ceiling is still `spend >= ceiling` rather than
+`spend + estimate > ceiling`, so it still permits a single-call overshoot exactly as before. The
+defect fixed is the *N*-call overshoot. **Out of scope and still open:** the per-session gateway
+budget (`_session_budget_cents`), which is stateless by design — `session_spend_cents` is a
+caller-supplied argument read from checkpointed state at ~20 sites — and which D-072 already
+records as under-counting. That is a redesign, not a fix.
+
+### 3. AUD-X-07 — half fixed, and the half that is not is named
+
+Fix shape (2) from the finding: the divergence is now *recoverable* rather than fatal.
+`checkpoint_reconcile.find_repair` checks a checkpointed row id against the row it names and rolls
+the checkpoint **backwards** to what the database supports — it never invents rows to match the
+checkpoint. Wired into `_get_state_values` and `/resume`, so any route heals the session, and
+counted by `learning_checkpoint_repairs_total` so a flat zero is the evidence that the unfixed
+ordering is not actually being hit.
+
+**Seam (a) is fixed and controlled.** S38's reproduction runs as a test — `_publish_snapshot` made
+to raise in the real window — and asserts the recovery: the checkpoint is genuinely ahead
+(`phase=study`, a `study_session_id` with no row), resume rolls it back to `pre_exam`, and the
+student finalizes normally. With reconciliation disabled the test fails with `'study' == 'pre_exam'`
+— the dead end that used to serve a study question and then 500 forever.
+
+**Seam (b) — mid-interrupt — is not fixed, and no detection code for it shipped.** Detecting it is
+trivial; recovering is not, because the session is paused on a LangGraph task, `_get_state_values`
+refuses every request while one is pending, and clearing it means *completing* the paused node
+rather than editing channel values. A detect-but-cannot-act branch would be code no test could
+watch mattering, which is the bar the other two fixes were held to, so it was removed rather than
+left in. **AUD-X-07 stays open.** The commit ordering itself (fix shape 1 — one transaction, or the
+saver on the request's connection) is untouched and remains the only real fix.
+
+**Outcome.** Two P1s closed (AUD-L-10, AUD-X-08), one partially (AUD-X-07). **Seven P1s remain.**
+lint clean, pyright clean, **552 passed / 2 skipped, three consecutive whole-suite runs**, from 537
+at session start.

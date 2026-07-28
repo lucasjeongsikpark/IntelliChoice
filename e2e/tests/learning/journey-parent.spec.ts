@@ -22,6 +22,13 @@ test("parent with two children is asked which child, and the choice sticks", asy
   await expect(page.getByRole("heading", { name: /ready to learn/i })).toBeVisible();
   await startSession(page);
 
+  // Settle *before* the first screen assertion, not after. S26 stage narratives are gated
+  // ahead of every phase branch and only exist once an account has history, so whether one
+  // interposes here is a function of how many times the suite has run against this fixture -
+  // which is precisely the shared-state coupling S39 recorded as the e2e intermittency.
+  // The child-selection screen renders its candidates as a `.card-list`, so settling stops
+  // here rather than clicking past the interrupt this test is about.
+  await settleToInteractiveScreen(page);
   await expect(page.getByRole("heading", { name: /who's learning today/i })).toBeVisible({
     timeout: 60_000,
   });
@@ -53,6 +60,11 @@ test("parent with one child reaches a working screen without being asked to choo
 }) => {
   await signInViaUi(page, LEARNING_WEB, FIXTURES.parentOneChild);
   await startSession(page);
+
+  // Same reason as the two-children journey above. This is the one that actually caught it:
+  // it failed a whole-suite run on "Welcome back! Let's see what you remember today." with a
+  // Continue button, which is none of the three locators below, having passed the run before.
+  await settleToInteractiveScreen(page);
 
   const childPrompt = page.getByRole("heading", { name: /who's learning today/i });
   const topics = page.locator(".card-list");

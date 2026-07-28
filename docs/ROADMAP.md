@@ -672,6 +672,37 @@ checkpointed row ids with a reconciliation path, *not* reordering the two commit
 I/O-bound workload (CPU peaked at 15% while p95 sat at 31s), so raising `max_capacity` alone would
 change nothing.
 
+**✅ The authorization cluster landed 2026-07-27 (D-107), four P1s in one pass:** AUD-X-01 (session
+seizure), AUD-X-05 (tutor *writes* — the read half stays with D-086/S43), AUD-X-02 (SPEC §5.1.2's
+consent claims, previously read by nothing) and AUD-C-01 + AUD-C-04 together, as D-101 requires.
+Taken first because they share one root shape and one test surface, **and because S44 replaces auth
+outright — the regression tests want to exist before that happens.** All four re-verified live on
+staging with before/after pairs. **Also ✅ the `question_variants` accumulation item (D-106)**, fixed
+by scoping SPEC §5.8.3's dedup population rather than by another row delete; it was the fourth
+recurrence and had turned the baseline red at session start. **`question_variants`/`checkpoints`
+orphan sweeps are now optional hygiene, not prerequisites** — they no longer gate anything.
+**✅ The criterion-3 cluster landed 2026-07-27 (D-109):** AUD-F-01's per-render request storm
+(**899 → 1** time reports and **903 → 2** overview fetches in a 15-second dwell, re-verified by
+counting requests as D-103 §2 required), AUD-F-02's console-error burst (**35 → 0**, and it turned
+out *not* to share AUD-F-01's root cause — the AUD-F-01 fix left exactly 1), and the e2e
+intermittency, which was **three unrelated harness races** rather than the single shared-state
+story S39 recorded. Suite now **green three consecutive whole-suite runs**. Both probes promoted
+from `test.fail()` to regression tests, each watched failing with its own fix reverted.
+**✅ The integrity/concurrency cluster landed 2026-07-27 (D-110):** AUD-L-10 (one attempt per exam
+item, enforced by a unique constraint rather than a check, since a check is the same read-then-act
+shape) and AUD-X-08 (a `cost_reservations` ledger with an advisory lock, reserve-then-settle,
+**10/10 generated at 10.0× the ceiling → 1/10 at 1.0×**), plus **half of AUD-X-07** — seam (a),
+mid-finalize, now rolls the checkpoint back to what the database supports instead of dead-ending.
+**The verification shape D-102 required was the load-bearing part twice over:** each fix has a
+concurrent arm that fails without it while every sequential test still passes, and AUD-X-08's
+reproduction had to be *repaired before it could reproduce* — with the mock provider's ~0 ms call
+the unfixed ceiling measured 1/10, i.e. clean.
+**Seven P1s remain** (AUD-L-04, L-07 read half, C-02, C-03, C-16, X-07 half, F-14).
+**AUD-X-07 stays open:** seam (b) (mid-interrupt) needs a paused LangGraph node *completed*, not
+channel values edited, and fix shape (1) — one transaction across both stores — is untouched.
+**One new P2, AUD-F-16:** `reuseExistingServer: true` had the audit measuring two-day-old API
+code, so every S39/S40 `local` e2e result is of an unknown application version.
+
 ### Gate — measurable exit criteria before integration discovery *(INTEGRATION_PLAN §2.6)*
 Nine criteria, evidenced in PROGRESS.md: full traceability; zero open P0/P1; every launch
 journey passing twice consecutively against live staging; 3 consecutive green full test runs
@@ -679,6 +710,22 @@ with CI covering every deployable; 2 consecutive clean deploys incl. migrations 
 plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week; live load
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
+
+**Standing as of 2026-07-27.** **5 met** (six consecutive clean pipeline deploys plus the
+demonstrated auto-rollback; the "consecutive" ambiguity D-105 left open is settled — `73396c1` →
+`c58d1fe` has no failed deployment between them on either reading). **6 is on the calendar**, earliest
+2026-08-02. **4 is half met**: the test half is green and D-106 removed the recurring flake source,
+but CI on `main` still runs only `lint-typecheck-test` and `learning-web`, so `chat-web` and `e2e/`
+remain unbuilt by CI (AUD-F-08). **2 needs seven more P1s** (was nine; AUD-L-10 and AUD-X-08 closed in S42/D-110). **3 is code-complete and one deploy
+short**: AUD-F-02 and the e2e intermittency are both fixed and the suite is green three runs
+running locally, but the criterion asks for two consecutive passes **against live staging** and the
+fixes are frontend code staging has not been given — merge to `main`, let `deploy-staging.yml`
+run, then `make e2e-staging` twice. Two conditional `test.skip()`s (no suggestion chips; no
+dashboard entry point) should stop being conditional before the criterion is claimed.
+**7, 8 and 9 are undone but no longer blocked** — the "missing" staging token secrets
+were always retrievable from Secrets Manager (D-107 §10), so the authenticated load run, the two
+learning-app alarm inductions on their real condition, and an authenticated-traffic trace scan are
+all now reachable. **1** is unassessed since S37.
 
 ### Sessions 42–47 — Integration readiness and implementation *(INTEGRATION_PLAN §3, §5)*
 - **S42 — discovery, Tier 1 org asks, and the auth decision gate.** Exercise

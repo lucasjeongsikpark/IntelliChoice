@@ -146,7 +146,7 @@ test("an out-of-scope question is refused visibly rather than answered", async (
   expect(answer.length).toBeGreaterThan(10);
 });
 
-test("a new chat clears the transcript and the composer stays usable", async ({ page }) => {
+test("a new chat clears the transcript and the composer stays usable", async ({ page, audit }) => {
   await seedGuest(page);
   await page.goto(CHAT_WEB);
   await ask(page, "What are the Saturday hours?");
@@ -156,9 +156,17 @@ test("a new chat clears the transcript and the composer stays usable", async ({ 
   await page.getByRole("button", { name: /new chat/i }).click();
   await expect(page.locator(".message-row")).toHaveCount(0);
   await expect(page.locator(".composer textarea")).toBeEnabled();
-  // And a second turn still works after the reset.
-  await ask(page, "Where is the nearest branch?");
-  await expectAnswered(page);
+
+  // A second turn must still resolve after the reset. The question is deliberately *not*
+  // "Where is the nearest branch?" - that is the branch-locator prompt (the two locator
+  // journeys below use it verbatim), so it pauses on the location-consent modal and the
+  // assistant bubble stays on "Thinking…" forever. This test asked it and spent 90 s waiting
+  // for an answer the product is correctly refusing to give until consent is resolved.
+  // The role-loop above carries the same warning; it had not been applied here.
+  await ask(page, "How do I enroll a student?");
+  const answer = await expectAnswered(page);
+  audit.note(`second turn after reset (${answer.length} chars)`);
+  await expect(page.locator(".message-row.user")).toHaveCount(1);
 });
 
 test("signing in through the real login screen reaches a usable chat", async ({ page }) => {

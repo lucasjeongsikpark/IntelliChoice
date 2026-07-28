@@ -96,6 +96,12 @@ async def compute_learning_gain(
 
     pre_raw = float(sum(1 for a in pre_graded if a.is_correct))
     post_raw = float(sum(1 for a in post_graded if a.is_correct))
+    # `max_score` is the attempt count, and it is the *item* count only because
+    # `uq_assessment_attempts_session_variant` allows one attempt per item and
+    # `flow.finalize_exam` synthesizes one for every item left unanswered. That was not
+    # true before AUD-L-10: a second answer under a new key made a 10-item exam score
+    # 10/11 and silently replaced `not_applicable_pre_max` below with a computed gain.
+    # If that constraint is ever relaxed, this line has to start counting items instead.
     max_score = float(len(pre_graded)) or 1.0
 
     if pre_raw >= max_score:

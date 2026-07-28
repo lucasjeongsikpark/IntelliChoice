@@ -12,11 +12,19 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 from intellichoice_adapters.fake_auth import FakeTokenIssuer
-from intellichoice_adapters.seed.mysql_fixtures import STUDENT_UNLINKED, seed
+from intellichoice_adapters.seed.mysql_fixtures import (
+    STUDENT_ONLY_CHILD,
+    STUDENT_SECOND_CHILD,
+    STUDENT_UNLINKED,
+    seed,
+)
 from intellichoice_curriculum.loader import load_curriculum_and_templates
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
+from intellichoice_db.models.cost_reservation import SCOPE_STUDENT_REPORT
+from intellichoice_db.repositories.cost_reservation import CostReservationRepository
 from intellichoice_shared.auth import Audience, Role
 from learning_api.main import app
+from learning_api.services.report import DAILY_REPORT_COST_CEILING_CENTS
 from sqlalchemy import text
 
 MYSQL_URL = "mysql+aiomysql://intellichoice:intellichoice@localhost:3306"
@@ -154,6 +162,79 @@ def test_report_endpoint_gates_verified_facts_by_caller_role() -> None:
         assert isinstance(body["interpretation_text"], str) and body["interpretation_text"]
         assert isinstance(body["recommendations_text"], str) and body["recommendations_text"]
         assert isinstance(body["generated"], bool)
+
+
+def test_the_report_route_consults_this_students_spend_ledger() -> None:
+    """S42/AUD-X-08 wiring: the route reads *this student's* ledger spend, and another
+    student's spend does not deny them a report. The ceiling's own behaviour and its
+    serialization are covered by `test_report.py` and
+    `packages/db/tests/test_cost_reservation.py`; what only an HTTP test can show is that
+    the route is wired to the ledger at all, under the right subject.
+
+    Deliberately not claiming more than that. The route makes *two* ledger reads - the
+    per-day ceiling in the service, and `session_spend_cents` for the gateway's own budget
+    check - and at 50 cents each they trip together, so this cannot isolate one from the
+    other. It was confirmed to fail only when both are bypassed.
+
+    Two false-pass traps were found writing it, both the D-101 §5 shape. Using
+    `STUDENT_UNLINKED` for the capped arm passed with the ceiling *disabled*, because that
+    student has no dashboard data and its report never generates - so `generated is False`
+    proved nothing. And bypassing the ceiling alone still passed, because the gateway's
+    session budget caught it instead.
+    """
+    subject = STUDENT_ONLY_CHILD
+    unrelated = STUDENT_SECOND_CHILD
+
+    # Each helper builds and disposes its own engine: every `asyncio.run` below is a
+    # fresh event loop, and an asyncpg connection pool cannot outlive the loop it was
+    # created on.
+    async def seed(target: str, cents: float) -> None:
+        engine = create_engine()
+        try:
+            ledger = CostReservationRepository(create_session_factory(engine))
+            reservation = await ledger.reserve(
+                scope=SCOPE_STUDENT_REPORT,
+                subject_external_id=target,
+                estimate_cents=cents,
+                ceiling_cents=float("inf"),
+            )
+            await ledger.settle(reservation.reservation_id, cents)
+        finally:
+            await engine.dispose()
+
+    async def clear() -> None:
+        engine = create_engine()
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text("DELETE FROM cost_reservations WHERE subject_external_id = ANY(:ids)"),
+                    {"ids": [subject, unrelated]},
+                )
+        finally:
+            await engine.dispose()
+
+    def request_report() -> dict:
+        with TestClient(app) as client:
+            resp = client.post(
+                f"/learning/students/{subject}/report",
+                headers=_auth_header(_token(subject, Role.STUDENT)),
+            )
+        # Always 200 - the ceiling degrades to the facts-only template rather than
+        # erroring (SPEC §5.25.3), so `generated` is the signal, not the status code.
+        assert resp.status_code == 200
+        return resp.json()
+
+    asyncio.run(clear())
+    try:
+        # Another student's spend must not deny this one a report.
+        asyncio.run(seed(unrelated, DAILY_REPORT_COST_CEILING_CENTS))
+        assert request_report()["generated"] is True
+
+        # This student's own spend must.
+        asyncio.run(seed(subject, DAILY_REPORT_COST_CEILING_CENTS))
+        assert request_report()["generated"] is False
+    finally:
+        asyncio.run(clear())
 
 
 def test_reports_history_endpoint_returns_generated_reports() -> None:

@@ -6,13 +6,13 @@ Postgres is unreachable (D-008).
 """
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime, timedelta
 
 import pytest
-from intellichoice_db.engine import create_engine
-from intellichoice_db.models.student_report import StudentReport
+from intellichoice_db.engine import create_engine, create_session_factory
+from intellichoice_db.models.cost_reservation import SCOPE_STUDENT_REPORT
+from intellichoice_db.repositories.cost_reservation import CostReservationRepository
 from intellichoice_db.repositories.student_report import StudentReportRepository
 from intellichoice_shared.bedrock import (
     BedrockGatewayError,
@@ -164,11 +164,13 @@ def test_gateway_failure_falls_back_to_facts_only_template() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
             repo = StudentReportRepository(session)
+            ledger = _cost_ledger()
             gateway = _FakeGateway([BedrockGatewayError("simulated failure", cost_cents=0.2)])
 
             result = await generate_student_report(
                 gateway=gateway,
                 repo=repo,
+                cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
                 session_spend_cents=0.0,
@@ -189,6 +191,7 @@ def test_ungrounded_response_falls_back_to_facts_only_template() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
             repo = StudentReportRepository(session)
+            ledger = _cost_ledger()
             # 99 appears nowhere in the payload's evidence - an invented number.
             gateway = _FakeGateway(
                 [
@@ -202,6 +205,7 @@ def test_ungrounded_response_falls_back_to_facts_only_template() -> None:
             result = await generate_student_report(
                 gateway=gateway,
                 repo=repo,
+                cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
                 session_spend_cents=0.0,
@@ -217,6 +221,7 @@ def test_grounded_response_is_trusted_as_is() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
             repo = StudentReportRepository(session)
+            ledger = _cost_ledger()
             gateway = _FakeGateway(
                 [
                     ReportInterpretationResponse(
@@ -229,6 +234,7 @@ def test_grounded_response_is_trusted_as_is() -> None:
             result = await generate_student_report(
                 gateway=gateway,
                 repo=repo,
+                cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
                 session_spend_cents=0.0,
@@ -257,18 +263,45 @@ class _ExplodingGateway:
         raise NotImplementedError
 
 
-async def _seed_spend(repo: StudentReportRepository, cents: float) -> None:
-    await repo.create(
-        StudentReport(
-            student_external_id=STUDENT_ID,
-            audience="parent",
-            verified_facts={},
-            interpretation_text="seeded",
-            recommendations_text="seeded",
-            generated=True,
-            cost_cents=cents,
-        )
+def _cost_ledger() -> CostReservationRepository:
+    """S42/AUD-X-08: the ledger commits on its own connection, so it deliberately does not
+    join the enclosing rollback session - `_clear_ledger` cleans up instead.
+    """
+    return CostReservationRepository(create_session_factory(create_engine()))
+
+
+async def _clear_ledger() -> None:
+    engine = create_engine()
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text("DELETE FROM cost_reservations WHERE subject_external_id = :s"),
+                {"s": STUDENT_ID},
+            )
+    finally:
+        await engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def clean_ledger() -> Iterator[None]:
+    """The ledger commits for real, so it outlives the rollback session every other
+    fixture here relies on. Clears before as well as after, so a run interrupted midway
+    cannot leave spend behind that silently trips the next run's ceiling.
+    """
+    asyncio.run(_clear_ledger())
+    yield
+    asyncio.run(_clear_ledger())
+
+
+async def _seed_spend(ledger: CostReservationRepository, cents: float) -> None:
+    """Puts `cents` of settled spend on this student's report ceiling."""
+    reservation = await ledger.reserve(
+        scope=SCOPE_STUDENT_REPORT,
+        subject_external_id=STUDENT_ID,
+        estimate_cents=cents,
+        ceiling_cents=float("inf"),
     )
+    await ledger.settle(reservation.reservation_id, cents)
 
 
 def test_report_generation_stops_calling_bedrock_at_the_daily_cost_ceiling() -> None:
@@ -281,11 +314,13 @@ def test_report_generation_stops_calling_bedrock_at_the_daily_cost_ceiling() -> 
     async def run() -> None:
         async with _rollback_session() as session:
             repo = StudentReportRepository(session)
-            await _seed_spend(repo, DAILY_REPORT_COST_CEILING_CENTS)
+            ledger = _cost_ledger()
+            await _seed_spend(ledger, DAILY_REPORT_COST_CEILING_CENTS)
 
             result = await generate_student_report(
                 gateway=_ExplodingGateway(),
                 repo=repo,
+                cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
                 session_spend_cents=DAILY_REPORT_COST_CEILING_CENTS,
@@ -308,7 +343,8 @@ def test_report_generation_still_runs_just_below_the_daily_cost_ceiling() -> Non
     async def run() -> None:
         async with _rollback_session() as session:
             repo = StudentReportRepository(session)
-            await _seed_spend(repo, DAILY_REPORT_COST_CEILING_CENTS - 0.5)
+            ledger = _cost_ledger()
+            await _seed_spend(ledger, DAILY_REPORT_COST_CEILING_CENTS - 0.5)
 
             result = await generate_student_report(
                 gateway=_FakeGateway(
@@ -320,6 +356,7 @@ def test_report_generation_still_runs_just_below_the_daily_cost_ceiling() -> Non
                     ]
                 ),
                 repo=repo,
+                cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
                 session_spend_cents=DAILY_REPORT_COST_CEILING_CENTS - 0.5,
@@ -330,35 +367,53 @@ def test_report_generation_still_runs_just_below_the_daily_cost_ceiling() -> Non
     asyncio.run(run())
 
 
-def test_spend_query_only_counts_this_students_reports_inside_the_window() -> None:
-    """The ceiling must not be tripped by another student's spend, nor by this student's
-    spend from a week ago - either would deny a legitimate report.
+def test_the_ceiling_is_scoped_to_this_student() -> None:
+    """The ceiling must not be tripped by another student's spend - that would deny a
+    legitimate report. The window and per-surface halves of this moved to
+    `packages/db/tests/test_cost_reservation.py` along with the spend query itself
+    (S42/AUD-X-08); what is worth keeping here is that the *service* asks for the right
+    subject.
     """
 
     async def run() -> None:
         async with _rollback_session() as session:
             repo = StudentReportRepository(session)
-            await _seed_spend(repo, 30.0)
-            await repo.create(
-                StudentReport(
-                    student_external_id="some-other-student",
-                    audience="parent",
-                    verified_facts={},
-                    interpretation_text="seeded",
-                    recommendations_text="seeded",
-                    generated=True,
-                    cost_cents=40.0,
-                )
+            ledger = _cost_ledger()
+            other = await ledger.reserve(
+                scope=SCOPE_STUDENT_REPORT,
+                subject_external_id="some-other-student",
+                estimate_cents=DAILY_REPORT_COST_CEILING_CENTS,
+                ceiling_cents=float("inf"),
             )
+            await ledger.settle(other.reservation_id, DAILY_REPORT_COST_CEILING_CENTS)
 
-            recent = await repo.get_spend_cents_since(
-                STUDENT_ID, datetime.now(UTC) - timedelta(hours=24)
+            result = await generate_student_report(
+                gateway=_FakeGateway(
+                    [
+                        ReportInterpretationResponse(
+                            interpretation_text="Score improved from 4.0 to 6.0.",
+                            recommendations_text="Focus on Two-Step Equations.",
+                        )
+                    ]
+                ),
+                repo=repo,
+                cost_ledger=ledger,
+                student_external_id=STUDENT_ID,
+                payload=_payload("parent"),
+                session_spend_cents=0.0,
             )
-            assert recent == pytest.approx(30.0)
+            assert result.generated is True
 
-            future_window = await repo.get_spend_cents_since(
-                STUDENT_ID, datetime.now(UTC) + timedelta(hours=1)
-            )
-            assert future_window == pytest.approx(0.0)
+            engine = create_engine()
+            try:
+                async with engine.begin() as conn:
+                    await conn.execute(
+                        text(
+                            "DELETE FROM cost_reservations "
+                            "WHERE subject_external_id = 'some-other-student'"
+                        )
+                    )
+            finally:
+                await engine.dispose()
 
     asyncio.run(run())
