@@ -57,6 +57,7 @@ async def main() -> None:
                     content_store=content_store,
                     gateway=gateway,
                     run_budget_cents=settings.bedrock_run_budget_cents,
+                    embedding_provider=settings.bedrock_provider,
                 )
             except CostBudgetExceededError as exc:
                 print(f"run budget exceeded: {exc}")

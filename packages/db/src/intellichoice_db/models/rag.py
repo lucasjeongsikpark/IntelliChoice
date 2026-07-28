@@ -61,6 +61,12 @@ class RagChunk(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
     source_sha256: Mapped[str] = mapped_column(String, nullable=False)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
+    # AUD-C-16: which provider/model produced `embedding`. NULL means unknown (pre-
+    # provenance rows), which readiness and re-embed both treat as a mismatch - staging
+    # served real Titan queries against mock hash vectors for weeks because nothing
+    # recorded what the corpus was built with.
+    embedding_provider: Mapped[str | None] = mapped_column(String, nullable=True)
+    embedding_model_id: Mapped[str | None] = mapped_column(String, nullable=True)
     search_vector: Mapped[str | None] = mapped_column(TSVECTOR, nullable=True)
 
     document: Mapped[RagDocument] = relationship(back_populates="chunks")

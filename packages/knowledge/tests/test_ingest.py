@@ -117,6 +117,7 @@ def test_ingestion_creates_all_documents_then_is_idempotent_on_rerun() -> None:
                 content_store=content_store,
                 gateway=gateway,
                 run_budget_cents=1000.0,
+                embedding_provider="mock",
             )
             assert first.documents_updated == 0
             assert first.documents_created + first.documents_unchanged == len(
@@ -133,6 +134,7 @@ def test_ingestion_creates_all_documents_then_is_idempotent_on_rerun() -> None:
                 content_store=content_store,
                 gateway=gateway,
                 run_budget_cents=1000.0,
+                embedding_provider="mock",
             )
             assert second.documents_created == 0
             assert second.documents_updated == 0
@@ -155,6 +157,7 @@ def test_draft_document_chunks_are_never_returned_by_search_document_chunks() ->
                 content_store=LocalFilesystemContentStore(),
                 gateway=_gateway(),
                 run_budget_cents=1000.0,
+                embedding_provider="mock",
             )
             repo = RagRepository(session)
 
@@ -212,6 +215,7 @@ def test_ingest_entry_updates_in_place_when_content_hash_changes() -> None:
                 content_store=store_v1,
                 gateway=gateway,
                 session_spend_cents=0.0,
+                embedding_provider="mock",
             )
             assert outcome == "created"
             assert chunks_created > 0
@@ -223,6 +227,7 @@ def test_ingest_entry_updates_in_place_when_content_hash_changes() -> None:
                 content_store=store_v1,
                 gateway=gateway,
                 session_spend_cents=0.0,
+                embedding_provider="mock",
             )
             assert outcome_again == "unchanged"
             assert chunks_again == 0
@@ -237,6 +242,7 @@ def test_ingest_entry_updates_in_place_when_content_hash_changes() -> None:
                 content_store=store_v2,
                 gateway=gateway,
                 session_spend_cents=0.0,
+                embedding_provider="mock",
             )
             assert outcome_updated == "updated"
             assert chunks_updated > 0
@@ -253,5 +259,54 @@ def test_ingest_entry_updates_in_place_when_content_hash_changes() -> None:
             assert "completely different text now" in joined
             assert "original content here" not in joined
             assert len(remaining) == chunks_updated
+
+    asyncio.run(run())
+
+
+def test_ingest_stamps_embedding_provenance_on_every_chunk() -> None:
+    """AUD-C-16: staging served real Titan queries against mock hash vectors because
+    nothing recorded which provider/model built the corpus. Every chunk written by
+    ingestion must carry the provider string it was configured with and the model id
+    the gateway reported.
+    """
+
+    async def run() -> None:
+        entry = DocumentManifestEntry(
+            document_id="test-provenance-doc",
+            title="Provenance Doc",
+            source_path="test/provenance.md",
+            audience="public",
+            access_level="public",
+            academic_year="2026-2027",
+            effective_from=date(2026, 8, 1),
+            version=1,
+            status="approved",
+        )
+        async with _rollback_session() as session:
+            store = _DictContentStore(
+                {"test/provenance.md": "# Title\n\n## Section\n\nprovenance test content"}
+            )
+            _, chunks_created, _ = await ingest_entry(
+                session,
+                entry,
+                content_store=store,
+                gateway=_gateway(),
+                session_spend_cents=0.0,
+                embedding_provider="mock",
+            )
+            assert chunks_created > 0
+
+            rows = (
+                await session.execute(
+                    text(
+                        "SELECT embedding_provider, embedding_model_id FROM rag_chunks "
+                        "WHERE document_id = 'test-provenance-doc'"
+                    )
+                )
+            ).all()
+            assert len(rows) == chunks_created
+            assert all(
+                row == ("mock", "amazon.titan-embed-text-v2:0") for row in rows
+            ), rows
 
     asyncio.run(run())
