@@ -9,8 +9,7 @@ see `chat_api.services.branch_locator`.
 
 No field here is ever persisted past the single request that consumes it (SPEC §5.1.3
 "discard precise coordinates after the ... request completes" / "do not store precise
-coordinates in PostgreSQL, MySQL, LangSmith, or application logs" - SPEC.md's own text
-still says "MongoDB" as of this writing, D-082).
+coordinates in PostgreSQL, MySQL, LangSmith, or application logs").
 """
 
 import math

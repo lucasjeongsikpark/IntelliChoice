@@ -5,9 +5,35 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **Next session: the remaining P1s, or S42 discovery once the gate clears.** **Seven P1s remain**
-  (AUD-L-10 and AUD-X-08 came off the list in S42): AUD-L-04, AUD-L-07 (read half), AUD-C-02,
-  AUD-C-03, AUD-C-16 (P3 → P1), AUD-X-07 (**half fixed**), AUD-F-14.
+- **✅ Backlog-cleanup mini-session shipped 2026-07-28 (D-111): AUD-F-08 and AUD-F-20 closed,
+  AUD-C-02's code half done, D-082's Mongo→MySQL doc sweep finally executed.** lint clean, pyright
+  clean, **554 passed / 2 skipped** (552 baseline + two new guard tests). This supersedes the
+  count below: **seven P1s remain** — AUD-C-02 leaves the list as fix-shipped/verification-pending.
+  What changed: (i) `ci.yml` now builds all four deployables plus an `e2e-typecheck` job —
+  criterion 4 is met (neither frontend has a test script; typecheck rides inside `build`).
+  (ii) The scope prompt was missing **two** §5.19.4 topics, not one — "IntelliChoice organization"
+  *and* "Student participation" — now covered, guarded by a static string test
+  (`test_scope_prompt_spec_coverage.py`) because the mock can never see this defect class, plus two
+  `paraphrase` eval probes for the real-Bedrock runner. Verification stays with the chat cluster
+  (C-16 first, unchanged). (iii) `deploy-staging.yml` re-seeds MySQL fixtures after migrations on
+  every deploy (user decision, D-111 §3 — weekly schedule declined to protect criterion 6's quiet
+  week); **effective on the next dispatched deploy**, staging stays `phase=blocked` until then.
+  `mysql_fixtures.py` now stamps `week_key` at call time. (iv) The docs no longer claim MongoDB is
+  the source of truth — CLAUDE.md rule 1, SPEC.md (41 edits, §5.4/§6.4 numbers preserved,
+  `MONGODB_READONLY_URI` → the real `*_MYSQL_URL` vars), FINAL_ARCHITECTURE.md, ROADMAP.md's live
+  sections; historical records untouched. Also corrected in passing: AUDIT_FINDINGS.md's stale
+  F-06/F-07 index rows, INTEGRATION_PLAN.md §2.5's seven-resolved-items backlog, and
+  deploy-staging.yml's overtaken trigger comment (push trigger still off — enabling it is a
+  standing decision nobody has taken).
+- **Next session: the chat cluster, which criterion 3 now depends on.** **Eight P1s remain** —
+  AUD-L-10 and AUD-X-08 closed in S42, but AUD-F-19 is new: AUD-L-04, AUD-L-07 (read half),
+  AUD-C-02, AUD-C-03, AUD-C-16 (P3 → P1), AUD-X-07 (**half fixed**), AUD-F-14, **AUD-F-19**.
+  **Take C-16 → C-02 → F-19 in that order and as one piece.** S42's staging run showed they are
+  one problem, not three: staging's corpus is entirely mock hash vectors (C-16), so retrieval is
+  noise, so the graph falls to whichever ungrounded branch it reaches first — which is what F-19's
+  three-different-answers-to-one-question looks like from the outside. Judging C-02's scope prompt
+  or F-19's routing before C-16 is fixed means tuning a prompt against a retrieval channel that
+  returns nothing.
   **Two still carry a required verification *shape*, not just a fix:** AUD-X-07's remaining half is
   seam (b), mid-interrupt, where recovery means *completing* a paused LangGraph node rather than
   editing channel values — detection alone is not shippable, and fix shape (1), the commit ordering
@@ -16,9 +42,40 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **Two cheap ones are worth taking first:** AUD-C-02 is a one-line prompt fix (its test must run
   against a real provider — the mock's keyword list contains `"intellichoice"`, which is why no test
   could see it), and AUD-F-08 is two CI jobs that finish criterion 4's other half.
-  **Still not on staging:** criterion 3 remains code-complete and one deploy short. S41's *and*
-  S42's work were committed but the staging deploy and the two `make e2e-staging` runs are the
-  remaining step.
+- **⚠️ Corrected: merging to `main` does not deploy anything, and three sessions' notes said it
+  did.** `deploy-staging.yml` is **`workflow_dispatch:` only** — the `push` trigger is commented
+  out deliberately ("not something that should fire unattended on every push until it's been run
+  and reviewed at least once", a comment now overtaken by six reviewed runs). Deploy with
+  `gh workflow run deploy-staging.yml --ref main`. **The way this nearly went unnoticed is worth
+  more than the fact:** a watcher built on
+  `gh run list --workflow=deploy-staging.yml --branch=main --limit=1` reported
+  `COMPLETED: success` within seconds of the merge — it had matched the *previous* run
+  (`30233724547`, the `73396c1` deploy this file already records). Comparing the run's head SHA
+  against the merge commit is what caught it. Any check for "did my deploy succeed" has to pin the
+  run id or the SHA; "the latest run is green" is true almost all the time and means nothing.
+- **⚠️ Criterion 3 is NOT met, and it is further away than the roadmap said — S42 ran the staging
+  suite for the first time and it returned 40 passed / 10 failed / 3 skipped.** Getting there took
+  fixing two harness defects that hid each other (AUD-F-17, AUD-F-18, both below). The ten
+  survivors are two real findings:
+  **AUD-F-19 (P1, new):** on real Bedrock, *"What are the Saturday hours?"* routes to
+  `location_consent` **3 times out of 3** with `answer: null` — the guest launch journey's most
+  obvious question is never answered and the bubble sits on "Thinking…" — and *"How do I enroll a
+  student?"* returned a **scope refusal, a no-source refusal, and an `email_approval` interrupt**
+  across three identical consecutive calls. **Latency is not the cause and was ruled out: a guest
+  turn takes 1.4 s.** Say that plainly to the next session, because AUD-F-14 makes "chat is slow"
+  the reflex explanation for anything chat-shaped on staging. Neither is visible locally — the mock's
+  keyword routing is deterministic and does not misroute these, which is **AUD-C-02's lesson on a
+  second surface**. The non-determinism is plausibly downstream of **AUD-C-16** (staging's corpus is
+  all mock hash vectors, so retrieval is noise), which makes C-16 a *prerequisite* for judging C-02
+  and F-19 rather than a parallel item.
+  **AUD-F-20 (P2, new):** every learning journey fails because `POST /topics` returns
+  `phase=blocked`. `mysql_fixtures.seed()` writes attendance for `current_week_key()` **at seed
+  time**, and staging was seeded in an earlier week, so the "present this week" fixture no longer
+  is. **The gate is correct** (SPEC §5.4.4 fail-closed) — the data aged out. So **criterion 3
+  evidence on staging is only valid within the week the fixtures were seeded**, unless
+  `deploy-staging.yml` re-seeds or a schedule does. Neither re-seeding staging nor AUD-F-19 was
+  attempted: the first mutates the staging environment and needs its own decision, the second
+  belongs with the C-02/C-16 chat cluster.
 - **✅ S42 shipped 2026-07-27 (D-110): the integrity/concurrency cluster — AUD-L-10 and AUD-X-08
   fixed, AUD-X-07 half fixed.** lint clean, pyright clean, **552 passed / 2 skipped across three
   consecutive whole-suite runs**, from 537 at session start. Taken instead of S42's scheduled
@@ -48,6 +105,30 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **(iv) The drift guard caught its own constants.** `test_cost_reservation_estimates.py` failed on
   the first reservation constants written (0.5 against real worst cases of 1.35 and 2.625), before
   anything shipped.
+- **⚠️ AUD-F-17 (P2, new, fixed): `make e2e-staging` was never pointed at staging.** Found by
+  running the criterion-3 verification the roadmap had called "one command away" for three
+  sessions. `E2E_TARGET=staging` selects the *auth* path (out-of-band token minting, D-097) but
+  does not retarget the browser — `config.ts` defaults the two web URLs to `localhost:5173`/`5174`
+  regardless of target, and only `LEARNING_WEB_URL`/`CHAT_WEB_URL` move them, which the Makefile
+  never set. Result against the deployed stack: **2 passed, everything else
+  `net::ERR_CONNECTION_REFUSED at http://localhost:5173/`**, the 2 being the only specs that never
+  open a page. Supplying the URLs takes the same smoke spec **0/4 → 4/4**. Fixed in the Makefile.
+  **Why it survived:** the failure reads as "you forgot to start the dev servers", which is exactly
+  what a staging target is supposed not to need. **Together with the merge-does-not-deploy
+  correction above, that is two false premises about the same criterion, both recorded as
+  working** — the same shape as D-107 §10's "lost" secrets. A step recorded as *the one thing left*
+  should be executed once before it is believed.
+- **⚠️ AUD-F-18 (P2, new, fixed): the staging auth path was written, documented, and never taken.**
+  Fixing AUD-F-17 let the staging suite run for the first time: **34 passed, 18 failed**, and all 18
+  were one cause. `fixtures/session.ts` has documented out-of-band token minting as *the* staging
+  path since the harness was written — `/dev/token` is secret-gated there (D-097) and the frontend
+  sends no header, so the dev-login screen renders **`Not Found`** under Sign in — but all ten
+  journey specs called `signInViaUi`, which drives that screen. Fixed by delegating to
+  `mintToken` + `seedSession` on the staging target; the one test whose subject *is* the login
+  screen now skips there with a stated reason (it should disappear with S44).
+  **The two harness defects hid each other:** AUD-F-17 meant the suite never reached staging, so
+  AUD-F-18 could not be observed. Both sat inside a step three sessions described as one command
+  away.
 - **⚠️ One thing found in passing that is not fixed.** Adding `worst_case_cost_cents` to the
   `BedrockGateway` Protocol produced **70 typecheck errors across ~13 scripted test fakes** that
   would each need a pricing method they never call. The method stayed on the concrete gateway and
@@ -1715,6 +1796,81 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S42 — Phase 0B: the integrity/concurrency cluster (2026-07-27) ⏸ partial
+- **Scope note: this was not S42's roadmap scope.** S42 is "discovery, Tier 1 org asks, and the auth
+  decision gate", and **none of that was done** — it remains fully outstanding. The dependency spine
+  puts the gate *before* discovery, S42's own asks are mostly external (org DB topology, network
+  path, read-only account, DNS, live role survey), and gate criterion 2 needs the P1s gone. So the
+  session took the integrity/concurrency cluster instead. The session number is used for continuity;
+  the discovery work is unstarted.
+- **AUD-L-10 (P1) fixed with a unique constraint, not a check (D-110 §1).** Uniqueness on
+  `assessment_attempts` tightened from `(session, variant, idempotency_key)` to `(session, variant)`.
+  A status check in Python is the same read-then-act shape this cluster exists to remove: **with the
+  constraint dropped, four concurrent answers all return 200 while the sequential test still
+  passes.** The `flow` pre-flight is kept and was nearly cut — disabling it changed no test outcome,
+  which by D-109 §(iii) is a line to delete, until measurement showed a refused duplicate that
+  reaches `graph.ainvoke` leaves **+2 `checkpoints` / +4 `checkpoint_writes`** behind. It is now
+  covered by a checkpoint row count. Conversely a defensive denominator recount in
+  `compute_learning_gain` was **not** added, because with the constraint no test could watch it
+  matter; the assumption is documented at the line instead.
+- **AUD-X-08 (P1) fixed with a reserve-then-settle ledger (D-110 §2).** New `cost_reservations`
+  table: the worst-case cost is reserved in its own immediately-committed transaction *before* the
+  model call and settled with the real cost after, serialized by
+  `pg_advisory_xact_lock(hashtext(scope||subject))`. `INSERT … SELECT` alone does not serialize under
+  READ COMMITTED — **removing the lock grants 10 of 10 reservations against a ceiling of 3 while all
+  three sequential tests pass.** Both ceilings converted (report, tutor chat); the two spend readers
+  that *were* the defect are deleted rather than left for a future ceiling to wire itself to.
+- **The AUD-X-08 reproduction had to be repaired before it could reproduce, and this is the most
+  transferable thing in the session.** Ten genuinely concurrent reports (10 in flight, measured)
+  against the **unfixed** ceiling produced **1 generated, 1.0× the ceiling** — it looked already
+  fixed. The race window is the length of the model call and `MockBedrockProvider` returns in ~0 ms.
+  At a realistic 250 ms: **10/10 and 10.0×**, worse than S38's 8×. After the fix, same probe:
+  **1/10 and 1.0×**. A cost-race test built on the mock's speed would have certified this fixed while
+  it was wide open.
+- **Reservation estimates are constants, guarded by a drift test.** Adding `worst_case_cost_cents`
+  to the `BedrockGateway` Protocol cost **70 typecheck errors across ~13 scripted test fakes**, so
+  the method stayed on the concrete gateway. `test_cost_reservation_estimates.py` asserts each
+  constant still bounds the real gateway's arithmetic for every model in the rate table — and
+  **failed on the first constants written** (0.5 against real worst cases of 1.35 and 2.625).
+- **AUD-X-07 (P1) half fixed; it stays open (D-110 §3).** `services/checkpoint_reconcile.py` rolls a
+  checkpoint *backwards* to what the database supports when it names a row that does not exist,
+  wired into `_get_state_values` and `/resume`, counted by `learning_checkpoint_repairs_total`.
+  Seam (a) mid-finalize is fixed and S38's reproduction is now a test that fails
+  `'study' == 'pre_exam'` with the fix disabled. **Seam (b) mid-interrupt is not fixed and no
+  detection code for it shipped** — recovery means *completing* a paused LangGraph node, not editing
+  channel values, and a detect-but-cannot-act branch is code no test can watch mattering. Fix
+  shape (1), the commit ordering itself, is untouched.
+- **Two false premises about criterion 3 corrected, and they had compounded (D-110 §4–5).**
+  (i) **Merging to `main` does not deploy** — `deploy-staging.yml` is `workflow_dispatch:` only.
+  A watcher built on `gh run list --limit=1` reported `COMPLETED: success` seconds after the merge
+  because it matched the *previous* run; comparing head SHA caught it. (ii) **`make e2e-staging` did
+  not point at staging** — `E2E_TARGET=staging` selects the auth path, not the browser target, so the
+  suite ran against `localhost:5173`: **2 passed, everything else `ERR_CONNECTION_REFUSED`**
+  (AUD-F-17). (iii) With that fixed, **all ten journey specs used a dev-login screen that is
+  secret-gated on staging**: 34 passed / 18 failed, all 18 that (AUD-F-18). Each defect hid the next.
+- **The first real staging run: 40 passed / 10 failed / 3 skipped. Criterion 3 is NOT met**, and the
+  ten are two real findings, diagnosed against staging directly rather than through the browser
+  (D-110 §6). **AUD-F-19 (P1, new):** *"What are the Saturday hours?"* → `location_consent` 3/3 with
+  `answer: null`, and *"How do I enroll a student?"* returned a scope refusal, a no-source refusal and
+  an `email_approval` interrupt across three identical calls. **Latency was the obvious hypothesis
+  and it is wrong — a guest turn takes 1.4 s.** **AUD-F-20 (P2, new):** seeded attendance is written
+  for `current_week_key()` at seed time, so the "present this week" fixture is now blocked and every
+  learning journey fails; the gate is behaving correctly on stale data, and criterion 3 evidence on
+  staging therefore has a **weekly expiry**.
+- **Verification:** `make lint` clean, `make typecheck` clean (pyright 0 errors), **552 passed / 2
+  skipped across three consecutive whole-suite runs** (537 at session start). e2e harness typechecks
+  clean. Both migrations **replay from empty** and survive a downgrade → re-upgrade cycle. PR #31
+  merged with all 7 CI checks green and **deployed to staging, verified by head SHA** (`1d2436a`):
+  migrations, `/dev/token` gate, canary bake and smoke test all green, rollback skipped.
+- **Carry-over:** AUD-X-07 seam (b) and fix shape (1); AUD-F-19 and AUD-F-20 (neither attempted —
+  re-seeding staging mutates the environment and needs its own decision, and F-19 belongs with the
+  C-02/C-16 cluster); the per-session gateway budget, still stateless by design (D-072); enabling
+  `deploy-staging.yml`'s `push` trigger now that the "run and review it once" comment is seven runs
+  stale; **gate criterion 2 cannot be met on the current ordering** — AUD-L-07's remaining half needs
+  S43's roster model, scheduled *after* the gate, so it needs either a fail-closed read refusal
+  (which removes tutor report generation) or explicit §7 residual-risk acceptance.
+- **New decisions:** **D-110**.
 
 ### S41 — Phase 0B: the criterion-3 cluster (2026-07-27) ⏸ partial
 - **AUD-F-01 (P1) fixed and re-verified by counting requests, not by looking at the screen

@@ -65,6 +65,34 @@ both a user decision against the plan's own recommendation, see D-064.
   only (S40, D-106). Comparing against both made a *content* question ("is this a new question?")
   depend on a *usage* fact ("how much has the app been run?"), and the dedup population grew
   without bound with traffic — 60,906 rows against 50 templates when this was separated.
+- **Spend ceilings reserve before they spend, on their own connection** — every per-day paid-API
+  ceiling was `read the spend, then spend`, with the cost row committed at FastAPI dependency
+  teardown *after the response*, so concurrent callers each read a stale total and ten concurrent
+  reports cost **10× the ceiling** (S42, AUD-X-08, D-110 §2). A caller now reserves its worst-case
+  cost in `cost_reservations` in an **immediately-committed transaction before the model call** and
+  settles the real cost after, serialized by `pg_advisory_xact_lock(hashtext(scope||subject))` —
+  `INSERT … SELECT` alone does not serialize under READ COMMITTED. **`CostReservationRepository` is
+  the one repository bound to the session *factory* rather than to a session**, and that is the
+  point: a reservation written on the request's session would be invisible to exactly the callers it
+  exists to stop. Unsettled reservations stay charged at their estimate — over-counting, which is the
+  safe direction for a spend control. The per-session gateway budget is *not* covered and remains
+  stateless by design (D-072).
+- **One attempt per exam item, enforced by the database** — `assessment_attempts` is unique on
+  `(assessment_session_id, question_variant_id)`; the `Idempotency-Key` deduplicates a retry of the
+  same submission and does not license a second answer (S42, AUD-L-10, D-110 §1). Scoring counts
+  attempts, so a second one silently rescored a 10-item exam as 10/11. Enforced in Postgres rather
+  than only in `flow` because a status check in Python is read-then-act: two concurrent answers would
+  both pass it. `learning_gain`'s `max_score` is the attempt count and is the *item* count **only
+  because of this constraint** — the dependency is documented at that line.
+- **The checkpoint can be ahead of the database, and a session must heal rather than dead-end** —
+  the LangGraph saver commits at the end of each superstep on its own psycopg pool; domain rows
+  commit at dependency teardown. Anything failing in between keeps the checkpoint and discards the
+  rows, and **a task stop enters that window with no bug required — ECS drains tasks on every
+  deploy** (AUD-X-07). `services/checkpoint_reconcile.py` checks a checkpointed row id against the
+  row it names and rolls the checkpoint *backwards* to what the database supports, never forwards by
+  inventing rows; `learning_checkpoint_repairs_total` counts it, so a flat zero is the evidence the
+  unfixed ordering is not being hit. **Partial: only the mid-finalize seam. The mid-interrupt seam
+  and the commit ordering itself are still open** (S42, D-110 §3).
 - **External actions are interrupt-gated** — child selection, attendance emails, and the
   hint/solution/video choice each pause via LangGraph `interrupt()` and survive restart via
   the Postgres checkpointer (S7); chat-api's admin-escalation email and calendar action
@@ -669,6 +697,7 @@ flowchart LR
 | Real org branch directory + team roster | **PostgreSQL 16** | Populated by `make org-load` (S17); `org_branches`/`org_team_members` - natural-key (`branch_external_id`/`team_member_id`) upsert via `content_hash`, never deletes (missing-from-latest-sync → `status: inactive`, mirrors `YoutubeVideo.active_status`). `name`/`address`/`phone`/`email` are an explicit, narrow schema-purity denylist exemption (D-050) - the org's own already-public staff bios/branch contact info, not student/parent PII |
 | Placeholder document source content | **`knowledge-content/` (repo, local FS)** | Stands in for S3's `approved/` prefix (SPEC §5.20.3); 23 docs across 5 audience manifests (22 synthetic + `public-our-team` real, S17), 3 deliberately `status: draft`. 3 public docs (`organization-overview`/`branch-directory`/`our-team`) now carry real content and `effective_from: 2026-07-18`; the other 20 stay synthetic/`2026-08-01` until later sessions replace them |
 | Real org content extraction source | **`knowledge-content/structured/` (repo, local FS)** | Written by `make webcontent-sync` (S17) - `branches.yaml`/`team.yaml`, source_url + content_hash + extracted_at per record; human-reviewed before `make org-load`/`make knowledge-load` run (no auto-publish, D-051) |
+| Per-day paid-API spend reservations | **PostgreSQL 16** | `cost_reservations` (S42, AUD-X-08/D-110 §2) - `scope`/`subject_external_id`/`reserved_cents`/`actual_cents`, external ids and a fixed enum of surface names only, no PII. Written by `CostReservationRepository`, the one repository bound to the session **factory** rather than a session, because a reservation has to commit *before* the model call returns while the request's own session commits only at dependency teardown. Serves both per-day ceilings (student report, tutor chat); `student_reports.cost_cents`/`tutor_chat_messages.cost_cents` remain the per-row audit record but no longer feed any ceiling - the two `get_spend_cents_since` readers that did were deleted, since a spend reader no ceiling consults is how the next ceiling gets wired to the wrong source |
 | Chat welcome/follow-up suggestion catalog | **PostgreSQL 16** | Populated by `make chat-suggestions-load` (S19, `chat_suggestions` - id/role_audience/category/prompt_text/sort_order/active); hand-authored reference data, not scraped - upsert-by-id, no `content_hash`/inactive-marking (D-057). No PII - prompt strings only |
 | Within-question hint ladder audit trail | **PostgreSQL 16** | `hint_events` (S21) - one row per hint level served (`student_external_id`, `study_attempt_id` FK, `question_variant_id` FK, `hint_level`, canonical + personalized text, `misconception_tag`, `was_personalized`); written by `_hint_round` on every round, including canonical-fallback rounds. External ids only, no PII |
 | Contextual chat turns | **PostgreSQL 16** | `tutor_chat_messages` (S24) - one row per chat turn (`student_external_id`, `learning_session_id`, nullable `question_variant_id` FK, `intent`, `redacted_student_message`, `reply_text`, `cost_cents`, `flagged_for_review`); `redacted_student_message` is always post-`pii_redaction.redact_free_text` (D-072), never the raw message. 90-day retention via `TutorChatMessageRepository.purge_older_than`/`make chat-purge` (no scheduler yet, same "manual trigger" posture as `youtube-sync`/`webcontent-sync`) |

@@ -22,10 +22,11 @@ D-049 holds the full mapping.
 authorization, grading, question quality, learning results. Agents, RAG, tools, and infra come
 after the core is reliable.
 
-**Dev-time substitutes:** there is no real `go.intellichoice.org`, MongoDB, or AWS yet.
+**Dev-time substitutes:** local dev does not talk to the real `go.intellichoice.org` (a
+MySQL-backed system — D-082/D-083; early sessions wrongly assumed MongoDB) or real AWS.
 Every external dependency gets a local fake behind an interface (see DECISIONS.md D-002):
 - Auth → local fake token issuer signing JWTs with the SPEC §5.1.2 claim set
-- MongoDB → Docker container seeded with fixture users/attendance
+- Org MySQL → Docker container (`mysql:8.4`) seeded with fixture users/attendance
 - Bedrock → mock provider implementing the BedrockGateway interface (real calls optional via env)
 - Gmail/Maps/Calendar MCP → console/fake transports that log instead of send
 
@@ -41,7 +42,7 @@ Roadmap, progress tracker, decision log, session skills, slim CLAUDE.md, git ini
 **Build:**
 - Monorepo layout: `apps/learning-api`, `apps/chat-api`, `packages/shared` (Pydantic schemas), `packages/adapters`
 - Python 3.12 + `uv`, `ruff`, `pyright`, `pytest` configured at the root
-- `docker-compose.yml`: Postgres 16 + pgvector, MongoDB 7
+- `docker-compose.yml`: Postgres 16 + pgvector, MongoDB 7 (Mongo later replaced by MySQL 8.4 — D-082/D-083)
 - Both FastAPI apps boot with `/healthz`; settings via pydantic-settings + `.env.example`
 - `Makefile`: `up`, `down`, `test`, `lint`, `typecheck`, `dev-learning`, `dev-chat`
 - GitHub Actions: lint + typecheck + test on PR
@@ -204,13 +205,13 @@ Roadmap, progress tracker, decision log, session skills, slim CLAUDE.md, git ini
 **Build:**
 - Test-debt first (plan X1): wrap `apps/learning-api/tests/*` HTTP-committed tests in rollback/teardown (S12 "Newly observed" carry-over); fix the known-red S9 seed-collision test
 - New `packages/webcontent`: fetch/extract CLI (`make webcontent-sync`) for the four official pages (branches, our-team, events, about) → structured YAML (`knowledge-content/structured/`) + Markdown docs/manifests replacing the placeholder public docs (same `document_id`s, real `effective_from`)
-- New `org_branches`/`org_team_members` tables + repos + `make org-load` (natural-key + content_hash idempotency); `mongo_fixtures.py` branch seeds regenerated from `structured/branches.yaml`
+- New `org_branches`/`org_team_members` tables + repos + `make org-load` (natural-key + content_hash idempotency); `mongo_fixtures.py` (now `mysql_fixtures.py` — D-083) branch seeds regenerated from `structured/branches.yaml`
 - Human review of the git diff is the publish gate; extraction failure leaves previous content untouched
 **Done when:** a live document_qa query about a real branch answers *today* with a citation to the ingested page; re-running sync on unchanged pages is a no-op; extractor tests run against saved golden-HTML fixtures (no network); full suite green with no HTTP-test row accumulation across 3 repeated runs.
 **Actual scope (see PROGRESS.md/DECISIONS.md D-050–D-053):** `intellichoice.org` turned out
 to be a real org (D-051), not a fictional placeholder - the user supplied the real page
 URLs. Events extraction stayed out of scope (S18, per this session's own title). Branch
-locator/geolocation fixtures (`FakeMapsProvider`/`mongo_fixtures.py`'s `BRANCH_MAIN`/
+locator/geolocation fixtures (`FakeMapsProvider`/`mongo_fixtures.py`'s — now `mysql_fixtures.py` — `BRANCH_MAIN`/
 `BRANCH_NORTH`) were deliberately *not* unified with the real 26-branch `org_branches`
 data (user-confirmed scope cut) - real branches power the RAG directory only this
 session. `retrieval.py` gained a real rerank-score filter (D-052), found necessary once
@@ -716,19 +717,55 @@ demonstrated auto-rollback; the "consecutive" ambiguity D-105 left open is settl
 `c58d1fe` has no failed deployment between them on either reading). **6 is on the calendar**, earliest
 2026-08-02. **4 is half met**: the test half is green and D-106 removed the recurring flake source,
 but CI on `main` still runs only `lint-typecheck-test` and `learning-web`, so `chat-web` and `e2e/`
-remain unbuilt by CI (AUD-F-08). **2 needs seven more P1s** (was nine; AUD-L-10 and AUD-X-08 closed in S42/D-110). **3 is code-complete and one deploy
+remain unbuilt by CI (AUD-F-08). **2 needs seven more P1s** (was nine; AUD-L-10 and AUD-X-08 closed in S42/D-110, but AUD-F-19 is a
+new one, so the net is eight). **3 is NOT met, and is no longer "one deploy short" — S42 ran the
+staging suite for the first time and it came back 40 passed / 10 failed / 3 skipped.** The ten are
+two real findings, not harness noise: **AUD-F-19 (P1)** — on real Bedrock "What are the Saturday
+hours?" routes to `location_consent` 3/3 and is never answered, and "How do I enroll a student?"
+returned three different products in three identical calls (latency ruled out: a guest turn takes
+**1.4 s**) — and **AUD-F-20 (P2)** — staging's seeded attendance is written for
+`current_week_key()` *at seed time*, so the "present this week" fixture is now blocked and every
+learning journey fails. The gate is behaving correctly on stale data. **Criterion 3 evidence on
+staging therefore has a weekly expiry** unless the deploy re-seeds. Original standing: **3 was code-complete and one deploy
 short**: AUD-F-02 and the e2e intermittency are both fixed and the suite is green three runs
 running locally, but the criterion asks for two consecutive passes **against live staging** and the
-fixes are frontend code staging has not been given — merge to `main`, let `deploy-staging.yml`
-run, then `make e2e-staging` twice. Two conditional `test.skip()`s (no suggestion chips; no
-dashboard entry point) should stop being conditional before the criterion is claimed.
+fixes are frontend code staging has not been given — deploy, then `make e2e-staging` twice. Two
+conditional `test.skip()`s (no suggestion chips; no dashboard entry point) should stop being
+conditional before the criterion is claimed.
+**⚠️ Corrected in S42: a merge to `main` does *not* deploy.** Both this file and PROGRESS.md said
+it did, for several sessions. `deploy-staging.yml` is `workflow_dispatch:` only — the `push`
+trigger is commented out on purpose ("not something that should fire unattended on every push
+until it's been run and reviewed at least once"), and that comment has been overtaken by the six
+reviewed runs since. Deploying is `gh workflow run deploy-staging.yml --ref main`. The trap is
+that `gh run list --workflow=deploy-staging.yml --limit=1` happily returns the *previous*
+successful run, so a check written to confirm "the deploy succeeded" passes against a deploy that
+never happened — which is exactly what it did here before the head SHA was compared.
+**⚠️ And `make e2e-staging` did not point at staging (AUD-F-17, fixed).** `E2E_TARGET=staging`
+selects the auth path, not the browser's target — `config.ts` defaults the web URLs to
+`localhost:5173`/`5174` regardless — so the suite ran against localhost and returned **2 passed,
+everything else connection-refused**. Fixed in the Makefile. **Two false premises about this one
+criterion, both previously recorded as working**; a step called "the one thing left" should be
+executed once before it is believed.
+**⚠️ Criterion 2 cannot be met on the current ordering, and this needs a decision before it is
+planned around.** It demands zero open P1s, but **AUD-L-07's remaining read half is explicitly
+scheduled for S43/S46** — it needs the assignment/branch-roster model `ProfileAdapter` gains in S43,
+and both sessions come *after* the gate. Two ways out, and it is a product call: (a) fail closed now,
+refusing tutor/branch_manager *reads* of dashboards and reports too — cheap, but S40 already showed
+this ends tutor report generation outright until S46; or (b) accept it as documented §7
+residual risk and let S43/S46 close it properly. (b) is the recommendation: the exposure is a tutor
+reading students they are not assigned to, in a system with no real users, and (a) removes a
+shipped feature to satisfy a checklist item.
 **7, 8 and 9 are undone but no longer blocked** — the "missing" staging token secrets
 were always retrievable from Secrets Manager (D-107 §10), so the authenticated load run, the two
 learning-app alarm inductions on their real condition, and an authenticated-traffic trace scan are
 all now reachable. **1** is unassessed since S37.
 
 ### Sessions 42–47 — Integration readiness and implementation *(INTEGRATION_PLAN §3, §5)*
-- **S42 — discovery, Tier 1 org asks, and the auth decision gate.** Exercise
+- **S42 — discovery, Tier 1 org asks, and the auth decision gate. ⚠️ NOT STARTED.** The session
+  numbered S42 (2026-07-27, D-110) spent itself on Phase 0B P1s instead — the spine puts the gate
+  *before* discovery, criterion 2 needed the P1s, and everything below is blocked on the org
+  replying rather than on code. **This scope is fully outstanding and its asks have external lead
+  time, so send them before the next session rather than at the start of it.** Exercise
   `POST /api/accounts/login`, `GET /api/accounts`, `GET /api/accounts/signups` server-side from
   AWS; icrest availability history; DB topology/network path/read-only account; DNS additions;
   live role-string survey, timezone convention, schema snapshot. **Selects the §3.1 auth option

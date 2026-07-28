@@ -11,7 +11,7 @@
  */
 
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
-import { CHAT_API, LEARNING_API, STAGING_TOKEN_SECRET } from "../config";
+import { CHAT_API, CHAT_WEB, LEARNING_API, STAGING_TOKEN_SECRET, TARGET } from "../config";
 
 export type App = "learning" | "chat";
 
@@ -93,8 +93,29 @@ export async function seedGuest(page: Page): Promise<void> {
  * Drives the real login screen: pick the role, type the external id, click Sign in.
  * The fixture-account `<select>` is deliberately not used - it sets both fields at
  * once, which would hide a mismatch between the two.
+ *
+ * **On staging this delegates to `seedSession` instead**, because the login screen
+ * cannot work there: `/dev/token` is secret-gated (D-097) and the frontend never sends
+ * the header, so the screen renders "Not Found" under the Sign in button. That was not
+ * a hypothetical - it is what all ten specs calling this helper actually did the first
+ * time the staging suite was ever run (S42/AUD-F-18): **18 failures, every one of them
+ * this**. The module docstring above has described out-of-band seeding as the staging
+ * path since the harness was written; only the journeys never took it.
+ *
+ * A journey whose *subject* is the login screen must therefore skip on staging rather
+ * than call this - see `journey-chat.spec.ts`'s real-login-screen test.
  */
 export async function signInViaUi(page: Page, url: string, account: Account): Promise<void> {
+  if (TARGET === "staging") {
+    const app: App = url === CHAT_WEB ? "chat" : "learning";
+    const token = await mintToken(page.request, app, account);
+    await seedSession(page, app, account, token);
+    await page.goto(url);
+    await expect(page.getByRole("button", { name: /^sign in$/i })).toHaveCount(0, {
+      timeout: 15000,
+    });
+    return;
+  }
   await page.goto(url);
   await page.getByRole("button", { name: /sign in/i }).waitFor();
   // Located through each field's own label: both screens have two `<select>`s, and

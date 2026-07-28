@@ -170,13 +170,19 @@ written reason.
 
 ### 2.5 Stabilization sessions (S40+, count set by the audit backlog)
 
-Seeded today with the already-known items — S22.5 `access_hint` blank turn, S11
-parent auto-select, chat-web CI, the unseeded-RNG flake, `question_variants`
-accumulation (610 rows on one template, worsening), the 249k-row `checkpoints`
-sweep, EventBridge schedules for the four manual jobs (the 90-day `chat-purge`
-retention promise must not depend on a human running make) + small retention jobs
-for `stage_transitions`/`student_reports`, and the ≥2-task/autoscaling P95 fix with
-a live load re-baseline — plus every P1 (mandatory) and cheap-P2 audit finding.
+Seeded today with the already-known items — dispositions as of 2026-07-28:
+~~S22.5 `access_hint` blank turn~~ (all 18 chat response shapes verified rendering in a
+real browser in S39; no separate defect remains recorded), ~~S11 parent auto-select~~
+(S39 measured it does **not** reproduce — a single-child parent is auto-selected),
+~~chat-web CI~~ (job added alongside an `e2e-typecheck` job, AUD-F-08),
+~~the unseeded-RNG flake~~ (fixed S38, AUD-X-06 context), ~~`question_variants`
+accumulation~~ (fixed), ~~the 249k-row `checkpoints` sweep~~ (done),
+~~EventBridge schedules for the manual jobs~~ (S40/D-105, re-scoped to the schedulable
+three). Still open: retention jobs for `semantic_memory`/`stage_transitions`/
+`student_reports` (AUD-L-04, shape decided in D-098), and the ≥2-task/autoscaling P95
+fix with a live load re-baseline (AUD-F-14 — the fix must change the scaling *signal*;
+CPU target-tracking cannot fire on this I/O-bound workload) — plus every P1 (mandatory)
+and cheap-P2 audit finding.
 
 Parallel tracks, unchanged: **A6** real content (3 of 23 knowledge docs are real;
 curriculum breadth is `linear_equations`-only authored, D-060) gates the *pilot*;

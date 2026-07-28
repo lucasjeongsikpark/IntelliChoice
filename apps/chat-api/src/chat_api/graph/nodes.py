@@ -62,11 +62,28 @@ OUT_OF_SCOPE_MESSAGE = (
 
 UNAVAILABLE_INTENT_MESSAGES = {
     "clarification": (
-        "Could you rephrase your question? I can help with IntelliChoice programs, "
-        "branches, schedules, volunteering, student learning, parent information and "
-        "tutor or branch procedures."
+        "Could you rephrase your question? I can help with questions about the "
+        "IntelliChoice organization, its programs, branches, schedules, volunteering, "
+        "student participation and learning, parent information and tutor or branch "
+        "procedures."
     ),
 }
+
+# Must cover every SPEC §5.19.4 supported topic. Questions about the organization
+# itself ("What is IntelliChoice?") and student participation were classified against
+# a list that omitted them (AUD-C-02); the mock provider can't catch that omission
+# because "intellichoice" is in its own keyword list, so a static coverage test
+# (test_scope_prompt_covers_spec_topics) guards this string instead.
+SCOPE_AND_INTENT_SYSTEM_PROMPT = (
+    "Classify whether this question is in scope for IntelliChoice's "
+    "organizational Q&A assistant (the IntelliChoice organization itself, "
+    "branches, schedules, volunteering, student participation and learning, "
+    "parent information, tutor/branch procedures, the academic calendar, and "
+    "learning-app support). If in scope, also classify which workflow intent it "
+    "needs: document_qa (answerable from organizational documents), "
+    "branch_locator, calendar, admin_contact, or clarification (in scope but too "
+    "vague to route)."
+)
 
 RATE_LIMITED_MESSAGE = (
     "Too many escalation requests from this session recently - please try again "
@@ -191,15 +208,7 @@ async def scope_guard(state: QAState, runtime: Runtime[TurnContext]) -> dict:
     try:
         result = await ctx.bedrock_gateway.generate_structured(
             task=BedrockTask.SCOPE_AND_INTENT,
-            system_prompt=(
-                "Classify whether this question is in scope for IntelliChoice's "
-                "organizational Q&A assistant (branches, schedules, volunteering, "
-                "student learning, parent information, tutor/branch procedures, the "
-                "academic calendar, and learning-app support). If in scope, also "
-                "classify which workflow intent it needs: document_qa (answerable "
-                "from organizational documents), branch_locator, calendar, "
-                "admin_contact, or clarification (in scope but too vague to route)."
-            ),
+            system_prompt=SCOPE_AND_INTENT_SYSTEM_PROMPT,
             payload=ScopeAndIntentPayload(
                 standalone_query=state.standalone_query, user_role=state.user_role
             ),
