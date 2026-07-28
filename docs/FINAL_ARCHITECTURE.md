@@ -22,13 +22,11 @@ any of it; S32–S34 are infrastructure/hardening layers around the existing app
 not a rewrite (ROADMAP.md's own framing: "the apps are containerized either way, so EKS
 remains a later migration, not a rewrite").
 
-**One correction already known and not yet propagated into ARCHITECTURE.md/SPEC.md's
-prose:** the real `go.intellichoice.org` system is **MySQL**, not MongoDB, contrary to
-~50 combined references across SPEC.md/ARCHITECTURE.md (see **D-082**). This file uses the
-corrected assumption throughout. The local dev-fake (`docker-compose.yml`'s `mongo:7`
-service, `MongoProfileAdapter`) is left as-is for now — D-082 explicitly deferred that
-rewrite to whichever session first needs the real integration, which is S32 at the
-earliest.
+**One correction, since propagated:** the real `go.intellichoice.org` system is
+**MySQL 8.4**, not MongoDB as originally assumed (see **D-082**); SPEC.md and
+ARCHITECTURE.md have been corrected accordingly. This file uses the corrected assumption
+throughout. The local dev-fake (`docker-compose.yml`'s `mysql:8.4` service,
+`MySQLProfileAdapter`) was rewritten MySQL-shaped in D-083.
 
 ## S32 — Deployment architecture decision + first deploy
 
@@ -159,7 +157,7 @@ Adds one row to [ARCHITECTURE.md](ARCHITECTURE.md#storage-split)'s existing tabl
 
 | Concern | Store | Notes |
 |---|---|---|
-| Names, emails, roles, parent–child links, attendance, branch-manager email, branch address/coordinates | **The real `go.intellichoice.org` system (MySQL, per D-082)** | Read-only via `ProfileAdapter`; whether IntelliChoice connects directly to that MySQL instance or through an API `go.intellichoice.org` exposes is **unconfirmed** — resolve before writing the real adapter (S32 or later). The local dev-fake stays `mongo:7`/`MongoProfileAdapter` unless/until that's also revisited. |
+| Names, emails, roles, parent–child links, attendance, branch-manager email, branch address/coordinates | **The real `go.intellichoice.org` system (MySQL, per D-082)** | Read-only via `ProfileAdapter`; whether IntelliChoice connects directly to that MySQL instance or through an API `go.intellichoice.org` exposes is **unconfirmed** — resolve before writing the real adapter (S32 or later). The local dev-fake is `mysql:8.4`/`MySQLProfileAdapter` (originally built Mongo-shaped; corrected in D-082/D-083). |
 | Everything else | Unchanged | See ARCHITECTURE.md's storage-split table — PostgreSQL 16(+pgvector) for all app data, no PII, is unaffected by the deployment decision. |
 
 SPEC §5.33.3's logical-database split (`learning` / `rag` / `memory` / `checkpoint_learning`

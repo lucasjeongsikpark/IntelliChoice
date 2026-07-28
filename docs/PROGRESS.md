@@ -5,6 +5,26 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ Backlog-cleanup mini-session shipped 2026-07-28 (D-111): AUD-F-08 and AUD-F-20 closed,
+  AUD-C-02's code half done, D-082's Mongo→MySQL doc sweep finally executed.** lint clean, pyright
+  clean, **554 passed / 2 skipped** (552 baseline + two new guard tests). This supersedes the
+  count below: **seven P1s remain** — AUD-C-02 leaves the list as fix-shipped/verification-pending.
+  What changed: (i) `ci.yml` now builds all four deployables plus an `e2e-typecheck` job —
+  criterion 4 is met (neither frontend has a test script; typecheck rides inside `build`).
+  (ii) The scope prompt was missing **two** §5.19.4 topics, not one — "IntelliChoice organization"
+  *and* "Student participation" — now covered, guarded by a static string test
+  (`test_scope_prompt_spec_coverage.py`) because the mock can never see this defect class, plus two
+  `paraphrase` eval probes for the real-Bedrock runner. Verification stays with the chat cluster
+  (C-16 first, unchanged). (iii) `deploy-staging.yml` re-seeds MySQL fixtures after migrations on
+  every deploy (user decision, D-111 §3 — weekly schedule declined to protect criterion 6's quiet
+  week); **effective on the next dispatched deploy**, staging stays `phase=blocked` until then.
+  `mysql_fixtures.py` now stamps `week_key` at call time. (iv) The docs no longer claim MongoDB is
+  the source of truth — CLAUDE.md rule 1, SPEC.md (41 edits, §5.4/§6.4 numbers preserved,
+  `MONGODB_READONLY_URI` → the real `*_MYSQL_URL` vars), FINAL_ARCHITECTURE.md, ROADMAP.md's live
+  sections; historical records untouched. Also corrected in passing: AUDIT_FINDINGS.md's stale
+  F-06/F-07 index rows, INTEGRATION_PLAN.md §2.5's seven-resolved-items backlog, and
+  deploy-staging.yml's overtaken trigger comment (push trigger still off — enabling it is a
+  standing decision nobody has taken).
 - **Next session: the chat cluster, which criterion 3 now depends on.** **Eight P1s remain** —
   AUD-L-10 and AUD-X-08 closed in S42, but AUD-F-19 is new: AUD-L-04, AUD-L-07 (read half),
   AUD-C-02, AUD-C-03, AUD-C-16 (P3 → P1), AUD-X-07 (**half fixed**), AUD-F-14, **AUD-F-19**.

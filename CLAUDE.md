@@ -29,14 +29,14 @@ not detours.
 ## Stack
 
 Python 3.12, FastAPI (async), LangGraph, LlamaIndex, SQLAlchemy + Alembic,
-Pydantic v2 everywhere, PostgreSQL 16 + pgvector, MongoDB (read-only adapter),
+Pydantic v2 everywhere, PostgreSQL 16 + pgvector, MySQL 8.4 (read-only adapter; D-082/D-083),
 AWS Bedrock behind a gateway, pytest. Frontends: React + Vite. Local dev: Docker Compose.
 
 ## Non-negotiable rules (condensed from SPEC.md — the spec wins on detail)
 
 1. **No PII in Postgres, logs, traces, or LLM payloads.** Postgres stores only
-   `*_external_id` references; MongoDB remains the source of truth for names, emails,
-   roles, relationships, attendance (SPEC §5.4, §5.30).
+   `*_external_id` references; the org's MySQL database remains the source of truth for
+   names, emails, roles, relationships, attendance (SPEC §5.4, §5.30).
 2. **Deterministic core.** Grading, attendance gating, authorization, score/gain calculation,
    and SQL execution are never done by an LLM (SPEC §5.0, §5.26). No runtime NL2SQL.
 3. **Authorization in the backend/query layer, never in prompts.** Parent-child links are
@@ -52,7 +52,7 @@ AWS Bedrock behind a gateway, pytest. Frontends: React + Vite. Local dev: Docker
    max-token limits, and cost accounting (SPEC §5.25.1).
 8. **Solution images are deleted immediately** after analysis, success or failure, and never
    enter backups, traces, or logs (SPEC §5.17).
-9. **External deps behind interfaces with dev fakes** (auth, Mongo, Bedrock, Gmail/Maps/
+9. **External deps behind interfaces with dev fakes** (auth, MySQL, Bedrock, Gmail/Maps/
    Calendar, blob storage). Real clients are env-selected (DECISIONS.md D-002).
 10. Student-facing language is growth-oriented and age-appropriate; internal skill IDs stay
     internal (SPEC §5.10.3).

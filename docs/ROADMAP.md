@@ -22,10 +22,11 @@ D-049 holds the full mapping.
 authorization, grading, question quality, learning results. Agents, RAG, tools, and infra come
 after the core is reliable.
 
-**Dev-time substitutes:** there is no real `go.intellichoice.org`, MongoDB, or AWS yet.
+**Dev-time substitutes:** local dev does not talk to the real `go.intellichoice.org` (a
+MySQL-backed system — D-082/D-083; early sessions wrongly assumed MongoDB) or real AWS.
 Every external dependency gets a local fake behind an interface (see DECISIONS.md D-002):
 - Auth → local fake token issuer signing JWTs with the SPEC §5.1.2 claim set
-- MongoDB → Docker container seeded with fixture users/attendance
+- Org MySQL → Docker container (`mysql:8.4`) seeded with fixture users/attendance
 - Bedrock → mock provider implementing the BedrockGateway interface (real calls optional via env)
 - Gmail/Maps/Calendar MCP → console/fake transports that log instead of send
 
@@ -41,7 +42,7 @@ Roadmap, progress tracker, decision log, session skills, slim CLAUDE.md, git ini
 **Build:**
 - Monorepo layout: `apps/learning-api`, `apps/chat-api`, `packages/shared` (Pydantic schemas), `packages/adapters`
 - Python 3.12 + `uv`, `ruff`, `pyright`, `pytest` configured at the root
-- `docker-compose.yml`: Postgres 16 + pgvector, MongoDB 7
+- `docker-compose.yml`: Postgres 16 + pgvector, MongoDB 7 (Mongo later replaced by MySQL 8.4 — D-082/D-083)
 - Both FastAPI apps boot with `/healthz`; settings via pydantic-settings + `.env.example`
 - `Makefile`: `up`, `down`, `test`, `lint`, `typecheck`, `dev-learning`, `dev-chat`
 - GitHub Actions: lint + typecheck + test on PR
@@ -204,13 +205,13 @@ Roadmap, progress tracker, decision log, session skills, slim CLAUDE.md, git ini
 **Build:**
 - Test-debt first (plan X1): wrap `apps/learning-api/tests/*` HTTP-committed tests in rollback/teardown (S12 "Newly observed" carry-over); fix the known-red S9 seed-collision test
 - New `packages/webcontent`: fetch/extract CLI (`make webcontent-sync`) for the four official pages (branches, our-team, events, about) → structured YAML (`knowledge-content/structured/`) + Markdown docs/manifests replacing the placeholder public docs (same `document_id`s, real `effective_from`)
-- New `org_branches`/`org_team_members` tables + repos + `make org-load` (natural-key + content_hash idempotency); `mongo_fixtures.py` branch seeds regenerated from `structured/branches.yaml`
+- New `org_branches`/`org_team_members` tables + repos + `make org-load` (natural-key + content_hash idempotency); `mongo_fixtures.py` (now `mysql_fixtures.py` — D-083) branch seeds regenerated from `structured/branches.yaml`
 - Human review of the git diff is the publish gate; extraction failure leaves previous content untouched
 **Done when:** a live document_qa query about a real branch answers *today* with a citation to the ingested page; re-running sync on unchanged pages is a no-op; extractor tests run against saved golden-HTML fixtures (no network); full suite green with no HTTP-test row accumulation across 3 repeated runs.
 **Actual scope (see PROGRESS.md/DECISIONS.md D-050–D-053):** `intellichoice.org` turned out
 to be a real org (D-051), not a fictional placeholder - the user supplied the real page
 URLs. Events extraction stayed out of scope (S18, per this session's own title). Branch
-locator/geolocation fixtures (`FakeMapsProvider`/`mongo_fixtures.py`'s `BRANCH_MAIN`/
+locator/geolocation fixtures (`FakeMapsProvider`/`mongo_fixtures.py`'s — now `mysql_fixtures.py` — `BRANCH_MAIN`/
 `BRANCH_NORTH`) were deliberately *not* unified with the real 26-branch `org_branches`
 data (user-confirmed scope cut) - real branches power the RAG directory only this
 session. `retrieval.py` gained a real rerank-score filter (D-052), found necessary once

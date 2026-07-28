@@ -18,10 +18,10 @@ The two applications follow these principles:
 
 - The frontend and backend of each application are deployed independently.
 - Both applications reuse the existing authentication system from `go.intellichoice.org`.
-- The existing MongoDB remains the source of truth for users, roles, parent-child relationships, grade levels, branches, and attendance.
+- The existing MySQL remains the source of truth for users, roles, parent-child relationships, grade levels, branches, and attendance.
 - The new PostgreSQL system stores only learning, question, assessment, memory, RAG, and checkpoint data.
 - PostgreSQL with `pgvector` is used instead of introducing a separate vector database.
-- Personally identifiable information such as names and email addresses is not copied from MongoDB into PostgreSQL.
+- Personally identifiable information such as names and email addresses is not copied from MySQL into PostgreSQL.
 - LLMs are used for language-oriented tasks such as explanation, intent classification, summarization, and question-template generation.
 - Attendance verification, authorization, score calculation, multiple-choice grading, and SQL execution are handled deterministically.
 - Student solution images are deleted immediately after multimodal analysis.
@@ -110,7 +110,7 @@ Processing rules:
 
 - Request browser geolocation only after explicit permission.
 - Discard precise coordinates after the Google Maps MCP request completes.
-- Do not store precise coordinates in PostgreSQL, MongoDB, LangSmith, or application logs.
+- Do not store precise coordinates in PostgreSQL, MySQL, LangSmith, or application logs.
 - Allow users to enter a ZIP code, city, or address instead.
 - Do not retain the raw manually entered address by default.
 
@@ -184,7 +184,7 @@ Each application has its own:
 Shared components:
 
 - Existing authentication authority
-- MongoDB Profile Adapter
+- MySQL Profile Adapter
 - Aurora PostgreSQL cluster
 - AWS Bedrock Gateway
 - LangSmith
@@ -266,7 +266,7 @@ Amazon EKS
 │   ├── Evaluation Runner
 │   └── OpenTelemetry Collector
 │
-├── Existing MongoDB
+├── Existing MySQL
 │   ├── Users
 │   ├── Roles
 │   ├── Parent-Child Relationships
@@ -302,11 +302,11 @@ The system uses a custom LlamaIndex-based RAG pipeline instead of delegating the
 
 ---
 
-## 5.4 MongoDB and PostgreSQL Responsibility Separation
+## 5.4 MySQL and PostgreSQL Responsibility Separation
 
-### 5.4.1 MongoDB as the Source of Truth
+### 5.4.1 MySQL as the Source of Truth
 
-MongoDB stores:
+MySQL stores:
 
 - User name
 - Email
@@ -318,7 +318,7 @@ MongoDB stores:
 - Attendance
 - Account status
 
-PostgreSQL stores only MongoDB primary keys or shared external identifiers:
+PostgreSQL stores only MySQL primary keys or shared external identifiers:
 
 ```text
 student_external_id
@@ -334,7 +334,7 @@ Do not replicate into PostgreSQL:
 - Email addresses
 - Phone numbers
 - Addresses
-- Full MongoDB user documents
+- Full MySQL user rows
 
 ---
 
@@ -367,9 +367,9 @@ PostgreSQL stores:
 
 ---
 
-### 5.4.3 Combining MongoDB and PostgreSQL Results
+### 5.4.3 Combining MySQL and PostgreSQL Results
 
-Do not attempt a direct operational SQL join across MongoDB and PostgreSQL.
+Do not attempt a direct operational SQL join across MySQL and PostgreSQL.
 
 Instead, combine results in the FastAPI service layer:
 
@@ -379,7 +379,7 @@ Request
 Authorization Context
   ↓
 Async parallel fetch
-  ├── MongoDB: name, role, grade, branch, attendance
+  ├── MySQL: name, role, grade, branch, attendance
   └── PostgreSQL: score, mastery, learning history
   ↓
 Join by external primary key
@@ -391,7 +391,7 @@ Example:
 
 ```python
 profile, learning = await asyncio.gather(
-    mongo_profile_repository.get_student(student_id),
+    mysql_profile_adapter.get_student_profile(student_id),
     postgres_learning_repository.get_summary(student_id),
 )
 
@@ -407,31 +407,31 @@ return StudentLearningView(
 
 Benefits:
 
-- Preserves MongoDB as the source of truth
+- Preserves MySQL as the source of truth
 - Avoids PII duplication
 - Reduces consistency issues
 - Clarifies database responsibility
 - Avoids operational federated-query dependencies
 
-If large-scale analytics becomes necessary, use a separate de-identified analytics warehouse rather than copying MongoDB PII into the operational PostgreSQL database.
+If large-scale analytics becomes necessary, use a separate de-identified analytics warehouse rather than copying MySQL PII into the operational PostgreSQL database.
 
 ---
 
 ### 5.4.4 Real-Time Attendance Lookup
 
-Attendance is read directly from MongoDB when the learning session begins.
+Attendance is read directly from MySQL when the learning session begins.
 
 ```text
 Start Learning
   ↓
-Read user and child relationship from MongoDB
+Read user and child relationship from MySQL
   ↓
-Read current-week attendance from MongoDB
+Read current-week attendance from MySQL
   ↓
 Present / Absent / Unknown
 ```
 
-Do not assume `present` when MongoDB is unavailable.
+Do not assume `present` when MySQL is unavailable.
 
 Display:
 
@@ -452,7 +452,7 @@ START
   ↓
 Authenticate User
   ↓
-Load MongoDB Profile
+Load MySQL Profile
   ↓
 Resolve Student
   ├── Student account → Use current student
@@ -495,8 +495,8 @@ END
 | Component | Type | Responsibility |
 |---|---|---|
 | Learning Orchestrator | LangGraph | Controls the overall learning workflow |
-| Profile Resolver | Deterministic node | Reads role and parent-child relationships from MongoDB |
-| Attendance Gate | Deterministic node | Reads attendance from MongoDB |
+| Profile Resolver | Deterministic node | Reads role and parent-child relationships from MySQL |
+| Attendance Gate | Deterministic node | Reads attendance from MySQL |
 | Attendance Escalation Agent | Tool agent | Creates branch-manager email drafts |
 | Topic Resolver | Structured LLM | Maps student input to curriculum topics |
 | Assessment Manager | Subgraph | Manages pre-exam and post-exam |
@@ -557,7 +557,7 @@ LearningState
 - trace_id
 ```
 
-Names and email addresses are not stored in graph state. Email addresses are retrieved temporarily from MongoDB only when needed.
+Names and email addresses are not stored in graph state. Email addresses are retrieved temporarily from MySQL only when needed.
 
 ---
 
@@ -570,7 +570,7 @@ A parent selects the child at the beginning of each learning session.
 ```text
 Parent starts learning
   ↓
-MongoDB children lookup
+MySQL children lookup
   ├── 0 children → Error and support guidance
   ├── 1 child → Skip selection
   └── 2+ children → Show child selector
@@ -637,7 +637,7 @@ that the student did not attend this week.
 ```text
 Absent or Unknown
   ↓
-Load Branch Manager email from MongoDB
+Load Branch Manager email from MySQL
   ↓
 Create email draft
   ↓
@@ -2411,7 +2411,7 @@ Attendance escalation:
 
 ```text
 Sender: configured system Gmail account
-Recipient: Branch Manager email from MongoDB
+Recipient: Branch Manager email from MySQL
 ```
 
 Q&A escalation:
@@ -2713,7 +2713,7 @@ POST /chat/sessions/{id}/email-send
 
 Use async for:
 
-- Parallel MongoDB and PostgreSQL reads
+- Parallel MySQL and PostgreSQL reads
 - Bedrock calls
 - MCP calls
 - Hybrid search
@@ -2738,8 +2738,8 @@ Use SQS workers for:
 
 | Failure | Response |
 |---|---|
-| MongoDB profile failure | Disable authenticated functions; keep public Q&A available |
-| MongoDB attendance failure | Block learning start |
+| MySQL profile failure | Disable authenticated functions; keep public Q&A available |
+| MySQL attendance failure | Block learning start |
 | PostgreSQL writer failure | Stop answer submission and safely retry |
 | Bedrock timeout | Bounded retry and smaller-model fallback |
 | Structured-output failure | Pydantic repair and safe error |
@@ -2996,7 +2996,7 @@ Browser request
 → FastAPI span
 → LangGraph span
 → Bedrock span
-→ MongoDB span
+→ MySQL span
 → PostgreSQL span
 → MCP span
 → External API span
@@ -3347,7 +3347,8 @@ Build Image
 ```text
 BEDROCK_MODEL_ID
 BEDROCK_EMBEDDING_MODEL_ID
-MONGODB_READONLY_URI
+LEARNING_MYSQL_URL
+CHAT_MYSQL_URL
 POSTGRESQL_URI
 GMAIL_OAUTH_CLIENT_ID
 GMAIL_OAUTH_CLIENT_SECRET
@@ -3360,6 +3361,10 @@ LANGSMITH_API_KEY
 AUTH_TOKEN_PUBLIC_KEY
 KMS_KEY_ARN
 ```
+
+`LEARNING_MYSQL_URL` / `CHAT_MYSQL_URL` match `.env.example`; staging stores the MySQL
+connection as separate `MYSQL_DB_HOST` / `MYSQL_DB_PORT` / `MYSQL_DB_USERNAME` /
+`MYSQL_DB_PASSWORD` components (D-092).
 
 Do not store secrets in GitHub repositories or Docker images.
 
@@ -3445,7 +3450,7 @@ Define legal boundaries and data ownership before implementation.
 ### Completion Criteria
 
 - Consent claims from `go.intellichoice.org` are finalized.
-- MongoDB and PostgreSQL ownership is finalized.
+- MySQL and PostgreSQL ownership is finalized.
 - Production data-flow diagram is approved.
 - Legal review items are documented.
 
@@ -3504,7 +3509,7 @@ The development environment can be recreated from Terraform.
 
 ---
 
-## 6.4 Phase 3: Existing Authentication and MongoDB Profile Adapter
+## 6.4 Phase 3: Existing Authentication and MySQL Profile Adapter
 
 ### Objective
 
@@ -3514,7 +3519,7 @@ Allow both applications to reuse the existing login system safely.
 
 - Validate existing auth tokens
 - Separate application audiences
-- Read-only MongoDB adapter
+- Read-only MySQL adapter
 - Parent-child lookup
 - Grade lookup
 - Branch lookup
@@ -3616,7 +3621,7 @@ Login
 
 - FastAPI
 - PostgreSQL
-- MongoDB
+- MySQL
 - Deterministic Evaluator
 - Idempotency
 
@@ -4010,7 +4015,7 @@ Frontend
 → FastAPI
 → LangGraph
 → Bedrock
-→ MongoDB/PostgreSQL
+→ MySQL/PostgreSQL
 → MCP
 ```
 
@@ -4053,7 +4058,7 @@ Security and legal reviews are production release gates.
 - More than 100 concurrent learning sessions
 - More than 100 SSE connections
 - Concurrent Bedrock requests
-- Parallel MongoDB/PostgreSQL reads
+- Parallel MySQL/PostgreSQL reads
 - Queue bursts
 - MCP timeouts
 
@@ -4063,7 +4068,7 @@ Security and legal reviews are production release gates.
 - Pod failure
 - Database failover
 - Bedrock throttling
-- MongoDB timeout
+- MySQL timeout
 - MCP outage
 - Queue backlog
 - Rolling deployment
@@ -4117,7 +4122,7 @@ Rollback triggers:
 ### Product Core
 
 ```text
-Auth/Mongo Adapter
+Auth/MySQL Adapter
 → PostgreSQL
 → Deterministic Assessment
 → LangGraph

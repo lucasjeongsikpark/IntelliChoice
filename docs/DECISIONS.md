@@ -5100,3 +5100,89 @@ cluster.
 two product findings (AUD-F-19) and one environment finding (AUD-F-20), all three of which were
 invisible until the staging suite ran for the first time. That is a worse position than the roadmap
 recorded, and a truer one.
+
+## D-111 — Backlog-cleanup mini-session: AUD-F-08 and AUD-F-20 closed, AUD-C-02's code half done, and D-082's doc sweep finally executed (accepted, 2026-07-28)
+
+**Context.** An off-roadmap mini-session taking only what the backlog itself marked resolvable
+right now: PROGRESS.md's two "cheap ones worth taking first", the AUD-F-20 re-seed decision
+D-110 §6 had deferred, and the MongoDB → MySQL documentation sweep D-082 deferred six sessions
+ago. Nothing here touches the chat cluster (C-16 → C-02 → F-19 stays the next session), and
+nothing mutated staging.
+
+### 1. AUD-F-08 closed — CI now builds all four deployables plus the e2e harness
+
+`ci.yml` gained a `chat-web` job (mirror of `learning-web`: `npm ci`, `oxlint`, `tsc -b && vite
+build`) and an `e2e-typecheck` job (`tsc --noEmit` — the only part of the harness checkable
+without live app servers). Neither frontend has a test script, so "builds and tests every
+deployable" is met to the depth the packages offer; typecheck rides inside `build` by both
+frontends' design. All three commands verified locally before landing.
+
+### 2. AUD-C-02 — the prompt was missing *two* topics, not one, and only a static test can guard it
+
+SPEC §5.19.4 lists eight supported topics; the `SCOPE_AND_INTENT` prompt omitted **"IntelliChoice
+organization"** (the finding) and also **"Student participation"** (found while fixing — the
+prompt's "student learning" is the learning-app topic, not participation). The prompt is now a
+module constant (`SCOPE_AND_INTENT_SYSTEM_PROMPT`) covering all eight, with the same fix applied
+to the clarification message. `OUT_OF_SCOPE_MESSAGE` was deliberately not touched — it is SPEC
+verbatim.
+
+**The guard is a static string-coverage test** (`test_scope_prompt_spec_coverage.py`), because no
+behavioural test in CI can see this class of defect: `MockBedrockProvider`'s scope gate keys on
+its own keyword list, which contains `"intellichoice"`, so every organization question scores
+in-scope under the mock regardless of what the prompt says. Two `paraphrase`-category eval cases
+("What is IntelliChoice?", a participation question) were added for the real-Bedrock runner —
+measured-not-gated under the mock by that category's existing design.
+
+**What this does not close:** AUD-C-02's real-provider verification. Judging the prompt on staging
+before AUD-C-16 is fixed means tuning against a retrieval channel that returns noise (PROGRESS.md's
+standing argument), so the finding's verification leg transfers to the chat cluster, where F-19's
+three-answers-to-one-question probe is the natural test.
+
+### 3. AUD-F-20 closed — deploy-time re-seed, deliberately not a schedule
+
+Decision (user, this session): re-seed staging's MySQL fixtures **on every deploy**, not on a
+weekly schedule. `deploy-staging.yml` now runs `python -m intellichoice_adapters.seed.seed_mysql`
+via the same one-off ops-task mechanism as migrations, immediately after them; the ops task
+already carries the exact four env vars/secrets the seeder reads (D-092's component convention),
+so no Terraform change. The weekly-schedule option was declined for now because a `terraform
+apply` re-baselines criterion 6's quiet week (started 2026-07-26, earliest pass 2026-08-02); it
+remains available if a deploy-free week ever needs valid criterion-3 evidence.
+
+Hardening alongside: `mysql_fixtures.py`'s `_ATTENDANCE` no longer bakes `week_key` at import
+time — `seed()` stamps it at call time, removing the import-early/seed-late variant of the same
+aging shape (`load-tests/loadtest_fixtures.py` has the same shape and was left alone — it is
+session-scoped by nature).
+
+**Effective on the next dispatched deploy.** Staging itself was not touched; its journeys stay
+`phase=blocked` until `gh workflow run deploy-staging.yml --ref main` runs.
+
+### 4. D-082's deferred doc sweep executed — the docs now say MySQL
+
+CLAUDE.md (rule 1 had told every session since D-082 that "MongoDB remains the source of truth"),
+SPEC.md (~40 edits including four section headings — numbers preserved, §5.4/§6.4 citations stay
+valid — and `MONGODB_READONLY_URI`, a config var that never existed in code), FINAL_ARCHITECTURE.md
+(its dev-fake description named `mongo:7`/`MongoProfileAdapter`, neither of which exists), and
+ROADMAP.md's live dev-environment section. Historical records (PROGRESS.md, DECISIONS.md,
+docs/plans/) deliberately untouched: they accurately describe sessions in which Mongo was what
+existed. `intellichoice_shared/maps.py`'s "docs still say MongoDB" comment updated to match.
+
+### 5. Stale-status corrections made in passing
+
+AUDIT_FINDINGS.md's index still showed AUD-F-06 "Open" (landed S40/D-105) and AUD-F-07's
+false-premise ordering constraint as live; both rows now record their real dispositions.
+INTEGRATION_PLAN.md §2.5's seeded backlog got dispositions for its seven resolved items,
+including S11 parent auto-select (S39 measured it does not reproduce) and S22.5's access_hint
+blank turn (S39's browser audit rendered all 18 response shapes; no defect remains recorded).
+deploy-staging.yml's trigger comment no longer implies the push trigger is waiting on a first
+review — six reviewed runs exist; enabling it is a standing decision nobody has taken.
+
+**Verification.** ruff clean, pyright clean, **554 passed / 2 skipped** (552 baseline + the two
+new guard tests, one run). `chat-web` lint+build and `e2e` typecheck pass locally — the exact
+commands the new CI jobs run. Both workflow files parse. Not verified here: the re-seed step
+end-to-end (needs a real deploy; pin the run id/SHA when checking it, per S42's watcher lesson)
+and AUD-C-02's real-provider behaviour (deferred, see §2).
+
+**P1 standing after this session: eight → seven** (AUD-C-02 leaves the list as a fix-shipped/
+verification-pending item; AUD-L-04, AUD-L-07 read half, AUD-C-03, AUD-C-16, AUD-X-07 half,
+AUD-F-14, AUD-F-19 remain). Criterion 4 is now fully met; criterion 3's weekly-expiry caveat is
+closed pending one deploy.
