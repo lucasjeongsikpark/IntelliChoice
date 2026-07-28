@@ -68,11 +68,11 @@ function App() {
     void fetchExamOverview();
   }, [fetchExamOverview]);
 
-  async function handleLogin(chosenRole: Role, chosenSub: string) {
+  async function handleLogin(chosenRole: Role, chosenSub: string, stagingSecret: string) {
     setLoginBusy(true);
     setLoginError(null);
     try {
-      const { token: newToken } = await api.devToken(chosenRole, chosenSub);
+      const { token: newToken } = await api.devToken(chosenRole, chosenSub, stagingSecret);
       localStorage.setItem(TOKEN_KEY, newToken);
       localStorage.setItem(SUB_KEY, chosenSub);
       localStorage.setItem(ROLE_KEY, chosenRole);

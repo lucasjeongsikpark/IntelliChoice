@@ -10,8 +10,16 @@ const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
   { label: "Branch Manager", role: "branch_manager", sub: "branch_manager-ext-1" },
 ];
 
+/**
+ * `sessionStorage`, not `localStorage`: this secret mints a token for **any** role on a
+ * deployed environment, so it should not outlive the tab. Surviving a refresh is the point;
+ * surviving a closed browser is not worth it. Per-app by design (D-097) - chat's secret is
+ * a different value from learning's, so the two keys must not be shared.
+ */
+const STAGING_SECRET_KEY = "intellichoice.chat_staging_token_secret";
+
 interface Props {
-  onLogin: (role: Role, sub: string) => void;
+  onLogin: (role: Role, sub: string, stagingSecret: string) => void;
   onContinueAsGuest: () => void;
   busy: boolean;
   error: string | null;
@@ -20,6 +28,16 @@ interface Props {
 export function DevLoginScreen({ onLogin, onContinueAsGuest, busy, error }: Props) {
   const [role, setRole] = useState<Role>("parent");
   const [sub, setSub] = useState("parent-ext-1");
+  const [stagingSecret, setStagingSecret] = useState(
+    () => sessionStorage.getItem(STAGING_SECRET_KEY) ?? "",
+  );
+
+  function submit() {
+    // Remembered only on an actual attempt, so a half-typed value is not persisted.
+    if (stagingSecret) sessionStorage.setItem(STAGING_SECRET_KEY, stagingSecret);
+    else sessionStorage.removeItem(STAGING_SECRET_KEY);
+    onLogin(role, sub, stagingSecret);
+  }
 
   return (
     <div className="panel">
@@ -70,9 +88,40 @@ export function DevLoginScreen({ onLogin, onContinueAsGuest, busy, error }: Prop
         <input value={sub} onChange={(e) => setSub(e.target.value)} />
       </label>
 
-      {error && <p className="error">{error}</p>}
+      {/* Only needed on a deployed environment (D-097). Left blank locally, where
+          `/dev/token` takes its `environment=="dev"` path and ignores the header - so
+          there is nothing to configure and nothing that can silently point the wrong way.
+          `type="password"` because this screen is screenshotted by the e2e harness on
+          failure, and a secret in an artifact is AUD-F-13's shape. */}
+      <label className="field">
+        <span>Staging secret (leave blank locally)</span>
+        <input
+          type="password"
+          autoComplete="off"
+          placeholder="X-Staging-Token-Secret"
+          value={stagingSecret}
+          onChange={(e) => setStagingSecret(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && sub && !busy) submit();
+          }}
+        />
+      </label>
 
-      <button disabled={busy || !sub} onClick={() => onLogin(role, sub)}>
+      {error && <p className="error">{error}</p>}
+      {/* A 404 here means the secret is missing or wrong - D-097 returns 404 for both on
+          purpose, so a caller learns nothing about whether the endpoint is configured. */}
+      {error?.includes("Not Found") && (
+        <p className="subtitle">
+          On staging this means the secret above is missing or wrong. Retrieve it with:{" "}
+          <code>
+            aws secretsmanager get-secret-value --secret-id
+            intellichoice-staging/chat-api/staging-token-shared-secret --query SecretString
+            --output text
+          </code>
+        </p>
+      )}
+
+      <button disabled={busy || !sub} onClick={submit}>
         {busy ? "Signing in…" : "Sign in"}
       </button>
       <button className="secondary" disabled={busy} onClick={onContinueAsGuest}>

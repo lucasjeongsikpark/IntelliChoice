@@ -47,9 +47,27 @@ async function request<T>(path: string, token: string | null, init?: RequestInit
   return (await res.json()) as T;
 }
 
-export function devToken(role: Role, sub: string): Promise<{ token: string }> {
+/**
+ * `stagingSecret` is the `X-Staging-Token-Secret` D-097 requires on a deployed
+ * environment, where `/dev/token` 404s without it and the dev-login screen therefore
+ * showed a bare "Not Found" - i.e. nobody could sign in to staging through the UI at all
+ * (S42/AUD-F-18 found this for the e2e harness; a human hit the same wall).
+ *
+ * Sent only when non-empty. Locally the endpoint takes its `environment=="dev"` path and
+ * ignores the header entirely, so passing it is always safe and there is no build-time
+ * switch to get wrong - deliberately, because a switch that silently points at the wrong
+ * thing is exactly what AUD-F-17 was.
+ */
+export function devToken(
+  role: Role,
+  sub: string,
+  stagingSecret?: string,
+): Promise<{ token: string }> {
+  const headers: Record<string, string> = {};
+  if (stagingSecret) headers["X-Staging-Token-Secret"] = stagingSecret;
   return request("/dev/token", null, {
     method: "POST",
+    headers,
     body: JSON.stringify({ role, sub }),
   });
 }
