@@ -323,6 +323,9 @@ def test_answer_question_falls_back_to_no_answer_on_gateway_error() -> None:
 # inside `answer_question`, from "no source supports an answer". The student was told there
 # was no approved source for a question that had one.
 _MEASURED_MAX_ANSWER_TOKENS = 1530
+# The cap this replaced. It is a *lower bound* on any derived cap, at every passage count -
+# see `test_the_answer_token_budget_never_dips_below_the_flat_cap_it_replaced`.
+_PREVIOUS_FLAT_CAP = 1536
 _TOP_K = 8
 
 
@@ -331,6 +334,20 @@ def test_the_answer_token_budget_clears_the_measured_maximum_at_top_k() -> None:
     assert budget > _MEASURED_MAX_ANSWER_TOKENS * 1.4
     # ...and still inside the gateway's own hard ceiling, or the derivation is a fiction.
     assert budget <= 4000
+
+
+def test_the_answer_token_budget_never_dips_below_the_flat_cap_it_replaced() -> None:
+    """The regression this pins actually shipped (D-115 §10).
+
+    The first derivation was `768 + 192n`, by analogy with the reranker - where the
+    response really is one line per candidate. An answer's length is a function of the
+    *question*; only its citation list scales with the passages. So single-passage turns
+    got a 960-token ceiling, **below the flat 1536 being replaced**, and staging truncated
+    3 of 74 turns, every one of them `context_chunk_count=1`. Any passage count must clear
+    the old cap, or "derived" is a euphemism for "sometimes smaller".
+    """
+    for passages in range(1, 31):
+        assert RagAnswerResponse.max_output_tokens_for(passages) > _PREVIOUS_FLAT_CAP
 
 
 def test_the_answer_token_budget_scales_with_the_number_of_passages() -> None:
