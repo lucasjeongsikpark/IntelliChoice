@@ -2795,3 +2795,79 @@ branch that replaces it, and to suppress a stage-intro narrative once interactio
 that is visible behaviour on the primary journey and deserves its own decision and its own
 before/after, the same posture D-115 §11 took with answer brevity. **Criterion 3 is blocked on
 this one fix**, and it is now a single well-located change rather than two vague observations.
+
+**✅ Fixed 2026-07-29 (D-117), on the shape above, with the product call taken.** The narrative
+renders in the same `.stack` shape `AssistancePanel` already used, above the phase screen instead
+of in place of it, and a narrative arriving after the student has interacted *in the current phase*
+is dropped rather than interposed. Interaction is tracked as the phase name (`interactedPhase`)
+rather than a boolean, so it self-clears at every phase boundary — `nodes.py` writes `phase` and
+`stage_narrative` in the *same* state update, so a boolean plus a reset effect would race the
+narrative it exists to gate, and the pre/post-exam outros would have been dropped by accident.
+
+**Verified against the mock, which previously could not see this class at all.**
+`tests/learning/narrative-displacement.spec.ts` holds back the SSE connect (`route.continue()`
+after a delay) so `pre_intro` fires *after* the exam screen is up, reproducing real Bedrock's
+timing on `MockBedrockProvider`. Three arms — the mid-exam arrival, the post-interaction drop, and
+the co-existence contract in the other ordering — each asserted non-vacuously (the narrative's
+arrival is asserted before anything about it is). **All three were watched failing against the
+pre-fix `App.tsx`**, with the messages they were written for: exam screen unmounted, narrative
+interposed after answering, topic list absent beneath the narrative. Local suite 54 passed /
+2 skipped with the fix, no regression in the other 47 specs; the dwell now reports the full
+15,000 ms where the pre-fix run reported a truncated flush.
+
+**Staging re-verification is still outstanding** — the fix is not on staging at the time of
+writing, so criterion 3's two clean runs have not been taken.
+
+### AUD-F-22 — A parent cannot reach their child's progress dashboard without finishing a whole cycle (P2, found in the S43 continuation, D-117; not fixed)
+
+Found by de-conditionalizing a `test.skip()`, which is the only reason it is written down: the
+skip's own message was *"no dashboard entry point from the current screen"* — an accurate
+description of a defect, recorded as a reason not to look at it, on every run from S39 through S43.
+
+**The mechanism is two facts that only bite together.** `View progress dashboard` is rendered by
+exactly two screens:
+
+- `StartScreen`, and only `{studentId && …}` — for a parent, `App.tsx`'s `dashboardStudentId` is
+  `session.studentId`, which is `null` until a child is resolved, and a child is only resolved *by
+  starting a session*. So the button is never on the start screen a parent actually sees.
+- `ResultsScreen`, at the end of a completed pre → study → post cycle.
+
+And backing out does not help: `useLearningSession.endSession()` clears `STUDENT_ID_KEY` and calls
+`setStudentId(null)`, so returning to the start screen returns to the state with no button.
+
+**Net effect:** a parent's only route to their child's progress dashboard — the surface SPEC §5.13's
+parent-facing reporting lives on — is to sit through an entire learning session as if they were the
+student. Measured: `dashboard button reachable mid-session: false`, after resolving a child.
+
+**Severity P2, not P1.** Nothing is wrong, lost, or exposed; a feature that exists is unreachable
+by its intended user on the natural path. It is also the practical consequence of the long-standing
+S11 carry-over (parent auto-select does not set `student_external_id` client-side) rather than a
+new regression.
+
+**Not fixed here.** The fix is a UX decision about where a persistent entry point belongs (app
+header? a dashboard link on the phase screens? resolving the parent's child before the session
+starts, which is the S11 item itself) — visible behaviour on the parent journey, and this session
+already spent its one product call on AUD-F-21. The probe is now `test.fail()` rather than a
+conditional skip, on AUD-F-04/AUD-F-05's pattern: it keeps measuring, and it fails the run the day
+the gap closes, which is the signal to promote it to a regression test.
+
+### AUD-F-23 — A conditional skip made an untested journey look tested for four sessions (P3, found and fixed in the S43 continuation, D-117)
+
+`journey-chat.spec.ts`'s *"the welcome card's suggested prompt works as a one-click turn"* skipped
+on every run from S39 to S43 with `no suggestion chips rendered for a guest`, and the reason was in
+the test, not the product: `chips.count()` was taken **immediately after `page.goto`**, while
+`App.tsx` fetches `/chat/meta` in an effect. The count read an empty DOM and the test skipped
+itself, every time.
+
+The data was there all along — `chat_suggestions` holds **7 active `public` rows**, and
+`suggestions_for_role` returns the first four to a guest (`role_access.resolve_role_context` maps an
+anonymous caller to `public`). Fixed by waiting for the chip rather than counting immediately, and
+by making its absence a **failure** instead of a skip. The test now runs and passes, so the
+one-click-turn path has been exercised for the first time.
+
+**Why this is worth an ID rather than a quiet fix.** It is the same class as AUD-F-16 and AUD-F-17
+— the harness reporting on something it had not measured — and it is the third instance. A skip
+whose condition is never false is indistinguishable, in a run summary, from a test that is passing;
+`2 skipped` looked like a known allowance rather than two journeys nobody had ever driven. The
+matching pattern to watch for: a skip message that *describes a defect* is a finding, not a
+condition.

@@ -5,6 +5,54 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-116's work landed and deployed, AUD-F-21 fixed with the product call taken, and two
+  `test.skip()`s turned out to be findings (2026-07-29, D-117).** Local suite **591 passed /
+  2 skipped**, lint and pyright clean, `e2e/` typechecks. Local e2e **56 passed / 1 skipped**
+  (was 51/2 — three new AUD-F-21 specs, plus the chips journey running for the first time).
+  **Landed: PR #45 merged as `4fa2a531`, deploy run 30491528889 success** — head SHA compared
+  against the merge SHA rather than trusting `gh run list --limit=1`. The terraform was already
+  applied, so that commit makes code match state.
+  **✅ AUD-F-21 fixed — criterion 3's one blocking change, with the product decision made
+  (D-117 §1).** The narrative now renders **above** the phase screen in the same `.stack` shape
+  `AssistancePanel` has used since S21, not instead of it, and a narrative arriving after the
+  student has interacted *in the current phase* is dropped. Interaction is tracked as
+  `interactedPhase` (a phase name, not a boolean) because `nodes.py` writes `phase` and
+  `stage_narrative` in the **same** state update — a boolean plus a reset effect would have
+  raced the narrative it gates and dropped the pre/post-exam outros by accident.
+  **✅ And the mock can finally see this defect class.**
+  `narrative-displacement.spec.ts` delays the **SSE connect** (not the payload) so `pre_intro`
+  fires after the exam screen is up — real Bedrock's timing on a ~26 ms mock. Three arms, each
+  non-vacuous, **all three watched failing against the pre-fix `App.tsx`** with their own
+  messages. The dwell now reports the full 15,000 ms where the pre-fix run truncated to 2116 ms.
+  This is the third finding in the "only staging can see it" shape (AUD-C-02, AUD-F-19,
+  AUD-F-21); this closes that hole for narratives.
+  **⚠️ The fix silently changed what a shared harness helper measured (D-117 §3).**
+  `settleToInteractiveScreen` dismissed narratives only when nothing interactive was on screen —
+  correct while a narrative implied an empty screen, wrong once they coexist. Nothing failed; the
+  evidence line `narratives dismissed before the exam` just went to **0** and read as "no
+  narrative appeared". Fixed by dismissing before the interactivity check. **The symptom of this
+  class is a number getting quieter, not a test going red.**
+  **✅ Both roadmap-named `test.skip()`s de-conditionalized, and neither was tidiness:**
+  - **AUD-F-23 (P3, fixed)** — the chat chips test counted the DOM *immediately after* `goto`
+    while `/chat/meta` is fetched in an effect, so it skipped itself on **every run S39→S43**.
+    The data was never missing (7 active `public` rows). Now waits, and **fails** if absent, so
+    that journey has been exercised for the first time.
+  - **AUD-F-22 (P2, filed not fixed)** — the other skip's message *was* the defect: `View
+    progress dashboard` exists only on `StartScreen` (gated on a `studentId` a parent gets **by
+    starting a session**) and `ResultsScreen`, and `endSession()` clears `studentId`. A parent's
+    only route to their child's dashboard is sitting through a whole pre→study→post cycle.
+    Converted to `test.fail()`; where the entry point belongs is a UX call, and it is S11's
+    parent auto-select carry-over underneath.
+  **The rule (D-117 §4): a skip whose message describes a defect is a finding, and a skip whose
+  condition is never false is indistinguishable from a passing test in a run summary.** `2
+  skipped` read as a known allowance for four sessions while it meant two undriven journeys.
+  **⛔ Nothing in this entry is verified on staging, and one blocker explains all of it: no local
+  AWS session** (`aws sts get-caller-identity` → `NoCredentials` throughout). Blocked, in order:
+  (i) `make e2e-staging EXPECT_BUILD_SHA=4fa2a531` against the D-116 deploy — the first run where
+  that assertion checks anything, since staging had been on `12508257ac10`; (ii) **criterion 3's
+  two clean runs**, which need the AUD-F-21 fix deployed *and* an AWS session (the harness reads
+  identity from ECS and mints tokens from Secrets Manager); (iii) criterion 7's learning leg;
+  (iv) criterion 8's four alarm inductions. **AUD-F-21's fix is not on staging** as of this entry.
 - **✅ Criterion 7's chat leg MET, AUD-X-13 / AUD-F-16 closed and live-verified, two more fixed
   caps fixed, and criterion 3's two failures diagnosed down to one filed defect
   (2026-07-29, D-116).** Local suite **591 passed / 2 skipped** (587 at start, +4), lint and
@@ -178,25 +226,27 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 - ~~Next session: (a) the post-#43 confirmation and the criterion-7 threshold decision, then
   (b) the two learning-side staging e2e failures~~ **((a) ✅ done 2026-07-29, D-116; (b) blocked
   on AWS — see below.)**
-- **Next session, in order:**
-  1. **Uncommitted work exists and is not on staging.** D-116's app-code changes (the `/healthz`
-     build-identity fields, the two token caps, the e2e harness) are in the working tree only —
-     no branch, no PR, no deploy. The terraform *is* applied. First move is to land them:
-     branch → PR → merge → `gh workflow run deploy-staging.yml --ref main`. **A merge does not
-     deploy**, and `gh run list --limit=1` happily returns the *previous* run, so compare the head
-     SHA. Then re-run `make e2e-staging` with `EXPECT_BUILD_SHA=<merge sha>` — which now actually
-     checks something, since staging currently runs `12508257ac10`.
-  2. **AUD-F-21 (P1) is the whole of criterion 3.** One located change:
-     `App.tsx:199` renders `StageTransitionScreen` as a sibling of `ExamScreen` instead of above
-     it. Needs a product call first — *should a narrative that arrives after the student has
-     started working interpose at all?* Recommended shape: dismissible overlay, and suppress a
-     stage-intro narrative once interaction has begun. Two clean runs follow the fix; also
-     de-conditionalize the two `test.skip()`s (no suggestion chips, no dashboard entry point).
+- ~~Next session, in order: (1) land D-116's uncommitted work, (2) AUD-F-21, (3) criterion 7's
+  learning leg, (4) criterion 8~~ **((1) ✅ landed and deployed, (2) ✅ fixed locally — both
+  2026-07-29, D-117; (3) and (4) untouched, blocked on AWS.)**
+- **Next session, in order. Every item below needs `aws login` first — the whole remaining list
+  is one blocker:**
+  1. **Deploy AUD-F-21 and take criterion 3's two clean runs.** The fix is committed but **not on
+     staging**: dispatch a deploy for it, then `make e2e-staging EXPECT_BUILD_SHA=<merge sha>`
+     twice. Expect the two failures that were AUD-F-21 to be gone; the suite had reproduced
+     **47/2/4** three times running. **A merge does not deploy**, and `gh run list --limit=1`
+     returns the *previous* run — compare the head SHA.
+  2. **Also still owed from D-116: `EXPECT_BUILD_SHA=4fa2a531`** against that deploy, which was
+     never run. It is the first time that assertion can check anything (staging was on
+     `12508257ac10`), and it is the whole point of AUD-F-16's work.
   3. **Criterion 7's learning-app leg is the only unmeasured half** — the chat leg passed
      (p95 16.68 s, 0 errors, 3 tasks). Needs authenticated load; the staging token secrets are in
      Secrets Manager at `intellichoice-staging/{learning,chat}-api/staging-token-shared-secret`.
   4. **Criterion 8** — induce each of the four alarms once and confirm the monitored inbox. The
      chat-api p95 alarm is now a *meaningful* signal to induce rather than one stuck on.
+  **New carry-over: AUD-F-22 (P2)** — a parent cannot reach their child's progress dashboard
+  without completing an entire pre→study→post cycle. Needs a UX call on where a persistent entry
+  point belongs; S11's parent auto-select item is the same gap seen from the other side.
   Answer brevity (D-115 carry-over (i)) is still the highest-value optimization and still a
   product change needing sign-off — `rag_answer` is p95 10.62 s of the 15.94 and generating
   ~375 words at p50. The remaining P1 halves (AUD-L-07 read, AUD-X-07) keep their written
