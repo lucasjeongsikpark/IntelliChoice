@@ -93,6 +93,14 @@ class ResilientBedrockGateway:
         self._circuit_opened_until = None
 
     def _record_failure(self) -> None:
+        """Count a *provider-health* failure (timeout, network, throttle, 5xx).
+
+        Deliberately not called for structured-output failures. The circuit breaker
+        exists to stop hammering a Bedrock that cannot answer; a response that arrives
+        promptly and fails our schema says the opposite - Bedrock is healthy and our
+        request is wrong. Counting those together is what turned one rerank defect into
+        a 30-second outage of every task, `scope_and_intent` included (D-115).
+        """
         self._consecutive_failures += 1
         if self._consecutive_failures >= self._circuit_failure_threshold:
             self._circuit_opened_until = time.monotonic() + self._circuit_cooldown_s
@@ -100,6 +108,39 @@ class ResilientBedrockGateway:
     def _record_success(self) -> None:
         self._consecutive_failures = 0
         self._circuit_opened_until = None
+
+    def _log_failure(
+        self,
+        *,
+        task: BedrockTask,
+        model_id: str | None,
+        reason: str,
+        detail: str,
+        attempts: int,
+        started_at: float,
+        max_output_tokens: int | None = None,
+    ) -> None:
+        """Every failure exit from this gateway logs exactly once, at WARNING.
+
+        Before D-115 only successes were logged, so a call that failed on every single
+        request left no trace at all: staging's reranker was dead for a week and the
+        only visible symptom was a latency gap between two unrelated log lines. A
+        degraded path that keeps returning 200s has to say so itself, because nothing
+        downstream will.
+        """
+        logger.warning(
+            "bedrock_call_failed",
+            extra={
+                "task": task.value,
+                "model_id": model_id,
+                "reason": reason,
+                "detail": detail,
+                "attempts": attempts,
+                "duration_ms": round((time.monotonic() - started_at) * 1000, 2),
+                "max_output_tokens": max_output_tokens,
+                "consecutive_failures": self._consecutive_failures,
+            },
+        )
 
     @staticmethod
     def _rate_for(model_id: str) -> tuple[float, float]:
@@ -139,15 +180,40 @@ class ResilientBedrockGateway:
         session_spend_cents: float,
     ) -> BedrockGenerationResult[T]:
         with traced_span("bedrock.generate_structured", task=task.value):
-            self._circuit_check()
-
+            started_at = time.monotonic()
             model_id = self._model_registry.get(task)
+            try:
+                self._circuit_check()
+            except CircuitOpenError as exc:
+                self._log_failure(
+                    task=task,
+                    model_id=model_id,
+                    reason="circuit_open",
+                    detail=str(exc),
+                    attempts=0,
+                    started_at=started_at,
+                )
+                raise
+
             if model_id is None:
                 raise ValueError(f"no Bedrock model configured for task {task!r}")
 
             capped_max_tokens = min(max_output_tokens, _HARD_MAX_OUTPUT_TOKENS)
             worst_case_cost = self._cost_cents(model_id, 2000, capped_max_tokens)
             if session_spend_cents + worst_case_cost > self._session_budget_cents:
+                self._log_failure(
+                    task=task,
+                    model_id=model_id,
+                    reason="budget_exceeded",
+                    detail=(
+                        f"spent {session_spend_cents:.2f} of "
+                        f"{self._session_budget_cents} cents; this call could cost "
+                        f"{worst_case_cost:.2f}"
+                    ),
+                    attempts=0,
+                    started_at=started_at,
+                    max_output_tokens=capped_max_tokens,
+                )
                 raise CostBudgetExceededError(
                     f"session budget of {self._session_budget_cents} cents would be "
                     f"exceeded (already spent {session_spend_cents:.2f}, this call could "
@@ -159,9 +225,12 @@ class ResilientBedrockGateway:
             json_schema.setdefault("title", response_model.__name__)
 
             raw_text: str | None = None
+            truncated = False
             total_input = 0
             total_output = 0
+            attempts = 0
             for attempt in range(self._max_retries + 1):
+                attempts = attempt + 1
                 try:
                     raw = await asyncio.wait_for(
                         self._provider.raw_generate(
@@ -178,25 +247,48 @@ class ResilientBedrockGateway:
                     if attempt < self._max_retries:
                         await asyncio.sleep(self._backoff_base_s * (2**attempt))
                         continue
+                    self._log_failure(
+                        task=task,
+                        model_id=model_id,
+                        reason="provider_unavailable",
+                        detail=f"{type(exc).__name__}: {exc}",
+                        attempts=attempts,
+                        started_at=started_at,
+                        max_output_tokens=capped_max_tokens,
+                    )
                     raise BedrockTimeoutError(f"Bedrock call failed: {exc}") from exc
                 else:
                     raw_text = raw.text
+                    truncated = raw.truncated
                     total_input += raw.input_tokens
                     total_output += raw.output_tokens
                     break
 
             assert raw_text is not None
 
-            value, repaired, repair_input, repair_output = await self._validate_or_repair(
-                raw_text=raw_text,
-                response_model=response_model,
-                model_id=model_id,
-                system_prompt=system_prompt,
-                user_message=user_message,
-                json_schema=json_schema,
-                max_output_tokens=capped_max_tokens,
-                tokens_so_far=(total_input, total_output),
-            )
+            try:
+                value, repaired, repair_input, repair_output = await self._validate_or_repair(
+                    raw_text=raw_text,
+                    response_model=response_model,
+                    model_id=model_id,
+                    system_prompt=system_prompt,
+                    user_message=user_message,
+                    json_schema=json_schema,
+                    max_output_tokens=capped_max_tokens,
+                    tokens_so_far=(total_input, total_output),
+                    truncated=truncated,
+                )
+            except StructuredOutputError as exc:
+                self._log_failure(
+                    task=task,
+                    model_id=model_id,
+                    reason="output_truncated" if truncated else "schema_invalid",
+                    detail=f"{exc} (response_model={response_model.__name__})",
+                    attempts=attempts,
+                    started_at=started_at,
+                    max_output_tokens=capped_max_tokens,
+                )
+                raise
             total_input += repair_input
             total_output += repair_output
             self._record_success()
@@ -211,6 +303,7 @@ class ResilientBedrockGateway:
                     "output_tokens": total_output,
                     "cost_cents": cost_cents,
                     "repaired": repaired,
+                    "duration_ms": round((time.monotonic() - started_at) * 1000, 2),
                 },
             )
             return BedrockGenerationResult(
@@ -229,14 +322,26 @@ class ResilientBedrockGateway:
         session_spend_cents: float,
     ) -> EmbeddingResult:
         with traced_span("bedrock.create_embedding", num_texts=len(texts)):
+            started_at = time.monotonic()
             if self._embedding_provider is None:
                 raise ValueError(
                     "this gateway was constructed without an embedding_provider - "
                     "create_embedding is unavailable"
                 )
-            self._circuit_check()
-
             model_id = self._model_registry.get(BedrockTask.EMBEDDING)
+            try:
+                self._circuit_check()
+            except CircuitOpenError as exc:
+                self._log_failure(
+                    task=BedrockTask.EMBEDDING,
+                    model_id=model_id,
+                    reason="circuit_open",
+                    detail=str(exc),
+                    attempts=0,
+                    started_at=started_at,
+                )
+                raise
+
             if model_id is None:
                 raise ValueError(
                     f"no Bedrock model configured for task {BedrockTask.EMBEDDING!r}"
@@ -245,6 +350,18 @@ class ResilientBedrockGateway:
             estimated_tokens = sum(len(text) // 4 for text in texts)
             worst_case_cost = self._embedding_cost_cents(model_id, estimated_tokens)
             if session_spend_cents + worst_case_cost > self._session_budget_cents:
+                self._log_failure(
+                    task=BedrockTask.EMBEDDING,
+                    model_id=model_id,
+                    reason="budget_exceeded",
+                    detail=(
+                        f"spent {session_spend_cents:.2f} of "
+                        f"{self._session_budget_cents} cents; this call could cost "
+                        f"{worst_case_cost:.2f}"
+                    ),
+                    attempts=0,
+                    started_at=started_at,
+                )
                 raise CostBudgetExceededError(
                     f"session budget of {self._session_budget_cents} cents would be "
                     f"exceeded (already spent {session_spend_cents:.2f}, this call could "
@@ -252,7 +369,9 @@ class ResilientBedrockGateway:
                 )
 
             raw = None
+            attempts = 0
             for attempt in range(self._max_retries + 1):
+                attempts = attempt + 1
                 try:
                     raw = await asyncio.wait_for(
                         self._embedding_provider.raw_embed(model_id=model_id, texts=texts),
@@ -263,6 +382,14 @@ class ResilientBedrockGateway:
                     if attempt < self._max_retries:
                         await asyncio.sleep(self._backoff_base_s * (2**attempt))
                         continue
+                    self._log_failure(
+                        task=BedrockTask.EMBEDDING,
+                        model_id=model_id,
+                        reason="provider_unavailable",
+                        detail=f"{type(exc).__name__}: {exc}",
+                        attempts=attempts,
+                        started_at=started_at,
+                    )
                     raise BedrockTimeoutError(f"Bedrock embedding call failed: {exc}") from exc
                 else:
                     break
@@ -279,6 +406,7 @@ class ResilientBedrockGateway:
                     "input_tokens": raw.input_tokens,
                     "cost_cents": cost_cents,
                     "num_texts": len(texts),
+                    "duration_ms": round((time.monotonic() - started_at) * 1000, 2),
                 },
             )
             return EmbeddingResult(
@@ -299,16 +427,28 @@ class ResilientBedrockGateway:
         json_schema: dict,
         max_output_tokens: int,
         tokens_so_far: tuple[int, int],
+        truncated: bool = False,
     ) -> tuple[T, bool, int, int]:
         value = self._try_validate(raw_text, response_model)
         if value is not None:
             return value, False, 0, 0
 
+        already_in, already_out = tokens_so_far
+        if truncated:
+            # A repair call here is pure waste: same prompt, same ceiling, same
+            # truncation, at full input cost and ~10 s of latency. Raise on the spot and
+            # let the caller's fallback run - the honest fix is a bigger ceiling or a
+            # smaller response shape, not another attempt (D-115).
+            raise StructuredOutputError(
+                f"model hit max_output_tokens={max_output_tokens} before completing the "
+                f"{response_model.__name__} response; not retrying under the same ceiling",
+                cost_cents=self._cost_cents(model_id, already_in, already_out),
+            )
+
         repair_prompt = (
             f"{system_prompt}\n\nYour previous output did not match the required JSON "
             "schema. Return corrected JSON only, matching the schema exactly."
         )
-        already_in, already_out = tokens_so_far
         try:
             repaired_raw = await asyncio.wait_for(
                 self._provider.raw_generate(
@@ -329,7 +469,9 @@ class ResilientBedrockGateway:
 
         value = self._try_validate(repaired_raw.text, response_model)
         if value is None:
-            self._record_failure()
+            # No `_record_failure()`: both calls reached Bedrock and came back. The
+            # schema mismatch is ours to fix, and counting it as provider ill-health
+            # opens the circuit on every other task too (D-115).
             raise StructuredOutputError(
                 "structured output still invalid after one repair retry",
                 cost_cents=self._cost_cents(

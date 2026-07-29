@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import pytest
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
@@ -68,6 +69,15 @@ class _ScriptedProvider:
             await asyncio.sleep(10)
         if action == "invalid":
             return RawGeneration(text="not json", input_tokens=10, output_tokens=10)
+        if action == "truncated":
+            # What real Bedrock returns when it runs out of output budget mid-tool-call:
+            # a well-formed JSON fragment of the wrong shape, plus stopReason=max_tokens.
+            return RawGeneration(
+                text='{"hint_text": "h", "concept_rem',
+                input_tokens=10,
+                output_tokens=10,
+                truncated=True,
+            )
         assert action == "valid"
         return RawGeneration(
             text='{"hint_text": "h", "concept_reminder": "c", "next_step_prompt": "n", '
@@ -218,6 +228,238 @@ def test_cost_budget_exceeded_before_any_provider_call() -> None:
                 session_spend_cents=0.0,
             )
         assert provider.calls == 0
+
+    asyncio.run(run())
+
+
+def test_a_truncated_response_is_not_repaired_under_the_same_ceiling() -> None:
+    """D-115: repairing a truncation is guaranteed waste - same prompt, same ceiling,
+    same truncation, at full input cost. On staging this doubled a doomed 11 s rerank
+    into a 21 s one on every single chat turn.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedProvider(["truncated"])
+        gateway = ResilientBedrockGateway(
+            provider=provider, model_registry={BedrockTask.TUTOR: MODEL_ID}, max_retries=0
+        )
+        with pytest.raises(StructuredOutputError) as exc_info:
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_payload(),
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+        assert provider.calls == 1  # no repair attempt at all
+        assert "max_output_tokens=200" in str(exc_info.value)
+        assert exc_info.value.cost_cents > 0  # the truncated call still cost money
+
+    asyncio.run(run())
+
+
+def test_schema_failures_alone_never_open_the_circuit() -> None:
+    """D-115's blast-radius fix. Five consecutive rerank schema failures used to open the
+    shared breaker, after which *every* task - `scope_and_intent` included - failed closed
+    for 30 s, turning chat into 30 ms refusals. A response that arrives and fails our
+    schema is our bug, not evidence that Bedrock is unhealthy.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedProvider(["invalid", "invalid"] * 4)
+        gateway = ResilientBedrockGateway(
+            provider=provider,
+            model_registry={BedrockTask.TUTOR: MODEL_ID},
+            max_retries=0,
+            circuit_failure_threshold=2,
+            circuit_cooldown_s=60,
+        )
+        for _ in range(4):
+            with pytest.raises(StructuredOutputError):
+                await gateway.generate_structured(
+                    task=BedrockTask.TUTOR,
+                    system_prompt="system",
+                    payload=_payload(),
+                    response_model=HintResponse,
+                    max_output_tokens=200,
+                    session_spend_cents=0.0,
+                )
+
+        # Four failures at a threshold of two, and the circuit is still closed: the next
+        # call reaches the provider (and succeeds) instead of raising CircuitOpenError.
+        provider._script.append("valid")  # noqa: SLF001 - test double's own script
+        result = await gateway.generate_structured(
+            task=BedrockTask.TUTOR,
+            system_prompt="system",
+            payload=_payload(),
+            response_model=HintResponse,
+            max_output_tokens=200,
+            session_spend_cents=0.0,
+        )
+        assert isinstance(result.value, HintResponse)
+        assert provider.calls == 9
+
+    asyncio.run(run())
+
+
+def test_a_provider_outage_still_opens_the_circuit() -> None:
+    """The other half of the same decision: real provider-health failures must keep
+    tripping the breaker, or the D-115 narrowing would have removed the protection.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedProvider(["raise", "raise"])
+        gateway = ResilientBedrockGateway(
+            provider=provider,
+            model_registry={BedrockTask.TUTOR: MODEL_ID},
+            max_retries=0,
+            circuit_failure_threshold=2,
+            circuit_cooldown_s=60,
+        )
+        for _ in range(2):
+            with pytest.raises(BedrockTimeoutError):
+                await gateway.generate_structured(
+                    task=BedrockTask.TUTOR,
+                    system_prompt="system",
+                    payload=_payload(),
+                    response_model=HintResponse,
+                    max_output_tokens=200,
+                    session_spend_cents=0.0,
+                )
+        with pytest.raises(CircuitOpenError):
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_payload(),
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+
+    asyncio.run(run())
+
+
+_FAILURE_LOG_CASES: list[tuple[str, list[str], dict, type[Exception]]] = [
+    ("schema_invalid", ["invalid", "invalid"], {}, StructuredOutputError),
+    ("output_truncated", ["truncated"], {}, StructuredOutputError),
+    ("provider_unavailable", ["raise"], {}, BedrockTimeoutError),
+    ("budget_exceeded", [], {"session_budget_cents": 0.01}, CostBudgetExceededError),
+]
+
+
+@pytest.mark.parametrize(("reason", "script", "kwargs", "expected"), _FAILURE_LOG_CASES)
+def test_every_failure_exit_logs_exactly_one_warning(
+    reason: str,
+    script: list[str],
+    kwargs: dict,
+    expected: type[Exception],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """D-115's root cause was not the truncation - it was that nothing said so. The
+    gateway logged successes only, so a call failing on 100% of requests was invisible
+    and the symptom surfaced a week later as an unexplained latency gap.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedProvider(script)
+        gateway = ResilientBedrockGateway(
+            provider=provider,
+            model_registry={BedrockTask.TUTOR: MODEL_ID},
+            max_retries=0,
+            **kwargs,
+        )
+        with caplog.at_level(
+            logging.WARNING, logger="intellichoice_adapters.bedrock.gateway"
+        ), pytest.raises(expected):
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_payload(),
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+
+        failures = [r for r in caplog.records if r.message == "bedrock_call_failed"]
+        assert len(failures) == 1
+        assert failures[0].reason == reason  # type: ignore[attr-defined]
+        assert failures[0].task == BedrockTask.TUTOR.value  # type: ignore[attr-defined]
+        assert failures[0].duration_ms >= 0  # type: ignore[attr-defined]
+
+    asyncio.run(run())
+
+
+def test_a_circuit_open_refusal_also_logs_a_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The 30 ms zero-Bedrock refusals D-113 could not explain: this is the log line that
+    would have named them on sight.
+    """
+
+    async def run() -> None:
+        provider = _ScriptedProvider(["raise"])
+        gateway = ResilientBedrockGateway(
+            provider=provider,
+            model_registry={BedrockTask.TUTOR: MODEL_ID},
+            max_retries=0,
+            circuit_failure_threshold=1,
+            circuit_cooldown_s=60,
+        )
+        with pytest.raises(BedrockTimeoutError):
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_payload(),
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+
+        caplog.clear()
+        with caplog.at_level(
+            logging.WARNING, logger="intellichoice_adapters.bedrock.gateway"
+        ), pytest.raises(CircuitOpenError):
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_payload(),
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+        reasons = [
+            r.reason  # type: ignore[attr-defined]
+            for r in caplog.records
+            if r.message == "bedrock_call_failed"
+        ]
+        assert reasons == ["circuit_open"]
+
+    asyncio.run(run())
+
+
+def test_a_successful_call_logs_its_own_duration(caplog: pytest.LogCaptureFixture) -> None:
+    """Without `duration_ms` on the success line, attributing a slow turn means diffing
+    timestamps between unrelated log lines - which is how a 21 s call read as a "gap".
+    """
+
+    async def run() -> None:
+        gateway = ResilientBedrockGateway(
+            provider=MockBedrockProvider(),
+            model_registry={BedrockTask.TUTOR: MODEL_ID},
+        )
+        with caplog.at_level(logging.INFO, logger="intellichoice_adapters.bedrock.gateway"):
+            await gateway.generate_structured(
+                task=BedrockTask.TUTOR,
+                system_prompt="system",
+                payload=_payload(),
+                response_model=HintResponse,
+                max_output_tokens=200,
+                session_spend_cents=0.0,
+            )
+        calls = [r for r in caplog.records if r.message == "bedrock_call"]
+        assert len(calls) == 1
+        assert calls[0].duration_ms >= 0  # type: ignore[attr-defined]
 
     asyncio.run(run())
 
