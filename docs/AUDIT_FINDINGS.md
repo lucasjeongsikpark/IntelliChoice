@@ -2628,3 +2628,32 @@ floor plus a small per-citation allowance) with a test asserting **every** passa
 1 to 30 clears the old flat cap — watched failing against the cap then live on staging. See
 D-115 §10; the transferable rule is that a derived value replacing a constant must not be
 smaller than that constant anywhere in its domain.
+
+### AUD-X-13 — The chat p95-latency alarm fires on healthy traffic, and the canary bake rolls back deploys when it does (P2, filed in S43)
+
+Surfaced by D-115's re-baseline rather than by a failure. `intellichoice-staging-chat-api-p95-latency`
+alarms on `TargetResponseTime` **p95 > 3 s for 3×60 s**, and notifies
+`intellichoice-staging-alerts`. That threshold is the same mock-calibrated 3 s discussed in the
+gate's criterion 7 — and a *healthy* grounded chat turn now measures **p50 ~10 s / p95 ~16 s**
+against the real corpus, because it is four sequential model calls. So the alarm's steady state
+during normal use is ALARM.
+
+**Three consequences, in increasing order of cost.** It is alarm fatigue on a monitored inbox,
+which trains the recipient to ignore it. It is criterion 8's evidence alarm, so what that
+criterion currently evidences is an alarm that cannot distinguish an incident from a
+conversation. And **`deploy-staging.yml`'s canary bake rolls both services back if any of the
+four alarms is in ALARM** (D-095's sequencing fact (i)) — so a deploy attempted while anyone is
+using chat would auto-roll-back a perfectly good release, and the rollback would look like a
+failed deploy rather than a mis-set threshold.
+
+**Mitigating detail:** `treat_missing_data = notBreaching`, so with no traffic the alarm returns
+to OK on its own; the exposure is "a deploy that overlaps real usage", not a permanently red
+staging.
+
+**Not fixed here, because the number is the same decision as criterion 7's** and should be set
+once, from the same measured budget, rather than twice by two people guessing. Recommendation:
+move this alarm to the same **20 s** proposed for criterion 7's live-staging threshold, keeping
+the separate scale-out alarm at 3 s where a low trigger is *correct* (D-113 §2 chose it
+deliberately: scaling should react long before a human should). That split — a sensitive scaling
+signal and an insensitive paging signal on the same metric — is the point, and it is why the two
+alarms were separated in the first place.

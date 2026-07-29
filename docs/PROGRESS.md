@@ -71,7 +71,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   worth knowing: a naive pooled client can see resets on 10–17 s requests through CloudFront where a
   browser or k6 retries — **so criterion 7's error-rate leg should be measured with k6 through the
   edge, not an ad-hoc client**; (v) D-112's retrieval-margin flake ("Who is on the leadership team?", no-source 1 in 3)
-  is very likely explained — unfiltered retrieval — but needs re-measuring before it is closed.
+  is very likely explained — unfiltered retrieval — but needs re-measuring before it is closed;
+  (vi) **AUD-X-13 (P2), filed not fixed: `chat-api-p95-latency` pages on `p95 > 3 s`, so a healthy
+  ~16 s turn keeps it in ALARM** — alarm fatigue, criterion 8's evidence alarm cannot tell an
+  incident from a conversation, and **the canary bake rolls back any deploy that overlaps real
+  usage**. `treat_missing_data = notBreaching` means it self-clears when traffic stops. Left for
+  the same decision as criterion 7's threshold (recommend 20 s for the paging alarm; the scale-out
+  alarm stays at 3 s, where a low trigger is deliberate — D-113 §2).
 - **✅ AUD-L-04 fixed 2026-07-29 (D-114) — two P1s remain (AUD-L-07 read half, AUD-X-07
   half), both with written dispositions: zero P1s remain without one.** Local suite
   **565 passed / 2 skipped** (561 + three purge-boundary tests + the guard test's new
