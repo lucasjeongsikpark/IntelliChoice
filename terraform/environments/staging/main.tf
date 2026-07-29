@@ -357,6 +357,13 @@ module "ecs_service_chat_api" {
   # S34: see the matching comment on ecs_service_learning_api above.
   health_check_path = "/readyz"
 
+  # AUD-F-14: chat-api waits on Bedrock, so CPU target-tracking can never fire on its
+  # saturation (p95 31s at 15% CPU, measured live) - scale on ALB p95 latency instead.
+  # learning-api stays on CPU tracking: AUD-F-14's measurement was chat-only, and
+  # swapping a signal without a measurement is how the CPU policy got here (D-095).
+  enable_latency_step_scaling = true
+  alb_arn_suffix              = module.alb.alb_arn_suffix
+
   # S39: see the matching comment on ecs_service_learning_api above.
   enable_otel_sidecar  = var.enable_otel_tracing
   otel_collector_image = local.otel_collector_image

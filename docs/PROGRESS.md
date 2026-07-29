@@ -5,6 +5,52 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ AUD-C-03 and AUD-F-14 closed 2026-07-28 (D-113) — three P1s remain (AUD-L-04,
+  AUD-L-07 read half, AUD-X-07 half), and the last two have written dispositions.** Local
+  suite **561 passed / 2 skipped** (560 + the new C-03 probe), lint and pyright clean.
+  **C-03:** `purge_resume_writes` deletes the thread's `checkpoint_writes.__resume__` rows
+  right after a `location_consent` resume completes — the finding's own targeted delete,
+  supersedes D-045's "briefly" and "not eliminable". Regression test runs the real endpoints
+  against the real saver and decodes blobs with LangGraph's own serializer (the audit's
+  msgpack method note); watched failing pre-fix with exactly the audit's two rows. **The code
+  is not on staging yet — it rides the next merge + dispatched deploy**; staging holds no
+  coordinates meanwhile (S37, and the e2e locator spec resumes with a zip). Probe once
+  post-deploy.
+  **F-14:** chat-api now scales on ALB p95 latency (step out >3 s/2 min: +1, +2 past 10 s;
+  step in <1 s *or missing data* /15 min: −1), **replacing** CPU tracking for that service —
+  the CPU policy's scale-in would read the incident's ~5% CPU as idle and undo the scale-out,
+  so they can't coexist. Terraform applied to staging (4 add/1 destroy, chat-api only;
+  learning-api stays on CPU — no measurement says to move it). **Live-verified: ALARM in
+  2 min, desiredCount 1 → 3 in one step** (p95 was in the +2 band), 114/114 turns 200 under
+  sustained 5-concurrent load. **Scale-in verified through its first step:** the scale-in
+  alarm entered ALARM once the 15-minute quiet window cleared (missing data treated as
+  breaching, as designed) and the policy set **3 → 2 at 23:58:32**. The final 2 → 1 step was
+  not observed — the AWS session expired at midnight mid-watch — but it is the same policy on
+  the same in-ALARM alarm after one more 300 s cooldown, floored by `min_capacity=1`. **One
+  `aws ecs describe-services` after re-login confirms it**; the cost of being wrong is one
+  idle Fargate task.
+  **⚠️ The re-baseline's headline is that the old baseline no longer exists: a single
+  unloaded grounded chat turn now takes ~29 s** (audit: 1.6 s — measured against the
+  pre-D-112 noise corpus, when turns refused early). Log timeline per turn: scope ~2 s,
+  embedding instant, then a **consistent ~26 s gap to `rag_answer` with no `rerank`
+  bedrock_call line at all** (local runs log one). Consequently load p95 32.8 s ≈ single-turn
+  latency (queueing amplification is gone — and honestly, turns already ran ~29 s at
+  concurrency 5 on one task pre-scale-out), and **criterion 7's 3 s threshold leg is
+  unmeetable until the ~26 s gap is diagnosed or the threshold recalibrated**. Diagnose the
+  gap first (start with one OTel-traced turn); it smells like one defect.
+  **Carry-over minted here:** (i) the ~26 s embedding→answer gap / missing rerank log line —
+  no ID, diagnose before filing; (ii) nine of 114 load turns returned 200 in 30–84 ms with
+  zero Bedrock calls, in two bursts coinciding with new tasks entering the target group, not
+  reproducible after (6/6 identical probes answered ~29 s grounded), no WARNING/ERROR logs —
+  no ID, diagnose before filing.
+- **Next session: AUD-L-04 (the last P1 without a disposition — semantic_memory retention),
+  or the two new latency observations above if the gate ordering prefers criterion 7
+  unblocked first.** AUD-X-07's other half and AUD-L-07's read half keep their written
+  dispositions (D-110 §3; the gate's option (b) note). Standing date-bound checks unchanged:
+  **2026-08-01** re-probe "How do I enroll a student?"; **2026-08-02** criterion 6's earliest
+  pass. **S42's discovery asks to the org are still unsent** (unchanged since D-110). C-03's
+  merge + deploy + post-deploy staging probe is routine but pending.
+
 - **✅ The chat cluster shipped and live-verified 2026-07-28 (D-112): AUD-C-16 and AUD-F-19
   closed, AUD-C-02's verification leg closed — five P1s remain** (AUD-L-04, AUD-L-07 read half,
   AUD-C-03, AUD-X-07 half, AUD-F-14). Two PRs (#34 `7469ea8`, #36 `9fdc178`), each deployed and
@@ -37,9 +83,10 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   non-empty citations list (cosmetic, unverified). **Mid-session, the user shipped PR #35**
   (staging UI login, AUD-F-18's other half) and deployed `85dd6ad`; no interaction with this
   work beyond validating the re-embed no-op.
-- **Next session: the remaining P1s — AUD-C-03 first (a targeted `checkpoint_writes.__resume__`
-  delete after the locator node, per its own finding; cheap and it's minors' coordinates), then
-  AUD-F-14's scaling-signal change.** AUD-X-07's other half and AUD-L-07's read half both have
+- ~~Next session: the remaining P1s — AUD-C-03 first, then AUD-F-14~~ **(✅ done 2026-07-28,
+  D-113 — see the entry above).** Original: **the remaining P1s — AUD-C-03 first (a targeted
+  `checkpoint_writes.__resume__` delete after the locator node, per its own finding; cheap and
+  it's minors' coordinates), then AUD-F-14's scaling-signal change.** AUD-X-07's other half and AUD-L-07's read half both have
   their disposition already written down (D-110 §3; the gate's option (b) note). Two standing
   date-bound checks: **2026-08-01** — re-probe "How do I enroll a student?" (should gain
   citations by itself) and note the wider content window opening; **2026-08-02** — criterion 6's
@@ -1858,6 +1905,41 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### Off-roadmap — the chat cluster: AUD-C-16 → C-02 → F-19 (2026-07-28) ✅
+- **Scope: PROGRESS.md's own "Next session" pointer, not a numbered roadmap block** — the three
+  chat P1s taken in the mandated order and as one piece. The ordering was the diagnostic: with
+  retrieval fixed first, F-19(b)'s "three different products" collapsed to `document_qa` 3/3 on
+  its own, while the scope misroutes survived it — one cluster, separated into two defects plus
+  one correct behavior by a single ordering choice.
+- **AUD-C-16 (P1) fixed and live-verified (D-112 §1, PR #34 `7469ea8`, deploy `30396987673`).**
+  Provenance columns stamped at ingest (NULL = unknown = mismatch), idempotent
+  `make knowledge-reembed`, a deploy-step re-embed after migrations and before rollouts, and a
+  fail-closed `/readyz` corpus assertion on the ALB health-check path — the detection the finding
+  called load-bearing. Staging: **159→0 mock-like by S38's own discriminator** (max cos 0.078),
+  0.0224¢; the *next* deploy re-ran the step as a 0-chunk/0-cent no-op. Paraphrase probes:
+  no-source refusals → **9/9 grounded with citations**. All three guards watched failing with
+  their fix disabled.
+- **AUD-C-02 (P1) closed, and D-111's fix was measured insufficient first (D-112 §2, PR #36
+  `9fdc178`, deploy `30418370062`).** With the topic fix live on real Bedrock, "What is
+  IntelliChoice?" was still refused/deflected 3/3, and "Tell me about the people who run
+  IntelliChoice" routed to `admin_contact`'s email flow 3/3. The close was intent *definitions*
+  plus pinned examples in the same prompt. Post-fix: 3/3 grounded on each, `Our Team`/`About
+  IntelliChoice` citations. Static guard watched failing against the old prompt; behaviour lives
+  in four real-Bedrock `paraphrase` eval cases.
+- **AUD-F-19 (P1) closed (D-112 §3).** (a) "Saturday hours" 0/6 → **3/3 answered with a Branch
+  Directory citation** via the same prompt fix. (b) was C-16's noise; its residual no-source is
+  the effective-date filter working (`public-student-participation-guide` opens **2026-08-01** —
+  re-check then).
+- **Verification:** lint clean, pyright clean, **560 passed / 2 skipped** (554 → +5 C-16 guards,
+  +1 prompt guard); migration `e18f4a6c2b90` round-trips; staging e2e re-run pinned to
+  `9fdc178`'s deploy: **47/2/4**, same scoreboard as D-111's run, the 2 being the known
+  learning-side observations (untouched here); all chat specs green a second consecutive run.
+- **Carry-over:** youtube/question-variant embedding provenance (C-16's class, dormant); the
+  1-in-3 no-source margin flake on one leadership question (no ID until measured); one refusal
+  with a non-empty citations list (cosmetic, unverified); 2026-08-01 and 2026-08-02 date checks;
+  S42 discovery asks still unsent. Mid-session the user shipped PR #35 (staging UI login) and
+  deployed `85dd6ad` — no interaction beyond validating the re-embed no-op.
 
 ### S42 — Phase 0B: the integrity/concurrency cluster (2026-07-27) ⏸ partial
 - **Scope note: this was not S42's roadmap scope.** S42 is "discovery, Tier 1 org asks, and the auth
