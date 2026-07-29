@@ -42,3 +42,29 @@ def test_clarification_message_names_the_organization() -> None:
     message = UNAVAILABLE_INTENT_MESSAGES["clarification"].lower()
     assert "intellichoice organization" in message
     assert "student participation" in message
+
+
+# AUD-F-19 / AUD-C-02 verification leg: each phrase pins a live-measured misroute on
+# real Bedrock (see the prompt's own comment). Same reasoning as the topic test above -
+# the mock routes on its own keyword gate, so only the prompt string is CI-checkable;
+# behaviour belongs to the CHAT_EVAL_REAL_BEDROCK paraphrase run.
+INTENT_DEFINITION_PHRASES = {
+    "branch_locator is location-scoped": "distance from the user's own location",
+    "hours/schedule questions are document_qa": "hours, schedule, address",
+    "admin_contact needs an explicit ask": "only an explicit request",
+    "organization example pinned": "'what is intellichoice?' -> in_scope, document_qa",
+    "people example pinned": (
+        "'tell me about the people who run intellichoice' -> in_scope, document_qa"
+    ),
+    "hours example pinned": "'what are the saturday hours?' -> in_scope, document_qa",
+}
+
+
+def test_scope_prompt_defines_intents() -> None:
+    prompt = SCOPE_AND_INTENT_SYSTEM_PROMPT.lower()
+    missing = [
+        label for label, phrase in INTENT_DEFINITION_PHRASES.items() if phrase not in prompt
+    ]
+    assert not missing, (
+        f"SCOPE_AND_INTENT_SYSTEM_PROMPT lost intent definitions: {missing}"
+    )

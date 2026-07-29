@@ -74,15 +74,47 @@ UNAVAILABLE_INTENT_MESSAGES = {
 # a list that omitted them (AUD-C-02); the mock provider can't catch that omission
 # because "intellichoice" is in its own keyword list, so a static coverage test
 # (test_scope_prompt_covers_spec_topics) guards this string instead.
+#
+# AUD-F-19 + AUD-C-02's verification leg: naming the intents was not enough - the
+# definitions and examples below each pin a misroute measured live on real Bedrock
+# (2026-07-28, post-C-16, fresh session per call):
+#   "What are the Saturday hours?"                 -> branch_locator/location-consent
+#                                                     modal or clarification, 0/6
+#                                                     answered across S42+today
+#   "What is IntelliChoice?"                       -> refused or clarification, 0/3
+#                                                     answered WITH D-111's topic fix
+#   "Tell me about the people who run IntelliChoice" -> admin_contact email flow, 3/3
+# SPEC §5.19.2's diagram scopes Branch Locator to the Maps/proximity path, so a
+# branch's hours/address without the user's location is document_qa. The mock cannot
+# see any of this (it routes on its own keyword gate); the static guard is
+# test_scope_prompt_defines_intents, behaviour is CHAT_EVAL_REAL_BEDROCK's paraphrase
+# cases.
 SCOPE_AND_INTENT_SYSTEM_PROMPT = (
     "Classify whether this question is in scope for IntelliChoice's "
     "organizational Q&A assistant (the IntelliChoice organization itself, "
     "branches, schedules, volunteering, student participation and learning, "
     "parent information, tutor/branch procedures, the academic calendar, and "
-    "learning-app support). If in scope, also classify which workflow intent it "
-    "needs: document_qa (answerable from organizational documents), "
-    "branch_locator, calendar, admin_contact, or clarification (in scope but too "
-    "vague to route)."
+    "learning-app support). Any question about what IntelliChoice is, who runs "
+    "it, what it offers, or how to take part is in scope.\n"
+    "If in scope, also classify which workflow intent it needs:\n"
+    "- document_qa: answerable from organizational documents - the organization "
+    "itself, its programs, enrollment and participation, branch hours, "
+    "schedules, addresses, fees, policies, and the people who lead or run it.\n"
+    "- branch_locator: ONLY finding or comparing branches by distance from the "
+    "user's own location ('nearest branch', 'branches near me'). A question "
+    "about a branch's hours, schedule, address, or programs that does not need "
+    "the user's location is document_qa.\n"
+    "- calendar: adding an organizational event to the user's calendar, or "
+    "listing upcoming scheduled events.\n"
+    "- admin_contact: ONLY an explicit request to send a message to, or be put "
+    "in contact with, a person or administrator. Questions about people, or "
+    "how-do-I questions, are document_qa.\n"
+    "- clarification: in scope but too vague to route.\n"
+    "Examples: 'What is IntelliChoice?' -> in_scope, document_qa. 'Tell me "
+    "about the people who run IntelliChoice' -> in_scope, document_qa. 'What "
+    "are the Saturday hours?' -> in_scope, document_qa. 'Which branch is "
+    "closest to me?' -> in_scope, branch_locator. 'Please send a message to an "
+    "administrator' -> in_scope, admin_contact."
 )
 
 RATE_LIMITED_MESSAGE = (
