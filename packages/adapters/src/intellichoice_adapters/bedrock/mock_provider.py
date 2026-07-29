@@ -284,7 +284,7 @@ def _rag_answer_json(payload: dict) -> dict:
     quote = text[:80].strip() or text
     return {
         "answer": f"Based on the available documentation: {text[:200]}",
-        "citations": [{"chunk_id": top.get("chunk_id"), "quote": quote}],
+        "citations": [{"context_index": top.get("context_index", 0), "quote": quote}],
         "confidence": 0.8,
         "missing_information": None,
         "escalation_recommended": False,

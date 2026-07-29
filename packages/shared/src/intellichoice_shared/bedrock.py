@@ -488,9 +488,14 @@ class RerankResponse(BaseModel):
 
 
 class RagContextChunk(BaseModel):
+    """One context passage, identified to the model by position (`LlmCitation` cites the
+    same index back). The `chunk_id` it used to carry was never needed by the model and
+    cost output tokens on every citation - see `LlmCitation`'s docstring.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    chunk_id: str
+    context_index: int
     chunk_text: str
 
 
@@ -509,16 +514,25 @@ class RagAnswerPayload(BaseModel):
 
 
 class LlmCitation(BaseModel):
-    """A citation as the model proposes it - just which chunk and which quote. The
+    """A citation as the model proposes it - just which passage and which quote. The
     model is never trusted to assert the quote actually supports the answer or to fill
     in document metadata itself; `chat_api.services.qa` re-derives `document_title`/
     `document_version`/`section_title`/`page_number` from the real `RagChunk` row and
     verifies `quote` is a real substring of that chunk's text before promoting this into
     a SPEC §5.21.8 `Citation` (below). A quote that fails verification means that claim
     isn't grounded - see the Response Verifier's no-answer policy.
+
+    `context_index` is the passage's position in `RagAnswerPayload.context_chunks`, not
+    its `chunk_id` (D-115, AUD-X-12 - same change `RerankCandidate` got, for the same two
+    reasons). A UUID costs ~20 output tokens per citation, and an answer citing 8
+    passages spent ~160 tokens echoing identifiers back; worse, a model that garbles one
+    character of a UUID produces a citation that cannot be matched to any chunk, which
+    this module correctly discards - and a discarded citation is a *refusal*. An index is
+    a single token the model cannot plausibly corrupt into another valid index's meaning
+    without the mistake being visible.
     """
 
-    chunk_id: str
+    context_index: int
     quote: str
 
 
@@ -536,6 +550,21 @@ class RagAnswerResponse(BaseModel):
     missing_information: str | None = None
     escalation_recommended: bool = False
     sources_conflict: bool = False
+
+    @staticmethod
+    def max_output_tokens_for(context_chunk_count: int) -> int:
+        """The output budget an answer over `context_chunk_count` passages needs.
+
+        Derived rather than fixed, for AUD-X-09's reason and then AUD-X-12's evidence:
+        the previous fixed 1536 sat at the p95 of what real answers actually emit
+        (measured on staging: p50 662, **p95 1490**, max 1530 output tokens over 70
+        turns), so roughly one turn in thirty truncated - and a truncated answer is not
+        a slow answer, it is a **false "no approved source" refusal**, because
+        `qa.answer_question` cannot distinguish a schema failure from an ungrounded
+        question. 192 tokens per passage on top of 768 of prose puts the ceiling ~50%
+        above the measured maximum at the current top_k of 8.
+        """
+        return 768 + 192 * max(context_chunk_count, 0)
 
 
 class CalendarContextChunk(BaseModel):
