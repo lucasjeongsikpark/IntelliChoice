@@ -32,6 +32,8 @@ from intellichoice_db.models.questions import (
 )
 from intellichoice_db.models.rag import RagChunk, RagDocument
 from intellichoice_db.models.reports import ProblemReport
+from intellichoice_db.models.stage_transition import StageTransition
+from intellichoice_db.models.student_report import StudentReport
 from intellichoice_db.models.tutor_chat import TutorChatMessage
 from intellichoice_db.models.youtube import YoutubeVideo
 from intellichoice_db.repositories.assessment import AssessmentRepository
@@ -51,6 +53,8 @@ from intellichoice_db.repositories.org import (
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_db.repositories.rag import ChunkFilters, RagRepository
 from intellichoice_db.repositories.reports import ReportRepository
+from intellichoice_db.repositories.stage_transition import StageTransitionRepository
+from intellichoice_db.repositories.student_report import StudentReportRepository
 from intellichoice_db.repositories.study import StudyRepository
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_db.repositories.youtube import YoutubeRepository
@@ -710,6 +714,160 @@ def test_memory_repository_round_trip() -> None:
             top = await memory.top_fact_for_skill("student-ext-1", chain.skill_id)
             assert top is not None
             assert top.fact_text == "Solves one-step equations independently"
+
+    asyncio.run(run())
+
+
+def test_semantic_memory_purge_keys_on_last_confirmed_not_first_observed() -> None:
+    """AUD-L-04 (D-114): the 90-day boundary D-072 reasoned about, restored for the
+    derived text. Keyed on `last_confirmed_at` so a fact the weekly consolidation keeps
+    reconfirming survives however old its first observation is, while anything nothing
+    has confirmed inside the window - including `superseded` audit rows, which nothing
+    ever reconfirms - ages out.
+
+    A distinctive student id and `purged >= n`, not `== n`, in all three purge tests:
+    the purge is global and the shared dev Postgres carries rows from earlier sessions
+    (D-018's pattern), so exact counts and `student-ext-1` are both hostage to
+    leftovers. The per-student remaining set is the exact assertion.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            memory = MemoryRepository(session)
+
+            reconfirmed = await memory.add_fact(
+                SemanticMemory(
+                    student_external_id="retention-probe-student",
+                    fact_type="strength",
+                    fact_text="Old but still confirmed every week - must survive",
+                    confidence=0.8,
+                    evidence_event_ids=["evt-1"],
+                    first_observed_at=datetime(2020, 1, 1, tzinfo=UTC),
+                    last_confirmed_at=datetime.now(UTC),
+                )
+            )
+            stale_active = await memory.add_fact(
+                SemanticMemory(
+                    student_external_id="retention-probe-student",
+                    fact_type="weak_skill",
+                    fact_text="Active but unconfirmed for years",
+                    confidence=0.7,
+                    evidence_event_ids=["evt-2"],
+                    first_observed_at=datetime(2020, 1, 1, tzinfo=UTC),
+                    last_confirmed_at=datetime(2020, 6, 1, tzinfo=UTC),
+                )
+            )
+            stale_superseded = await memory.add_fact(
+                SemanticMemory(
+                    student_external_id="retention-probe-student",
+                    fact_type="weak_skill",
+                    fact_text="Superseded audit row - retained for the window, not forever",
+                    confidence=0.5,
+                    status="superseded",
+                    superseded_by_id=reconfirmed.semantic_memory_id,
+                    evidence_event_ids=["evt-3"],
+                    first_observed_at=datetime(2020, 1, 1, tzinfo=UTC),
+                    last_confirmed_at=datetime(2020, 6, 1, tzinfo=UTC),
+                )
+            )
+
+            purged = await memory.purge_facts_older_than(datetime(2024, 1, 1, tzinfo=UTC))
+
+            assert purged >= 2
+            remaining = await session.execute(
+                select(SemanticMemory).where(
+                    SemanticMemory.student_external_id == "retention-probe-student"
+                )
+            )
+            remaining_ids = {f.semantic_memory_id for f in remaining.scalars().all()}
+            assert remaining_ids == {reconfirmed.semantic_memory_id}
+            assert stale_active.semantic_memory_id not in remaining_ids
+            assert stale_superseded.semantic_memory_id not in remaining_ids
+
+    asyncio.run(run())
+
+
+def test_stage_transition_purge_boundary() -> None:
+    """AUD-L-04 item 2 (D-114): narrative text derived from tutoring data gets the same
+    90-day boundary as its source.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            transitions = StageTransitionRepository(session)
+
+            old = await transitions.record(
+                StageTransition(
+                    student_external_id="retention-probe-student",
+                    learning_session_id="learning-session-old",
+                    stage="pre_intro",
+                    narrative_text="An old narrative",
+                )
+            )
+            old.created_at = datetime(2020, 1, 1, tzinfo=UTC)
+            await session.flush()
+            recent = await transitions.record(
+                StageTransition(
+                    student_external_id="retention-probe-student",
+                    learning_session_id="learning-session-recent",
+                    stage="pre_intro",
+                    narrative_text="A recent narrative",
+                )
+            )
+
+            purged = await transitions.purge_older_than(datetime(2024, 1, 1, tzinfo=UTC))
+
+            assert purged >= 1
+            remaining = await session.execute(
+                select(StageTransition).where(
+                    StageTransition.student_external_id == "retention-probe-student"
+                )
+            )
+            remaining_ids = {t.stage_transition_id for t in remaining.scalars().all()}
+            assert remaining_ids == {recent.stage_transition_id}
+
+    asyncio.run(run())
+
+
+def test_student_report_purge_boundary() -> None:
+    """AUD-L-04 item 2 (D-114): report snapshots embed semantic-memory `fact_text` in
+    `verified_facts`, so they get a retention boundary too - a year, not 90 days,
+    because `list_for_student` serves them to parents as history.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            reports = StudentReportRepository(session)
+
+            old = await reports.create(
+                StudentReport(
+                    student_external_id="retention-probe-student",
+                    audience="parent",
+                    interpretation_text="An old report",
+                    recommendations_text="Old recommendations",
+                )
+            )
+            old.created_at = datetime(2020, 1, 1, tzinfo=UTC)
+            await session.flush()
+            recent = await reports.create(
+                StudentReport(
+                    student_external_id="retention-probe-student",
+                    audience="parent",
+                    interpretation_text="A recent report",
+                    recommendations_text="Recent recommendations",
+                )
+            )
+
+            purged = await reports.purge_older_than(datetime(2024, 1, 1, tzinfo=UTC))
+
+            assert purged >= 1
+            remaining = await session.execute(
+                select(StudentReport).where(
+                    StudentReport.student_external_id == "retention-probe-student"
+                )
+            )
+            remaining_ids = {r.student_report_id for r in remaining.scalars().all()}
+            assert remaining_ids == {recent.student_report_id}
 
     asyncio.run(run())
 

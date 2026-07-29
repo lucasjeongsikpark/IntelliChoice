@@ -1,7 +1,8 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import CursorResult, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_db.models.memory import LearningEvent, SemanticMemory
@@ -207,3 +208,28 @@ class MemoryRepository:
             return
         fact.expires_at = now or datetime.now(UTC)
         await self._session.flush()
+
+    async def purge_facts_older_than(self, cutoff: datetime) -> int:
+        """AUD-L-04's retention boundary: deletes every fact whose `last_confirmed_at`
+        is older than `cutoff`, regardless of student or status. Returns the number of
+        rows removed.
+
+        Keyed on `last_confirmed_at`, not `first_observed_at`: a fact the weekly
+        consolidation keeps reconfirming has fresh evidence inside the window and stays;
+        a fact nothing has confirmed in the window - including `superseded` audit rows,
+        which nothing ever reconfirms - ages out. This bounds how long a name that
+        slipped through `contains_pii_pattern` into `fact_text` can live, which is the
+        promise D-072 made about the *source* text and S25 silently unmade for the
+        derived text. Plan §9's "superseded, never deleted" yields to that here: the
+        audit trail is retained for the window, not forever.
+
+        `superseded_by_id` is a self-FK with `ondelete="SET NULL"`, so deleting an old
+        fact a survivor points at cannot fail the delete.
+        """
+        result = cast(
+            CursorResult,
+            await self._session.execute(
+                delete(SemanticMemory).where(SemanticMemory.last_confirmed_at < cutoff)
+            ),
+        )
+        return result.rowcount or 0

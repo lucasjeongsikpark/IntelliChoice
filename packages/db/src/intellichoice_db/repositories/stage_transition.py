@@ -1,4 +1,7 @@
-from sqlalchemy import select
+from datetime import datetime
+from typing import cast
+
+from sqlalchemy import CursorResult, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_db.models.stage_transition import StageTransition
@@ -39,3 +42,21 @@ class StageTransitionRepository:
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def purge_older_than(self, cutoff: datetime) -> int:
+        """AUD-L-04 item 2's retention boundary: deletes every narrative older than
+        `cutoff`, regardless of student. Returns the number of rows removed.
+
+        `narrative_text` is model-authored from evidence that includes tutoring-derived
+        facts, so it gets the same bounded lifetime as the chat text upstream of it.
+        The read-side idempotency check (`get_for_session_stage`) is unaffected: it only
+        prevents re-generation within a live session, and no session is live at the
+        retention window's age.
+        """
+        result = cast(
+            CursorResult,
+            await self._session.execute(
+                delete(StageTransition).where(StageTransition.created_at < cutoff)
+            ),
+        )
+        return result.rowcount or 0

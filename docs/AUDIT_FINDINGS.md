@@ -24,7 +24,7 @@ ones.
 | ID | Area | Severity | Status | Summary |
 |---|---|---|---|---|
 | **AUD-L-02** | **Money** | **P0** | **Fixed in S36** | `POST /students/{id}/report` had no cost ceiling of any kind — it passed `session_spend_cents=0.0`, so the gateway's budget check could never fire, and one authenticated caller could drive unbounded Bedrock spend |
-| **AUD-L-04** | **Minors / PII** | **P1** | **Decided** — fix before the gate | D-072 accepted "names in free text may survive" *because* that text lived in a 90-day-purged table; S25 then derived permanent, never-purged `semantic_memory.fact_text` from it, and those facts reach parent-visible reports |
+| **AUD-L-04** | **Minors / PII** | **P1** | **Fixed 2026-07-29 (D-114)** — schedule apply pending | D-072 accepted "names in free text may survive" *because* that text lived in a 90-day-purged table; S25 then derived permanent, never-purged `semantic_memory.fact_text` from it, and those facts reach parent-visible reports |
 | AUD-L-05 | Minors / PII | P2 | Open — Phase 0B | `MemoryConsolidationPayload` carries free text but was never added to the PII-floor allowlist test, contrary to D-072's own stated rule |
 | AUD-L-06 | Minors | P3 | **Decided** — delete in Phase 0B | `tutor.generate_hint` is dead code that omits the leak check its live sibling applies — a trap for whoever wires it up |
 | AUD-L-03 | Money | P2 | **Decided** — Phase 0B | `pre_intro` stage-narrative spend is never folded back into the session total, so the per-session ceiling is permanently one call short |
@@ -173,7 +173,10 @@ belongs with the same work for chat.
 - **Area:** minors / PII floor / retention
 - **Found by:** following `relevant_learning_fact` — an *allowlisted* field on the tutoring
   payloads — backwards to where its text is authored, instead of stopping at the allowlist
-- **Status:** open, before the gate
+- **Status:** **fixed 2026-07-29 (D-114)** — `retention_purge_cli` purges `semantic_memory`
+  (90d on `last_confirmed_at`), `stage_transitions` (90d) and `student_reports` (365d) on a
+  daily EventBridge schedule; the schedule's terraform apply was pending an AWS login at
+  session end, and the §6.1 privacy-text line is recorded in D-114 §4 for the legal track
 
 **What.** D-072 (S24) explicitly accepted that name detection in free text is unreliable and is
 not attempted: `redact_free_text` removes emails, URLs and phone numbers only. So a student

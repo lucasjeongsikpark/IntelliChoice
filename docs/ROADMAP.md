@@ -712,14 +712,18 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**Standing as of 2026-07-28 (post-D-111/D-112).** **5 met** (six consecutive clean pipeline deploys plus the
+**Standing as of 2026-07-29 (post-D-114).** **5 met** (six consecutive clean pipeline deploys plus the
 demonstrated auto-rollback; the "consecutive" ambiguity D-105 left open is settled — `73396c1` →
-`c58d1fe` has no failed deployment between them on either reading). **6 is on the calendar**, earliest
-2026-08-02. **4 is met** (D-111: `chat-web` and `e2e-typecheck` CI jobs landed; AUD-F-08 closed).
-**2 needs three more P1s**: AUD-L-04, AUD-L-07 (read half — but see the ordering note below),
-AUD-X-07 (half). The chat cluster closed AUD-C-16, AUD-C-02 and AUD-F-19
-(D-112), AUD-F-20 closed with D-111's deploy-time re-seed, and D-113 closed AUD-C-03 (purge
-rides the next deploy) and AUD-F-14 (latency step scaling, live-verified 1 → 3 under load).
+`c58d1fe` has no failed deployment between them on either reading). **6 is on the calendar,
+read per-job (D-114 §3)**: earliest 2026-08-02 for the original two schedules, **2026-08-05**
+for the `retention-purge` schedule added 2026-07-29 (apply pending an AWS login). **4 is met**
+(D-111: `chat-web` and `e2e-typecheck` CI jobs landed; AUD-F-08 closed).
+**2 needs two more P1 halves**: AUD-L-07 (read half — but see the ordering note below) and
+AUD-X-07 (half), both with written dispositions. The chat cluster closed AUD-C-16, AUD-C-02
+and AUD-F-19 (D-112), AUD-F-20 closed with D-111's deploy-time re-seed, D-113 closed AUD-C-03
+(merged and deployed 2026-07-29, PR #38; staging probe pending) and AUD-F-14 (latency step
+scaling, live-verified 1 → 3 under load), and D-114 closed AUD-L-04 (retention purges for
+`semantic_memory`/`stage_transitions`/`student_reports`, schedule apply pending).
 **7's "≥2 tasks under load" is now demonstrated, but its threshold leg found the workload
 changed underneath it**: a single grounded chat turn costs ~29 s against the real corpus
 (D-113 §3 — an undiagnosed ~26 s gap between embedding and answer), so the S34-calibrated 3 s

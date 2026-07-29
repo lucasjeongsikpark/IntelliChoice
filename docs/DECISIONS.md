@@ -5377,3 +5377,75 @@ code; AUD-F-14's scaling is applied and live-verified). **Three P1s remain: AUD-
 AUD-L-07 (read half — disposition (b) recommended at the gate), AUD-X-07 (half, disposition in
 D-110 §3).** Criterion 7's threshold leg moved from "unreachable as configured" to "needs
 recalibration against a changed workload" — progress, but not a pass.
+
+## D-114 — AUD-L-04: the retention boundary restored for derived text, three tables in one job (accepted, 2026-07-29)
+
+**Context.** The last P1 with no shipped work. The disposition was already decided at S36
+close-out (D-098, recorded in AUD-L-04's finding): restore the 90-day boundary D-072
+reasoned about — D-072 accepted "names in free text may survive" *because* that text lived
+in a 90-day-purged table, and S25's consolidation then derived permanent, never-purged
+`semantic_memory.fact_text` from it, reaching parent-visible reports. This session
+implements that disposition; the new decisions are the windows, the purge key, and the
+packaging.
+
+### 1. Windows and keys (user, this session): 90 / 90 / 365
+
+- **`semantic_memory`: 90 days on `last_confirmed_at`** — not `first_observed_at`. A fact
+  the weekly consolidation keeps reconfirming has fresh evidence inside the window and
+  stays; a fact nothing has confirmed in 90 days is stale for adaptivity anyway. This is
+  what bounds the lifetime of a name that slips through `contains_pii_pattern`, which is
+  the finding's exact exposure. **Plan §9's "superseded, never deleted" yields here**:
+  superseded audit rows are never reconfirmed, so they age out 90 days after retirement —
+  the audit trail is retained for the window, not forever. Nothing else references
+  `semantic_memory` (the one FK is its own `superseded_by_id`, `ondelete="SET NULL"`).
+- **`stage_transitions`: 90 days on `created_at`** — narrative text derived from the same
+  tutoring data, same window as its source. The `get_for_session_stage` idempotency check
+  only matters within a live session, and no session is live at that age.
+- **`student_reports`: 365 days on `created_at`** — the deliberate exception.
+  `list_for_student` serves reports to parents as history; a 90-day window deletes a
+  report a parent reasonably expects to re-open. They still get a bound because
+  `verified_facts` embeds semantic-memory `fact_text`. Rejected: 90 days uniform (simpler
+  privacy text, surprising product behavior).
+
+### 2. One CLI, one schedule — with `chat-purge` deliberately left alone
+
+`learning_api/services/retention_purge_cli.py` purges all three tables in one run
+(`make retention-purge`), on one new daily EventBridge schedule at 18:50 UTC — after
+Sunday's 18:30 `memory-consolidate`, so a reconfirming consolidation window always lands
+before the purge that would otherwise catch its facts. This deviates from the disposition's
+letter (`make memory-purge`, per-table) in favor of its stated intent ("done once rather
+than three times"): one job to monitor, one schedule to audit, one CLI in the AUD-F-15
+guard test's list. `tutor_chat_purge_cli` was **not** folded in: its schedule is already
+inside its unattended gate-criterion week, and merging it would touch a job that must not
+be touched.
+
+The CLI calls `create_engine()` bare (the ops task supplies unprefixed DSN components —
+AUD-F-15's lesson, third occurrence guarded by
+`test_standalone_clis_use_the_env_fallback.py`, which now lists this file).
+
+### 3. Criterion 6's clock, read per-job
+
+The new schedule lands 2026-07-29; `chat-purge`/`memory-consolidate` have run unattended
+since 2026-07-26. Reading criterion 6 as "every schedule must restart the shared week"
+would mean any future job addition resets the gate — a perverse incentive to stop
+automating. **Read per-job instead:** the original two jobs' week still completes
+2026-08-02; `retention-purge`'s own unattended week completes **2026-08-05**, and the
+criterion is claimable when every *then-existing* job has a clean unattended week. The
+gap risk is small and bounded: the job is deterministic SQL with the same failure alarm
+(`ops_task_failed` → SNS) the others have.
+
+### 4. The §6.1 privacy-text obligation (disposition item 3), recorded not implemented
+
+No privacy notice exists in this repo to edit — §6.1 is INTEGRATION_PLAN's external legal
+parallel track (S45/S51 consume its text). The obligation is recorded here so it survives
+until that track produces a document: **the notice must state the 90-day chat window, the
+90-day derived-fact window, the 365-day report window — and must not imply that deleting
+chat after 90 days removes everything derived from it.** Carried on PROGRESS.md until the
+§6.1 track has a draft to hold it.
+
+**Outcome.** AUD-L-04 closed pending the schedule's terraform apply (blocked at session
+end on an expired AWS login) and its first scheduled run. **Two P1s remain: AUD-L-07
+(read half — disposition (b) recommended at the gate) and AUD-X-07 (half, disposition in
+D-110 §3) — both with written dispositions, i.e. zero P1s remain without one.** Suite
+**565 passed / 2 skipped** (561 + the three purge-boundary tests + the guard test's new
+parametrized case for the CLI), lint and pyright clean.
