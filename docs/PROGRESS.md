@@ -5,6 +5,47 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ The chat cluster shipped and live-verified 2026-07-28 (D-112): AUD-C-16 and AUD-F-19
+  closed, AUD-C-02's verification leg closed — five P1s remain** (AUD-L-04, AUD-L-07 read half,
+  AUD-C-03, AUD-X-07 half, AUD-F-14). Two PRs (#34 `7469ea8`, #36 `9fdc178`), each deployed and
+  verified against its pinned SHA; local suite **560 passed / 2 skipped**, lint and pyright clean.
+  **C-16:** provenance columns + idempotent `knowledge-reembed` + a deploy-step re-embed + a
+  fail-closed `/readyz` corpus assertion (the ALB health check — a mis-embedded corpus now drains
+  the service instead of answering with noise). Staging re-embedded: **0/159 mock-like by S38's
+  own discriminator** (was 159/159), paraphrase probes **no-source → 9/9 grounded with
+  citations**, and the next deploy's re-embed was a 0-chunk no-op.
+  **The ordering discipline paid for itself:** with retrieval fixed, F-19's "three different
+  products" collapsed to document_qa 3/3 *on its own* — the flip-flop was C-16's noise — while
+  the scope misroutes survived, isolating what was actually a prompt defect. D-111's topic fix
+  was **measured insufficient** ("What is IntelliChoice?" still 0/3 with it live); the closing
+  fix defines each intent and pins the measured misroutes as examples. Post-fix, fresh session
+  per call: "What is IntelliChoice?" **3/3 grounded**, "Saturday hours" **3/3 with a Branch
+  Directory citation** (was 0/6), "people who run IntelliChoice" 3/3 document_qa (was 3/3
+  admin_contact email flow).
+  **Not a defect:** "How do I enroll a student?" routes document_qa 3/3 but answers no-source
+  because `public-student-participation-guide` is `effective_from` **2026-08-01** — the date
+  filter failing closed correctly. **Re-check on/after Aug 1** (carry-over).
+  **Staging e2e re-run (pinned to `9fdc178`'s deploy): 47 passed / 2 failed / 4 skipped** —
+  identical scoreboard to D-111's run; the 2 are the known learning-side staging observations
+  below (time-telemetry dwell, post-finalize stall), still undiagnosed, untouched here. All
+  chat specs green a second consecutive run, this time with a working semantic channel.
+  **Carry-over minted here:** (i) `youtube_videos.embedding` and
+  `question_variants.stem_embedding` have no provenance columns — C-16's class, no runtime
+  impact today (staging youtube is 0 rows, sync disabled); (ii) a retrieval-margin flake, no ID:
+  "Who is on the leadership team?" goes no-source **1 in 3** before *and* after the prompt fix —
+  rerank/confidence-threshold territory, measure before filing; (iii) one refusal carried a
+  non-empty citations list (cosmetic, unverified). **Mid-session, the user shipped PR #35**
+  (staging UI login, AUD-F-18's other half) and deployed `85dd6ad`; no interaction with this
+  work beyond validating the re-embed no-op.
+- **Next session: the remaining P1s — AUD-C-03 first (a targeted `checkpoint_writes.__resume__`
+  delete after the locator node, per its own finding; cheap and it's minors' coordinates), then
+  AUD-F-14's scaling-signal change.** AUD-X-07's other half and AUD-L-07's read half both have
+  their disposition already written down (D-110 §3; the gate's option (b) note). Two standing
+  date-bound checks: **2026-08-01** — re-probe "How do I enroll a student?" (should gain
+  citations by itself) and note the wider content window opening; **2026-08-02** — criterion 6's
+  earliest pass, schedules must have run the week untouched. **S42's discovery asks to the org
+  are still unsent and have external lead time** (unchanged since D-110).
+
 - **✅ D-111 deployed and verified live 2026-07-28: staging e2e went 40/10/3 → 47 passed /
   2 failed / 4 skipped.** PR #32 merged (all 9 checks green, including the first runs of the new
   `chat-web`/`e2e-typecheck` jobs), deploy run `30385498488` verified against the merge SHA
@@ -45,7 +86,8 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   F-06/F-07 index rows, INTEGRATION_PLAN.md §2.5's seven-resolved-items backlog, and
   deploy-staging.yml's overtaken trigger comment (push trigger still off — enabling it is a
   standing decision nobody has taken).
-- **Next session: the chat cluster, which criterion 3 now depends on.** **Eight P1s remain** —
+- ~~Next session: the chat cluster~~ **(✅ done 2026-07-28, D-112 — see the entry above).**
+  Original: **Eight P1s remain** —
   AUD-L-10 and AUD-X-08 closed in S42, but AUD-F-19 is new: AUD-L-04, AUD-L-07 (read half),
   AUD-C-02, AUD-C-03, AUD-C-16 (P3 → P1), AUD-X-07 (**half fixed**), AUD-F-14, **AUD-F-19**.
   **Take C-16 → C-02 → F-19 in that order and as one piece.** S42's staging run showed they are
