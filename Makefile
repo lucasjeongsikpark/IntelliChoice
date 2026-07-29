@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck scan-traces
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat scan-traces
 
 up:
 	docker compose up -d
@@ -123,6 +123,17 @@ e2e-staging:
 
 e2e-typecheck:
 	cd e2e && npx tsc --noEmit
+
+# S43 / criterion 7's live-staging leg. Distinct from load-tests/k6/chat_qa.js, which
+# measures the local mock-backed server and keeps its p(95)<1000 - see the scenario's own
+# header for why the two thresholds are different numbers on purpose (D-115 §11). Guest
+# turns, so no secrets are needed and none can leak into a log. Same CloudFront domain as
+# e2e-staging.
+load-staging-chat:
+	docker run --rm -i \
+	  -e BASE_URL=$(STAGING_CHAT_WEB_URL) \
+	  -e VUS=$${VUS:-5} -e ITERATIONS=$${ITERATIONS:-14} \
+	  grafana/k6 run - < load-tests/k6/chat_qa_staging.js
 
 # S39 continuation (D-104): §2.6 criterion 9's trace half. Runs a positive control over
 # all 20 patterns before it will report anything, and FAILS on zero traces scanned - an

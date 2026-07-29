@@ -1,10 +1,15 @@
 # Load testing and failure drills (S34, SPEC §6.23)
 
-Everything here runs against the **local docker-compose stack**, not the real
+Most of this runs against the **local docker-compose stack**, not the real
 `intellichoice-staging` AWS environment - the staging SSO session was expired for all of
-S33 and stayed expired into S34 (no live AWS access this session either). Real
-load/failure testing against staging is a carry-over, same posture S33 left the ZAP
-baseline scan and backup-restore test in.
+S33 and stayed expired into S34, which is why it was built that way. Real load/failure
+testing against staging was a carry-over in the same posture S33 left the ZAP baseline
+scan and backup-restore test in.
+
+**Exception, added S43:** `k6/chat_qa_staging.js` runs against the deployed stack and is
+criterion 7's live-staging leg. Read its header before comparing its numbers to
+`chat_qa.js`'s - the two thresholds (20s vs 1s) measure genuinely different things, and
+conflating them is the mistake D-115 §11 had to undo.
 
 ## What SPEC §6.23 asks for vs. what this project actually has
 
@@ -29,6 +34,7 @@ microservice). Two of §6.23's bullets are translated rather than built literall
 | `loadtest_fixtures.py` | ">1,000 students" (local proxy) | Seeds/cleans up N disposable `loadtest-student-N` MySQL rows so k6 VUs are distinct students, not one student under concurrent contention |
 | `k6/learning_sessions.js` | ">100 concurrent learning sessions" | Real pre-exam flow (dev-token -> create -> select student -> select topic -> answer every item) per VU |
 | `k6/chat_qa.js` | "concurrent Bedrock requests" (local proxy) | Concurrent chat-api Q&A turns; local dev server uses `MockBedrockProvider` by default - proves the async request path holds up under concurrency, not real Bedrock throughput |
+| `k6/chat_qa_staging.js` | §2.6 criterion 7, live-staging leg | The same turn against the **deployed** stack through CloudFront: real ALB, real Bedrock, real corpus. Guest turns, no secrets. `make load-staging-chat` |
 | `sse_load.py` | ">100 SSE connections" | Holds N concurrent `GET .../stream` connections open (k6 has no native SSE support, hence a separate script) |
 | `drills/db_connection_loss.sh` | "Database failover" (translated - see above) | Stops/restarts the local Postgres container mid-load, confirms clean failure + automatic recovery |
 
@@ -65,6 +71,13 @@ uv run python load-tests/sse_load.py --count 150 --hold-seconds 30
 
 # 5. Clean up the synthetic students afterward
 uv run python load-tests/loadtest_fixtures.py --cleanup
+```
+
+Against live staging (no local stack, no fixtures, no secrets - guest turns):
+
+```bash
+make load-staging-chat                    # 5 VUs x 14 iterations = 70 grounded turns
+VUS=5 ITERATIONS=20 make load-staging-chat
 ```
 
 ## Real findings from S34 (see DECISIONS.md for the full writeup)

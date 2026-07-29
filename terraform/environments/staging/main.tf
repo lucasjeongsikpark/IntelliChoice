@@ -539,6 +539,14 @@ module "observability" {
     learning-api = module.ecs_service_learning_api.target_group_arn_suffix
     chat-api     = module.ecs_service_chat_api.target_group_arn_suffix
   }
+  # AUD-X-13 / criterion 7: a healthy grounded chat turn measures p95 ~16s (four sequential
+  # model calls, D-115), so the shared 3s paging threshold alarmed on normal conversation.
+  # 20s is the measured p95 plus 25% headroom, and is the same number recorded as criterion
+  # 7's live-staging threshold. learning-api keeps the module default of 3s - unmeasured
+  # against real load, but its requests are not model calls.
+  latency_p95_alarm_thresholds = {
+    chat-api = 20
+  }
   tags = local.common_tags
 }
 
