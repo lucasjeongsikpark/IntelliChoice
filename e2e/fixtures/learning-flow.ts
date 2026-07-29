@@ -14,14 +14,19 @@ export const PHASE_CHIP = ".phase-chip";
  * Clicks through the learning app's re-render churn.
  *
  * Every SSE snapshot re-renders `App`, and several branches *replace* the whole screen
- * (the stage narrative gates ahead of every phase branch; the assistance panel replaces
- * the exam view). Playwright reports the result as "element is not stable" or "element
- * was detached from the DOM" on controls that are visibly present - measured on the
- * topic card, the Submit answer button, and the ladder's own buttons.
+ * (the assistance panel replaces the exam view; the stage narrative used to do the same).
+ * Playwright reports the result as "element is not stable" or "element was detached from
+ * the DOM" on controls that are visibly present - measured on the topic card, the Submit
+ * answer button, and the ladder's own buttons.
  *
  * That churn is AUD-F-01, recorded with measurements in tests/learning/narrative-race.
  * spec.ts. It is absorbed here rather than in each journey so that a *different* defect
  * does not present as this one, and so no journey silently depends on winning a race.
+ *
+ * AUD-F-21 removed the largest single source of it - the narrative no longer replaces the
+ * screen it arrives over - but the retries stay: the assistance panel and the ladder still
+ * swap screens, and a retry that is no longer needed costs one extra locator call while a
+ * missing one costs a flaky primary journey.
  */
 export async function stableClick(target: Locator, attempts = 4): Promise<boolean> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -48,16 +53,32 @@ export async function startSession(page: Page): Promise<void> {
 
 /**
  * Waits until the app is showing a screen the student can actually act on, dismissing any
- * stage narratives that interpose on the way.
+ * stage narratives that are up when it gets there.
  *
  * A single dismiss is not enough: narratives arrive over SSE *after* the screen beneath
  * them has rendered (AUD-F-01), so a journey that dismisses once and moves on can be
  * covered again a moment later. Returns how many narratives it had to clear.
+ *
+ * **The dismiss runs before the interactivity check, since AUD-F-21.** It used to run only
+ * when *no* interactive element was on screen, which was sound while a narrative replaced
+ * the phase screen: a narrative being up implied nothing else was. Now that the narrative
+ * renders above the phase screen instead, both are present at once, so the old ordering
+ * returned immediately and left the narrative standing - and the count it returns, which
+ * `narrative-refresh.spec.ts` records as evidence, silently became 0 for every run. A
+ * caller asking to settle wants nothing in the way, not merely something clickable.
+ *
+ * Safe to call unconditionally because `dismissNarrativeIfPresent` matches `Continue`
+ * exactly, and `StageTransitionScreen` is the only screen with such a button - the
+ * ladder's equivalent is "I'll try again now".
  */
 export async function settleToInteractiveScreen(page: Page, timeoutMs = 30_000): Promise<number> {
   const deadline = Date.now() + timeoutMs;
   let dismissed = 0;
   while (Date.now() < deadline) {
+    if (await dismissNarrativeIfPresent(page)) {
+      dismissed += 1;
+      continue;
+    }
     // Any screen with a control the journey can drive. The retry-ladder's *first* pause
     // is a plain `.panel` with no distinguishing class, so it is matched by its heading -
     // leaving it out made this spin the full timeout on every study-loop iteration, which
@@ -65,10 +86,6 @@ export async function settleToInteractiveScreen(page: Page, timeoutMs = 30_000):
     const interactive = page.locator(".card-list, .phase-chip, .intervention-panel, .email-preview");
     const firstPause = page.getByRole("heading", { name: /want a hand/i });
     if ((await interactive.count()) > 0 || (await firstPause.count()) > 0) return dismissed;
-    if (await dismissNarrativeIfPresent(page)) {
-      dismissed += 1;
-      continue;
-    }
     await page.waitForTimeout(250);
   }
   return dismissed;
