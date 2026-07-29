@@ -10,9 +10,11 @@
 # guessing), a per-target retry policy, and a flexible-time-window control - all of which a
 # rule target would need hand-rolling.
 #
-# Three jobs are defined, **two are enabled**, and one of the four is absent entirely:
+# Four jobs are defined, **three are enabled**, and one of the original four is absent
+# entirely:
 #
 # - `chat-purge`, `memory-consolidate` - enabled.
+# - `retention-purge` - enabled, added 2026-07-29 (AUD-L-04, D-114).
 # - `youtube-sync` - defined but DISABLED; see its own comment below. AUD-F-06 said three
 #   jobs were schedulable, which was true of *running* them and false of running them
 #   unattended.
@@ -43,6 +45,21 @@ locals {
       description = "Delete tutor_chat_messages older than 90 days (SPEC retention promise)."
       # Idempotent and free: a retry can only re-delete rows already gone. A skipped day is
       # harmless too, since the next run uses a fresh cutoff.
+      retry_attempts = 2
+      # Purely deterministic SQL - no model, no provider setting to get wrong.
+      enabled = true
+    }
+    retention-purge = {
+      # AUD-L-04 (D-114): semantic_memory (90d on last_confirmed_at), stage_transitions
+      # (90d), student_reports (365d). Daily for the same reason as chat-purge - the
+      # cutoff is computed per run. 18:50, after memory-consolidate's Sunday 18:30 slot,
+      # so a reconfirming consolidation window always lands before the purge that would
+      # otherwise catch its facts, and the two never overlap on RDS.
+      schedule    = "cron(50 18 * * ? *)"
+      command     = ["python", "-m", "learning_api.services.retention_purge_cli"]
+      description = "Delete stale semantic_memory/stage_transitions/student_reports rows (AUD-L-04 retention promise)."
+      # Same posture as chat-purge: idempotent and free, a retry can only re-delete rows
+      # already gone.
       retry_attempts = 2
       # Purely deterministic SQL - no model, no provider setting to get wrong.
       enabled = true

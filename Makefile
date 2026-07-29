@@ -54,6 +54,9 @@ chat-suggestions-load:
 chat-purge:
 	uv run python -m learning_api.services.tutor_chat_purge_cli
 
+retention-purge:
+	uv run python -m learning_api.services.retention_purge_cli
+
 memory-consolidate:
 	uv run python -m intellichoice_memory.consolidate_cli
 

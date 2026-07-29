@@ -5,6 +5,38 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ AUD-L-04 fixed 2026-07-29 (D-114) — two P1s remain (AUD-L-07 read half, AUD-X-07
+  half), both with written dispositions: zero P1s remain without one.** Local suite
+  **565 passed / 2 skipped** (561 + three purge-boundary tests + the guard test's new
+  parametrized case), lint and pyright clean. `retention_purge_cli` (one CLI, one daily
+  18:50 UTC schedule) purges `semantic_memory` **90d on `last_confirmed_at`** (a
+  reconfirmed fact survives; superseded audit rows age out — plan §9's "never deleted"
+  yields to the retention promise, D-114 §1), `stage_transitions` 90d, `student_reports`
+  **365d** (parent-visible history, the deliberate exception). CLI uses bare
+  `create_engine()` and is in the AUD-F-15 guard test's list. `make retention-purge`
+  smoke-ran locally (0 rows, nothing is that old yet).
+  **⚠️ Blocked at session end on an expired AWS login (`aws login`), three items:**
+  (i) `terraform apply` for the `retention-purge` EventBridge schedule — the code is
+  merged-ready but the schedule does not exist in staging yet, and AUD-L-04's close
+  completes only when it runs unattended; (ii) AUD-C-03's post-deploy staging probe
+  (locator turn with real coordinates → confirm `checkpoint_writes` clean); (iii)
+  D-113's leftover `aws ecs describe-services` to confirm chat-api scale-in's final
+  2 → 1 step. **D-113's work merged and deployed this session**: PR #38 (`9467c78`),
+  all 9 checks green, deploy dispatched and verified against the merge SHA.
+  **Criterion 6 is read per-job (D-114 §3):** the original two jobs' unattended week
+  still completes 2026-08-02; `retention-purge`'s own week completes **2026-08-05**.
+  **New standing obligation (D-114 §4):** the §6.1 privacy text must state the
+  90/90/365 windows and must not imply chat deletion removes derived text — carried
+  here until the legal track has a draft to hold it.
+- **Next session: the two latency carry-overs (the ~26 s embedding→rag_answer gap with
+  the missing `rerank` log line — start from one OTel-traced turn; and the nine 30–84 ms
+  no-Bedrock 200s during task churn), which block criterion 7's threshold leg.** The
+  remaining P1 halves (AUD-L-07 read, AUD-X-07) are S43+ work with written dispositions.
+  Standing date-bound checks: **2026-08-01** re-probe "How do I enroll a student?";
+  **2026-08-02** criterion 6's earliest pass for the original two jobs (**2026-08-05**
+  for retention-purge); **S42's discovery asks to the org are still unsent** (unchanged
+  since D-110, external lead time — send before the next session).
+
 - **✅ AUD-C-03 and AUD-F-14 closed 2026-07-28 (D-113) — three P1s remain (AUD-L-04,
   AUD-L-07 read half, AUD-X-07 half), and the last two have written dispositions.** Local
   suite **561 passed / 2 skipped** (560 + the new C-03 probe), lint and pyright clean.
@@ -43,9 +75,11 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   zero Bedrock calls, in two bursts coinciding with new tasks entering the target group, not
   reproducible after (6/6 identical probes answered ~29 s grounded), no WARNING/ERROR logs —
   no ID, diagnose before filing.
-- **Next session: AUD-L-04 (the last P1 without a disposition — semantic_memory retention),
-  or the two new latency observations above if the gate ordering prefers criterion 7
-  unblocked first.** AUD-X-07's other half and AUD-L-07's read half keep their written
+- ~~Next session: AUD-L-04 (the last P1 without a disposition — semantic_memory retention),
+  or the two new latency observations above~~ **(✅ AUD-L-04 done 2026-07-29, D-114 — see
+  the entry above; the latency observations are now the next session.)** Original: or the
+  two new latency observations above if the gate ordering prefers criterion 7
+  unblocked first. AUD-X-07's other half and AUD-L-07's read half keep their written
   dispositions (D-110 §3; the gate's option (b) note). Standing date-bound checks unchanged:
   **2026-08-01** re-probe "How do I enroll a student?"; **2026-08-02** criterion 6's earliest
   pass. **S42's discovery asks to the org are still unsent** (unchanged since D-110). C-03's

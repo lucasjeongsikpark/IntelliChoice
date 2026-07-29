@@ -1,5 +1,8 @@
 
-from sqlalchemy import select
+from datetime import datetime
+from typing import cast
+
+from sqlalchemy import CursorResult, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_db.models.student_report import StudentReport
@@ -43,3 +46,22 @@ class StudentReportRepository:
         )
         result = await self._session.execute(stmt)
         return result.scalars().first()
+
+    async def purge_older_than(self, cutoff: datetime) -> int:
+        """AUD-L-04 item 2's retention boundary: deletes every report snapshot older
+        than `cutoff`, regardless of student or audience. Returns the number of rows
+        removed.
+
+        The window here is a year, not 90 days (D-114): reports are the parent-visible
+        record of a student's progress and `list_for_student` serves them as history,
+        so a quarter-length window would delete reports a parent reasonably expects to
+        re-open. `verified_facts` embeds semantic-memory `fact_text`, which is why
+        reports get a bound at all.
+        """
+        result = cast(
+            CursorResult,
+            await self._session.execute(
+                delete(StudentReport).where(StudentReport.created_at < cutoff)
+            ),
+        )
+        return result.rowcount or 0
