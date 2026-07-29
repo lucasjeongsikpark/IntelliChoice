@@ -5450,3 +5450,260 @@ its first unattended run is 2026-07-29 18:50 UTC. **Two P1s remain: AUD-L-07
 D-110 §3) — both with written dispositions, i.e. zero P1s remain without one.** Suite
 **565 passed / 2 skipped** (561 + the three purge-boundary tests + the guard test's new
 parametrized case for the CLI), lint and pyright clean.
+
+## D-115 — The reranker had never worked in production, and the gateway was built so that could not be seen (accepted, 2026-07-29)
+
+**Context.** D-113's two carry-overs, taken together because PROGRESS.md's next-session line
+said to and because they turned out to be the same defect: a consistent ~26 s gap between
+the `embedding` and `rag_answer` log lines with no `rerank` line at all, and nine of 114
+load turns returning 200 in 30–84 ms with zero Bedrock calls. Both blocked criterion 7's
+threshold leg. Baseline at session start: 565 passed / 2 skipped, lint and pyright clean —
+matching D-114's close-out exactly.
+
+### 1. Measure first, and one X-Ray trace was enough
+
+D-113's instruction ("start from one OTel-traced turn") was right, and the trace settled in
+one query what a week of log-reading had not. Trace `7ee8e72c…`, a 24.6 s staging turn:
+`scope_guard` 1.59 s → `create_embedding` 0.14 s → **`hybrid_search` 38 ms across three SQL
+queries** → `bedrock.generate_structured` **20.93 s with no log line** → `synthesize_answer`
+1.83 s.
+
+That killed the standing rival hypothesis immediately — Postgres was never slow, it was
+38 ms — and put 85% of the turn inside one call that had failed silently. **Worth keeping as
+method: the tracing was already deployed and already recording this; nobody had looked.** The
+diagnosis cost one `batch-get-traces` call.
+
+### 2. Root cause: a fixed output cap the response outgrew (AUD-X-09, P1)
+
+Rerank asked for 30 candidate scores keyed by `chunk_id` under `max_output_tokens=1024`. A
+`chunk_id` is a 36-character UUID, so echoing 30 of them back is most of that budget.
+Measured against real Bedrock in the production call shape:
+
+| candidates | maxTokens | stopReason | out | elapsed | validates |
+|---|---|---|---|---|---|
+| 30, UUID keys | **1024 (production)** | **`max_tokens`** | 1024 | 11.6 s | **no** |
+| 30, UUID keys | 2048 | `tool_use` | 1361 | 15.7 s | 30/30 |
+| 30, UUID keys | 4096 | `tool_use` | 1464 | 14.8 s | **28/30** |
+| 30, index keys | 2048 | `tool_use` | 613 | **3.2 s** | 30/30 |
+
+`converse` returns a `toolUse` block even when it runs out of budget mid-emission — the
+`input` is a truncated fragment that is valid JSON of the wrong shape, and only `stopReason`
+tells the two apart. Nothing read it. Fragment → Pydantic fails → a full repair call under
+the same ceiling → truncates identically → `StructuredOutputError` → silent RRF fallback.
+
+**Decision (user, this session): index-keyed scoring plus a count-derived cap, not just a
+bigger cap.** Both options were measured before choosing rather than argued: raising the cap
+alone works but leaves rerank at 15.7 s, and at 4096 the model started *dropping* candidates
+(28 of 30) — long identifiers cost attention as well as tokens. Scoring by position removes
+the identifier from the model's job entirely; the caller maps back deterministically, which
+is the same "model proposes, code decides" split `RerankResponse` already documented.
+`max_output_tokens_for(n) = 128 + 48n` is ~2.3× the measured need, sized from the count
+because **a fixed cap is precisely what failed** — the same value that was right for 8
+candidates was silently wrong for 30.
+
+**Three consequences, and the latency was the least important.** Retrieval quality: the
+fallback returns `candidates[:top_k]` unfiltered, so D-052's `score > 0` cut — the thing that
+makes reranking a filter rather than a sort — had not run since D-112 gave staging a real
+corpus. Cost: ~3.2 cents per grounded turn on a discarded result, larger than the answer call
+(0.42 c), i.e. a cost bug under CLAUDE.md rule 7. Latency: ~21 s of a 24.6 s turn.
+
+### 3. The blast radius: one task's schema defect took down every task (AUD-X-10, P2)
+
+The nine fast turns are the same defect's second face, and **D-113's guess about them was
+wrong in an instructive way**. They sit at 04:23:30 (×2), 04:23:59 (×2), 04:24:26–27 (×5) —
+~30 s apart, which is `circuit_cooldown_s`, not the task-churn boundary D-113 saw them near.
+X-Ray again gave the answer without inference: `CircuitOpenError` at `gateway.py:90`, 1 ms,
+then `langgraph.refuse`.
+
+Sequentially the rerank failures were harmless — the next turn's successful
+`scope_and_intent` reset the counter. Under concurrency five reranks failed before any
+success interleaved, and the breaker opened **for every task**, so `scope_guard` failed
+closed and students got refusals in 30 ms. Fail-closed worked exactly as designed; it was
+fed a false signal.
+
+**Decision (user, this session): only provider-health failures trip the breaker.** A response
+that arrives promptly and fails our schema is evidence Bedrock is *healthy* and our request
+is wrong — the opposite of what a circuit breaker detects. Per-task breakers were the
+alternative and were rejected as more state for a worse outcome: the failing task would still
+inflict a 30 s outage on itself for a defect no retry can fix. A deliberate control test
+asserts provider outages still open the breaker, so the narrowing cannot rot into no
+protection at all.
+
+### 4. Why it survived a week: the gateway only logged success (AUD-X-11, P2)
+
+`gateway.py` had two `logger` calls, both on the success path. Timeout-after-retries,
+`ProviderCallError`, invalid-after-repair, truncation, circuit-open and budget-exceeded all
+returned or raised in silence, and `retrieval.py`'s fallback logged nothing either. **A call
+failing on 100% of requests produced exactly zero log lines**, so the only symptom was a gap
+between two unrelated timestamps — which reads as "slow", not "broken". D-113 measured that
+gap correctly and declined to guess; there was nothing to guess from.
+
+Now: `bedrock_call_failed` at WARNING on every failure exit with a `reason` enum
+(`circuit_open`, `budget_exceeded`, `provider_unavailable`, `schema_invalid`,
+`output_truncated`), `duration_ms` on both success lines, and `retrieval_rerank_degraded`
+where the fallback actually happens. Truncation no longer buys a repair retry — same prompt,
+same ceiling, same truncation, at full input cost.
+
+**The generalizable rule, worth applying beyond this gateway: a degraded path that keeps
+returning 200s must announce its own degradation, because nothing downstream can.** Every
+consumer of this fallback — the API, the eval, the e2e suite, the alarms — saw a successful
+grounded answer, and all of them were right to.
+
+### 5. What this says about the test suite
+
+The suite was **green at 565 tests through the entire outage**, and would have stayed green
+indefinitely. `MockBedrockProvider` echoes whatever key the request used and never truncates,
+so no mock-backed test could see it. The opt-in real-Bedrock eval *did* call real Bedrock and
+*did* pass — because a degraded reranker still yields plausible grounded answers, which is
+what that eval scores. **Neither was wrong; both were measuring something else.**
+`packages/knowledge/tests/test_retrieval.py` now pins the three properties that would have
+caught it: the output budget against the measured need, the index round-trip, and the fact
+that degradation logs. 15 new tests, each watched failing with its fix reverted — 14 of 15
+failed against the pre-fix sources, the exception being the deliberate control.
+
+### 6. This likely closes D-112's retrieval-margin carry-over too
+
+D-112 recorded "Who is on the leadership team?" going no-source 1 in 3, before and after the
+prompt fix, and filed it as rerank/confidence-threshold territory to measure before filing.
+With rerank dead, retrieval was returning the top 8 of an *unfiltered* hybrid-search list, so
+whether a real chunk beat the closest-available noise row was down to RRF ordering. Not
+claimed as closed — it needs its own re-measurement now that rerank works — but the mechanism
+is no longer mysterious.
+
+### 7. Verified on staging, and the fix's own instrumentation immediately found the next one
+
+Merged as PR #41 (`7889610`), deployed with `deploy-staging.yml` dispatched against `main` and
+**the run's `headSha` compared to the merge SHA** (the ROADMAP's own warning about
+`gh run list` returning a previous successful run). Deploy concluded `success`; chat-api
+settled on task-definition revision 30, 3/3 running.
+
+**Before and after, measured the same way, through CloudFront, guest turns, fresh session per
+call:**
+
+| | unloaded p50 | unloaded p95 | loaded p50 | loaded p95 | sub-1 s refusals |
+|---|---|---|---|---|---|
+| pre-fix (this session, `9467c78`) | 29.5 s | 35.2 s | — | — | — |
+| pre-fix (D-113's run) | ~29 s | — | 28.8 s | 32.8 s | 9 of 114 |
+| **post-fix (`7889610`)** | **10.4 s** | 15.5 s | **10.3 s** | **17.4 s** | **0 of 68** |
+
+The turn is now readable from the logs alone, which is the whole point of §4:
+
+```
+scope_and_intent  dur=2298ms  out=159
+embedding         dur=101ms
+rerank            dur=3110ms  out=665   <-- the line that did not exist before
+rag_answer        dur=2104ms  out=169
+http_request      dur=7664ms  200
+```
+
+69 rerank calls across the run: **p50 3.05 s, p95 3.84 s, 0 repairs**, output 665–875 tokens
+against the derived 1568 ceiling. Zero `retrieval_rerank_degraded` lines. Zero sub-second
+refusals under exactly the load shape that produced nine of them before — AUD-X-10 confirmed
+in the negative.
+
+**And the new WARNING lines found AUD-X-12 in their first hour**: two `rag_answer` failures,
+one of them `output_truncated` at a *different* fixed cap. Filed, fixed and shipped in the same
+session (§8). That is the strongest available evidence that AUD-X-11 was the load-bearing fix
+of the three — a week of invisibility for the first defect, minutes for the second.
+
+### 8. AUD-X-12: the same defect, one task over, and it was refusing students
+
+`rag_answer` had its own fixed `max_output_tokens=1536`. Measured over 70 real grounded turns:
+output **p50 662, p95 1490, max 1530**. So ~1 turn in 30 truncated — and `qa.answer_question`
+cannot distinguish a truncated response from an ungrounded question, so it returned
+`NO_SOURCE_MESSAGE`: **the product told students there was no approved source for questions
+that had one.** Decision (user, this session): fix in the same session rather than carry over,
+because it is the same shape, this session's own instrumentation found it, and the failure is a
+wrong answer rather than a slow one.
+
+Fixed the same way — count-derived cap (`768 + 192n`), `context_index` in place of `chunk_id`
+on `RagContextChunk`/`LlmCitation`, and `rag_answer_unavailable` at the fallback. The citation
+reshape also removes a second silent path to the same refusal: `_verify_citations` drops any
+citation whose id matches no chunk, so one garbled character in a UUID was itself a refusal.
+
+**Two further instances are recorded as carry-over, not fixed:** `report.py` and
+`consolidation.py` size their output over inputs that grow with a student's history. **Fixing
+them blind would repeat the mistake in the other direction** — the right cap is a function of
+measured output, and neither has been measured. They will now log `output_truncated` the first
+time they truncate, which is where that measurement comes from.
+
+### 9. The rule this session actually establishes
+
+Three findings, one shape: **a fixed `max_output_tokens` is a latent defect whenever the
+response size is a function of the input size.** Both instances were correct when written (1024
+fitted 8 candidates; 1536 fitted 3 passages) and became wrong when a caller grew — 30
+candidates, 8 chunks — with nothing failing loudly at the boundary. Hence caps are now derived
+from the count at both sites, `stopReason` is read rather than ignored, and truncation is a
+named failure reason instead of a mysterious schema error.
+
+The second rule is §4's, and it generalizes further: **a degraded path that keeps returning
+200s must announce its own degradation.** Both defects were invisible for the same reason and
+became visible for the same reason.
+
+### 10. The correction: an answer's length is not a function of how many passages it cites
+
+§8's fix was measured at `top_k=8` and shipped as `768 + 192n`, by analogy with §2's
+reranker. **The analogy was wrong, and staging said so within one load run.** A rerank
+response really is one scored line per candidate, so its size is proportional to the count.
+An *answer* is not: its length is a function of the question, and only its `citations` list
+scales with the passages available to cite. So single-passage turns received a **960-token
+ceiling — lower than the flat 1536 the derivation replaced** — and 3 of 74 turns in the first
+clean load run truncated, every one of them `context_chunk_count=1`:
+
+```
+FAILED   task=rag_answer reason=output_truncated max_out=960 dur=7162ms
+FALLBACK chunks=1 reason=StructuredOutputError                      (x3)
+```
+
+Corrected to `2048 + 96n` — a generous fixed prose floor plus a small per-passage
+allowance: ~2.1k at one passage (40% above the old flat cap), ~2.8k at `top_k=8`.
+
+**Two things worth keeping from this, beyond the arithmetic.**
+
+First, the rule the missing test now encodes: **replacing a constant with a derived value
+must not let the derived value come out smaller than the constant anywhere in its domain.**
+`test_the_answer_token_budget_never_dips_below_the_flat_cap_it_replaced` asserts exactly that
+for 1–30 passages, and was watched failing against the cap that was live on staging at the
+time. §8's tests pinned the measured *maximum* and the *direction* of scaling, and both
+passed — the untested corner was the small end, which is the one nobody measures because it
+looks obviously safe.
+
+Second, it is the third instance in one session of the same underlying mistake: **a number
+chosen against one operating point, applied to a range.** 1024 was right at 8 candidates and
+wrong at 30; 1536 was right at 3 passages and wrong at 8; 960 was right nowhere and shipped
+anyway because the *shape* of the formula had been reasoned by analogy instead of measured.
+The instrumentation from §4 is what made each of the three visible within minutes rather than
+weeks, which is the strongest argument for it in this whole entry.
+
+### 11. Criterion 7: the threshold was not miscalibrated, it was missing
+
+PROGRESS.md and this file had both recorded criterion 7's problem as "the S34-calibrated 3 s p95
+needs redoing against real Bedrock". Reading the actual threshold changed that framing.
+`load-tests/k6/chat_qa.js` asserts `http_req_duration p(95)<1000` — and it is **right**, for what
+it measures: a local server on `MockBedrockProvider`, queried with deliberately non-matching
+"zqxv" text (D-018/D-090) so no turn can spuriously ground. That scenario measures the
+application's own overhead with no model in the path, and 1 s is a useful regression guard on it.
+It was never a claim about live grounded turns.
+
+So the number to change is not that one. **Criterion 7 needs a second, explicitly separate
+live-staging threshold**, and it cannot be under ~8 s: a grounded turn is four sequential model
+calls (`scope_and_intent` → embedding → `rerank` → `rag_answer`), whose measured p50s already sum
+to ~9 s. Proposed and recorded in ROADMAP.md: **p95 ≤ 20 s, error rate < 1%, concurrency 5,
+≥2 tasks** — 25% headroom over the measured 15.94 s.
+
+**Where the remaining time actually goes matters for what to do next.** `rag_answer` is p95
+10.62 s of the 15.94, and it is not waiting on anything — it is generating prose, p50 501 output
+tokens (~375 words), p90 1401 (~1050 words). For a K-12 student asking about Saturday hours, a
+thousand-word reply is a product defect in its own right (SPEC §5.10.3's age-appropriate
+language), and shortening it would improve latency, cost and the student experience at once.
+**That is the single highest-value follow-up this session found and did not do**, deliberately: a
+prompt change is product-visible behaviour and deserves its own before/after measurement rather
+than being smuggled in behind a token-cap fix.
+
+**Outcome.** Four findings filed and closed (AUD-X-09 P1, AUD-X-10 P2, AUD-X-11 P2, AUD-X-12 P1),
+three PRs (#41 `7889610`, #42 `b245833`, #43), each deployed to staging and verified against its
+own merge SHA. Both of D-113's carry-overs are explained and gone: the ~26 s gap was a rerank that
+never succeeded, and the 30–84 ms zero-Bedrock refusals were the circuit breaker being fed a false
+signal by it. **Live: p50 28.8 → 9.57 s, p95 32.8 → 15.94 s, 9-in-114 spurious refusals → 0 in
+74.** Criterion 7's threshold leg moved from "unmeetable" to "needs a number, here is the measured
+budget to pick it from". Suite 587 passed / 2 skipped, lint and pyright clean.

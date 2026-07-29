@@ -719,15 +719,45 @@ read per-job (D-114 §3)**: earliest 2026-08-02 for the original two schedules, 
 for the `retention-purge` schedule (applied and ENABLED 2026-07-29). **4 is met**
 (D-111: `chat-web` and `e2e-typecheck` CI jobs landed; AUD-F-08 closed).
 **2 needs two more P1 halves**: AUD-L-07 (read half — but see the ordering note below) and
-AUD-X-07 (half), both with written dispositions. The chat cluster closed AUD-C-16, AUD-C-02
+AUD-X-07 (half), both with written dispositions. **D-115 added and closed two more P1s in one
+session** (AUD-X-09 the dead reranker, AUD-X-12 the false-refusal token cap) plus two P2s
+(AUD-X-10 circuit blast radius, AUD-X-11 success-only logging) — so criterion 2's count is
+unchanged, but note that **both new P1s existed and were invisible during every previous
+assessment of this criterion**; "zero open P1s" measures what has been found. The chat cluster closed AUD-C-16, AUD-C-02
 and AUD-F-19 (D-112), AUD-F-20 closed with D-111's deploy-time re-seed, D-113 closed AUD-C-03
 (merged and deployed 2026-07-29, PR #38; staging probe pending) and AUD-F-14 (latency step
 scaling, live-verified 1 → 3 under load), and D-114 closed AUD-L-04 (retention purges for
 `semantic_memory`/`stage_transitions`/`student_reports`, schedule apply pending).
-**7's "≥2 tasks under load" is now demonstrated, but its threshold leg found the workload
-changed underneath it**: a single grounded chat turn costs ~29 s against the real corpus
-(D-113 §3 — an undiagnosed ~26 s gap between embedding and answer), so the S34-calibrated 3 s
-p95 is unmeetable at any task count until that is diagnosed or the calibration redone. **3 is close but not claimable:
+**7's "≥2 tasks under load" is demonstrated, and D-115 diagnosed and removed what made its
+threshold leg unmeetable.** The ~26 s gap was a rerank call that had never once succeeded
+against real Bedrock (AUD-X-09); with it fixed, a live 74-turn run at concurrency 5 across
+3 tasks measures **p50 9.57 s / p95 15.94 s, 0 errors, 0 circuit-open refusals** (was p50 28.8 /
+p95 32.8, with 9 of 114 turns refused in 30 ms). **The threshold itself now needs a decision, and
+"redo the S34 calibration" turned out to be the wrong framing** (D-115 §11): `chat_qa.js`'s
+`p(95)<1000` is *correct for what it measures* — a mock-provider server answering deliberately
+non-matching "zqxv" queries, i.e. app overhead with no model in the path — and should stay.
+What criterion 7 lacks is a **separate live-staging threshold for a real grounded turn**, which
+cannot be under ~8 s because such a turn is four sequential model calls. Measured component
+budget behind the 15.94 s:
+
+| component | p50 | p95 |
+|---|---|---|
+| `scope_and_intent` | 1.89 s | 2.53 s |
+| `create_embedding` | 0.10 s | 0.14 s |
+| `hybrid_search` (3 SQL) | 0.04 s | — |
+| `rerank` | 2.92 s | 3.76 s |
+| `rag_answer` | 4.16 s | **10.62 s** |
+| end-to-end turn | 9.57 s | 15.94 s |
+
+**Proposed: p95 ≤ 20 s and error rate < 1% at concurrency 5 with ≥2 tasks** (25% headroom over
+the measurement), recorded as a live-staging threshold distinct from the mock-backed k6 one.
+**The dominant term is answer length, not infrastructure**: `rag_answer` p50 emits 501 output
+tokens (~375 words) and its p95 10.62 s is time spent generating prose. So the lever that would
+move this number is asking for a shorter answer — which SPEC §5.10.3's age-appropriateness
+argues for independently — not more tasks or a faster model. Carried as an item, not done here:
+a prompt change is product-visible and needs its own before/after measurement.
+**Criterion 7's learning-app leg is still unmeasured** under authenticated load (the staging
+token secrets are retrievable, D-107 §10). **3 is close but not claimable:
 the last two staging e2e runs are 47 passed / 2 failed / 4 skipped, twice, against two different
 deploys** — every chat journey passes with a working semantic channel underneath (D-112), and the
 weekly-expiry caveat is gone (the deploy re-seeds). The two failures are both learning-side
