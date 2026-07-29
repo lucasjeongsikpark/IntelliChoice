@@ -5443,8 +5443,9 @@ until that track produces a document: **the notice must state the 90-day chat wi
 chat after 90 days removes everything derived from it.** Carried on PROGRESS.md until the
 §6.1 track has a draft to hold it.
 
-**Outcome.** AUD-L-04 closed pending the schedule's terraform apply (blocked at session
-end on an expired AWS login) and its first scheduled run. **Two P1s remain: AUD-L-07
+**Outcome.** AUD-L-04 closed: code merged (PR #39, `ddf4e6c`), schedule applied and
+confirmed ENABLED the same session after an AWS re-login (plan/apply was exactly 1 add);
+its first unattended run is 2026-07-29 18:50 UTC. **Two P1s remain: AUD-L-07
 (read half — disposition (b) recommended at the gate) and AUD-X-07 (half, disposition in
 D-110 §3) — both with written dispositions, i.e. zero P1s remain without one.** Suite
 **565 passed / 2 skipped** (561 + the three purge-boundary tests + the guard test's new
