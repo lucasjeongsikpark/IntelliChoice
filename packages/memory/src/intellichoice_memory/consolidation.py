@@ -61,7 +61,9 @@ FACT_TYPES = frozenset(
 MIN_EVIDENCE_EVENTS = 3
 MIN_EVIDENCE_SESSIONS = 2
 
-_MAX_OUTPUT_TOKENS = 1200
+# S43: was a flat 1200 over a response whose two largest lists are one item per *existing
+# fact* - see `MemoryUpdateResponse.max_output_tokens_for` for the measurement and for why
+# this shape, unlike a RAG answer's, really does scale with its input.
 
 _SYSTEM_PROMPT = (
     "You are a memory consolidation assistant for a K-12 math tutoring system. Given a "
@@ -226,13 +228,32 @@ async def _consolidate_events(
         allowed_fact_types=sorted(FACT_TYPES),
     )
 
+    max_output_tokens = MemoryUpdateResponse.max_output_tokens_for(len(existing_payload))
+    if len(existing_payload) > MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS:
+        # The derived budget is above the gateway's hard ceiling, so it will be clamped
+        # and this student's consolidation *can* truncate. Bounding the payload is the
+        # real fix and is a behaviour decision (which facts to drop) - logged rather than
+        # guessed, so it arrives with a count attached. AUD-X-11's lesson: a failure mode
+        # that logs nothing is a failure mode nobody finds.
+        logger.warning(
+            "memory_consolidation_payload_oversized",
+            extra={
+                # A count, not an id: the decision this informs is "should the payload be
+                # bounded", which needs the distribution, not who. Every other `extra=` in
+                # the codebase is counts and reasons; this keeps that floor.
+                "existing_fact_count": len(existing_payload),
+                "max_safe_existing_facts": MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS,
+                "derived_max_output_tokens": max_output_tokens,
+            },
+        )
+
     try:
         result = await gateway.generate_structured(
             task=BedrockTask.MEMORY_CONSOLIDATION,
             system_prompt=_SYSTEM_PROMPT,
             payload=payload,
             response_model=MemoryUpdateResponse,
-            max_output_tokens=_MAX_OUTPUT_TOKENS,
+            max_output_tokens=max_output_tokens,
             session_spend_cents=session_spend_cents,
         )
     except BedrockGatewayError as exc:

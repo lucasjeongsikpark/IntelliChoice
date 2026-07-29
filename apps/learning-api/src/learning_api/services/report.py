@@ -37,7 +37,26 @@ from learning_api.services.dashboard import DashboardData
 
 logger = logging.getLogger(__name__)
 
-_MAX_OUTPUT_TOKENS = 500
+# S43, from D-115's carry-over (ii). This was flagged as the same "fixed cap over a
+# growing input" shape as the reranker, and it is *not* - `ReportInterpretationResponse`
+# is two prose fields plus `reasoning`, and their length is a function of the writing task,
+# not of how much history went in. So a flat cap is the right shape here (the D-115 §10
+# distinction, in the direction that says leave it alone).
+#
+# The measurement found a different defect instead: 500 was too small for the prompt's own
+# instructions. Serialized response size against words-per-paragraph -
+#
+#     words/para    40    60    80   100   120   150
+#     tokens       305   448   591   733   876  1091
+#
+# - so "two short paragraphs" truncates from about 70 words each, and D-115 measured this
+# same model emitting p50 ~375 words for a chat answer. A truncated report is not a short
+# report: `generate_structured` raises, and the caller falls back to the deterministic
+# text, so the parent silently gets the un-personalized version. 1024 covers ~140 words per
+# paragraph with the `reasoning` field filled, and stays well inside the gateway's 4000
+# hard ceiling. Raising it moves REPORT_RESERVATION_ESTIMATE_CENTS below - they are
+# coupled, and `test_cost_reservation_estimates.py` enforces that they stay so.
+_MAX_OUTPUT_TOKENS = 1024
 
 # S36/AUD-L-02: per-day, per-student ceiling on report-driven Bedrock spend - the sibling
 # of `tutor_chat.DAILY_COST_CEILING_CENTS`, for the same reason. `POST /students/{id}/report`
@@ -63,12 +82,17 @@ DAILY_REPORT_COST_CEILING_CENTS = 50.0
 # own `worst_case_cost_cents` for PARENT_REPORT at `_MAX_OUTPUT_TOKENS`, so a model or
 # pricing change that invalidates it fails the suite rather than quietly under-counting.
 #
-# 1.35 cents is the worst case on the most expensive priced model (Sonnet 5 at 0.3/1.5 per
-# 1K, over the gateway's 2000-input-token assumption plus 500 output), which is also the
-# unpriced-model fallback rate. Rounded up. The deployed model (Haiku 4.5) is 0.45. The
-# over-estimate is only charged while the call is in flight - `settle` replaces it with
-# the real cost within the same request - so it costs throughput nothing in practice.
-REPORT_RESERVATION_ESTIMATE_CENTS = 1.5
+# 2.136 cents is the worst case on the most expensive priced model (Sonnet 5 at 0.3/1.5
+# per 1K, over the gateway's 2000-input-token assumption plus `_MAX_OUTPUT_TOKENS`), which
+# is also the unpriced-model fallback rate. Rounded up. The deployed model (Haiku 4.5) is
+# ~0.7. The over-estimate is only charged while the call is in flight - `settle` replaces
+# it with the real cost within the same request - so it costs throughput nothing in
+# practice.
+#
+# S43: raised from 1.5 alongside `_MAX_OUTPUT_TOKENS` 500 -> 1024. The guard test caught
+# the coupling before the change shipped, which is what it is for. The daily ceiling below
+# is unchanged and still permits ~70 reports/student/day at the deployed model's real rate.
+REPORT_RESERVATION_ESTIMATE_CENTS = 2.25
 
 _SYSTEM_PROMPT = (
     "You are writing a short progress report for a K-12 math tutoring app. Write two "
