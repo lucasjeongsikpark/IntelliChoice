@@ -561,10 +561,21 @@ class RagAnswerResponse(BaseModel):
         turns), so roughly one turn in thirty truncated - and a truncated answer is not
         a slow answer, it is a **false "no approved source" refusal**, because
         `qa.answer_question` cannot distinguish a schema failure from an ungrounded
-        question. 192 tokens per passage on top of 768 of prose puts the ceiling ~50%
-        above the measured maximum at the current top_k of 8.
+        question.
+
+        **The floor dominates, and that correction cost a deploy.** This started as
+        `768 + 192n`, reasoning by analogy with `RerankResponse.max_output_tokens_for`,
+        where the response genuinely is one scored line per candidate. An *answer* is
+        not: its length is a function of the question, and only its `citations` list
+        scales with the passages available to cite. So the first shape produced a
+        **960-token ceiling for single-passage turns - lower than the flat 1536 it
+        replaced** - and staging immediately truncated 3 of 74 turns, all of them
+        `context_chunk_count=1` (D-115 §10). The prose floor is therefore generous and
+        fixed, with a small per-passage allowance on top: ~2.1k at one passage (40% above
+        the old flat cap), ~2.8k at the current top_k of 8, both inside the gateway's
+        4000-token hard ceiling.
         """
-        return 768 + 192 * max(context_chunk_count, 0)
+        return 2048 + 96 * max(context_chunk_count, 0)
 
 
 class CalendarContextChunk(BaseModel):
