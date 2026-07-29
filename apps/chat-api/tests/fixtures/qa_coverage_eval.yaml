@@ -266,6 +266,20 @@ cases:
     category: paraphrase
     query: "How does my child take part in IntelliChoice, and what does joining involve?"
     expected_document_id: public-organization-overview
+  # AUD-F-19 probes: on real Bedrock these misrouted away from document_qa entirely -
+  # "Saturday hours" to branch_locator's location-consent modal (4/4 across S42 and the
+  # 2026-07-28 baseline) or clarification, and the people question to admin_contact's
+  # email flow (3/3) - so they were never answered at all. The scope prompt now defines
+  # each intent and pins these exact questions as examples; these cases are the
+  # real-provider behaviour check for that. Both target documents are effective today.
+  - id: paraphrase-hours-1
+    category: paraphrase
+    query: "What are the Saturday hours?"
+    expected_document_id: public-branch-directory
+  - id: paraphrase-team-3
+    category: paraphrase
+    query: "Tell me about the people who run IntelliChoice"
+    expected_document_id: public-our-team
 
   # --- no_answer (S37/AUD-C) ----------------------------------------------------
   # In scope, entirely plausible, and genuinely absent from the corpus. Unlike
