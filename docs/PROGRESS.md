@@ -5,6 +5,77 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ Criterion 7's chat leg MET, AUD-X-13 / AUD-F-16 closed and live-verified, two more fixed
+  caps fixed, and criterion 3's two failures diagnosed down to one filed defect
+  (2026-07-29, D-116).** Local suite **591 passed / 2 skipped** (587 at start, +4), lint and
+  pyright clean, `e2e/` typechecks. Terraform **applied** (0 add, 2 change, 0 destroy).
+  **No PR opened, nothing merged, no app deploy** — the app-code changes (the `/healthz` identity
+  fields, the two token caps) are committed nowhere yet and are *not* on staging.
+  **Live results:**
+  - **Criterion 7 chat leg passes on the k6 scenario's first execution:** 70/70 turns, 140/140
+    checks, `chat_turn_duration` p95 **16.68 s** (< 20), errors **0.00%** (< 1%),
+    `chat_fast_refusals` **0**, **3 tasks**. The custom trend earned its keep immediately —
+    `http_req_duration` reports median 3.51 s against the turn's real 9.89 s, so the default
+    metric would have measured the wrong thing. **The learning-app leg is still unmeasured.**
+  - **AUD-X-13 closed with a before/after the finding never had.** Its alarm history shows it
+    flapping **ALARM↔OK three times in 100 minutes** that morning on ordinary traffic. Post-change,
+    the load run held ALB p95 at **14.59 / 15.16 / 16.58 / 17.84 s** for four consecutive minutes —
+    each above the old 3 s threshold, three is all it needs — and the alarm **never left OK**.
+  - **⚠️ AUD-F-16's staging design was wrong, and the first staging run said so.** `/healthz` is
+    *deliberately* excluded from CloudFront ("internal-only"), so the HTTP check fetched
+    `index.html`. Rather than widen a public surface for a test harness, staging now reads identity
+    from **ECS** — the image tag on the running task definition, which is better evidence than a
+    self-report. Both arms verified live.
+  - **✅ Criterion 3's two failures are ONE defect, and neither of the two things they were filed
+    as — AUD-F-21 (P1, filed not fixed).** Suite reproduced **47/2/4** a third time. The
+    stale-bundle hypothesis is **dead**: the served SPA is byte-identical to a local build of HEAD
+    (SHA-256 `63eca681…7dd1055`), and AUD-F-01's fix demonstrably *works* on staging (1 time
+    report, was 899). The dwell's **value** is what fails, and `App.tsx:199` renders
+    `StageTransitionScreen` as a **sibling** of `ExamScreen`: a narrative arriving 2.1 s in
+    *unmounts* the exam screen, flushing a truncated **2116 ms**. Same branch explains the
+    post-finalize stall (no `.phase-chip` on the narrative screen → the 60 s wait resolves `null`).
+    Staging-only because the narrative is an LLM call — ~26 ms mocked, seconds real. **Real-user
+    impact:** truncated `time_spent_minutes` feeding parent reports (upstream of AUD-L-14), and a
+    student yanked back to Question 1 mid-exam. **Criterion 3 is now blocked on one located
+    change** instead of two vague observations; the fix is product-visible and needs its own call.
+  **The threshold (user decision, D-116 §1): p95 ≤ 20 s, errors < 1%, concurrency 5, ≥2 tasks**
+  — 25% headroom over a measurement stable at p95 ≈ 16 s across three runs. Explicitly a second,
+  separate number from `chat_qa.js`'s `p(95)<1000`, which is right for a mock-provider server and
+  stays. **One number, two places:** the same 20 s moves the chat-api paging alarm off the 3 s
+  that had it in ALARM during healthy conversation (AUD-X-13). Threshold is now per-service —
+  learning-api stays 3 s (unmeasured, and its requests are not model calls), and the scale-out
+  alarm stays 3 s deliberately (D-113 §2).
+  **Its instrument:** `load-tests/k6/chat_qa_staging.js` / `make load-staging-chat`, guest turns
+  through the real CloudFront edge (no secrets), a custom `chat_turn_duration` trend so the cheap
+  session-create call cannot flatter the p95, and sub-1 s 200s counted as *failures* so a run
+  cannot pass by refusing quickly — the shape of the nine 30–84 ms refusals AUD-X-10 turned out to
+  be. Executed, and passing (numbers above).
+  **✅ AUD-F-16 closed, and it unblocked the criterion-3 diagnosis:** both apps' `/healthz` now
+  carries `build_sha` (baked in by `docker build --build-arg`) and `started_at`; the harness reads
+  the identity in `globalSetup`, writes a `record: "run"` line at the head of `journeys.jsonl` and
+  truncates the file, and **fails the run locally when an API booted before the newest source**.
+  `reuseExistingServer: true` is kept — reuse was never the defect, unverifiability was. Watched
+  both directions locally: passing on fresh servers, then *"learning-api booted at … 26s BEFORE the
+  newest Python source file"* after touching one file. **Staging reads ECS, not HTTP** (see the
+  ⚠️ above), with `EXPECT_BUILD_SHA` asserting the deployed SHA — also watched failing and passing.
+  **✅ D-115's carry-over (ii) measured, and only half of it was the shape it was filed as.**
+  `consolidation.py` genuinely is one output item per existing fact (**AUD-X-14**): the flat 1200
+  was under the real need from ~5 live facts on (261 tok at 1, 1733 at 10, 2712 at 20), now
+  `1280 + 128n`. `report.py` is **not** that shape (**AUD-X-15**) — a report's length follows the
+  writing task — but measuring it found a different defect: 500 was below what its own prompt asks
+  for, truncating from ~70 words/paragraph, and a truncated report silently drops a parent to the
+  deterministic fallback. Raised to 1024; `REPORT_RESERVATION_ESTIMATE_CENTS` 1.5 → 2.25 because
+  AUD-X-08's guard caught the coupling the moment the cap moved.
+  **D-115 §10's rule paid for itself inside one session:** the consolidation formula was first
+  written `896 + 128n`, which gives **1024 at one fact — below the 1200 it replaced**, the exact
+  regression that cost D-115 a deploy. The new test caught it pre-ship.
+  **Left undone on purpose:** past **21** live facts the derived budget exceeds the gateway's
+  4000-token hard ceiling, so the *payload* needs bounding and *which facts get dropped* is a
+  behaviour decision — `consolidation.py` logs `memory_consolidation_payload_oversized` with the
+  count so it arrives with a distribution rather than a guess.
+  **⚠️ Numbering hazard, recorded once (D-116 preamble):** D-115's session labelled its findings
+  "S43", but ROADMAP.md's S43 is `IcProfileAdapter`, a future blocked session. Different things,
+  same number. This session is the *S43 continuation*; roadmap S42–S47 remain unstarted.
 - **✅ Both D-113 latency carry-overs diagnosed and closed 2026-07-29 (D-115) — and they were
   one defect, not two. Four findings filed and fixed: AUD-X-09 (P1), AUD-X-10 (P2), AUD-X-11
   (P2), AUD-X-12 (P1).** Local suite **587 passed / 2 skipped** (565 at session start, +22),
@@ -72,12 +143,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   browser or k6 retries — **so criterion 7's error-rate leg should be measured with k6 through the
   edge, not an ad-hoc client**; (v) D-112's retrieval-margin flake ("Who is on the leadership team?", no-source 1 in 3)
   is very likely explained — unfiltered retrieval — but needs re-measuring before it is closed;
-  (vi) **AUD-X-13 (P2), filed not fixed: `chat-api-p95-latency` pages on `p95 > 3 s`, so a healthy
-  ~16 s turn keeps it in ALARM** — alarm fatigue, criterion 8's evidence alarm cannot tell an
-  incident from a conversation, and **the canary bake rolls back any deploy that overlaps real
-  usage**. `treat_missing_data = notBreaching` means it self-clears when traffic stops. Left for
-  the same decision as criterion 7's threshold (recommend 20 s for the paging alarm; the scale-out
-  alarm stays at 3 s, where a low trigger is deliberate — D-113 §2).
+  ~~(vi) AUD-X-13 (P2), filed not fixed~~ **(vi) ✅ fixed and live-verified 2026-07-29 (D-116) —
+  threshold now per-service, chat-api 20 s; the alarm held OK through four minutes of 14.6–17.8 s
+  p95 where it had flapped three times that morning at 3 s.**
 - **✅ AUD-L-04 fixed 2026-07-29 (D-114) — two P1s remain (AUD-L-07 read half, AUD-X-07
   half), both with written dispositions: zero P1s remain without one.** Local suite
   **565 passed / 2 skipped** (561 + three purge-boundary tests + the guard test's new
@@ -107,17 +175,38 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   here until the legal track has a draft to hold it.
 - ~~Next session: the two latency carry-overs~~ **(✅ both done 2026-07-29, D-115 — one root
   cause; see the entry above.)**
-- **Next session: pick up (a) the post-#43 `output_truncated` confirmation and the criterion-7
-  threshold decision, then (b) the two learning-side staging e2e failures that are all that
-  stand between criterion 3 and two clean runs** (the time-telemetry dwell with AUD-F-01's
-  signature despite the fix being deployed — check the served-bundle identity, AUD-F-16's ask —
-  and the post-finalize narrative stall). Answer brevity (carry-over (i) above) is the
-  highest-value optimization but is a product change needing sign-off. The remaining P1 halves
-  (AUD-L-07 read, AUD-X-07) are S43+ work with written dispositions.
-  Standing date-bound checks: **2026-08-01** re-probe "How do I enroll a student?";
-  **2026-08-02** criterion 6's earliest pass for the original two jobs (**2026-08-05**
-  for retention-purge); **S42's discovery asks to the org are still unsent** (unchanged
-  since D-110, external lead time — send before the next session).
+- ~~Next session: (a) the post-#43 confirmation and the criterion-7 threshold decision, then
+  (b) the two learning-side staging e2e failures~~ **((a) ✅ done 2026-07-29, D-116; (b) blocked
+  on AWS — see below.)**
+- **Next session, in order:**
+  1. **Uncommitted work exists and is not on staging.** D-116's app-code changes (the `/healthz`
+     build-identity fields, the two token caps, the e2e harness) are in the working tree only —
+     no branch, no PR, no deploy. The terraform *is* applied. First move is to land them:
+     branch → PR → merge → `gh workflow run deploy-staging.yml --ref main`. **A merge does not
+     deploy**, and `gh run list --limit=1` happily returns the *previous* run, so compare the head
+     SHA. Then re-run `make e2e-staging` with `EXPECT_BUILD_SHA=<merge sha>` — which now actually
+     checks something, since staging currently runs `12508257ac10`.
+  2. **AUD-F-21 (P1) is the whole of criterion 3.** One located change:
+     `App.tsx:199` renders `StageTransitionScreen` as a sibling of `ExamScreen` instead of above
+     it. Needs a product call first — *should a narrative that arrives after the student has
+     started working interpose at all?* Recommended shape: dismissible overlay, and suppress a
+     stage-intro narrative once interaction has begun. Two clean runs follow the fix; also
+     de-conditionalize the two `test.skip()`s (no suggestion chips, no dashboard entry point).
+  3. **Criterion 7's learning-app leg is the only unmeasured half** — the chat leg passed
+     (p95 16.68 s, 0 errors, 3 tasks). Needs authenticated load; the staging token secrets are in
+     Secrets Manager at `intellichoice-staging/{learning,chat}-api/staging-token-shared-secret`.
+  4. **Criterion 8** — induce each of the four alarms once and confirm the monitored inbox. The
+     chat-api p95 alarm is now a *meaningful* signal to induce rather than one stuck on.
+  Answer brevity (D-115 carry-over (i)) is still the highest-value optimization and still a
+  product change needing sign-off — `rag_answer` is p95 10.62 s of the 15.94 and generating
+  ~375 words at p50. The remaining P1 halves (AUD-L-07 read, AUD-X-07) keep their written
+  dispositions. D-112's retrieval-margin re-measure and the ~2–4% `rag_answer` `schema_invalid`
+  rate (needs a PII decision before capturing the invalid text) are both still open.
+  Standing date-bound checks: **2026-08-01** re-probe "How do I enroll a student?" — and widen
+  `chat_qa_staging.js`'s question list, which is currently restricted to the four documents
+  effective today; **2026-08-02** criterion 6's earliest pass for the original two jobs
+  (**2026-08-05** for retention-purge); **S42's discovery asks to the org are still unsent**
+  (unchanged since D-110, external lead time — this is the fourth session carrying them).
 
 - **✅ AUD-C-03 and AUD-F-14 closed 2026-07-28 (D-113) — three P1s remain (AUD-L-04,
   AUD-L-07 read half, AUD-X-07 half), and the last two have written dispositions.** Local

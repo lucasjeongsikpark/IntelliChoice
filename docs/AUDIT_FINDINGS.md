@@ -2657,3 +2657,141 @@ the separate scale-out alarm at 3 s where a low trigger is *correct* (D-113 §2 
 deliberately: scaling should react long before a human should). That split — a sensitive scaling
 signal and an insensitive paging signal on the same metric — is the point, and it is why the two
 alarms were separated in the first place.
+
+**Fixed and live-verified in the S43 continuation (D-116).** The threshold is now per-service:
+`latency_p95_alarm_thresholds` in `terraform/modules/observability`, chat-api at 20 s,
+learning-api left at the module default of 3 s (nothing has re-measured it and its requests are
+not model calls). The scale-out alarm in `modules/ecs-service` is untouched at 3 s, deliberately.
+Applied 2026-07-29 15:27 CDT: **0 add, 2 change, 0 destroy** (chat-api threshold + both
+descriptions).
+
+**The before/after is unusually clean, and the "before" was not something the finding had —
+it was reasoned from the threshold, not observed.** The alarm's own history shows it flapping on
+real traffic that morning, three times in 100 minutes with nothing wrong:
+
+| | |
+|---|---|
+| 10:57 → ALARM, 11:05 → OK | 11:51 → ALARM, 12:05 → OK |
+| 12:25 → ALARM, 12:36 → OK | (all pre-apply, threshold 3 s) |
+
+After the apply, a 70-turn load run at concurrency 5 produced **four consecutive minutes of ALB
+p95 at 14.59 / 15.16 / 16.58 / 17.84 s** — every one of them above the old 3 s threshold, and the
+alarm needs only three — and **the alarm never left OK** (last state change 12:36, nearly three
+hours earlier). So healthy conversation no longer pages, and a deploy overlapping that load would
+no longer auto-roll-back.
+
+### AUD-X-14 — `memory_consolidation`'s output cap is flat over a response that is one item per existing fact (P2, found and fixed in S43-continuation, D-116)
+
+D-115's carry-over (ii), confirmed by measurement rather than by analogy. `consolidation.py`
+passed a fixed `max_output_tokens=1200`, but `MemoryUpdateResponse`'s two largest lists —
+`facts_to_update` and `facts_to_expire` — are one item per fact the model was shown, and
+`list_facts_for_student` is unbounded. This is the same shape as the reranker (AUD-X-09), which
+sat truncating against real Bedrock for a week, and explicitly *not* the shape of a RAG answer,
+whose length follows the question (the D-115 §10 distinction).
+
+Measured against the serialized schema, at ~94 tokens per reconfirmed fact and ~10 per expiry:
+
+| live facts | 1 | 5 | 10 | 20 | 40 |
+|---|---|---|---|---|---|
+| response tokens | 261 | 1249 | 1733 | 2712 | 4659 |
+
+So the flat 1200 was under the real need from roughly **five live facts onward**. Fixed with
+`MemoryUpdateResponse.max_output_tokens_for(n) = 1280 + 128n`.
+
+**Two things worth keeping from how this went.** The base is 1280 rather than the 896 the
+measurement alone justified, because 896 yields 1024 at one fact — *below* the 1200 it replaced.
+That is D-115 §10's regression exactly, and **the new test caught it in this session before it
+shipped**, which is the first time that rule has paid for itself. And the fix does not scale
+forever: past **21** live facts the derived budget exceeds the gateway's own 4000-token hard
+ceiling, so the *payload* would have to be bounded — a behaviour change (which facts get
+dropped?) that needs its own decision. Not made here; `consolidation.py` logs
+`memory_consolidation_payload_oversized` with the count so the decision arrives with a
+distribution attached instead of a guess.
+
+### AUD-X-15 — The parent report's output cap was below what its own prompt asks for (P2, found and fixed in S43-continuation, D-116)
+
+Looked at as part of the same carry-over, and the carry-over's premise was wrong here: a report's
+length is a function of the *writing task*, not of how much history went in, so a flat cap is the
+right shape. The measurement found a different defect — the flat cap was simply too small.
+`report.py` asked for 500 output tokens while its own system prompt asks for "two short
+paragraphs" plus a `reasoning` field nothing tells the model to leave empty:
+
+| words/paragraph | 40 | 60 | 80 | 100 | 120 | 150 |
+|---|---|---|---|---|---|---|
+| response tokens | 305 | 448 | **591** | 733 | 876 | 1091 |
+
+Truncation therefore begins around **70 words per paragraph**, and D-115 measured this same model
+emitting ~375 words for a chat answer. **The consequence is not a short report**: the gateway
+raises, and `report.py` falls back to deterministic text, so a parent silently receives the
+un-personalized version and nothing says why. Raised to 1024.
+
+**The coupling was the useful part.** `REPORT_RESERVATION_ESTIMATE_CENTS` is derived from this
+cap, and `test_cost_reservation_estimates.py` — written for AUD-X-08 — failed immediately with
+"a report can cost up to 2.1360 cents but only 1.5 is reserved", which is the guard doing exactly
+its job on a change it was not written for. Reservation raised to 2.25; the 50-cent daily ceiling
+is unchanged and still permits ~70 reports/student/day at the deployed model's rate.
+
+**Neither AUD-X-14 nor AUD-X-15 has been observed failing in production**, because both were
+found by measuring the schema rather than by an incident — which is the posture D-115 §5 asked
+for after the reranker spent a week dead without a single log line. Both will now log
+`output_truncated` if they are hit (AUD-X-11's logging).
+
+### AUD-F-21 — A late stage narrative unmounts the screen the student is already using (P1, found in the S43 continuation, D-116; not fixed)
+
+**Both of criterion 3's two remaining staging failures are this one defect**, and it is not what
+either was filed as. The staging suite reproduced exactly its previous shape — **47 passed /
+2 failed / 4 skipped**, a third consecutive identical run — and the two failures are
+`time-telemetry.spec.ts` and `journey-student.spec.ts`.
+
+**First, what it is not.** The standing hypothesis was a stale served bundle, because the dwell
+failure carries AUD-F-01's signature while AUD-F-01's fix is in `main`. That is now disproved by
+measurement, and the disproof is unusually strong: rebuilding `apps/learning-web` locally at HEAD
+with the deploy's own `VITE_LEARNING_API_URL=""` emits `index-be8gjEfS.js` — the **same
+content-hashed filename** CloudFront serves — and the served file is **byte-identical**
+(SHA-256 `63eca681…7dd1055`). The APIs are `gha-12508257ac10` on both services. Staging is running
+exactly what `main` builds.
+
+**And AUD-F-01's fix demonstrably works on staging.** Its two counting assertions both pass:
+**1** time report during the 15-second dwell (was 899) and **0** overview fetches in the window
+(was 903). What fails is the *value* — a single flush of **2116 ms** against a 15,000 ms dwell —
+which is why keeping both halves of that assertion mattered (D-103 §2).
+
+**The mechanism, from the request timeline.** `App.tsx:199` renders `StageTransitionScreen`
+**instead of** `ExamScreen` — a sibling branch, so a narrative arriving mid-phase *unmounts* the
+exam screen rather than overlaying it, firing the view-time cleanup:
+
+| t | event |
+|---|---|
+| 1259 ms | `GET /exam/overview` returns → `assessment_item_id` defined → view-time effect runs, `viewStartRef = ~1315 ms` |
+| 3370 ms | SSE `/stream` finally connects (locally: near-instant) |
+| 3431 ms | first snapshot lands carrying `stage_narrative` → `ExamScreen` unmounts → **flush of 2116 ms** = 3431 − 1315 ✓ |
+| +13 s | the narrative holds the screen; no further dwell is ever measured |
+
+The same branch explains the other failure exactly: after `POST /exam/finalize`, the outro
+narrative replaces `ExamScreen`, and `StageTransitionScreen` has no `.phase-chip`, so the
+journey's 60-second wait for the next phase resolves `null` and times out. `narrative-refresh`
+(a `test.fail()` expected failure, so it does not appear in the count) corroborates from the other
+side, noting **"narratives dismissed before the exam: 0"** — the narrative had not arrived yet
+when the test looked for it.
+
+**Why it is staging-only:** the narrative is an LLM call. `MockBedrockProvider` returns in ~26 ms,
+so locally the narrative is in the first snapshot before `ExamScreen` ever renders. On real Bedrock
+it lands seconds *after* the student is already working. This is the same "the mock cannot see this
+defect class" lesson as AUD-C-02 and AUD-F-19, on a third surface.
+
+**Real-user impact, not just harness impact — which is why P1 and not P2:**
+1. `time_spent_minutes` for the first item is truncated to however long the narrative took to
+   arrive. This is **upstream of AUD-L-14** (S36's `time_spent_minutes: 0.0` next to
+   `attempts_count: 26`) and feeds wrong numbers into parent reports.
+2. The screen is yanked away mid-question. `ExamScreen` remounts fresh afterwards, so
+   `useState(0)` re-initialises and the student is returned to **Question 1** with `cachedBatch`
+   and `answeredSelections` gone — which is precisely what the refresh probe recorded
+   ("before refresh: Question 3 of 10 / after refresh: Question 1 of 10").
+
+**Not fixed here, deliberately.** The fix is a product decision, not a mechanical one: *should a
+narrative that arrives after the student has started working interpose at all?* The likely right
+shape is to render it as a dismissible overlay above the phase screen rather than as a sibling
+branch that replaces it, and to suppress a stage-intro narrative once interaction has begun — but
+that is visible behaviour on the primary journey and deserves its own decision and its own
+before/after, the same posture D-115 §11 took with answer brevity. **Criterion 3 is blocked on
+this one fix**, and it is now a single well-located change rather than two vague observations.

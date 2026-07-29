@@ -749,8 +749,36 @@ budget behind the 15.94 s:
 | `rag_answer` | 4.16 s | **10.62 s** |
 | end-to-end turn | 9.57 s | 15.94 s |
 
-**Proposed: p95 ≤ 20 s and error rate < 1% at concurrency 5 with ≥2 tasks** (25% headroom over
-the measurement), recorded as a live-staging threshold distinct from the mock-backed k6 one.
+**✅ Decided 2026-07-29 (D-116 §1): p95 ≤ 20 s and error rate < 1% at concurrency 5 with ≥2
+tasks** — 25% headroom over a measurement stable at p95 ≈ 16 s across three runs (15.94 / 16.29 /
+16.09). This is a live-staging threshold **explicitly distinct** from `chat_qa.js`'s mock-backed
+`p(95)<1000`, which is correct for what it measures and stays. Its instrument is
+`load-tests/k6/chat_qa_staging.js` (`make load-staging-chat`): guest turns through the real
+CloudFront edge, a custom `chat_turn_duration` trend so the cheap session-create call cannot
+flatter the p95, and sub-1 s 200s counted as failures so a run cannot pass by refusing quickly.
+
+**✅ Executed 2026-07-29, and criterion 7's chat leg passes on its first real run.**
+70/70 turns, **140/140 checks**, all three thresholds green:
+
+| metric | result | threshold |
+|---|---|---|
+| `chat_turn_duration` p95 | **16.68 s** (med 9.89, max 19.64) | < 20 s ✅ |
+| `http_req_failed` | **0.00%** (0 of 140) | < 1% ✅ |
+| `chat_fast_refusals` | **0** | == 0 ✅ |
+| tasks | **3 running** | ≥ 2 ✅ |
+
+The custom trend earned its place: `http_req_duration` reports med **3.51 s** against the turn's
+real med of **9.89 s**, because the near-instant session-create call is half the requests. A
+threshold read off the default metric would have been measuring the wrong thing.
+**Still unmeasured: criterion 7's learning-app leg** under authenticated load.
+
+**✅ The same 20 s closed AUD-X-13, applied and live-verified.** `terraform apply`: 0 add,
+2 change, 0 destroy. The before/after is unusually clean because the alarm's own history supplied
+a "before" the finding never had — it flapped **ALARM↔OK three times in 100 minutes** on real
+traffic that morning (10:57/11:05, 11:51/12:05, 12:25/12:36). After the change, the load run above
+produced four consecutive minutes of ALB p95 at **14.59 / 15.16 / 16.58 / 17.84 s** — every one
+over the old 3 s threshold, and three is all it needs — and **the alarm never left OK**.
+learning-api stays at 3 s; the scale-out alarm stays at 3 s deliberately.
 **The dominant term is answer length, not infrastructure**: `rag_answer` p50 emits 501 output
 tokens (~375 words) and its p95 10.62 s is time spent generating prose. So the lever that would
 move this number is asking for a shorter answer — which SPEC §5.10.3's age-appropriateness
@@ -767,6 +795,30 @@ AUD-F-16's ask — and the post-finalize narrative stall, the AUD-F-04/05 displa
 staging latency). Diagnose those two and criterion 3 is two clean runs away. The two conditional
 `test.skip()`s (no suggestion chips; no dashboard entry point) should also stop being conditional
 before the criterion is claimed.
+**✅ The stale-bundle hypothesis is dead, measured 2026-07-29 (D-116 §3).** It was the leading
+explanation for the time-telemetry failure and it is wrong. Two independent identities:
+- **API** — ECS runs `gha-12508257ac10` on both services (task definitions 33 and 32), i.e. PR
+  #43's merge, far newer than AUD-F-01's S41 fix.
+- **Served SPA bundle** — this is the one that actually matters, because AUD-F-01's fix is in
+  `App.tsx`, not the API. Rebuilding `apps/learning-web` locally at HEAD with the deploy's own
+  `VITE_LEARNING_API_URL=""` emits `index-be8gjEfS.js`, the **same content-hashed filename**
+  CloudFront serves, and the served file is **byte-identical** (SHA-256
+  `63eca681…7dd1055`).
+
+So staging is serving exactly what `main` builds, AUD-F-01's fix included.
+
+**✅ Diagnosed the same day: both failures are one defect, AUD-F-21 (P1, filed not fixed).**
+The staging suite reproduced **47 passed / 2 failed / 4 skipped** for a third consecutive run.
+AUD-F-01's fix demonstrably *works* on staging — 1 time report (was 899), 0 overview fetches
+(was 903); what fails is the dwell's **value** (2116 ms against a 15,000 ms dwell).
+`App.tsx:199` renders `StageTransitionScreen` as a **sibling** of `ExamScreen`, not above it, so a
+stage narrative arriving 2.1 s into the dwell *unmounts* the exam screen and flushes a truncated
+measurement; the same branch explains the post-finalize stall, since `StageTransitionScreen` has
+no `.phase-chip` for the journey's 60-second wait to find. Staging-only because the narrative is an
+LLM call — ~26 ms on the mock, seconds on real Bedrock.
+**Criterion 3 is now blocked on exactly one change**, which is a better position than two
+undiagnosed observations. The fix is product-visible (should a late narrative interpose at all?)
+and needs its own decision, so it was filed rather than absorbed here.
 **⚠️ Corrected in S42: a merge to `main` does *not* deploy.** Both this file and PROGRESS.md said
 it did, for several sessions. `deploy-staging.yml` is `workflow_dispatch:` only — the `push`
 trigger is commented out on purpose ("not something that should fire unattended on every push
