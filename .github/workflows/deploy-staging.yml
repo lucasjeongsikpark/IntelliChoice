@@ -124,6 +124,13 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: ${{ env.ECR_REGISTRY }}/learning-api:${{ steps.vars.outputs.tag }}
+          # AUD-F-16: bake the commit into the image so `/healthz` can name it. The image
+          # tag already encodes the SHA, but that is only readable to someone with AWS
+          # access reading the task definition - not to a test run, a browser, or a
+          # `curl`. Note the reuse branch above: a rebuild is skipped when the tag already
+          # exists, which is correct here too, since the same tag means the same commit.
+          build-args: |
+            APP_BUILD_SHA=${{ github.sha }}
 
       - name: Build and push chat-api
         if: steps.images.outputs.chat_api_exists == 'false'
@@ -134,6 +141,9 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: ${{ env.ECR_REGISTRY }}/chat-api:${{ steps.vars.outputs.tag }}
+          # AUD-F-16 - see the matching comment on the learning-api build above.
+          build-args: |
+            APP_BUILD_SHA=${{ github.sha }}
 
       # S34: found live, on this workflow's first-ever real run - every deploy before
       # this fix ran migrations against whatever image Terraform's last `ops_task` apply

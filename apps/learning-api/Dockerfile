@@ -63,9 +63,14 @@ COPY --from=builder /app/knowledge-content /app/knowledge-content
 # readonlyRootFilesystem=true (S33 Fargate hardening); Python would otherwise attempt
 # (and harmlessly fail, but still attempt) to write .pyc caches under the read-only
 # tree on every import.
+# S43 (AUD-F-16): the image's own git SHA - see the matching comment in
+# apps/chat-api/Dockerfile for why it sits here rather than in the builder stage.
+ARG APP_BUILD_SHA=""
+
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    APP_BUILD_SHA=${APP_BUILD_SHA}
 
 USER appuser
 EXPOSE 8001

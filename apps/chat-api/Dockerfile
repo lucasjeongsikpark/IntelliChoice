@@ -45,10 +45,17 @@ COPY --from=builder /app/apps/chat-api /app/apps/chat-api
 COPY --from=builder /app/curriculum /app/curriculum
 COPY --from=builder /app/knowledge-content /app/knowledge-content
 
+# S43 (AUD-F-16): the image's own git SHA, so `/healthz` can say what version is running
+# and a test run can record what it tested. Last, and in the runtime stage only, so it
+# cannot invalidate the builder layers - a new SHA on every commit would otherwise mean a
+# full `uv sync` on every build. Empty in a plain `docker build`, which reports "unknown".
+ARG APP_BUILD_SHA=""
+
 # D-088: see the matching comment in apps/learning-api/Dockerfile.
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    APP_BUILD_SHA=${APP_BUILD_SHA}
 
 USER appuser
 EXPOSE 8002

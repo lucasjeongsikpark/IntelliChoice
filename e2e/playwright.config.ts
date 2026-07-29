@@ -15,9 +15,16 @@ const isLocal = TARGET === "local";
  * `retries: 0` for the same reason S37/S38 kept probes out of the test suite: an audit
  * wants the first result, and a retry that passes hides exactly the flake §2.6
  * criterion 4 asks to eliminate.
+ *
+ * S43 (AUD-F-16): `reuseExistingServer: true` below is kept - restarting the APIs on
+ * every run would make the local loop much slower, and the reuse is not the defect. The
+ * defect was that reuse was *unverifiable*. `globalSetup` now reads both APIs' identity
+ * and fails the run if either booted before the newest source file, which is the check
+ * that makes the reuse safe rather than merely convenient.
  */
 export default defineConfig({
   testDir: "./tests",
+  globalSetup: "./fixtures/global-setup.ts",
   fullyParallel: false,
   workers: 1,
   retries: 0,

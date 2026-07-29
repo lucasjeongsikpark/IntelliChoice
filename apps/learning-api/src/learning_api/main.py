@@ -25,6 +25,7 @@ from intellichoice_observability.tracing import (
 )
 from intellichoice_shared.auth import Audience, Role, TokenClaims, staging_secret_matches
 from intellichoice_shared.bedrock import BedrockTask
+from intellichoice_shared.build_identity import build_identity
 from intellichoice_shared.db_ready import ping_engine
 from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.mcp import McpTool, McpToolRegistry
@@ -213,9 +214,11 @@ app.include_router(questions_router)
 
 
 @app.get("/healthz")
-async def healthz() -> dict[str, str]:
+async def healthz() -> dict[str, str | float]:
+    # AUD-F-16: the build/boot identity rides on the liveness check so a test run can
+    # record what version answered it. See `build_identity`'s docstring.
     settings = get_settings()
-    return {"status": "ok", "environment": settings.environment}
+    return {"status": "ok", "environment": settings.environment, **build_identity()}
 
 
 @app.get("/readyz")
