@@ -237,7 +237,10 @@ locals {
 # with no extra infrastructure (ALB request-count-per-target scaling would react faster
 # to the I/O-bound concurrency this app's own S34 load test actually bottlenecked on,
 # but needs the target group's ARN suffix wired through as a second signal - left as
-# future work if CPU-based scaling proves too slow to react in practice). Bounded to a
+# future work if CPU-based scaling proves too slow to react in practice). AUD-F-14
+# measured that "too slow" was in fact "never" for chat-api: p95 sat at 31s while CPU
+# peaked at 15%, so `enable_latency_step_scaling` below swaps this policy for
+# latency-driven step scaling per service. Bounded to a
 # modest `max_capacity` (default 3) deliberately, not "as high as possible" - this
 # account is still on Free Tier constraints (D-084) and a solo-maintainer ~1,000-MAU
 # target doesn't need enterprise-scale headroom.
@@ -251,7 +254,7 @@ resource "aws_appautoscaling_target" "this" {
 }
 
 resource "aws_appautoscaling_policy" "cpu" {
-  count              = var.enable_autoscaling ? 1 : 0
+  count              = var.enable_autoscaling && !var.enable_latency_step_scaling ? 1 : 0
   name               = "${var.name_prefix}-${var.name}-cpu-target-tracking"
   policy_type        = "TargetTrackingScaling"
   service_namespace  = aws_appautoscaling_target.this[0].service_namespace
@@ -266,4 +269,104 @@ resource "aws_appautoscaling_policy" "cpu" {
     scale_in_cooldown  = 120
     scale_out_cooldown = 60
   }
+}
+
+# AUD-F-14: latency-driven step scaling for I/O-bound services (see the variable's
+# comment for why this replaces rather than augments the CPU policy). The scale-out
+# alarm mirrors the observability module's notification alarm (`TargetResponseTime`
+# p95 > 3s - see that module for the full S34 threshold rationale) but is a separate
+# resource on purpose: the notification alarm's only action stays the SNS topic, so
+# criterion 8's "alarm reaches a monitored inbox" evidence is unentangled with scaling,
+# and scaling reacts after 2 breaching minutes rather than the notification's 3.
+resource "aws_appautoscaling_policy" "latency_scale_out" {
+  count              = var.enable_autoscaling && var.enable_latency_step_scaling ? 1 : 0
+  name               = "${var.name_prefix}-${var.name}-p95-latency-scale-out"
+  policy_type        = "StepScaling"
+  service_namespace  = aws_appautoscaling_target.this[0].service_namespace
+  resource_id        = aws_appautoscaling_target.this[0].resource_id
+  scalable_dimension = aws_appautoscaling_target.this[0].scalable_dimension
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 120
+    metric_aggregation_type = "Average"
+
+    # Bounds are relative to the alarm threshold (3s): p95 3-10s adds one task,
+    # anything past 10s (AUD-F-14's incident measured 31s) jumps by two, capped by
+    # the target's max_capacity.
+    step_adjustment {
+      metric_interval_lower_bound = 0
+      metric_interval_upper_bound = 7
+      scaling_adjustment          = 1
+    }
+    step_adjustment {
+      metric_interval_lower_bound = 7
+      scaling_adjustment          = 2
+    }
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "latency_scale_out" {
+  count               = var.enable_autoscaling && var.enable_latency_step_scaling ? 1 : 0
+  alarm_name          = "${var.name_prefix}-${var.name}-p95-latency-scale-out"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "TargetResponseTime"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  extended_statistic  = "p95"
+  threshold           = 3
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "AUD-F-14: ${var.name} p95 over 3s for 2 minutes - scale out (CPU cannot see this workload's saturation)."
+  dimensions = {
+    LoadBalancer = var.alb_arn_suffix
+    TargetGroup  = aws_lb_target_group.this.arn_suffix
+  }
+  alarm_actions = [aws_appautoscaling_policy.latency_scale_out[0].arn]
+  tags          = var.tags
+}
+
+# Scale-in leg: p95 comfortably under 1s for 15 consecutive minutes. `TargetResponseTime`
+# publishes nothing when there are no requests at all, so missing data is treated as
+# breaching - "no traffic" is the strongest possible evidence the extra tasks are idle.
+# At min_capacity the policy's -1 is a no-op, so the alarm sitting in ALARM overnight is
+# harmless.
+resource "aws_appautoscaling_policy" "latency_scale_in" {
+  count              = var.enable_autoscaling && var.enable_latency_step_scaling ? 1 : 0
+  name               = "${var.name_prefix}-${var.name}-p95-latency-scale-in"
+  policy_type        = "StepScaling"
+  service_namespace  = aws_appautoscaling_target.this[0].service_namespace
+  resource_id        = aws_appautoscaling_target.this[0].resource_id
+  scalable_dimension = aws_appautoscaling_target.this[0].scalable_dimension
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    cooldown                = 300
+    metric_aggregation_type = "Average"
+
+    step_adjustment {
+      metric_interval_upper_bound = 0
+      scaling_adjustment          = -1
+    }
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "latency_scale_in" {
+  count               = var.enable_autoscaling && var.enable_latency_step_scaling ? 1 : 0
+  alarm_name          = "${var.name_prefix}-${var.name}-p95-latency-scale-in"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 15
+  metric_name         = "TargetResponseTime"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  extended_statistic  = "p95"
+  threshold           = 1
+  treat_missing_data  = "breaching"
+  alarm_description   = "AUD-F-14: ${var.name} p95 under 1s (or no traffic) for 15 minutes - scale back in."
+  dimensions = {
+    LoadBalancer = var.alb_arn_suffix
+    TargetGroup  = aws_lb_target_group.this.arn_suffix
+  }
+  alarm_actions = [aws_appautoscaling_policy.latency_scale_in[0].arn]
+  tags          = var.tags
 }

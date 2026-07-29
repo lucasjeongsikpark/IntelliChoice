@@ -23,6 +23,7 @@ from intellichoice_db.engine import create_engine, create_session_factory
 from intellichoice_db.models.chat import ChatSuggestion
 from intellichoice_db.repositories.chat import ChatSuggestionRepository
 from intellichoice_shared.auth import Audience, Role
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from sqlalchemy import text
 
 issuer = FakeTokenIssuer()
@@ -235,6 +236,82 @@ def test_branch_locator_consent_then_zip_round_trip_over_http() -> None:
 
     assert "Main Branch" in result["answer"]
     assert "North Branch" in result["answer"]
+
+
+async def _checkpoint_writes_for_thread(thread_id: str) -> list[tuple[str, str, bytes]]:
+    """Raw `(channel, type, blob)` rows LangGraph's `AsyncPostgresSaver` persisted for
+    one thread. Fresh engine for the same reason as `_snapshot` (separate event loop).
+    """
+    engine = create_engine()
+    try:
+        session_factory = create_session_factory(engine)
+        async with session_factory() as session:
+            result = await session.execute(
+                text(
+                    "SELECT channel, type, blob FROM checkpoint_writes "
+                    "WHERE thread_id = :thread_id"
+                ),
+                {"thread_id": thread_id},
+            )
+            return [(row.channel, row.type, bytes(row.blob)) for row in result]
+    finally:
+        await engine.dispose()
+
+
+def test_resume_coordinates_do_not_outlive_the_locator_turn_in_checkpoint_writes() -> None:
+    """AUD-C-03: the caller's precise coordinates arrived in the `/respond` resume
+    payload and stayed in `checkpoint_writes` channel `__resume__` forever, against
+    `LOCATION_CONSENT_NOTICE`'s verbatim "will not permanently store your precise
+    location" (SPEC §5.1.3). After the locator turn completes, no `__resume__` row may
+    remain for the thread, and the coordinates must not appear in any surviving write.
+
+    Blobs are decoded with LangGraph's own serializer before matching - the audit's
+    first probe used `CAST(blob AS text) LIKE`, and msgpack renders a float as eight
+    binary bytes, so that version certified a database full of coordinates as clean.
+    """
+    distinctive_lat, distinctive_lon = 12.345678, -98.765432
+    serde = JsonPlusSerializer()
+
+    with TestClient(app) as client:
+        session_id = client.post("/chat/sessions").json()["chat_session_id"]
+        paused = client.post(
+            f"/chat/sessions/{session_id}/messages",
+            json={"query": "What is the nearest branch to me?"},
+        ).json()
+        assert paused["pending_interrupt"]["interrupt_type"] == "location_consent"
+
+        result = client.post(
+            f"/chat/sessions/{session_id}/respond",
+            json={
+                "interrupt_type": "location_consent",
+                "approved": True,
+                "latitude": distinctive_lat,
+                "longitude": distinctive_lon,
+            },
+        ).json()
+        # The coordinates really were used - the locator answered with distances.
+        assert result["answer"] is not None
+        assert "km away" in result["answer"]
+
+        # The audit measured the coordinates surviving two further turns; the purge
+        # must not break the thread for them either.
+        for query in ("zqxvchunk handbook", "What is the nearest branch to me?"):
+            followup = client.post(
+                f"/chat/sessions/{session_id}/messages", json={"query": query}
+            )
+            assert followup.status_code == 200
+
+    rows = asyncio.run(_checkpoint_writes_for_thread(session_id))
+    assert rows, "expected checkpoint writes for the thread - wrong thread id?"
+
+    resume_rows = [row for row in rows if row[0] == "__resume__"]
+    # The second locator turn above is still paused on its consent interrupt and was
+    # never resumed, so no `__resume__` value exists for it either.
+    assert resume_rows == []
+
+    decoded = " ".join(repr(serde.loads_typed((type_, blob))) for _, type_, blob in rows)
+    assert str(distinctive_lat) not in decoded
+    assert str(distinctive_lon) not in decoded
 
 
 def test_an_anonymous_caller_cannot_continue_an_owned_thread() -> None:

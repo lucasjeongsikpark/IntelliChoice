@@ -5265,3 +5265,115 @@ filter failing closed correctly. No code change; re-check on/after Aug 1 (carry-
 
 **Outcome.** Two P1s closed outright (AUD-C-16, AUD-F-19) and AUD-C-02's pending verification
 closed. **Five P1s remain: AUD-L-04, AUD-L-07 (read half), AUD-C-03, AUD-X-07 (half), AUD-F-14.**
+
+## D-113 — AUD-C-03 and AUD-F-14: the coordinates purge, the scaling-signal swap, and the re-baseline that found the baseline gone (accepted, 2026-07-28)
+
+**Context.** The two remaining P1s with neither a fix nor a written disposition. Taken in
+PROGRESS.md's stated order: C-03 first (cheap, and it is minors' coordinates), then F-14.
+Baseline at session start: 560 passed / 2 skipped, lint and pyright clean — matching D-112's
+close-out exactly.
+
+### 1. AUD-C-03 — a targeted `__resume__` delete, exactly as the finding prescribed
+
+`services/checkpoint_privacy.purge_resume_writes` deletes `checkpoint_writes` rows with
+`channel = '__resume__'` for the thread, called in `/respond` immediately after a
+`location_consent` resume's `ainvoke` returns, on the request's own DB session (same Postgres
+instance; the checkpointer's separate psycopg pool only matters for writes). Crash-safety is
+untouched: the resume value exists to survive a crash *while the node is paused or replaying*,
+and by the time the delete runs the post-node checkpoint is already written.
+
+**This supersedes two claims in D-045.** "Briefly" was measured as "the unbounded lifetime of
+the thread" (the audit found the coordinates still present two turns later, and nothing ever
+purged them — `chat-purge` covers `tutor_chat_messages`, not the checkpoint tables). And
+"removal would mean disabling checkpointing for one specific node" was wrong — the targeted
+delete removes the value while keeping checkpointing fully intact.
+
+**Scoped to `location_consent` resumes deliberately.** Email/calendar resume values are a
+boolean and a choice string; deleting them too would be harmless, but the PII promise this
+repairs is specifically the consent notice's, and an unconditional delete would make the
+regression test's subject ambiguous.
+
+**The reproduction honored the audit's method note.** The test
+(`test_resume_coordinates_do_not_outlive_the_locator_turn_in_checkpoint_writes`) drives the
+real HTTP endpoints against the real `AsyncPostgresSaver`, then decodes the raw blobs with
+LangGraph's own `JsonPlusSerializer` — never a text cast, which renders msgpack floats as hex
+and certifies a database full of coordinates as clean. Watched failing before the fix: two
+`__resume__` msgpack rows containing the distinctive lat/lon, exactly the audit's "twice". The
+thread survives two further turns post-delete (the persistence window the audit measured).
+Suite: **561 passed / 2 skipped**, lint and pyright clean.
+
+**Not yet on staging.** The fix is code; it rides the next merge + dispatched deploy. Staging
+exposure meanwhile is nil-to-cosmetic: S37 found staging's checkpoint tables coordinate-free
+(no locator turn had run), and the staging e2e locator spec resumes with a **zip code**, which
+is not the precise location the notice promises about. Worth one live probe after the deploy:
+run a locator turn with coordinates against staging, then confirm `checkpoint_writes` is clean.
+
+### 2. AUD-F-14 — step scaling on p95 latency, *replacing* CPU tracking rather than joining it
+
+Decision (user, this session): a step-scaling policy on the ALB `TargetResponseTime` p95
+signal, per the finding's own suggestion — it is the signal that actually measured 10× out of
+bounds while CPU sat at 15%. `ALBRequestCountPerTarget` was rejected because its target value
+would be a guess at this workload's very low absolute request rates; static `desired_count=2`
+because it doubles steady-state cost and reacts to nothing.
+
+**One deviation from the session plan as confirmed:** the CPU policy could not stay alongside.
+Target-tracking's scale-in leg reads the ~5% CPU that accompanies exactly this incident shape
+as idleness and would undo the latency policy's scale-out mid-incident — the two policies would
+fight, alternating out and in. So `enable_latency_step_scaling` **swaps** the policy per
+service: chat-api moved to latency steps, learning-api stays on CPU tracking (F-14's
+measurement was chat-only, and swapping a signal without a measurement is how the CPU policy
+got here — D-095's lesson).
+
+Shape: scale-out alarm at p95 > 3 s for 2 minutes (a separate alarm from the observability
+module's notification alarm, so criterion 8's "reaches a monitored inbox" evidence stays
+unentangled with scaling) stepping +1 at 3–10 s and +2 past 10 s; scale-in alarm at p95 < 1 s
+— or **no traffic, `treat_missing_data = breaching`**, since `TargetResponseTime` publishes
+nothing without requests — for 15 minutes, stepping −1 with a 300 s cooldown. Applied to
+staging this session (plan: 4 add / 1 destroy / 0 change, chat-api only).
+
+**Verified live, and the verification shape mattered:** under sustained 5-concurrent guest
+load, the alarm entered ALARM within 2 minutes and the policy set desiredCount **1 → 3 in one
+step** (p95 was ~26 s past the threshold, the +2 band), with the second task running ~60 s
+later. The old CPU policy never moved off 1 under the identical load shape.
+
+### 3. What the re-baseline actually measured: the baseline itself is gone
+
+The audit's numbers were 1.6 s unloaded, p50 26.9 s at concurrency 5 — a 17× queueing
+amplification. Today's run (114 turns, 0 errors, sustained 5-concurrent):
+
+- **A single unloaded grounded turn takes ~29 s** (28.7 / 29.0 / 29.7 / 27.1 s measured
+  sequentially, including a no-source refusal). The audit's 1.6 s guest turns were measured
+  *before* D-112 gave staging a real corpus — against noise retrieval, turns refused early and
+  cheap. The per-turn log timeline shows scope+intent ~2 s, embedding instant, then a
+  **consistent ~26 s gap** until `rag_answer` logs — and **no `rerank` bedrock_call line at
+  all**, though local runs log one. ~26 s is far too long for a 3.7k-in/700-out Haiku 4.5
+  call chain. Undiagnosed; carry-over, likely its own finding once measured properly.
+- **Load p50 28.8 s / p95 32.8 s ≈ single-turn latency — the queueing amplification is gone**,
+  which is what capacity was supposed to buy. But note it honestly: turns 21–24 already ran at
+  ~28–33 s while only one task was in service, so today's workload shows little amplification
+  even pre-scale-out. The audit's 17× serialization is not reproducible against the current
+  deploy either. Both facts point at the same conclusion:
+- **Criterion 7 cannot be evidenced against the S34-calibrated 3 s threshold** — not for lack
+  of tasks (≥2 tasks under load is now demonstrated) but because the workload underneath
+  changed: every grounded turn costs ~29 s regardless of concurrency. The threshold was
+  calibrated against `MockBedrockProvider`; the criterion needs recalibrating against the
+  ~29 s reality — or the ~26 s gap diagnosed and removed first, which is the better order.
+- **Nine turns of 114 returned 200 in 30–84 ms with zero Bedrock calls**, in two tight bursts
+  coinciding with new tasks entering the target group. Not reproducible afterward (6/6
+  identical concurrent probes all answered grounded at ~27–33 s). No WARNING/ERROR logs in the
+  window. Unexplained; carry-over, diagnose before filing.
+
+### 4. Observed and deliberately not chased
+
+- The ~26 s embedding→rag_answer gap and the missing rerank log line (above) — one diagnosis,
+  probably; it should start from a single traced turn with OTel on.
+- The 30 ms no-Bedrock 200s during task churn (above).
+- Scale-in back to 1 was still pending when this entry was written (the 15-minute quiet window
+  plus 300 s cooldowns puts full return ~30 min after load stops); confirmed or corrected in
+  PROGRESS.md's session entry.
+
+**Outcome.** Two P1s closed pending the routine merge + deploy (AUD-C-03's purge is local
+code; AUD-F-14's scaling is applied and live-verified). **Three P1s remain: AUD-L-04,
+AUD-L-07 (read half — disposition (b) recommended at the gate), AUD-X-07 (half, disposition in
+D-110 §3).** Criterion 7's threshold leg moved from "unreachable as configured" to "needs
+recalibration against a changed workload" — progress, but not a pass.

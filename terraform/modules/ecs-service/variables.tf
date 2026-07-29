@@ -154,6 +154,24 @@ variable "autoscaling_cpu_target_percent" {
   default = 70
 }
 
+# AUD-F-14: this service's load is I/O-bound (it waits on Bedrock, not the CPU), so the
+# CPU target-tracking policy above can never fire on it - measured live at concurrency 5,
+# p95 sat at 31s while CPU peaked at 15% against the 70% target. When this flag is on,
+# latency-driven step scaling REPLACES the CPU policy for the service rather than running
+# alongside it: with both active, the CPU policy's scale-in leg would read the ~5% CPU that
+# accompanies exactly this kind of incident as idleness and undo the step policy's
+# scale-out mid-incident.
+variable "enable_latency_step_scaling" {
+  type    = bool
+  default = false
+}
+
+variable "alb_arn_suffix" {
+  description = "ALB arn_suffix for the latency alarms' dimensions - required when enable_latency_step_scaling is true."
+  type        = string
+  default     = null
+}
+
 # S39 (AUD-F): the OTLP collector both apps' `OTEL_ENABLED=true` path needs.
 #
 # `packages/observability`'s `configure_tracing` exports OTLP/HTTP to an endpoint; locally

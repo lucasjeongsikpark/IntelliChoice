@@ -712,26 +712,27 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**Standing as of 2026-07-27.** **5 met** (six consecutive clean pipeline deploys plus the
+**Standing as of 2026-07-28 (post-D-111/D-112).** **5 met** (six consecutive clean pipeline deploys plus the
 demonstrated auto-rollback; the "consecutive" ambiguity D-105 left open is settled — `73396c1` →
 `c58d1fe` has no failed deployment between them on either reading). **6 is on the calendar**, earliest
-2026-08-02. **4 is half met**: the test half is green and D-106 removed the recurring flake source,
-but CI on `main` still runs only `lint-typecheck-test` and `learning-web`, so `chat-web` and `e2e/`
-remain unbuilt by CI (AUD-F-08). **2 needs seven more P1s** (was nine; AUD-L-10 and AUD-X-08 closed in S42/D-110, but AUD-F-19 is a
-new one, so the net is eight). **3 is NOT met, and is no longer "one deploy short" — S42 ran the
-staging suite for the first time and it came back 40 passed / 10 failed / 3 skipped.** The ten are
-two real findings, not harness noise: **AUD-F-19 (P1)** — on real Bedrock "What are the Saturday
-hours?" routes to `location_consent` 3/3 and is never answered, and "How do I enroll a student?"
-returned three different products in three identical calls (latency ruled out: a guest turn takes
-**1.4 s**) — and **AUD-F-20 (P2)** — staging's seeded attendance is written for
-`current_week_key()` *at seed time*, so the "present this week" fixture is now blocked and every
-learning journey fails. The gate is behaving correctly on stale data. **Criterion 3 evidence on
-staging therefore has a weekly expiry** unless the deploy re-seeds. Original standing: **3 was code-complete and one deploy
-short**: AUD-F-02 and the e2e intermittency are both fixed and the suite is green three runs
-running locally, but the criterion asks for two consecutive passes **against live staging** and the
-fixes are frontend code staging has not been given — deploy, then `make e2e-staging` twice. Two
-conditional `test.skip()`s (no suggestion chips; no dashboard entry point) should stop being
-conditional before the criterion is claimed.
+2026-08-02. **4 is met** (D-111: `chat-web` and `e2e-typecheck` CI jobs landed; AUD-F-08 closed).
+**2 needs three more P1s**: AUD-L-04, AUD-L-07 (read half — but see the ordering note below),
+AUD-X-07 (half). The chat cluster closed AUD-C-16, AUD-C-02 and AUD-F-19
+(D-112), AUD-F-20 closed with D-111's deploy-time re-seed, and D-113 closed AUD-C-03 (purge
+rides the next deploy) and AUD-F-14 (latency step scaling, live-verified 1 → 3 under load).
+**7's "≥2 tasks under load" is now demonstrated, but its threshold leg found the workload
+changed underneath it**: a single grounded chat turn costs ~29 s against the real corpus
+(D-113 §3 — an undiagnosed ~26 s gap between embedding and answer), so the S34-calibrated 3 s
+p95 is unmeetable at any task count until that is diagnosed or the calibration redone. **3 is close but not claimable:
+the last two staging e2e runs are 47 passed / 2 failed / 4 skipped, twice, against two different
+deploys** — every chat journey passes with a working semantic channel underneath (D-112), and the
+weekly-expiry caveat is gone (the deploy re-seeds). The two failures are both learning-side
+staging-only observations with no IDs yet (PROGRESS: the time-telemetry dwell that looks like
+AUD-F-01's signature despite the fix being deployed — check the served-bundle identity,
+AUD-F-16's ask — and the post-finalize narrative stall, the AUD-F-04/05 displacement family under
+staging latency). Diagnose those two and criterion 3 is two clean runs away. The two conditional
+`test.skip()`s (no suggestion chips; no dashboard entry point) should also stop being conditional
+before the criterion is claimed.
 **⚠️ Corrected in S42: a merge to `main` does *not* deploy.** Both this file and PROGRESS.md said
 it did, for several sessions. `deploy-staging.yml` is `workflow_dispatch:` only — the `push`
 trigger is commented out on purpose ("not something that should fire unattended on every push

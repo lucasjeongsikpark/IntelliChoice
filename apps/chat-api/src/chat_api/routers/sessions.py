@@ -40,6 +40,7 @@ from chat_api.dependencies import (
 from chat_api.graph.build import AskInput, QAGraph
 from chat_api.graph.nodes import TurnContext
 from chat_api.services import suggestions
+from chat_api.services.checkpoint_privacy import purge_resume_writes
 from chat_api.services.session_events import ChatSessionEventBus
 
 router = APIRouter(prefix="/chat/sessions", tags=["chat-sessions"])
@@ -431,6 +432,14 @@ async def respond_to_interrupt(
         config=_graph_config(chat_session_id),
         context=ctx,
     )
+
+    if isinstance(body, LocationConsentChoice):
+        # AUD-C-03: the resume payload above is the only place the caller's precise
+        # location exists, and the saver has just persisted it to `checkpoint_writes`
+        # (`__resume__`). The node is done, so remove it - see
+        # `services/checkpoint_privacy.py` for the full reasoning. Committed with the
+        # rest of this request's session by `get_db_session`.
+        await purge_resume_writes(db, chat_session_id)
 
     next_pending = _result_interrupt(result)
     citations = [CitationResponse(**c) for c in result.get("citations") or []]
