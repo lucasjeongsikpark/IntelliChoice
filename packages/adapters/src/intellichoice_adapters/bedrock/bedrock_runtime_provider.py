@@ -74,4 +74,9 @@ class AnthropicBedrockProvider:
             text=json.dumps(tool_use["input"]),
             input_tokens=usage.get("inputTokens", 0),
             output_tokens=usage.get("outputTokens", 0),
+            # `converse` still returns a `toolUse` block when it runs out of output
+            # budget mid-emission; its `input` is simply a truncated fragment that
+            # happens to be valid JSON of the wrong shape. Only `stopReason` tells the
+            # two apart (D-115).
+            truncated=response.get("stopReason") == "max_tokens",
         )

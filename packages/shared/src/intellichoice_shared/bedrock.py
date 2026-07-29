@@ -438,9 +438,17 @@ class ScopeAndIntentResponse(BaseModel):
 
 
 class RerankCandidate(BaseModel):
+    """Candidates are identified to the model by their *position* in the request, not by
+    their `chunk_id` (D-115). A chunk id is a 36-character UUID that costs ~20 output
+    tokens to echo back; at 30 candidates that alone is most of a rerank response, and
+    the measured effect was real: with UUID keys the response needed 1361 output tokens
+    and 15.7 s, against 613 tokens and 3.2 s for these indices. The caller maps indices
+    back to chunks deterministically, so the model never handles an identifier at all.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    chunk_id: str
+    candidate_index: int
     chunk_text: str
 
 
@@ -458,12 +466,25 @@ class RerankPayload(BaseModel):
 
 
 class RerankedScore(BaseModel):
-    chunk_id: str
+    candidate_index: int
     relevance_score: float
 
 
 class RerankResponse(BaseModel):
     scores: list[RerankedScore]
+
+    @staticmethod
+    def max_output_tokens_for(candidate_count: int) -> int:
+        """The output budget this response needs for `candidate_count` candidates.
+
+        Sized from the count rather than fixed, because a fixed cap is what broke: 1024
+        tokens silently truncated every 30-candidate rerank on staging for as long as
+        the corpus was real (D-115). Measured need for the index-keyed shape is ~613
+        tokens at 30 candidates (~20/candidate); 48 per candidate plus 128 of framing is
+        ~2.3x that measurement, which leaves room for a chattier model without leaving
+        room for the cap to be the thing that fails.
+        """
+        return 128 + 48 * max(candidate_count, 0)
 
 
 class RagContextChunk(BaseModel):

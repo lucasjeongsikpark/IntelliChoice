@@ -24,6 +24,11 @@ class RawGeneration:
     text: str
     input_tokens: int
     output_tokens: int
+    # True when the model stopped because it hit `max_output_tokens` rather than because
+    # it finished. The text is then a fragment, and the gateway must not spend a repair
+    # call on it - an identical retry under the same ceiling truncates identically
+    # (D-115: exactly this cost ~21 s and ~3.2 cents on every staging chat turn).
+    truncated: bool = False
 
 
 @dataclass(frozen=True)

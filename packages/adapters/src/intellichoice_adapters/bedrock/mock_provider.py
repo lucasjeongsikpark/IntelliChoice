@@ -250,11 +250,16 @@ def _rerank_json(payload: dict) -> dict:
     """
     query_words = {w for w in (payload.get("query") or "").lower().split() if len(w) > 2}
     scores = []
-    for candidate in payload.get("candidates", []):
+    for position, candidate in enumerate(payload.get("candidates", [])):
         text = (candidate.get("chunk_text") or "").lower()
         overlap = sum(1 for word in query_words if word in text)
         score = overlap / len(query_words) if query_words else 0.0
-        scores.append({"chunk_id": candidate.get("chunk_id"), "relevance_score": round(score, 4)})
+        scores.append(
+            {
+                "candidate_index": candidate.get("candidate_index", position),
+                "relevance_score": round(score, 4),
+            }
+        )
     return {"scores": scores}
 
 

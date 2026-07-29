@@ -5,6 +5,7 @@ citation verification, not a reusable ingestion-package concern (mirrors
 `ingest.py`/`chunking.py`'s existing split between this package and its callers).
 """
 
+import logging
 from dataclasses import dataclass
 
 from intellichoice_db.models.rag import RagChunk
@@ -18,11 +19,21 @@ from intellichoice_shared.bedrock import (
     RerankResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class RetrievalResult:
     chunks: list[RagChunk]
     cost_cents: float
+
+
+def _by_score(scored_chunk: tuple[RagChunk, float]) -> float:
+    """Descending by rerank score. Sorting on the negated score (rather than
+    `reverse=True`) keeps Python's stable sort meaningful: candidates the reranker tied
+    stay in hybrid-search/RRF order instead of being reversed among themselves.
+    """
+    return -scored_chunk[1]
 
 
 async def retrieve(
@@ -69,27 +80,42 @@ async def retrieve(
             payload=RerankPayload(
                 query=query,
                 candidates=[
-                    RerankCandidate(chunk_id=chunk.chunk_id, chunk_text=chunk.chunk_text)
-                    for chunk in candidates
+                    RerankCandidate(candidate_index=index, chunk_text=chunk.chunk_text)
+                    for index, chunk in enumerate(candidates)
                 ],
             ),
             response_model=RerankResponse,
-            max_output_tokens=1024,
+            max_output_tokens=RerankResponse.max_output_tokens_for(len(candidates)),
             session_spend_cents=spend_so_far,
         )
     except BedrockGatewayError as exc:
+        # Degraded, not failed: the RRF-fused order is still a real ordering. But it is
+        # unfiltered - the score>0 cut below never runs - so answer quality drops
+        # silently, which is exactly how this went unnoticed on staging for a week
+        # (D-115). Log it loudly enough that the next occurrence is one query away.
+        logger.warning(
+            "retrieval_rerank_degraded",
+            extra={
+                "reason": type(exc).__name__,
+                "detail": str(exc),
+                "candidate_count": len(candidates),
+                "cost_cents": exc.cost_cents,
+            },
+        )
         return RetrievalResult(
             chunks=candidates[:top_k], cost_cents=embedding_result.cost_cents + exc.cost_cents
         )
 
-    score_by_id = {s.chunk_id: s.relevance_score for s in rerank_result.value.scores}
+    score_by_index = {s.candidate_index: s.relevance_score for s in rerank_result.value.scores}
     # The rerank prompt's own scale defines 0 as "irrelevant" - a candidate the
     # reranker scored exactly 0 was never a real answer to the query, just the
     # closest-available row from a hybrid search that (by design) always returns up
     # to candidate_limit rows even when none are actually relevant. Dropping those
     # before synthesis is what makes reranking a real filter, not just a sort.
-    relevant = [c for c in candidates if score_by_id.get(c.chunk_id, 0.0) > 0.0]
-    ranked = sorted(relevant, key=lambda c: score_by_id.get(c.chunk_id, 0.0), reverse=True)
+    scored = [
+        (chunk, score_by_index.get(index, 0.0)) for index, chunk in enumerate(candidates)
+    ]
+    ranked = [chunk for chunk, score in sorted(scored, key=_by_score) if score > 0.0]
     return RetrievalResult(
         chunks=ranked[:top_k], cost_cents=embedding_result.cost_cents + rerank_result.cost_cents
     )
