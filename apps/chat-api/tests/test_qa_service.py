@@ -7,6 +7,7 @@ test_tutor_service.py::_FakeGateway`) so each test controls exactly what the mod
 """
 
 import asyncio
+import logging
 from datetime import UTC, datetime
 
 import pytest
@@ -37,6 +38,8 @@ class _FakeGateway:
 
     def __init__(self, outcome: BedrockGenerationResult[BaseModel] | BedrockGatewayError) -> None:
         self._outcome = outcome
+        self.max_output_tokens: int | None = None
+        self.payload: BaseModel | None = None
 
     async def generate_structured[T: BaseModel](
         self,
@@ -48,6 +51,8 @@ class _FakeGateway:
         max_output_tokens: int,
         session_spend_cents: float,
     ) -> BedrockGenerationResult[T]:
+        self.max_output_tokens = max_output_tokens
+        self.payload = payload
         if isinstance(self._outcome, BedrockGatewayError):
             raise self._outcome
         assert isinstance(self._outcome.value, response_model)
@@ -134,7 +139,7 @@ def test_answer_question_verifies_citation_quote_against_real_chunk_text() -> No
                         answer="Attendance is required for every on-site session.",
                         citations=[
                             LlmCitation(
-                                chunk_id=chunk.chunk_id,
+                                context_index=0,
                                 quote="Attendance is required for every on-site session.",
                             )
                         ],
@@ -183,7 +188,7 @@ def test_answer_question_drops_a_citation_whose_quote_is_fabricated() -> None:
                         answer="Attendance is optional for parents.",
                         citations=[
                             LlmCitation(
-                                chunk_id=chunk.chunk_id,
+                                context_index=0,
                                 quote="Attendance is completely optional for everyone.",
                             )
                         ],
@@ -222,7 +227,7 @@ def test_answer_question_refuses_below_confidence_threshold() -> None:
                         answer="Probably attendance is required, not fully sure.",
                         citations=[
                             LlmCitation(
-                                chunk_id=chunk.chunk_id,
+                                context_index=0,
                                 quote="Attendance is required for every on-site session.",
                             )
                         ],
@@ -259,7 +264,7 @@ def test_answer_question_surfaces_conflict_instead_of_picking_a_side() -> None:
                         answer="Sources disagree.",
                         citations=[
                             LlmCitation(
-                                chunk_id=chunk.chunk_id,
+                                context_index=0,
                                 quote="Attendance is required for every on-site session.",
                             )
                         ],
@@ -306,5 +311,194 @@ def test_answer_question_falls_back_to_no_answer_on_gateway_error() -> None:
 
             assert answer.escalation_recommended is True
             assert cost == 0.2
+
+    asyncio.run(run())
+
+
+# --- AUD-X-12 (D-115): the answer budget, and what a truncated answer looks like -----
+#
+# Measured on staging over 70 real grounded turns at top_k=8: output tokens p50 662,
+# **p95 1490, max 1530** against the then-fixed cap of 1536. So ~1 turn in 30 truncated,
+# and a truncated `RagAnswerResponse` is not a slow answer - it is indistinguishable, from
+# inside `answer_question`, from "no source supports an answer". The student was told there
+# was no approved source for a question that had one.
+_MEASURED_MAX_ANSWER_TOKENS = 1530
+_TOP_K = 8
+
+
+def test_the_answer_token_budget_clears_the_measured_maximum_at_top_k() -> None:
+    budget = RagAnswerResponse.max_output_tokens_for(_TOP_K)
+    assert budget > _MEASURED_MAX_ANSWER_TOKENS * 1.4
+    # ...and still inside the gateway's own hard ceiling, or the derivation is a fiction.
+    assert budget <= 4000
+
+
+def test_the_answer_token_budget_scales_with_the_number_of_passages() -> None:
+    assert RagAnswerResponse.max_output_tokens_for(8) > RagAnswerResponse.max_output_tokens_for(3)
+
+
+def test_answer_question_derives_its_budget_and_sends_no_chunk_ids() -> None:
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(
+                session, chunk_text="Attendance is required for every on-site session."
+            )
+            gateway = _FakeGateway(
+                _result(
+                    RagAnswerResponse(
+                        answer="Attendance is required for every on-site session.",
+                        citations=[
+                            LlmCitation(
+                                context_index=0,
+                                quote="Attendance is required for every on-site session.",
+                            )
+                        ],
+                        confidence=0.9,
+                    )
+                )
+            )
+
+            await qa.answer_question(
+                repo,
+                gateway,
+                query="Is attendance required?",
+                user_role="parent",
+                chunks=[chunk],
+                session_spend_cents=0.0,
+                confidence_threshold=0.4,
+            )
+
+            assert gateway.max_output_tokens == RagAnswerResponse.max_output_tokens_for(1)
+            # The model is asked about passage positions, never identifiers: a UUID it has
+            # to echo back is output tokens it cannot spare and a character it can garble
+            # into an unmatchable - i.e. refused - citation.
+            assert gateway.payload is not None
+            assert chunk.chunk_id not in gateway.payload.model_dump_json()
+
+    asyncio.run(run())
+
+
+def test_a_citation_pointing_at_a_passage_that_was_not_sent_is_dropped() -> None:
+    """Index-keying does not weaken verification: an out-of-range index is discarded the
+    same way an unknown chunk id was, and with nothing else surviving the turn becomes a
+    no-answer response.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(
+                session, chunk_text="Attendance is required for every on-site session."
+            )
+            gateway = _FakeGateway(
+                _result(
+                    RagAnswerResponse(
+                        answer="Attendance is required for every on-site session.",
+                        citations=[
+                            LlmCitation(
+                                context_index=99,
+                                quote="Attendance is required for every on-site session.",
+                            )
+                        ],
+                        confidence=0.9,
+                    )
+                )
+            )
+
+            answer, _cost = await qa.answer_question(
+                repo,
+                gateway,
+                query="Is attendance required?",
+                user_role="parent",
+                chunks=[chunk],
+                session_spend_cents=0.0,
+                confidence_threshold=0.4,
+            )
+
+            assert answer.citations == []
+            assert answer.answer == qa.NO_SOURCE_MESSAGE
+
+    asyncio.run(run())
+
+
+def test_a_citation_resolves_to_the_passage_at_its_own_position() -> None:
+    """With several passages in play, index 1 must verify against the *second* chunk's
+    text - the round-trip that used to be carried by the chunk id.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            first = await _seed_chunk(session, chunk_text="Branches open at 9am on weekdays.")
+            second = await _seed_chunk(
+                session, chunk_text="Attendance is required for every on-site session."
+            )
+            gateway = _FakeGateway(
+                _result(
+                    RagAnswerResponse(
+                        answer="Attendance is required.",
+                        citations=[
+                            LlmCitation(
+                                context_index=1,
+                                quote="Attendance is required for every on-site session.",
+                            )
+                        ],
+                        confidence=0.9,
+                    )
+                )
+            )
+
+            answer, _cost = await qa.answer_question(
+                repo,
+                gateway,
+                query="Is attendance required?",
+                user_role="parent",
+                chunks=[first, second],
+                session_spend_cents=0.0,
+                confidence_threshold=0.4,
+            )
+
+            # Verified against the second chunk, not the first: had the mapping been off
+            # by one, this quote would not be a substring of `first` and would be dropped.
+            assert len(answer.citations) == 1
+            assert answer.citations[0].source_reference == second.document_id
+
+    asyncio.run(run())
+
+
+def test_a_synthesis_failure_says_why_it_became_a_no_source_refusal(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The refusal text is identical whether the sources were bad or the model's response
+    was; only a log line can tell an operator which happened (D-115).
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(
+                session, chunk_text="Attendance is required for every on-site session."
+            )
+            gateway = _FakeGateway(
+                BedrockGatewayError("model hit max_output_tokens=1536", cost_cents=0.4)
+            )
+
+            with caplog.at_level(logging.WARNING, logger="chat_api.services.qa"):
+                answer, _cost = await qa.answer_question(
+                    repo,
+                    gateway,
+                    query="Is attendance required?",
+                    user_role="parent",
+                    chunks=[chunk],
+                    session_spend_cents=0.0,
+                    confidence_threshold=0.4,
+                )
+
+            assert answer.answer == qa.NO_SOURCE_MESSAGE
+            records = [r for r in caplog.records if r.message == "rag_answer_unavailable"]
+            assert len(records) == 1
+            assert records[0].context_chunk_count == 1  # type: ignore[attr-defined]
+            assert "max_output_tokens" in records[0].detail  # type: ignore[attr-defined]
 
     asyncio.run(run())

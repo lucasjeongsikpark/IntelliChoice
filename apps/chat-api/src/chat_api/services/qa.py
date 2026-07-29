@@ -7,6 +7,7 @@ trigger, so *something* has to actually check that).
 """
 
 import hashlib
+import logging
 
 from intellichoice_db.models.rag import RagChunk
 from intellichoice_db.repositories.rag import RagRepository
@@ -20,6 +21,8 @@ from intellichoice_shared.bedrock import (
     RagAnswerResponse,
     RagContextChunk,
 )
+
+logger = logging.getLogger(__name__)
 
 NO_SOURCE_MESSAGE = (
     "I don't have an approved source for that yet. I can pass this on to a branch "
@@ -42,11 +45,11 @@ def _no_answer(reason: str, citations: list[Citation]) -> GroundedAnswer:
 
 
 async def _verify_citations(
-    repo: RagRepository, raw: RagAnswerResponse, chunks_by_id: dict[str, RagChunk]
+    repo: RagRepository, raw: RagAnswerResponse, chunks_by_index: dict[int, RagChunk]
 ) -> list[Citation]:
     verified: list[Citation] = []
     for llm_citation in raw.citations:
-        chunk = chunks_by_id.get(llm_citation.chunk_id)
+        chunk = chunks_by_index.get(llm_citation.context_index)
         if chunk is None:
             continue
         quote = llm_citation.quote.strip()
@@ -87,7 +90,7 @@ async def answer_question(
     if not chunks:
         return _no_answer(NO_SOURCE_MESSAGE, []), 0.0
 
-    chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
+    chunks_by_index = {index: chunk for index, chunk in enumerate(chunks)}
     try:
         result = await gateway.generate_structured(
             task=BedrockTask.RAG_ANSWER,
@@ -105,19 +108,32 @@ async def answer_question(
                 query=query,
                 user_role=user_role,
                 context_chunks=[
-                    RagContextChunk(chunk_id=chunk.chunk_id, chunk_text=chunk.chunk_text)
-                    for chunk in chunks
+                    RagContextChunk(context_index=index, chunk_text=chunk.chunk_text)
+                    for index, chunk in enumerate(chunks)
                 ],
             ),
             response_model=RagAnswerResponse,
-            max_output_tokens=1536,
+            max_output_tokens=RagAnswerResponse.max_output_tokens_for(len(chunks)),
             session_spend_cents=session_spend_cents,
         )
     except BedrockGatewayError as exc:
+        # This is the fail-closed path for a *synthesis* failure, and it is
+        # indistinguishable from "no source supports an answer" to the student, so the
+        # log line matters: AUD-X-12 spent a week telling students there was no approved
+        # source when the real cause was a truncated response (D-115).
+        logger.warning(
+            "rag_answer_unavailable",
+            extra={
+                "reason": type(exc).__name__,
+                "detail": str(exc),
+                "context_chunk_count": len(chunks),
+                "cost_cents": exc.cost_cents,
+            },
+        )
         return _no_answer(NO_SOURCE_MESSAGE, []), exc.cost_cents
 
     raw = result.value
-    verified = await _verify_citations(repo, raw, chunks_by_id)
+    verified = await _verify_citations(repo, raw, chunks_by_index)
 
     if raw.sources_conflict:
         return _no_answer(CONFLICT_MESSAGE, verified), result.cost_cents
