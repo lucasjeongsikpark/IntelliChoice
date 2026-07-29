@@ -5186,3 +5186,82 @@ and AUD-C-02's real-provider behaviour (deferred, see §2).
 verification-pending item; AUD-L-04, AUD-L-07 read half, AUD-C-03, AUD-C-16, AUD-X-07 half,
 AUD-F-14, AUD-F-19 remain). Criterion 4 is now fully met; criterion 3's weekly-expiry caveat is
 closed pending one deploy.
+
+## D-112 — The chat cluster: AUD-C-16 fixed and verified, and its removal is what let AUD-C-02 and AUD-F-19 be diagnosed correctly (accepted, 2026-07-28)
+
+**Context.** PROGRESS.md's standing instruction: take C-16 → C-02 → F-19 in that order and as
+one piece, because staging's corpus was 159/159 mock hash vectors and judging a prompt against a
+retrieval channel that returns noise is tuning against nothing. That ordering was right, and the
+probes show *why* it was right: with real vectors in place, F-19's "three different products"
+collapsed into a deterministic route on its own, while the scope misroutes survived — the one
+cluster was actually two defects plus one correct behavior, and only fixing retrieval first
+could tell them apart. Decision (user, this session): the staging re-embed rides in
+`deploy-staging.yml` (D-111 §3's re-seed precedent) rather than as a one-off ops task.
+
+### 1. AUD-C-16 — provenance, re-embed, and a readiness gate that makes the failure impossible to repeat silently
+
+PR #34 (merge `7469ea8`, deploy run `30396987673` pinned to that SHA). Four parts, the fourth
+being the one the finding called load-bearing:
+
+- `rag_chunks.embedding_provider`/`embedding_model_id`, stamped at ingest (migration
+  `e18f4a6c2b90`). Pre-existing rows stay **NULL = unknown = mismatch** — legacy corpora are
+  re-embedded, never trusted.
+- `make knowledge-reembed` re-embeds exactly the mismatched chunks, one gateway call per
+  document, budget-capped, resumable. A current corpus is a no-op.
+- A re-embed step in `deploy-staging.yml` after migrations and **before the service rollouts**
+  — ordering that matters, because of the next part. No Terraform change: the shared task role
+  already carries the embedding-model grant (criterion 6's quiet week untouched).
+- chat-api `/readyz` — the ALB target-group health check — **fails closed** when any stored
+  embedding's provenance mismatches the configured provider/model. A mis-embedded corpus now
+  drains the service instead of answering with noise for weeks. Empty corpus passes (fresh
+  environments boot before first ingest; §5.21.8's no-source refusal covers the gap).
+
+**Verified live, both halves.** The deploy's re-embed: 159 chunks / 23 documents / 0.0224¢.
+S38's own discriminator re-run via ops-task: **0/159 mock-like, max cosine 0.078**
+(was 159/159 at 1.000), provenance uniformly `bedrock|amazon.titan-embed-text-v2:0`. The next
+deploy (the user's own, `85dd6ad`) ran the step as **0 chunks / 0.0000¢** — deploy-time
+idempotency confirmed in production conditions, not just in a test. Retrieval effect: the three
+paraphrase probes went from no-source refusals to **9/9 grounded answers with citations**,
+stable across two deploys. All three guards were watched failing with their fix disabled
+(readyz 200-vs-503; NULL stamping; a no-skip control that re-embedded a current corpus).
+
+### 2. AUD-C-02's verification leg failed as predicted, and the fix was definitions, not topics
+
+With D-111's topic fix live on real Bedrock, "What is IntelliChoice?" was **still refused or
+bounced to clarification 3/3**, and "Tell me about the people who run IntelliChoice" routed to
+`admin_contact`'s email flow 3/3 — a misroute no earlier probe had asked about. Naming the
+topics was necessary and insufficient: the intent list named five intents without defining any,
+and a real classifier fills undefined categories with its own priors (AUD-C-02's lesson, third
+occurrence, same prompt). PR #36 (merge `9fdc178`, deploy run `30418370062`) defines each
+intent — `branch_locator` ONLY by distance from the user's own location (SPEC §5.19.2 scopes it
+to the Maps/proximity branch), `admin_contact` ONLY an explicit ask to contact someone — and
+pins each measured misroute as an inline example. Post-fix, fresh session per call:
+"What is IntelliChoice?" **3/3 grounded, citing About IntelliChoice**; "Who leads…" 3/3;
+"people who run…" 3/3 via document_qa. Guard: `test_scope_prompt_defines_intents`, watched
+failing against the old prompt; behaviour: two new `paraphrase` cases on the real-Bedrock
+runner. **AUD-C-02 closed.**
+
+### 3. AUD-F-19 was two mechanisms, and one of them was the system being right
+
+**(a)** "What are the Saturday hours?" (0/6 answered across S42 + this session's baseline) was
+the same undefined-intent defect — post-fix it answers **3/3 with a Branch Directory citation**.
+**(b)** "How do I enroll a student?" stabilized to document_qa 3/3 the moment C-16's noise was
+removed, confirming D-110 §6's suspicion — but stays unanswered because
+`public-student-participation-guide` is `effective_from` **2026-08-01**: the effective-date
+filter failing closed correctly. No code change; re-check on/after Aug 1 (carry-over).
+**AUD-F-19 closed.**
+
+### 4. Observed and deliberately not chased
+
+- **A retrieval-margin flake, no ID minted:** "Who is on the IntelliChoice leadership team?"
+  returned a grounded answer 2/3 and a no-source refusal 1/3, before *and* after the prompt fix
+  — some rerank/confidence-threshold interaction near 0.4, independent of scope classification.
+  One question, one-in-three; measure before filing.
+- **Same defect class, different tables:** `youtube_videos.embedding` and
+  `question_variants.stem_embedding` have no provenance columns either. No runtime impact today
+  (staging youtube is 0 rows with sync disabled) — carry-over, not scope creep.
+- One f19b refusal carried a non-empty citations list alongside "no approved source" —
+  cosmetic inconsistency in the refusal path, noted unverified.
+
+**Outcome.** Two P1s closed outright (AUD-C-16, AUD-F-19) and AUD-C-02's pending verification
+closed. **Five P1s remain: AUD-L-04, AUD-L-07 (read half), AUD-C-03, AUD-X-07 (half), AUD-F-14.**
