@@ -121,6 +121,26 @@ resource "aws_cloudwatch_metric_alarm" "target_5xx" {
 # on genuine regressions instead; closing the gap to the real ~1s target is the new
 # CPU-based autoscaling's job (more concurrent capacity under load), not a smaller alarm
 # threshold. See DECISIONS.md's S34 entry.
+#
+# S43 (AUD-X-13): 3s stopped being right for chat-api, and the threshold is now per-service.
+# S34 calibrated it against a corpus where chat turns refused early and completed in ~1.6s.
+# With a real corpus and a working reranker (D-115), a *healthy* grounded turn is four
+# sequential model calls measuring p50 ~10s / p95 ~16s - so this alarm's steady state during
+# normal use was ALARM. That is not merely alarm fatigue on the one monitored inbox: it is
+# criterion 8's evidence alarm, which could therefore not tell an incident from a
+# conversation, and `deploy-staging.yml`'s canary bake rolls both services back when any of
+# these four alarms is in ALARM - so a deploy overlapping real usage would auto-roll-back a
+# good release and look like a failed deploy rather than a mis-set number.
+#
+# chat-api moves to 20s (25% headroom over the measured p95, user decision - the same number
+# recorded as criterion 7's live-staging threshold, set once from one measurement rather than
+# twice by two guesses). learning-api stays at 3s: nothing has re-measured it, and its
+# requests are not model calls.
+#
+# The scale-*out* alarm in modules/ecs-service stays at 3s deliberately and is NOT this
+# number. A sensitive scaling signal and an insensitive paging signal on the same metric is
+# the point of having two alarms: capacity should react long before a human is woken
+# (D-113 §2).
 resource "aws_cloudwatch_metric_alarm" "target_latency_p95" {
   for_each            = var.services
   alarm_name          = "${var.name_prefix}-${each.key}-p95-latency"
@@ -130,9 +150,9 @@ resource "aws_cloudwatch_metric_alarm" "target_latency_p95" {
   namespace           = "AWS/ApplicationELB"
   period              = 60
   extended_statistic  = "p95"
-  threshold           = 3
+  threshold           = lookup(var.latency_p95_alarm_thresholds, each.key, var.latency_p95_alarm_threshold_default)
   treat_missing_data  = "notBreaching"
-  alarm_description   = "S34: ${each.key} P95 response time over 3s for 3 consecutive minutes."
+  alarm_description   = "${each.key} P95 response time over ${lookup(var.latency_p95_alarm_thresholds, each.key, var.latency_p95_alarm_threshold_default)}s for 3 consecutive minutes (S34; per-service since S43/AUD-X-13)."
   dimensions = {
     LoadBalancer = var.alb_arn_suffix
     TargetGroup  = each.value

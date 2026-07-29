@@ -85,9 +85,14 @@ class _FakeGateway:
 
     def __init__(self, outcomes: list[MemoryUpdateResponse | BedrockGatewayError]) -> None:
         self._outcomes = list(outcomes)
+        # S43: the output budget each call was given, so a test can assert the cap is
+        # derived from the input rather than fixed. Discarding it is how a dead cap
+        # survives (AUD-X-09).
+        self.max_output_tokens_seen: list[int | None] = []
 
     async def generate_structured(self, *, task: BedrockTask, **kwargs) -> BedrockGenerationResult:
-        del task, kwargs
+        del task
+        self.max_output_tokens_seen.append(kwargs.get("max_output_tokens"))
         outcome = self._outcomes.pop(0)
         if isinstance(outcome, BedrockGatewayError):
             raise outcome
@@ -544,5 +549,85 @@ def test_gateway_failure_changes_no_facts() -> None:
                 STUDENT_ID, statuses=("active", "provisional")
             )
             assert facts == []
+
+    asyncio.run(run())
+
+
+# --- S43: the output cap, derived rather than fixed (D-115 carry-over (ii)) ----------
+
+
+def test_consolidation_output_budget_scales_with_existing_fact_count() -> None:
+    """The two largest lists in `MemoryUpdateResponse` are one item per existing fact.
+
+    Measured against the serialized schema: 261 tokens at 1 live fact, 1733 at 10, 2712
+    at 20 - so the old flat 1200 was under the real need from roughly 5 facts on. This is
+    the same shape as the reranker (AUD-X-09), which sat truncating in production for a
+    week, and deliberately *not* the shape of a RAG answer, whose length follows the
+    question rather than the input (D-115 §10's correction).
+    """
+    budget_for = MemoryUpdateResponse.max_output_tokens_for
+    assert budget_for(20) > budget_for(5)
+    assert budget_for(0) > 0
+
+    # Every count up to the safe bound clears both the measured need and the flat 1200
+    # this replaced - the regression D-115 §10 shipped and had to correct was a derived
+    # cap that came out *below* the constant it replaced at the low end.
+    measured_need = {1: 261, 5: 1249, 10: 1733, 20: 2712}
+    for facts, need in measured_need.items():
+        budget = budget_for(facts)
+        assert budget >= need, f"{facts} facts need ~{need} tokens, budget is {budget}"
+        assert budget >= 1200, f"{facts} facts got {budget}, below the flat cap it replaced"
+
+    # ...and the safe bound is honest: at it the budget still fits the gateway's ceiling,
+    # past it it does not, which is exactly what the caller warns about.
+    safe = MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS
+    assert budget_for(safe) <= 4000
+    assert budget_for(safe + 1) > 4000
+
+
+def test_consolidation_sends_a_fact_count_derived_budget() -> None:
+    """A derived cap that never reaches the gateway is decoration - assert the wire."""
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            tutor_chat_repo = TutorChatMessageRepository(session)
+            events = [
+                await _add_event(memory_repo, skill_id=seed.skill_id, session_id=f"s{i % 2}")
+                for i in range(3)
+            ]
+            event_ids = [e.event_id for e in events]
+
+            budget_for = MemoryUpdateResponse.max_output_tokens_for
+
+            # First pass: no existing facts, and it stores one.
+            gateway = _FakeGateway([_weak_skill_response(seed.skill_id, event_ids)])
+            await consolidate_student_window(
+                memory_repo=memory_repo,
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway,
+                student_external_id=STUDENT_ID,
+                window_start=events[0].occurred_at - timedelta(minutes=1),
+                window_end=events[-1].occurred_at + timedelta(minutes=1),
+                session_spend_cents=0.0,
+            )
+            assert gateway.max_output_tokens_seen == [budget_for(0)]
+
+            # Second pass over the same student now has one live fact to reconfirm, so the
+            # budget must be larger. A fixed cap makes these two numbers equal.
+            gateway2 = _FakeGateway([MemoryUpdateResponse()])
+            await consolidate_student_window(
+                memory_repo=memory_repo,
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway2,
+                student_external_id=STUDENT_ID,
+                window_start=events[0].occurred_at - timedelta(minutes=1),
+                window_end=events[-1].occurred_at + timedelta(minutes=1),
+                session_spend_cents=0.0,
+            )
+            assert gateway2.max_output_tokens_seen == [budget_for(1)]
+            # The point of the two passes: a fixed cap makes these two numbers equal.
+            assert budget_for(1) > budget_for(0)
 
     asyncio.run(run())

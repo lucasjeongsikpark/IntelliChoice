@@ -5726,3 +5726,157 @@ conclusion is operationally useful rather than merely negative: **criterion 7's 
 must be measured with k6 through the real edge**, not with a bespoke client whose failure modes
 are its own. It also cost two extra measurement rounds to establish, which is the going rate for
 not reporting an artifact as a defect.
+
+## D-116 — Criterion 7's threshold set at 20 s, the paging alarm moved to match, and two more fixed caps measured (accepted, 2026-07-29)
+
+Continuation of D-115's session, taking its three named carry-overs that did not need a product
+decision. **A numbering note first, because the docs have already tripped on it:** D-115's session
+labelled its findings "S43", while ROADMAP.md's S43 is `IcProfileAdapter` — a future, blocked
+session. These are different things sharing a number. This session is recorded as the *S43
+continuation*; the roadmap's numbered S42–S47 remain untouched and unstarted.
+
+### 1. The threshold: 20 s, and it is one number serving two places
+
+D-115 §11 established that criterion 7 was never mis-calibrated, it was **missing** a live-staging
+threshold — `chat_qa.js`'s `p(95)<1000` is correct for a mock-provider server answering
+deliberately non-matching queries and stays exactly as it is. The number needed was a second one,
+for a real grounded turn, which cannot be under ~8 s because such a turn is four sequential model
+calls.
+
+**Decision (user, this session): p95 ≤ 20 s, error rate < 1%, at concurrency 5 with ≥2 tasks.**
+25% headroom over a measurement that is stable at p95 ≈ 16 s across three independent runs
+(15.94 / 16.29 / 16.09). Recorded in ROADMAP.md as explicitly distinct from the k6 mock threshold,
+because conflating the two is the mistake D-115 §11 had to undo and the shape of mistake that
+recurs.
+
+**The same number fixes AUD-X-13**, and that was the reason to decide them together rather than
+twice. `intellichoice-staging-chat-api-p95-latency` alarmed on `p95 > 3 s`, so its steady state
+during normal conversation was ALARM — alarm fatigue, an unusable criterion-8 evidence alarm, and
+a canary bake that would roll back any deploy overlapping real usage. The threshold is now
+per-service (`latency_p95_alarm_thresholds`), chat-api at 20 s, learning-api left at 3 s because
+nothing has re-measured it and its requests are not model calls. **The scale-out alarm stays at
+3 s and is deliberately not this number** (D-113 §2): a sensitive scaling signal plus an
+insensitive paging signal on one metric is why the two alarms exist separately.
+
+### 2. The error-rate leg gets a k6 scenario, because the client was the finding last time
+
+D-115 §12 spent two measurement rounds establishing that its ad-hoc driver's 5–6 `ReadTimeout`s
+per run were its own connection pooling and not a server or edge failure. Rather than leave that
+as a note, criterion 7's error-rate leg now has an instrument: `load-tests/k6/chat_qa_staging.js`
+(`make load-staging-chat`), guest turns through the real CloudFront edge, so no secrets are
+needed and none can leak into a log.
+
+Two details are load-bearing. It measures a **custom `chat_turn_duration` trend**, not
+`http_req_duration`, which would be diluted by the near-instant session-create call into a
+flattering p95. And it **counts sub-1 s 200s as failures** — a refusal is fast, so a run whose p95
+passes because turns refused instantly has measured nothing, which is precisely what the nine
+30–84 ms refusals in 114 turns looked like before AUD-X-10. The question rotation is restricted to
+the four public documents that are `effective_from` on or before today; the other six open
+2026-08-01 and the list should widen then.
+
+### 3. AUD-F-16: a run now states what it tested, and fails if that is stale
+
+`/healthz` on both apps carries `build_sha` (baked in by `docker build --build-arg`, `"unknown"`
+outside an image) and `started_at`. The e2e harness reads both in `globalSetup`, writes them as a
+`record: "run"` line at the head of `journeys.jsonl`, and **truncates that file** so one run's
+evidence is one file rather than an accumulating pile nobody can find the boundary in.
+
+**`reuseExistingServer: true` is kept.** Reuse was never the defect — unverifiability was.
+Locally the check is that neither API booted before the newest git-tracked Python source; against
+staging, `EXPECT_BUILD_SHA` asserts the deployed code is the code under test. Verified both
+directions this session: passing against freshly started servers, then failing with
+*"learning-api booted at ... which is 26s BEFORE the newest Python source file"* after touching
+one file. A check never seen to fail asserts nothing (D-107 §1).
+
+The staging half of this is the point: the time-telemetry failure shows AUD-F-01's signature while
+its fix is in `main`, and **until now there was no way to distinguish a bad fix from a stale
+served bundle.** That diagnosis is the first thing to run once AWS access returns.
+
+### 4. Carry-over (ii) measured: one instance, one non-instance, and one rule paying for itself
+
+D-115 flagged `report.py` and `consolidation.py` as sharing AUD-X-09's "fixed cap over a growing
+input" shape. Measuring the serialized schemas rather than reasoning by analogy found that **only
+one of them does**, which is the same distinction D-115 §10 had to learn the hard way.
+
+- **`consolidation.py` — a real instance (AUD-X-14).** `MemoryUpdateResponse`'s two largest lists
+  are one item per fact the model was shown, and `list_facts_for_student` is unbounded. The flat
+  1200 was under the real need from ~5 live facts on (261 tokens at 1, 1733 at 10, 2712 at 20).
+  Now `1280 + 128n`.
+- **`report.py` — not that shape (AUD-X-15).** A report's length follows the writing task, not the
+  input, so a flat cap is correct. The measurement found a *different* defect: 500 was below what
+  its own prompt asks for, truncating from ~70 words per paragraph, and a truncated report
+  silently degrades a parent to the deterministic fallback. Raised to 1024, with
+  `REPORT_RESERVATION_ESTIMATE_CENTS` 1.5 → 2.25 because AUD-X-08's guard test caught the coupling
+  the moment the cap moved — a guard written for one purpose failing correctly on another.
+
+**D-115 §10's rule paid for itself within one session.** The consolidation formula was first
+written as `896 + 128n` from the measurement alone, which yields **1024 at one fact — below the
+1200 it replaced**, the exact regression that cost D-115 a deploy. The new test asserting that a
+derived cap must beat the constant it replaces *everywhere in its domain* caught it before it
+shipped. Base raised to 1280.
+
+**What is deliberately not fixed:** past **21** live facts the derived budget exceeds the
+gateway's 4000-token hard ceiling, so no cap can rescue the largest students — the payload would
+need bounding, and *which facts get dropped* is a behaviour decision. `consolidation.py` logs
+`memory_consolidation_payload_oversized` with the count, so that decision arrives with a
+distribution instead of a guess (AUD-X-11's lesson applied prospectively).
+
+### 5. Verification, and what is not verified
+
+Local suite **591 passed / 2 skipped** (587 at session start, +4), lint and pyright clean;
+`terraform validate` clean; `e2e/` typechecks.
+
+*(Written mid-session, when no AWS session was available. It said the k6 scenario had never been
+executed and that a step described as ready should be run once before it is believed — which is
+exactly what happened: §6 below records the staging half, and the very first staging run found
+that §3's design was wrong for staging. Left standing rather than edited, because the gap between
+"validated" and "executed" is the point.)*
+
+### 6. The staging half, run after AWS access returned
+
+Everything in §1–§4 above was written without an AWS session and is now verified live, except
+where noted.
+
+**Terraform applied** (15:27 CDT): `0 add, 2 change, 0 destroy`, exactly the predicted two alarm
+modifications. **AUD-X-13 closed with a before/after the finding never had.** It had been reasoned
+from the threshold rather than observed; the alarm's own history supplies the observation — it
+flapped **ALARM↔OK three times in 100 minutes** that morning on ordinary traffic (10:57/11:05,
+11:51/12:05, 12:25/12:36). After the change, the load run below produced four consecutive minutes
+of ALB p95 at **14.59 / 15.16 / 16.58 / 17.84 s** — each above the old 3 s threshold, which needs
+only three — and the alarm **never left OK**.
+
+**Criterion 7's chat leg passes on the k6 scenario's first execution:** 70/70 turns, 140/140
+checks, `chat_turn_duration` p95 **16.68 s** (< 20), `http_req_failed` **0.00%** (< 1%),
+`chat_fast_refusals` **0**, 3 tasks. The custom trend justified itself immediately —
+`http_req_duration` reports a median of 3.51 s against the turn's real 9.89 s, because the
+near-instant session-create call is half the requests, so the default metric would have measured
+the wrong thing. **Criterion 7's learning-app leg remains unmeasured.**
+
+**§3's design was wrong for staging, and staging said so immediately.** `/healthz` is *deliberately*
+excluded from CloudFront — `terraform/environments/staging/main.tf` calls it and `/metrics`
+"internal-only, never meant to be publicly reachable" — so the HTTP identity check fetched the
+SPA's `index.html`. Widening a public surface to satisfy a test harness is the wrong trade, so the
+staging path now reads the identity from **ECS**: the image tag on the task definition the service
+is actually running. That is better evidence than the HTTP self-report it replaced — it reports
+what the cluster runs, not what a process claims — and `make e2e-staging` already needs an AWS
+session. Verified against staging, including the rejecting arm (`EXPECT_BUILD_SHA=deadbeefcafe`
+fails, the real SHA passes). One robustness fix on top: no hardcoded `--profile`, since that would
+work on one laptop and fail in CI.
+
+**And the identity immediately paid for itself — see AUD-F-21.** The staging suite reproduced
+**47 passed / 2 failed / 4 skipped** for a third consecutive time, and the two failures turned out
+to be **one defect that is neither of the two things they were filed as**. The stale-bundle
+hypothesis is dead: the served SPA is byte-identical to a local build of HEAD (SHA-256
+`63eca681…7dd1055`), and AUD-F-01's fix demonstrably *works* on staging (1 time report, was 899;
+0 overview fetches, was 903). The residual failure is the dwell's **value**, and the timeline
+locates it precisely: `App.tsx:199` renders `StageTransitionScreen` as a *sibling* of
+`ExamScreen`, so a narrative arriving 2.1 s into the dwell unmounts the exam screen and flushes a
+truncated 2116 ms. The same branch explains the post-finalize stall (the outro narrative replaces
+the screen, and `StageTransitionScreen` has no `.phase-chip`, so the 60 s wait resolves `null`).
+Staging-only because the narrative is an LLM call: ~26 ms on the mock, seconds on real Bedrock —
+AUD-C-02's lesson on a third surface.
+
+**Filed, not fixed.** Whether a late narrative should interpose at all is product-visible
+behaviour on the primary journey, and it earns its own decision and before/after rather than being
+absorbed into a session about thresholds. **Criterion 3 is blocked on exactly this one change**,
+which is a better position than the two vague observations it replaces.

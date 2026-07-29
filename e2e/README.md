@@ -33,6 +33,25 @@ Every run appends one JSON line per test to `artifacts/journeys.jsonl` (gitignor
 console errors, and the full API call sequence with millisecond timestamps. That timestamping is
 what separated a leaked interval from a remount burst in AUD-F-02.
 
+**And the run says what it tested (S43 continuation, AUD-F-16).** `fixtures/global-setup.ts`
+establishes both APIs' identity before the first spec, writes a `record: "run"` line at the head of
+`journeys.jsonl`, and truncates the file so one run's evidence is one file rather than an
+accumulating pile. The two targets are read differently, because they go stale differently and are
+not even reachable the same way:
+
+- **local** — `GET /healthz` for boot time, and the run **fails** if either API booted before the
+  newest git-tracked Python source. That is the exact condition AUD-F-16 found: two `uvicorn`
+  processes two days older than the checkout served an entire audit while the vite dev servers
+  were current, so nothing looked stale. `reuseExistingServer: true` stays — reuse was never the
+  defect, unverifiability was.
+- **staging** — `/healthz` is **deliberately unreachable** there (`terraform/environments/staging/
+  main.tf` excludes it and `/metrics` from CloudFront: "internal-only, never meant to be publicly
+  reachable"), so the identity comes from **ECS** — the `gha-<sha>` image tag on the task
+  definition the service is actually running. That is better evidence than an HTTP self-report: it
+  says what the cluster runs, not what a process claims. Set `EXPECT_BUILD_SHA=<sha>` to assert the
+  deployed code is the code under test. Needs an AWS session, which `make e2e-staging` already
+  requires for token minting; `E2E_AWS_PROFILE` forces a named profile if you need one.
+
 `tests/smoke.spec.ts` is the harness's own **positive control**: it produces a console error and
 a failed request on purpose and asserts the fixture saw them. D-101 §5 and D-102 both record why
 — a probe that can only return "clean" is not a measurement.

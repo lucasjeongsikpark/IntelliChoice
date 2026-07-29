@@ -22,7 +22,7 @@ loosens *which* strict model a given call uses, not the "no ad-hoc dict payloads
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Literal, Protocol, TypeVar
+from typing import ClassVar, Literal, Protocol, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -760,6 +760,50 @@ class MemoryUpdateResponse(BaseModel):
     facts_to_add: list[MemoryFactCandidate] = []
     facts_to_update: list[MemoryFactUpdate] = []
     facts_to_expire: list[str] = []
+
+    # The largest existing-fact count this response shape can serialize inside the
+    # gateway's 4000-token hard ceiling. Past it the cap saturates and the caller warns -
+    # see `max_output_tokens_for`.
+    MAX_SAFE_EXISTING_FACTS: ClassVar[int] = 21
+
+    @staticmethod
+    def max_output_tokens_for(existing_fact_count: int) -> int:
+        """The output budget a consolidation over `existing_fact_count` live facts needs.
+
+        S43, from D-115's carry-over (ii): this was a flat 1200 over an input that grows
+        with student history, which is the shape that was AUD-X-09 (the reranker, dead in
+        production for a week) and then AUD-X-12 (false refusals). Unlike an *answer* -
+        whose length is a function of the question, the D-115 §10 correction - this
+        response genuinely is one item per input item: the model may reconfirm every fact
+        it was shown and expire any of them, so two of the three lists are sized by
+        `existing_facts` directly.
+
+        Measured against the serialized schema (scratchpad sweep, chars/3.5 calibrated
+        against the reranker's known ~20 tok / ~68 chars per candidate):
+
+            live facts   1     5     10     20     40
+            response   261  1249   1733   2712   4659 tokens
+
+        Marginal cost is ~94 tok per reconfirmed fact and ~10 per expiry, so ~104/fact;
+        128 carries ~20% headroom. The base covers a full slate of *new* facts, which are
+        the expensive item at ~149 tokens each and do not scale with the input.
+
+        **The base is set by the floor, not by that measurement.** 896 would have been
+        ample for the need (261 tokens at one fact) but yields 1024 at n=1 - *below* the
+        flat 1200 it replaces. That is precisely the regression D-115 §10 shipped and had
+        to correct on the RAG answer cap: a derived formula can be strictly worse than the
+        constant it replaces at the low end, where most calls live. 1280 keeps every count
+        above the old cap. `test_consolidation_output_budget_scales_with_existing_fact_
+        count` asserts that floor, and caught this exact mistake here before it shipped.
+
+        **This does not fit forever, and that is the finding under the finding.** Past
+        `MAX_SAFE_EXISTING_FACTS` the derived budget exceeds the gateway's own 4000-token
+        hard ceiling, so no cap can rescue the largest students - the *payload* would have
+        to be bounded, which is a behaviour change (which facts get dropped?) and needs its
+        own decision. Deliberately not made here; `consolidation.py` logs when it is
+        reached so that decision arrives with evidence rather than a guess.
+        """
+        return 1280 + 128 * max(existing_fact_count, 0)
 
 
 # --- SPEC §5.10.3/§5.13.3 personalized stage narratives (S26, plan §18-L7) --------
