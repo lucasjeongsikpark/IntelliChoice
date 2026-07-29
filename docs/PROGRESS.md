@@ -5,6 +5,79 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ Both D-113 latency carry-overs diagnosed and closed 2026-07-29 (D-115) — and they were
+  one defect, not two. Four findings filed and fixed: AUD-X-09 (P1), AUD-X-10 (P2), AUD-X-11
+  (P2), AUD-X-12 (P1).** Local suite **587 passed / 2 skipped** (565 at session start, +22),
+  lint and pyright clean. Three PRs, each merged, deployed and verified against its own merge
+  SHA: **#41 `7889610`, #42 `b245833`, #43**.
+  **Root cause: the reranker had never once succeeded against real Bedrock.** `retrieve()` asked
+  for 30 UUID-keyed scores under a fixed `max_output_tokens=1024`; real Bedrock returns
+  `stopReason=max_tokens` with a truncated-but-valid-JSON `toolUse` block, which nothing read →
+  Pydantic fails → a full repair call under the same ceiling → truncates identically →
+  `StructuredOutputError` → silent RRF fallback. **~21 s and ~3.2 cents burned per grounded turn
+  on a discarded result**, and answers came from an *unfiltered* candidate list (D-052's
+  `score > 0` cut never ran since D-112 gave staging a real corpus).
+  **One X-Ray trace was the whole diagnosis** (`7ee8e72c…`): `hybrid_search` **38 ms** killed the
+  pgvector hypothesis, and 20.93 s sat inside one call that logged nothing. The tracing had been
+  deployed since D-104; nobody had opened it.
+  **The 30–84 ms zero-Bedrock refusals were the same defect's second face** — not task churn as
+  D-113 guessed. The bursts are **30 s apart = `circuit_cooldown_s`**; five concurrent rerank
+  failures tripped the *shared* breaker, so `scope_and_intent` failed closed too. X-Ray named it:
+  `CircuitOpenError` at `gateway.py:90` → `langgraph.refuse`.
+  **Why it survived a week: the gateway logged successes only** — every failure exit returned or
+  raised in silence, so a call failing 100% of the time produced zero log lines and the only
+  symptom was a gap between two unrelated timestamps.
+  **Live before/after, measured the same way (guest turns via CloudFront, fresh session each):**
+
+  | | unloaded p50 | loaded p50 | loaded p95 | errors | sub-1 s refusals |
+  |---|---|---|---|---|---|
+  | pre-fix (D-113) | ~29 s | 28.8 s | 32.8 s | 0 | 9 of 114 |
+  | pre-fix (re-measured this session) | 29.5 s | — | — | — | — |
+  | **post-fix (74-turn clean run)** | — | **9.57 s** | **15.94 s** | **0** | **0 of 74** |
+
+  Per-task, post-fix: `scope_and_intent` p50 1.89 s, `rerank` **p50 2.92 / p95 3.76 s with 0
+  repairs** (the log line that did not exist before), `rag_answer` p50 4.16 / p95 10.62 s.
+  **The new WARNING lines found AUD-X-12 within their first hour**: `rag_answer` had its own fixed
+  cap of 1536 against measured output of **p50 662 / p95 1490 / max 1530**, so ~1 turn in 30
+  truncated — and `qa.answer_question` cannot tell a truncated response from an ungrounded
+  question, so **it told students there was no approved source for questions that had one.** Also
+  fixed the citation shape: `LlmCitation`/`RagContextChunk` are keyed by `context_index`, because a
+  garbled UUID is an unmatchable citation and an unmatchable citation is also a refusal.
+  **⚠️ Self-correction, same session: AUD-X-12's first fix regressed the low-passage end.** The cap
+  shipped as `768 + 192n` by analogy with the reranker, but an answer's length is a function of the
+  *question* — only its citation list scales. Single-passage turns got **960, below the 1536 it
+  replaced**, and the next clean run truncated 3 of 74 turns, all `context_chunk_count=1`. Corrected
+  to `2048 + 96n` (PR #43) with a test asserting every passage count 1–30 clears the old flat cap,
+  watched failing against the cap then live. **Confirmed on revision 32: zero `bedrock_call_failed`
+  of any reason across a 64-turn load run** (was 3 `output_truncated`), app 64/64 turns 200,
+  ALB 134 requests with zero 5xx/504/connection errors.
+  **Criterion 7 reframed (D-115 §11):** "redo the S34 calibration" was wrong — `chat_qa.js`'s
+  `p(95)<1000` is correct for what it measures (mock provider, deliberately non-matching "zqxv"
+  queries, no model in the path) and should stay. Criterion 7 is *missing* a separate live-staging
+  threshold, which cannot be under ~8 s because a grounded turn is four sequential model calls.
+  **Proposed: p95 ≤ 20 s, errors < 1%, concurrency 5, ≥2 tasks.**
+  **Carry-over minted here:** (i) **answer brevity is the highest-value follow-up** — `rag_answer`
+  is p95 10.62 s of the 15.94 and it is generating prose (p50 501 output tokens ≈ 375 words, p90
+  ~1050 words); a shorter answer would improve latency, cost *and* SPEC §5.10.3
+  age-appropriateness at once, but a prompt change is product-visible and needs its own before/after
+  measurement; (ii) **`report.py` and `consolidation.py` have the same fixed-cap shape** over inputs
+  that grow with student history — unmeasured, and they will now log `output_truncated` when they
+  hit it; (iii) a residual `rag_answer` `schema_invalid` rate of ~2–4% under load, now visible,
+  cause undiagnosed — capturing the invalid text needs a PII decision first; ~~(iv) six client-side
+  timeouts~~ **(iv) resolved, not a finding: the client-side `ReadTimeout`/`ReadError`s were pooled-
+  connection races in the ad-hoc load driver, not a server or edge failure.** Across every run the
+  ALB reported **zero** 5xx/504/`TargetConnectionErrorCount` and the app answered **100% 200**;
+  disabling HTTP keep-alive in the driver removed them entirely (58 turns, 0 errors). Operationally
+  worth knowing: a naive pooled client can see resets on 10–17 s requests through CloudFront where a
+  browser or k6 retries — **so criterion 7's error-rate leg should be measured with k6 through the
+  edge, not an ad-hoc client**; (v) D-112's retrieval-margin flake ("Who is on the leadership team?", no-source 1 in 3)
+  is very likely explained — unfiltered retrieval — but needs re-measuring before it is closed;
+  (vi) **AUD-X-13 (P2), filed not fixed: `chat-api-p95-latency` pages on `p95 > 3 s`, so a healthy
+  ~16 s turn keeps it in ALARM** — alarm fatigue, criterion 8's evidence alarm cannot tell an
+  incident from a conversation, and **the canary bake rolls back any deploy that overlaps real
+  usage**. `treat_missing_data = notBreaching` means it self-clears when traffic stops. Left for
+  the same decision as criterion 7's threshold (recommend 20 s for the paging alarm; the scale-out
+  alarm stays at 3 s, where a low trigger is deliberate — D-113 §2).
 - **✅ AUD-L-04 fixed 2026-07-29 (D-114) — two P1s remain (AUD-L-07 read half, AUD-X-07
   half), both with written dispositions: zero P1s remain without one.** Local suite
   **565 passed / 2 skipped** (561 + three purge-boundary tests + the guard test's new
@@ -32,10 +105,15 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **New standing obligation (D-114 §4):** the §6.1 privacy text must state the
   90/90/365 windows and must not imply chat deletion removes derived text — carried
   here until the legal track has a draft to hold it.
-- **Next session: the two latency carry-overs (the ~26 s embedding→rag_answer gap with
-  the missing `rerank` log line — start from one OTel-traced turn; and the nine 30–84 ms
-  no-Bedrock 200s during task churn), which block criterion 7's threshold leg.** The
-  remaining P1 halves (AUD-L-07 read, AUD-X-07) are S43+ work with written dispositions.
+- ~~Next session: the two latency carry-overs~~ **(✅ both done 2026-07-29, D-115 — one root
+  cause; see the entry above.)**
+- **Next session: pick up (a) the post-#43 `output_truncated` confirmation and the criterion-7
+  threshold decision, then (b) the two learning-side staging e2e failures that are all that
+  stand between criterion 3 and two clean runs** (the time-telemetry dwell with AUD-F-01's
+  signature despite the fix being deployed — check the served-bundle identity, AUD-F-16's ask —
+  and the post-finalize narrative stall). Answer brevity (carry-over (i) above) is the
+  highest-value optimization but is a product change needing sign-off. The remaining P1 halves
+  (AUD-L-07 read, AUD-X-07) are S43+ work with written dispositions.
   Standing date-bound checks: **2026-08-01** re-probe "How do I enroll a student?";
   **2026-08-02** criterion 6's earliest pass for the original two jobs (**2026-08-05**
   for retention-purge); **S42's discovery asks to the org are still unsent** (unchanged

@@ -2462,3 +2462,198 @@ manually cleared to OK, then legitimately returned to ALARM minutes later on the
 data. **This matters beyond tidiness: `deploy-staging.yml`'s canary-bake step rolls a deploy back
 if any of these four alarms is in ALARM**, so an induction left lit — or cleared too early and
 re-firing — breaks the next deploy. Staging was left with all four settled `OK` naturally.
+
+## S43 — the latency carry-overs, diagnosed (2026-07-29)
+
+D-113 left two observations with no IDs and an explicit instruction to diagnose before filing: a
+consistent ~26 s gap between the `embedding` and `rag_answer` log lines with **no `rerank` line at
+all**, and nine of 114 load turns returning 200 in 30–84 ms with zero Bedrock calls. They are
+**one defect with three separable faults**, filed here as AUD-X-09/10/11 and all three fixed in the
+same session.
+
+**The measurement that settled it was one X-Ray trace**, not a hypothesis. `7ee8e72c…`, a 24.6 s
+staging turn against the `9467c78` deploy:
+
+| span | duration |
+|---|---|
+| `langgraph.scope_guard` (incl. its Bedrock call) | 1.59 s |
+| `bedrock.create_embedding` | 0.14 s |
+| `hybrid_search` — 3 SQL queries | **38 ms** |
+| `bedrock.generate_structured` (rerank) | **20.93 s**, and no log line |
+| `langgraph.synthesize_answer` | 1.83 s |
+
+That killed the leading rival hypothesis outright — Postgres/pgvector was never slow, it answered in
+38 ms — and located 85% of the turn inside a single call that never logged, i.e. one that failed.
+
+### AUD-X-09 — The rerank output cap truncates every real rerank, and the failure is invisible (P1, fixed in S43)
+
+`retrieve()` asked for 30 candidate scores keyed by `chunk_id` under a fixed
+`max_output_tokens=1024`. A `chunk_id` is a 36-character UUID; echoing 30 of them back costs most of
+that budget on its own. Measured against real Bedrock with the production call shape (Haiku 4.5,
+`converse` + forced tool call, the real 30-chunk corpus payload):
+
+| candidates | maxTokens | stopReason | output tokens | elapsed | validates |
+|---|---|---|---|---|---|
+| 30, `chunk_id` UUIDs | **1024 (production)** | **`max_tokens`** | 1024 | 11.6 s | **no — ValidationError** |
+| 30, `chunk_id` UUIDs | 2048 | `tool_use` | 1361 | 15.7 s | yes, 30/30 |
+| 30, `chunk_id` UUIDs | 4096 | `tool_use` | 1464 | 14.8 s | yes, but **28/30** |
+| 30, **`candidate_index`** | 2048 | `tool_use` | 613 | **3.2 s** | yes, 30/30 |
+
+**Mechanism, end to end.** `converse` still returns a `toolUse` block when it runs out of output
+budget mid-emission; its `input` is a truncated fragment that happens to be valid JSON of the wrong
+shape, and **only `stopReason` distinguishes the two** — which nothing read. So: fragment → Pydantic
+fails → the gateway spends a **full repair call** under the same ceiling → truncates identically →
+`StructuredOutputError` → `retrieval.py` swallows it into the RRF-order fallback. Two ~11 s calls
+account for the 20.93 s span.
+
+**Three consequences, in order of how much they matter.**
+1. **Retrieval quality**: the fallback returns `candidates[:top_k]` *unfiltered*, so the §5.21.7
+   `score > 0` cut — the thing that makes reranking a filter and not just a sort (D-052) — had not
+   run on staging since the corpus became real (D-112). This is almost certainly D-112's carry-over
+   (ii), the "Who is on the leadership team?" 1-in-3 no-source flake: with no filter, the margin
+   between a real chunk and the closest-available noise row is whatever the hybrid search happened
+   to return.
+2. **Cost**: ~10,957 input + 1,024 output tokens **twice** per grounded turn ≈ **3.2 cents burned
+   per turn** for a discarded result — more than the answer call itself (0.42 c). A cost bug by
+   CLAUDE.md's own rule 7, running unnoticed for a week.
+3. **Latency**: ~21 s of the 24.6 s turn, which is what made criterion 7 unmeetable.
+
+**Fix.** Score by `candidate_index` (the model never handles an identifier at all; the caller maps
+positions back deterministically) and derive the cap from the candidate count instead of fixing it.
+**Verified through the real `retrieve()` path against real Bedrock: 3.84 s, the rerank succeeds, and
+4 of 30 candidates survive the filter** — the filter demonstrably doing work again.
+
+**Why nothing caught it, which is the more useful half.** `MockBedrockProvider` echoes whatever key
+the request used and never truncates, so the mock-backed suite could not see it. The opt-in
+real-Bedrock eval (`test_qa_coverage_eval_real_bedrock.py`) *did* run against real Bedrock — and
+still passed, because a degraded rerank still produces plausible grounded answers. The suite stayed
+green at 565 tests through the entire outage. `packages/knowledge/tests/test_retrieval.py` now pins
+the three things that would have caught it: the output-token budget against the measured need, the
+index round-trip, and the fact that a degraded rerank logs.
+
+### AUD-X-10 — A schema-validation failure trips the shared circuit breaker, failing every task closed (P2, fixed in S43)
+
+This is D-113's "nine turns of 114 returned 200 in 30–84 ms with zero Bedrock calls", which D-113
+attributed to new tasks entering the target group. **That attribution was wrong.** The nine turns
+land at 04:23:30 (×2), 04:23:59 (×2), 04:24:26–27 (×5) — **~30 s apart, which is
+`circuit_cooldown_s`**, not a scaling event. X-Ray names the cause without inference:
+
+```
+intellichoice_shared.bedrock.CircuitOpenError: "Bedrock circuit breaker is open"
+  gateway.py:90 _circuit_check  →  langgraph.refuse        (span: 1 ms)
+```
+
+**Mechanism.** Each AUD-X-09 failure called `_record_failure()`. Sequentially that is harmless — the
+next turn's successful `scope_and_intent` resets the counter — but under concurrency five reranks
+fail before any success interleaves, the counter reaches the threshold of 5, and the breaker opens
+for 30 s **for every task**. `scope_guard` then fails closed to `out_of_scope` → `refuse`, so the
+student gets a polite refusal in 30 ms with no Bedrock call and no log line. Fail-closed behaved
+exactly as designed; it was fed a false signal.
+
+**Fix.** Only provider-health failures (timeout, `ProviderCallError`) trip the breaker. A response
+that arrives promptly and fails our schema is evidence that Bedrock is *healthy* and our request is
+wrong — the opposite of what the breaker exists to detect. A deliberate control test asserts
+provider outages still open it, so the narrowing cannot quietly remove the protection.
+
+### AUD-X-11 — The gateway logs successes only, so a call failing 100% of the time is invisible (P2, fixed in S43)
+
+`gateway.py` had exactly two `logger` calls, both after a successful call. Every failure exit —
+timeout after retries, `ProviderCallError`, invalid-after-repair, truncation, circuit open, budget
+exceeded — returned or raised in silence, and `retrieval.py`'s fallback logged nothing either.
+
+**This is why AUD-X-09 survived a week.** The only visible symptom was a gap between two *unrelated*
+log lines, which reads as "something is slow" rather than "this call is failing on every request".
+D-113 correctly measured the gap and correctly declined to guess at it; there was nothing in the
+logs to guess *from*.
+
+**Fix.** `bedrock_call_failed` at WARNING on every failure exit, carrying `reason` (one of
+`circuit_open`, `budget_exceeded`, `provider_unavailable`, `schema_invalid`, `output_truncated`),
+`duration_ms`, `attempts` and `consecutive_failures`; `duration_ms` added to both success lines so a
+slow call is attributable from one line instead of a timestamp diff; and
+`retrieval_rerank_degraded` at the fallback itself. Truncation additionally short-circuits the
+repair retry — a repair under the same ceiling truncates identically, so it only ever doubled the
+cost and latency of a certain failure.
+
+### AUD-X-12 — `rag_answer`'s fixed cap turns ~1 grounded turn in 30 into a false "no approved source" refusal (P1, fixed in S43)
+
+**Found by AUD-X-11's own fix, minutes after it reached staging.** The first load run against
+the new instrumentation produced two `bedrock_call_failed` lines, both `rag_answer`:
+
+```
+rag_answer  output_truncated  dur=9076ms   attempts=1  max_out=1536
+  "model hit max_output_tokens=1536 before completing the RagAnswerResponse response"
+rag_answer  schema_invalid    dur=13191ms  attempts=1  max_out=1536
+```
+
+**The distribution says it was never marginal.** Over 70 real grounded turns at `top_k=8`,
+`rag_answer` output tokens measured **p50 662, p95 1490, max 1530 — against a cap of 1536**,
+with 8 of 70 within 10% of the ceiling. The cap was set where real answers actually end.
+
+**Why this is a correctness finding and not a performance one.** `qa.answer_question` catches
+`BedrockGatewayError` and returns `NO_SOURCE_MESSAGE` — *"I don't have an approved source for
+that yet"* — which is the correct fail-closed behaviour for an ungrounded question and the
+*wrong* answer for a truncated response, and from inside that function **the two are
+indistinguishable**. So the product told students there was no approved source for questions
+that had one, at roughly one turn in thirty. It is a strong candidate for D-112's unexplained
+"Who is on the leadership team?" 1-in-3 no-source flake, which was filed as
+rerank/confidence-threshold territory.
+
+**A second, quieter path to the same refusal.** `LlmCitation.chunk_id` required the model to
+echo a 36-character UUID per citation. `_verify_citations` looks the citation up in
+`chunks_by_id` and **drops anything it cannot match** — correctly, since an unmatched citation
+is unverifiable — so a single garbled character in a UUID also produced a refusal, with no
+diagnostic anywhere. Index-keying removes the failure mode rather than mitigating it.
+
+**Fix.** `max_output_tokens_for(n) = 768 + 192n` (2304 at `top_k=8`, ~50% above the measured
+maximum), `context_index` in place of `chunk_id` on both `RagContextChunk` and `LlmCitation`,
+and `rag_answer_unavailable` at WARNING where the fallback happens.
+
+**Unlike AUD-X-09, this shape *was* covered by tests** — `test_qa_service.py` stopped
+typechecking the moment the schema changed, and its citation-verification tests are what make
+the reshape safe. The gap was never "nobody tested citations"; it was that nothing tested the
+*token budget*, because a budget is only wrong against real model output.
+
+**Two more instances of this shape are deliberately not chased**, and are recorded as
+carry-over rather than fixed blind: `learning_api.services.report` and
+`intellichoice_memory.consolidation` both use fixed caps over inputs whose size grows with a
+student's history. There is no measurement for either yet — and thanks to AUD-X-11, both would
+now log `output_truncated` the first time they hit it, which is the honest place to start.
+
+**Follow-up, same session: AUD-X-12's first fix regressed the low-passage end.** The derived
+cap shipped as `768 + 192n`, measured at `top_k=8` and reasoned by analogy with the reranker's
+per-candidate response. An answer's length is not per-passage, so single-passage turns got a
+**960-token ceiling, below the flat 1536 being replaced**, and the next clean load run
+truncated 3 of 74 turns, all `context_chunk_count=1`. Corrected to `2048 + 96n` (a fixed prose
+floor plus a small per-citation allowance) with a test asserting **every** passage count from
+1 to 30 clears the old flat cap — watched failing against the cap then live on staging. See
+D-115 §10; the transferable rule is that a derived value replacing a constant must not be
+smaller than that constant anywhere in its domain.
+
+### AUD-X-13 — The chat p95-latency alarm fires on healthy traffic, and the canary bake rolls back deploys when it does (P2, filed in S43)
+
+Surfaced by D-115's re-baseline rather than by a failure. `intellichoice-staging-chat-api-p95-latency`
+alarms on `TargetResponseTime` **p95 > 3 s for 3×60 s**, and notifies
+`intellichoice-staging-alerts`. That threshold is the same mock-calibrated 3 s discussed in the
+gate's criterion 7 — and a *healthy* grounded chat turn now measures **p50 ~10 s / p95 ~16 s**
+against the real corpus, because it is four sequential model calls. So the alarm's steady state
+during normal use is ALARM.
+
+**Three consequences, in increasing order of cost.** It is alarm fatigue on a monitored inbox,
+which trains the recipient to ignore it. It is criterion 8's evidence alarm, so what that
+criterion currently evidences is an alarm that cannot distinguish an incident from a
+conversation. And **`deploy-staging.yml`'s canary bake rolls both services back if any of the
+four alarms is in ALARM** (D-095's sequencing fact (i)) — so a deploy attempted while anyone is
+using chat would auto-roll-back a perfectly good release, and the rollback would look like a
+failed deploy rather than a mis-set threshold.
+
+**Mitigating detail:** `treat_missing_data = notBreaching`, so with no traffic the alarm returns
+to OK on its own; the exposure is "a deploy that overlaps real usage", not a permanently red
+staging.
+
+**Not fixed here, because the number is the same decision as criterion 7's** and should be set
+once, from the same measured budget, rather than twice by two people guessing. Recommendation:
+move this alarm to the same **20 s** proposed for criterion 7's live-staging threshold, keeping
+the separate scale-out alarm at 3 s where a low trigger is *correct* (D-113 §2 chose it
+deliberately: scaling should react long before a human should). That split — a sensitive scaling
+signal and an insensitive paging signal on the same metric — is the point, and it is why the two
+alarms were separated in the first place.
