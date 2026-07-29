@@ -48,8 +48,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   *question* — only its citation list scales. Single-passage turns got **960, below the 1536 it
   replaced**, and the next clean run truncated 3 of 74 turns, all `context_chunk_count=1`. Corrected
   to `2048 + 96n` (PR #43) with a test asserting every passage count 1–30 clears the old flat cap,
-  watched failing against the cap then live. **Post-#43 confirmation of zero `output_truncated`
-  across a load run is the one open verification step.**
+  watched failing against the cap then live. **Confirmed on revision 32: zero `bedrock_call_failed`
+  of any reason across a 64-turn load run** (was 3 `output_truncated`), app 64/64 turns 200,
+  ALB 134 requests with zero 5xx/504/connection errors.
   **Criterion 7 reframed (D-115 §11):** "redo the S34 calibration" was wrong — `chat_qa.js`'s
   `p(95)<1000` is correct for what it measures (mock provider, deliberately non-matching "zqxv"
   queries, no model in the path) and should stay. Criterion 7 is *missing* a separate live-staging
@@ -62,11 +63,14 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   measurement; (ii) **`report.py` and `consolidation.py` have the same fixed-cap shape** over inputs
   that grow with student history — unmeasured, and they will now log `output_truncated` when they
   hit it; (iii) a residual `rag_answer` `schema_invalid` rate of ~2–4% under load, now visible,
-  cause undiagnosed — capturing the invalid text needs a PII decision first; (iv) six client-side
-  timeouts in the run that overlapped the deploy's CloudFront invalidation and a 1→3 scale-out —
-  **ALB reported 107 requests with zero 5xx/504/connection errors and the app logged 53 turns all
-  200**, and they did not reproduce in a clean 74-turn run, so recorded as an artifact rather than a
-  finding; (v) D-112's retrieval-margin flake ("Who is on the leadership team?", no-source 1 in 3)
+  cause undiagnosed — capturing the invalid text needs a PII decision first; ~~(iv) six client-side
+  timeouts~~ **(iv) resolved, not a finding: the client-side `ReadTimeout`/`ReadError`s were pooled-
+  connection races in the ad-hoc load driver, not a server or edge failure.** Across every run the
+  ALB reported **zero** 5xx/504/`TargetConnectionErrorCount` and the app answered **100% 200**;
+  disabling HTTP keep-alive in the driver removed them entirely (58 turns, 0 errors). Operationally
+  worth knowing: a naive pooled client can see resets on 10–17 s requests through CloudFront where a
+  browser or k6 retries — **so criterion 7's error-rate leg should be measured with k6 through the
+  edge, not an ad-hoc client**; (v) D-112's retrieval-margin flake ("Who is on the leadership team?", no-source 1 in 3)
   is very likely explained — unfiltered retrieval — but needs re-measuring before it is closed.
 - **✅ AUD-L-04 fixed 2026-07-29 (D-114) — two P1s remain (AUD-L-07 read half, AUD-X-07
   half), both with written dispositions: zero P1s remain without one.** Local suite

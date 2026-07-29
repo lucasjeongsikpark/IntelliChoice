@@ -5707,3 +5707,22 @@ never succeeded, and the 30–84 ms zero-Bedrock refusals were the circuit break
 signal by it. **Live: p50 28.8 → 9.57 s, p95 32.8 → 15.94 s, 9-in-114 spurious refusals → 0 in
 74.** Criterion 7's threshold leg moved from "unmeetable" to "needs a number, here is the measured
 budget to pick it from". Suite 587 passed / 2 skipped, lint and pyright clean.
+
+### 12. Post-deploy confirmation of §10's correction, and one non-finding worth recording
+
+Revision 32 (`1250825`, PR #43), 64-turn load run at concurrency 5 across 3 tasks: **zero
+`bedrock_call_failed` of any reason** — the 3 `output_truncated` at `max_out=960` are gone — app
+64/64 turns 200, p50 10.06 s / p95 16.29 s, ALB 134 requests with zero
+5xx/504/`TargetConnectionErrorCount`. A second run with HTTP keep-alive disabled: 58 turns, 0
+errors, p50 10.02 / p95 16.09. **The measurement is stable at p95 ≈ 16 s**, which is what the
+proposed 20 s threshold has headroom over.
+
+**The non-finding:** two runs showed 5–6 client-side `ReadTimeout`/`ReadError`s, which looked
+alarming enough to chase. They were the ad-hoc load driver's own connection pooling: the ALB
+reported zero errors of every category in every run, the application logged 100% 200s, and
+**disabling keep-alive removed them completely**. A naive pooled client can see a reset on a
+10–17 s request through CloudFront where a browser or k6 retries. Recorded because the
+conclusion is operationally useful rather than merely negative: **criterion 7's error-rate leg
+must be measured with k6 through the real edge**, not with a bespoke client whose failure modes
+are its own. It also cost two extra measurement rounds to establish, which is the going rate for
+not reporting an artifact as a defect.
