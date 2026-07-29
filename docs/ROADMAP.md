@@ -716,7 +716,7 @@ monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 demonstrated auto-rollback; the "consecutive" ambiguity D-105 left open is settled — `73396c1` →
 `c58d1fe` has no failed deployment between them on either reading). **6 is on the calendar,
 read per-job (D-114 §3)**: earliest 2026-08-02 for the original two schedules, **2026-08-05**
-for the `retention-purge` schedule added 2026-07-29 (apply pending an AWS login). **4 is met**
+for the `retention-purge` schedule (applied and ENABLED 2026-07-29). **4 is met**
 (D-111: `chat-web` and `e2e-typecheck` CI jobs landed; AUD-F-08 closed).
 **2 needs two more P1 halves**: AUD-L-07 (read half — but see the ordering note below) and
 AUD-X-07 (half), both with written dispositions. The chat cluster closed AUD-C-16, AUD-C-02

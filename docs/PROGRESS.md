@@ -15,14 +15,18 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **365d** (parent-visible history, the deliberate exception). CLI uses bare
   `create_engine()` and is in the AUD-F-15 guard test's list. `make retention-purge`
   smoke-ran locally (0 rows, nothing is that old yet).
-  **⚠️ Blocked at session end on an expired AWS login (`aws login`), three items:**
-  (i) `terraform apply` for the `retention-purge` EventBridge schedule — the code is
-  merged-ready but the schedule does not exist in staging yet, and AUD-L-04's close
-  completes only when it runs unattended; (ii) AUD-C-03's post-deploy staging probe
-  (locator turn with real coordinates → confirm `checkpoint_writes` clean); (iii)
-  D-113's leftover `aws ecs describe-services` to confirm chat-api scale-in's final
-  2 → 1 step. **D-113's work merged and deployed this session**: PR #38 (`9467c78`),
-  all 9 checks green, deploy dispatched and verified against the merge SHA.
+  **✅ All three AWS-login-blocked items cleared after re-login, same session:**
+  (i) `terraform apply` ran clean (plan and apply: exactly 1 add, the
+  `intellichoice-staging-retention-purge` schedule, confirmed ENABLED at
+  `cron(50 18 * * ? *)` — first unattended run tonight); (ii) **AUD-C-03's post-deploy
+  staging probe passed**: a real-coordinates locator turn against the `9467c78` deploy
+  answered with distances, then an ops-task query found **0 `__resume__` rows** for the
+  thread and the coordinates' raw float64 bytes absent from every surviving blob
+  (625 bytes of checkpoints intact — the purge is surgical, not a checkpointing outage);
+  (iii) chat-api `desiredCount=1, running=1` — F-14's scale-in completed its final
+  2 → 1 step exactly as D-113 predicted. **Both PRs merged and verified: #38 (D-113's
+  work, deployed to staging, deploy concluded success against the merge SHA) and #39
+  (this session's AUD-L-04 work, `ddf4e6c`), each with all 9 checks green.**
   **Criterion 6 is read per-job (D-114 §3):** the original two jobs' unattended week
   still completes 2026-08-02; `retention-purge`'s own week completes **2026-08-05**.
   **New standing obligation (D-114 §4):** the §6.1 privacy text must state the
