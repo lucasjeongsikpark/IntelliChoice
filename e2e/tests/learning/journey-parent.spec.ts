@@ -84,11 +84,24 @@ test("parent with one child reaches a working screen without being asked to choo
   await expect(page.locator(".card-list, .phase-chip").first()).toBeVisible({ timeout: 60_000 });
 });
 
+// CONFIRMED DEFECT (AUD-F-22): a parent has no dashboard entry point mid-session. The
+// button is rendered by exactly two screens - `StartScreen`, which requires a resolved
+// `studentId` a parent only gets *by starting a session*, and `ResultsScreen` at the end of
+// a completed cycle - and `endSession()` clears `studentId`, so backing out does not help
+// either. The only route to a child's progress dashboard is finishing a whole
+// pre -> study -> post cycle.
+//
+// This was a conditional `test.skip(!reachable)` from S39 to S43, which meant four sessions
+// of runs reported it as "skipped: no dashboard entry point from the current screen" - a
+// sentence describing the defect, filed as a reason not to look. `test.fail()` instead, the
+// same posture as AUD-F-04/AUD-F-05: the probe keeps running and keeps measuring, and it
+// fails the run the day the gap is closed, which is the signal to promote it.
 test("parent reaches the progress dashboard and generates a report", async ({ page, audit }) => {
+  test.fail();
   await signInViaUi(page, LEARNING_WEB, FIXTURES.parentTwoChildren);
 
-  // The dashboard button only appears once a student is resolved - so resolve one first,
-  // which is itself the contract being checked (App.tsx's `dashboardStudentId`).
+  // Resolve a student first, which is itself the contract being checked (App.tsx's
+  // `dashboardStudentId`).
   await startSession(page);
   const childPrompt = page.getByRole("heading", { name: /who's learning today/i });
   if (await childPrompt.isVisible().catch(() => false)) {
@@ -103,7 +116,10 @@ test("parent reaches the progress dashboard and generates a report", async ({ pa
     .then(() => true)
     .catch(() => false);
   audit.note(`dashboard button reachable mid-session: ${reachable}`);
-  test.skip(!reachable, "no dashboard entry point from the current screen");
+  expect(
+    reachable,
+    "a parent who has resolved a child has no way to open that child's progress dashboard without completing an entire pre/study/post cycle - the dashboard button is only on StartScreen (which needs a studentId a parent gets by starting a session) and ResultsScreen (AUD-F-22)",
+  ).toBe(true);
 
   await stableClick(dashboardButton.first());
   await expectNotBlank(page);

@@ -58,10 +58,19 @@ test("the welcome card's suggested prompt works as a one-click turn", async ({ p
   await seedGuest(page);
   await page.goto(CHAT_WEB);
 
+  // Waited for, not counted immediately. `App.tsx` fetches `/chat/meta` in an effect, so a
+  // `count()` taken right after `goto` reads the DOM before the response lands and returns
+  // 0 every time - which is why this test skipped on every run since it was written,
+  // including all of S39-S42. It was never a data gap: `chat_suggestions` carries seven
+  // active `public` rows and `suggestions_for_role` returns the first four to a guest.
+  // A skip that never stops skipping tests nothing, so the absence is now a failure.
   const chips = page.locator(".suggestion-chips .chip, .welcome-card button");
+  await expect(
+    chips.first(),
+    "no suggestion chips rendered for a guest - GET /chat/meta returned no public suggestions, or the welcome card did not render",
+  ).toBeVisible({ timeout: 30_000 });
   const available = await chips.count();
   audit.note(`welcome suggestions offered: ${available}`);
-  test.skip(available === 0, "no suggestion chips rendered for a guest");
 
   const label = await chips.first().innerText();
   await chips.first().click();
