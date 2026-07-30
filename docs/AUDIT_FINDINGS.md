@@ -2979,3 +2979,73 @@ install**: the venv metadata says `chat_api` is installed and the source is not 
 **Not fixed here**, and criterion 3 is deliberately left failing on it rather than the chips test
 being scoped back to `local`: a launch-journey feature is genuinely broken on staging, and a gate
 criterion that goes green while that is true is the exact failure mode AUD-F-23 was about.
+
+### AUD-F-26 — The initial SSE snapshot serves state captured before a seconds-long Bedrock call, pushing the client backwards (P1, found and fixed in the S43 continuation, D-118)
+
+**This is the actual cause of both criterion-3 learning failures.** AUD-F-21 and AUD-F-24 were real
+defects and their fixes stand, but neither was what `time-telemetry` and `journey-student` were
+failing on — a distinction only the third measurement made, and one worth stating plainly rather
+than leaving the record implying a solved problem.
+
+**The evidence is one request timeline, read from `journeys.jsonl`'s own millisecond stamps:**
+
+| t | event |
+|---|---|
+| 434 ms | `POST /learning/sessions` → the client has a session id and opens `EventSource` |
+| 994 ms | `POST /topics` → **phase becomes `pre_exam`**, exam screen renders |
+| 1085 ms | `GET /exam/overview` → `assessment_item_id` defined, view-time effect arms (`viewStart ≈ 1183`) |
+| 2736 ms | the `/stream` response finally arrives — carrying **`phase: student_selected`** |
+| 2836 ms | `POST .../time` with `elapsed_ms` **1653** = 2836 − 1183 |
+
+And the page at failure, from the same artifact: the narrative panel rendering correctly above —
+AUD-F-21's fix working — and **"Choose a topic"** underneath it. The student was sent back to topic
+selection.
+
+**The mechanism.** `_initial_snapshot` reads the checkpoint, then calls `_maybe_fire_pre_intro`,
+then builds its response **from the state it read before that call**:
+
+```python
+snapshot = await graph.aget_state(...)     # phase == "student_selected"
+state = snapshot.values
+...
+if narrative_text is None:
+    narrative_text, … = await _maybe_fire_pre_intro(…)   # real Bedrock, ~2.3s measured
+return SessionSnapshotEvent(phase=state.get("phase", "created"), …)   # STALE
+```
+
+The browser opens `EventSource` the moment it has a session id, so it routinely starts a topic — and
+therefore the pre-exam — while the connect is still inside that call. The stale snapshot then
+overwrites newer client state.
+
+**Why every previously observed symptom follows from this one bug:**
+- The exam screen is replaced by `TopicSelectScreen` (phase went backwards), so its view-time
+  cleanup fires and flushes a **truncated dwell** — 2116 ms, then 1578 ms, then 1653 ms across three
+  runs, all of them just "however long since the overview landed". The number moved when unrelated
+  latencies moved, which is why it looked like progress twice and was not.
+- No further `GET /exam/overview` in the window (the poll effect returns early outside an exam
+  phase), and **no question navigator**, which is why `time-telemetry`'s trailing
+  `if (nav.count() > 1)` click never fired and only one time report was ever recorded.
+- `journey-student` answers all 10 items, finalizes, and then waits 60 s for `study|post-exam` —
+  and a stale snapshot can put it back on a screen with no matching phase chip.
+
+**Staging-only for the fourth time in this family** (after AUD-C-02, AUD-F-19, AUD-F-21):
+`MockBedrockProvider` returns in ~26 ms, so locally the window is too small to lose a race in.
+
+**Fixed** by re-reading the checkpoint after the narrative call and rebuilding everything derived
+from state — including `pending`, since an interrupt can be raised or resolved inside the same
+window, and including a re-authorization when `student_external_id` resolved during it (SPEC
+§5.30.2 wants the check against the state actually served). A narrative found in the refreshed
+checkpoint wins over the `pre_intro` fallback, preserving S26's existing precedence.
+
+**Regression test** fakes the seam rather than racing a real model call, because the defect is an
+*ordering* one and its test should be deterministic: `aget_state` returns `student_selected` first
+and `pre_exam` afterwards — exactly what the real checkpoint does when the client advances mid-call
+— and the test asserts both that the second read happened and that the served phase is the later
+one. Watched failing against the pre-fix code (`assert ['student_selected'] == [… 'pre_exam']`).
+
+**Correction to the AUD-F-21 record.** AUD-F-21's diagnosis attributed the truncated dwell to the
+narrative unmounting the exam screen. The narrative *did* replace the screen and that was worth
+fixing, but the flush the tests measured came from the phase going backwards. Two fixes were shipped
+on a diagnosis that fit the symptom and was not the cause — the honest reading is that the timeline
+in `journeys.jsonl` contained the answer from the first staging run onward, and it was not read
+until the third.

@@ -6124,3 +6124,71 @@ default.
 re-measured** against the corrected fix; its artifacts were overwritten by later local runs before
 they were read, so it gets a fresh measurement rather than a hypothesis. Criteria 7's learning leg and
 8's inductions remain untouched.
+
+---
+
+## D-119 — The real cause was a stale snapshot, and two fixes shipped before anyone read the timeline (accepted, 2026-07-29)
+
+Continues D-118 in the same session. D-118's fix deployed clean and the failure **still** did not
+close: the dwell went 2116 ms → 1578 ms → 1653 ms across three staging runs. Three different numbers
+for one defect, each one looking a little like progress.
+
+### 1. What it actually was
+
+`_initial_snapshot` reads the checkpoint, then makes a **real Bedrock call** (`_maybe_fire_pre_intro`,
+~2.3 s measured), then builds its response from the state it read *before* that call. The browser
+opens `EventSource` as soon as it has a session id, so it routinely starts a topic — and the
+pre-exam — while the connect is still inside that call. The stale snapshot then **overwrites newer
+client state and sends the student back to topic selection** (AUD-F-26, P1, fixed).
+
+Every symptom follows from that one bug: the exam screen is replaced, so its view-time cleanup
+flushes a truncated dwell whose value is just "time since the overview landed" (which is why it
+tracked unrelated latency changes); the overview poll returns early outside an exam phase, so no
+second fetch appears; there is no question navigator, which is why `time-telemetry`'s trailing
+conditional click never fired and only one time report was ever recorded; and `journey-student`'s
+60 s wait for `study|post-exam` can be answered by a screen that has gone backwards.
+
+Fixed by re-reading after the call and rebuilding everything derived from state — `pending` included,
+plus a re-authorization if `student_external_id` resolved inside the window, because SPEC §5.30.2
+wants the check against the state actually being served.
+
+### 2. The process failure, which is the part worth keeping
+
+**The answer was in `journeys.jsonl` from the first staging run.** The harness records every API call
+with a millisecond stamp — that is exactly what AUD-F-02 built it for — and the five lines that
+identify this bug (`/topics` at 994 ms, overview at 1085 ms, `/stream` at 2736 ms, `POST .../time`
+1653 ms) were sitting in the artifact each time. So was the page snapshot showing **"Choose a topic"**
+under the narrative, which is a screenshot of the defect. I read the assertion message and the code,
+formed a mechanism that fit the symptom, and shipped it. Twice.
+
+**What each round cost:** AUD-F-21's fix (a real defect, wrong cause), then AUD-F-24's fix (a real
+defect introduced *by* the first fix, still the wrong cause), each with a full PR, review cycle,
+~20-minute deploy and staging run. Both fixes are keepers on their own merits — the narrative did
+replace the screen, and a conditional wrapper did remount it — but neither addressed what was being
+measured.
+
+**The rule: when a numeric assertion fails, read the timeline before forming a mechanism.** A
+plausible mechanism that explains the *shape* of a symptom is not evidence, and the moment to notice
+that is before the first deploy, not the third. Concretely, for this repo: `journeys.jsonl`'s
+`apiCalls[].at` and the `error-context.md` page snapshot are the primary sources for any browser-side
+finding, and reading them is cheap.
+
+Related: this is now the **fourth** finding in the "only staging can see it" family (AUD-C-02,
+AUD-F-19, AUD-F-21, AUD-F-26), and the second where the mock's ~26 ms response hid a race rather than
+a behaviour. The new regression test fakes the *seam* rather than the latency, which is what makes it
+deterministic and is the pattern to reuse.
+
+### 3. AUD-F-25 fixed alongside it (user decision)
+
+The ops task's image now carries `apps/chat-api` source, repairing what was a **dangling editable
+install** — the builder stage installed chat-api, the runtime stage never copied it, so
+`import chat_api` raised `ModuleNotFoundError` in the one image the ops task runs. Source only: no
+second `uv sync`, no new dependency, and learning-api itself never imports it. `deploy-staging.yml`
+gains an idempotent `Seed chat suggestions` step, placed with the other seeders before the service
+rollouts.
+
+Chosen over a second Terraform task definition or relocating the seeder to a shared package because
+it repairs the image's own stated intent ("already has every workspace package installed") rather
+than working around it. **Criterion 3 was deliberately left failing on this** rather than scoping the
+chips test back to `local` (user decision): a gate criterion going green while a launch-journey
+feature is dead on staging is the failure mode AUD-F-23 was about.
