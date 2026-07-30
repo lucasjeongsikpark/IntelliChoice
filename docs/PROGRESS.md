@@ -648,8 +648,32 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-30, post-D-123). The gate is down to two unmeasured criteria and
-  one human confirmation, so the ordering is no longer about which P1 to fix:**
+- **Next session, in order (2026-07-30 close, post-D-128). The gate is down to ONE criterion needing
+  real work; everything else is two human sentences and a calendar:**
+  1. **Merge PR #60** (green, unmerged — tranche 6). Nothing deploys from it.
+  2. **Two sentences only you can write**, and each closes a criterion outright:
+     (a) find the two `learning-api` alarm emails — search `from:no-reply@sns.amazonaws.com
+     learning-api`, they fired ~1 h before the chat pair — which completes **criterion 8**;
+     (b) name **T-02's owner** (recommend S45, disclosures enumerated by the §6.1 track), which
+     completes **criterion 1**, whose only remaining blocker is that one open discrepancy.
+  3. **Criterion 9 — the last one needing work, and it is a bundle, not a task.** Run the
+     authenticated load, then `make scan-traces` **in the same session**, and profile `select_topic`
+     off the same run. Every trace scan to date is guest-only (D-104); the authenticated traffic from
+     D-121/D-122 aged out of X-Ray unscanned, which is the mistake this ordering exists to prevent.
+  4. **Criterion 6's calendar dates:** **2026-08-02** (original two schedules), **2026-08-05**
+     (retention-purge). Read per job.
+  5. **2026-08-01: re-probe "How do I enroll a student?"** and widen `chat_qa_staging.js`'s question
+     list beyond the four documents effective today.
+  **Then the gate reads: 1–5 and 8 done, 6 on the calendar, 7 met at the documented 25 concurrent,
+  9 the only open work.**
+  **⚠️ Sixth session carrying it: S42's discovery asks to the org are still unsent.** Everything
+  above is internally controlled; this one has external lead time and gates S43 — where §7-R8's real
+  fix lives. It is the likeliest true blocker on the pilot and the cheapest thing to start.
+  **New carry-over from this session:** ARCHITECTURE.md's "not yet built" paragraph (lines 15–18)
+  still lists memory, eval, observability and deployment as unbuilt; all shipped in S25/S30/S31/S32.
+  Needs a re-audit of the paragraph, not a one-line edit.
+
+- **Superseded — next-session pointer as of mid-session (2026-07-30, post-D-123):**
   1. **Still owed and still human: confirm criterion 8's four emails** in the monitored inbox
      (kkang19646@…). Carried a second time. No AWS API can attest it, and every day makes "which
      four" harder to reconstruct — the transitions were 2026-07-30 (three genuine, one synthetic
@@ -2593,6 +2617,40 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### Off-roadmap — the gate: criterion 2 claimed, criterion 1 built from zero to 37/37, CloudTrail (2026-07-30) ⏸ partial
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-122), not a numbered roadmap block.**
+  Four items were listed; three are closed and the fourth is calendar-bound. The session then went
+  past them into criterion 1, which had been unassessed since S37.
+- **Criterion 2 claimed on a written reading (D-123).** The ordering call carried for several
+  sessions is made: option (b). AUD-L-07's read half and AUD-X-07's remaining halves become
+  **§7-R8/R9** in INTEGRATION_PLAN.md — accepted, not fixed, each with an owner and an **expiry
+  condition** (R8 at first real traffic; R9 the moment `learning_checkpoint_repairs_total` moves off
+  zero). The claim is recorded as a *reading*: no P1 is open **without a decision**, which is not the
+  same as no P1-severity exposure existing. Two do.
+- **T-01 found and closed as two opposite answers (D-124/D-125).** §5.30.3 required GuardDuty and
+  CloudTrail and neither had a decision anywhere in the repo. **CloudTrail built** (new
+  `terraform/modules/cloudtrail/`, applied 7 add / 0 change / 0 destroy, management events only,
+  multi-region, log-file validation, 90-day expiry, `aws:SourceArn` on both bucket-policy
+  statements) and **live-verified end to end**. **GuardDuty deferred with the written reason it
+  never had**, tracked to S50 A7 on WAF's own argument (D-087).
+- **Criterion 1 taken from never-assessed to 37/37 sections in six tranches (D-124/D-126/D-127/
+  D-128).** New artifact **[TRACEABILITY.md](TRACEABILITY.md)**: a denominator, an evidence rule
+  ("unverified counts as not traced"), all four §2.3 risk classes, and a fourth **structural**
+  verdict added mid-method and *fenced* by a mandatory enforcing mechanism. **T-02 filed** (§5.1.2's
+  first-visit notice, owned only by implication) and left open on purpose — its disposition is one
+  sentence naming an owner, which is a scheduling call.
+- **Verification:** `make lint` clean, `make typecheck` clean (pyright 0 errors), **592 passed /
+  2 skipped** — run at session start and again at close, unchanged. Terraform `fmt`/`validate`
+  clean; CloudTrail verified live (`IsLogging: true`, `LatestDeliveryError: None`, a real
+  1,761-byte `.json.gz` delivered ~4.5 min after start). PRs #54–#59 merged, all 9 checks green
+  each; **PR #60 is green and UNMERGED**.
+- **Carry-over:** criterion 8 is **2 of 4** (the two `learning-api` emails were not among the four
+  produced); **T-02's owner** unnamed; PR #60 unmerged; ARCHITECTURE.md's "not yet built" paragraph
+  (lines 15–18) is stale — it still lists memory/eval/observability/deployment as unbuilt, all of
+  which shipped in S25/S30/S31/S32. Not fixed here: it needs a re-audit of the whole paragraph, not
+  a one-line edit.
+- **New decisions:** D-123, D-124, D-125, D-126, D-127, D-128.
 
 ### Off-roadmap — the chat cluster: AUD-C-16 → C-02 → F-19 (2026-07-28) ✅
 - **Scope: PROGRESS.md's own "Next session" pointer, not a numbered roadmap block** — the three
