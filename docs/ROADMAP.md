@@ -932,6 +932,16 @@ monitored inbox. Two notes for whoever re-runs this: D-121's "2 consecutive minu
 the last N datapoints that *exist*), and the chat induction **cost $17.25** in real Bedrock calls
 because a threshold set 25% above the normal p95 takes four runs to straddle successfully.
 
+**▶️ Criterion 1 is started, has an artifact, and is no longer undefined (2026-07-30, D-124).**
+[TRACEABILITY.md](TRACEABILITY.md) supplies what it had always lacked — a **denominator**
+(§5's 37 sections / ~197 subsections, minus §5.17 per D-078, §5.30.3's EKS-only controls per D-004,
+and WAF per D-087) and an **evidence rule** (traced needs implementation *and* a falsifying test;
+unverified counts as not traced). **Tranche 1: all ten non-negotiable rules traced, §5.25 and §5.30
+swept whole — 2 of 37 sections. Not met, and not claimed.** It found **T-01**: §5.30.3 requires
+**GuardDuty and CloudTrail** and neither appears in any decision in the repo, where WAF is equally
+absent but dispositioned — a gap invisible to every other criterion, since no test fails and no
+alarm fires. Estimate for the remainder: **two to three focused sessions**, mechanical, needing no
+AWS and no spend.
 **7, 8 and 9 are undone but no longer blocked** — the "missing" staging token secrets
 were always retrievable from Secrets Manager (D-107 §10), so the authenticated load run, the two
 learning-app alarm inductions on their real condition, and an authenticated-traffic trace scan are
