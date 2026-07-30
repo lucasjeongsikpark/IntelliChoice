@@ -28,7 +28,7 @@
  * smoke.spec.ts exists.
  */
 
-import { FIXTURES, LEARNING_WEB } from "../../config";
+import { FIXTURES, LEARNING_WEB, TARGET } from "../../config";
 import { expect, test } from "../../fixtures/capture";
 import { signInViaUi } from "../../fixtures/session";
 import {
@@ -62,10 +62,29 @@ async function delayStreamConnect(page: import("@playwright/test").Page): Promis
 const narrativeContinue = (page: import("@playwright/test").Page) =>
   page.getByRole("button", { name: /^continue$/i });
 
+/**
+ * The two delayed-narrative arms are `local`-only, and the reason is not convenience.
+ *
+ * The delay exists to make a ~26ms mock behave like real Bedrock. On staging the narrative
+ * is *already* slow, so the delay would stack on top of a latency this file does not
+ * control, and both arms would be measuring the sum of two waits rather than the ordering
+ * they were written for. Arm 1's own subject - the exam screen surviving a late narrative,
+ * measured through the dwell - is what `time-telemetry.spec.ts` measures on staging, and
+ * that spec failing was how AUD-F-21 was found in the first place; arm 2's subject is a
+ * purely client-side rule that the mock exercises exactly. So staging loses no coverage.
+ *
+ * This is a target skip with a stated reason, the same kind as `journey-chat.spec.ts`'s
+ * dev-login skip (D-097) - deliberately not the kind AUD-F-23 was about, where a condition
+ * silently never fired and four sessions of runs reported a journey as merely "skipped".
+ * Arm 3 needs no faked timing and runs on both targets.
+ */
+const LOCAL_ONLY = "the SSE delay simulates real Bedrock latency, which staging already has (see this file's header)";
+
 test("a narrative arriving mid-exam leaves the exam screen mounted and the dwell intact", async ({
   page,
   audit,
 }) => {
+  test.skip(TARGET !== "local", LOCAL_ONLY);
   // Same allowance as time-telemetry.spec.ts: a time report still in flight when the page
   // navigates is aborted by design (the hook is fire-and-forget).
   audit.allow({ failedRequests: true });
@@ -98,15 +117,25 @@ test("a narrative arriving mid-exam leaves the exam screen mounted and the dwell
   // than on a remount.
   const position = page.locator(".progress-bar span", { hasText: /Question \d+ of \d+/ });
   const questionBefore = (await position.innerText()).trim();
-  await page.waitForTimeout(DWELL_MS);
+  const dwellStarted = Date.now();
 
+  // Wait for the narrative rather than assuming a fixed delay puts it inside the dwell:
+  // the arrival time is the mock's plus the delay, and a spec that measures an ordering
+  // should wait for the ordering rather than race it. The dwell is topped up to DWELL_MS
+  // afterwards, so the measurement below is still against a known minimum.
+  const narrativeArrived = await narrativeContinue(page)
+    .waitFor({ state: "visible", timeout: 45_000 })
+    .then(() => true)
+    .catch(() => false);
+  const arrivedAt = Date.now() - dwellStarted;
+  audit.note(`narrative arrived ${arrivedAt}ms into the dwell: ${narrativeArrived}`);
   // Non-vacuity: if the narrative never showed, this test measured nothing.
-  const narrativeArrived = (await narrativeContinue(page).count()) > 0;
-  audit.note(`narrative visible after a ${DWELL_MS}ms dwell: ${narrativeArrived}`);
   expect(
     narrativeArrived,
-    `no stage narrative arrived during the dwell, so nothing was tested - the ${STREAM_DELAY_MS}ms SSE delay is supposed to land one mid-exam`,
+    `no stage narrative arrived while the exam screen was up, so nothing was tested - the ${STREAM_DELAY_MS}ms SSE delay is supposed to land one mid-exam`,
   ).toBe(true);
+  const remaining = DWELL_MS - (Date.now() - dwellStarted);
+  if (remaining > 0) await page.waitForTimeout(remaining);
 
   // The fix, stated three ways. Under the old sibling branch all three failed together.
   await expect(
@@ -141,6 +170,7 @@ test("a narrative arriving after the student has answered is dropped, not interp
   page,
   audit,
 }) => {
+  test.skip(TARGET !== "local", LOCAL_ONLY);
   audit.allow({ failedRequests: true });
 
   await delayStreamConnect(page);

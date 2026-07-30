@@ -5937,7 +5937,23 @@ Three arms: the mid-exam arrival, the post-interaction drop, and the co-existenc
 *other* ordering (the one arm that needs no faked timing). Each asserts the narrative actually
 arrived before asserting anything about it — a displacement test that passes because nothing was
 displaced is the false negative `make scan-traces` refuses to allow. **All three were watched
-failing against the pre-fix `App.tsx`** before being kept (D-107 §1).
+failing against the pre-fix `App.tsx`** before being kept (D-107 §1), and watched again after the
+first arm was restructured, because a regression test whose failure mode has drifted is back to
+asserting nothing.
+
+**The two delayed arms are `local`-only, and that is a real scoping decision rather than a
+convenience.** The delay exists to make a ~26 ms mock behave like real Bedrock; on staging the
+narrative is *already* slow, so the delay would stack on a latency the spec does not control and
+both arms would measure the sum of two waits instead of the ordering they were written for. Nothing
+is lost: arm 1's subject on staging is exactly what `time-telemetry.spec.ts` measures — that spec
+failing is how AUD-F-21 was found — and arm 2's subject is a purely client-side rule the mock
+exercises precisely. A target skip with a written reason (the `journey-chat.spec.ts` dev-login skip,
+D-097, is the same kind) is deliberately not the kind §4 below is about.
+
+**Arm 1 waits for the narrative rather than assuming a fixed delay lands it inside the dwell**, then
+tops the dwell up to 15,000 ms. A spec that measures an *ordering* should wait for the ordering
+rather than race it, and the arrival time is the mock's latency plus the delay — neither of which
+the spec should be asserting by accident.
 
 ### 3. A helper the fix quietly broke, and why that matters more than it sounds
 
@@ -5977,12 +5993,35 @@ long-standing parent auto-select carry-over.
 condition is never false is indistinguishable from a passing test in a run summary — `2 skipped`
 read as a known allowance for four sessions while it actually meant two journeys nobody had driven.
 
-### 5. What this does *not* claim
+### 5. A local flake that cost ~40 minutes, and the constraint behind it
 
-The fix is verified locally and **not on staging at the time of writing**, so criterion 3's two
-clean runs are not taken and the criterion stays open. Staging verification of this change, the
-`EXPECT_BUILD_SHA` check against the D-116 deploy, criterion 7's learning-app leg and criterion 8's
-alarm inductions were all blocked on the same thing: no local AWS session. AUD-F-04 and AUD-F-05
-(refresh does not restore position; a dismissed narrative returns after a reload) remain open and
-still fail as expected — AUD-F-21 made the second one less severe (the narrative no longer displaces
-the exam on reload) without closing it.
+`hint-displacement.spec.ts` failed twice near the end of the session — first with
+`TypeError: Failed to fetch` mid-journey and all ten exam questions unanswered, then with a 300 s
+budget overrun whose final page state showed the hint panel **present**, i.e. its subject satisfied
+but never asserted. Both were **interference, not a regression**: the Python suite was running
+concurrently, and `packages/db/tests/conftest.py` (and both apps') call
+`intellichoice_db.engine.create_engine()` — **there is no separate test database**, so `make test`
+and Playwright contend on the same dev Postgres. Run in isolation immediately afterwards the whole
+learning directory was **17 passed / 0 failed** with `hint-displacement` at **38.7 s**, identical to
+its timing before this branch.
+
+Recorded because a wrong hypothesis got a good deal of attention first: the local `checkpoints`
+table is at **410k rows** with **1.69M** `checkpoint_writes` (the known sweep carry-over, and
+`question_variants` has gone 42,023 → 87,453), which is a plausible reason for a study loop to slow
+down and is *not* the reason here — the identical 38.7 s rules it out. **The operational rule: run
+`make test` and the e2e suite one at a time**, and when an e2e spec fails with network-level errors
+or an unexplained slowdown, check what else is touching the database before treating it as a
+finding.
+
+### 6. What this does *not* claim
+
+The fix is verified locally and merged (PR #46, `f2aa85a`). **Criterion 3 is still not met:** the two
+clean staging runs are not taken, and they cannot be, because `make e2e-staging` needs an AWS
+session both to mint tokens from Secrets Manager and to read the build identity from ECS. The same
+single blocker holds D-116's own `EXPECT_BUILD_SHA` check (never run — its deploy went out as run
+30491528889 against `4fa2a531`), criterion 7's learning-app leg, and criterion 8's alarm inductions.
+`aws sts get-caller-identity` returned `NoCredentials` for the entire session.
+
+AUD-F-04 and AUD-F-05 (a refresh does not restore position; a dismissed narrative returns after a
+reload) remain open and still fail as expected. AUD-F-21 made the second **less severe** — the
+returning narrative no longer displaces the exam — without closing it.
