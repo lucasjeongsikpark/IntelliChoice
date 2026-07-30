@@ -5,6 +5,39 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **▶️ Criterion 1 started at last, and the reason it sat since S37 was not difficulty
+  (2026-07-30, D-124).** New artifact: **[TRACEABILITY.md](TRACEABILITY.md)**. Criterion 1 needs no
+  AWS, no Bedrock spend, no load run and no product decision — nothing has ever blocked it. It was
+  skipped because **nobody had defined what 100% was measured against**, and a criterion with no
+  denominator can only be worried about, not worked on. S36–S39 each traced their own SPEC range and
+  each honestly recorded "not met by this session"; four partial sweeps, no assembly.
+  **So the first work was a denominator and an evidence rule, not rows.** Launch scope = §5's
+  **37 sections / ~197 subsections** minus what a decision removed (§5.17 → D-078; §5.30.3's
+  Pod Security Standards/NetworkPolicy → moot under D-004; WAF → D-087). A row is **traced** only
+  with an implementation location *and* a test that would fail if the requirement broke; anything
+  else is **unverified, which counts as not traced**. Three verdicts, no fourth like "looks fine" —
+  a matrix that grades itself on "does this look implemented" certifies what its author already
+  believed, which is what D-119, D-116 and AUD-F-17 each cost a cycle to learn.
+  **Tranche 1: all ten of CLAUDE.md's non-negotiable rules traced, §5.25 and §5.30 swept whole.**
+  Two of 37 sections. **Criterion 1 is NOT met and the doc does not claim it is.**
+  **⚠️ T-01, and it is the kind of thing only this criterion can find: §5.30.3 requires GuardDuty
+  and CloudTrail, and neither exists in any decision anywhere in the repo.** A grep for GuardDuty
+  across `docs/` returns **zero hits** — not a deferral, not a cost note. CloudTrail appears once,
+  incidentally, inside D-095. Contrast WAF, also absent but **safe**, because D-087 weighed it and
+  wrote down why. **The distinction between "deferred" and "absent" is the entire value here:** no
+  test fails, no alarm fires, no journey breaks, so this gap is invisible to all eight other
+  criteria. A disposition is **owed and deliberately not made** — CloudTrail is cheap and is what
+  INCIDENT_RESPONSE.md's two real incidents would have wanted; GuardDuty is an always-on paid
+  service against a no-user staging account, the same argument that deferred WAF. **Decide them
+  separately** or the cheap one gets lost behind the expensive one.
+  **Also verified rather than believed:** §5.25.1's four "missing" gateway methods are dispositioned
+  in `shared/bedrock.py`'s own docstring by name and decision (D-022/D-078), and `packages/evals`'
+  judge really does route through `gateway.generate_structured`, so rule 7 holds on the eval path.
+  **Estimate for the rest: two to three focused sessions** — a third of a session covered ~5% of the
+  subsections, deliberately the densest 5%. Mechanical, not hard; the cost is reading each
+  requirement carefully enough to know what test would falsify it. It stays the cheapest criterion
+  left and the only one that neither expires nor waits on anyone — which is exactly why it keeps
+  losing to whatever is louder. **Schedule it as a session, not as the leftover of one.**
 - **✅ §2.6 CRITERION 2 IS CLAIMED, on a reading that is written down (2026-07-30, D-123), and
   D-122's PR is landed.** The ordering call the gate had carried for several sessions is made and it
   is **(b)**: AUD-L-07's read half and AUD-X-07's remaining halves are **accepted residual risks
@@ -518,9 +551,16 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      unscanned. **The fix is sequencing, not effort: run `make scan-traces` in the same session as
      the authenticated load run that produces the traffic** — the scan is nearly free, the traffic
      is not, and the window is hours. Pair it with (ii) below and get both from one run.
-  3. **Criterion 1 (full traceability) has been unassessed since S37** with nothing blocking it —
-     it has simply never been the most urgent item in any session since. It is now the oldest
-     untouched thing on the gate.
+  3. ~~**Criterion 1 (full traceability) has been unassessed since S37**~~ **(▶️ started
+     2026-07-30, D-124 — [TRACEABILITY.md](TRACEABILITY.md) now holds the denominator, the evidence
+     rule and tranche 1: ten non-negotiable rules traced, §5.25 and §5.30 swept, 2 of 37 sections.
+     Not met.)** **Continue it as a scheduled session, not a leftover** — next tranches in §2.3's
+     risk order: money (§5.8.3, §5.31, §5.18), minors/PII (§5.1, §5.15, §5.14.3), authorization
+     (§5.2.2, §5.6, §5.19–§5.24), data integrity (§5.4, §5.5, §5.9/§5.13, §5.16, §5.26). Two to
+     three sessions, no AWS, no spend.
+     **And T-01 needs a disposition from you, as two decisions rather than one:** CloudTrail
+     (cheap, and what INCIDENT_RESPONSE.md's two real incidents would have wanted) and GuardDuty
+     (always-on paid service against a no-user staging account — the argument that deferred WAF).
   4. **Criterion 6's calendar dates arrive**: **2026-08-02** for the original two schedules,
      **2026-08-05** for retention-purge. Read per job.
   5. **2026-08-01: re-probe "How do I enroll a student?"** and widen `chat_qa_staging.js`'s question

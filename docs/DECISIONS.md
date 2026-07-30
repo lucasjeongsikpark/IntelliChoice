@@ -6531,3 +6531,81 @@ D-116 pattern: the capacity change was already applied and rolled onto task defi
 merge only makes the repository match live state. All four paging alarms were verified **OK** first
 (the two `-scale-in` alarms sit in ALARM by design, missing data treated as breaching); a deploy
 launched while `chat-api-p95-latency` is in ALARM would auto-roll-back a good release.
+
+---
+
+## D-124 — Criterion 1 gets a method and a scope boundary before it gets rows; one requirement turns out to have fallen out of the plan silently (accepted, 2026-07-30)
+
+### 1. Why this criterion sat untouched since S37, and what was actually missing
+
+Criterion 1 — "100% of launch-scope SPEC requirements mapped to implementation + test" — is the
+only gate criterion never assessed. The reason is not difficulty. It needs no AWS session, no
+Bedrock spend, no load run and no product decision; nothing has ever blocked it. It was skipped
+because **nobody had defined what 100% was being measured against**, and a criterion with no
+denominator cannot be worked on, only worried about.
+
+S36–S39 each did traceability over their own SPEC range and each recorded, honestly, "criterion 1
+is not met by this session". Four partial sweeps and no assembly. So the first work is not rows:
+it is a denominator (§5's 37 sections minus what a decision removed) and a rule for what a row has
+to prove. Both now live in **[TRACEABILITY.md](TRACEABILITY.md)**.
+
+### 2. The evidence rule, which is the part that matters
+
+A row is **traced** only with an implementation location *and* a test that would fail if the
+requirement broke. Anything else is **unverified**, and unverified counts as **not traced**. Three
+verdicts — traced, dispositioned, gap — and deliberately no fourth like "looks fine".
+
+This is not pedantry, it is this project's specific failure mode. A matrix that grades itself on
+"does this look implemented" certifies whatever its author already believed, which is what D-119's
+two wrong fixes, D-116's stale-bundle hypothesis and AUD-F-17's never-once-run command each cost a
+cycle to learn. A traceability document is unusually exposed to it because every row is written by
+someone who already thinks the system works.
+
+One accommodation, because the codebase earned it: **a requirement dispositioned in the code's own
+docstring citing a decision ID counts as dispositioned.** §5.25.1 lists six gateway methods and two
+exist; `shared/bedrock.py`'s docstring disposes of the other four by name and decision (D-022 for
+`generate_stream`/`classify`, D-078 for `analyze_image`, and `judge` folded into
+`generate_structured`). That is a better record than a matrix row would have been. It was still
+verified independently rather than believed — `packages/evals`' judge does route through
+`gateway.generate_structured`, so rule 7 holds on the eval path too.
+
+### 3. T-01 — GuardDuty and CloudTrail are in §5.30.3 and in no decision anywhere
+
+Tranche 1 swept §5.30 completely. Most of §5.30.3's 15 AWS security controls trace to terraform.
+Three do not, and **their statuses are not the same**, which is the finding:
+
+- **AWS WAF** — dispositioned. D-087 deferred it deliberately and added per-IP rate limiting as an
+  explicit stopgap that its own text calls "not a replacement for one", tracked to S50 A7.
+- **Pod Security Standards / NetworkPolicy** — moot. EKS concepts; D-004 chose ECS/Fargate.
+- **GuardDuty and CloudTrail** — **nothing.** A grep for GuardDuty across `docs/` returns zero
+  hits. Not a deferral, not a cost note, not a "later". CloudTrail appears once, incidentally,
+  inside D-095's IAM discussion, never as a decision.
+
+**The distinction between "deferred" and "absent" is the whole value of this criterion.** WAF is
+absent and *safe*, because someone weighed it and wrote down why. GuardDuty is absent and nobody
+knows whether that was a choice. No test fails, no alarm fires, no journey breaks — this class of
+gap is invisible to all eight other criteria, which is precisely why criterion 1 exists and why
+skipping it for five sessions was not free.
+
+Filed as **T-01** rather than **AUD-\***: audit findings are defects in built things; this is a
+requirement with no decision.
+
+**The disposition is owed and is deliberately not made here.** The two probably deserve different
+answers. CloudTrail is cheap and is what an incident response wants —
+[INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) is grounded in two real credential incidents
+(S32/D-084, S33/D-085) and has no account-level audit log to point at. GuardDuty is an always-on
+paid service against a staging account with no users, which is the same argument that deferred WAF.
+Deciding them as one item is how the cheap one gets lost behind the expensive one.
+
+### 4. Standing, and an estimate stated as a number rather than a hope
+
+**Tranche 1 traced 10 of 10 non-negotiable rules and swept 2 of 37 sections (§5.25, §5.30).**
+Criterion 1 is **not met** and TRACEABILITY.md does not claim it is. Roughly a third of a session
+covered ~5% of the subsection count — deliberately the densest 5%, since the ten rules cut across
+about twelve sections. The remainder is **two to three focused sessions**, mechanical rather than
+hard: the expensive part is reading each requirement carefully enough to know what test would
+falsify it.
+
+It remains the cheapest criterion left and the only one that neither expires nor depends on anyone
+else. That combination is exactly why it keeps losing to whatever is louder, and the reason to
+schedule it as a session rather than as the leftover of one.
