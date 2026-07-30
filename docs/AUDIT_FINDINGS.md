@@ -2871,3 +2871,111 @@ whose condition is never false is indistinguishable, in a run summary, from a te
 `2 skipped` looked like a known allowance rather than two journeys nobody had ever driven. The
 matching pattern to watch for: a skip message that *describes a defect* is a finding, not a
 condition.
+
+### AUD-F-24 — A conditional wrapper remounts the screen below it, so AUD-F-21's first fix truncated the dwell anyway (P1, found and fixed in the S43 continuation, D-118)
+
+**AUD-F-21's fix was deployed to staging and the failure it was supposed to close did not close.**
+`time-telemetry.spec.ts` still reported a truncated dwell — **1578 ms against a 15,000 ms dwell**,
+where the pre-fix number was 2116 ms. Same defect, different number.
+
+**The mechanism, and it is a React reconciliation rule rather than anything about narratives.**
+The first fix rendered the narrative *above* the phase screen, in a wrapper:
+
+```tsx
+if (!showNarrative) return phaseContent;
+return <div className="stack">{narrative}{phaseContent}</div>;   // WRONG
+```
+
+React reconciles children by position. Without a narrative, `ExamScreen` is `main`'s child; with
+one, it is `main > div.stack`'s child. That is a **different position in the tree**, so React
+unmounts and remounts it — which is precisely what AUD-F-21 was: the view-time cleanup fires early
+and `useState(0)` re-initialises. **A conditional wrapper is a remount.** Moving the narrative from
+a sibling *branch* to a conditional *parent* changed which line caused the unmount, not whether one
+happened.
+
+**Fixed with a Fragment carrying two fixed slots**, always returned, so slot 1 holds the phase
+content at the same index whether or not a narrative is showing:
+
+```tsx
+return <>{showNarrative ? <StageTransitionScreen … /> : null}{phaseContent}</>;
+```
+
+A Fragment rather than an always-present `div` for a second reason found while fixing it:
+`.stack` carries `max-width: 480px`, so the first fix had also been quietly **narrowing the exam
+screen for the duration of every narrative**. A Fragment adds no DOM node, so the no-narrative
+render is identical to what shipped before any of this. The 16 px gap the wrapper used to provide
+moved to `.app-main`, which already centres a flex column and has one child on every other screen.
+
+**Why the local suite passed the broken fix — a blind spot in the regression test, not bad luck.**
+`narrative-displacement.spec.ts` arm 1 compared the question position across the narrative's
+arrival, but it did so **while sitting on Question 1**. A remount resets to Question 1, so the
+assertion compared 1 to 1 and passed straight through the defect. The arm now clicks the question
+navigator to move off Question 1 first, and asserts it succeeded — and it was verified to fail
+against **both** the original sibling-branch code *and* the conditional-wrapper fix, with the
+message it exists for ("the exam screen remounted, so useState(0) re-initialised…"). Two failure
+modes, one test, both watched.
+
+**The lesson worth more than the fix:** a test that asserts state is preserved has to first put
+that state somewhere a reset would be visible. Asserting a default value is unchanged proves
+nothing, and it is invisible in a green run.
+
+**And keeping the screen mounted exposed a latent 409, which the fix has to carry too.** With the
+remount gone, `post-finalize-poll.spec.ts` began reporting **exactly one 409 at +2004 ms** — a
+`POST .../exam/items/<pre-exam item>/time` against a finalized exam. Mechanism: `overview` is the
+*exam's* item list and `App` keeps holding it after the phase moves to study, so
+`currentOverviewItem` kept resolving a pre-exam item; meanwhile the phase-change effect had just
+cleared `finalizedRef`, so the next dependency change flushed for an item whose exam was closed. The
+unmount used to hide it by destroying the component before a second commit could fire. Fixed by
+gating the lookup on `isExamPhase`, which is what the data means anyway — view time is recorded
+against `assessment_item_id`, and only pre/post-exam items have one. Watched failing without the
+gate (`1 requests the server rejected with 409`) and passing with it.
+
+**Still present, deliberately: the same class one branch over.** `renderPhase` wraps the exam view
+in `.stack` *conditionally* when an intervention arrives (`snapshot.intervention &&
+!interventionDismissed`), so a hint arriving mid-question remounts `ExamScreen` for exactly the same
+reason. That is pre-existing, it is the AUD-F-03/hint-displacement family, and unlike the narrative
+case the `.stack` styling there is load-bearing for the panel's own layout — so it needs a layout
+decision rather than a mechanical change. Not touched here; recorded so the next person does not
+have to rediscover the mechanism.
+
+### AUD-F-25 — chat's suggestion chips have never been seeded on staging, and the seeder cannot run there (P2, found in the S43 continuation, D-118; not fixed)
+
+Uncovered by AUD-F-23's fix: making the skipped chips test *fail* on absence turned a silent skip
+into a real result, and the real result is that staging has no suggestions at all.
+
+```
+GET https://<chat cf domain>/chat/meta
+{"welcome_text":"Founded in 1993 …","suggested_prompts":[]}
+```
+
+The welcome text is there (it is RAG-derived); `suggested_prompts` is empty. SPEC §18-C3's welcome
+card therefore renders with no chips for every caller on staging, and the one-click-turn path is
+dead.
+
+**Two causes stacked.** First, `deploy-staging.yml` re-seeds MySQL fixtures (AUD-F-20's fix) and
+re-embeds the RAG corpus (AUD-C-16's fix) but **never runs `chat_api.services.suggestions_seed_cli`**
+— the `make chat-suggestions-load` equivalent. Second, and the reason this is not a one-line
+workflow addition: **it cannot be run from the ops task at all.** Probed directly —
+
+```
+python -c "import chat_api.services.suggestions_seed"
+→ ModuleNotFoundError: No module named 'chat_api'   (exit 1)
+```
+
+The ops task reuses the learning-api image on the stated grounds that it "already has every
+workspace package installed". Its *builder* stage does `COPY apps/chat-api/`, so `uv sync` installs
+chat-api — but the *runtime* stage copies only `apps/learning-api`, leaving a **dangling editable
+install**: the venv metadata says `chat_api` is installed and the source is not there.
+
+**Three fix shapes, and it is a packaging decision rather than a mechanical one:**
+1. Copy `apps/chat-api/` into the learning-api image's runtime stage (one line) — smallest, and
+   arguably just repairs the image's own stated intent, but couples the two apps' images and grows
+   the learning-api image for the sake of an ops path.
+2. A second ops-task definition on the chat-api image (Terraform) — clean separation, more moving
+   parts, and a second task definition to keep in step.
+3. Move the seed catalogue and seeder into a shared package — best long-term shape, largest change,
+   touches an app boundary.
+
+**Not fixed here**, and criterion 3 is deliberately left failing on it rather than the chips test
+being scoped back to `local`: a launch-journey feature is genuinely broken on staging, and a gate
+criterion that goes green while that is true is the exact failure mode AUD-F-23 was about.

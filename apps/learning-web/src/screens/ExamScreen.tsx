@@ -116,9 +116,23 @@ export function ExamScreen({
     setSelected(null);
   }, [currentDisplayOrder, phase]);
 
-  const currentOverviewItem = overview?.items.find(
-    (item) => item.display_order === currentDisplayOrder,
-  );
+  // Gated on `isExamPhase`, which AUD-F-24 turned from a nicety into a correctness
+  // requirement. `overview` is the *exam's* item list and App keeps holding it after the
+  // phase moves on, so outside an exam phase this lookup used to keep resolving a
+  // **pre-exam** item. That fed the view-time effect below an `assessmentItemId` belonging
+  // to a finished exam, while the phase-change effect above had just cleared
+  // `finalizedRef` - so the next dependency change flushed a `POST .../time` for a
+  // pre-exam item against a closed exam and took a 409 (AUD-F-02's class, measured as
+  // exactly one 409 at +2004ms once the screen stopped unmounting at the transition).
+  //
+  // Previously the unmount hid it: the screen was destroyed at the phase change, so the
+  // stale-overview window never got a second commit to fire in. Keeping the screen mounted
+  // is the point of AUD-F-24, so the staleness has to be handled rather than outrun.
+  // Gating here is also just what the data means - view time is recorded against
+  // `assessment_item_id`, which only exists for pre/post-exam items, never for study.
+  const currentOverviewItem = isExamPhase
+    ? overview?.items.find((item) => item.display_order === currentDisplayOrder)
+    : undefined;
 
   // View-time autosave tick: flushes accumulated time for the item being left whenever
   // the student navigates away (nav-bar jump, submit-and-advance) or the screen unmounts.
