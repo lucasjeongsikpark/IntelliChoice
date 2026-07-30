@@ -99,3 +99,38 @@ locals {
     ManagedBy   = "terraform"
   }
 }
+
+# D-130: the organization's local-time convention, which decides which week the attendance
+# gate reads (SPEC §5.6.2). **These defaults are provisional, not confirmed.**
+# `America/Chicago` is inferred from a hard-coded `-6` in icrest's report queries, which is
+# not the same as knowing; Message A in docs/S42_ORG_ASKS.md is the ask that settles it.
+# Both services log the convention at WARNING on every startup until `org_time_confirmed`.
+#
+# Switching after the org manager confirms is a tfvars edit and an apply, no code change.
+# Unprefixed by design: the two services must never disagree about what week it is.
+variable "org_timezone" {
+  type    = string
+  default = "America/Chicago"
+}
+
+# "local_dst_aware" (real local time, DST included - correct) or
+# "legacy_fixed_utc_minus_6" (mimic icrest's reports exactly - consistent with what staff
+# already read, and an hour early in summer). The app rejects any other value at startup
+# rather than falling back, so a typo here fails loudly instead of silently reverting.
+variable "org_time_convention" {
+  type    = string
+  default = "local_dst_aware"
+
+  validation {
+    condition     = contains(["local_dst_aware", "legacy_fixed_utc_minus_6"], var.org_time_convention)
+    error_message = "org_time_convention must be local_dst_aware or legacy_fixed_utc_minus_6."
+  }
+}
+
+# Set true only once the org has actually confirmed the two values above. It changes nothing
+# functionally - it silences a deliberate startup warning, which is the point: the warning is
+# the only thing stopping a provisional guess from hardening into an assumed decision.
+variable "org_time_confirmed" {
+  type    = bool
+  default = false
+}

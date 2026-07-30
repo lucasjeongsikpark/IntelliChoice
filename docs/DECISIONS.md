@@ -7032,3 +7032,79 @@ than the tick; each one is written out where it is claimed.
 **The one item that has not moved in six sessions is still S42's discovery asks to the org**, which
 are external, have real lead time, and gate S43 — where §7-R8's actual fix lives. Everything the gate
 now lacks is either a date or a mailbox; the pilot's real blocker is a set of unsent questions.
+
+## D-130 — The org's time convention becomes a switch with a provisional default, because the answer is theirs and the code needed one anyway (accepted, 2026-07-30)
+
+**Context.** S42's Message A asks the org which timezone convention their sessions follow, and
+that ask has been unsent for seven sessions. Meanwhile `current_week_key()` — the attendance
+gate's key and the fixture seeder's column value — was reading the ISO week straight off **UTC**.
+Waiting for the answer meant carrying an unstated assumption; guessing it meant hardcoding
+someone else's operational decision. So: make it configurable, default it to the honest guess,
+and make the guess announce itself.
+
+### 1. The UTC reading was already wrong, quietly
+
+ISO weeks start Monday, and Sunday evening in Central is **already Monday in UTC** — Sunday
+19:00 CDT is Monday 00:00 UTC. So a Sunday session was filed under the *next* week's key. With
+fail-closed gating (unknown attendance ≠ present, SPEC §5.4.4), the consequence is not a wrong
+report: **a student who attended on Sunday gets blocked out of their weekly exam.**
+
+It is invisible today because there are no real users and because the dev fake seeds its own
+`week_key` with the same function — the fixture and the query were consistently wrong together,
+which is the failure mode a shared helper produces when it encodes an assumption instead of
+reading one. Whether it would ever fire depends on whether the org runs Sunday-evening sessions,
+**which nobody has asked** (see §4).
+
+### 2. Two defensible conventions, and the choice is not an engineering one
+
+- **`local_dst_aware`** — real local time in a named IANA zone. Correct; disagrees by an hour
+  with the org's own reports from mid-March to early November.
+- **`legacy_fixed_utc_minus_6`** — reproduce icrest's hard-coded `-6` exactly. Always agrees
+  with what staff already read; both are an hour early in summer.
+
+Either way something is off, and *which* kind of off is operationally acceptable belongs to the
+people who read these times. The code's job is to hold both and switch cheaply.
+
+### 3. What "switch cheaply" means concretely
+
+[org_time.py](../packages/shared/src/intellichoice_shared/org_time.py) resolves three
+environment variables — `ORG_TIMEZONE`, `ORG_TIME_CONVENTION`, `ORG_TIME_CONFIRMED` — into a
+frozen `OrgTimeConfig` that owns `local()` and `week_key()`. Switching after the org answers is
+**a tfvars edit and an apply**. Four choices in it are deliberate:
+
+- **Unprefixed env vars**, against the `LEARNING_`/`CHAT_` convention every other setting
+  follows. Per-app prefixes would permit the two services to disagree about what week it is,
+  which is a defect with no legitimate use; one organization is never in two timezones.
+- **Passed explicitly in Terraform** rather than relying on the app default, so the deployed
+  convention is readable from the task definition instead of inferred from code.
+- **A bad value raises `InvalidOrgTimeConfigError` instead of falling back.** A typo'd
+  `ORG_TIMEZONE` silently reverting to Chicago would undo a *confirmed* decision at deploy
+  time, invisibly — the exact class of failure this module exists to prevent.
+- **`ORG_TIME_CONFIRMED` changes no behavior at all.** It only lowers a startup log line from
+  WARNING to INFO. That line is the whole mechanism: an unconfirmed assumption that decides
+  whether a student reaches their exam should be visible in every deploy's logs, not
+  discoverable by reading a source file. **AUD-F-30, filed hours earlier the same day, is a
+  cost comment that was true when written and silently stopped being true** — this is that
+  lesson applied before the fact rather than after.
+
+Default: `local_dst_aware` + `America/Chicago`, unconfirmed. Chosen because it is correct by
+construction, and because the alternative exists only to mirror a display bug.
+
+**Tests (30 new, 622 passed / 2 skipped):** both conventions, the Sunday boundary in both
+directions, the disputed 00:00–00:59 window where even the *date* differs, winter where the two
+conventions are identical (which is why nobody noticed), naive-datetime handling, invalid values
+raising, and both log levels. The seam test lives outside `test_mysql_profile_adapter.py`
+because that module skips entirely without a reachable MySQL, and **a skipped test is not a
+passing one**.
+
+### 4. The ask itself was incomplete, and that is the more useful finding
+
+Message A asks which *display offset* to follow. The code's actual question is where the **week
+boundary** falls, and those are different: the offset changes what hour is shown, the boundary
+changes whether a Sunday session counts as this week — i.e. whether a student is let in. The
+draft would have come back correctly answered and still left S43 guessing.
+
+**Added to Message A:** whether sessions ever run Sunday evening, and whether any run between
+midnight and 1:00 am local — the only two windows where the conventions disagree about the date.
+**Generalisable:** a question drafted from reading someone else's code asks what that code made
+visible. Ours became visible only when a real consumer of the answer was written.

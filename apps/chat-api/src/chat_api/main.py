@@ -34,6 +34,7 @@ from intellichoice_shared.db_ready import ping_engine
 from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.maps import GeocodeQuery, RouteQuery
 from intellichoice_shared.mcp import McpTool, McpToolRegistry
+from intellichoice_shared.org_time import log_org_time_convention
 from intellichoice_shared.rate_limit import (
     InMemoryRateLimiter,
     install_global_rate_limit_middleware,
@@ -61,6 +62,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # `learning_api.main.lifespan`'s same ordering.
     configure_logging(level=settings.log_level)
     configure_langsmith()
+    # The org's local-time convention is still a provisional default (D-130): it decides
+    # which week attendance is read for, and it logs at WARNING until confirmed.
+    log_org_time_convention()
 
     adapter = MySQLProfileAdapter(settings.mysql_url)
     app.state.profile_adapter = adapter

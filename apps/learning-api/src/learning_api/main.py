@@ -29,6 +29,7 @@ from intellichoice_shared.build_identity import build_identity
 from intellichoice_shared.db_ready import ping_engine
 from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.mcp import McpTool, McpToolRegistry
+from intellichoice_shared.org_time import log_org_time_convention
 from intellichoice_shared.profiles import AttendanceStatus, ProfileAdapter
 from intellichoice_shared.rate_limit import install_global_rate_limit_middleware
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -60,6 +61,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # startup step's `logger.info(...)` calls should already be JSON-formatted.
     configure_logging(level=settings.log_level)
     configure_langsmith()
+    # The org's local-time convention is still a provisional default (D-130): it decides
+    # which week attendance is read for, and it logs at WARNING until confirmed.
+    log_org_time_convention()
 
     adapter = MySQLProfileAdapter(settings.mysql_url)
     app.state.profile_adapter = adapter

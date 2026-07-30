@@ -5,6 +5,33 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ The org's time convention is now a switch with a provisional default (2026-07-30, D-130) —
+  and building the switch found that the code was already quietly wrong.** `current_week_key()`,
+  the attendance gate's key, read the ISO week off **UTC**. ISO weeks start Monday and Sunday
+  19:00 Central is Monday 00:00 UTC, so **a Sunday session was filed under the next week** — and
+  with fail-closed gating that means **a student who attended on Sunday gets blocked out of their
+  exam**. Invisible until now because there are no real users *and* because the dev fake seeds
+  `week_key` with the same function: fixture and query were consistently wrong together, which is
+  what a shared helper does when it encodes an assumption instead of reading one.
+  **Switching after the org confirms is a tfvars edit plus an apply** — `ORG_TIMEZONE`,
+  `ORG_TIME_CONVENTION` (`local_dst_aware` | `legacy_fixed_utc_minus_6`), `ORG_TIME_CONFIRMED`,
+  resolved by [org_time.py](../packages/shared/src/intellichoice_shared/org_time.py) and passed
+  explicitly in Terraform so the deployed convention is readable from the task definition.
+  **Four deliberate choices:** the vars are **unprefixed** against this repo's own
+  `LEARNING_`/`CHAT_` convention, because letting the two services disagree about what week it is
+  has no legitimate use; a **bad value raises instead of falling back**, since a typo'd zone
+  silently reverting to the default would undo a *confirmed* decision at deploy time;
+  `ORG_TIME_CONFIRMED` **changes no behavior at all** — it only drops a startup line from WARNING to
+  INFO, and that line is the entire mechanism; and the seam test sits **outside**
+  `test_mysql_profile_adapter.py`, which skips wholesale without MySQL, because a skipped test is
+  not a passing one. 30 new tests, **622 passed / 2 skipped**.
+  **⚠️ The more useful finding is that the org ask was incomplete.** Message A asked which *display
+  offset* to follow; the code's question is where the **week boundary** falls. The offset changes
+  what hour is shown; the boundary changes whether a student is let in. **The draft would have come
+  back correctly answered and still left S43 guessing.** Both language versions now also ask whether
+  sessions run Sunday evening or between midnight and 1:00 am — the only two windows where the
+  conventions disagree about the date. A question drafted from reading someone else's code asks what
+  *that* code made visible; ours became visible only when something finally consumed the answer.
 - **✅ CRITERIA 9 AND 1 ARE MET (2026-07-30, D-129). The gate now needs a calendar and a mailbox —
   no engineering.** 1, 2, 3, 4, 5, 9 met; 7 met at the pilot's 25 concurrent; **6** on the calendar
   (2026-08-02 / 2026-08-05); **8** at 2 of 4 confirmed.
@@ -694,11 +721,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 - **Next session, in order (2026-07-30 close, post-D-129). The gate needs no engineering. What it
   needs is a mailbox, two dates, and the one thing that has not moved in six sessions:**
-  1. **⚠️ S42's discovery asks to the org — send them, and send them first.** Seventh session
-     carrying them. Everything else on this list is internally controlled and takes minutes; this one
-     has **external lead time** and gates S43, where §7-R8's real fix lives. Draft is
-     [S42_ORG_ASKS.md](S42_ORG_ASKS.md). **It is now the pilot's only true blocker** — with 1 and 9
-     closed, nothing in the gate is waiting on code, and this is waiting on someone else's reply.
+  1. **S42's org asks — no longer blocking, now dated (D-130).** The timezone answer runs on a
+     provisional default that logs at WARNING until confirmed, so nothing is stuck waiting.
+     **Message A is due before S43 opens** (that is where the real attendance derivation gets
+     written); **Message B before S48** (production domains). Message C stays held for S42 itself.
+     Draft: [S42_ORG_ASKS.md](S42_ORG_ASKS.md) — **re-read Message A before sending, it gained a
+     question**. This item was carried seven sessions as "the cheapest thing to start"; that label
+     stopped working, so it now has dates and a default instead of an adjective.
   2. **Criterion 8, 2 of 4 → 4 of 4: read the inbox.** Search `from:no-reply@sns.amazonaws.com
      learning-api`; the two `learning-api` notices fired ~1 h before the chat pair (`5xx-rate`
      18:26:40Z, `p95-latency` 18:44:38Z, also 18:13 and 06:28). No AWS API can attest this and each
@@ -2720,7 +2749,14 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
 - **Carry-over:** criterion 8 still 2 of 4 (needs a human to read an inbox); criterion 6's two dates;
   AUD-F-30/31 unfixed; **S42's org asks unsent, seventh session** — and now the pilot's only blocker
   that is not a date or a mailbox.
-- **New decisions:** D-129.
+- **Then, on the same day and outside the pointer's five items:** the org's time convention became
+  a switch with a provisional default (**D-130**), because the seventh-session-carried Message A had
+  no answer and the code needed one. Building it surfaced that `current_week_key()` read the ISO week
+  off UTC, filing Sunday-evening sessions into the next week — which fail-closed gating turns into
+  blocking a student who attended. New `intellichoice_shared.org_time`, three unprefixed env vars
+  wired through Terraform, 30 tests (**622 passed / 2 skipped**). Message A gained the week-boundary
+  question it was missing.
+- **New decisions:** D-129, D-130.
 
 ### Off-roadmap — the gate: criterion 2 claimed, criterion 1 built from zero to 37/37, CloudTrail (2026-07-30) ⏸ partial
 - **Scope: PROGRESS.md's own "Next session" pointer (post-D-122), not a numbered roadmap block.**

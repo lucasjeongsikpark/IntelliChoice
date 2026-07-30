@@ -360,6 +360,14 @@ module "ecs_service_learning_api" {
     LEARNING_DB_NAME       = module.rds_postgres.db_name
     LEARNING_MYSQL_DB_HOST = module.rds_mysql.endpoint_address
     LEARNING_MYSQL_DB_PORT = tostring(module.rds_mysql.endpoint_port)
+    # D-130: the org's local-time convention, which decides the attendance week. Passed
+    # explicitly rather than left to the app's default so switching it after the org
+    # confirms is a tfvars edit plus an apply - not a code change - and so the currently
+    # deployed convention is readable from the task definition. Unprefixed on purpose:
+    # both services must agree about what week it is.
+    ORG_TIMEZONE        = var.org_timezone
+    ORG_TIME_CONVENTION = var.org_time_convention
+    ORG_TIME_CONFIRMED  = var.org_time_confirmed ? "true" : "false"
   }
 
   secrets = {
@@ -432,6 +440,12 @@ module "ecs_service_chat_api" {
     CHAT_DB_NAME       = module.rds_postgres.db_name
     CHAT_MYSQL_DB_HOST = module.rds_mysql.endpoint_address
     CHAT_MYSQL_DB_PORT = tostring(module.rds_mysql.endpoint_port)
+    # D-130: identical to ecs_service_learning_api's block above, and identical on purpose -
+    # the two services disagreeing about the attendance week would be a real defect, so they
+    # read the same three unprefixed variables from the same tfvars.
+    ORG_TIMEZONE        = var.org_timezone
+    ORG_TIME_CONVENTION = var.org_time_convention
+    ORG_TIME_CONFIRMED  = var.org_time_confirmed ? "true" : "false"
   }
 
   secrets = {
