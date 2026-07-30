@@ -499,6 +499,13 @@ promotion, not the pilot.
 
 ## 7. Accepted residual risks and standing assumptions (documented, never planned work)
 
+> **R1–R7 and A1–A3 are permanent** — properties of the production system or of the
+> constraints, with no planned work behind them. **R8 and R9 are different and the
+> distinction matters**: they are open P1 findings accepted *for the gate and the pilot*,
+> each with a named closure (S43/S46 for R8; the commit-ordering fix for R9) and a written
+> expiry condition. They were added by D-123 so §2.6 criterion 2 could be claimed honestly
+> rather than by leaving two P1s in an undecided state. Do not read them as settled.
+
 - **R1 — Production-repo compromise ⇒ new-stack impersonation.** The HMAC key and
   write-capable DB credentials live in the production repo. An attacker with repo +
   network access could set a known password hash on any account and then log into the
@@ -525,6 +532,38 @@ promotion, not the pilot.
   alarms probe the login endpoint externally, so the org hears about outages faster
   than it does today. Side note, accepted: new-app logins update `lastLoggedinAt`
   (production behaving as designed), so the org's "last login" data includes them.
+- **R8 — Tutor and branch_manager can read any student (AUD-L-07's read half).**
+  `resolve_target_student` verifies students against their own `sub` and parents against a
+  live linked-children lookup, then returns the requested id **unchecked** for these two
+  roles — so a tutor token reads any student's dashboard, session history and reports, and
+  generates LLM-written reports about students they have no relationship to. The *write*
+  half is closed (S40/D-107: `access="write"` is refused for both roles), so this is a
+  read-scope gap, not a mutation one. **Accepted rather than fixed because the only real fix
+  needs data this system does not have**: a tutor-assignment / branch-roster model that
+  `ProfileAdapter` gains at S43, with the formal disposition at S46 — both *after* the gate.
+  Failing closed now was the alternative and was rejected on the merits (D-123): S40 showed
+  it ends tutor report generation outright until S46, i.e. it removes a shipped feature to
+  satisfy a checklist item, against an exposure that is a tutor reading students they are not
+  assigned to in a system with **no real users**. **This acceptance expires at first real
+  traffic** — it is scoped to the pilot's own staging/no-user window, not to launch.
+  Mitigating today: tutor tokens are only obtainable through `/dev/token`, which is
+  secret-gated on staging (D-097).
+- **R9 — A failure between the checkpoint commit and the domain commit can strand a session
+  (AUD-X-07's remaining halves).** The LangGraph checkpoint commits inside `ainvoke`; domain
+  rows commit at FastAPI dependency teardown, after the route returns. Anything failing
+  between them keeps the graph's state and discards the database's — including an ordinary
+  task stop during a deploy, with no bug required. Seam (a), mid-finalize, is **fixed and
+  controlled** (S42/D-110 §3: `checkpoint_reconcile` rolls the checkpoint *backwards* to what
+  the database supports, wired into `_get_state_values` and `/resume`, counted by
+  `learning_checkpoint_repairs_total`). What is accepted here is **seam (b), mid-interrupt** —
+  detecting it is trivial, recovering is not, because the session is paused on a LangGraph
+  task and clearing it means *completing* the paused node rather than editing channel values —
+  and **fix shape (1), the commit ordering itself** (one transaction, or the saver on the
+  request's connection), which remains the only real fix and is untouched. Accepted for the
+  pilot on blast radius: the window is milliseconds wide per turn, it needs a failure event
+  rather than an attacker, and nothing is silently misattributed. **The evidence that it is
+  not being hit is a flat `learning_checkpoint_repairs_total`** — if that counter starts
+  moving, this acceptance is void and the ordering gets fixed. Re-read before launch.
 - **A1 (assumption)** — the org can provide *some* lawful read path to the `ic`
   database (network, account, or dumps). If literally none exists, integration with
   real accounts is impossible and the apps can only launch standalone (own

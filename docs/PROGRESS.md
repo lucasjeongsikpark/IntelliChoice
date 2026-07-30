@@ -5,6 +5,38 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ §2.6 CRITERION 2 IS CLAIMED, on a reading that is written down (2026-07-30, D-123), and
+  D-122's PR is landed.** The ordering call the gate had carried for several sessions is made and it
+  is **(b)**: AUD-L-07's read half and AUD-X-07's remaining halves are **accepted residual risks
+  §7-R8 and §7-R9** in INTEGRATION_PLAN.md rather than fixed against the clock. **(a) — fail closed
+  now — was rejected on the merits, not on cost:** S40 already demonstrated it ends tutor report
+  generation outright until S46, so it removes a shipped feature to satisfy a checklist item,
+  against an exposure that is a tutor reading students they are not assigned to in a system with no
+  real users behind a secret-gated token path.
+  **Both acceptances expire, and the expiry is the point.** R8 is void **at first real traffic**;
+  R9 is void the moment **`learning_checkpoint_repairs_total` moves off zero** — the counter D-110
+  added for exactly this. §7 gained a header note because R1–R7 are permanent properties of the
+  production system and these two are not; filing them together unmarked would quietly convert
+  "accepted for the pilot" into "accepted".
+  **⚠️ The reading matters more than the checkmark.** Criterion 2 is met in the sense that **no P1
+  is open without a decision** — *not* in the sense that no P1-severity exposure exists. Two do.
+  And the standing caveat still compounds it: "zero open P1s" only ever measures **what has been
+  found** (D-115 closed two P1s that were invisible during every prior assessment of this same
+  criterion).
+  **PR #54 merged (`00fc004`), no deploy dispatched** — the D-116 pattern, since the capacity change
+  was already applied and rolled onto task definition 39, so the merge only makes the repo match
+  live state. All four paging alarms verified **OK** first; the two `-scale-in` alarms sit in ALARM
+  by design (missing data treated as breaching).
+  **The gate's honest standing: 2/3/4/5 claimed, 8 met but for a human confirmation, 6 on the
+  calendar, 7 met at the pilot's documented 25 concurrent (not the criterion's 150).**
+  **⚠️ 1 and 9 are the two nobody has finished measuring, and 9 just got more expensive by waiting.**
+  Criterion 1 has been unassessed since S37 with nothing blocking it. Criterion 9's trace scan has
+  only ever covered **guest** traffic (D-104) — explicitly not where names and emails enter a span —
+  and the first authenticated load traffic this system ever produced (D-121/D-122, yesterday's and
+  today's runs) **was not scanned before X-Ray's retention window closed on it**. A cheap
+  measurement was available and not taken. **Run `make scan-traces` in the same session as the next
+  authenticated load run**, not after it.
+  Local baseline re-verified at session start: **592 passed / 2 skipped**, ruff and pyright clean.
 - **✅ AUD-F-28 fixed from a measured curve, criterion 8's four alarms are all induced, and the
   pilot's concurrency target is now a written number (2026-07-30, D-122).** Local suite
   **592 passed / 2 skipped**, ruff and pyright clean. Terraform applied to staging (5 add / 2 change
@@ -448,11 +480,16 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   1. **Confirm criterion 8's four emails arrived** in the monitored inbox (kkang19646@…). This is
      the only part of criterion 8 that no AWS API can attest, and all four alarms transitioned
      today — do it before the memory of which four goes stale.
-  2. **Land this session's PR** (terraform + docs). Nothing is deployed by it — the capacity change
+  2. ~~**Land this session's PR** (terraform + docs)~~ **(✅ merged 2026-07-30 as `00fc004`; no
+     deploy dispatched, all four paging alarms verified OK first.)** Original: Nothing is deployed
+     by it — the capacity change
      is already applied and rolled onto task definition 39 — so the merge only makes code match
      state, the D-116 pattern. **Do not dispatch a deploy while `chat-api-p95-latency` is in ALARM**;
      the canary bake rolls back on it.
-  3. **Criterion 2's P1 count is unchanged but the ordering question is now sharper**: AUD-F-28 is
+  3. ~~**Criterion 2's ordering question**~~ **(✅ decided 2026-07-30, D-123 — option (b): both
+     halves accepted as §7-R8/R9, criterion 2 claimed on a written reading. See Current status.)**
+     Original: **Criterion 2's P1 count is unchanged but the ordering question is now sharper**:
+     AUD-F-28 is
      closed, AUD-F-29 is a P2, so the remaining P1 halves are still AUD-L-07 (read) and AUD-X-07,
      both with written dispositions and both scheduled after the gate. That product call
      (fail-closed now vs. documented §7 residual risk) is still unmade and still blocks claiming 2.
@@ -468,6 +505,42 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   worst case at both services' 3-task ceilings is ~126 by pool arithmetic (10+10 per task plus a
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
+
+- **Next session, in order (2026-07-30, post-D-123). The gate is down to two unmeasured criteria and
+  one human confirmation, so the ordering is no longer about which P1 to fix:**
+  1. **Still owed and still human: confirm criterion 8's four emails** in the monitored inbox
+     (kkang19646@…). Carried a second time. No AWS API can attest it, and every day makes "which
+     four" harder to reconstruct — the transitions were 2026-07-30 (three genuine, one synthetic
+     via `set-alarm-state`).
+  2. **Criterion 9's authenticated half, and this one now has a rule attached.** Every trace scan
+     to date covered **guest traffic only** (D-104), which is not where names and emails would
+     enter a span. The authenticated traffic from D-121/D-122's load runs aged out of X-Ray
+     unscanned. **The fix is sequencing, not effort: run `make scan-traces` in the same session as
+     the authenticated load run that produces the traffic** — the scan is nearly free, the traffic
+     is not, and the window is hours. Pair it with (ii) below and get both from one run.
+  3. **Criterion 1 (full traceability) has been unassessed since S37** with nothing blocking it —
+     it has simply never been the most urgent item in any session since. It is now the oldest
+     untouched thing on the gate.
+  4. **Criterion 6's calendar dates arrive**: **2026-08-02** for the original two schedules,
+     **2026-08-05** for retention-purge. Read per job.
+  5. **2026-08-01: re-probe "How do I enroll a student?"** and widen `chat_qa_staging.js`'s question
+     list, currently restricted to the four documents effective today.
+  **Carry-overs, unchanged and none of them started:** (i) **`/readyz` cannot distinguish "database
+  gone" from "I am busy"** — [db_ready.py:19-28](../packages/shared/src/intellichoice_shared/db_ready.py#L19-L28)
+  calls `engine.connect()` on the *pooled* engine under a 3 s timeout, so a task that cannot get a
+  checkout in time reports itself dead exactly like a task whose database vanished; AUD-F-29 widened
+  the ALB threshold instead, and the real fix (its own non-pooled connection, or splitting the
+  checkout wait from the connect failure) is filed not done; (ii) **`select_topic` is the p95
+  driver** in every run of the sweep and the cheapest path to criterion 7's 150 without ~$216/month
+  — profile it before anyone buys capacity, and take (2)'s trace scan off the same run; (iii)
+  **RDS connection arithmetic has less headroom** — worst case ~126 of ~112 at both services'
+  3-task ceilings, so watch `DatabaseConnections` before raising `max_capacity` anywhere.
+  Longer-standing and still open: answer brevity (D-115 (i)) as the highest-value chat optimization,
+  needing product sign-off; AUD-F-22 (P2, parent dashboard entry point) and AUD-F-24's sibling
+  instance, both needing a UX/layout call; D-112's retrieval-margin re-measure; the ~2–4%
+  `rag_answer` `schema_invalid` rate (needs a PII decision before the invalid text can be captured);
+  and **S42's discovery asks to the org, still unsent — the fifth session carrying them**, which is
+  the item with the longest external lead time on this list.
 
 - **✅ AUD-C-03 and AUD-F-14 closed 2026-07-28 (D-113) — three P1s remain (AUD-L-04,
   AUD-L-07 read half, AUD-X-07 half), and the last two have written dispositions.** Local

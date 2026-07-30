@@ -6465,3 +6465,69 @@ to confirm receipt of four emails.
 **One operational note:** `deploy-staging.yml`'s canary bake rolls both services back when any of
 these four alarms is in ALARM. `chat-api-p95-latency` stays in ALARM until its metric goes quiet, so a
 deploy launched immediately after a load run would auto-roll-back a good release. Wait for OK.
+
+---
+
+## D-123 — Criterion 2's ordering call, made: two P1 halves accepted into §7 rather than fixed against the clock (accepted, 2026-07-30)
+
+### 1. The decision, and what it is not
+
+**Option (b).** AUD-L-07's read half and AUD-X-07's remaining halves are **accepted as documented
+residual risks §7-R8 and §7-R9** in INTEGRATION_PLAN.md, and §2.6 criterion 2 is claimed on that
+basis. The alternative, (a), was to fail closed now — refusing tutor and branch_manager *reads* of
+dashboards and reports.
+
+(a) was rejected on the merits rather than on cost. S40 had already run the experiment: classifying
+`POST /students/{id}/report` as a write ends tutor report generation outright until S46, which is
+why D-107 deliberately classified it `read` and left the decision here. So (a) removes a shipped
+feature to satisfy a checklist item, and it buys down an exposure that is **a tutor reading students
+they are not assigned to, in a system with no real users, behind a secret-gated token path**
+(D-097). That is a bad trade at this point in the schedule and a good one later, which is exactly
+what an expiring acceptance is for.
+
+**What this decision is not** is a judgment that the findings are unimportant, and the §7 entries are
+written so that cannot be misread later. R8 **expires at first real traffic**. R9 is **void the
+moment `learning_checkpoint_repairs_total` moves off zero** — the counter D-110 added for precisely
+this purpose, whose flat reading is the evidence the unfixed ordering is not being hit. Both name
+their closure (S43/S46 for R8; the commit-ordering fix for R9). §7 gained a header note because
+R1–R7 are permanent properties of the production system and R8/R9 are not; filing them in the same
+list without that distinction would have quietly converted "accepted for the pilot" into "accepted".
+
+### 2. The reading of "zero open P0/P1", stated once so it stops being ambiguous
+
+Criterion 2 is met in the sense that **no P1 is open without a decision**. It is *not* met in the
+sense that no P1-severity exposure exists — two do, and they are written down with owners and
+expiry conditions. The roadmap now says this at the point of claim, because the failure mode for a
+criterion like this is a later reader taking the checkmark and not the sentence.
+
+The standing caveat compounds it and is worth restating: **"zero open P1s" only ever measures what
+has been found.** D-115 found and closed two P1s (AUD-X-09's dead reranker, AUD-X-12's false-refusal
+token cap) that had been invisible during every previous assessment of this same criterion. The
+criterion is a statement about the audit's completeness as much as the code's.
+
+### 3. The gate's honest standing after this session
+
+Claimed: **2** (this entry), **3** (D-120), **4** (D-111), **5** (D-105/D-107). **8** is met on
+every leg an API can attest (D-122 §4–5) and owes one human confirmation that four emails arrived.
+**6** is calendar-bound: 2026-08-02 for the original two schedules, 2026-08-05 for `retention-purge`.
+**7** is met at the pilot's **documented 25 concurrent** (D-122 §3), not at the criterion's original
+150 — carried as a priced post-pilot obligation, ~$216/month.
+
+**That leaves 1 and 9 as the two nobody has finished measuring**, and both are now cheaper than they
+have ever been:
+
+- **1 (full traceability) has been unassessed since S37.** Nothing blocks it; it has simply never
+  been the most urgent thing in any session since.
+- **9's trace scan has only ever covered guest traffic** (D-104), which is explicitly *not* where
+  names and emails would enter a span. This session's predecessor generated the first authenticated
+  load traffic this system has ever produced (D-121/D-122), and **that scan was not run before the
+  X-Ray retention window closed on it** — a cheap measurement that was available and was not taken.
+  The next authenticated load run should be followed by `make scan-traces` in the same session.
+
+### 4. Also landed here
+
+PR #54 merged (`00fc004`) — terraform and docs for D-122. **No deploy was dispatched**, which is the
+D-116 pattern: the capacity change was already applied and rolled onto task definition 39, so the
+merge only makes the repository match live state. All four paging alarms were verified **OK** first
+(the two `-scale-in` alarms sit in ALARM by design, missing data treated as breaching); a deploy
+launched while `chat-api-p95-latency` is in ALARM would auto-roll-back a good release.
