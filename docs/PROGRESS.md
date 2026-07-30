@@ -5,6 +5,39 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ Criterion 8 is 2 of 4 confirmed, not complete — the four emails produced are two alarms
+  counted twice (2026-07-30, D-126).** `chat-api-p95-latency` ALARM (19:17:56Z), `chat-api-5xx-rate`
+  ALARM (19:18:35Z), and the matching **OK** notices for both. **The two `learning-api` emails were
+  not among them** — those alarms fired ~1 hour earlier (`learning-api-5xx-rate` 18:26:40Z,
+  `learning-api-p95-latency` 18:44:38Z, also 18:13 and 06:28), so they sit further down the same
+  inbox. Search `from:no-reply@sns.amazonaws.com learning-api`.
+  **Deliberately not closed by inference.** Same topic, same confirmed subscription, so they almost
+  certainly arrived — but "almost certainly arrived" is the claim this criterion exists to replace,
+  and closing on the other two would be D-116's stale-bundle hypothesis in a third form.
+  **✅ What the emails did settle: the path works end to end**, SNS → real human inbox, with headers.
+  And the synthetic induction **labels itself in the artifact** — the `chat-api-5xx-rate` body
+  carries D-122's reason string verbatim, so a later auditor of that mailbox reads "Synthetic —
+  chat-api has no safe way to emit >5 real 5xx/min" with no doc lookup. Accidental good practice;
+  **make it deliberate — an induced alarm should explain its own induction in the notification.**
+- **✅ Traceability tranche 3 (minors/PII) done; T-02 filed (2026-07-30, D-126).** §5.1, §5.15,
+  §5.14.3 traced. **Sections swept: 7 of 37.** Two rows worth remembering: §5.1.5's "no chat
+  transcripts to tutors" is enforced by a **per-audience allowlist** (`tutor` gets 6 fields to the
+  parent's 14, and no transcript field exists at all) — a denylist needs maintaining, an allowlist
+  fails closed when someone adds a field. And §5.15's retention boundary is the codebase's clearest
+  case of **an accepted risk whose mitigating assumption silently stopped holding**: D-072 accepted
+  surviving names *because* the table was 90-day-purged; S25 then derived permanent
+  `semantic_memory.fact_text` from it that reaches parent reports (AUD-L-04). That is exactly why
+  D-123 gave §7-R8/R9 expiry conditions instead of open-ended acceptance.
+  **⚠️ T-02 (open, filed weaker than T-01 on purpose): §5.1.2's first-visit Adaptive Learning
+  notice — eleven specific disclosures — is not built and is owned only by implication.** Nothing in
+  `apps/learning-web/src`; the chat app has `LocationConsentModal.tsx` for §5.1.3, so the pattern
+  exists and the learning app has no equivalent. **T-01 was a requirement with nothing anywhere;
+  this one's home is guessable but never stated** — S45 (consent) covers capture UI with "legal text
+  from the §6.1 track", and the §6.1 track gates the pilot, has not started, and already carries
+  D-114 §4's obligation. Content depends on an unstarted track; implementation is assumed by a
+  session that does not list it. **The fix is one sentence naming the owner, not a build**
+  (recommend S45, with the eleven disclosures enumerated by §6.1). Not urgent, not a defect — but
+  the primary users are minors and this is the notice saying an AI grades their work and may err.
 - **✅ T-01 closed as two opposite decisions, CloudTrail is live, and traceability tranche 2 (money)
   is done (2026-07-30, D-125).** **CloudTrail built and applied** —
   `terraform/modules/cloudtrail/`, plan **7 add / 0 change / 0 destroy**, management events only,
