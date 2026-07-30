@@ -53,7 +53,7 @@ rather than requirements themselves, so they are traced through their §5 sectio
 
 ---
 
-## Status — this is a first tranche, not the finished criterion
+## Status — 21 of 37 sections, and not the finished criterion
 
 **Tranche 1 (below) covers the ten non-negotiable rules in CLAUDE.md**, which is the correct place
 to start for two reasons: they are the project's own compressed statement of what must not break,
@@ -66,8 +66,11 @@ without a user watching.
 **Tranche 3 covers minors and PII** (§5.1, §5.15, §5.14.3) — the risk class where "unverified" is
 least acceptable, since the primary users are K–12 students.
 
-**Traced: 10 of 10 rules in tranche 1, plus tranches 2–3. Sections swept: 7 of 37**
-(§5.1, §5.8 partial, §5.14.3, §5.15, §5.18, §5.25, §5.30). The criterion is **not met** and this file does not claim it
+**Tranches 4–5 cover authorization and data integrity** (§5.2.2, §5.6, §5.19–§5.24; §5.4, §5.5,
+§5.9, §5.13, §5.16, §5.26) — completing all four of §2.3's risk classes.
+
+**Traced: 10 of 10 rules in tranche 1, plus tranches 2–5. Sections swept: 21 of 37.**
+The criterion is **not met** and this file does not claim it
 is. What it establishes is the method, the scope boundary, and the evidence so far — plus two real
 findings (T-01, T-02) that a session of assertion would have missed entirely.
 
@@ -318,6 +321,110 @@ revoked. Tests: `test_auth_and_attendance.py`, `test_dashboard_report_endpoints.
 
 ---
 
+## Tranche 4 — authorization (§2.3's third risk class)
+
+### §5.2.2 — Shared authentication
+
+**Traced.** [auth.py](../packages/shared/src/intellichoice_shared/auth.py) defines `Role`,
+`Audience`, `TokenClaims` and a `TokenVerifier` Protocol whose `verify(token, audience)` makes the
+audience a **required argument**, not an optional check — a learning token cannot satisfy a chat
+route by omission. Tests: `packages/adapters/tests/test_fake_auth.py`,
+`apps/chat-api/tests/test_auth.py`, `apps/learning-api/tests/test_auth_and_attendance.py`.
+
+### §5.6 — Parent accounts, child selection, attendance verification
+
+**Traced, subsection by subsection**, and unusually easy to trace because the implementation cites
+the spec back: [attendance.py](../apps/learning-api/src/learning_api/services/attendance.py) carries
+`§5.6.2-§5.6.5` in its module docstring, `§5.6.3` at the blocked-gate message (line 16), `§5.6.5` at
+the acknowledged-absence message (line 26), `§5.6.4` at the branch-manager email (line 34), and
+notes at line 107 that the §5.6.4 draft is **built fresh from a live MySQL lookup and never
+persisted** — which is how the escalation stays inside the no-PII-in-Postgres rule. §5.6.1 child
+selection is the parent authorization path traced in tranche 3. The gate itself is rule 5's
+fail-closed `AttendanceStatus.PRESENT` check.
+
+### §5.19–§5.21 — Q&A graph, RAG documents, RAG pipeline
+
+**Traced.** Retrieval authorization is the SQL pre-filter from rule 3
+([rag.py:34-43](../packages/db/src/intellichoice_db/repositories/rag.py#L34-L43)). Storage carries
+the approval and effective-date state the filter depends on —
+[models/rag.py:26-61](../packages/db/src/intellichoice_db/models/rag.py#L26) gives every document
+and chunk a `status` defaulting to **`"draft"`** (fail-closed: a row must be promoted to be
+visible) plus `effective_from`/`effective_to`.
+
+**§5.21.8's "no answer without a citation-supported source" is enforced by verification, not by
+trust.** [qa.py:1-55](../apps/chat-api/src/chat_api/services/qa.py#L1) re-checks each model-supplied
+citation against the actual retrieved chunk — its docstring is explicit that "a citation is never
+trusted just because the model produced it" — and `_no_answer` is the deterministic fallback. Tests:
+`test_qa_service.py`, `test_qa_graph.py`, `test_qa_coverage_eval.py`, and `packages/knowledge/`'s
+chunking/ingest/retrieval suites.
+
+### §5.22–§5.24 — MCP tools (Maps, Calendar, Gmail)
+
+**Traced, and the ordering inside the call path is the evidence.**
+[mcp.py:86-134](../packages/shared/src/intellichoice_shared/mcp.py#L86) enforces
+`tool.allowed_roles` **before** argument validation and before the handler runs, so an unauthorized
+call cannot reach parsing, let alone execution — §5.30.4's "enforce tool permissions in the backend"
+implemented as control flow rather than as a check someone remembers to call. Every branch —
+permission denial, validation failure, timeout, execution error, success — writes a
+`ToolCallAuditEvent` to `mcp_tool_calls`, so a refused call is as auditable as a successful one.
+Bounded by `asyncio.wait_for(tool.timeout_s)`. Tests: `packages/shared/tests/test_mcp.py`,
+`test_branch_locator.py`, `test_calendar_action.py`, `test_calendar_events.py`,
+`packages/adapters/tests/test_ics.py`, `packages/shared/tests/test_email.py`.
+
+**Known accepted hole, same as rule 3:** §7-R8 (AUD-L-07) — `resolve_target_student` is unchecked
+for tutor and branch_manager on the learning side. Dispositioned, not traced.
+
+## Tranche 5 — data integrity (§2.3's fourth risk class)
+
+### §5.4 — MySQL / PostgreSQL responsibility separation
+
+**Traced.** `packages/db/tests/test_schema_purity.py`'s own docstring states the rule —
+"§5.4.2/§5.30: Postgres stores only `*_external_id` references, never PII" — and the test walks
+every ORM model to enforce it, so the separation is machine-checked rather than reviewed. §5.4.4's
+real-time attendance lookup is rule 5's fail-closed gate.
+
+### §5.5 — Adaptive learning LangGraph
+
+**Traced.** [graph/build.py:103-118](../apps/learning-api/src/learning_api/graph/build.py#L103)
+registers the §5.5.1 workflow node-for-node (`select_student`, `select_topic`, `submit_answer`,
+`finalize_exam`, `resume`, …), each wrapped in `traced_node` so the graph is observable per step.
+Tests: `test_learning_flow.py`, `test_learning_graph_routes.py`, `test_exam_flow_determinism.py`.
+
+### §5.9 / §5.13 — Grading, exam composition, learning gain
+
+**Traced, and deterministic by construction.**
+[grading.py:1](../apps/learning-api/src/learning_api/services/grading.py#L1) — "Deterministic
+multiple-choice grading (SPEC §5.9.3). **No LLM is ever involved.**"
+[learning_gain.py:1,44-87](../apps/learning-api/src/learning_api/services/learning_gain.py#L1)
+computes §5.13.3's metrics from pre/post attempts plus study support levels.
+`record_assessment_attempt_idempotent` (grading.py:30) is where AUD-L-10's fix lives — uniqueness on
+`(session, variant)` as a **database invariant**, after the check-only version let four concurrent
+answers all return 200.
+
+### §5.16 — PostgreSQL checkpointing
+
+**Traced, with a dispositioned defect.** `AsyncPostgresSaver` on its own psycopg pool, one
+checkpointer for the app's lifetime ([main.py:147-149](../apps/learning-api/src/learning_api/main.py#L147)).
+**The known seam is §7-R9** (AUD-X-07): the checkpoint commits inside `ainvoke` while domain rows
+commit at dependency teardown. Seam (a) is fixed and controlled by `checkpoint_reconcile`; seam (b)
+and the commit ordering are accepted residual risk with `learning_checkpoint_repairs_total` as the
+tripwire. Test: `test_checkpoint_reconcile.py`.
+
+### §5.26 — SQL, structured output, constrained decoding
+
+**Traced, including the negative half — which is rare and worth noting.** "No runtime NL2SQL" is
+not merely absent; it is **asserted by a test**:
+`apps/chat-api/tests/test_prompt_injection_eval.py:316` pins that query text only ever reaches
+predefined methods. `packages/evals/registry.py:98` records why SQL-parser validation was never
+built ("there is no generated SQL to parse or validate"), and
+[rag.py:164](../packages/db/src/intellichoice_db/repositories/rag.py#L164) implements §5.26.1's
+predefined method as a filter-first `ILIKE`. **A negative requirement with a test is the only kind
+that stays true** — otherwise the first person to add NL2SQL breaks a rule nothing was watching.
+
+**Sections swept: 21 of 37.** All four of §2.3's risk classes are now covered.
+
+---
+
 ## Discrepancies found
 
 Criterion 1 requires every discrepancy to be dispositioned in DECISIONS.md. **Open: none.**
@@ -420,22 +527,28 @@ argument for deciding them separately rather than as "the rest of §5.30.3".
 
 ## What remains — the honest size of criterion 1
 
-Tranches 1–3 swept **7 of 37 sections** (§5.1, §5.8 partial, §5.14.3, §5.15, §5.18, §5.25, §5.30)
-and cut across ~10 more via the non-negotiable rules. The remaining work, in §2.3's risk order:
+Tranches 1–5 swept **21 of 37 sections** and cut across the rest via the non-negotiable rules.
+**All four of §2.3's risk classes — money, minors, authorization, data integrity — are covered.** The remaining work, in §2.3's risk order:
 
 1. ~~**Money / cost**~~ — ✅ **done in tranche 2** (§5.8.3–.5, §5.18, §5.31).
 2. ~~**Minors / PII**~~ — ✅ **done in tranche 3** (§5.1, §5.15, §5.14.3).
-3. **Authorization** — §5.2.2 (shared auth), §5.6 (parent/child/attendance), §5.19–§5.21 (chat
-   role access), §5.22–§5.24 (MCP tool permissions).
-4. **Data integrity** — §5.4 (MySQL/Postgres separation), §5.5 (learning graph), §5.9/§5.13
-   (exam composition, grading, learning gain), §5.16 (checkpointing), §5.26 (structured output).
-5. **The rest** — §5.3, §5.7, §5.10–§5.12, §5.27–§5.29, §5.32–§5.36.
+3. ~~**Authorization**~~ — ✅ **done in tranche 4** (§5.2.2, §5.6, §5.19–§5.24).
+4. ~~**Data integrity**~~ — ✅ **done in tranche 5** (§5.4, §5.5, §5.9, §5.13, §5.16, §5.26).
+5. **The rest, and it is genuinely the rest** — §5.0, §5.3, §5.7, §5.10–§5.12, §5.14.1/.2/.4,
+   §5.27–§5.29, §5.32–§5.36. **16 sections, none of them in a §2.3 risk class**: architecture
+   description, curriculum taxonomy, mastery/study/tutor mechanics, the remaining UI transports,
+   Pydantic/FastAPI/failure-handling conventions, observability, and the deployment/accounts/
+   technology-placement sections. Lower risk per section, and several are descriptive rather than
+   testable — which is its own judgement to make and record, not a reason to skip them.
 
-**Estimate, stated so nobody plans around a wish:** tranches 1–2 covered ~4 of 37 sections plus the
-ten cross-cutting rules, in well under a session. The remainder is realistically **one to two
-focused sessions**, not the two-to-three first estimated — tranche 2 went faster than tranche 1
-because the method and the denominator already existed, which is the usual shape and is worth
-expecting rather than re-discovering.
+**Estimate, revised twice and both times downward.** First estimate was two to three sessions, then
+one to two; tranches 1–5 landed in a single sitting. The reason is worth keeping: **each tranche was
+cheaper than the last because the method and the denominator already existed**, and because the
+codebase turned out to cite SPEC section numbers in its own docstrings far more often than expected
+— `attendance.py` alone maps four subsections without any inference. That is the usual shape of this
+kind of work and is worth expecting rather than re-discovering.
+
+**The remaining 16 sections are the low-risk tail** and should take well under a session.
 
 It is mechanical rather than hard. The expensive part is reading each requirement carefully enough
 to know **what test would falsify it** — and, as tranche 2 showed, checking that a control is

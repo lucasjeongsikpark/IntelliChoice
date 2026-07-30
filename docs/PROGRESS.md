@@ -5,6 +5,29 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ Traceability tranches 4–5 done — all four §2.3 risk classes covered, 21 of 37 sections
+  (2026-07-30, D-127).** Authorization (§5.2.2, §5.6, §5.19–§5.24) and data integrity (§5.4, §5.5,
+  §5.9, §5.13, §5.16, §5.26). **Criterion 1 still NOT met**, and TRACEABILITY.md still says so.
+  **Three rows worth more than their table entries:** (a) **MCP tool permissions are control flow,
+  not a check** — `mcp.py` evaluates `allowed_roles` *before* arg validation and the handler, and
+  every branch including denial writes an audit row, so **a refused call is as auditable as a
+  successful one**; (b) **§5.21.8's citation rule verifies rather than trusts** — `qa.py` re-checks
+  each model-supplied citation against the retrieved chunk ("a citation is never trusted just
+  because the model produced it"), with a deterministic `_no_answer` fallback; (c) **§5.26's
+  *negative* requirement has a test** — `test_prompt_injection_eval.py:316` asserts query text only
+  reaches predefined methods. **An absent feature with no test is a rule nothing is watching**, and
+  that pattern is worth copying wherever this project decided *not* to build something dangerous.
+  **⚠️ The estimate was wrong twice, both times downward** (2–3 sessions → 1–2 → one sitting). The
+  reason generalizes: each tranche was cheaper because the method and denominator already existed,
+  and **this codebase cites SPEC section numbers in its own docstrings far more than expected** —
+  `attendance.py` maps §5.6.2–§5.6.5 with no inference; `grading.py` opens "SPEC §5.9.3. No LLM is
+  ever involved." **The expensive part here is not finding the implementation, it is deciding what
+  test would falsify the requirement.**
+  **Remaining: 16 sections, none in a risk class** (§5.0, §5.3, §5.7, §5.10–§5.12, §5.14.1/.2/.4,
+  §5.27–§5.29, §5.32–§5.36). **One judgement is owed with them:** several are descriptive rather
+  than testable, and "mapped to implementation + test" cannot mean the same for "use Pydantic v2
+  everywhere" as for "grading never involves an LLM". Say so per section; do not invent a test to
+  point at.
 - **⚠️ Criterion 8 is 2 of 4 confirmed, not complete — the four emails produced are two alarms
   counted twice (2026-07-30, D-126).** `chat-api-p95-latency` ALARM (19:17:56Z), `chat-api-5xx-rate`
   ALARM (19:18:35Z), and the matching **OK** notices for both. **The two `learning-api` emails were
