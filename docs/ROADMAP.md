@@ -828,9 +828,20 @@ been counting the DOM before `/chat/meta` resolved and skipping itself on every 
 (**AUD-F-23**, P3, fixed — that journey has now been driven once), and the parent-dashboard skip's
 message was itself the defect (**AUD-F-22**, P2, filed — the dashboard button exists only on
 `StartScreen`, gated on a `studentId` a parent gets by starting a session, and on `ResultsScreen`).
-**⛔ Criterion 3 still cannot be claimed: the fix is not deployed and the two clean runs are not
-taken.** Both, plus criteria 7's learning leg and 8's inductions, were blocked on one thing — no
-local AWS session for the whole session (D-117 §5).
+**⛔ Criterion 3 still cannot be claimed, and the reason changed twice before it was understood.**
+AUD-F-21's fix deployed and the failure did not close; AUD-F-24's fix deployed and it *still* did not
+close. The dwell read 2116 → 1578 → 1653 ms across three staging runs. The actual cause is
+**AUD-F-26** (P1, fixed, D-119): `_initial_snapshot` responded with state read *before* a ~2.3 s
+Bedrock call, so a client that started its pre-exam inside that window was pushed back to topic
+selection — which is what flushed a truncated dwell and what stalled `journey-student`. Both earlier
+fixes were real defects and stand; neither was what the tests measured. **The answer was in
+`journeys.jsonl`'s millisecond timeline from the first staging run.**
+**AUD-F-25 (P2) fixed and verified live** — `/chat/meta` returns 4 suggested prompts (was `[]`); the
+ops-task image had a dangling editable install of `chat_api`, so the seeder could not run there at
+all, and `deploy-staging.yml` now runs it.
+**All of it is merged and deployed (`26a56f6e`, run 30510841185 success). What is owed is the
+measurement: two clean `make e2e-staging` runs**, which the expiring AWS session cut off before the
+first one started. Criteria 7's learning leg and 8's inductions remain untouched.
 **⚠️ Corrected in S42: a merge to `main` does *not* deploy.** Both this file and PROGRESS.md said
 it did, for several sessions. `deploy-staging.yml` is `workflow_dispatch:` only — the `push`
 trigger is commented out on purpose ("not something that should fire unattended on every push

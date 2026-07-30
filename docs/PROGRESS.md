@@ -5,6 +5,52 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ Root cause found on the third measurement: AUD-F-26, a stale initial SSE snapshot — and two
+  fixes had already shipped on a wrong diagnosis (2026-07-29, D-119).** Local suite **592 passed /
+  2 skipped**, lint and pyright clean, local e2e **56 passed / 0 failed / 0 skipped**.
+  **Five PRs merged, four deploys, all success:** #45 (`4fa2a531`, run 30491528889), #46+#47
+  (`f2aa85a`, run 30504123169), #48 (`89399073`, run 30507527332), #49 (`26a56f6e`, run 30510841185).
+  **⛔ Criterion 3 is NOT met.** AUD-F-26's fix is deployed but **unverified** — the AWS session
+  expired at the start of the first confirmation run, before the suite executed (the harness script
+  aborted on the secret fetch, so nothing ran and nothing leaked). **Two clean runs are still owed,
+  and they are the only thing between here and criterion 3.**
+  **✅ AUD-F-26 (P1) is the actual cause of both criterion-3 learning failures.**
+  `_initial_snapshot` read the checkpoint, made a **real Bedrock call** (`_maybe_fire_pre_intro`,
+  ~2.3 s measured), then responded from the state it read *before* it. The browser opens
+  `EventSource` as soon as it has a session id, so it routinely starts a topic — and the pre-exam —
+  inside that window, and the stale snapshot **sent the student back to topic selection**. The
+  timeline: `/topics` sets `pre_exam` at **994 ms**, overview arms the view-time effect at
+  **1085 ms**, `/stream` arrives at **2736 ms** carrying `phase: student_selected`, `POST .../time`
+  fires at **2836 ms** with `elapsed_ms` **1653** = 2836 − 1183. The page snapshot shows
+  **"Choose a topic"** under the narrative. Every symptom follows from that one bug — including why
+  only *one* time report was ever recorded (no question navigator, so `time-telemetry`'s trailing
+  conditional click never fired). Fixed by re-reading after the call and rebuilding everything
+  derived from state (`pending` included, plus re-authorization if the student resolves inside the
+  window). Regression test fakes the **seam**, not the latency, and was watched failing.
+  **⚠️ The process failure is the part to carry forward (D-119 §2): the answer was in
+  `journeys.jsonl` from the first staging run.** The harness records every call with a millisecond
+  stamp — that is what AUD-F-02 built it for — and the five lines that identify this bug were in the
+  artifact each time, alongside a page snapshot that is a screenshot of the defect. Two fixes
+  shipped on a mechanism that merely fit the symptom: **AUD-F-21** (real defect, wrong cause) and
+  **AUD-F-24** (real defect *introduced by* the first fix, still the wrong cause), each costing a
+  PR, a ~20-minute deploy and a staging run. The dwell read 2116 → 1578 → 1653 ms across three runs
+  — three numbers for one bug, each looking like progress. **Rule: when a numeric assertion fails,
+  read the timeline before forming a mechanism.**
+  **✅ AUD-F-25 (P2) fixed and verified live.** `/chat/meta` now returns **4** suggested prompts
+  (was `[]`). The ops-task image carries `apps/chat-api` source, repairing a **dangling editable
+  install** — the builder installed chat-api, the runtime stage never copied it, so `import chat_api`
+  raised `ModuleNotFoundError` in the one image the ops task runs. `deploy-staging.yml` gained an
+  idempotent seed step; it passed on its first real run.
+  **✅ AUD-F-16's identity check did its job on first real use** — `journeys.jsonl`'s head recorded
+  `learning-api=f2aa85a17b9f, chat-api=f2aa85a17b9f` and `EXPECT_BUILD_SHA` passed, which is
+  **D-116's owed check, finally taken**. The SPA was also proved byte-identical to a local build at
+  HEAD twice (D-116's own method), so every staging result this session is of a known version — the
+  reason the measurements could be trusted enough to overturn a diagnosis.
+  **Still open, and both are real:** AUD-F-24's sibling instance — `renderPhase` wraps the exam view
+  in `.stack` *conditionally* when an intervention arrives, so a hint remounts `ExamScreen` for the
+  same reason (a layout decision, since `.stack`'s styling is load-bearing there); and **AUD-F-22**
+  (P2) — a parent cannot reach their child's dashboard without completing a whole pre→study→post
+  cycle.
 - **✅ D-116's work landed and deployed, AUD-F-21 fixed with the product call taken, and two
   `test.skip()`s turned out to be findings (2026-07-29, D-117).** Local suite **591 passed /
   2 skipped**, lint and pyright clean, `e2e/` typechecks. Local e2e **56 passed / 1 skipped**
@@ -229,22 +275,26 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 - ~~Next session, in order: (1) land D-116's uncommitted work, (2) AUD-F-21, (3) criterion 7's
   learning leg, (4) criterion 8~~ **((1) ✅ landed and deployed, (2) ✅ fixed locally — both
   2026-07-29, D-117; (3) and (4) untouched, blocked on AWS.)**
-- **Next session, in order. Every item below needs `aws login` first — the whole remaining list
-  is one blocker:**
-  1. **Deploy AUD-F-21 and take criterion 3's two clean runs.** The fix is committed but **not on
-     staging**: dispatch a deploy for it, then `make e2e-staging EXPECT_BUILD_SHA=<merge sha>`
-     twice. Expect the two failures that were AUD-F-21 to be gone; the suite had reproduced
-     **47/2/4** three times running. **A merge does not deploy**, and `gh run list --limit=1`
-     returns the *previous* run — compare the head SHA.
-  2. **Also still owed from D-116: `EXPECT_BUILD_SHA=4fa2a531`** against that deploy, which was
-     never run. It is the first time that assertion can check anything (staging was on
-     `12508257ac10`), and it is the whole point of AUD-F-16's work.
-  3. **Criterion 7's learning-app leg is the only unmeasured half** — the chat leg passed
+- **Next session, in order. Every item needs `aws login` first (the session expired mid-run):**
+  1. **Criterion 3's two clean runs — nothing else is in the way.** Everything is merged and
+     deployed (`26a56f6e`, run 30510841185 success). Run
+     `make e2e-staging` twice with `EXPECT_BUILD_SHA=26a56f6ea4fa` — the scratchpad helper
+     `run-staging-e2e.sh <sha> <label>` pulls both token secrets from Secrets Manager and refuses to
+     run if either comes back short. **Expected: all three previously-failing specs pass** —
+     `time-telemetry` (AUD-F-26), `journey-student` (AUD-F-26), and the chips test (AUD-F-25,
+     already verified live at 4 prompts). The two delayed-narrative arms skip on staging by design.
+     If the dwell is *still* truncated, **read `journeys.jsonl`'s `apiCalls[].at` and the
+     `error-context.md` page snapshot before forming any mechanism** — that is the lesson this
+     session paid for three times.
+  2. **Criterion 7's learning-app leg is the only unmeasured half** — the chat leg passed
      (p95 16.68 s, 0 errors, 3 tasks). Needs authenticated load; the staging token secrets are in
      Secrets Manager at `intellichoice-staging/{learning,chat}-api/staging-token-shared-secret`.
-  4. **Criterion 8** — induce each of the four alarms once and confirm the monitored inbox. The
+  3. **Criterion 8** — induce each of the four alarms once and confirm the monitored inbox. The
      chat-api p95 alarm is now a *meaningful* signal to induce rather than one stuck on.
-  **New carry-over: AUD-F-22 (P2)** — a parent cannot reach their child's progress dashboard
+  **New carry-overs: AUD-F-24's sibling instance** — `renderPhase` conditionally wraps the exam view
+  in `.stack` when an intervention arrives, remounting `ExamScreen` for exactly the reason AUD-F-24
+  documents; needs a layout call because `.stack`'s styling is load-bearing for the panel. And
+  **AUD-F-22 (P2)** — a parent cannot reach their child's progress dashboard
   without completing an entire pre→study→post cycle. Needs a UX call on where a persistent entry
   point belongs; S11's parent auto-select item is the same gap seen from the other side.
   Answer brevity (D-115 carry-over (i)) is still the highest-value optimization and still a
