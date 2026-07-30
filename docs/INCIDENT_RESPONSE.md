@@ -149,6 +149,15 @@ If it's genuinely new, treat it as stop-and-fix-now.
 4. Check `interrupt_approvals`/`mcp_tool_calls` audit tables (already built, S14+) for
    anything unexpected in the relevant time window - this is real, already-persisted
    audit data, not something you'd need to reconstruct from logs.
+5. **To answer "did PII actually reach a store?", both scanners take a window and fail
+   loudly rather than reporting clean when they cannot see** (D-129):
+   `make scan-traces HOURS=<n>` and
+   `make scan-logs START=<iso> END=<iso>` - same patterns, same matcher, needles sourced
+   from `mysql_fixtures.py` so they cannot drift from the fixtures. Two cautions for an
+   incident: an out-of-retention window **fails** rather than answering "nothing there"
+   (logs are 30-day, X-Ray shorter), and a clean result over an idle window is close to
+   meaningless because ~97% of traces are health checks (AUD-F-30) - scan the window that
+   contains the *suspect* traffic and check the authenticated request count in it.
 
 ## Playbook: cost anomaly (Bedrock or otherwise)
 

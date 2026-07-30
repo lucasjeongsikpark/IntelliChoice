@@ -6885,3 +6885,150 @@ mapped, evidenced, and with its reading recorded — not "everything is perfect"
 either traced, dispositioned, or explicitly flagged as descriptive". Recommendation, unchanged from
 D-126: **S45**, with the eleven disclosures enumerated by the §6.1 track so the UI work is
 transcription rather than drafting.
+
+## D-129 — Criterion 9 met by running the load and the scans in one session; criterion 1 met by writing the sentence; and the p95 driver turns out to be 51 SQL statements (accepted, 2026-07-30)
+
+**Context.** The gate was down to one criterion needing real work (9), one needing a sentence (1),
+one needing a mailbox (8) and one needing a calendar (6). This session did 9 and 1, found two things
+worth their own IDs on the way, and did not touch 8.
+
+### 1. Criterion 9's evidence is a sequencing result, not a measurement result
+
+The scan is nearly free; the traffic is not; and X-Ray's window is hours. Every prior attempt failed
+on that arithmetic rather than on difficulty — **D-121/D-122 produced exactly the authenticated
+traffic criterion 9 needed and it aged out unscanned**, and every scan that did run covered guest
+traffic only (D-104), which is not where a name or an email would enter a span. So the whole method
+was: authenticated load at the pilot's documented 25 concurrent, then both scans, in one sitting.
+
+| store | evidence | result |
+|---|---|---|
+| traces | `make scan-traces HOURS=1` | **CLEAN** — 2,747 traces / 21,234 segments / 1,568,546 strings, control **20/20** |
+| logs | new `make scan-logs`, pinned to the run window | **CLEAN** — 495 events; **CLEAN** again over the surrounding hour (2,774 events / 58,054 strings) |
+| metrics | no custom CloudWatch namespace exists; Prometheus labels are bounded enums plus a *templated* route path; `/metrics` is not routed at the edge | nothing app-controlled can carry an identifier |
+| payloads | nothing stores them by design; an echoed name or prompt would have hit the fixture-name and shape patterns in either store | nothing observable to leak |
+
+**The load run itself passed on every threshold** (p95 2.75 s ≤ 3 s, 0.00% errors, 250 answers
+submitted, 0 attendance-blocked, 350/350 requests, 25 VUs), which matters only as evidence that the
+traffic was *real* — a run that refused early would have produced a clean corpus by producing no
+corpus.
+
+**The claim is stated as a reading, like criterion 2's:** zero PII found by a positive-controlled
+detector over a corpus **proven to contain** authenticated traffic, in the two stores that record
+request data. Not a proof that none can ever arrive. D-104 §4's rule stands — a floor is per-store
+and re-opens whenever instrumentation is added.
+
+### 2. The coverage control is the part of this that would have been easy to skip
+
+A positive control proves the detector fires; it says nothing about whether the detector was pointed
+at the interesting data. So before the CLEAN was believed: **350 authenticated traces in the run
+window, exactly matching k6's 350 requests**, and a sample topic-selection trace taken apart to show
+what its segments actually carry. That mattered more than expected, because **2,394 of the 2,747
+traces were health checks** (AUD-F-30) — "2,747 traces CLEAN" reads as broad coverage and is mostly
+one three-span request repeated. The authenticated share was 13%.
+
+Two real negative results fell out of the same look: **no `Authorization` header key appears in any
+segment** (the SSE `?token=` path is the only one that ever carried a credential, and
+`RedactingSpanExporter` handles it), and the access log's key set is exactly `method`, `path`,
+`status_code`, `duration_ms` and trace ids — **no student reference at all**.
+
+### 3. The log half had the weakest evidence in the gate, and it read as done
+
+Criterion 9 says logs *and* traces. The trace half has had a self-checking, repeatable script since
+D-104. The log half rested on **S38's one-off CLI pipeline over guest traffic** — the same pipeline
+whose first version reported zero hits for strings that were demonstrably present, because
+`filter-log-events --max-items` paginates. Nobody noticed, because a checked-off sub-item looks
+identical to a well-evidenced one.
+
+[scripts/scan_logs_pii.py](../scripts/scan_logs_pii.py) (`make scan-logs`) closes that, and the
+design decision worth recording is that **it imports the trace scanner's patterns and matcher rather
+than re-implementing them**. A second hand-rolled detector would need its own proof, and D-104 §8
+records three instruments in one session that were wrong before the systems they measured were. It
+inherits a matcher that walks JSON-in-string (log lines *are* JSON here) and the same 20-pattern
+positive control.
+
+**Four failure modes, all control-tested in both directions**, because a check that cannot fail and
+a check that cannot pass are the same bug:
+
+- **truncation → FAIL.** Logs Insights caps a query at 10,000 records, which is S38's pagination bug
+  in a new hat. Forced the cap to 50 over the load window: `FAIL - 2 slice(s) returned the cap`.
+- **unreadable window → FAIL.** A window older than retention is *rejected*, not answered with zero
+  rows. The first version crashed with a traceback; now each slice is recorded as unqueryable and the
+  run fails, because **"I could not look" must not report as CLEAN.**
+- **zero events → FAIL.** A valid but empty one-second window: `FAIL - zero log events`.
+- **a configured log group that no longer exists → FAIL.** This one started as a `NOTE` and was
+  changed after being written: a renamed log group would have been skipped and the run would still
+  have printed CLEAN, which is the same hole as the one two bullets up wearing a friendlier word.
+  A log group does not vanish when retention expires — it stays and goes empty — so absence means the
+  infrastructure moved and the list is stale.
+- and the positive direction: CLEAN over 2,774 real events with 20/20 patterns firing.
+
+**The allowlist is empty, as a measured result rather than an oversight.** It was written expecting
+to need one for `shape:pii-field-name` (uvicorn's bind address, Container Insights' network fields);
+over 2,774 events **nothing fired at all**, so the exception was deleted and the measurement written
+where the rule would have gone. An allowlist that never fires is a hole waiting for a real hit to
+fall through.
+
+### 4. Criterion 1: the sentence, and what claiming it does not mean
+
+**T-02 is dispositioned as two assignments in a mandatory order.** The **§6.1 legal-and-policy track
+enumerates §5.1.2's eleven disclosures** as a written deliverable; **S45 builds the first-visit
+notice** in `apps/learning-web`, transcribing that list, following `LocationConsentModal.tsx`'s
+pattern for §5.1.3. The order is load-bearing: a notice drafted from an implementer's reading of
+§5.1.2 is how a compliance artifact ends up disagreeing with the privacy policy it exists to
+summarize. Both documents now name it — ROADMAP.md's S45 block and its §6.1 track block — because a
+disposition that lives only in a decision log is the same "owned by implication" problem in a new
+place.
+
+**Criterion 1 is therefore met, on the same terms as criterion 2 (D-123): nothing is undecided,
+which is weaker than nothing is missing.** T-02 is scheduled, not shipped.
+
+**One near-miss found while writing it.** TRACEABILITY.md's discrepancy table already said
+**"Open: none"** in the same commit (`c44414f`) whose table below it marked T-02 **Open**. A summary
+line agreeing with the claim you want, sitting above a table that contradicts it, is how a rubric
+passes itself. Corrected by the disposition rather than by editing the summary — and flagged in the
+file, because the next such contradiction will not be found by whoever wrote it.
+
+### 5. `select_topic` is not what anyone thought, and criterion 7's gap just got cheap (AUD-F-31)
+
+The standing hypothesis, carried for three sessions, was "a LangGraph invoke with checkpoint writes".
+The trace says the node is **51 sequential SQL statements and not one Bedrock call** — 1.624 s of
+deduped SQL inside a 1.62 s span, at ~32 ms per round-trip, in a clean N+1 pattern over the 10 exam
+items (`INSERT question_variants`, `SELECT question_variants`, `INSERT assessment_items`,
+`INSERT assessment_item_state`, ×10). **No checkpoint write appears in the hot path at all.**
+
+That reframes criterion 7's remaining obligation. D-122 priced 150-concurrent p95 ≤ 3 s at ~6× the
+capacity (~12 tasks, ~$216/month). Batching those four per-item statements takes ~51 statements to
+~6 for **~$0** and targets the exact span that dominates the p95 in every run. Filed, not fixed: it
+touches assessment-item persistence, which is deterministic-core code (SPEC §5.0) and deserves its
+own session and its own before/after rather than being absorbed into a measurement session.
+
+**And the instrument was wrong first, again.** X-Ray records each SQLAlchemy statement **twice** — a
+child subsegment of the graph span *and* a standalone segment — so the naive profile reported **102
+statements and 131% of wall time in SQL**. A profile claiming more SQL time than the request took is
+reporting on itself. Deduping on `(start_time, sanitized_query)` gives 51 and 1.624 s, which
+reconciles exactly with the span duration. **Third session in a row where the measuring tool needed
+checking before its output meant anything** (D-104 §8, D-121's alarm-window misreading, this).
+
+### 6. A cost assumption in the code stopped holding (AUD-F-30)
+
+`variables.tf` defaults `enable_otel_tracing` to true and justifies it with "X-Ray's free tier covers
+100k traces/month". At the measured rate — **2,394 traces/hour, all of them `/readyz`** — that is
+~1.7M/month, about **17× the free tier**, ~$8/month. July's bill is genuinely $0 because tracing has
+been on four days and the task count only doubled today. Small money, familiar shape: **an assumption
+that was true when written and silently stopped being true**, which is §5.15's retention story
+(D-072 → AUD-L-04) at a much lower stake. Fix direction is `excluded_urls` or a 0% sampling rule for
+the health endpoints — ~97% fewer recorded traces and a scan denominator that means what a reader
+assumes. **Deliberately not applied mid-measurement**: changing the corpus while establishing
+evidence over it makes the evidence unreproducible.
+
+### 7. What the gate now reads, and what it does not
+
+**1, 2, 3, 4, 5 and 9 met; 7 met on the pilot's 25 concurrent; 6 on the calendar (2026-08-02 /
+2026-08-05); 8 at 2 of 4 confirmed.** Nothing on that list needs engineering. **Three of the six
+"met" are met on a stated reading** — 1 (traced *or* dispositioned), 2 (no P1 open *without a
+decision*), 9 (nothing found by a controlled detector over a proven corpus). Quote the reading rather
+than the tick; each one is written out where it is claimed.
+
+**The one item that has not moved in six sessions is still S42's discovery asks to the org**, which
+are external, have real lead time, and gate S43 — where §7-R8's actual fix lives. Everything the gate
+now lacks is either a date or a mailbox; the pilot's real blocker is a set of unsent questions.

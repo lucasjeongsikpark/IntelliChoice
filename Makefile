@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs
 
 up:
 	docker compose up -d
@@ -163,6 +163,17 @@ load-staging-learning:
 scan-traces:
 	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
 	  uv run python -u scripts/scan_xray_pii.py --hours $${HOURS:-6}
+
+# Criterion 9's *log* half, which until now rested on S38's one-off CLI pipeline over guest
+# traffic only. Same patterns and same matcher as scan-traces, on purpose - D-104 §4's rule is
+# that a PII floor is per-store and is not inherited, and a second hand-rolled detector would
+# need its own proof. Takes a window rather than only a lookback, so a scan can be pinned to
+# the authenticated load run that produced the interesting traffic:
+#   make scan-logs START=2026-07-30T21:38:00Z END=2026-07-30T21:40:00Z
+scan-logs:
+	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
+	  uv run python -u scripts/scan_logs_pii.py --minutes $${MINUTES:-60} \
+	    $${START:+--start $$START} $${END:+--end $$END}
 
 # S33 (D-089/D-094): authorized OWASP ZAP baseline scan against the real staging
 # CloudFront URLs - you own this AWS account/app, so this is authorized self-testing,

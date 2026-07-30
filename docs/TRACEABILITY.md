@@ -92,11 +92,26 @@ hatch.
 
 **Sections swept: 37 of 37.** Every launch-scope §5 section now carries a verdict.
 
-**The criterion is NOT met, and it now turns on exactly one thing: T-02 is an open discrepancy.**
-Criterion 1 requires "every discrepancy dispositioned in DECISIONS.md", and T-02 — §5.1.2's
-first-visit notice, owned only by implication — has no owner named. **That disposition is one
-sentence from a human, not a build.** Once it exists, criterion 1 is claimable on the same terms as
-criterion 2: mapped, evidenced, and with its judgement calls written down rather than assumed.
+**✅ The criterion is MET as of 2026-07-30 (D-129), on a reading that is written down here rather
+than left to be inferred.** Both clauses are now satisfied: 37 of 37 launch-scope sections map to
+implementation *and* a falsifying test (or carry an explicit *structural* / *descriptive* /
+*dispositioned* verdict), and **the last open discrepancy, T-02, is dispositioned** — see below.
+
+**What the claim does and does not mean.** It means every launch-scope requirement has been read
+against the code, that the evidence rule was applied uniformly ("unverified counts as not traced"),
+and that each judgement call is on the page. It does **not** mean every requirement is implemented:
+**T-02 is dispositioned, not built** — §5.1.2's first-visit notice is scheduled, not shipped. That
+is the same shape as criterion 2's claim (D-123): *nothing is undecided*, which is a weaker and more
+honest statement than *nothing is missing*.
+
+**T-02 — dispositioned 2026-07-30 (D-129): S45 owns building §5.1.2's first-visit Adaptive Learning
+notice, with the eleven required disclosures enumerated by the parallel §6.1 legal-and-policy track
+before S45 starts.** The two halves are assigned deliberately: the §6.1 track owns *what must be
+disclosed* (it is the same track producing the privacy policy the notice has to agree with), and S45
+owns *the notice that displays it*, following the pattern `LocationConsentModal.tsx` already
+establishes for §5.1.3 in the chat app. **The disclosure list gates the build, not the reverse** — a
+notice shipped from an implementer's reading of §5.1.2 is how a compliance artifact ends up
+disagreeing with the policy it exists to summarize.
 
 ---
 
@@ -124,6 +139,12 @@ another.
   would also pass) and an explicit **vacuity guard** (line 91 — "no span carried http.url, the
   assertion would be vacuous"). That is the strongest-shaped test in this tranche and it is worth
   copying: it can fail for the right reason, and it cannot pass for the wrong one.
+- Logs — the boundary that had *no* repeatable check until 2026-07-30: the access logger templates
+  the path and drops the query string, and D-104 §4 is exactly the trap that creates ("clean log,
+  leaking trace, same request"). [scripts/scan_logs_pii.py](../scripts/scan_logs_pii.py)
+  (`make scan-logs`) now scans live log events with the **same patterns and the same matcher** as the
+  trace scanner, and fails on truncation, on an unreadable window, and on zero events. First run over
+  authenticated traffic: **CLEAN, 20/20 control** (D-129).
 
 ### 2. Deterministic core — grading, gating, authorization, scoring, SQL (§5.0, §5.26)
 
@@ -510,14 +531,34 @@ rather than trusting a test to notice.
 
 ## Discrepancies found
 
-Criterion 1 requires every discrepancy to be dispositioned in DECISIONS.md. **Open: none.**
+Criterion 1 requires every discrepancy to be dispositioned in DECISIONS.md. **Open: none** — true as
+of D-129, and worth flagging that **this line was already saying "none" while the table below said
+T-02 was open** (both written in the same commit, `c44414f`). It is corrected by the disposition
+rather than by editing the summary, but the near-miss is the point: a summary line that agrees with
+the claim you want to make, sitting above a table that contradicts it, is how a rubric passes itself.
 
 | id | discrepancy | disposition |
 |---|---|---|
 | **T-01** | §5.30.3 requires GuardDuty and CloudTrail; neither existed and neither had a decision | **Closed 2026-07-30 (D-125), as two opposite answers**: CloudTrail **built and live-verified**; GuardDuty **deferred with a written reason**, tracked to S50 A7 |
-| **T-02** | §5.1.2's first-visit Adaptive Learning notice — eleven required disclosures — is not built and is owned only *by implication* | **Open.** Needs an explicit owner, not a fix. See below. |
+| **T-02** | §5.1.2's first-visit Adaptive Learning notice — eleven required disclosures — is not built and is owned only *by implication* | **Dispositioned 2026-07-30 (D-129): S45 builds it; the §6.1 track enumerates the eleven disclosures first.** Scheduled, not shipped — see below. |
 
 ### T-02 — §5.1.2's first-visit notice has no explicit owner, and its content depends on a track that has not started
+
+**✅ DISPOSITIONED 2026-07-30 (D-129), and the disposition splits the item in two on purpose:**
+
+- **The §6.1 legal & policy track owns the eleven disclosures** — enumerating them as a written
+  deliverable, consistent with the privacy policy it is already producing and with D-114 §4's
+  standing obligation about the 90/90/365 retention windows.
+- **S45 owns the notice itself** — the first-visit gate in `apps/learning-web`, following the
+  pattern `LocationConsentModal.tsx` already establishes for §5.1.3 in the chat app.
+- **The order is load-bearing:** the disclosure list gates the build. A notice drafted from an
+  implementer's reading of §5.1.2 is how a compliance artifact ends up disagreeing with the policy
+  it exists to summarize, and the §6.1 track already gates the pilot for other reasons.
+
+**Still not built**, and the disposition does not pretend otherwise. What changed is that it is now
+owned and ordered rather than assumed — which is all criterion 1 asks of a discrepancy.
+
+*(The finding as filed, kept because the reasoning is the record:)*
 
 **This is a weaker finding than T-01 and is filed at that strength deliberately.** T-01 was a
 requirement with *nothing* anywhere. This one is a requirement whose home is guessable but never

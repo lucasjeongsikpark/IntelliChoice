@@ -5,6 +5,50 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ CRITERIA 9 AND 1 ARE MET (2026-07-30, D-129). The gate now needs a calendar and a mailbox —
+  no engineering.** 1, 2, 3, 4, 5, 9 met; 7 met at the pilot's 25 concurrent; **6** on the calendar
+  (2026-08-02 / 2026-08-05); **8** at 2 of 4 confirmed.
+  **Criterion 9 was won by ordering, not effort.** Authenticated load (25 VUs, all four thresholds
+  green — p95 2.75 s, 0.00% errors, 250 answers), then `scan-traces`, then `scan-logs`, **all in one
+  sitting** — which is the entire trick, since D-121/D-122 produced exactly this traffic and it aged
+  out of X-Ray unscanned. Traces **CLEAN** (2,747 traces / 21,234 segments / 1,568,546 strings,
+  control 20/20); logs **CLEAN** (495 events pinned to the run window, 2,774 over the hour); metrics
+  structurally clean (no custom CloudWatch namespace exists, Prometheus labels are bounded enums plus
+  a *templated* route path, `/metrics` isn't routed at the edge); payloads stored nowhere by design.
+  **⚠️ The number that matters is not 2,747 — it is 350.** That is how many authenticated traces the
+  coverage control proved were in the scanned set, exactly matching k6's 350 requests. **2,394 of the
+  2,747 were `/readyz`** (AUD-F-30), so "2,747 CLEAN" reads like breadth and is mostly one health
+  check repeated. **A positive control proves the detector fires; only a coverage control proves it
+  was aimed at anything.**
+  **The log half was the weakest evidence in the whole gate and it read as done** — it rested on
+  S38's one-off CLI pipeline over guest traffic, the same pipeline whose first version missed strings
+  that were demonstrably present. New [scripts/scan_logs_pii.py](../scripts/scan_logs_pii.py)
+  (`make scan-logs`) **imports the trace scanner's patterns and matcher rather than re-implementing
+  them**, and its four failure modes are control-tested in both directions: truncated slice → FAIL,
+  unreadable window → FAIL ("I could not look" must not report CLEAN), zero events → FAIL, a
+  configured log group that no longer exists → FAIL, clean corpus → CLEAN. **Its allowlist is empty as a measured result** — written expecting to need one,
+  nothing fired over 2,774 events, so the exception was deleted rather than kept as a hole.
+  **Criterion 1's sentence got written: T-02 → S45 builds §5.1.2's first-visit notice, the §6.1 track
+  enumerates the eleven disclosures first**, and both ROADMAP blocks now name it, because a
+  disposition living only in a decision log is "owned by implication" in a new place. Met on
+  criterion 2's terms (D-123): **nothing is undecided, which is weaker than nothing is missing** —
+  T-02 is scheduled, not shipped. *(Near-miss worth knowing: TRACEABILITY.md's table header already
+  said "Open: none" while the table below marked T-02 open — same commit. A summary that agrees with
+  the claim you want, above a table that contradicts it, is how a rubric passes itself.)*
+  **⚠️ Two findings off the same run, and the second changes a price.** **AUD-F-31:** `select_topic`
+  — the p95 driver in every load run since D-121, hypothesized for three sessions as "a LangGraph
+  invoke with checkpoint writes" — is **51 sequential SQL statements and not one Bedrock call**
+  (1.624 s of deduped SQL inside a 1.62 s span, ~32 ms per round-trip, N+1 over the 10 exam items;
+  **no checkpoint write in the hot path at all**). Batching takes ~51 statements to ~6 for **~$0**
+  against the ~$216/month D-122 priced for criterion 7's 150-concurrent p95. Filed, not fixed —
+  it touches deterministic-core persistence (§5.0) and wants its own before/after.
+  **AUD-F-30:** `variables.tf`'s "X-Ray's free tier covers 100k traces/month" is now false by ~17×
+  (~1.7M/month at the measured rate, ~$8/month) — small money, familiar shape: an assumption true
+  when written that silently stopped holding.
+  **And the instrument was wrong first, for the third session running:** X-Ray records each SQL
+  statement **twice** (subsegment *and* standalone segment), so the naive profile said 102 statements
+  and **131% of wall time in SQL**. A profile claiming more SQL time than the request took is
+  reporting on itself.
 - **✅ Traceability tranche 6 done — 37 of 37 sections. Criterion 1 now turns on ONE SENTENCE
   (2026-07-30, D-128).** Every launch-scope §5 section carries a verdict.
   **The criterion's two clauses split:** "100% mapped to implementation + test" is **satisfied**;
@@ -648,8 +692,40 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-30 close, post-D-128). The gate is down to ONE criterion needing
-  real work; everything else is two human sentences and a calendar:**
+- **Next session, in order (2026-07-30 close, post-D-129). The gate needs no engineering. What it
+  needs is a mailbox, two dates, and the one thing that has not moved in six sessions:**
+  1. **⚠️ S42's discovery asks to the org — send them, and send them first.** Seventh session
+     carrying them. Everything else on this list is internally controlled and takes minutes; this one
+     has **external lead time** and gates S43, where §7-R8's real fix lives. Draft is
+     [S42_ORG_ASKS.md](S42_ORG_ASKS.md). **It is now the pilot's only true blocker** — with 1 and 9
+     closed, nothing in the gate is waiting on code, and this is waiting on someone else's reply.
+  2. **Criterion 8, 2 of 4 → 4 of 4: read the inbox.** Search `from:no-reply@sns.amazonaws.com
+     learning-api`; the two `learning-api` notices fired ~1 h before the chat pair (`5xx-rate`
+     18:26:40Z, `p95-latency` 18:44:38Z, also 18:13 and 06:28). No AWS API can attest this and each
+     day makes "which four" harder to reconstruct. **This is the last criterion needing an action of
+     any kind before 08-02.**
+  3. **Criterion 6's dates arrive: 2026-08-02** (original two schedules), **2026-08-05**
+     (retention-purge). Read **per job** (D-114 §3). That completes the gate.
+  4. **2026-08-01: re-probe "How do I enroll a student?"** and widen `chat_qa_staging.js`'s question
+     list beyond the four documents effective today.
+  5. **Then the first post-gate engineering session, and AUD-F-31 is the one to take:** batching
+     `select_topic`'s 51 SQL statements to ~6 is the whole of criterion 7's remaining p95 gap for ~$0
+     against a ~$216/month capacity purchase. Needs its own before/after, at the same 25 concurrent,
+     and it touches deterministic-core persistence (§5.0) so it wants tests first.
+  **Carry-overs, in the order they will bite:** (i) **AUD-F-30** — turn off tracing for `/readyz`
+  (`excluded_urls` or a 0% sampling rule); ~97% fewer recorded traces, removes an ~$8/month
+  free-tier overrun, and makes every future scan's denominator mean what a reader assumes. Cheap, and
+  the next scan is more honest for it. (ii) **`/readyz` still cannot distinguish "database gone" from
+  "I am busy"** — AUD-F-29 widened the ALB threshold instead of fixing it. (iii) **RDS connection
+  arithmetic** — worst case ~126 of ~112 at both services' 3-task ceilings; watch
+  `DatabaseConnections` before raising `max_capacity`. (iv) **ARCHITECTURE.md's "not yet built"
+  paragraph** (lines 15–18) still lists memory, eval, observability and deployment as unbuilt; all
+  shipped in S25/S30/S31/S32 — needs a re-audit of the paragraph, not a one-line edit.
+  Longer-standing and unchanged: answer brevity (D-115 (i)) as the highest-value chat optimization,
+  needing product sign-off; AUD-F-22 and AUD-F-24's sibling instance, both needing a UX call;
+  D-112's retrieval-margin re-measure; the ~2–4% `rag_answer` `schema_invalid` rate.
+
+- **Superseded — next-session pointer as of the D-128 close (2026-07-30):**
   1. **Merge PR #60** (green, unmerged — tranche 6). Nothing deploys from it.
   2. **Two sentences only you can write**, and each closes a criterion outright:
      (a) find the two `learning-api` alarm emails — search `from:no-reply@sns.amazonaws.com
@@ -2617,6 +2693,34 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### Off-roadmap — the gate closed to a calendar: criteria 9 and 1 met (2026-07-30) ✅
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-128), not a numbered roadmap block.**
+  Five items were listed. Items 1–3 are done; 4 and 5 are date-bound (2026-08-01/02/05) and were not
+  due. Nothing was added to scope.
+- **PR #60 merged** (`26b9063`), after committing the D-128 close entry that had been left uncommitted
+  on `tranche6-tail` (`d0868ab`). All 9 checks green on both pushes.
+- **Criterion 9 met (D-129 §1–3)** by running the authenticated load, `make scan-traces` and
+  `make scan-logs` **in one sitting** — the sequencing every prior attempt failed on. Traces CLEAN
+  (2,747 / 21,234 / 1,568,546, control 20/20), logs CLEAN (495 pinned events; 2,774 over the hour),
+  metrics structurally clean, payloads stored nowhere. **The coverage control is the load-bearing
+  part:** 350 authenticated traces in the scanned set, matching k6's 350 requests exactly.
+- **New tool: [scripts/scan_logs_pii.py](../scripts/scan_logs_pii.py) / `make scan-logs`**, importing
+  the trace scanner's patterns and matcher rather than re-implementing them. Three failure modes
+  control-tested in both directions (truncation, unreadable window, zero events → FAIL; clean corpus →
+  CLEAN). Empty allowlist, as a measured result over 2,774 events.
+- **Criterion 1 met (D-129 §4):** T-02 dispositioned — **S45 builds §5.1.2's first-visit notice; the
+  §6.1 track enumerates the eleven disclosures first.** Both ROADMAP blocks now name it.
+- **Two findings filed, not fixed:** **AUD-F-31** (P2 — `select_topic` is 51 sequential SQL
+  statements and no model call; ~$0 fix for criterion 7's ~$216/month gap) and **AUD-F-30** (P3 —
+  ~97% of traces are `/readyz`, and the free-tier assumption in `variables.tf` is now false by ~17×).
+- **Verification:** `make lint` clean, `make typecheck` clean (pyright 0 errors), **592 passed /
+  2 skipped** — at session start and again at close, unchanged. No schema change, no Terraform change,
+  no deploy. The load run cost is one 15.5-second 25-VU run against real Bedrock.
+- **Carry-over:** criterion 8 still 2 of 4 (needs a human to read an inbox); criterion 6's two dates;
+  AUD-F-30/31 unfixed; **S42's org asks unsent, seventh session** — and now the pilot's only blocker
+  that is not a date or a mailbox.
+- **New decisions:** D-129.
 
 ### Off-roadmap — the gate: criterion 2 claimed, criterion 1 built from zero to 37/37, CloudTrail (2026-07-30) ⏸ partial
 - **Scope: PROGRESS.md's own "Next session" pointer (post-D-122), not a numbered roadmap block.**

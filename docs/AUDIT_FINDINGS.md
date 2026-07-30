@@ -3274,3 +3274,75 @@ carry-over rather than done under a capacity change.
 
 **Post-fix evidence:** the 150-concurrent run after the change produced zero connection errors, zero
 5xx, and no replacement, at a concurrency 3× higher than the one that killed a task before.
+
+## Criterion 9's authenticated half (2026-07-30, D-129)
+
+Two findings, both from the same 25-VU authenticated load run that produced the criterion-9
+evidence. Neither is a correctness defect; both are things a measurement was quietly wrong about.
+
+### AUD-F-30 — 97% of every trace this project has ever scanned is a health check, and X-Ray's free tier stopped covering it (P3, found 2026-07-30, D-129; not fixed)
+
+Measured, not estimated: **2,394 traces in the hour before the load run, and every one of them was
+`GET /readyz`** — 5 tasks × ~478 checks each. The 350 authenticated requests the load run generated
+were 13% of the corpus the criterion-9 scan then walked; on an idle window it is 100% health checks.
+
+Two consequences, in increasing order of importance:
+
+1. **The cost assumption in the code is now false.**
+   [terraform/environments/staging/variables.tf:78-81](../terraform/environments/staging/variables.tf#L78-L81)
+   defaults `enable_otel_tracing` to true and justifies it with "X-Ray's free tier covers 100k
+   traces/month". At the measured rate that is **~57k traces/day, ~1.7M/month — about 17× the free
+   tier**, or ~$8/month at $5 per million recorded. July's bill is genuinely $0 (85,892 traces
+   stored, under the tier) but only because tracing has been on for four days *and* the task count
+   doubled on 2026-07-30 (learning-api `min_capacity` 1 → 2, chat-api sitting at 3). **The comment
+   was true when written and is now an assumption that silently stopped holding** — the same shape as
+   D-072's retention assumption (see §5.15 in [TRACEABILITY.md](TRACEABILITY.md)), at a much lower
+   stake.
+2. **It dilutes the one criterion that depends on the trace corpus.** A scan reporting "2,747 traces
+   CLEAN" sounds like broad coverage and is mostly the same three-span health check repeated. This is
+   exactly why D-104 §3's coverage control exists and why this session ran one: the claim that
+   matters is not the total, it is that the **350 authenticated traces were in the scanned set**.
+
+**Fix direction** (not applied — it changes what staging records, and criterion 9's evidence was
+being gathered in the same session): exclude the health endpoints from instrumentation, e.g.
+`FastAPIInstrumentor`'s `excluded_urls` (`readyz,healthz`) or an X-Ray sampling rule at 0% for them.
+Either drops recorded traces by ~97%, removes the cost question entirely, and makes the scan's
+denominator mean what a reader assumes it means. **Deliberately not done mid-measurement**: changing
+the corpus while establishing evidence over it is how a clean result becomes unreproducible.
+
+### AUD-F-31 — `select_topic` spends its 1.6 s on ~50 sequential SQL round-trips, and none of them are checkpoint writes (P2, found 2026-07-30, D-129; not fixed)
+
+`select_topic` has been the p95 driver in every load run since D-121, and the standing hypothesis in
+PROGRESS.md was "a LangGraph invoke with checkpoint writes". **The trace says otherwise.** Over the
+25 topic-selection requests in this session's run:
+
+| | median | p95 |
+|---|---|---|
+| request wall time | 2.484 s | 2.997 s |
+| `langgraph.select_topic` span | 1.62 s | — |
+| SQL time inside it (deduped) | 1.624 s | — |
+| SQL statements per request (deduped) | **51** | 51 |
+
+**The graph node is its SQL and nothing else** — 1.624 s of SQL inside a 1.62 s span, and **not one
+Bedrock subsegment**. The statements are an N+1 write pattern over the 10 exam items:
+
+```
+10 × INSERT question_variants        10 × SELECT question_variants
+10 × INSERT assessment_items         10 × INSERT assessment_item_state
+ 5 × SELECT question_templates        1 × INSERT assessment_sessions
+ 1 × SELECT topics, 1 × SELECT attendance, 2 × connection-level
+```
+
+At ~32 ms per round-trip (measured at 25 concurrent, so partly queueing), batching the four per-item
+statements into multi-row writes and the template lookups into one query takes ~51 statements to ~6.
+**That is the cheapest available move on criterion 7's remaining gap**: ~$0 against the ~$216/month
+of the 6× capacity D-122 priced, and it targets the exact span that dominates the p95. Filed rather
+than fixed because it touches assessment-item persistence, which is deterministic-core code
+(SPEC §5.0) and wants its own session and its own before/after.
+
+**Instrument caveat, recorded because it nearly became the finding:** X-Ray records each SQLAlchemy
+statement **twice** — once as a child subsegment of the graph span and once as a standalone segment —
+so the naive count is **102** statements and the naive SQL total (3.37 s) exceeds the request's own
+wall time (2.57 s). A profile that reports 131% of wall time in SQL is reporting on its instrument.
+Deduping on `(start_time, sanitized_query)` gives 51 and 1.624 s, which reconciles exactly with the
+span. D-104 §8's rule holds: every measurement apparatus needs its own correctness check first.
