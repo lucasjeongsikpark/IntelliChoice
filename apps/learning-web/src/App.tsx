@@ -110,6 +110,15 @@ function App() {
     setInteractedPhase(null);
   }
 
+  // AUD-F-27: every screen below is passed `session.busy` where it used to be given a
+  // hardcoded `busy={false}`. Each of them drives at least one mutation that goes through
+  // the hook's `run()` serializer, and `run()` *refuses* a call that arrives while another
+  // is in flight - so without this the student could issue a click the app would discard
+  // while telling them it had worked. `ExamScreen` in particular already disabled every
+  // control and switched its label to "Submitting…" on this prop; the wiring was the only
+  // missing piece. `recordItemTime` is deliberately not gated (fire-and-forget telemetry),
+  // so this does not re-open AUD-F-01.
+
   // AUD-F-21: called from the exam screen's three real interactions (answer, skip, flag).
   // Deliberately *not* from `onRecordTime`, which fires on view rather than on intent -
   // treating "the screen was displayed" as interaction would suppress every narrative,
@@ -149,7 +158,7 @@ function App() {
           sub={sub}
           role={role}
           studentId={dashboardStudentId}
-          busy={false}
+          busy={session.busy}
           error={session.error}
           onStart={() => {
             resetSessionUiState();
@@ -181,7 +190,7 @@ function App() {
       return (
         <ChildSelectionScreen
           candidates={pending.child_candidates}
-          busy={false}
+          busy={session.busy}
           onSelect={(studentId) =>
             void session.respond({ interrupt_type: "child_selection", student_id: studentId })
           }
@@ -195,7 +204,7 @@ function App() {
           message={snapshot.message}
           pendingInterrupt={pending}
           resolved={snapshot.attendance_resolution === "absence_acknowledged"}
-          busy={false}
+          busy={session.busy}
           onAcknowledge={() => void session.resolveAttendance("acknowledge")}
           onAskBranchManager={() => void session.resolveAttendance("ask_branch_manager")}
           onApproveEmail={(approved) =>
@@ -223,7 +232,7 @@ function App() {
       if (snapshot.phase === "student_selected") {
         return (
           <TopicSelectScreen
-            busy={false}
+            busy={session.busy}
             error={session.error}
             onSelect={(topicId) => void session.chooseTopic(topicId)}
           />
@@ -258,7 +267,7 @@ function App() {
             items={snapshot.items ?? null}
             streak={streak}
             overview={session.examOverview}
-            busy={false}
+            busy={session.busy}
             error={session.error}
             onSubmit={(questionVariantId, selectedOption, responseTimeMs) => {
               markInteraction();
@@ -284,7 +293,7 @@ function App() {
           <AssistancePanel
             intervention={snapshot.intervention ?? null}
             ladderOpen={ladderOpen}
-            busy={false}
+            busy={session.busy}
             onChoose={(choice) =>
               void session.respond({ interrupt_type: "intervention_choice", choice })
             }

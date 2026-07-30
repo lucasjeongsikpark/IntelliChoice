@@ -33,7 +33,13 @@ export function useLearningSession(token: string | null) {
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
   const [streamState, setStreamState] = useState<"connecting" | "open" | "error">("connecting");
   const [error, setError] = useState<string | null>(null);
+  // AUD-F-27: the ref is what `run()` reads synchronously (state would be a render behind,
+  // so two clicks in the same tick would both pass the guard); the state is what the UI
+  // reads. Both, because they answer different questions - "may this call proceed" and
+  // "should the controls be disabled" - and the second one had no answer at all before,
+  // which is how the guard came to silently discard the student's work.
   const busyRef = useRef(false);
+  const [busy, setBusy] = useState(false);
 
   // Action callbacks read `sessionId` through this ref, not the `sessionId` state
   // variable directly - a caller that chains `startSession().then(() => chooseStudent())`
@@ -63,9 +69,34 @@ export function useLearningSession(token: string | null) {
     setStudentId(id);
   }, []);
 
+  /**
+   * Serializes mutations, and - AUD-F-27 - says so instead of pretending it didn't happen.
+   *
+   * The bare `return null` this replaced was silent: no request, no error, no retry. On
+   * staging, where a `POST /answers` takes ~200-400ms rather than the local ~1ms, that
+   * discarded **8 of 10 answers and the finalize** in a single measured run while
+   * `ExamScreen` had already advanced the question and displayed "Answer submitted for
+   * question N". A lost answer is scored incorrect, which corrupts the pre-exam score, the
+   * learning gain computed from it, and the parent report built on that.
+   *
+   * Two changes, and the second one is the real fix: the drop now surfaces an error, and
+   * `busy` is exposed as state so the controls can be disabled and the second click never
+   * happens. `ExamScreen` already accepted a `busy` prop and disabled every control on it -
+   * `App.tsx` had simply passed `busy={false}` everywhere, so the intended design was
+   * present and unreachable.
+   *
+   * Deliberately still *not* a queue: an answer that arrives after a finalize has nowhere
+   * valid to land (that is AUD-F-02's 409), so serializing-and-refusing is the honest
+   * behaviour. `recordItemTime` stays outside this guard - it is fire-and-forget telemetry
+   * and gating it would be the AUD-F-01 problem again.
+   */
   const run = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | null> => {
-    if (busyRef.current) return null;
+    if (busyRef.current) {
+      setError("Still saving your last action — give it a moment and try again.");
+      return null;
+    }
     busyRef.current = true;
+    setBusy(true);
     setError(null);
     try {
       return await fn();
@@ -74,6 +105,7 @@ export function useLearningSession(token: string | null) {
       return null;
     } finally {
       busyRef.current = false;
+      setBusy(false);
     }
   }, []);
 
@@ -269,6 +301,7 @@ export function useLearningSession(token: string | null) {
     snapshot,
     streamState,
     error,
+    busy,
     startSession,
     chooseStudent,
     chooseTopic,
