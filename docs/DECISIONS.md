@@ -6609,3 +6609,89 @@ falsify it.
 It remains the cheapest criterion left and the only one that neither expires nor depends on anyone
 else. That combination is exactly why it keeps losing to whatever is louder, and the reason to
 schedule it as a session rather than as the leftover of one.
+
+---
+
+## D-125 — T-01 dispositioned as two decisions, not one: CloudTrail built, GuardDuty deferred (accepted, 2026-07-30)
+
+### 1. Why this is two entries' worth of reasoning in one
+
+D-124 filed T-01 — §5.30.3 requires GuardDuty and CloudTrail, and neither had a decision anywhere
+in the repo — and explicitly refused to dispose of them together, on the grounds that "deciding them
+as one item is how the cheap one gets lost behind the expensive one". That turned out to be right:
+they got opposite answers.
+
+### 2. CloudTrail — built, because the cost argument does not apply and the need is documented
+
+**The first copy of management events in an account is free**, permanently. What costs money is a
+second trail, data events (S3 object-level, Lambda invoke), and S3 storage for delivered logs. So
+the trail takes **management events only** and the bucket **expires objects at 90 days**, including
+noncurrent versions and aborted multipart uploads — an audit bucket nobody prunes is how a free
+feature becomes a bill.
+
+The need was already written down and had simply never been connected to the requirement:
+[INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) is grounded in two **real** credential incidents
+(S32/D-084, S33/D-085), and "who used that key, and when" is the first question of any credential
+incident. Until today nothing in this account could answer it. A runbook whose first question has
+no data source is a runbook that has not been finished.
+
+Configuration choices worth stating, since each is a place a trail is usually wrong:
+
+- **Multi-region**, though everything runs in one. The point of an audit log is to record activity
+  you did not expect, and unexpected activity in an unused region is exactly what a single-region
+  trail cannot see. Management events are free in every region.
+- **Global service events on** — IAM, STS and CloudFront are region-less and only land in a trail
+  that asks for them. IAM/STS is precisely what a credential incident reads.
+- **Log file validation on**, so tampering with delivered logs is detectable rather than
+  assumed-away.
+- **`aws:SourceArn` conditions on both bucket-policy statements.** Without them the policy
+  authorizes *any* account's trail to deliver into this bucket — the confused-deputy shape AWS's own
+  docs call out. A bucket that accepts foreign log delivery is **worse than no audit log**, because
+  its contents can no longer be trusted, and that is a failure mode that looks exactly like success.
+
+**Verified live rather than by reading the apply output**, which is this project's standing rule
+(D-113, AUD-F-11): `get-trail-status` returns `IsLogging: true` with `LatestDeliveryError: None`,
+and `describe-trails` confirms multi-region, global events and validation all on. Terraform plan was
+**7 to add, 0 to change, 0 to destroy** — additive only, nothing touching ECS. **Delivery confirmed
+end-to-end**: a real **1,761-byte `.json.gz`** object landed at 15:34:34 CDT, ~4.5 minutes after the
+trail started, with `LatestDeliveryTime` set and no error.
+
+**⚠️ And the first attempt to verify that was nearly a false negative — worth recording, because it
+is the same shape as a defect this project has already paid for.** The initial poll waited for *any*
+object under `AWSLogs/` and returned two immediately: zero-byte **prefix placeholders** created at
+trail-start. It would have reported "logs delivered" while `LatestDeliveryTime` was still `null` and
+not one event had been written. That is **AUD-F-12 exactly** — the empty trace store that certified
+"no PII" for an hour — in a different service. The correct condition is `LatestDeliveryTime`
+becoming non-null, or an object actually matching `*.json.gz`. **A store that exists is not a store
+that has data, and "the bucket has objects in it" is not evidence of delivery.**
+
+**D-122's tfvars trap was checked before applying, and this is now the second session it mattered.**
+`terraform.tfvars` is gitignored and pins the image tags terraform believes are deployed, while
+`deploy-staging.yml` is what actually rolls images — so they drift silently and an unrelated apply
+can revert application code. Both pins read `gha-447d412617a2` and both live services were running
+exactly that (task definitions 39 and 37), so the apply was safe. **The check took thirty seconds
+and is the difference between a capacity change and an accidental rollback.**
+
+### 3. GuardDuty — deferred, with the written reason it never had
+
+GuardDuty is an **always-on paid service**, billed on log volume, against a staging account with
+**no real users**. That is the same argument that deferred WAF in D-087, and consistency matters
+here: two absent controls with the same cost shape should not get different answers because one
+happened to be looked at on a different day.
+
+**What changes is not the state but the record.** Before today GuardDuty was *absent and unknown* —
+no decision, no cost note, nothing; a requirement that had fallen out of the plan silently. It is now
+*absent and deliberate*, which is the same status WAF has. **That distinction is the entire product
+of criterion 1**, and it is invisible to every other criterion: no test fails, no alarm fires, no
+journey breaks either way.
+
+**Tracked to the same place as WAF — S50's A7 close-out** — and it should be reconsidered the moment
+either of two things is true: real user traffic exists, or the account holds production data. Both
+are conditions the pilot will meet, so this is a deferral with a foreseeable end, not an indefinite
+one.
+
+### 4. T-01 is closed
+
+Both halves now have dispositions, so criterion 1 carries no open discrepancy. The criterion itself
+remains **not met** — tranche 1 covered 2 of 37 sections — and closing T-01 does not change that.
+It only means the discrepancy register is clean as far as the sweep has reached.

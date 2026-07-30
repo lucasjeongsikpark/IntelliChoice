@@ -572,6 +572,18 @@ module "cloudfront_chat" {
   tags              = local.common_tags
 }
 
+# SPEC §5.30.3, closing traceability finding T-01 (D-124/D-125). Management events only,
+# multi-region, log-file validation on, 90-day expiry on the bucket. The first copy of
+# management events is free; the storage is what needs bounding. GuardDuty, the other half
+# of T-01, is deliberately NOT here - deferred with a written reason in D-125, on the same
+# always-on-cost argument that deferred WAF in D-087.
+module "cloudtrail" {
+  source      = "../../modules/cloudtrail"
+  name_prefix = var.name_prefix
+  aws_region  = var.aws_region
+  tags        = local.common_tags
+}
+
 module "observability" {
   source             = "../../modules/observability"
   name_prefix        = var.name_prefix

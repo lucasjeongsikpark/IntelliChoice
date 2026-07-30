@@ -5,6 +5,36 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ T-01 closed as two opposite decisions, CloudTrail is live, and traceability tranche 2 (money)
+  is done (2026-07-30, D-125).** **CloudTrail built and applied** —
+  `terraform/modules/cloudtrail/`, plan **7 add / 0 change / 0 destroy**, management events only,
+  multi-region, global service events, log-file validation, 90-day bucket expiry, and
+  `aws:SourceArn` on both bucket-policy statements so the bucket cannot accept another account's log
+  delivery (a bucket that does is **worse than no audit log** — its contents stop being trustworthy,
+  and it looks exactly like success). Live-verified `IsLogging: true`, `LatestDeliveryError: None`.
+  Enabled rather than deferred because **the first copy of management events is free** and
+  INCIDENT_RESPONSE.md's two real credential incidents (S32/D-084, S33/D-085) had no account-level
+  audit log to answer "who used that key, and when".
+  **GuardDuty deferred with the written reason it never had** — always-on paid service against a
+  no-user staging account, the same argument that deferred WAF (D-087), tracked to S50 A7. **The
+  state did not change; the record did.** It is now *absent and deliberate* rather than *absent and
+  unknown*, which is the entire product of criterion 1.
+  **⚠️ D-122's tfvars trap checked before applying — second session running that it mattered.**
+  Both pins read `gha-447d412617a2` and both live services ran exactly that (task defs 39/37), so
+  the apply was safe. Thirty seconds, and the difference between a capacity change and an accidental
+  code rollback.
+  **⚠️ A verification of mine was nearly a false negative, caught and redone.** The first delivery
+  poll matched **zero-byte S3 prefix placeholders** created at trail-start and would have reported
+  "logs delivered" against `LatestDeliveryTime: null`. That is AUD-F-12's exact shape — an empty
+  store certifying success. Re-polled on `LatestDeliveryTime` and real `.json.gz` objects instead — **delivery then confirmed end-to-end**, a 1,761-byte object ~4.5 min after start.
+  **Tranche 2 (money) traced: §5.8.3–.5 generation pipeline, §5.18 YouTube sync, §5.31 evals.**
+  The question each row answers is not "is there a limit" but **"is the limit reachable"** —
+  AUD-L-02 was a P0 because a ceiling existed and was passed `0.0`. Verified by threading: all
+  **twelve** downstream call sites in `ai_pipeline.py` pass the running `spend`, not the initial
+  value. §5.18 carries an explicit note that a budget cutoff must never look like a classification
+  result. **Sections swept: 4 of 37. Criterion 1 still NOT met.**
+  **Revised estimate: one to two more focused sessions**, down from two to three — tranche 2 ran
+  faster because the method and denominator already existed.
 - **▶️ Criterion 1 started at last, and the reason it sat since S37 was not difficulty
   (2026-07-30, D-124).** New artifact: **[TRACEABILITY.md](TRACEABILITY.md)**. Criterion 1 needs no
   AWS, no Bedrock spend, no load run and no product decision — nothing has ever blocked it. It was
