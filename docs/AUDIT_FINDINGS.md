@@ -3124,3 +3124,53 @@ made `answerCurrentQuestion`'s exact-name locator miss, and that function return
 answerable question", which `answerWholeExam` treats as *the end of the exam* — so it would have
 answered fewer items than it reported, on staging, silently. The fixture now waits out an in-flight
 submission first.
+
+### AUD-F-28 — learning-api cannot serve criterion 7's 150 concurrent sessions: one task, 100% CPU, and the ALB kills it (P1, found in the S43 continuation, D-121; not fixed)
+
+**Criterion 7's learning-app leg fails at the criterion's own parameters**, measured for the first
+time. §2.6 criterion 7 asks for "P95 ≤ 3 s at 150 concurrent, error rate < 1% … with ≥ 2 tasks and
+autoscaling active". At **VUS=150** (`make load-staging-learning`, 150 complete iterations, nothing
+interrupted):
+
+| leg | required | measured |
+|---|---|---|
+| p95 | ≤ 3 s | **36.01 s** |
+| error rate | < 1% | **13.16%** (208 / 1580 checks) |
+| tasks | ≥ 2, autoscaling active | **stayed at desiredCount 1** |
+
+Per step, which locates it: `select_topic` p95 **48.08 s**, `answer` p95 **29.41 s**,
+`select_student` p95 **18.12 s** — and even `dev_token` p95 **7.42 s** and `create_session` p95
+**6.99 s**, calls that do almost nothing. Everything slowed together, which is the signature of one
+saturated process rather than one slow query.
+
+**The infrastructure side, from CloudWatch over the same window:**
+- ALB `TargetResponseTime` p95 by minute: 1.35 → **18.81 → 45.92 → 20.95 → 18.55** s
+- `HTTPCode_Target_5XX_Count`: **71**; `TargetConnectionErrorCount`: **137**; `HTTPCode_ELB_5XX`: 0
+- ECS `CPUUtilization`: **average 99.88%** at the peak minute (67% / 83% / 64% either side)
+- ECS event: **`(port 8001) is unhealthy`** → the task was stopped and replaced *during* the run
+
+So the single task hit 100% CPU, latency went to ~46 s, the ALB health check failed, and ECS killed
+the task mid-flight — which is where the connection errors and most of the 5xx came from. A real
+cohort of 150 students starting exams at once (a branch's session start, exactly the SPEC §6.23
+scenario) would see this.
+
+**A hypothesis worth recording as *disproved*, because it was the obvious one.** learning-api is the
+service D-113 deliberately left on **CPU-based** target tracking while moving chat-api to ALB p95
+latency, on the grounds that "no measurement says to move it" — so the expected story was AUD-F-14's:
+CPU tracking blind to a latency-bound saturation. **It is not that.** CPU was pinned at 100%, so the
+tracking metric saw the load perfectly well. What did not happen is a *reaction*: the burst lasted
+~3.5 minutes, which is comparable to CPU target tracking's own evaluation window plus metric-publish
+lag plus cooldown, so no capacity arrived before the run ended. The distinction matters for the fix —
+this is a **sizing and reaction-time** problem, not a wrong-signal problem.
+
+**Not fixed here.** The options are a capacity decision (`min_capacity` > 1 and/or a larger task),
+a faster scale-out signal for learning-api (the ALB p95 policy chat-api already has, which reacts in
+2 minutes), or accepting a documented lower concurrency target for the pilot — and picking among them
+needs the pilot's real expected concurrency, which is a product input rather than a code change.
+**Criterion 7's chat leg remains met** (p95 16.68 s < 20 s, 0 errors, 3 tasks — D-116); it is the
+learning leg that is open.
+
+**Also measured, and passing, at the concurrency the chat leg used:** at **VUS=5** the same scenario
+returns p95 **1.4 s**, **0.00%** errors, 70/70 checks, `select_topic` p95 1.5 s, `answer` p95 1.22 s.
+So the flow itself is not slow — the failure is purely a capacity-under-concurrency one, and the two
+numbers together bound where it breaks.

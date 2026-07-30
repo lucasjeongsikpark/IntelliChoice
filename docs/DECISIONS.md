@@ -6266,3 +6266,71 @@ AUD-C-02, AUD-F-19, AUD-F-21, AUD-F-26, AUD-F-27 — all invisible locally becau
 covered locally by holding a request open with `route.continue()` after a timer, which reproduces
 staging's timing on the mock without faking any content. That is the pattern to reach for first when
 a staging-only failure appears, in preference to reasoning about the code.
+
+---
+
+## D-121 — Criterion 7's learning leg measured at last, and it fails; criterion 8 gets its first real induction for free (accepted, 2026-07-30)
+
+### 1. The instrument
+
+`load-tests/k6/learning_sessions_staging.js` / `make load-staging-learning`. Distinct from
+`learning_sessions.js`, which drives the same flow against local docker-compose as a
+>100-concurrent proxy; this one goes through the real CloudFront edge to the deployed stack.
+
+Two properties worth stating because they shaped the threshold. First, **this flow makes no model
+calls**: the pre-exam path is SPEC §5.0's deterministic core, and the one narrative on it
+(`pre_intro`) fires on SSE connect, which k6 does not open. So the run is essentially free and its
+latency is database- and CPU-bound — which is also why learning-api correctly kept the 3 s paging
+threshold when chat-api moved to 20 s (AUD-X-13). Second, unlike the guest chat leg it is
+**authenticated**, so it needs the D-097 staging secret; the Makefile target fetches it from Secrets
+Manager and passes it to the container as a bare `-e NAME` pass-through, so the value never reaches
+the docker command line, `ps`, or a shell history.
+
+**Threshold reused, not invented: p95 < 3 s** is the number the deployed
+`intellichoice-staging-learning-api-p95-latency` alarm already pages on, so a passing run asserts
+exactly the promise the environment makes about itself. Same "one number, two places" reasoning as
+D-116, in the direction that reuses an existing decision.
+
+The scenario also fails on two *non-measurement* conditions, because a load test that measures
+nothing must not report success: `learning_attendance_blocked == 0` (a gated run posts near-zero
+latency while never reaching an exam — AUD-F-20's weekly-fixture staleness would look like a pass)
+and `learning_answers_submitted > 0`.
+
+### 2. The result: it fails at 150, passes at 5
+
+At the criterion's **150 concurrent**: p95 **36.01 s** against ≤ 3 s, errors **13.16%** against < 1%,
+and `desiredCount` never left **1**. ALB p95 by minute 1.35 → 18.81 → 45.92 → 20.95 → 18.55 s; 71
+target 5xx; 137 connection errors; ECS CPU **99.88%** average at the peak; and the task was killed
+`(port 8001) is unhealthy` and replaced mid-run. Filed as **AUD-F-28 (P1)**.
+
+At **5 concurrent** the same scenario returns p95 **1.4 s** and **0.00%** errors. The flow is not
+slow; it runs out of capacity. Those two numbers bound the problem better than either alone, which is
+why both are recorded.
+
+**A hypothesis recorded as disproved.** learning-api is on CPU target tracking because D-113 moved
+only chat-api to ALB p95 latency ("no measurement says to move it"), so the expected explanation was
+AUD-F-14's — CPU blind to latency-bound saturation. CPU was at 100%, so the signal was fine; what
+was missing was a *reaction* inside a 3.5-minute burst, which is comparable to target tracking's
+evaluation window plus publish lag plus cooldown. Sizing and reaction time, not a wrong signal. Given
+how much of this session went into mechanisms that merely fit their symptom, checking the CPU metric
+before writing the finding was the cheap step that kept it honest.
+
+### 3. Criterion 8's first alarm induced on its real condition, as a side effect
+
+The same run drove `intellichoice-staging-learning-api-p95-latency` from **OK → ALARM** at 06:28:38Z,
+citing its own datapoints (`20.95, 45.92, 18.81 > 3.0`). The alarm action is the
+`intellichoice-staging-alerts` SNS topic, whose email subscription is **confirmed**. That is one of
+criterion 8's four alarms induced on a genuine condition rather than a synthetic one — the most
+credible form of that evidence, and it came free with the load test.
+
+**One near-miss worth recording as method, not as a finding.** Checked at 06:27 the alarm still read
+`OK / last changed 2026-07-26`, and the draft of this entry called it a monitoring gap — an alarm
+blind to a real incident. It was **alarm evaluation lag**: ALB metrics publish with a delay and the
+transition landed 90 seconds later. Re-reading before writing is what caught it. *When an alarm looks
+wrong immediately after the event that should have tripped it, wait out the evaluation window before
+concluding anything.*
+
+**The 5xx alarm did not fire, and that is its configuration working as designed**:
+`HTTPCode_Target_5XX_Count` Sum > 5 for **2 consecutive** minutes, against an actual distribution of
+70 then 1. Defensible as anti-flap given the p95 alarm caught the same incident, but worth knowing
+that a one-minute burst of 70 server errors does not page on its own.

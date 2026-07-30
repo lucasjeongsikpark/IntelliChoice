@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat scan-traces
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces
 
 up:
 	docker compose up -d
@@ -134,6 +134,26 @@ load-staging-chat:
 	  -e BASE_URL=$(STAGING_CHAT_WEB_URL) \
 	  -e VUS=$${VUS:-5} -e ITERATIONS=$${ITERATIONS:-14} \
 	  grafana/k6 run - < load-tests/k6/chat_qa_staging.js
+
+# S43 continuation / criterion 7's learning-app leg. Unlike the chat leg this one is
+# authenticated, so it needs the staging `/dev/token` secret (D-097) - fetched here rather
+# than stored anywhere, and passed to the container as a bare `-e NAME` pass-through so the
+# value never appears in the docker command line (and so never in `ps` or a shell history).
+# The API shares the SPA's CloudFront domain on staging (D-084 same-origin), so BASE_URL is
+# the same host e2e-staging uses.
+load-staging-learning:
+	@STAGING_TOKEN_SECRET_LEARNING="$$(aws $${AWS_PROFILE:+--profile $$AWS_PROFILE} secretsmanager get-secret-value \
+	    --secret-id intellichoice-staging/learning-api/staging-token-shared-secret \
+	    --query SecretString --output text)" && \
+	  if [ $${#STAGING_TOKEN_SECRET_LEARNING} -lt 10 ]; then \
+	    echo "FATAL: the token secret came back too short to be real - refusing to run"; exit 1; \
+	  fi && \
+	  export STAGING_TOKEN_SECRET_LEARNING && \
+	  docker run --rm -i \
+	    -e BASE_URL=$(STAGING_LEARNING_WEB_URL) \
+	    -e STAGING_TOKEN_SECRET_LEARNING \
+	    -e VUS=$${VUS:-5} \
+	    grafana/k6 run - < load-tests/k6/learning_sessions_staging.js
 
 # S39 continuation (D-104): §2.6 criterion 9's trace half. Runs a positive control over
 # all 20 patterns before it will report anything, and FAILS on zero traces scanned - an
