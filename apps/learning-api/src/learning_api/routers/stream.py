@@ -150,6 +150,40 @@ async def _initial_snapshot(
             profile_adapter=profile_adapter,
             bedrock_gateway=bedrock_gateway,
         )
+        # AUD-F-26: `_maybe_fire_pre_intro` is a **real Bedrock call**, and the state read
+        # above is now seconds old. The browser opens `EventSource` the moment it has a
+        # session id, so it routinely starts a topic - and therefore the pre-exam - while
+        # this connect is still inside that call. Returning the state captured *before* it
+        # would then push the client backwards, and did: measured on staging, a student
+        # who had reached `pre_exam` at 994ms was sent a `student_selected` snapshot at
+        # 2736ms and landed back on the topic-select screen, with the exam screen's
+        # view-time cleanup flushing a truncated 1653ms into `time_spent_minutes` on the
+        # way out. Invisible against `MockBedrockProvider`, which returns in ~26ms and
+        # leaves no window to lose.
+        #
+        # So re-read, and rebuild everything derived from state - `pending` included, since
+        # an interrupt can be raised or resolved inside the same window.
+        refreshed = await graph.aget_state(_graph_config(learning_session_id))
+        if refreshed.values:
+            # Re-authorize rather than trusting the earlier check: the student can be
+            # resolved *during* this window (the child-selection interrupt completing), and
+            # SPEC §5.30.2 wants the check against the state actually being served, not an
+            # earlier one that happened to be safe.
+            refreshed_student = refreshed.values.get("student_external_id")
+            if refreshed_student is not None and refreshed_student != state.get(
+                "student_external_id"
+            ):
+                await resolve_target_student(
+                    claims, refreshed_student, profile_adapter, access="read"
+                )
+            state = refreshed.values
+            pending = _pending_task_interrupt(refreshed)
+            # The checkpoint's own narrative wins if the same window produced a real one -
+            # `pre_intro` is only ever the fallback for "nothing else to show yet".
+            checkpoint_narrative = state.get("stage_narrative")
+            if checkpoint_narrative is not None:
+                narrative_text = checkpoint_narrative
+                narrative_evidence = state.get("stage_narrative_evidence")
     return SessionSnapshotEvent(
         learning_session_id=learning_session_id,
         phase=state.get("phase", "created"),

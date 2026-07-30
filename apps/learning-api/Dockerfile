@@ -56,6 +56,19 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/packages /app/packages
 COPY --from=builder /app/apps/learning-api /app/apps/learning-api
+# AUD-F-25: this image is also the ops-task image, on the stated grounds that it "already
+# has every workspace package installed" - and it did not. The builder above copies
+# `apps/chat-api/` so `uv sync` installs it, but this stage never copied the source, so the
+# venv carried a **dangling editable install**: metadata saying `chat_api` is present with
+# nothing behind it. `python -c "import chat_api"` in the ops task returned
+# `ModuleNotFoundError`, exit 1, which is why chat-web's welcome-card suggestions have never
+# been seeded on staging (`/chat/meta` returned `"suggested_prompts":[]`).
+#
+# Source only - no separate `uv sync`, no second venv, no new dependency. The learning-api
+# service itself never imports `chat_api`; this is here so the one image the ops task runs
+# can execute either app's maintenance CLIs, which is what the ops task was always
+# documented to be able to do.
+COPY --from=builder /app/apps/chat-api /app/apps/chat-api
 COPY --from=builder /app/curriculum /app/curriculum
 COPY --from=builder /app/knowledge-content /app/knowledge-content
 

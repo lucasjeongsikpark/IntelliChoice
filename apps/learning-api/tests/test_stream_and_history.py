@@ -26,6 +26,7 @@ from intellichoice_shared.auth import Audience, Role
 from learning_api import main as main_module
 from learning_api.config import Settings
 from learning_api.main import app
+from learning_api.routers.sessions import SessionSnapshotEvent
 from learning_api.routers.stream import _initial_snapshot
 from learning_api.services.session_events import SessionEventBus
 from sqlalchemy import text
@@ -490,3 +491,95 @@ def test_student_history_reflects_a_completed_session() -> None:
             headers=_auth_header(_student_token(STUDENT_FIRST_CHILD)),
         )
         assert cross_resp.status_code == 403
+
+
+def test_stream_connect_rereads_state_after_the_narrative_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AUD-F-26: the initial snapshot must describe the session as it is when the snapshot
+    is *sent*, not as it was before a seconds-long Bedrock call.
+
+    `_maybe_fire_pre_intro` is a real model call on staging (~2.3s measured). The browser
+    opens `EventSource` as soon as it has a session id, so it routinely starts a topic - and
+    the pre-exam - while this connect is still inside that call. Serving the pre-call state
+    then pushes the client *backwards*: measured on staging, a student at `pre_exam` by
+    994ms received a `student_selected` snapshot at 2736ms, landed back on the topic-select
+    screen, and the exam screen's view-time cleanup flushed a truncated 1653ms into
+    `time_spent_minutes` on its way out.
+
+    Faked at the seam rather than by racing a real Bedrock call, because the defect is an
+    *ordering* one and a test for it should be deterministic: `aget_state` returns
+    `student_selected` first and `pre_exam` afterwards, which is exactly what the real
+    checkpoint does when the client advances mid-call. Against the pre-fix code this
+    returns `student_selected`.
+
+    The mock provider is why this never showed locally - it returns in ~26ms and leaves no
+    window to lose - so this is the AUD-C-02/AUD-F-19/AUD-F-21 lesson paid for a fourth
+    time, and the reason the fake is the right tool here.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+
+    class _FakeSnapshot:
+        def __init__(self, values: dict) -> None:
+            self.values = values
+            self.tasks = ()
+
+    before = {
+        "phase": "student_selected",
+        "student_external_id": STUDENT_UNLINKED,
+        "user_external_id": STUDENT_UNLINKED,
+    }
+    after = {
+        "phase": "pre_exam",
+        "student_external_id": STUDENT_UNLINKED,
+        "user_external_id": STUDENT_UNLINKED,
+        "last_items": [],
+    }
+    reads: list[str] = []
+
+    class _FakeGraph:
+        async def aget_state(self, _config: dict) -> _FakeSnapshot:
+            # First read is the pre-call state; every later read sees the advanced session.
+            values = before if not reads else after
+            reads.append(values["phase"])
+            return _FakeSnapshot(values)
+
+    async def _fake_pre_intro(**_kwargs: object) -> tuple[str, list[str]]:
+        return "Welcome to math practice!", []
+
+    monkeypatch.setattr(
+        "learning_api.routers.stream._maybe_fire_pre_intro", _fake_pre_intro
+    )
+
+    async def _fetch() -> SessionSnapshotEvent:
+        profile_adapter = MySQLProfileAdapter(MYSQL_URL)
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                return await _initial_snapshot(
+                    "sess-aud-f-26",
+                    _FakeGraph(),  # type: ignore[arg-type]
+                    profile_adapter,
+                    session,
+                    app.state.bedrock_gateway,
+                    token,
+                )
+        finally:
+            await profile_adapter.close()
+            await engine.dispose()
+
+    with TestClient(app):
+        snapshot = asyncio.run(_fetch())
+
+    assert reads == ["student_selected", "pre_exam"], (
+        "the connect path read the checkpoint only once, so the snapshot it sends was "
+        "captured before the narrative call rather than after it"
+    )
+    assert snapshot.phase == "pre_exam", (
+        "the initial snapshot served a phase the session had already left - a client that "
+        "started an exam during the narrative call is pushed back to topic selection "
+        "(AUD-F-26)"
+    )
+    # The fallback narrative still rides along; re-reading must not discard it.
+    assert snapshot.stage_narrative == "Welcome to math practice!"

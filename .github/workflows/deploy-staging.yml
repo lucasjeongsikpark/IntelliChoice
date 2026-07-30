@@ -236,6 +236,35 @@ jobs:
           echo "Reembed exit code: $EXIT_CODE"
           test "$EXIT_CODE" = "0"
 
+      # AUD-F-25: chat-web's welcome card renders role-aware suggestion chips from
+      # `chat_suggestions`, and nothing had ever populated that table on staging - the MySQL
+      # re-seed and the RAG re-embed above were both added when their own findings were
+      # filed, and this seeder was simply never wired in. `GET /chat/meta` returned
+      # `"suggested_prompts":[]`, so SPEC §18-C3's one-click-turn path was dead for every
+      # caller. It went unnoticed because the e2e test that covers it skipped itself on
+      # exactly that condition for four sessions (AUD-F-23).
+      #
+      # Runs on the ops task, which needs the same image fix this finding required (see
+      # apps/learning-api/Dockerfile). Idempotent upsert of a small hand-authored catalogue,
+      # so re-running it every deploy costs one short Fargate task and no drift. Placed
+      # before the service rollouts for the same reason as the re-embed: the data should be
+      # there before traffic reaches the new tasks.
+      - name: Seed chat suggestions (idempotent upsert)
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition intellichoice-staging-ops-task \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$PRIVATE_SUBNET],securityGroups=[$ECS_TASKS_SG],assignPublicIp=DISABLED}" \
+            --overrides '{"containerOverrides":[{"name":"ops-task","command":["python","-m","chat_api.services.suggestions_seed_cli"]}]}' \
+            --query 'tasks[0].taskArn' --output text)
+          echo "Suggestions seed task: $TASK_ARN"
+          aws ecs wait tasks-stopped --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+          EXIT_CODE=$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "Suggestions seed exit code: $EXIT_CODE"
+          test "$EXIT_CODE" = "0"
+
       # S34: captured *before* either service redeploys, so the canary-bake step below
       # has a known-good revision to roll back to if the new one misbehaves. ECS keeps
       # every registered task-definition revision indefinitely (nothing here deregisters
