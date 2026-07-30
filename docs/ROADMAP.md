@@ -784,7 +784,15 @@ tokens (~375 words) and its p95 10.62 s is time spent generating prose. So the l
 move this number is asking for a shorter answer — which SPEC §5.10.3's age-appropriateness
 argues for independently — not more tasks or a faster model. Carried as an item, not done here:
 a prompt change is product-visible and needs its own before/after measurement.
-**Criterion 7's learning-app leg is still unmeasured** under authenticated load (the staging
+**✅ Criterion 7's learning-app leg is measured (2026-07-30, D-121) — and it FAILS at the criterion's
+own 150 concurrent (AUD-F-28, P1):** p95 **36.01 s** against ≤ 3 s, **13.16%** errors against < 1%,
+`desiredCount` never leaving 1, ECS CPU at **99.88%**, and the task killed `(port 8001) is unhealthy`
+mid-run. At 5 concurrent the same scenario is p95 **1.4 s / 0.00%** errors, so the flow is fine and
+the capacity is not. The fix is a sizing/reaction decision needing the pilot's real expected
+concurrency. **The chat leg remains met.** The same run also gave criterion 8 its first induction on a
+real condition: `learning-api-p95-latency` OK → ALARM citing its own datapoints, SNS email confirmed.
+*(Historical note below: this leg had been unmeasured since S34.)*
+**Criterion 7's learning-app leg was unmeasured** under authenticated load (the staging
 token secrets are retrievable, D-107 §10). **3 is close but not claimable:
 the last two staging e2e runs are 47 passed / 2 failed / 4 skipped, twice, against two different
 deploys** — every chat journey passes with a working semantic channel underneath (D-112), and the

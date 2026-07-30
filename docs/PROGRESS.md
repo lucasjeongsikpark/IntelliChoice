@@ -5,6 +5,33 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ Criterion 7's learning leg measured for the first time and it FAILS at the criterion's own
+  150 concurrent — AUD-F-28 (P1). Criterion 8 got its first genuine alarm induction for free
+  (2026-07-30, D-121).**
+  New instrument: `load-tests/k6/learning_sessions_staging.js` / `make load-staging-learning`
+  (authenticated, secret fetched from Secrets Manager and passed as a bare `-e NAME` pass-through so
+  it never reaches the docker command line). The flow makes **no model calls** — the pre-exam path is
+  the deterministic core and `pre_intro` fires on SSE, which k6 does not open — so the run is
+  essentially free and DB/CPU-bound, which is also why learning-api keeps the 3 s paging threshold.
+  **At VUS=150:** p95 **36.01 s** (needs ≤ 3 s), errors **13.16%** (needs < 1%), `desiredCount`
+  never left **1**. ALB p95 by minute **1.35 → 18.81 → 45.92 → 20.95 → 18.55 s**; **71** target 5xx;
+  **137** connection errors; ECS CPU **99.88%** average at the peak; and the task was killed
+  **`(port 8001) is unhealthy`** and replaced mid-run.
+  **At VUS=5:** p95 **1.4 s**, **0.00%** errors, 70/70 checks. The flow is not slow — it runs out of
+  capacity, and those two numbers bound where.
+  **A hypothesis recorded as disproved:** the obvious story was AUD-F-14's (CPU tracking blind to a
+  latency-bound saturation, since D-113 moved only chat-api to ALB p95). **CPU was at 100%** — the
+  signal was fine; what was missing was a reaction inside a 3.5-minute burst. Sizing and reaction
+  time, not a wrong signal. Checking the metric before writing the finding is what kept it honest.
+  **✅ Criterion 8, one of four:** the same run drove `learning-api-p95-latency` **OK → ALARM** at
+  06:28:38Z citing its own datapoints (`20.95, 45.92, 18.81 > 3.0`), with the SNS email subscription
+  **confirmed** — an induction on a *real* condition rather than a synthetic one.
+  **⚠️ Near-miss recorded as method:** at 06:27 the alarm still read OK/last-changed-07-26 and this
+  was nearly filed as a monitoring gap. It was **evaluation lag**; the transition landed 90 s later.
+  *When an alarm looks wrong right after the event that should have tripped it, wait out the
+  evaluation window before concluding anything.* The 5xx alarm did **not** fire, correctly per its
+  2-consecutive-minute config against an actual 70-then-1 distribution — worth knowing that a
+  one-minute burst of 70 server errors does not page on its own.
 - **✅✅ §2.6 CRITERION 3 IS MET — two consecutive clean runs against live staging
   (2026-07-29, D-120).** Both runs: **53 passed / 0 failed / 4 skipped**, against the same build
   (`447d412617a2`, deploy run 30513878049), with `EXPECT_BUILD_SHA` asserting the identity and the
@@ -326,11 +353,21 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      If the dwell is *still* truncated, **read `journeys.jsonl`'s `apiCalls[].at` and the
      `error-context.md` page snapshot before forming any mechanism** — that is the lesson this
      session paid for three times.
-  2. **Criterion 7's learning-app leg is the only unmeasured half** — the chat leg passed
-     (p95 16.68 s, 0 errors, 3 tasks). Needs authenticated load; the staging token secrets are in
-     Secrets Manager at `intellichoice-staging/{learning,chat}-api/staging-token-shared-secret`.
-  3. **Criterion 8** — induce each of the four alarms once and confirm the monitored inbox. The
-     chat-api p95 alarm is now a *meaningful* signal to induce rather than one stuck on.
+  2. ~~**Criterion 7's learning-app leg**~~ **(✅ measured 2026-07-30, D-121 — and it FAILS at 150
+     concurrent: AUD-F-28. Needs a sizing/reaction decision, see below.)**
+     **AUD-F-28 (P1) is the open item:** learning-api saturates at 100% CPU on one task under the
+     criterion's 150 concurrent, latency reaches ~46 s, and the ALB kills the task as unhealthy. Three
+     ways forward and it needs the pilot's real expected concurrency to choose: raise
+     `min_capacity`/task size; give learning-api the ALB-p95 scale-out policy chat-api already has
+     (reacts in 2 min, where CPU tracking could not react inside a 3.5-min burst); or accept a
+     documented lower concurrency target for the pilot. `make load-staging-learning` (VUS=5 passes at
+     p95 1.4 s / 0% errors) is the instrument for re-measuring any of them.
+  3. **Criterion 8 — one of four alarms done** (`learning-api-p95-latency`, induced on a real
+     condition by the load run, SNS email subscription confirmed; D-121 §3). Three remain:
+     `learning-api-5xx-rate`, `chat-api-5xx-rate`, `chat-api-p95-latency` — the last of which is now
+     a *meaningful* signal to induce rather than one stuck on (AUD-X-13). Note the 5xx alarms need
+     **2 consecutive minutes** above 5, so a single-minute burst will not trip them. Confirm receipt
+     in the monitored inbox for each.
   **New carry-overs: AUD-F-24's sibling instance** — `renderPhase` conditionally wraps the exam view
   in `.stack` when an intervention arrives, remounting `ExamScreen` for exactly the reason AUD-F-24
   documents; needs a layout call because `.stack`'s styling is load-bearing for the panel. And

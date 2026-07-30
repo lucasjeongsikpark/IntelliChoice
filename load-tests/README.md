@@ -34,7 +34,8 @@ microservice). Two of §6.23's bullets are translated rather than built literall
 | `loadtest_fixtures.py` | ">1,000 students" (local proxy) | Seeds/cleans up N disposable `loadtest-student-N` MySQL rows so k6 VUs are distinct students, not one student under concurrent contention |
 | `k6/learning_sessions.js` | ">100 concurrent learning sessions" | Real pre-exam flow (dev-token -> create -> select student -> select topic -> answer every item) per VU |
 | `k6/chat_qa.js` | "concurrent Bedrock requests" (local proxy) | Concurrent chat-api Q&A turns; local dev server uses `MockBedrockProvider` by default - proves the async request path holds up under concurrency, not real Bedrock throughput |
-| `k6/chat_qa_staging.js` | §2.6 criterion 7, live-staging leg | The same turn against the **deployed** stack through CloudFront: real ALB, real Bedrock, real corpus. Guest turns, no secrets. `make load-staging-chat` |
+| `k6/chat_qa_staging.js` | §2.6 criterion 7, live-staging **chat** leg | The same turn against the **deployed** stack through CloudFront: real ALB, real Bedrock, real corpus. Guest turns, no secrets. `make load-staging-chat` |
+| `k6/learning_sessions_staging.js` | §2.6 criterion 7, live-staging **learning** leg | The real pre-exam flow against the deployed stack. Authenticated (D-097 secret, fetched from Secrets Manager by the make target), and makes **no model calls** - `pre_intro` fires on SSE, which k6 does not open. `make load-staging-learning` |
 | `sse_load.py` | ">100 SSE connections" | Holds N concurrent `GET .../stream` connections open (k6 has no native SSE support, hence a separate script) |
 | `drills/db_connection_loss.sh` | "Database failover" (translated - see above) | Stops/restarts the local Postgres container mid-load, confirms clean failure + automatic recovery |
 
@@ -79,6 +80,22 @@ Against live staging (no local stack, no fixtures, no secrets - guest turns):
 make load-staging-chat                    # 5 VUs x 14 iterations = 70 grounded turns
 VUS=5 ITERATIONS=20 make load-staging-chat
 ```
+
+The learning leg, which *is* authenticated (the target fetches the token secret itself):
+
+```bash
+AWS_PROFILE=<profile> make load-staging-learning          # 5 VUs: p95 1.4s, 0% errors
+AWS_PROFILE=<profile> VUS=150 make load-staging-learning  # the criterion's number - currently fails
+```
+
+**Two ceilings to know before reading its numbers.** Staging seeds four students and only **two are
+attendance-present** (`student-ext-1`, `student-ext-4`), so VUs cycle over those two rather than
+getting one student each - sessions are independent, so it is a valid concurrency measurement, but it
+is not the ">150 distinct students" shape SPEC §6.23 describes; reaching that needs more seeded
+fixtures. And at VUS=150 the run currently **fails** (AUD-F-28): learning-api saturates one task at
+100% CPU, p95 reaches ~46s, and the ALB kills the task as unhealthy. That run also trips the
+learning-api p95 alarm for real, which is worth knowing before firing it at a staging environment
+someone else is watching.
 
 ## Real findings from S34 (see DECISIONS.md for the full writeup)
 
