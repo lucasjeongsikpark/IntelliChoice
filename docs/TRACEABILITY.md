@@ -262,7 +262,10 @@ refused to dispose of them as one item.**
   in `terraform/environments/staging/main.tf`. Management events only, multi-region, global service
   events on, log-file validation on, 90-day bucket expiry, and `aws:SourceArn` conditions on both
   bucket-policy statements so the bucket cannot accept another account's log delivery. Plan was
-  **7 add / 0 change / 0 destroy**. Live-verified: `IsLogging: true`, `LatestDeliveryError: None`.
+  **7 add / 0 change / 0 destroy**. Live-verified: `IsLogging: true`, `LatestDeliveryError: None`,
+  and **delivery proven end-to-end** by a real 1,761-byte `.json.gz` object ~4.5 minutes after
+  start — not by the zero-byte prefix placeholders that appear at trail-start and would have faked
+  it (AUD-F-12's shape; see D-125).
   The cost argument that deferred WAF does not apply — the first copy of management events is free;
   only storage costs, and the lifecycle rule bounds that.
 - **GuardDuty: deferred, with the written reason it never had.** Always-on paid service against a

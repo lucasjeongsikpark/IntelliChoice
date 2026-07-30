@@ -26,7 +26,7 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **⚠️ A verification of mine was nearly a false negative, caught and redone.** The first delivery
   poll matched **zero-byte S3 prefix placeholders** created at trail-start and would have reported
   "logs delivered" against `LatestDeliveryTime: null`. That is AUD-F-12's exact shape — an empty
-  store certifying success. Re-polled on `LatestDeliveryTime` and real `.json.gz` objects instead.
+  store certifying success. Re-polled on `LatestDeliveryTime` and real `.json.gz` objects instead — **delivery then confirmed end-to-end**, a 1,761-byte object ~4.5 min after start.
   **Tranche 2 (money) traced: §5.8.3–.5 generation pipeline, §5.18 YouTube sync, §5.31 evals.**
   The question each row answers is not "is there a limit" but **"is the limit reachable"** —
   AUD-L-02 was a P0 because a ceiling existed and was passed `0.0`. Verified by threading: all

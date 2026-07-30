@@ -6652,7 +6652,18 @@ Configuration choices worth stating, since each is a place a trail is usually wr
 **Verified live rather than by reading the apply output**, which is this project's standing rule
 (D-113, AUD-F-11): `get-trail-status` returns `IsLogging: true` with `LatestDeliveryError: None`,
 and `describe-trails` confirms multi-region, global events and validation all on. Terraform plan was
-**7 to add, 0 to change, 0 to destroy** — additive only, nothing touching ECS.
+**7 to add, 0 to change, 0 to destroy** — additive only, nothing touching ECS. **Delivery confirmed
+end-to-end**: a real **1,761-byte `.json.gz`** object landed at 15:34:34 CDT, ~4.5 minutes after the
+trail started, with `LatestDeliveryTime` set and no error.
+
+**⚠️ And the first attempt to verify that was nearly a false negative — worth recording, because it
+is the same shape as a defect this project has already paid for.** The initial poll waited for *any*
+object under `AWSLogs/` and returned two immediately: zero-byte **prefix placeholders** created at
+trail-start. It would have reported "logs delivered" while `LatestDeliveryTime` was still `null` and
+not one event had been written. That is **AUD-F-12 exactly** — the empty trace store that certified
+"no PII" for an hour — in a different service. The correct condition is `LatestDeliveryTime`
+becoming non-null, or an object actually matching `*.json.gz`. **A store that exists is not a store
+that has data, and "the bucket has objects in it" is not evidence of delivery.**
 
 **D-122's tfvars trap was checked before applying, and this is now the second session it mattered.**
 `terraform.tfvars` is gitignored and pins the image tags terraform believes are deployed, while
