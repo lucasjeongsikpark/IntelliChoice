@@ -286,6 +286,48 @@ module "ecs_service_learning_api" {
   # DB-outage drill, since `/healthz` never reflected it).
   health_check_path = "/readyz"
 
+  # AUD-F-29: 5 consecutive failures (~75s) instead of the default 3 (~45s), because this
+  # service's readiness check fails under its *own* CPU saturation. See the module
+  # variable's description for the measurement.
+  health_check_unhealthy_threshold = 5
+
+  # AUD-F-28 (D-122): this service is CPU-bound - a measured sweep on the old
+  # 256/512 task showed throughput pinned at ~5.8 req/s from 10 concurrent sessions
+  # upward, with latency growing exactly linearly in concurrency (Little's law holds to
+  # within 4% at 10/25/50/100 VUs). So capacity here buys latency directly, and the
+  # units are worth stating: at 256 CPU units the p95 <= 3s promise held only to ~8
+  # concurrent sessions. 512 units x 2 tasks is 4x that. Note the ceiling above this:
+  # the container runs ONE uvicorn worker (no --workers), so a single task cannot use
+  # more than 1024 CPU units no matter what is provisioned - past that the lever is
+  # task count, not task size.
+  cpu    = 512
+  memory = 1024
+
+  # AUD-F-28: makes the 512 above mean something specific - 384 units to the app, 128 to
+  # the otel sidecar - rather than depending on how an unset share is weighed. learning-api
+  # only; see the module variable for why chat-api is deliberately left alone.
+  pin_app_container_cpu = true
+
+  # Criterion 7 asks for ">= 2 tasks with autoscaling active", which the D-121 run failed
+  # on its own terms (desiredCount never left 1). Two tasks is also what makes AUD-F-29's
+  # replacement survivable: losing one task no longer means losing all capacity.
+  # `desired_count` is in `ignore_changes` on the service (autoscaling owns it once the
+  # service exists), so it is `autoscaling_min_capacity` that actually moves a live service
+  # off 1 - the desired_count below only matters to a from-scratch apply.
+  desired_count            = 2
+  autoscaling_min_capacity = 2
+
+  # AUD-F-28: learning-api joins chat-api on ALB p95 step scaling. D-113 deliberately left
+  # it on CPU target tracking ("no measurement says to move it") - this is that
+  # measurement, and note it says something different from AUD-F-14's. CPU tracking here
+  # is not *blind* (CPU pinned at 100%, the signal was perfect); it is too slow, needing 3
+  # breaching minutes plus publish lag plus cooldown against a cohort-start burst that is
+  # over in 3.5. The latency policy reacts after 2 breaching minutes and steps by 2 past
+  # 10s. Neither policy can beat a burst that short - provisioned capacity does that - but
+  # the faster of the two is the right one to keep.
+  enable_latency_step_scaling = true
+  alb_arn_suffix              = module.alb.alb_arn_suffix
+
   # S39: gives `LEARNING_OTEL_ENABLED=true` below something to export to. See the module's
   # `enable_otel_sidecar` variable for why a sidecar rather than a collector service.
   enable_otel_sidecar  = var.enable_otel_tracing
@@ -359,8 +401,9 @@ module "ecs_service_chat_api" {
 
   # AUD-F-14: chat-api waits on Bedrock, so CPU target-tracking can never fire on its
   # saturation (p95 31s at 15% CPU, measured live) - scale on ALB p95 latency instead.
-  # learning-api stays on CPU tracking: AUD-F-14's measurement was chat-only, and
-  # swapping a signal without a measurement is how the CPU policy got here (D-095).
+  # S43/AUD-F-28: learning-api is now on this policy too, but for the opposite reason -
+  # its CPU signal was accurate and merely slow. See its own comment above; the two
+  # services share a mechanism, not a diagnosis.
   enable_latency_step_scaling = true
   alb_arn_suffix              = module.alb.alb_arn_suffix
 

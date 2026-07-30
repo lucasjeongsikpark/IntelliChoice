@@ -3125,7 +3125,7 @@ answerable question", which `answerWholeExam` treats as *the end of the exam* �
 answered fewer items than it reported, on staging, silently. The fixture now waits out an in-flight
 submission first.
 
-### AUD-F-28 — learning-api cannot serve criterion 7's 150 concurrent sessions: one task, 100% CPU, and the ALB kills it (P1, found in the S43 continuation, D-121; not fixed)
+### AUD-F-28 — learning-api cannot serve criterion 7's 150 concurrent sessions: one task, 100% CPU, and the ALB kills it (P1, found in the S43 continuation, D-121; **fixed 2026-07-30, D-122** — the failure mode is gone and capacity is 3× higher; the p95 leg at 150 is now a *documented capacity gap* with a price on it, see the resolution at the end)
 
 **Criterion 7's learning-app leg fails at the criterion's own parameters**, measured for the first
 time. §2.6 criterion 7 asks for "P95 ≤ 3 s at 150 concurrent, error rate < 1% … with ≥ 2 tasks and
@@ -3174,3 +3174,92 @@ learning leg that is open.
 returns p95 **1.4 s**, **0.00%** errors, 70/70 checks, `select_topic` p95 1.5 s, `answer` p95 1.22 s.
 So the flow itself is not slow — the failure is purely a capacity-under-concurrency one, and the two
 numbers together bound where it breaks.
+
+---
+
+#### Resolution (2026-07-30, D-122)
+
+**The curve, measured before anything was changed.** Four runs on the unchanged single
+256-CPU-unit task, plus D-121's VUS=5:
+
+| VUS | p95 | errors | throughput | ECS CPU (max) |
+|---|---|---|---|---|
+| 5 | 1.4 s | 0.00% | — | — |
+| 10 | 4.36 s | 0.00% | 5.8 req/s | 100% |
+| 25 | 9.98 s | 0.00% | 5.6 req/s | 100% |
+| 50 | 16.48 s | 9.14% | 6.4 req/s | 100% |
+| 100 | 31.48 s | 0.00% | 5.8 req/s | 100% |
+| 150 (×2) | 34.98 / 34.91 s | 12.06% / 4.37% | 5.9 req/s | 100% |
+
+**Throughput is flat at ~5.8 req/s from 10 concurrent upward and latency grows exactly linearly**
+— Little's law (concurrency = throughput × latency) holds to within 4% at every point. That is a
+saturated server with a fixed service rate, which makes the sizing arithmetic honest rather than a
+guess: capacity buys latency proportionally, and the p95 ≤ 3 s promise held only to **~8 concurrent
+sessions**.
+
+**Applied** (terraform, learning-api only): task `256/512` → **`512/1024`**; `min_capacity` 1 → **2**;
+CPU target-tracking replaced by the **ALB p95 step-scaling** policy chat-api has had since D-113; the
+app container given an **explicit 384-unit share** (it read `"cpu": 0` beside a sidecar declaring 128
+— see `pin_app_container_cpu`); and `unhealthy_threshold` 3 → 5 (**AUD-F-29**, below).
+
+**Measured after, on the 2-task floor:**
+
+| VUS | p95 | errors | note |
+|---|---|---|---|
+| 10 | 1.02 s | 0.00% | |
+| 15 | 1.36 s | 0.00% | |
+| 20 | 2.15 s | 0.00% | |
+| **25** | **2.45 s / 2.51 s** | 0.00% | measured twice, warm — **the supported concurrency** |
+| 30 | 5.71 s | 0.00% | |
+| 40 | 12.41 s | 0.00% | |
+| 150 | 17.73 s | **0.04%** | 2 → 3 tasks, scale-out inside ~1 minute |
+
+Throughput went 5.8 → ~17.5 req/s, a **3.0×** gain against 3.0× the CPU units (2 tasks × 384 vs
+1 × 256) — which also retires the worry that the sidecar's share had been starving the app.
+
+**What the criterion looks like now, at its own 150 concurrent:** error rate **0.04%** (was 12.06%)
+✅, **≥ 2 tasks with autoscaling active** ✅ (2 → 3, reacting in about a minute), **zero** target 5xx,
+**zero** connection errors, and **no task killed** — where the pre-fix run at the same concurrency
+produced 64 5xx/min twice, 127 connection errors, and a task replaced mid-run. **The p95 leg does not
+pass: 17.73 s against ≤ 3 s.**
+
+**That gap now has a price rather than a mystery.** At the measured ~25 concurrent per $36/month,
+150 at p95 ≤ 3 s needs roughly **6× today's capacity (~12 tasks, ~$216/month)**. The decision
+(D-122 §4, user call) is to **document 25 as the pilot target** — ~37 once autoscaling reaches its
+3-task ceiling — keep the spend, and carry 150 as a post-pilot obligation. The cheaper lever, if one
+is wanted before spending: `select_topic` is the dominant cost (a LangGraph invoke with checkpoint
+writes; 1.6 s even at 25 concurrent, and the p95 driver in every single run above).
+
+**A measurement-method note that cost one wrong number.** The *first* run after the task roll read
+p95 6.13 s at VUS=25; warm re-runs of the identical scenario read 2.45 s and 2.51 s. The first run
+after a deployment is a cold-start measurement, not a capacity measurement — discard it or take it
+twice.
+
+### AUD-F-29 — a CPU-saturated learning-api task fails its own readiness check and gets killed, turning a latency problem into an availability one (P2, found 2026-07-30, D-122; fixed same session)
+
+`/readyz` is the ALB's health check and it opens a pooled connection to Postgres *and* MySQL with a
+3 s timeout (`intellichoice_shared.db_ready.ping_engine`). A task pinned at 100% CPU cannot schedule
+that handler inside the ALB's 5 s check timeout, so it answers **503 while still serving real
+requests with 200s**. Three consecutive misses (15 s apart) and ECS replaces the task.
+
+**The measurement that separates this from AUD-F-28**, both on the same unchanged single task:
+
+- **VUS=50** — task killed, `(port 8001) is unhealthy … Health checks failed with these codes: [503]`,
+  replaced mid-run → **64 TargetConnectionErrors, 9.14% of the run failed**.
+- **VUS=100** — *slower* (p95 31.48 s vs 16.48 s), never killed → **0.00% errors**.
+
+The heavier run was the healthier one. The errors do not come from the saturation; they come from the
+**reaction to** the saturation, which is why this is its own finding. With `min_capacity` now 2, a
+false kill is worse than it was: it removes half the capacity in the middle of the burst that caused
+it.
+
+**Fixed** by raising `unhealthy_threshold` 3 → **5** (~45 s → ~75 s) for learning-api only, via the
+new `health_check_unhealthy_threshold` module variable; the default stays 3 for every other service.
+**The trade is explicit:** a genuine database outage now takes 75 s rather than 45 s to pull the task
+out of service. That is deliberate, because this readiness check cannot currently tell "the database
+is gone" from "I am busy" — the *right* fix is to make it able to (distinguish a pool-checkout
+timeout from a connection failure, or give the check its own connection), and that is left as a
+carry-over rather than done under a capacity change.
+
+**Post-fix evidence:** the 150-concurrent run after the change produced zero connection errors, zero
+5xx, and no replacement, at a concurrency 3× higher than the one that killed a task before.

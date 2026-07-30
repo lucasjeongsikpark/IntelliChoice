@@ -18,7 +18,7 @@ resource "aws_lb_target_group" "this" {
   health_check {
     path                = var.health_check_path
     healthy_threshold   = 2
-    unhealthy_threshold = 3
+    unhealthy_threshold = var.health_check_unhealthy_threshold
     interval            = 15
     timeout             = 5
     matcher             = "200"
@@ -63,8 +63,13 @@ resource "aws_ecs_task_definition" "this" {
 
   container_definitions = jsonencode(concat([
     {
-      name                   = var.name
-      image                  = var.image
+      name  = var.name
+      image = var.image
+      # AUD-F-28: opt-in explicit CPU share - see `pin_app_container_cpu`. Null (the
+      # default) leaves the field unset, which is what every service has run with to date.
+      cpu = var.pin_app_container_cpu ? (
+        var.cpu - (var.enable_otel_sidecar ? var.otel_collector_cpu : 0)
+      ) : null
       essential              = true
       readonlyRootFilesystem = var.read_only_root_filesystem
       portMappings = [
