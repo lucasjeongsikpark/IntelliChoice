@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import "./App.css";
 import * as api from "./api/client";
 import { useLearningSession } from "./hooks/useLearningSession";
-import type { Role } from "./types";
+import type { Role, SessionSnapshot } from "./types";
 import logoUrl from "../../../packages/ui-brand/assets/logo.png";
 import { DevLoginScreen } from "./screens/DevLoginScreen";
 import { StartScreen } from "./screens/StartScreen";
@@ -43,6 +43,13 @@ function App() {
   // (a different stage firing later in the same session) shows again even though an
   // earlier one was already dismissed.
   const [dismissedNarrative, setDismissedNarrative] = useState<string | null>(null);
+  // AUD-F-21: the phase the student has actually done something in, stored as the phase
+  // name rather than a boolean so it self-clears at every phase boundary. A boolean would
+  // need a reset effect, and the reset would race the narrative it is meant to gate:
+  // `nodes.py` writes `phase` and `stage_narrative` in the *same* state update, so a
+  // finalize's outro narrative arrives on the same snapshot as the new phase. Comparing
+  // against the current phase has no such ordering to get wrong.
+  const [interactedPhase, setInteractedPhase] = useState<string | null>(null);
 
   useEffect(() => {
     if (snapshot?.is_correct === true) setStreak((s) => s + 1);
@@ -100,7 +107,17 @@ function App() {
     setStreak(0);
     setCounts({ hint: 0, solution: 0, video: 0 });
     setDismissedNarrative(null);
+    setInteractedPhase(null);
   }
+
+  // AUD-F-21: called from the exam screen's three real interactions (answer, skip, flag).
+  // Deliberately *not* from `onRecordTime`, which fires on view rather than on intent -
+  // treating "the screen was displayed" as interaction would suppress every narrative,
+  // including the ones that arrive before the student has done anything and are the whole
+  // point of S26.
+  const markInteraction = useCallback(() => {
+    setInteractedPhase(snapshot?.phase ?? null);
+  }, [snapshot?.phase]);
 
   // Every branch below used to be a direct early return from App() itself
   // (each one a full-page element centered by #root flex). Wrapped in this
@@ -192,119 +209,163 @@ function App() {
       );
     }
 
-    // S26: a personalized stage narrative interposes ahead of whatever screen the
-    // current phase would otherwise show - same "gate ahead of the phase branches"
-    // pattern as the intervention/ladder checks below, just earlier. Never intercepts
-    // the child-selection/blocked branches above (those need immediate action) - by
-    // construction, `stage_narrative` is never set before a student is resolved.
-    if (snapshot.stage_narrative && snapshot.stage_narrative !== dismissedNarrative) {
-      return (
-        <StageTransitionScreen
-          narrative={snapshot.stage_narrative}
-          evidence={snapshot.stage_narrative_evidence ?? []}
-          onContinue={() => setDismissedNarrative(snapshot.stage_narrative ?? null)}
-        />
-      );
-    }
-
-    if (snapshot.phase === "student_selected") {
-      return (
-        <TopicSelectScreen
-          busy={false}
-          error={session.error}
-          onSelect={(topicId) => void session.chooseTopic(topicId)}
-        />
-      );
-    }
-
-    if (snapshot.phase === "completed" && snapshot.learning_gain) {
-      return (
-        <ResultsScreen
-          gain={snapshot.learning_gain}
-          hintCount={counts.hint}
-          solutionCount={counts.solution}
-          videoCount={counts.video}
-          onDone={() => {
-            session.endSession();
-            resetSessionUiState();
-          }}
-          onViewDashboard={() => setView("dashboard")}
-        />
-      );
-    }
-
-    if (["pre_exam", "study", "post_exam"].includes(snapshot.phase)) {
-      // S21: the graph re-pauses on `intervention_choice` after a hint below the
-      // ladder's final level, so `pending` can be set again even once `snapshot.
-      // intervention` already carries this round's content - both are read together.
-      const ladderOpen = pending?.interrupt_type === "intervention_choice";
-
-      const examView = (
-        <ExamScreen
-          phase={snapshot.phase}
-          items={snapshot.items ?? null}
-          streak={streak}
-          overview={session.examOverview}
-          busy={false}
-          error={session.error}
-          onSubmit={(questionVariantId, selectedOption, responseTimeMs) =>
-            void session.submitAnswer(questionVariantId, selectedOption, responseTimeMs)
-          }
-          onSkip={(assessmentItemId) => void session.skipExamItem(assessmentItemId)}
-          onFlag={(assessmentItemId, flagged) =>
-            void session.flagExamItem(assessmentItemId, flagged)
-          }
-          onRecordTime={recordItemTime}
-          onFetchOverview={handleFetchOverview}
-          onFinalize={async (confirmUnanswered) =>
-            (await session.finalizeExam(confirmUnanswered)) !== null
-          }
-        />
-      );
-
-      const assistancePanel = (
-        <AssistancePanel
-          intervention={snapshot.intervention ?? null}
-          ladderOpen={ladderOpen}
-          busy={false}
-          onChoose={(choice) =>
-            void session.respond({ interrupt_type: "intervention_choice", choice })
-          }
-          onDismiss={() => setInterventionDismissed(true)}
-          questionVariantId={pending?.question_variant_id ?? null}
-          onSendChatMessage={session.sendChatMessage}
-        />
-      );
-
-      // The very first pause has no content yet - nothing to show alongside the exam
-      // question, matching the prior standalone-chooser behavior.
-      if (ladderOpen && !snapshot.intervention) {
-        return assistancePanel;
-      }
-      if (snapshot.intervention && !interventionDismissed) {
+    // Whatever screen the current phase asks for, with no regard for the narrative. Split
+    // out of `renderContent` by AUD-F-21 so a narrative can render *above* this rather
+    // than instead of it - see the wrapper below. Declared after the child-selection and
+    // blocked guards above so those still return before any of this, which is the
+    // ordering S26 established and the narrative must not break: both of them need
+    // immediate action and neither should be pushed down the page by a story.
+    //
+    // Takes `snapshot` as a parameter rather than closing over it: TypeScript drops the
+    // `!snapshot` narrowing established above once the read happens inside a nested
+    // function, and a parameter is the honest way to say "non-null by the time this runs".
+    function renderPhase(snapshot: SessionSnapshot): ReactNode {
+      if (snapshot.phase === "student_selected") {
         return (
-          <div className="stack">
-            {assistancePanel}
-            {examView}
+          <TopicSelectScreen
+            busy={false}
+            error={session.error}
+            onSelect={(topicId) => void session.chooseTopic(topicId)}
+          />
+        );
+      }
+
+      if (snapshot.phase === "completed" && snapshot.learning_gain) {
+        return (
+          <ResultsScreen
+            gain={snapshot.learning_gain}
+            hintCount={counts.hint}
+            solutionCount={counts.solution}
+            videoCount={counts.video}
+            onDone={() => {
+              session.endSession();
+              resetSessionUiState();
+            }}
+            onViewDashboard={() => setView("dashboard")}
+          />
+        );
+      }
+
+      if (["pre_exam", "study", "post_exam"].includes(snapshot.phase)) {
+        // S21: the graph re-pauses on `intervention_choice` after a hint below the
+        // ladder's final level, so `pending` can be set again even once `snapshot.
+        // intervention` already carries this round's content - both are read together.
+        const ladderOpen = pending?.interrupt_type === "intervention_choice";
+
+        const examView = (
+          <ExamScreen
+            phase={snapshot.phase}
+            items={snapshot.items ?? null}
+            streak={streak}
+            overview={session.examOverview}
+            busy={false}
+            error={session.error}
+            onSubmit={(questionVariantId, selectedOption, responseTimeMs) => {
+              markInteraction();
+              void session.submitAnswer(questionVariantId, selectedOption, responseTimeMs);
+            }}
+            onSkip={(assessmentItemId) => {
+              markInteraction();
+              void session.skipExamItem(assessmentItemId);
+            }}
+            onFlag={(assessmentItemId, flagged) => {
+              markInteraction();
+              void session.flagExamItem(assessmentItemId, flagged);
+            }}
+            onRecordTime={recordItemTime}
+            onFetchOverview={handleFetchOverview}
+            onFinalize={async (confirmUnanswered) =>
+              (await session.finalizeExam(confirmUnanswered)) !== null
+            }
+          />
+        );
+
+        const assistancePanel = (
+          <AssistancePanel
+            intervention={snapshot.intervention ?? null}
+            ladderOpen={ladderOpen}
+            busy={false}
+            onChoose={(choice) =>
+              void session.respond({ interrupt_type: "intervention_choice", choice })
+            }
+            onDismiss={() => setInterventionDismissed(true)}
+            questionVariantId={pending?.question_variant_id ?? null}
+            onSendChatMessage={session.sendChatMessage}
+          />
+        );
+
+        // The very first pause has no content yet - nothing to show alongside the exam
+        // question, matching the prior standalone-chooser behavior.
+        if (ladderOpen && !snapshot.intervention) {
+          return assistancePanel;
+        }
+        if (snapshot.intervention && !interventionDismissed) {
+          return (
+            <div className="stack">
+              {assistancePanel}
+              {examView}
+            </div>
+          );
+        }
+        return examView;
+      }
+
+      if (snapshot.phase === "error") {
+        return (
+          <div className="panel">
+            <h1>Something went wrong</h1>
+            <p className="error">{snapshot.message}</p>
+            <button onClick={() => session.endSession()}>Back to start</button>
           </div>
         );
       }
-      return examView;
-    }
 
-    if (snapshot.phase === "error") {
       return (
         <div className="panel">
-          <h1>Something went wrong</h1>
-          <p className="error">{snapshot.message}</p>
-          <button onClick={() => session.endSession()}>Back to start</button>
+          <p>Phase: {snapshot.phase}</p>
         </div>
       );
     }
 
+    // AUD-F-21 (S43 continuation): the narrative renders *above* the phase screen, in the
+    // same `.stack` shape the assistance panel already uses - it used to be a sibling
+    // branch that returned `StageTransitionScreen` *instead of* the phase screen.
+    //
+    // Why that was a P1 and not a cosmetic complaint. `stage_narrative` is an LLM call, so
+    // on real Bedrock it lands seconds after the student is already working (the mock
+    // returns in ~26ms, which is why every local run looked fine and only staging failed).
+    // Replacing the screen therefore *unmounted* `ExamScreen` mid-question, and that had
+    // two measured consequences on the primary journey:
+    //   - `ExamScreen`'s view-time cleanup fired early, flushing 2116ms of a 15,000ms
+    //     dwell. `time_spent_minutes` is what parent reports are built from, and this is
+    //     the upstream half of AUD-L-14's "0.0 minutes next to 26 attempts".
+    //   - the remount re-ran `useState(0)`, so the student was returned to Question 1 with
+    //     their cached batch and selections gone.
+    // Rendering above keeps the screen mounted, so neither happens, and it also restores
+    // `.phase-chip` to the DOM during a narrative - the absence of which is what stalled
+    // the post-finalize journey wait.
+    //
+    // And once the student has started working in this phase, the narrative is dropped
+    // rather than shown: a stage *intro* arriving after three answered questions is not
+    // useful, and pushing the question down the page mid-thought is its own defect. The
+    // narrative is only ever a summary of state the student can already see elsewhere, so
+    // dropping one costs nothing but the Bedrock call that was already spent. Narratives
+    // at real phase boundaries - the pre/post-exam outros - always show, because
+    // `interactedPhase` no longer matches once `phase` has moved on.
+    const narrative = snapshot.stage_narrative;
+    const showNarrative =
+      narrative != null && narrative !== dismissedNarrative && interactedPhase !== snapshot.phase;
+
+    const phaseContent = renderPhase(snapshot);
+    if (!showNarrative) return phaseContent;
     return (
-      <div className="panel">
-        <p>Phase: {snapshot.phase}</p>
+      <div className="stack">
+        <StageTransitionScreen
+          narrative={narrative}
+          evidence={snapshot.stage_narrative_evidence ?? []}
+          onContinue={() => setDismissedNarrative(narrative)}
+        />
+        {phaseContent}
       </div>
     );
   }

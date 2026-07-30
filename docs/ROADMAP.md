@@ -819,6 +819,18 @@ LLM call — ~26 ms on the mock, seconds on real Bedrock.
 **Criterion 3 is now blocked on exactly one change**, which is a better position than two
 undiagnosed observations. The fix is product-visible (should a late narrative interpose at all?)
 and needs its own decision, so it was filed rather than absorbed here.
+**✅ That change is made, 2026-07-29 (D-117 §1): the narrative renders above the phase screen, and
+is dropped once the student has interacted in the current phase.** Verified locally, including a
+new spec that delays the SSE connect so the ~26 ms mock reproduces real Bedrock's timing — the
+first time this defect class is visible outside a staging run. Local e2e 56 passed / 1 skipped.
+**Both `test.skip()`s named above are also gone, and neither was tidiness:** the chips test had
+been counting the DOM before `/chat/meta` resolved and skipping itself on every run since S39
+(**AUD-F-23**, P3, fixed — that journey has now been driven once), and the parent-dashboard skip's
+message was itself the defect (**AUD-F-22**, P2, filed — the dashboard button exists only on
+`StartScreen`, gated on a `studentId` a parent gets by starting a session, and on `ResultsScreen`).
+**⛔ Criterion 3 still cannot be claimed: the fix is not deployed and the two clean runs are not
+taken.** Both, plus criteria 7's learning leg and 8's inductions, were blocked on one thing — no
+local AWS session for the whole session (D-117 §5).
 **⚠️ Corrected in S42: a merge to `main` does *not* deploy.** Both this file and PROGRESS.md said
 it did, for several sessions. `deploy-staging.yml` is `workflow_dispatch:` only — the `push`
 trigger is commented out on purpose ("not something that should fire unattended on every push

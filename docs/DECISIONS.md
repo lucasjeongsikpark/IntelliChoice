@@ -5880,3 +5880,109 @@ AUD-C-02's lesson on a third surface.
 behaviour on the primary journey, and it earns its own decision and before/after rather than being
 absorbed into a session about thresholds. **Criterion 3 is blocked on exactly this one change**,
 which is a better position than the two vague observations it replaces.
+
+---
+
+## D-117 — A late narrative renders above the screen, not instead of it; and two skips that were findings (accepted, 2026-07-29)
+
+Same day as D-116, taking the one thing D-116 deliberately left: AUD-F-21's product call. Also
+lands the D-116 work itself, which was tested and applied but committed nowhere (PR #45, merge
+`4fa2a531`, deployed to staging as run 30491528889 — confirmed by comparing the run's head SHA
+rather than trusting `gh run list --limit=1`, the trap D-116 recorded).
+
+### 1. The product call: above, and not at all once the student is working
+
+**The question AUD-F-21 posed:** should a stage narrative that arrives after the student has
+started working interpose at all? **Decision (user): render it above the phase screen, and drop it
+entirely once interaction has begun in the current phase.**
+
+Rendering above rather than instead of is what fixes the defect — an unmounted `ExamScreen` is what
+truncated a 15,000 ms dwell to 2116 ms and what reset `useState(0)` back to Question 1. It needed no
+new UI: `AssistancePanel` has stacked above `examView` in a `<div className="stack">` since S21, so
+the fix is the narrative joining an existing convention rather than inventing a modal.
+
+The suppression half is the part that was genuinely a judgement call, and it is a small deliberate
+loss: a narrative that arrives late is discarded, along with the Bedrock call already spent on it.
+That is the right trade because a stage *intro* has nothing useful to say to someone three
+questions in, and pushing the question they are reading down the page is its own defect. Narratives
+at real phase boundaries — the pre/post-exam outros, which are the richest of the three moments —
+always show, because they arrive with a phase change.
+
+**The implementation detail that is not incidental:** interaction is tracked as
+`interactedPhase: string | null` — the phase the student acted in — not as a boolean with a reset
+effect. `graph/nodes.py` writes `phase` and `stage_narrative` in the *same* state update, so a
+finalize's outro narrative arrives on the same snapshot as the new phase; a boolean would have had
+its reset racing the narrative it exists to gate, and the outros would have been dropped by
+accident. Comparing a stored phase name against the current one has no ordering to get wrong.
+
+Interaction means answer / skip / flag. Explicitly **not** `onRecordTime`, which fires on view
+rather than on intent — treating "the screen was displayed" as interaction would suppress every
+narrative, including the ones that arrive before the student has done anything, which are the whole
+point of S26.
+
+### 2. The mock can now see this defect class, which is the part worth keeping
+
+AUD-F-21 was invisible locally and failed three consecutive staging runs because
+`MockBedrockProvider` returns in ~26 ms: the narrative was always in the first snapshot, before
+`ExamScreen` had rendered, so there was nothing to displace. That is the third finding in this shape
+(AUD-C-02, AUD-F-19, AUD-F-21), and "only staging can see it" has been an expensive property.
+
+`tests/learning/narrative-displacement.spec.ts` removes it, by delaying the **SSE connect** rather
+than faking a payload: `_initial_snapshot` fires `pre_intro` on first connect when the checkpoint
+carries no narrative, so postponing the connect with `route.continue()` after a timer puts the
+narrative on screen while the student is working — real Bedrock's timing, reproduced on the mock,
+with no application code aware of the test.
+
+Three arms: the mid-exam arrival, the post-interaction drop, and the co-existence contract in the
+*other* ordering (the one arm that needs no faked timing). Each asserts the narrative actually
+arrived before asserting anything about it — a displacement test that passes because nothing was
+displaced is the false negative `make scan-traces` refuses to allow. **All three were watched
+failing against the pre-fix `App.tsx`** before being kept (D-107 §1).
+
+### 3. A helper the fix quietly broke, and why that matters more than it sounds
+
+`settleToInteractiveScreen` dismissed narratives only when *no* interactive element was on screen —
+sound while a narrative implied nothing else was rendered, wrong the moment both coexist. The first
+green run after the fix reported `narratives dismissed before the exam: 0`, and that number is
+recorded as *evidence* in `narrative-refresh.spec.ts`. Nothing failed; the harness just quietly
+stopped measuring one thing and started reporting a zero that read as "no narrative appeared".
+
+The dismiss now runs before the interactivity check. Safe because `dismissNarrativeIfPresent`
+matches `Continue` exactly and `StageTransitionScreen` is the only screen with such a button (the
+ladder's is "I'll try again now"). **The general lesson, which is the reason this is written down:**
+a fix that changes what is on screen can silently change what a shared harness helper measures, and
+the symptom is a number that gets *quieter*, not a test that fails.
+
+### 4. Two `test.skip()`s the roadmap asked about, and neither was a test-tidiness item
+
+ROADMAP asked for two conditional skips to "stop being conditional" before criterion 3 is claimed.
+Both turned out to be findings.
+
+**AUD-F-23 (P3, fixed) — the chat suggestion chips.** `chips.count()` ran immediately after
+`page.goto` while `/chat/meta` is fetched in an effect, so the count read an empty DOM and the test
+skipped itself on every run from S39 to S43. The data was never missing: `chat_suggestions` has
+seven active `public` rows and a guest resolves to `public`. Now waits for the chip and **fails** if
+it never appears, so the one-click-turn journey has been exercised for the first time.
+
+**AUD-F-22 (P2, filed not fixed) — the parent dashboard.** The skip's own message,
+*"no dashboard entry point from the current screen"*, describes a real gap: `View progress
+dashboard` renders only on `StartScreen` (gated on a `studentId` a parent obtains **by starting a
+session**) and on `ResultsScreen`, and `endSession()` clears `studentId` — so a parent's only route
+to their child's dashboard is sitting through a whole pre → study → post cycle. Converted to
+`test.fail()` on AUD-F-04/F-05's pattern rather than fixed: where a persistent entry point belongs
+is a UX decision, this session already spent its one product call, and the underlying item is S11's
+long-standing parent auto-select carry-over.
+
+**The rule this yields:** a skip whose message describes a defect is a finding. A skip whose
+condition is never false is indistinguishable from a passing test in a run summary — `2 skipped`
+read as a known allowance for four sessions while it actually meant two journeys nobody had driven.
+
+### 5. What this does *not* claim
+
+The fix is verified locally and **not on staging at the time of writing**, so criterion 3's two
+clean runs are not taken and the criterion stays open. Staging verification of this change, the
+`EXPECT_BUILD_SHA` check against the D-116 deploy, criterion 7's learning-app leg and criterion 8's
+alarm inductions were all blocked on the same thing: no local AWS session. AUD-F-04 and AUD-F-05
+(refresh does not restore position; a dismissed narrative returns after a reload) remain open and
+still fail as expected — AUD-F-21 made the second one less severe (the narrative no longer displaces
+the exam on reload) without closing it.
