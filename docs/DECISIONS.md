@@ -6766,3 +6766,63 @@ disclosures enumerated by the §6.1 track so the UI work is transcription rather
 
 Not urgent and not a defect. Worth filing anyway, because the primary users are minors and this is
 the notice that tells them an AI is grading their work and may be wrong.
+
+---
+
+## D-127 — Traceability tranches 4–5: all four risk classes covered, 21 of 37 sections, and the tail is genuinely a tail (accepted, 2026-07-30)
+
+### 1. What is now covered
+
+**Authorization** (§5.2.2, §5.6, §5.19–§5.24) and **data integrity** (§5.4, §5.5, §5.9, §5.13,
+§5.16, §5.26) are traced, which completes **all four of §2.3's risk classes** — money and
+minors/PII landed in tranches 2–3. **21 of 37 sections.** Criterion 1 is still not met and
+TRACEABILITY.md still says so.
+
+### 2. Three rows that are worth more than their table entries
+
+**MCP tool permissions are enforced by control flow, not by a check.**
+`mcp.py`'s registry evaluates `tool.allowed_roles` **before** argument validation and before the
+handler, so an unauthorized call cannot reach parsing, let alone execution. Every branch —
+permission denial, validation failure, timeout, execution error, success — writes a
+`ToolCallAuditEvent`, so **a refused call is as auditable as a successful one**. §5.30.4 asks for
+"enforce tool permissions in the backend"; this is the difference between doing that and remembering
+to do that.
+
+**§5.21.8's citation rule is enforced by verification rather than trust.** `qa.py` re-checks each
+model-supplied citation against the actual retrieved chunk, and its docstring says why in one line:
+"a citation is never trusted just because the model produced it." The deterministic `_no_answer`
+fallback is what runs when verification fails. A grounding rule that trusts the model's own citation
+list is not a grounding rule.
+
+**§5.26's negative requirement has a test, which is rare and is the only reason it will stay true.**
+"No runtime NL2SQL" is not merely absent — `test_prompt_injection_eval.py:316` asserts that query
+text only ever reaches predefined methods, and `evals/registry.py:98` records why SQL-parser
+validation was never built ("there is no generated SQL to parse or validate"). **An absent feature
+with no test is a rule nothing is watching**, and the first person to add NL2SQL breaks it silently.
+Worth copying wherever this project has decided *not* to build something dangerous.
+
+### 3. The estimate was wrong twice, both times in the same direction
+
+Two-to-three sessions, then one-to-two; tranches 1–5 landed in one sitting. The reason generalizes:
+**each tranche was cheaper than the last, because the method and the denominator already existed**,
+and because the codebase cites SPEC section numbers in its own docstrings far more often than
+anyone expected — `attendance.py` alone maps four subsections (§5.6.2–§5.6.5) with no inference
+required, and `grading.py` opens with "Deterministic multiple-choice grading (SPEC §5.9.3). No LLM
+is ever involved."
+
+That is worth recording as a property of this codebase rather than a lucky break: **the expensive
+part of traceability here is not finding the implementation, it is deciding what test would falsify
+the requirement.** Estimates for the remaining tail should be set accordingly.
+
+### 4. The remaining 16 sections are the low-risk tail, and one judgement is owed on them
+
+§5.0, §5.3, §5.7, §5.10–§5.12, §5.14.1/.2/.4, §5.27–§5.29, §5.32–§5.36 — architecture description,
+curriculum taxonomy, mastery/study/tutor mechanics, remaining UI transports, Pydantic/FastAPI/
+failure-handling conventions, observability, deployment and technology placement. **None is in a
+§2.3 risk class.**
+
+**Several are descriptive rather than testable** (§5.3 enterprise architecture, §5.36 final
+technology placement), and the honest treatment is to say so per section rather than invent a test
+to point at. That judgement is itself part of the criterion — "100% mapped to implementation +
+test" cannot mean the same thing for "use Pydantic v2 everywhere" as for "grading never involves an
+LLM" — and it should be made explicitly in the tail tranche rather than papered over.
