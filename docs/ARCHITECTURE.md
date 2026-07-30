@@ -1,25 +1,45 @@
 # Architecture
 
-The finalized system as built through **S0–S22** (deterministic learning core + S8 Bedrock
-gateway + S9 AI question-generation pipeline + S10 adaptive mastery/retry ladder + S11
-real-time learning frontend + S12 RAG content foundation/ingestion + S13 hybrid search and
-the Q&A graph + S14 the MCP tool registry, Gmail, and Calendar + S15 the Google Maps
-branch locator and YouTube catalog sync + S16 the chat frontend + S17 test-debt cleanup
-and real org content + S18 structured events/calendar + S19 access-aware refusals and
-suggestions + S20 the authored question bank pipeline + S21 the personalized within-
-question hint ladder + S22 the exam policy/backend rebuild). This file is a map of *what
-exists now*, not the full target design — [SPEC.md](SPEC.md) is the spec,
+The system as built through **S0–S34 plus the S36–S43 audit and stabilization work and the
+§2.6 launch gate** — the deterministic learning core, the S8 Bedrock gateway, the S9 AI
+question-generation pipeline, the S10 adaptive mastery/retry ladder, the S11 real-time
+learning frontend, S12–S13's RAG ingestion + hybrid search + Q&A graph, S14–S15's MCP tool
+registry (Gmail, Calendar, Maps, YouTube), S16's chat frontend, S17–S19's real org content
+and access-aware refusals, S20–S23's question bank / hint ladder / exam policy + frontend,
+S24–S28's tutoring chat, memory, personalized transitions and reports, S30–S31's evaluation
+platform and observability, and S32–S35's live staging deployment and pipeline. This file is
+a map of *what exists now*, not the full target design — [SPEC.md](SPEC.md) is the spec,
 [ROADMAP.md](ROADMAP.md) tracks what's next, and [DECISIONS.md](DECISIONS.md) records why
 each non-obvious choice was made. Session provenance is tagged in each node (e.g. `(S6)`).
 
-Not yet built (deferred to later milestones): the exam frontend rebuild (nav bar, timer
-UI, keyboard/ARIA — S23); memory/multimodal/eval/observability (S25/S29–S31); deployment
-(S32+). S15's YouTube sync worker is manual-trigger only in dev (`make youtube-sync`) - a
-real weekly EventBridge schedule is later infra work, per ROADMAP's own S15 scope note.
-Same manual-trigger posture for S17's `make webcontent-sync`. S22 kept grade-on-submit
-(exam answers grade immediately, same as every prior session) rather than the spec's
-plan-recommended save-then-finalize model, and gave pre/post exams a real default timer -
-both a user decision against the plan's own recommendation, see D-064.
+**Not built, with reasons rather than "later":**
+
+- **Multimodal solution images (S29)** — deferred, not merely unbuilt: **D-078**. The one
+  genuinely absent feature of the original scope.
+- **The production environment (S48) and the real integration with `go.intellichoice.org`
+  (S42–S47)** — staging is live and real; production and the `IcProfileAdapter` are not.
+- **Independent auth, consent capture, and §5.1.2's first-visit notice (S44/S45)** — the
+  apps still issue dev tokens; the notice is dispositioned to S45, not written (**T-02**,
+  D-129).
+- **Real Google/YouTube credentials** — `youtube-sync` now *has* a real weekly EventBridge
+  schedule but ships **deliberately disabled**, because `youtube_provider` defaults to
+  `fake` and an unattended run would write fabricated catalog rows on a schedule, which is
+  worse than not running (D-105). `make webcontent-sync` remains manual for the same class
+  of reason. The three enabled schedules — `chat-purge`, `retention-purge`,
+  `memory-consolidate` — do run unattended.
+
+**Two shipped behaviors that deviate from the plan's own recommendation**, recorded here
+because reading the spec alone would mispredict the code: S22 kept **grade-on-submit** rather
+than save-then-finalize, and gave pre/post exams a real default timer (a user decision against
+the plan, **D-064**); and the org's local-time convention is a **provisional default with an
+env switch** (`ORG_TIMEZONE`/`ORG_TIME_CONVENTION`, **D-130**) rather than a decided value,
+because it belongs to the organization and has not been confirmed.
+
+*(This paragraph was rewritten 2026-07-30. The version before it still listed memory, eval,
+observability and deployment as unbuilt — all four had shipped in S25/S30/S31/S32, and the
+staleness mattered: the §2.6 criterion-9 PII evidence rests on exactly the tracing and logging
+this file said did not exist. A "not yet built" list is the fastest part of an architecture doc
+to rot, because nothing fails when it does.)*
 
 ## Cross-cutting invariants the diagrams encode
 
@@ -30,6 +50,13 @@ both a user decision against the plan's own recommendation, see D-064.
   public staff bios and branch contact info (S17, D-050) - not student/parent/guardian
   PII, and explicitly allowlisted by name/column in `test_schema_purity.py` rather than
   a blanket carve-out.
+  **The floor is enforced per store and verified per store, because it does not transfer**
+  (D-104 §4: the S38 log scan was clean while a bearer JWT sat in every SSE span). Unit level:
+  `test_schema_purity.py` (Postgres), `test_bedrock_payload_pii_floor.py` (LLM payloads),
+  `test_tracing.py` (the `RedactingSpanExporter`). Live level: `make scan-traces` and
+  `make scan-logs` share one positive-controlled matcher whose needles come from the fixture
+  seed module, and both **fail rather than report clean** when they cannot see their window
+  (D-129). Instrumentation added later re-opens the question rather than inheriting the answer.
 - **Deterministic core** — grading, attendance gating, authorization, mastery, study-plan
   selection, and question validation are code, never an LLM (non-negotiable #2). The S9 AI
   pipeline only proposes *shape keys from an allowlist*; every output is re-validated

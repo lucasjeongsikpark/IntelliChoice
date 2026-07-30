@@ -747,9 +747,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   the next scan is more honest for it. (ii) **`/readyz` still cannot distinguish "database gone" from
   "I am busy"** — AUD-F-29 widened the ALB threshold instead of fixing it. (iii) **RDS connection
   arithmetic** — worst case ~126 of ~112 at both services' 3-task ceilings; watch
-  `DatabaseConnections` before raising `max_capacity`. (iv) **ARCHITECTURE.md's "not yet built"
-  paragraph** (lines 15–18) still lists memory, eval, observability and deployment as unbuilt; all
-  shipped in S25/S30/S31/S32 — needs a re-audit of the paragraph, not a one-line edit.
+  `DatabaseConnections` before raising `max_capacity`. ~~(iv) **ARCHITECTURE.md's "not yet built" paragraph**~~
+  **(✅ done 2026-07-30 — re-audited and rewritten, plus the PII invariant now names its per-store
+  verification).**
   Longer-standing and unchanged: answer brevity (D-115 (i)) as the highest-value chat optimization,
   needing product sign-off; AUD-F-22 and AUD-F-24's sibling instance, both needing a UX call;
   D-112's retrieval-margin re-measure; the ~2–4% `rag_answer` `schema_invalid` rate.
@@ -2756,6 +2756,12 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   blocking a student who attended. New `intellichoice_shared.org_time`, three unprefixed env vars
   wired through Terraform, 30 tests (**622 passed / 2 skipped**). Message A gained the week-boundary
   question it was missing.
+- **ARCHITECTURE.md's "not yet built" paragraph re-audited and rewritten** (the carry-over from
+  the D-128 close, closed rather than carried again). It had listed memory, eval, observability and
+  deployment as unbuilt; all four shipped in S25/S30/S31/S32. **The staleness was not cosmetic** —
+  this session's criterion-9 claim rests on exactly the tracing and logging that file said did not
+  exist. Replaced with "not built, with reasons rather than *later*", and the PII-boundary invariant
+  now names its per-store verification (unit *and* live, `scan-traces` / `scan-logs`).
 - **New decisions:** D-129, D-130.
 
 ### Off-roadmap — the gate: criterion 2 claimed, criterion 1 built from zero to 37/37, CloudTrail (2026-07-30) ⏸ partial
