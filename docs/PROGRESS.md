@@ -5,6 +5,45 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅✅ §2.6 CRITERION 3 IS MET — two consecutive clean runs against live staging
+  (2026-07-29, D-120).** Both runs: **53 passed / 0 failed / 4 skipped**, against the same build
+  (`447d412617a2`, deploy run 30513878049), with `EXPECT_BUILD_SHA` asserting the identity and the
+  served SPA proved byte-identical to a local build at HEAD. **Zero console errors and zero page
+  errors across all 52 recorded tests** — the "zero console errors" leg that AUD-F-02 had called
+  unmeetable. The one `serverError` is the 500 `response-shapes.spec.ts` stubs on purpose to
+  reproduce AUD-C-10, i.e. the test's own subject. The 4 skips are all deliberate target scopes with
+  written reasons (staging's secret-gated dev login, D-097; three local-only specs whose injected
+  delays would stack on staging's real latency).
+  **It took five findings, and only the last two were what the failures actually were.** In order:
+  **AUD-F-21** (P1, narrative replaced the phase screen — real, wrong cause), **AUD-F-24** (P1,
+  a conditional wrapper remounts the screen below it — real, introduced *by* AUD-F-21's fix, still
+  the wrong cause), **AUD-F-25** (P2, chips never seeded on staging — verified fixed, `/chat/meta`
+  now returns 4 prompts), **AUD-F-26** (P1, **the stale initial SSE snapshot** — the actual cause of
+  the dwell truncation and the post-finalize stall), **AUD-F-27** (P1, **the client silently
+  discarded the student's answers and said it had saved them** — 2 of 10 answers and 0 finalizes
+  reached the server in one measured run).
+  **Seven PRs merged, five deploys, all success:** #45 `4fa2a531`, #46+#47 `f2aa85a`, #48
+  `89399073`, #49 `26a56f6e`, #50 (docs), #51 `447d4126`. Local: **592 passed / 2 skipped** (Python),
+  **57 passed / 0 failed / 0 skipped** (e2e), lint and pyright clean.
+  **⚠️ The process lesson, which cost two deploy cycles (D-119 §2):** the timeline that identified
+  AUD-F-26 was in `journeys.jsonl` from the **first** staging run, beside a page snapshot showing
+  "Choose a topic" under the narrative — a screenshot of the defect. Two fixes shipped on a mechanism
+  that merely fit the symptom. **When a numeric assertion fails, read `apiCalls[].at` and the
+  `error-context.md` page snapshot before forming a mechanism.** The dwell read 2116 → 1578 → 1653 ms
+  across three runs; three numbers for one bug, each looking like progress.
+  **The mock hid all three races, and there is now a standard tool for that.** AUD-F-21/26/27 were
+  invisible locally because `MockBedrockProvider` and local Postgres answer in ~1 ms. All three are
+  now covered locally by holding a request open with `route.continue()` after a timer — real staging
+  timing on the mock, no faked content. Fifth, sixth and seventh members of the family that began
+  with AUD-C-02 and AUD-F-19.
+  **⚠️ Three separate harness-overreporting cases in one session** (D-117 §3, D-118 §3, D-120 §3):
+  a helper that stopped dismissing narratives and reported `0`; a test asserting a *default* value
+  survived a reset (`Question 1` vs `Question 1`); and `answerCurrentQuestion` returning "no
+  answerable question" while a submit was in flight, which `answerWholeExam` reads as *the end of the
+  exam*. Common tell: **a boolean meaning "nothing here" when the honest answer is "not yet".**
+  **Still open:** AUD-F-22 (P2, parent cannot reach the dashboard without a full cycle) and
+  AUD-F-24's sibling instance (`renderPhase` conditionally wraps the exam view in `.stack` when an
+  intervention arrives — same remount, needs a layout call). AUD-F-04/F-05 remain expected failures.
 - **⚠️ Root cause found on the third measurement: AUD-F-26, a stale initial SSE snapshot — and two
   fixes had already shipped on a wrong diagnosis (2026-07-29, D-119).** Local suite **592 passed /
   2 skipped**, lint and pyright clean, local e2e **56 passed / 0 failed / 0 skipped**.
@@ -276,7 +315,8 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   learning leg, (4) criterion 8~~ **((1) ✅ landed and deployed, (2) ✅ fixed locally — both
   2026-07-29, D-117; (3) and (4) untouched, blocked on AWS.)**
 - **Next session, in order. Every item needs `aws login` first (the session expired mid-run):**
-  1. **Criterion 3's two clean runs — nothing else is in the way.** Everything is merged and
+  1. ~~**Criterion 3's two clean runs**~~ **(✅ MET 2026-07-29 — two consecutive 53/0/4 runs against
+     `447d412617a2`; see Current status.)** Old note kept for the method: Everything is merged and
      deployed (`26a56f6e`, run 30510841185 success). Run
      `make e2e-staging` twice with `EXPECT_BUILD_SHA=26a56f6ea4fa` — the scratchpad helper
      `run-staging-e2e.sh <sha> <label>` pulls both token secrets from Secrets Manager and refuses to
