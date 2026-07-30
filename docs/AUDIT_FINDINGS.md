@@ -3310,7 +3310,25 @@ Either drops recorded traces by ~97%, removes the cost question entirely, and ma
 denominator mean what a reader assumes it means. **Deliberately not done mid-measurement**: changing
 the corpus while establishing evidence over it is how a clean result becomes unreproducible.
 
-### AUD-F-31 — `select_topic` spends its 1.6 s on ~50 sequential SQL round-trips, and none of them are checkpoint writes (P2, found 2026-07-30, D-129; not fixed)
+### AUD-F-31 — `select_topic` spends its 1.6 s on ~50 sequential SQL round-trips, and none of them are checkpoint writes (P2, found 2026-07-30, D-129; ✅ fixed 2026-07-30, D-131)
+
+**✅ FIXED (2026-07-30, D-131).** Reads and writes batched: the same path measures **47 → 7
+statements** locally (post-exam build 52 → 7), and the Postgres half of `select_topic` drops from
+~39 ms to ~10 ms median locally. **The local 47 reconciled with the 51 measured here**, which is
+what made the local number usable — the four extra are the router's `SELECT topics`, the attendance
+read, and two connection-level statements.
+
+**The p95 claim is deliberately not made.** Local round-trips are ~0.3 ms against a same-machine
+Postgres, so ~74% off the builder locally does not establish criterion 7's staging p95; that needs a
+before/after at 25 concurrent, which was not run. **Quote the statement count, not a latency.**
+
+**The real risk was not performance.** `rng.sample()` consumes the template list's order, and
+`get_active_questions` had **no `ORDER BY`** — so "the same seed builds the same exam" (SPEC §5.0
+deterministic core) was already resting on Postgres's row-order discretion. Both read forms now
+order by primary key, and the ten questions the unbatched builder produced at a fixed seed are
+pinned as literals in `test_select_topic_sql_shape.py`.
+
+*(How it read when filed:)*
 
 `select_topic` has been the p95 driver in every load run since D-121, and the standing hypothesis in
 PROGRESS.md was "a LangGraph invoke with checkpoint writes". **The trace says otherwise.** Over the

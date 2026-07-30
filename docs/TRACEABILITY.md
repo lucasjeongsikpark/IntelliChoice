@@ -446,6 +446,14 @@ computes §5.13.3's metrics from pre/post attempts plus study support levels.
 `(session, variant)` as a **database invariant**, after the check-only version let four concurrent
 answers all return 200.
 
+**Exam *composition* (§5.9.1) gained its falsifying test in D-131, and did not have one before.**
+`test_select_topic_sql_shape.py` covers the fixed set's structure (two items per difficulty, ordered,
+each with an `unseen` state row) and its determinism for a fixed seed. Worth recording as a
+traceability lesson rather than just a new row: the row above was accepted as *traced* on grading and
+gain, and the composition half of the same section had **no test asserting the same seed builds the
+same exam** — while `get_active_questions` had no `ORDER BY`, so the property was not even true by
+construction. A section can be correctly marked traced on the requirement someone thought to check.
+
 ### §5.16 — PostgreSQL checkpointing
 
 **Traced, with a dispositioned defect.** `AsyncPostgresSaver` on its own psycopg pool, one

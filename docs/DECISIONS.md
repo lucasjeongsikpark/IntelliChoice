@@ -7108,3 +7108,105 @@ draft would have come back correctly answered and still left S43 guessing.
 midnight and 1:00 am local — the only two windows where the conventions disagree about the date.
 **Generalisable:** a question drafted from reading someone else's code asks what that code made
 visible. Ours became visible only when a real consumer of the answer was written.
+
+## D-131 — AUD-F-31 fixed: `select_topic`'s exam build goes from 47 SQL statements to 7, and the measurement instrument was wrong twice on the way (accepted, 2026-07-30)
+
+**Context.** D-129 §5 profiled `langgraph.select_topic` — the p95 driver of the learning app in
+every load run since D-121 — and found 1.624 s of deduped SQL inside a 1.62 s span, 51 sequential
+statements, and not one Bedrock call. Filed rather than fixed because it touches assessment-item
+persistence, which is deterministic core (SPEC §5.0) and wanted its own session and its own
+before/after. This is that session.
+
+### 1. What it was, mechanically
+
+Every repository write on the path was `add()` + `await flush()` — one round-trip each. Over a
+10-item exam: 10 `INSERT question_variants`, 10 `INSERT assessment_items`, 10
+`INSERT assessment_item_state`, plus 5 `SELECT question_templates` (one per difficulty) and 10
+`SELECT question_variants` from `flow.items_view` reading each variant back one at a time.
+
+**Locally the same path measured 47 statements, and the 47 reconciles with staging's 51** — the
+four not driven by a local call are the router's `SELECT topics`, the attendance gate's read, and
+two connection-level statements. That reconciliation is the reason the local number is worth
+anything: two independent instruments agreeing on the same shape.
+
+### 2. What it is now
+
+| | before | after |
+|---|---|---|
+| pre-exam build + `items_view` | **47** | **7** |
+| pre-exam build alone | 36 | 5 |
+| post-exam build | 52 | 7 |
+| local wall time, Postgres half (median of 20) | ~39 ms | **~10 ms** |
+
+Reads batched (`get_active_questions_by_difficulty`, `get_variants`, `get_templates`), writes
+batched (`create_variants`, `add_items`, `create_item_states`), and `generate_and_store_variant`
+split so its pure half — `build_variant_row` — can render a whole exam in memory before anything
+is written. `build_post_exam` got the same treatment; leaving it half-done is how the pattern
+grows back.
+
+**The local ~39 → ~10 ms is a floor, not the claim.** Local round-trips are ~0.3 ms against a
+Docker Postgres on the same machine; staging measured ~32 ms per round-trip at 25 concurrent,
+partly queueing. 40 fewer round-trips there projects to most of the 1.62 s span, but
+**criterion 7's p95 remains unmeasured on this change** — the staging before/after was deliberately
+deferred, because D-129 §6's rule cuts both ways: changing the corpus while establishing evidence
+over it makes the evidence unreproducible, and the reverse (claiming a p95 from a projection) is
+worse. **The number to quote until then is the statement count, not a latency.**
+
+### 3. Determinism was the actual risk, and it was already broken
+
+The obvious danger in batching five per-difficulty template reads into one query is not
+performance, it is that **`rng.sample(templates, 2)` consumes the list's order**, so a different
+row order picks different templates — the same seed builds a different exam. `get_active_questions`
+**had no `ORDER BY`**, so "the same seed builds the same exam" (CLAUDE.md non-negotiable #2) was
+already resting on Postgres returning rows in whatever order it happened to. Both the single and
+batch forms now order by primary key.
+
+Held to it three ways: the RNG is consumed in exactly the original sequence (only the I/O left the
+loop, the generation order did not); a test asserts two equally-seeded builds match and a
+differently-seeded one does not; and **the ten questions the unbatched builder produced at a fixed
+seed are pinned as literals** in `test_select_topic_sql_shape.py`, so the refactor is held to
+building *the same exam*, not merely a valid one.
+
+### 4. The instrument was wrong twice, in one file, in one sitting
+
+D-104 §8's rule keeps earning its keep — this is the fourth session running.
+
+**First:** the statement counter counted the rollback harness's own `SAVEPOINT` as a data
+statement. Caught by the control assertion on its first execution. Transaction-control statements
+are now excluded *by name and with a comment*, and still displayed, because a count is only as
+honest as its denominator.
+
+**Second, and worse because it passed:** the counter reported a "rows" column, computed as
+`len(parameters)`. A raw `executemany` arrives at `before_cursor_execute` as a list of parameter
+*sets* — so the length is the row count — while SQLAlchemy's insertmanyvalues path arrives as one
+flattened tuple, so a 10-row insert into an 11-column table reads **110**. The control asserted
+`rows == 3` and **passed, because the control table happened to have exactly one column**. A metric
+that is right for the wrong reason is worse than no metric: the accessor was deleted rather than
+fixed, since the claim here is about statement counts, and that a batched INSERT really carries ten
+rows is proven independently by the structure test counting the rows it wrote.
+
+**The generalisable form:** a positive control proves the detector fires. It does not prove the
+detector measures the quantity in its own variable name. Where a control can pass for a degenerate
+reason — one column, one row, one item — pick the non-degenerate case deliberately.
+
+### 5. Two smaller things worth keeping
+
+**`Session.get()` is not a cache you can rely on.** The 10 `SELECT question_variants` fired even
+though those variants had just been written in the same session, because the Session holds only
+*weak* references to persistent objects: once `build_pre_exam` returned and its locals dropped, the
+identity map was collected. Batch reads exist for real reasons on this path, not as belt-and-braces.
+
+**Primary keys are assigned by the flush, not by `__init__`.** `default=new_uuid` is a column
+default, so `AssessmentItem(...).assessment_item_id` is `None` until written — which is why items
+and their state rows go in two flushes rather than one. It costs the same two statements, and it
+cost one `NotNullViolationError` to learn.
+
+### 6. What this does not change
+
+The exam's content, structure and policy are untouched: 628 passed / 2 skipped (was 622/2, +6 new),
+**all 175 learning-api tests passing with zero skips** — so `test_learning_flow.py`'s full
+pre→study→post→completed cycle really ran against MySQL and Postgres rather than skipping — and
+**57/57 local e2e**, including the student journey through topic selection. No schema change, so no
+migration. No SPEC behavior was reinterpreted; §5.9.1's fixed set, §5.9/§5.13's `unseen` starting
+state and §5.13.2's parallel-form rule are all where they were, and the `unseen` policy
+deliberately stayed in `assessment_builder.py` rather than moving into the repository.

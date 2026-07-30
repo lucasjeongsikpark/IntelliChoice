@@ -5,6 +5,40 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ AUD-F-31 fixed: the learning app's p95 driver goes from 47 SQL statements to 7 (2026-07-30,
+  D-131) — and the exam it builds is provably the same one.** `select_topic`'s build was three
+  round-trips per item over ten items, five per-difficulty template reads, and ten more reads to
+  render the response; now 7 statements, with the post-exam builder given the same treatment
+  (52 → 7). Local wall time on the Postgres half: **~39 ms → ~10 ms** median.
+  **The local 47 reconciled with staging's 51** — the four extra are the router's `SELECT topics`, the
+  attendance read, and two connection-level statements — and that reconciliation is the only reason a
+  local count says anything about a staging span.
+  **⚠️ The p95 is deliberately not claimed.** Local round-trips are ~0.3 ms; staging's were ~32 ms at
+  25 concurrent, partly queueing. 40 fewer round-trips there projects to most of the 1.62 s span, but
+  **criterion 7 stays met at the documented 25 concurrent and nothing more** until a staging
+  before/after is run. **Quote the statement count, not a latency.**
+  **The interesting risk was never performance.** `rng.sample()` consumes the template list's order,
+  and `get_active_questions` **had no `ORDER BY`** — so "the same seed builds the same exam"
+  (non-negotiable #2) was already resting on whatever order Postgres felt like returning. Both read
+  forms now order by primary key; the ten questions the *unbatched* builder produced at a fixed seed
+  are **pinned as literals** in the test, so the refactor is held to building the same exam rather
+  than a valid one.
+  **⚠️ The instrument was wrong twice in one sitting, and the second time it passed.** The statement
+  counter first counted the harness's own `SAVEPOINT` (caught by its control on the first run). Then
+  its "rows" column — `len(parameters)` — turned out to mean parameter *sets* for a raw `executemany`
+  but *flattened bound parameters* for the ORM's insertmanyvalues path (110 for a 10-row, 11-column
+  insert), and the control asserted `rows == 3` and **passed only because the control table happened
+  to have exactly one column**. The accessor was deleted rather than fixed. **A positive control
+  proves the detector fires; it does not prove it measures the quantity named in its own variable.
+  Where a control can pass for a degenerate reason — one column, one row, one item — choose the
+  non-degenerate case on purpose.** Fourth session running where the apparatus needed checking first
+  (D-104 §8, D-121, D-129 §5, this).
+  **Two smaller keepers:** `Session.get()` is not a cache you can rely on — the Session holds only
+  *weak* references, so variants written moments earlier were re-read from Postgres once the builder's
+  locals dropped; and primary keys are assigned by the **flush**, not by `__init__`, which is why
+  items and their state rows take two flushes (same two statements) and cost one
+  `NotNullViolationError` to learn. 628 passed / 2 skipped, 175/175 learning-api with zero skips,
+  57/57 local e2e.
 - **✅ The org's time convention is now a switch with a provisional default (2026-07-30, D-130) —
   and building the switch found that the code was already quietly wrong.** `current_week_key()`,
   the attendance gate's key, read the ISO week off **UTC**. ISO weeks start Monday and Sunday
@@ -719,8 +753,31 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-30 close, post-D-129). The gate needs no engineering. What it
-  needs is a mailbox, two dates, and the one thing that has not moved in six sessions:**
+- **Next session, in order (2026-07-30 close, post-D-131). Everything the gate still needs is a
+  mailbox or a date. The one engineering item is a measurement, not a build:**
+  1. **The three human items below have not moved and are unchanged in substance** — see the
+     superseded pointer immediately following for their full detail, which is still accurate:
+     **(a) send Message A** before S43 opens (eighth session carrying it; re-read it first, it gained
+     a week-boundary question in D-130); **(b) read the inbox** for the two `learning-api` SNS notices
+     — search `from:no-reply@sns.amazonaws.com learning-api`, they fired ~1 h before the chat pair —
+     which takes criterion 8 from 2 of 4 to 4 of 4; **(c) criterion 6's dates**, 2026-08-02 and
+     2026-08-05, read per job. Also **2026-08-01: re-probe "How do I enroll a student?"**
+  2. **AUD-F-31's staging before/after — the debt this session deliberately took on.** D-131 fixed
+     the statement count (47 → 7) and refused to claim a p95 from it. That claim needs a k6 run at
+     **25 concurrent** against staging, before and after this branch deploys, plus an X-Ray re-profile
+     of `langgraph.select_topic`. **Until that runs, criterion 7 stays met at the documented 25
+     concurrent and the ~$216/month capacity question stays open** — the ~$0 alternative is *probable*,
+     not shown. Note `aws login` first, and do not dispatch a deploy while `chat-api-p95-latency` is
+     in ALARM (the canary bake rolls back on it).
+  3. **AUD-F-30 is now the cheapest unfixed finding, and it pairs with (2).** Excluding `/readyz` from
+     tracing (`excluded_urls` or a 0% sampling rule) removes ~97% of recorded traces and an ~$8/month
+     free-tier overrun. **Land it AFTER (2)'s "after" measurement, not with it** — D-129 §6's rule is
+     that changing the corpus while establishing evidence over it makes the evidence unreproducible,
+     and a trace profile is exactly such evidence.
+  **New this session:** nothing added to carry-over; AUD-F-31 removed from it. The list below stands.
+
+- **Superseded — next-session pointer as of the D-130 close (2026-07-30). Items 1–4 are still live
+  and still accurate; item 5 is done (AUD-F-31 → D-131):**
   1. **S42's org asks — no longer blocking, now dated (D-130).** The timezone answer runs on a
      provisional default that logs at WARNING until confirmed, so nothing is stuck waiting.
      **Message A is due before S43 opens** (that is where the real attendance derivation gets
@@ -737,17 +794,25 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      (retention-purge). Read **per job** (D-114 §3). That completes the gate.
   4. **2026-08-01: re-probe "How do I enroll a student?"** and widen `chat_qa_staging.js`'s question
      list beyond the four documents effective today.
-  5. **Then the first post-gate engineering session, and AUD-F-31 is the one to take:** batching
+  5. ~~**Then the first post-gate engineering session, and AUD-F-31 is the one to take:** batching
      `select_topic`'s 51 SQL statements to ~6 is the whole of criterion 7's remaining p95 gap for ~$0
      against a ~$216/month capacity purchase. Needs its own before/after, at the same 25 concurrent,
-     and it touches deterministic-core persistence (§5.0) so it wants tests first.
+     and it touches deterministic-core persistence (§5.0) so it wants tests first.~~
+     **(✅ done 2026-07-30, D-131 — 47 → 7 statements, tests first as prescribed. The estimate of
+     "~6" was close. But the "own before/after" was only half-delivered: the local before/after
+     exists, the staging one at 25 concurrent does not, so the p95 half of the claim is still owed —
+     it is item 2 of the new pointer above.)**
   **Carry-overs, in the order they will bite:** (i) **AUD-F-30** — turn off tracing for `/readyz`
   (`excluded_urls` or a 0% sampling rule); ~97% fewer recorded traces, removes an ~$8/month
   free-tier overrun, and makes every future scan's denominator mean what a reader assumes. Cheap, and
   the next scan is more honest for it. (ii) **`/readyz` still cannot distinguish "database gone" from
   "I am busy"** — AUD-F-29 widened the ALB threshold instead of fixing it. (iii) **RDS connection
   arithmetic** — worst case ~126 of ~112 at both services' 3-task ceilings; watch
-  `DatabaseConnections` before raising `max_capacity`. ~~(iv) **ARCHITECTURE.md's "not yet built" paragraph**~~
+  `DatabaseConnections` before raising `max_capacity`. **D-131 makes this strictly better but does not
+  settle it**: 40 fewer round-trips per topic selection means a checked-out connection is held far
+  less time, so the *same* pool sustains more concurrency — measure it on the next multi-task load
+  run rather than assuming a number.
+  ~~(iv) **ARCHITECTURE.md's "not yet built" paragraph**~~
   **(✅ done 2026-07-30 — re-audited and rewritten, plus the PII invariant now names its per-store
   verification).**
   Longer-standing and unchanged: answer brevity (D-115 (i)) as the highest-value chat optimization,
@@ -2722,6 +2787,52 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### Off-roadmap — the first post-gate engineering session: AUD-F-31 fixed (2026-07-30) ✅
+- **Scope: item 5 of PROGRESS.md's own "Next session" pointer (post-D-129/D-130)**, not a numbered
+  roadmap block. Items 1–4 of that pointer are a mailbox and three dates (08-01/02/05) and cannot be
+  done from a code session; they stay with the human. Nothing was added to scope.
+- **Baseline verified green first:** `make lint`, `make typecheck` (pyright 0 errors), **622 passed /
+  2 skipped** — matching the D-130 close exactly.
+- **AUD-F-31 fixed (D-131).** `select_topic`'s exam build: **47 → 7 SQL statements**, post-exam build
+  **52 → 7**, and the Postgres half of the path **~39 ms → ~10 ms** median locally. Reads batched
+  (`get_active_questions_by_difficulty`, `get_variants`, `get_templates`), writes batched
+  (`create_variants`, `add_items`, `create_item_states`), and `generate_and_store_variant` split so
+  its pure half renders a whole exam before anything is written.
+- **The local 47 reconciled with staging's 51** (the four extra are the router's `SELECT topics`, the
+  attendance read, and two connection-level statements) — which is the only reason a local count is
+  worth quoting about a staging p95.
+- **⚠️ The p95 is NOT claimed, deliberately.** Local round-trips are ~0.3 ms against a same-machine
+  Postgres; staging's were ~32 ms at 25 concurrent. The projection is most of the 1.62 s span, but a
+  projection is not a measurement. **Criterion 7's staging before/after is unrun and is the next
+  engineering step.**
+- **The real risk was determinism, and it was already broken.** `rng.sample()` consumes the template
+  list's order, and `get_active_questions` had **no `ORDER BY`** — so "the same seed builds the same
+  exam" (§5.0) rested on Postgres's discretion. Both read forms now order by primary key, the ten
+  questions the *unbatched* builder produced at a fixed seed are **pinned as literals**, and the RNG
+  is consumed in exactly the original sequence.
+- **⚠️ The instrument was wrong twice in one file — the second time it PASSED.** The statement counter
+  first counted the test harness's own `SAVEPOINT`; caught by its control on the first run. Then its
+  "rows" column was `len(parameters)`, which means parameter *sets* for a raw `executemany` but
+  *flattened bound parameters* for the ORM's insertmanyvalues path (110 for a 10-row, 11-column
+  insert) — and the control asserted `rows == 3` and passed **only because the control table happened
+  to have one column**. The accessor was deleted, not fixed. **A positive control proves the detector
+  fires; it does not prove the detector measures the quantity in its own variable name.**
+- **Verification:** `make lint` clean, `make typecheck` clean (pyright 0 errors), **628 passed /
+  2 skipped** (+6 new) — run again at close, unchanged. **All 175 learning-api tests pass with zero
+  skips**, so `test_learning_flow.py`'s full pre→study→post→completed cycle really ran against MySQL
+  and Postgres rather than skipping; and **57/57 local e2e**, including the student journey through
+  topic selection. No schema change, no migration, no Terraform change, no deploy, no AWS calls, no
+  spend.
+- **ROADMAP.md edited (scope consequence, recorded per the end-session rule):** criterion 7's block
+  said "the cheapest remaining lever is `select_topic`" — that lever is now pulled in code, so the
+  block says so *and* says criterion 7 is unchanged at 25 concurrent until the staging before/after
+  runs. The §2.6 gate paragraph on AUD-F-30/31 was updated the same way. **ARCHITECTURE.md needed no
+  change** — no new service, database or API surface, and it does not document the per-call flush
+  pattern this session altered.
+- **Carry-over:** unchanged from the D-130 close, minus AUD-F-31. Criterion 8 still 2 of 4;
+  criterion 6's two dates; **AUD-F-30 now the cheapest unfixed finding**; **S42's org asks still
+  unsent, eighth session**.
 
 ### Off-roadmap — the gate closed to a calendar: criteria 9 and 1 met (2026-07-30) ✅
 - **Scope: PROGRESS.md's own "Next session" pointer (post-D-128), not a numbered roadmap block.**

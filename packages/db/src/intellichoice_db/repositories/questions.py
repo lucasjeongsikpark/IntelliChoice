@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,24 +27,102 @@ class QuestionRepository:
         await self._session.flush()
         return variant
 
+    async def create_variants(self, variants: Sequence[QuestionVariant]) -> list[QuestionVariant]:
+        """One flush for the whole batch - SQLAlchemy emits a single `executemany` INSERT
+        rather than one round-trip per row (AUD-F-31). Callers that need the generated
+        primary keys can read them after this returns; the flush assigns them.
+        """
+        self._session.add_all(variants)
+        await self._session.flush()
+        return list(variants)
+
     async def get_template(self, question_template_id: str) -> QuestionTemplate | None:
         return await self._session.get(QuestionTemplate, question_template_id)
 
     async def get_variant(self, question_variant_id: str) -> QuestionVariant | None:
         return await self._session.get(QuestionVariant, question_variant_id)
 
+    async def get_templates(
+        self, question_template_ids: Sequence[str]
+    ) -> dict[str, QuestionTemplate]:
+        """The batch form of `get_template`, keyed by id (AUD-F-31)."""
+        if not question_template_ids:
+            return {}
+        stmt = select(QuestionTemplate).where(
+            QuestionTemplate.question_template_id.in_(list(question_template_ids))
+        )
+        result = await self._session.execute(stmt)
+        return {t.question_template_id: t for t in result.scalars().all()}
+
+    async def get_variants(
+        self, question_variant_ids: Sequence[str]
+    ) -> dict[str, QuestionVariant]:
+        """The batch form of `get_variant`, keyed by id (AUD-F-31).
+
+        `get_variant` is `Session.get`, which *can* answer from the identity map - but the
+        Session holds only weak references to persistent objects, so a caller that reads
+        variants back after the function that created them has returned finds the map
+        already collected and pays a round-trip per variant anyway. That was 10 of the 47
+        statements in the `select_topic` path.
+        """
+        if not question_variant_ids:
+            return {}
+        stmt = select(QuestionVariant).where(
+            QuestionVariant.question_variant_id.in_(list(question_variant_ids))
+        )
+        result = await self._session.execute(stmt)
+        return {variant.question_variant_id: variant for variant in result.scalars().all()}
+
     async def get_active_questions(self, topic_id: str, difficulty: int) -> list[QuestionTemplate]:
         """SPEC §5.26.1 predefined method. Runtime question selection reads only active,
         approved templates for a topic/difficulty pair - never ad-hoc SQL from a request.
+
+        Ordered by primary key so the list a seeded RNG samples from is stable. Without
+        an `ORDER BY`, "the same seed builds the same exam" (CLAUDE.md non-negotiable #2)
+        rested on Postgres returning rows in whatever order it liked.
         """
-        stmt = select(QuestionTemplate).where(
-            QuestionTemplate.topic_id == topic_id,
-            QuestionTemplate.difficulty_label == difficulty,
-            QuestionTemplate.active_status == "active",
-            QuestionTemplate.validation_status == "approved",
+        stmt = (
+            select(QuestionTemplate)
+            .where(
+                QuestionTemplate.topic_id == topic_id,
+                QuestionTemplate.difficulty_label == difficulty,
+                QuestionTemplate.active_status == "active",
+                QuestionTemplate.validation_status == "approved",
+            )
+            .order_by(QuestionTemplate.question_template_id)
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_active_questions_by_difficulty(
+        self, topic_id: str, difficulties: Sequence[int]
+    ) -> dict[int, list[QuestionTemplate]]:
+        """The batch form of `get_active_questions` (AUD-F-31): one query for every
+        difficulty an exam needs, grouped in Python.
+
+        Same filters and the same `ORDER BY` as the single-difficulty method, so the list
+        handed to `rng.sample()` per difficulty is byte-for-byte the one the unbatched
+        path produced. That equality is the point - the row order decides *which*
+        templates a seed picks, so a batched read with a different order would silently
+        change exam content.
+        """
+        grouped: dict[int, list[QuestionTemplate]] = {d: [] for d in difficulties}
+        if not difficulties:
+            return grouped
+        stmt = (
+            select(QuestionTemplate)
+            .where(
+                QuestionTemplate.topic_id == topic_id,
+                QuestionTemplate.difficulty_label.in_(list(difficulties)),
+                QuestionTemplate.active_status == "active",
+                QuestionTemplate.validation_status == "approved",
+            )
+            .order_by(QuestionTemplate.difficulty_label, QuestionTemplate.question_template_id)
+        )
+        result = await self._session.execute(stmt)
+        for template in result.scalars().all():
+            grouped[template.difficulty_label].append(template)
+        return grouped
 
     async def get_active_questions_for_skill(self, skill_id: str) -> list[QuestionTemplate]:
         """Same active/approved filter as `get_active_questions`, scoped by skill instead

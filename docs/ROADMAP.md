@@ -820,6 +820,16 @@ target-tracking, an explicit 384-unit app share, and `unhealthy_threshold` 3 →
 the 3-task ceiling. **Decision (user call, D-122 §3): 25 is the documented pilot target**; 150 at
 p95 ≤ 3 s would need ~6× the capacity (~12 tasks, ~$216/month) and is carried as a post-pilot
 obligation. The cheapest remaining lever is `select_topic`, the p95 driver in every run.
+
+**▶️ That lever has been pulled in code but NOT yet measured on staging (2026-07-30, D-131).**
+AUD-F-31 is fixed: the build issues **7 SQL statements instead of 47**, and ~40 fewer round-trips at
+the ~32 ms each measured at 25 concurrent projects to most of the 1.62 s span that dominates the p95.
+**Nothing about criterion 7 changes yet.** The supported concurrency is still the documented **25**,
+and the ~$216/month capacity obligation is still open, because the evidence is a local statement count
+plus a projection — not a staging before/after. **What closes this: a k6 run at 25 concurrent before
+and after the change deploys, plus an X-Ray re-profile of `langgraph.select_topic`.** Only then can
+the ~$0 fix be said to have replaced the ~$216/month purchase; until then it is *probable*, which is
+the word this criterion exists to disallow.
 *(The original finding, kept because the before/after is the useful part:)*
 **✅ Criterion 7's learning-app leg is measured (2026-07-30, D-121) — and it FAILS at the criterion's
 own 150 concurrent (AUD-F-28, P1):** p95 **36.01 s** against ≤ 3 s, **13.16%** errors against < 1%,
@@ -966,6 +976,8 @@ corpus → CLEAN).
 **Two findings came off the same run — AUD-F-30 and AUD-F-31**, and the second is the useful one:
 `select_topic`'s 1.6 s is **51 sequential SQL statements and no model call**, so criterion 7's
 remaining p95 gap has a ~$0 fix that the ~$216/month capacity estimate was hiding.
+**AUD-F-31 is now fixed in code (2026-07-30, D-131 — 47 → 7 statements locally), with the staging
+before/after still owed;** AUD-F-30 remains open and is the cheapest unfixed finding.
 
 **✅ CRITERION 1 IS MET (2026-07-30, D-129) — the one sentence got written.** T-02 is dispositioned:
 **S45 builds §5.1.2's first-visit notice; the §6.1 legal-and-policy track enumerates the eleven
