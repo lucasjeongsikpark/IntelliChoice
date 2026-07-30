@@ -60,10 +60,13 @@ to start for two reasons: they are the project's own compressed statement of wha
 and they map onto §2.3's risk order (money, minors, authorization, data integrity first). They cut
 across roughly 12 of the 37 sections.
 
-**Traced: 10 of 10 rules in tranche 1. Sections fully swept: 2 of 37 (§5.25, §5.30).**
-The criterion is **not met** and this file does not claim it is. What it establishes is the method,
-the scope boundary, and the first evidence — plus two real findings that a session of assertion
-would have missed entirely.
+**Tranche 2 covers the money risk class** (§5.8.3–.5, §5.18, §5.31) — every path that can spend
+without a user watching.
+
+**Traced: 10 of 10 rules in tranche 1, plus tranche 2's money paths. Sections swept: 4 of 37**
+(§5.8 partial, §5.18, §5.25, §5.30). The criterion is **not met** and this file does not claim it
+is. What it establishes is the method, the scope boundary, and the first evidence — plus one real
+finding (T-01) that a session of assertion would have missed entirely.
 
 ---
 
@@ -182,11 +185,94 @@ own boilerplate once made its hints unusable (S37), which is the kind of thing o
 
 ---
 
-## Discrepancies found — needing a disposition
+## Tranche 2 — money (§2.3's first risk class)
 
-Criterion 1 requires every discrepancy to be dispositioned in DECISIONS.md. **One is open.**
+Every path that can spend money without a user watching. The question each row has to answer is not
+"is there a limit" but **"is the limit reachable"** — AUD-L-02 was a P0 because a cost ceiling
+existed, was passed `session_spend_cents=0.0`, and therefore could never fire. A ceiling that is
+accounted but not threaded is decoration, so each row below was checked for threading, not presence.
+
+### §5.8.3 / §5.8.4 / §5.8.5 — AI generation pipeline
+
+**Traced.** SPEC's eleven-stage chain maps stage-for-stage onto
+[ai_pipeline.py](../packages/curriculum/src/intellichoice_curriculum/ai_pipeline.py): generator
+(line 314) → two **independent** solvers (417, 430, sharing `_SOLVER_SYSTEM_PROMPT`) → difficulty,
+ambiguity and alignment reviewers (465, 497, 522, all on `BedrockTask.QUESTION_REVIEW`) →
+deterministic validation → deduplication (685–709) → activate-or-quarantine.
+
+SPEC's "do not place free-form LLM-generated questions directly into production" is enforced
+structurally, not by convention: nothing is auto-approved — the module's own docstring (line 29)
+points at `QuestionRepository.activate_template` for why — and every rejecting stage has a test that
+proves it rejects: `test_solver_disagreement_rejects_without_persisting`,
+`test_ambiguity_reviewer_flag_rejects`, `test_alignment_reviewer_flag_rejects`,
+`test_difficulty_reviewer_far_off_rejects`, `test_generator_proposing_unregistered_shape_rejects`,
+`test_duplicate_rendered_question_rejects`, `test_activate_template_refuses_a_non_pending_template`.
+
+**Cost ceiling verified reachable, not merely present.** A `_spend` accumulator (line 308) updates a
+running `spend`, and **every one of the twelve downstream call sites passes `spend`** — the running
+total — rather than the initial `session_spend_cents`. That is precisely the distinction AUD-L-02
+cost a P0 to learn, and it is implemented correctly here. Test:
+`test_ai_pipeline.py:208` asserts `outcome.cost_cents > 0` with the comment "six real calls were
+accounted for".
+
+**§5.8.4's recalibration is future work by SPEC's own wording** ("as production data accumulates"),
+and there is no production data. The bootstrap half — LLM ensemble + deterministic complexity
+features + solver agreement — is what exists and is traced. Not a gap; a requirement whose trigger
+condition has not occurred.
+
+### §5.18 — Weekly YouTube synchronization
+
+**Traced.** [catalog_sync.py:65,94](../packages/youtube/src/intellichoice_youtube/catalog_sync.py#L65)
+takes `run_budget_cents` and cuts off at `spend >= run_budget_cents`. The code carries an explicit
+note that **a budget cutoff must never look like a classification result** (line 87) — the failure
+mode where running out of money silently reads as "this video is not relevant", which would poison
+the catalog rather than truncate it. Tests: `packages/youtube/tests/test_catalog_sync.py`,
+`test_classify.py`.
+
+### §5.31 — Evaluation platform
+
+**Traced.** [settings.py:28-31](../packages/evals/src/intellichoice_evals/settings.py#L28) sets
+`bedrock_run_budget_cents = 200.0` and `bedrock_max_retries = 2`;
+[llm_judge.py:74](../packages/evals/src/intellichoice_evals/llm_judge.py#L74) caps
+`max_output_tokens`. The judge routes through `gateway.generate_structured` (verified in tranche 1
+for rule 7), so it inherits the gateway's timeouts, bounded retry, circuit breaker and cost
+accounting rather than reimplementing them. Tests: `packages/evals/tests/test_llm_judge.py`,
+`test_registry_coverage.py`.
+
+**Sections swept: 4 of 37** (§5.8 partial — .3/.4/.5; §5.18, §5.25, §5.30). Money as a risk class is
+covered end-to-end: generation, sync, evaluation, plus tranche 1's gateway and per-session
+reservation.
+
+---
+
+## Discrepancies found
+
+Criterion 1 requires every discrepancy to be dispositioned in DECISIONS.md. **Open: none.**
+
+| id | discrepancy | disposition |
+|---|---|---|
+| **T-01** | §5.30.3 requires GuardDuty and CloudTrail; neither existed and neither had a decision | **Closed 2026-07-30 (D-125), as two opposite answers**: CloudTrail **built and live-verified**; GuardDuty **deferred with a written reason**, tracked to S50 A7 |
 
 ### T-01 — §5.30.3 lists GuardDuty and CloudTrail; neither exists and neither was ever decided against
+
+**✅ CLOSED 2026-07-30 (D-125) — and the two halves got opposite answers, which is why D-124
+refused to dispose of them as one item.**
+
+- **CloudTrail: built.** [terraform/modules/cloudtrail/](../terraform/modules/cloudtrail/), wired
+  in `terraform/environments/staging/main.tf`. Management events only, multi-region, global service
+  events on, log-file validation on, 90-day bucket expiry, and `aws:SourceArn` conditions on both
+  bucket-policy statements so the bucket cannot accept another account's log delivery. Plan was
+  **7 add / 0 change / 0 destroy**. Live-verified: `IsLogging: true`, `LatestDeliveryError: None`.
+  The cost argument that deferred WAF does not apply — the first copy of management events is free;
+  only storage costs, and the lifecycle rule bounds that.
+- **GuardDuty: deferred, with the written reason it never had.** Always-on paid service against a
+  no-user staging account — the same shape as WAF, so it gets the same answer (D-087). Tracked to
+  S50 A7, to be reconsidered when real traffic or production data exists.
+
+**What changed is the record, not the state.** GuardDuty is still absent; it is now *absent and
+deliberate* rather than *absent and unknown*. That is the entire product of this criterion.
+
+*(The finding as filed, kept because the reasoning is the point:)*
 
 §5.30.3 enumerates 15 AWS security controls. Most are traced to terraform: Secrets Manager
 (`terraform/environments/staging/main.tf`, `modules/iam`, `modules/vpc`), S3 Block Public Access
@@ -200,8 +286,8 @@ Three are absent, and **their status is not the same**:
 |---|---|---|
 | AWS WAF | absent | **dispositioned** — deferred with a written reason, tracked to S50 A7 (D-087, which added per-IP rate limiting as the explicit in-memory stopgap "not a replacement for one") |
 | Pod Security Standards / NetworkPolicy | absent | **moot** — EKS concepts, and D-004 chose ECS/Fargate |
-| **GuardDuty** | **absent** | **none — no decision anywhere in the repo** |
-| **CloudTrail** | **absent** | **none** — mentioned once in D-095 in passing, never decided |
+| **GuardDuty** | absent | ~~none anywhere in the repo~~ → **deferred, written reason, S50 A7 (D-125)** |
+| **CloudTrail** | ~~absent~~ **built** | ~~none — one incidental D-095 mention~~ → **implemented and live-verified (D-125)** |
 
 **Why this is worth a finding rather than a shrug.** A `grep` for GuardDuty across `docs/` returns
 **nothing** — not a deferral, not a "later", not a cost note. It is not that someone weighed it and
@@ -225,10 +311,10 @@ argument for deciding them separately rather than as "the rest of §5.30.3".
 
 ## What remains — the honest size of criterion 1
 
-Tranche 1 swept **2 of 37 sections completely** (§5.25, §5.30) and cut across ~10 more via the
-non-negotiable rules. The remaining work, in §2.3's risk order:
+Tranches 1–2 swept **4 of 37 sections** (§5.8 partial, §5.18, §5.25, §5.30) and cut across ~10 more
+via the non-negotiable rules. The remaining work, in §2.3's risk order:
 
-1. **Money / cost** — §5.8.3 (generation pipeline), §5.31 (evaluation), §5.18 (YouTube sync).
+1. ~~**Money / cost**~~ — ✅ **done in tranche 2** (§5.8.3–.5, §5.18, §5.31).
 2. **Minors / PII** — §5.1 (legal, consent, prohibited uses), §5.15 (three memory types +
    consolidation), §5.14.3 (parent dashboard).
 3. **Authorization** — §5.2.2 (shared auth), §5.6 (parent/child/attendance), §5.19–§5.21 (chat
@@ -237,10 +323,15 @@ non-negotiable rules. The remaining work, in §2.3's risk order:
    (exam composition, grading, learning gain), §5.16 (checkpointing), §5.26 (structured output).
 5. **The rest** — §5.3, §5.7, §5.10–§5.12, §5.27–§5.29, §5.32–§5.36.
 
-**Estimate, stated so nobody plans around a wish:** tranche 1 took roughly a third of a session and
-covered ~5% of the subsection count, though deliberately the densest 5%. The remainder is realistically
-**two to three focused sessions**, and it is mechanical rather than hard — the expensive part is
-reading each SPEC requirement carefully enough to know what test would falsify it.
+**Estimate, stated so nobody plans around a wish:** tranches 1–2 covered ~4 of 37 sections plus the
+ten cross-cutting rules, in well under a session. The remainder is realistically **one to two
+focused sessions**, not the two-to-three first estimated — tranche 2 went faster than tranche 1
+because the method and the denominator already existed, which is the usual shape and is worth
+expecting rather than re-discovering.
+
+It is mechanical rather than hard. The expensive part is reading each requirement carefully enough
+to know **what test would falsify it** — and, as tranche 2 showed, checking that a control is
+*reachable* rather than merely present.
 
 **It is also the cheapest criterion left.** It needs no AWS session, no Bedrock spend, no load run,
 and no product decision. Nothing blocks it and nothing about it expires — which is exactly why it
