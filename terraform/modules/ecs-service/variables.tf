@@ -120,6 +120,53 @@ variable "read_only_root_filesystem" {
   default     = true
 }
 
+variable "pin_app_container_cpu" {
+  description = <<-EOT
+    AUD-F-28: give the app container an explicit CPU share of
+    `cpu - otel_collector_cpu` instead of leaving the field unset.
+
+    Unset is not "no limit", it is an *undefined* one: the live learning-api task
+    definition read `"cpu": 0` for the app container while the otel sidecar declared 128 of
+    the task's 256 units, and how Docker weighs an unset share against a sibling that
+    declares one is not something a capacity number should depend on remembering. Shares
+    only bind under contention, which is precisely the state this service is in under load.
+
+    Opt-in, and enabled only for learning-api, because turning it on replaces the task
+    definition: doing that to chat-api - whose criterion 7 leg passes today and whose CPU
+    was never the constraint (AUD-F-14 measured p95 31s at 15% CPU) - would be an unmeasured
+    change to a working service, which is the mistake D-095 and D-113 both warn about.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "health_check_unhealthy_threshold" {
+  description = <<-EOT
+    AUD-F-29: how many consecutive failed `/readyz` checks (15s apart) before the ALB
+    deregisters the target and ECS replaces the task. Default 3 (~45s) is the S34 value
+    and stays the default - it is right for a service whose readiness failures mean a real
+    dependency outage.
+
+    learning-api overrides it to 5 (~75s) because its readiness check is *not* independent
+    of its own load: `/readyz` opens a pooled connection to Postgres and MySQL with a 3s
+    timeout, and a CPU-saturated task cannot schedule that handler inside the ALB's 5s
+    check timeout even while it is still answering real requests with 200s. Measured
+    2026-07-30: at 50 concurrent sessions the task was killed for "Health checks failed
+    with these codes: [503]" and the replacement cost 64 TargetConnectionErrors (9.14% of
+    the run), while the *same* scenario at 100 concurrent - slower, p95 31s - kept its task
+    and returned 0 errors. Killing a saturated-but-working task turns a latency problem
+    into an availability problem, and with min_capacity 2 it also removes half the capacity
+    mid-burst.
+
+    The cost of the wider window is that a genuine DB outage takes 75s rather than 45s to
+    pull the task out of service. That is the deliberate trade: this app's readiness check
+    cannot currently distinguish "database is gone" from "I am busy", so the threshold is
+    tuned for the failure mode that has actually been observed.
+  EOT
+  type        = number
+  default     = 3
+}
+
 variable "region" {
   type = string
 }

@@ -6334,3 +6334,134 @@ concluding anything.*
 `HTTPCode_Target_5XX_Count` Sum > 5 for **2 consecutive** minutes, against an actual distribution of
 70 then 1. Defensible as anti-flap given the p95 alarm caught the same incident, but worth knowing
 that a one-minute burst of 70 server errors does not page on its own.
+
+---
+
+## D-122 — AUD-F-28 sized from a measured curve, not a guess; the pilot's concurrency target is written down; criterion 8's alarms induced (accepted, 2026-07-30)
+
+### 1. Measure the knee before buying capacity
+
+D-121 left three candidate fixes and said the choice needed "the pilot's real expected concurrency,
+which is a product input". That framing was half right. The product input that was actually missing
+was not *how many students* — it was **what a student costs**, and that is measurable without asking
+anyone. So the session began with four runs on the unchanged single 256-unit task (VUS 10/25/50/100)
+before a line of terraform was written.
+
+The curve is unusually clean. **Throughput is flat at ~5.8 req/s from 10 concurrent upward, and
+latency grows exactly linearly with concurrency** — Little's law holds to within 4% at every point.
+That is a saturated server with a fixed service rate, which turns the sizing question into
+arithmetic: the p95 ≤ 3 s promise held to about **8 concurrent sessions**, and capacity buys
+proportionally more.
+
+Two things fell out of the sweep that no amount of reasoning would have produced:
+
+- **The task was 0.25 vCPU.** Both services take the module's defaults (`cpu = 256`, `memory = 512`).
+  150 students were being pointed at a quarter of a core. D-121 wrote "one saturated process" without
+  saying how small the process was.
+- **The app container declared no CPU share at all** (`"cpu": 0` in the live task definition) while
+  the otel sidecar declared 128 of the task's 256 units. Shares only bind under contention, which is
+  exactly the state this service was in.
+
+### 2. What was applied, and the one service deliberately left alone
+
+learning-api only: `256/512` → **`512/1024`**; `min_capacity` 1 → **2** (criterion 7's own "≥ 2 tasks"
+leg, which D-121's run failed on its own terms); CPU target-tracking **replaced** by the ALB p95 step
+policy chat-api has had since D-113; an **explicit 384-unit** app-container share; and
+`unhealthy_threshold` 3 → 5 for AUD-F-29.
+
+**learning-api joins chat-api's scaling policy for the opposite reason, and the entry should say so.**
+AUD-F-14 moved chat-api because CPU was *blind* to its saturation (p95 31 s at 15% CPU). Here CPU was
+pinned at 100% — the signal was perfect and merely slow, needing 3 breaching minutes plus publish lag
+plus cooldown against a burst that is over in 3.5. Same mechanism, different diagnosis. Neither policy
+can beat a cohort-start burst; provisioned capacity does that, and the faster of the two is what
+should be left running underneath it.
+
+The explicit CPU share was first written module-wide and the plan caught it: it replaces the task
+definition, and doing that to **chat-api** — whose criterion 7 leg passes and whose CPU was never the
+constraint — would be an unmeasured change to a working service, the exact mistake D-095 and D-113
+both warn about. It is now `pin_app_container_cpu`, opt-in, on for learning-api alone.
+
+**A trap in the apply worth writing down.** `terraform.tfvars` pinned `learning_api_image_tag =
+"gha-d1899a483d06"` while staging was running **`gha-447d412617a2`** — criterion 3's verified build.
+Terraform registers the task definition, but `deploy-staging.yml` (not terraform) is what normally
+rolls the service, so the two drift silently and nothing notices until an apply is followed by an
+`update-service`. Applying and rolling as-was would have **reverted the application code** as a side
+effect of a capacity change, and the deploy history would have shown nothing. tfvars was corrected to
+the running build first; the apply then also re-pinned chat-api and ops-task to reality, which is why
+their task definitions appear in a plan that changed nothing about them.
+
+**And the correction is not in this PR, because `terraform.tfvars` is gitignored** (`.gitignore:40`,
+`*.tfvars`). So the drift is *structural*, not a one-off slip: the file that pins which image
+terraform believes is deployed lives outside version control, while the thing that actually deploys
+images is a GitHub workflow. Any machine that runs `terraform apply` from a fresh checkout starts
+from `terraform.tfvars.example` and will re-introduce exactly this trap. **Check the running image
+tag before every apply** until that is designed away (reading the tag from the live service, or
+moving the pin into a committed file, are both plausible; neither was done here).
+
+### 3. The result, and the number that is now the pilot's
+
+On the 2-task floor: **25 concurrent at p95 2.45 s / 2.51 s, 0.00% errors** (measured twice, warm),
+failing at 30 (5.71 s). Throughput 5.8 → ~17.5 req/s — **3.0× for 3.0× the CPU units**, which also
+retires the suspicion that the sidecar's share had been starving the app.
+
+At the criterion's own **150 concurrent**: p95 **17.73 s** (was 34.98), errors **0.04%** (was 12.06%),
+tasks **2 → 3 with scale-out inside a minute**, **zero** 5xx, **zero** connection errors, **no task
+killed**. Error rate and task-count legs pass; **the p95 leg does not**.
+
+**Decision (user call): document 25 as the pilot concurrency target** — ~37 at the 3-task autoscaling
+ceiling — rather than buy the ~6× capacity (~12 tasks, ~$216/month) that p95 ≤ 3 s at 150 would need.
+The spend stays at ~$36/month. 150 is carried as a post-pilot obligation *with a price attached*,
+which is a better position than the open question D-121 recorded. The cheaper lever, if it is ever
+wanted before the money: `select_topic` is the p95 driver in every run (a LangGraph invoke with
+checkpoint writes, 1.6 s even at 25 concurrent).
+
+**Method note, paid for once:** the first run after the task roll read p95 6.13 s at VUS=25 and the
+warm re-runs of the identical scenario read 2.45 s and 2.51 s. A first post-deploy run is a
+cold-start measurement. Take it twice or throw it away.
+
+### 4. Criterion 8, and a recorded misunderstanding of how these alarms evaluate
+
+`learning-api-5xx-rate` **OK → ALARM at 18:26:40Z** on real 5xx generated by two back-to-back
+150-concurrent runs against the *pre-fix* configuration — deliberately induced before the capacity
+change, since the fix removes the condition.
+
+**D-121 §3 (and PROGRESS.md after it) described these alarms as needing "2 consecutive minutes", and
+that is wrong.** The transition data says so in its own words: `2 datapoints [64.0 (18:23:00), 64.0
+(18:19:00)] were greater than the threshold`, with **three empty minutes between them** and
+`recentDatapoints` reading `[64.0, null, null, null, 64.0]`. With `treat_missing_data = notBreaching`,
+CloudWatch evaluates the last N datapoints *that exist* and looks back past the gaps. For a sparse
+metric like 5xx-per-minute this is better paging behaviour than the reading it replaces — a burst on
+Monday and a burst on Tuesday will page — but the operational note in D-121 said the opposite, and
+anyone tuning these alarms from that note would have tuned them wrong.
+
+### 5. The other three alarms, and what a real induction actually cost
+
+`chat-api-p95-latency` **OK → ALARM at 19:17:56Z**, citing `29.56, 34.08, 33.23 > 20.0`. This is the
+alarm AUD-X-13 had just recalibrated from 3 s to 20 s, so the induction proves something specific:
+that the *new* threshold is still reachable by real degradation rather than merely quiet. Four chat
+load runs were needed (VUS 15/15/25/30) — at 15 concurrent the ALB p95 sat at 19–22 s and kept
+straddling the threshold, breaking the 3-datapoint streak; 30 concurrent for five minutes put every
+minute at 29–34 s.
+
+**That cost $17.25** — 2,760 Bedrock calls over 920 turns, read from the gateway's own `bedrock_call`
+`cost_cents` log lines rather than estimated. The estimate beforehand was ~$5, and the gap is the
+lesson: **an alarm whose threshold sits 25% above the normal p95 is expensive to induce honestly**,
+because the only way to trip it is to hold real traffic above it for three consecutive minutes, and
+each straddling run is paid for in full. Worth knowing before criterion 8 is re-run for any future
+threshold change. (The learning-api inductions were free — that flow makes no model calls.)
+
+`chat-api-5xx-rate` was induced with **`aws cloudwatch set-alarm-state`**, and is recorded as
+**synthetic** rather than dressed up: chat-api has no safe way to emit more than five real 5xx per
+minute on staging, and manufacturing one would mean deliberately breaking a working service. What
+this evidences is the alarm → SNS → monitored-inbox path; the breach condition itself is
+code-reviewed, not demonstrated. It self-cleared to OK on the next evaluation, as
+`treat_missing_data = notBreaching` implies.
+
+**Criterion 8's standing: all four alarms transitioned OK → ALARM on 2026-07-30, three of them on
+genuine conditions**, with the SNS topic's email subscription confirmed. The criterion also asks that
+each *reach a monitored inbox*, which is the one part of this no AWS API can attest — it needs a human
+to confirm receipt of four emails.
+
+**One operational note:** `deploy-staging.yml`'s canary bake rolls both services back when any of
+these four alarms is in ALARM. `chat-api-p95-latency` stays in ALARM until its metric goes quiet, so a
+deploy launched immediately after a load run would auto-roll-back a good release. Wait for OK.

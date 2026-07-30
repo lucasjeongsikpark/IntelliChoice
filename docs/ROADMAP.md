@@ -784,6 +784,27 @@ tokens (~375 words) and its p95 10.62 s is time spent generating prose. So the l
 move this number is asking for a shorter answer — which SPEC §5.10.3's age-appropriateness
 argues for independently — not more tasks or a faster model. Carried as an item, not done here:
 a prompt change is product-visible and needs its own before/after measurement.
+**✅ AUD-F-28 fixed and the learning leg re-measured (2026-07-30, D-122). Two of its three legs now
+pass at 150 concurrent; the p95 leg is a documented, priced capacity gap rather than an open
+question.** Sized from a measured curve, not a guess: on the unchanged task, throughput was flat at
+~5.8 req/s from 10 concurrent upward with latency growing exactly linearly (Little's law within 4%),
+so p95 ≤ 3 s held only to ~8 concurrent — and the task turned out to be **0.25 vCPU** with the app
+container declaring **no CPU share at all** beside a 128-unit otel sidecar. Applied to learning-api
+only: `256/512` → `512/1024`, `min_capacity` 1 → 2, chat-api's ALB p95 step policy replacing CPU
+target-tracking, an explicit 384-unit app share, and `unhealthy_threshold` 3 → 5 (**AUD-F-29**).
+
+| leg at 150 concurrent | required | before | after |
+|---|---|---|---|
+| p95 | ≤ 3 s | 34.98 s | **17.73 s** ⛔ |
+| error rate | < 1% | 12.06% | **0.04%** ✅ |
+| tasks / autoscaling | ≥ 2, active | 1, never scaled | **2 → 3 in ~1 min** ✅ |
+| target 5xx / conn errors / kills | — | 64×2 / 127 / yes | **0 / 0 / none** |
+
+**The supported concurrency is 25** (p95 2.45 s and 2.51 s, 0 errors, measured twice warm), ~37 at
+the 3-task ceiling. **Decision (user call, D-122 §3): 25 is the documented pilot target**; 150 at
+p95 ≤ 3 s would need ~6× the capacity (~12 tasks, ~$216/month) and is carried as a post-pilot
+obligation. The cheapest remaining lever is `select_topic`, the p95 driver in every run.
+*(The original finding, kept because the before/after is the useful part:)*
 **✅ Criterion 7's learning-app leg is measured (2026-07-30, D-121) — and it FAILS at the criterion's
 own 150 concurrent (AUD-F-28, P1):** p95 **36.01 s** against ≤ 3 s, **13.16%** errors against < 1%,
 `desiredCount` never leaving 1, ECS CPU at **99.88%**, and the task killed `(port 8001) is unhealthy`
@@ -881,6 +902,17 @@ this ends tutor report generation outright until S46; or (b) accept it as docume
 residual risk and let S43/S46 close it properly. (b) is the recommendation: the exposure is a tutor
 reading students they are not assigned to, in a system with no real users, and (a) removes a
 shipped feature to satisfy a checklist item.
+**✅ Criterion 8's four alarms are all induced (2026-07-30, D-122 §4–5), three on genuine
+conditions:** `learning-api-5xx-rate` (18:26:40Z, real 5xx from two deliberately pre-fix 150-runs),
+`learning-api-p95-latency` (again, on this session's load), `chat-api-p95-latency` (19:17:56Z citing
+`29.56, 34.08, 33.23 > 20.0` — proving AUD-X-13's *new* 20 s threshold is still reachable by real
+degradation), and `chat-api-5xx-rate` via `set-alarm-state`, **recorded as synthetic**. The SNS email
+subscription is confirmed. **What is owed is human**: confirming the four emails arrived in the
+monitored inbox. Two notes for whoever re-runs this: D-121's "2 consecutive minutes" reading of the
+5xx alarms is **wrong** (they fired on datapoints three empty minutes apart — CloudWatch evaluates
+the last N datapoints that *exist*), and the chat induction **cost $17.25** in real Bedrock calls
+because a threshold set 25% above the normal p95 takes four runs to straddle successfully.
+
 **7, 8 and 9 are undone but no longer blocked** — the "missing" staging token secrets
 were always retrievable from Secrets Manager (D-107 §10), so the authenticated load run, the two
 learning-app alarm inductions on their real condition, and an authenticated-traffic trace scan are

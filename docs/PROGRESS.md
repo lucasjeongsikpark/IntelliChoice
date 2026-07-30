@@ -5,6 +5,57 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ AUD-F-28 fixed from a measured curve, criterion 8's four alarms are all induced, and the
+  pilot's concurrency target is now a written number (2026-07-30, D-122).** Local suite
+  **592 passed / 2 skipped**, ruff and pyright clean. Terraform applied to staging (5 add / 2 change
+  / 2 destroy, learning-api only) and the service rolled onto task definition **39**.
+  **The sweep before the fix is the part worth keeping.** Four runs on the unchanged single task
+  (VUS 10/25/50/100) plus two reproductions at 150: **throughput is flat at ~5.8 req/s from 10
+  concurrent upward and latency grows exactly linearly** — Little's law holds within 4% at every
+  point. Two facts fell out that no reasoning would have produced: the task was **0.25 vCPU**
+  (`cpu = 256`, the module default, for both services), and the app container declared **no CPU
+  share at all** (`"cpu": 0`) beside an otel sidecar declaring 128 of the task's 256 units.
+  **Applied:** `256/512` → **`512/1024`**, `min_capacity` 1 → **2**, CPU target-tracking replaced by
+  chat-api's **ALB p95 step policy**, an explicit **384-unit** app share (`pin_app_container_cpu`,
+  opt-in so chat-api is untouched), and `unhealthy_threshold` 3 → **5** (AUD-F-29).
+  **Post-fix at the criterion's own 150 concurrent:** p95 **17.73 s** (was 34.98), errors **0.04%**
+  (was 12.06%) ✅, **2 → 3 tasks with scale-out inside a minute** ✅, **zero** 5xx, **zero**
+  connection errors, **no task killed**. Two of three legs pass; **p95 does not**.
+  **The supported concurrency is 25** (p95 **2.45 s / 2.51 s**, 0 errors, measured twice warm),
+  ~37 at the 3-task ceiling. Throughput 5.8 → 17.5 req/s, **3.0× for 3.0× the CPU units**.
+  **Decision (user call): document 25 as the pilot target** rather than buy the ~6× capacity
+  (~12 tasks, ~$216/mo) that p95 ≤ 3 s at 150 needs. 150 is carried as a post-pilot obligation *with
+  a price on it*. Cheapest remaining lever is `select_topic` — the p95 driver in every single run.
+  **✅ AUD-F-29 (P2, new, fixed):** a CPU-saturated task fails its own `/readyz` (pooled DB connect,
+  3 s timeout, inside the ALB's 5 s) and gets killed **while still serving 200s**. The proof is that
+  the *heavier* run was the healthier one — **VUS=50 killed a task and lost 9.14% of the run to 64
+  connection errors; VUS=100, slower, was never killed and lost 0.00%**. The errors came from the
+  reaction to saturation, not the saturation. Trade recorded: a real DB outage now takes 75 s rather
+  than 45 s to deregister, because this check cannot tell "database gone" from "I am busy".
+  **✅ Criterion 8 is four for four (all OK → ALARM today, three on genuine conditions):**
+  `learning-api-5xx-rate` 18:26:40Z on real 5xx from two deliberately pre-fix 150-runs;
+  `learning-api-p95-latency` again at 13:13 and 13:44 CDT on this session's load;
+  `chat-api-p95-latency` 19:17:56Z citing `29.56, 34.08, 33.23 > 20.0` — which proves AUD-X-13's
+  *new* 20 s threshold is still reachable by real degradation; `chat-api-5xx-rate` via
+  `set-alarm-state`, **recorded as synthetic** since chat-api has no safe way to emit real 5xx.
+  **⚠️ Owed, and only a human can do it: confirm four emails in the monitored inbox.**
+  **⚠️ D-121 §3's "2 consecutive minutes" reading of the 5xx alarms is wrong**, corrected here from
+  the transition's own data: it fired on `[64.0 (18:23), 64.0 (18:19)]` with **three empty minutes
+  between them** (`[64.0, null, null, null, 64.0]`). With `notBreaching`, CloudWatch evaluates the
+  last N datapoints *that exist* and looks past gaps.
+  **⚠️ The induction cost $17.25** — 2,760 Bedrock calls / 920 turns, read from `bedrock_call`
+  `cost_cents`, against a ~$5 estimate. An alarm set 25% above the normal p95 is expensive to induce
+  honestly: four runs, because at 15 concurrent the p95 straddled 20 s and kept breaking the streak.
+  **⚠️ Two traps found in the apply path, both silent:** `terraform.tfvars` pinned
+  `gha-d1899a483d06` while staging ran **`gha-447d412617a2`** (criterion 3's verified build), so an
+  apply-then-roll would have **reverted the application code** as a side effect of a capacity change,
+  with nothing in the deploy history to show it — tfvars was corrected first. And `desired_count` is
+  in the service's `ignore_changes`, so it is `autoscaling_min_capacity` that actually moves a live
+  service off 1.
+  **⚠️ Method note, paid for once:** the first run after the task roll read p95 6.13 s at VUS=25;
+  warm re-runs of the identical scenario read 2.45 s and 2.51 s. A first post-deploy run is a
+  cold-start measurement, not a capacity measurement.
+  **⚠️ Do not deploy while `chat-api-p95-latency` is in ALARM** — the canary bake rolls back on it.
 - **⚠️ Criterion 7's learning leg measured for the first time and it FAILS at the criterion's own
   150 concurrent — AUD-F-28 (P1). Criterion 8 got its first genuine alarm induction for free
   (2026-07-30, D-121).**
@@ -362,7 +413,12 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      (reacts in 2 min, where CPU tracking could not react inside a 3.5-min burst); or accept a
      documented lower concurrency target for the pilot. `make load-staging-learning` (VUS=5 passes at
      p95 1.4 s / 0% errors) is the instrument for re-measuring any of them.
-  3. **Criterion 8 — one of four alarms done** (`learning-api-p95-latency`, induced on a real
+  3. ~~**Criterion 8 — one of four alarms done**~~ **(✅ all four induced 2026-07-30, D-122 §4–5 —
+     three on genuine conditions. Only the human half is owed: confirm four emails in the monitored
+     inbox.)** Original note kept, and **one line of it is wrong**: the 5xx alarms do *not* need
+     "2 consecutive minutes" — they fired on datapoints three empty minutes apart, because
+     CloudWatch evaluates the last N datapoints that *exist* under `notBreaching`. Original:
+     (`learning-api-p95-latency`, induced on a real
      condition by the load run, SNS email subscription confirmed; D-121 §3). Three remain:
      `learning-api-5xx-rate`, `chat-api-5xx-rate`, `chat-api-p95-latency` — the last of which is now
      a *meaningful* signal to induce rather than one stuck on (AUD-X-13). Note the 5xx alarms need
@@ -384,6 +440,34 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   effective today; **2026-08-02** criterion 6's earliest pass for the original two jobs
   (**2026-08-05** for retention-purge); **S42's discovery asks to the org are still unsent**
   (unchanged since D-110, external lead time — this is the fourth session carrying them).
+
+- **Next session, in order (2026-07-30, post-D-122). `aws login` first, and note that terraform
+  needs `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"`
+  — the CLI's own login cache is unreadable by the Go SDK, the same gotcha `make scan-traces`
+  documents for boto3:**
+  1. **Confirm criterion 8's four emails arrived** in the monitored inbox (kkang19646@…). This is
+     the only part of criterion 8 that no AWS API can attest, and all four alarms transitioned
+     today — do it before the memory of which four goes stale.
+  2. **Land this session's PR** (terraform + docs). Nothing is deployed by it — the capacity change
+     is already applied and rolled onto task definition 39 — so the merge only makes code match
+     state, the D-116 pattern. **Do not dispatch a deploy while `chat-api-p95-latency` is in ALARM**;
+     the canary bake rolls back on it.
+  3. **Criterion 2's P1 count is unchanged but the ordering question is now sharper**: AUD-F-28 is
+     closed, AUD-F-29 is a P2, so the remaining P1 halves are still AUD-L-07 (read) and AUD-X-07,
+     both with written dispositions and both scheduled after the gate. That product call
+     (fail-closed now vs. documented §7 residual risk) is still unmade and still blocks claiming 2.
+  4. **Criterion 6's calendar dates arrive**: 2026-08-02 for the original two schedules,
+     2026-08-05 for retention-purge. Read per job.
+  **Carry-overs minted here:** (i) **`/readyz` cannot distinguish "database gone" from "I am busy"**
+  — AUD-F-29 widened the ALB threshold instead of fixing that, and the real fix (separate a
+  pool-checkout timeout from a connection failure, or give the check its own connection) is filed
+  not done; (ii) **`select_topic` is the p95 driver** in every run of the sweep and the cheapest
+  path to criterion 7's 150 without ~$216/month — a LangGraph invoke with checkpoint writes,
+  1.6 s even at 25 concurrent, needs a profile before anyone buys capacity; (iii) **RDS connection
+  arithmetic now has less headroom** — peak was 47 of ~112 with 1 learning + 2 chat tasks, and the
+  worst case at both services' 3-task ceilings is ~126 by pool arithmetic (10+10 per task plus a
+  checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
+  raising `max_capacity` anywhere.
 
 - **✅ AUD-C-03 and AUD-F-14 closed 2026-07-28 (D-113) — three P1s remain (AUD-L-04,
   AUD-L-07 read half, AUD-X-07 half), and the last two have written dispositions.** Local
