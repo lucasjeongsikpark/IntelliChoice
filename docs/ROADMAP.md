@@ -712,14 +712,22 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**Standing as of 2026-07-29 (post-D-114).** **5 met** (six consecutive clean pipeline deploys plus the
+**Standing as of 2026-07-30 (post-D-123): 2, 3, 4 and 5 are met; 8 is met but for a human
+confirmation; 6 is on the calendar; 7 is met on a re-stated target; 1 and 9 are the two that
+nobody has finished measuring.** Read the per-criterion notes below before quoting that summary —
+**2 is met on a written reading, not by having zero P1-severity exposure** (§7-R8/R9), and **7 is
+met at the pilot's documented 25 concurrent, not at the criterion's original 150**, which is
+carried as a priced post-pilot obligation. **1 has been unassessed since S37** and **9's trace scan
+has only ever covered guest traffic** — the authenticated half is now reachable and was not run.
+*(Prior standing, post-D-114:)* **5 met** (six consecutive clean pipeline deploys plus the
 demonstrated auto-rollback; the "consecutive" ambiguity D-105 left open is settled — `73396c1` →
 `c58d1fe` has no failed deployment between them on either reading). **6 is on the calendar,
 read per-job (D-114 §3)**: earliest 2026-08-02 for the original two schedules, **2026-08-05**
 for the `retention-purge` schedule (applied and ENABLED 2026-07-29). **4 is met**
 (D-111: `chat-web` and `e2e-typecheck` CI jobs landed; AUD-F-08 closed).
-**2 needs two more P1 halves**: AUD-L-07 (read half — but see the ordering note below) and
-AUD-X-07 (half), both with written dispositions. **D-115 added and closed two more P1s in one
+~~**2 needs two more P1 halves**~~ **(✅ decided 2026-07-30, D-123 — both accepted as §7-R8/R9;
+see the criterion-2 block below.)** Original: **2 needs two more P1 halves**: AUD-L-07 (read half
+— but see the ordering note below) and AUD-X-07 (half), both with written dispositions. **D-115 added and closed two more P1s in one
 session** (AUD-X-09 the dead reranker, AUD-X-12 the false-refusal token cap) plus two P2s
 (AUD-X-10 circuit blast radius, AUD-X-11 success-only logging) — so criterion 2's count is
 unchanged, but note that **both new P1s existed and were invisible during every previous
@@ -893,6 +901,17 @@ selects the auth path, not the browser's target — `config.ts` defaults the web
 everything else connection-refused**. Fixed in the Makefile. **Two false premises about this one
 criterion, both previously recorded as working**; a step called "the one thing left" should be
 executed once before it is believed.
+**✅ CRITERION 2 IS MET on a written reading (2026-07-30, D-123) — the decision below was made,
+and it is (b).** The two remaining P1 halves are now **accepted residual risks §7-R8 (AUD-L-07's
+read half) and §7-R9 (AUD-X-07's mid-interrupt seam and commit ordering)** in INTEGRATION_PLAN.md,
+each with an owner, a named closure, and an expiry condition. **The reading matters and is recorded
+so nobody inherits it wrong:** "zero open P0/P1" is met in the sense that *no P1 is open without a
+decision* — two P1-severity exposures still exist and are written down, R8 expiring at first real
+traffic and R9 void the moment `learning_checkpoint_repairs_total` moves off zero. That is a
+weaker claim than "no P1-severity exposure exists", and the roadmap's own standing caveat still
+applies on top of it: **"zero open P1s" only ever measures what has been found** — D-115 found and
+closed two P1s that had been invisible during every prior assessment of this same criterion.
+*(The decision as it stood, kept because the argument is the record:)*
 **⚠️ Criterion 2 cannot be met on the current ordering, and this needs a decision before it is
 planned around.** It demands zero open P1s, but **AUD-L-07's remaining read half is explicitly
 scheduled for S43/S46** — it needs the assignment/branch-roster model `ProfileAdapter` gains in S43,
