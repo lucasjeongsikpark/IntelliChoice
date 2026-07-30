@@ -175,6 +175,22 @@ scan-logs:
 	  uv run python -u scripts/scan_logs_pii.py --minutes $${MINUTES:-60} \
 	    $${START:+--start $$START} $${END:+--end $$END}
 
+# Criterion 7 / AUD-F-31's before-after instrument. D-129 §5's hand-rolled profile of the
+# same span first reported 102 statements and 131% of wall time in SQL, because X-Ray records
+# each SQLAlchemy statement twice (a child subsegment *and* a standalone segment). The
+# correction lives in the script rather than in a shell pipeline so that both arms of a
+# comparison are measured identically - see its docstring. Pin it to the load run whose
+# traffic you care about, and keep --url-contains: ~97% of staging's traces are /readyz
+# (AUD-F-30), so an unfiltered denominator flatters a profile that never saw the request.
+#   make profile-span START=2026-07-30T23:38:00Z END=2026-07-30T23:42:00Z
+profile-span:
+	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
+	  uv run python -u scripts/profile_xray_span.py \
+	    --span $${SPAN:-langgraph.select_topic} \
+	    --url-contains $${URL_CONTAINS:-topics} \
+	    $${START:+--start $$START} $${END:+--end $$END} \
+	    $${MINUTES:+--minutes $$MINUTES} $${LABEL:+--label "$$LABEL"}
+
 # S33 (D-089/D-094): authorized OWASP ZAP baseline scan against the real staging
 # CloudFront URLs - you own this AWS account/app, so this is authorized self-testing,
 # not something requiring a paid third-party pentest engagement (that's still a real,
