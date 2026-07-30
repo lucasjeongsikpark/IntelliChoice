@@ -63,10 +63,13 @@ across roughly 12 of the 37 sections.
 **Tranche 2 covers the money risk class** (§5.8.3–.5, §5.18, §5.31) — every path that can spend
 without a user watching.
 
-**Traced: 10 of 10 rules in tranche 1, plus tranche 2's money paths. Sections swept: 4 of 37**
-(§5.8 partial, §5.18, §5.25, §5.30). The criterion is **not met** and this file does not claim it
-is. What it establishes is the method, the scope boundary, and the first evidence — plus one real
-finding (T-01) that a session of assertion would have missed entirely.
+**Tranche 3 covers minors and PII** (§5.1, §5.15, §5.14.3) — the risk class where "unverified" is
+least acceptable, since the primary users are K–12 students.
+
+**Traced: 10 of 10 rules in tranche 1, plus tranches 2–3. Sections swept: 7 of 37**
+(§5.1, §5.8 partial, §5.14.3, §5.15, §5.18, §5.25, §5.30). The criterion is **not met** and this file does not claim it
+is. What it establishes is the method, the scope boundary, and the evidence so far — plus two real
+findings (T-01, T-02) that a session of assertion would have missed entirely.
 
 ---
 
@@ -245,6 +248,76 @@ reservation.
 
 ---
 
+## Tranche 3 — minors and PII (§2.3's second risk class)
+
+The primary users are K–12 students, so this is the risk class where "unverified" is least
+acceptable. §5.1.4 was traced in tranche 1 (rule 4) and is not repeated.
+
+### §5.1.2 — Token claims and product-specific consent
+
+**Split verdict: the enforcement half is traced, the notice half is a gap (T-02).**
+
+*Enforcement — traced.* [auth.py:25-29](../packages/shared/src/intellichoice_shared/auth.py#L25-L29)
+carries SPEC's full claim set (`account_status`, `consent_status`, `parental_consent_verified`,
+`consent_version`, `student_age_band`), and `account_refusal_reason` is consumed by **both** apps'
+`get_current_claims` *and* both SSE routes — repeated rather than inherited, because the streams
+verify `?token=` directly and never pass through the dependency (AUD-F-13's split-path shape). This
+was AUD-X-02, a P1: the claims existed and were read by **nothing**, so a `suspended`/`revoked`/
+unverified token behaved identically to a consented one on all 18 learning routes. Fixed in S40
+(D-107) and measured. Note the age-band exempt set is deliberately **empty**, so every student needs
+verified parental consent today — stricter than §5.1.2's literal "under 13" wording, and the right
+way round to be wrong.
+
+*Notice — see **T-02** below.*
+
+### §5.1.3 — Location consent
+
+**Traced.** Precise coordinates never leave the resolving function
+([branch_locator.py:15](../apps/chat-api/src/chat_api/services/branch_locator.py#L15)), the chat SPA
+gates on an explicit `LocationConsentModal.tsx`, a ZIP/city alternative exists (S37's e2e locator
+spec resumes with a zip), and AUD-C-03 closed the one remaining leak —
+[checkpoint_privacy.py:24](../apps/chat-api/src/chat_api/services/checkpoint_privacy.py#L24)
+purges LangGraph's `checkpoint_writes.__resume__` rows after a `location_consent` resume, which is
+where coordinates survived after every `QAState` field had been cleaned. Tests:
+`test_branch_locator.py`, `test_chat_endpoints.py`, plus D-113's regression test that decodes
+checkpoint blobs with LangGraph's own serializer.
+
+### §5.1.5 — Prohibited data uses
+
+**Traced structurally, which is the only way this list is worth anything.** "Exposing complete chat
+transcripts to tutors or branch managers" is prevented by a **per-audience field allowlist**
+([report.py:120-151](../apps/learning-api/src/learning_api/services/report.py#L143-L150)): the
+`tutor` audience gets six fields against the parent's fourteen, and no transcript field exists in
+the payload at all. A denylist would have to be maintained; an allowlist fails closed when someone
+adds a field. "Retaining precise location history" and "sending email/creating calendar events
+without approval" are covered by §5.1.3 and §5.1.4 above.
+
+### §5.15 — Memory, and the retention boundary
+
+**Traced.** Three memory types plus Sunday consolidation in
+[packages/memory/](../packages/memory/src/intellichoice_memory/); test:
+`packages/memory/tests/test_consolidation.py`.
+
+The part worth citing is the retention boundary, because it was broken and restored:
+[retention_purge_cli.py:12-21,54-61](../apps/learning-api/src/learning_api/services/retention_purge_cli.py#L12-L21)
+purges `semantic_memory` at **90 days**, `stage_transitions` at **90**, `student_reports` at **365**.
+This is AUD-L-04 (P1, D-114): D-072 accepted "names in free text may survive" *because* that text
+lived in a 90-day-purged table — then S25 derived permanent, never-purged `semantic_memory.fact_text`
+from it, and those facts reach parent-visible reports. **An accepted residual risk whose mitigating
+assumption had silently stopped holding**, which is the most dangerous shape a documented risk takes.
+
+### §5.14.3 — Parent dashboard
+
+**Traced.** [authorization.py:39-43](../apps/learning-api/src/learning_api/authorization.py#L39-L43)
+verifies parents against a **live MySQL lookup** of linked children and 403s otherwise — not a claim
+in the token, which is the distinction that matters, since a token is a snapshot and a link can be
+revoked. Tests: `test_auth_and_attendance.py`, `test_dashboard_report_endpoints.py`,
+`e2e/tests/learning/journey-parent.spec.ts`.
+
+**Sections swept: 7 of 37.**
+
+---
+
 ## Discrepancies found
 
 Criterion 1 requires every discrepancy to be dispositioned in DECISIONS.md. **Open: none.**
@@ -252,6 +325,39 @@ Criterion 1 requires every discrepancy to be dispositioned in DECISIONS.md. **Op
 | id | discrepancy | disposition |
 |---|---|---|
 | **T-01** | §5.30.3 requires GuardDuty and CloudTrail; neither existed and neither had a decision | **Closed 2026-07-30 (D-125), as two opposite answers**: CloudTrail **built and live-verified**; GuardDuty **deferred with a written reason**, tracked to S50 A7 |
+| **T-02** | §5.1.2's first-visit Adaptive Learning notice — eleven required disclosures — is not built and is owned only *by implication* | **Open.** Needs an explicit owner, not a fix. See below. |
+
+### T-02 — §5.1.2's first-visit notice has no explicit owner, and its content depends on a track that has not started
+
+**This is a weaker finding than T-01 and is filed at that strength deliberately.** T-01 was a
+requirement with *nothing* anywhere. This one is a requirement whose home is guessable but never
+stated, which is a different and lesser problem — recorded because the guess should be written down,
+not because anyone has done something wrong.
+
+**What exists.** Nothing in `apps/learning-web/src`. The chat app has `LocationConsentModal.tsx` for
+§5.1.3, so the pattern exists; the learning app has no notice component and no first-visit gate.
+§5.1.2 requires eleven specific disclosures — AI may err, AI does not replace a tutor, exam results
+adjust the estimated level, limited sharing with tutors/branch managers, parents see the complete
+record, learning memory is created from questions and events, images are deleted immediately,
+YouTube recommendations, minimized external data, and the right to challenge results or report
+questions. **None of the eleven is enumerated as a deliverable anywhere in ROADMAP.md.**
+
+**Why it is only implied.** Two plausible homes exist and neither names it:
+
+- **S45 — consent** (I9, I10) covers "parent-grants-for-child capture UI, age-band derivation,
+  no-consent→no-token; legal text from the §6.1 track". A first-visit *product notice* is adjacent
+  to consent capture but is not the same deliverable.
+- **The §6.1 legal & policy parallel track**, which "gates the pilot" and has **not started** —
+  and which already carries a standing obligation from D-114 §4 (the privacy text must state the
+  90/90/365 retention windows and must not imply chat deletion removes derived text).
+
+So the notice's *content* depends on an unstarted track, and its *implementation* is assumed by a
+session that does not list it. That is exactly how a requirement arrives at launch owned by nobody.
+
+**The disposition needed is one sentence naming the owner**, not a build. The recommendation is
+S45, with the eleven disclosures enumerated in the §6.1 track's output so the UI work is
+transcription rather than drafting. **Not urgent, and not a defect** — but the primary users are
+minors, and this is the notice that tells them an AI is grading their work and may be wrong.
 
 ### T-01 — §5.30.3 lists GuardDuty and CloudTrail; neither exists and neither was ever decided against
 
@@ -314,12 +420,11 @@ argument for deciding them separately rather than as "the rest of §5.30.3".
 
 ## What remains — the honest size of criterion 1
 
-Tranches 1–2 swept **4 of 37 sections** (§5.8 partial, §5.18, §5.25, §5.30) and cut across ~10 more
-via the non-negotiable rules. The remaining work, in §2.3's risk order:
+Tranches 1–3 swept **7 of 37 sections** (§5.1, §5.8 partial, §5.14.3, §5.15, §5.18, §5.25, §5.30)
+and cut across ~10 more via the non-negotiable rules. The remaining work, in §2.3's risk order:
 
 1. ~~**Money / cost**~~ — ✅ **done in tranche 2** (§5.8.3–.5, §5.18, §5.31).
-2. **Minors / PII** — §5.1 (legal, consent, prohibited uses), §5.15 (three memory types +
-   consolidation), §5.14.3 (parent dashboard).
+2. ~~**Minors / PII**~~ — ✅ **done in tranche 3** (§5.1, §5.15, §5.14.3).
 3. **Authorization** — §5.2.2 (shared auth), §5.6 (parent/child/attendance), §5.19–§5.21 (chat
    role access), §5.22–§5.24 (MCP tool permissions).
 4. **Data integrity** — §5.4 (MySQL/Postgres separation), §5.5 (learning graph), §5.9/§5.13

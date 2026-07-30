@@ -6695,3 +6695,74 @@ one.
 Both halves now have dispositions, so criterion 1 carries no open discrepancy. The criterion itself
 remains **not met** — tranche 1 covered 2 of 37 sections — and closing T-01 does not change that.
 It only means the discrepancy register is clean as far as the sweep has reached.
+
+---
+
+## D-126 — Traceability tranche 3 (minors/PII), T-02 filed at its honest strength, and criterion 8 turns out to be half-confirmed (accepted, 2026-07-30)
+
+### 1. Criterion 8: four emails arrived, and they are two alarms
+
+The four emails produced from the monitored inbox are `chat-api-p95-latency` **ALARM** (19:17:56Z),
+`chat-api-5xx-rate` **ALARM** (19:18:35Z), and the matching **OK** notices for both. That is **two
+of the four alarms**, each counted twice.
+
+The two `learning-api` alarms fired roughly an hour earlier — `learning-api-5xx-rate` at 18:26:40Z
+and `learning-api-p95-latency` at 18:44:38Z (also 18:13 and 06:28) — and their emails were not among
+those produced. **Criterion 8 is therefore 2 of 4 confirmed, not complete**, and is recorded that
+way.
+
+**The remaining two are not being closed by inference, and the reason is the criterion's own
+logic.** They used the same topic and the same confirmed subscription, so they almost certainly
+arrived — but "almost certainly arrived" is the exact claim this criterion exists to replace with
+evidence. Closing it on the strength of the other two would reproduce D-116's stale-bundle
+hypothesis and AUD-F-17's "one command away" in a third form: a thing everyone was confident about
+that nobody had checked.
+
+**Two things the emails did settle.** The **path works end to end** — SNS to a real human inbox,
+demonstrated with headers, which was the open question. And the synthetic induction **labels itself
+in the artifact**: the `chat-api-5xx-rate` email carries D-122's reason string verbatim, so anyone
+auditing that mailbox later reads "Synthetic — chat-api has no safe way to emit >5 real 5xx/min on
+staging" without a doc lookup. That was accidental good practice and should be deliberate next time:
+**an induced alarm should explain its own induction in the notification body.**
+
+### 2. Tranche 3 — minors and PII
+
+§5.1, §5.15, §5.14.3 traced; §5.1.4 was already covered as rule 4. **Sections swept: 7 of 37.**
+
+Two rows are worth reading beyond the table:
+
+**§5.1.5's prohibited-uses list is enforced by an allowlist, not a denylist.** "Exposing complete
+chat transcripts to tutors or branch managers" is prevented because `report.py`'s per-audience field
+sets give `tutor` six fields against the parent's fourteen, and no transcript field exists in the
+payload at all. A denylist would need maintaining; an allowlist fails closed when someone adds a
+field. That is the difference between a rule and a guarantee.
+
+**§5.15's retention boundary is the clearest example in the codebase of why accepted risks need
+re-reading.** D-072 accepted "names in free text may survive" *because* that text lived in a
+90-day-purged table. S25 then derived permanent, never-purged `semantic_memory.fact_text` from it,
+and those facts reach parent-visible reports. The acceptance did not change; **its mitigating
+assumption silently stopped holding**, which is the most dangerous shape a documented risk takes and
+is precisely why §7-R8 and §7-R9 were given expiry conditions in D-123 rather than open-ended
+acceptance.
+
+### 3. T-02, and why it is filed weaker than T-01
+
+**§5.1.2's first-visit Adaptive Learning notice — eleven specific disclosures — is not built, and
+is owned only by implication.** Nothing in `apps/learning-web/src`; the chat app has
+`LocationConsentModal.tsx` for §5.1.3, so the pattern exists and the learning app simply has no
+equivalent. None of the eleven disclosures is enumerated as a deliverable anywhere in ROADMAP.md.
+
+**T-01 was a requirement with nothing anywhere. T-02 is a requirement whose home is guessable but
+never stated**, which is a lesser problem, and the entry says so rather than inflating it. Two
+plausible owners exist and neither names it: **S45 — consent** covers capture UI and age-band
+derivation with "legal text from the §6.1 track", and the **§6.1 legal & policy track** — which
+gates the pilot, has not started, and already carries D-114 §4's standing obligation about the
+90/90/365 windows.
+
+So the notice's *content* depends on an unstarted track and its *implementation* is assumed by a
+session that does not list it. **That is how a requirement arrives at launch owned by nobody**, and
+the fix is one sentence naming the owner, not a build. Recommendation: S45, with the eleven
+disclosures enumerated by the §6.1 track so the UI work is transcription rather than drafting.
+
+Not urgent and not a defect. Worth filing anyway, because the primary users are minors and this is
+the notice that tells them an AI is grading their work and may be wrong.
