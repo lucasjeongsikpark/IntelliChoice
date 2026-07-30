@@ -23,16 +23,32 @@ failure mode this project has hit repeatedly under other names (D-119's two fixe
 mechanism that merely fit the symptom; D-116's stale-bundle hypothesis; AUD-F-17's "one command
 away" step that had never once been run). Assertion is not evidence here either.
 
-Three verdicts, and no fourth:
-
 | verdict | means |
 |---|---|
 | **traced** | implementation cited by file:line, test cited by name, requirement would fail loudly |
 | **dispositioned** | not implemented, and a DECISIONS.md entry says so *on purpose* |
-| **gap** | neither — the requirement is unmet, or met with nothing pinning it. Needs a disposition. |
+| **structural** | names an *artifact or convention*, not a behavior — see the constraint below |
+| **gap** | none of the above — unmet, or met with nothing pinning it. Needs a disposition. |
 
 A requirement dispositioned **in the code's own docstring** citing a decision ID counts as
 dispositioned; several already are, and finding that out is most of the work.
+
+**On the fourth verdict, which this file originally said would not exist.** Tranches 1–5 ran with
+three verdicts and the explicit line "no fourth". Tranche 6 added **structural**, and the honest
+account is that the original three were written before anyone had looked at §5.27 or §5.34 — a
+convention like "use Pydantic v2 everywhere" is not a behavior a test can falsify, and forcing it
+into *traced* would have meant inventing a ceremonial test, while calling it a *gap* would have been
+false.
+
+So the verdict was added, but **fenced**: structural requires (a) a citable artifact location and
+(b) something mechanical that fails if the artifact disappears — a CI job, a typecheck, a build.
+**No mechanism, no structural verdict; it is a gap.** Two sections (§5.3, §5.36) fail that test and
+are recorded as *descriptive* rather than quietly passed, which flags them for human re-reading when
+the architecture changes.
+
+Adding a category to a method mid-way is exactly how a rubric gets softened, so the fence matters
+more than the category. It is recorded here rather than in a footnote precisely because the next
+person to want a fifth verdict should have to argue against this paragraph.
 
 ---
 
@@ -53,7 +69,7 @@ rather than requirements themselves, so they are traced through their §5 sectio
 
 ---
 
-## Status — 21 of 37 sections, and not the finished criterion
+## Status — 37 of 37 sections swept; the criterion turns on one open discrepancy
 
 **Tranche 1 (below) covers the ten non-negotiable rules in CLAUDE.md**, which is the correct place
 to start for two reasons: they are the project's own compressed statement of what must not break,
@@ -69,10 +85,18 @@ least acceptable, since the primary users are K–12 students.
 **Tranches 4–5 cover authorization and data integrity** (§5.2.2, §5.6, §5.19–§5.24; §5.4, §5.5,
 §5.9, §5.13, §5.16, §5.26) — completing all four of §2.3's risk classes.
 
-**Traced: 10 of 10 rules in tranche 1, plus tranches 2–5. Sections swept: 21 of 37.**
-The criterion is **not met** and this file does not claim it
-is. What it establishes is the method, the scope boundary, and the evidence so far — plus two real
-findings (T-01, T-02) that a session of assertion would have missed entirely.
+**Tranche 6 covers the tail** (§5.0, §5.3, §5.7, §5.10–§5.12, §5.14, §5.27–§5.29, §5.32–§5.36) and
+introduces the **structural** verdict for requirements that name an artifact rather than a behavior
+— defined narrowly, with a mandatory enforcing mechanism, so it cannot become a "looks fine" escape
+hatch.
+
+**Sections swept: 37 of 37.** Every launch-scope §5 section now carries a verdict.
+
+**The criterion is NOT met, and it now turns on exactly one thing: T-02 is an open discrepancy.**
+Criterion 1 requires "every discrepancy dispositioned in DECISIONS.md", and T-02 — §5.1.2's
+first-visit notice, owned only by implication — has no owner named. **That disposition is one
+sentence from a human, not a build.** Once it exists, criterion 1 is claimable on the same terms as
+criterion 2: mapped, evidenced, and with its judgement calls written down rather than assumed.
 
 ---
 
@@ -425,6 +449,65 @@ that stays true** — otherwise the first person to add NL2SQL breaks a rule not
 
 ---
 
+## Tranche 6 — the tail, and a fourth verdict defined narrowly enough to be safe
+
+### The judgement this tranche owed
+
+"100% mapped to implementation **+ test**" cannot mean the same thing for *"use Pydantic v2
+everywhere"* as for *"grading never involves an LLM"*. The first names a convention; the second
+names a behavior that a test can falsify. Pretending otherwise means either inventing a ceremonial
+test or quietly marking a section done — and this file's whole premise is that neither is allowed.
+
+So a fourth verdict, **structural**, with a deliberately tight definition:
+
+> **structural** — the requirement names an *artifact or convention* rather than a behavior. It
+> qualifies only if (a) the artifact's location is citable, and (b) something mechanical fails if
+> the artifact disappears — a CI job, a typecheck, a build. **If no such mechanism exists, it is a
+> gap, not structural.**
+
+Clause (b) is what keeps this from becoming the "looks fine" escape hatch the method section bans.
+Six sections use it, and each one names its enforcing mechanism below.
+
+### Traced — the tail's behavioral sections
+
+| section | implementation | test |
+|---|---|---|
+| **§5.0** Design principles | this *is* CLAUDE.md's ten non-negotiable rules | tranche 1, all ten traced |
+| **§5.7** Curriculum taxonomy | `content.py:1` — "loads the internal curriculum taxonomy (SPEC §5.7.2)" | `test_content.py`, `test_loader.py` |
+| **§5.10** Mastery estimation | `mastery_bootstrap.py:1,43,120` — cites §5.10.1, §5.10.2's routing, §5.10.3; "pure deterministic scoring — no LLM" | `test_mastery_bootstrap.py` |
+| **§5.11** Study + HITL | `study_plan.py:1,20` (§5.11.1–.2, §5.11.7 retry), `tutor.py` (§5.11.4–.5) | `test_study_outcomes.py`, `test_tutor_service.py`, `test_hint_ladders.py` |
+| **§5.12** Tutor agent | `tutor.py:9,165` — §5.12.2's "verify calculations with tools", where a mismatch is treated as a failure rather than trusted; `tutor_chat.py:18` routes safety signals through an approved path rather than improvising | `test_tutor_service.py`, `test_learning_chat.py`, `test_numeric_grounding.py` |
+| **§5.14.1/.2/.4** UI transport and views | `routers/stream.py:1` (SSE, and why `?token=` exists — `EventSource` cannot set headers); `report.py`'s per-audience allowlist for .4 | `test_stream_and_history.py`, `e2e/tests/learning/sse-reconnect.spec.ts`, `time-telemetry.spec.ts` |
+| **§5.28** FastAPI and async | thin routers + `get_db_session` dependency teardown | `test_chat_endpoints.py`, `test_exam_backend.py` |
+| **§5.29** Graceful failure handling | `graph/nodes.py:332,413` cites SPEC's failure rows verbatim — "MySQL attendance failure → block learning start", "Gmail MCP failure → preserve draft" | `test_learning_graph_routes.py:383,557` — **tests that quote the same SPEC rows back** |
+| **§5.32** Observability | `packages/observability/` | one test per subsection, each citing its clause: `test_langsmith_config.py:39` (§5.32.1 PII masking "not optional"), `test_tracing.py:18` (§5.32.2 one trace_id per request), `test_logging_config.py:64` (§5.32.3's literal "do not log" list) |
+| **§5.33** AWS environments | `terraform/environments/staging/` | `terraform validate`, plus the deploy workflow's own runs |
+
+§5.29 and §5.32 deserve a note: **their tests quote the SPEC clause they enforce**. That is the
+cheapest traceability mechanism this codebase has, it was free to verify, and it is the reason the
+tail took minutes rather than the session it was budgeted.
+
+### Structural — six sections, each with its enforcing mechanism named
+
+| section | artifact | what fails if it disappears |
+|---|---|---|
+| **§5.3** Enterprise architecture | `docs/ARCHITECTURE.md`, and the deployed topology itself | nothing mechanical — **descriptive**, and the honest verdict is that this section documents rather than requires |
+| **§5.27** Pydantic | **31** `extra="forbid"` models across `apps/` and `packages/` | `make typecheck` (pyright, 0 errors) in CI's `lint-typecheck-test`; the PII-floor tests additionally pin the strictness of every Bedrock payload model |
+| **§5.34** Docker / Terraform / GHA | `apps/*/Dockerfile`, `terraform/`, `.github/workflows/{ci,deploy-staging,security-scan}.yml` | CI's four jobs and the deploy workflow — a missing Dockerfile or module fails the build, not a review |
+| **§5.35** External accounts and identifiers | `.env.example` | app startup config validation; a missing required variable fails the container, not a checklist |
+| **§5.36** Final technology placement | the stack as built | nothing mechanical — **descriptive** |
+| **§5.2.1** Deployment units | two independently deployed apps + two SPAs | the deploy workflow deploys exactly these |
+
+**Two of the six — §5.3 and §5.36 — fail clause (b) and are recorded as descriptive rather than
+structural.** They describe the chosen architecture; there is nothing to falsify and nothing that
+breaks if the description drifts. Saying so is more useful than a green checkmark, because it tells
+a future reader those two sections need **re-reading by a human** when the architecture changes,
+rather than trusting a test to notice.
+
+**Sections swept: 37 of 37.**
+
+---
+
 ## Discrepancies found
 
 Criterion 1 requires every discrepancy to be dispositioned in DECISIONS.md. **Open: none.**
@@ -527,8 +610,8 @@ argument for deciding them separately rather than as "the rest of §5.30.3".
 
 ## What remains — the honest size of criterion 1
 
-Tranches 1–5 swept **21 of 37 sections** and cut across the rest via the non-negotiable rules.
-**All four of §2.3's risk classes — money, minors, authorization, data integrity — are covered.** The remaining work, in §2.3's risk order:
+**Nothing remains to sweep.** Tranches 1–6 covered **37 of 37 sections**; all four of §2.3's risk
+classes are traced, and the tail carries either a test or a named enforcing mechanism. The remaining work, in §2.3's risk order:
 
 1. ~~**Money / cost**~~ — ✅ **done in tranche 2** (§5.8.3–.5, §5.18, §5.31).
 2. ~~**Minors / PII**~~ — ✅ **done in tranche 3** (§5.1, §5.15, §5.14.3).

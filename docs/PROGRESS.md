@@ -5,6 +5,29 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ Traceability tranche 6 done — 37 of 37 sections. Criterion 1 now turns on ONE SENTENCE
+  (2026-07-30, D-128).** Every launch-scope §5 section carries a verdict.
+  **The criterion's two clauses split:** "100% mapped to implementation + test" is **satisfied**;
+  "every discrepancy dispositioned in DECISIONS.md" is **not**, because **T-02 is open**. §5.1.2's
+  first-visit notice is owned only by implication. **The disposition is one sentence naming the
+  owner — a scheduling call, not a technical one, so it stays with whoever owns the roadmap.**
+  Recommendation unchanged: S45, with the eleven disclosures enumerated by the §6.1 track.
+  Once written, criterion 1 is claimable **on the same terms as criterion 2** (D-123): not
+  "everything is perfect" but "everything is traced, dispositioned, or explicitly flagged".
+  **⚠️ A fourth verdict was added mid-method, and the fence matters more than the category.**
+  TRACEABILITY.md had said "three verdicts, and no fourth". §5.27 ("use Pydantic v2 everywhere") and
+  §5.34 (Docker/TF/GHA) forced the issue: they name conventions, not behaviors, so *traced* would
+  need a ceremonial test and *gap* would be false. **structural** now exists but requires (a) a
+  citable artifact and (b) something mechanical that fails if it disappears — **no mechanism, no
+  structural verdict**. §5.3 and §5.36 fail (b) and are recorded as **descriptive**, flagged for
+  human re-reading when the architecture changes. The earlier line was corrected in place rather
+  than quietly edited, because adding a category mid-method is how a rubric gets softened.
+  **The cheapest lesson of the whole exercise, and it should become a convention:** §5.29's and
+  §5.32's tests **quote the SPEC clause they enforce** in their docstrings
+  (`test_learning_graph_routes.py:383`, `test_logging_config.py:64`). When a test names its
+  requirement, traceability is a grep, not an investigation — the tail was budgeted a session and
+  took minutes because of it. Everything else about criterion 1 exists because that habit was only
+  partly followed.
 - **✅ Traceability tranches 4–5 done — all four §2.3 risk classes covered, 21 of 37 sections
   (2026-07-30, D-127).** Authorization (§5.2.2, §5.6, §5.19–§5.24) and data integrity (§5.4, §5.5,
   §5.9, §5.13, §5.16, §5.26). **Criterion 1 still NOT met**, and TRACEABILITY.md still says so.

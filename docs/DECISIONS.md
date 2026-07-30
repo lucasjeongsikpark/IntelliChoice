@@ -6826,3 +6826,62 @@ technology placement), and the honest treatment is to say so per section rather 
 to point at. That judgement is itself part of the criterion — "100% mapped to implementation +
 test" cannot mean the same thing for "use Pydantic v2 everywhere" as for "grading never involves an
 LLM" — and it should be made explicitly in the tail tranche rather than papered over.
+
+---
+
+## D-128 — Traceability tranche 6: 37 of 37 sections, a fourth verdict added and fenced, and criterion 1 now turns on one sentence (accepted, 2026-07-30)
+
+### 1. The tail was budgeted a session and took minutes, for a reason worth keeping
+
+§5.0, §5.3, §5.7, §5.10–§5.12, §5.14, §5.27–§5.29, §5.32–§5.36 are traced. **All 37 launch-scope
+sections now carry a verdict.**
+
+D-127 predicted "well under a session" and even that was too pessimistic, because of something
+measured rather than assumed: **§5.29's and §5.32's tests quote the SPEC clause they enforce.**
+`test_learning_graph_routes.py:383` opens `"""SPEC §5.29: "MySQL attendance failure -> block
+learning start""""`; `test_logging_config.py:64` is a "regression gate for SPEC §5.32.3's literal
+'do not log' list". When a test names its requirement, traceability is a grep rather than an
+investigation.
+
+**That is worth making a convention rather than an accident.** The cheapest traceability mechanism
+available to this project is a docstring citing the SPEC section, written at the moment the test is
+written, by the person who already knows which requirement it pins. Everything else about criterion
+1 — the denominator, the evidence rule, six tranches — exists because that habit was only partly
+followed.
+
+### 2. The fourth verdict, and why the fence matters more than the category
+
+TRACEABILITY.md originally said "three verdicts, and no fourth". Tranche 6 added **structural**, and
+the entry says so plainly rather than quietly editing the earlier line.
+
+The forcing case is §5.27 ("use Pydantic v2 everywhere") and §5.34 (Docker/Terraform/GitHub
+Actions). These name conventions and artifacts, not behaviors. Forcing them into *traced* would mean
+inventing a ceremonial test; calling them *gaps* would be false. Both moves corrupt the register.
+
+So structural exists, **fenced**: it requires (a) a citable artifact and (b) a mechanical failure if
+that artifact disappears. §5.27 cites 31 `extra="forbid"` models and pyright in CI; §5.34 cites the
+Dockerfiles, `terraform/`, and three workflows whose jobs fail without them; §5.35 cites
+`.env.example` and startup config validation. **§5.3 and §5.36 fail clause (b) and are recorded as
+descriptive** — nothing breaks mechanically if their description drifts, so they are flagged for
+human re-reading when the architecture changes, which is more useful than a checkmark.
+
+**Adding a category mid-method is how a rubric gets softened**, and the risk is real enough that the
+fence is written into the method section rather than a footnote: the next person who wants a fifth
+verdict has to argue against that paragraph.
+
+### 3. Criterion 1 is now blocked on one sentence, and it is not mine to write
+
+The criterion has two clauses. **"100% of launch-scope SPEC requirements mapped to implementation +
+test"** is satisfied — 37 of 37, with every judgement call written down. **"Every discrepancy
+dispositioned in DECISIONS.md"** is not: **T-02 is open.**
+
+§5.1.2's first-visit notice is owned only by implication — S45's consent work and the unstarted §6.1
+legal track are both plausible homes and neither names it. **The disposition is one sentence naming
+the owner**, not a build, and it is a scheduling call rather than a technical one, so it stays with
+the human who owns the roadmap.
+
+Once that sentence exists, criterion 1 is claimable **on the same terms as criterion 2** (D-123):
+mapped, evidenced, and with its reading recorded — not "everything is perfect", but "everything is
+either traced, dispositioned, or explicitly flagged as descriptive". Recommendation, unchanged from
+D-126: **S45**, with the eleven disclosures enumerated by the §6.1 track so the UI work is
+transcription rather than drafting.
