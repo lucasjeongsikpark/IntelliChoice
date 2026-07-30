@@ -6025,3 +6025,102 @@ single blocker holds D-116's own `EXPECT_BUILD_SHA` check (never run — its dep
 AUD-F-04 and AUD-F-05 (a refresh does not restore position; a dismissed narrative returns after a
 reload) remain open and still fail as expected. AUD-F-21 made the second **less severe** — the
 returning narrative no longer displaces the exam — without closing it.
+
+---
+
+## D-118 — AUD-F-21's fix was wrong in a way only staging could show, and the test that should have caught it was asserting a default (accepted, 2026-07-29)
+
+D-117 landed AUD-F-21's fix, deployed it (`f2aa85a`, run 30504123169, canary bake clean), and it
+**did not close the failure it was written for**. That is the whole content of this entry, because
+the mistake and the reason it survived review are both reusable.
+
+### 1. What staging said
+
+First staging run against the deployed fix: **50 passed / 3 failed / 3 skipped**. The counting half
+of `time-telemetry` passed as always (1 time report, 0 overview fetches), and the value was
+**1578 ms against a 15,000 ms dwell** — where the pre-fix number was 2116 ms. A different number for
+the same defect is not progress.
+
+Two things did land, and they are worth separating from the failure. **AUD-F-16's identity check
+worked on its first real use**: `journeys.jsonl`'s head records
+`apis=learning-api=f2aa85a17b9f, chat-api=f2aa85a17b9f`, and `EXPECT_BUILD_SHA` passed — D-116's owed
+check, finally taken. And the SPA was proved to be the right build by D-116's own method: a local
+build at HEAD emits `index-C3_MEer3.js`, the same content-hashed name CloudFront serves, and the
+served bytes are SHA-256-identical. So the run was measuring the intended code, which is exactly why
+its answer could be trusted.
+
+### 2. A conditional wrapper is a remount
+
+The fix rendered the narrative above the phase screen — inside a wrapper that only exists when there
+is a narrative:
+
+    if (!showNarrative) return phaseContent;
+    return <div className="stack">{narrative}{phaseContent}</div>;
+
+React reconciles by position. `main > ExamScreen` and `main > div.stack > ExamScreen` are different
+positions, so the wrapper's appearance **unmounts and remounts** the exam screen: view-time cleanup
+fires, `useState(0)` re-runs. The narrative was no longer a *sibling branch* that replaced the
+screen, and it was now a *parent* that replaced its position. Same unmount, new line number.
+
+Fixed with a Fragment holding two fixed slots, always returned, slot 0 holding the narrative or
+`null`. The Fragment also fixed something the wrapper had introduced unnoticed: `.stack` carries
+`max-width: 480px`, so every narrative had been narrowing the exam screen. Adding no DOM node means
+the no-narrative render is byte-identical to pre-change behaviour, which is the property worth having
+in a fix that ships to the primary journey.
+
+**A latent 409 came with it, and that is part of the cost of the correct fix.** Once the screen
+stopped unmounting at the phase change, `post-finalize-poll.spec.ts` reported one 409 at +2004 ms:
+the view-time effect re-armed holding a *pre-exam* `assessment_item_id` (App keeps `overview` after
+the phase moves on) just as the phase-change effect cleared `finalizedRef`, so the next commit
+flushed against a closed exam. The unmount had been hiding it by destroying the component first.
+Gating the overview lookup on `isExamPhase` fixes it and is what the data already meant — only
+pre/post-exam items have an `assessment_item_id`. Watched failing without the gate. Worth noting as
+a pattern: **removing a remount can surface staleness the remount was silently laundering**, so the
+regression suite around the thing you stop destroying earns its keep.
+
+**The same shape is still live one branch away**: `renderPhase` wraps the exam view in `.stack`
+conditionally when an intervention arrives, so a hint remounts the exam screen for the same reason.
+Pre-existing, the AUD-F-03 family, and there the `.stack` styling is load-bearing — a layout decision,
+recorded rather than absorbed (AUD-F-24).
+
+### 3. The test asserted a default value, which is worse than having no test
+
+Arm 1 of `narrative-displacement.spec.ts` compared the question position before and after the
+narrative — **while sitting on Question 1**. A remount resets to Question 1. The assertion compared
+`Question 1 of 10` to `Question 1 of 10` and passed, on a build that was broken, and it did so in a
+green run where nothing invited a second look. The local suite, the PR checks and my own reading of
+the diff all agreed, and staging disagreed.
+
+The arm now moves off Question 1 first and asserts that it managed to, and it was verified against
+**two** broken builds — the original sibling branch *and* the conditional wrapper — not just the one
+that existed when it was written.
+
+**The rule, stated so it generalises:** a test that asserts state survives an event must first put
+that state somewhere a reset would be visible. Asserting that a default is still the default proves
+nothing and cannot be distinguished from a pass. This is the *third* time this session that a check
+which looked green was measuring nothing — after AUD-F-23 (a skip whose condition was never false)
+and D-117 §3 (a helper whose evidence count silently went to zero). The common shape is a green
+signal with no failing counterpart ever observed, which is precisely what D-107 §1 already demands
+and what it takes seriously to actually apply.
+
+### 4. What the same run exposed: AUD-F-25
+
+Making AUD-F-23's chips skip into a failure worked, in the sense that it immediately found something:
+staging's `/chat/meta` returns `"suggested_prompts":[]`. `deploy-staging.yml` re-seeds MySQL and
+re-embeds RAG but never runs the suggestions seeder — and it *cannot*, because the ops task runs the
+learning-api image, whose runtime stage copies only `apps/learning-api` while its builder stage
+installed chat-api. Probed: `ModuleNotFoundError: No module named 'chat_api'`, exit 1. A dangling
+editable install.
+
+**Left failing on purpose.** Scoping the chips test back to `local` would make criterion 3 green
+while a launch-journey feature is dead on staging, which is the failure mode AUD-F-23 was about. The
+fix is a packaging decision with three viable shapes (see AUD-F-25) and it needs a call rather than a
+default.
+
+### 5. Status, stated without rounding up
+
+**Criterion 3 is not met.** One failure is fixed here (the dwell), one is filed and unfixed
+(AUD-F-25's chips), and one — `journey-student`'s post-finalize stall — is **unresolved and not yet
+re-measured** against the corrected fix; its artifacts were overwritten by later local runs before
+they were read, so it gets a fresh measurement rather than a hypothesis. Criteria 7's learning leg and
+8's inductions remain untouched.

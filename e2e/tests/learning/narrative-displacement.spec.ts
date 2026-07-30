@@ -111,12 +111,31 @@ test("a narrative arriving mid-exam leaves the exam screen mounted and the dwell
   // The exam screen is up and the narrative has not arrived yet - the window the defect
   // lived in. Dwell across the narrative's arrival.
   const DWELL_MS = 15_000;
+
+  // **Move off Question 1 before measuring anything.** This line is the whole reason this
+  // arm can see AUD-F-24. A remount re-runs `useState(0)` and returns the student to
+  // Question 1 - so an arm that sits on Question 1 and compares the position afterwards
+  // compares 1 to 1 and passes through the defect. The first AUD-F-21 fix shipped green
+  // against exactly that blind spot and truncated the dwell on staging anyway.
+  // Waited for: `QuestionNavBar` renders only once `GET /exam/overview` has landed, which
+  // is after the phase chip appears. Asserting the count immediately reads zero buttons.
+  const nav = page.locator(".question-nav button, .exam-nav button");
+  await expect(
+    nav.nth(2),
+    "no question navigator after the overview should have landed, so this arm cannot move off Question 1 and cannot detect a remount",
+  ).toBeVisible({ timeout: 30_000 });
+  await nav.nth(2).click();
+
   reported.length = 0;
   // The position span only - `.progress-bar` also holds the exam timer, which ticks down
   // during the dwell and would make any whole-element comparison fail on the clock rather
   // than on a remount.
   const position = page.locator(".progress-bar span", { hasText: /Question \d+ of \d+/ });
   const questionBefore = (await position.innerText()).trim();
+  expect(
+    questionBefore,
+    "the navigator click did not move off Question 1, so a remount would be invisible here",
+  ).not.toMatch(/Question 1 of/);
   const dwellStarted = Date.now();
 
   // Wait for the narrative rather than assuming a fixed delay puts it inside the dwell:
@@ -154,8 +173,7 @@ test("a narrative arriving mid-exam leaves the exam screen mounted and the dwell
   ).toBe(questionBefore);
 
   // And the measurement the parent report is built from. Navigating away flushes the dwell.
-  const nav = page.locator(".question-nav button, .exam-nav button");
-  if ((await nav.count()) > 1) await nav.nth(1).click();
+  await nav.nth(1).click();
   await page.waitForTimeout(1000);
 
   const max = reported.length > 0 ? Math.max(...reported) : 0;

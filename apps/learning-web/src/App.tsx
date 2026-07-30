@@ -356,17 +356,33 @@ function App() {
     const showNarrative =
       narrative != null && narrative !== dismissedNarrative && interactedPhase !== snapshot.phase;
 
+    // A **Fragment with two fixed slots**, always returned, and both halves of that are
+    // load-bearing (AUD-F-24 - the first version of this fix got it wrong and staging said
+    // so). React reconciles children by position, so a wrapper that appears only when the
+    // narrative does moves `phaseContent` from `main`'s child to `main > div`'s child, and
+    // React responds by **unmounting and remounting** it. That is the same defect
+    // AUD-F-21 was: the exam screen's view-time cleanup fires and `useState(0)` re-runs.
+    // The first fix wrapped conditionally in `.stack` and therefore still truncated the
+    // dwell on staging - 1578 ms against a 15,000 ms dwell, where the pre-fix number was
+    // 2116 ms. A conditional wrapper is a remount.
+    //
+    // So slot 0 holds the narrative *or `null`*, and slot 1 always holds the phase content
+    // at the same index either way. A Fragment rather than a `div` because `.stack` carries
+    // `max-width: 480px`, which would have quietly narrowed the exam screen for the
+    // duration of every narrative - and because adding no DOM node at all means the
+    // no-narrative render is identical to what shipped before this change.
     const phaseContent = renderPhase(snapshot);
-    if (!showNarrative) return phaseContent;
     return (
-      <div className="stack">
-        <StageTransitionScreen
-          narrative={narrative}
-          evidence={snapshot.stage_narrative_evidence ?? []}
-          onContinue={() => setDismissedNarrative(narrative)}
-        />
+      <>
+        {showNarrative ? (
+          <StageTransitionScreen
+            narrative={narrative}
+            evidence={snapshot.stage_narrative_evidence ?? []}
+            onContinue={() => setDismissedNarrative(narrative)}
+          />
+        ) : null}
         {phaseContent}
-      </div>
+      </>
     );
   }
 

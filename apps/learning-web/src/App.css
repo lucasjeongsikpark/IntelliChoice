@@ -33,6 +33,11 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
+  /* AUD-F-24: a stage narrative renders as a sibling above the phase screen rather than
+     inside a wrapper (a conditional wrapper remounts the screen below it - see App.tsx).
+     This is the spacing that wrapper used to provide. No effect on any single-child
+     screen, which is every other branch. */
+  gap: 16px;
 }
 
 .app-footer {
