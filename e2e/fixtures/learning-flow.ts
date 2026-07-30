@@ -127,6 +127,16 @@ export async function answerCurrentQuestion(page: Page): Promise<boolean> {
   // clicking Submit (AUD-F-01). Every journey would otherwise carry that flake.
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await dismissNarrativeIfPresent(page);
+    // AUD-F-27: wait out an in-flight submission before concluding there is nothing to
+    // answer. While one is running the button reads "Submitting…", so the exact-name
+    // locator below finds nothing - and this function returning false means "no answerable
+    // question", which `answerWholeExam` reads as *the end of the exam*. It would therefore
+    // stop early whenever a submit was still in flight, silently answering fewer items than
+    // it reported. Bounded, so a genuinely absent button still returns false promptly.
+    await page
+      .getByRole("button", { name: /^submitting…$/i })
+      .waitFor({ state: "detached", timeout: 15_000 })
+      .catch(() => undefined);
     const submit = page.getByRole("button", { name: /^submit answer$/i });
     if ((await submit.count()) === 0) return false;
     const options = page.locator(".options button.option");

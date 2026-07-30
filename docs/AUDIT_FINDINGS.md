@@ -3049,3 +3049,78 @@ fixing, but the flush the tests measured came from the phase going backwards. Tw
 on a diagnosis that fit the symptom and was not the cause — the honest reading is that the timeline
 in `journeys.jsonl` contained the answer from the first staging run onward, and it was not read
 until the third.
+
+### AUD-F-27 — The client silently drops any mutation attempted while another is in flight, and tells the student it succeeded (P1, found in the S43 continuation, D-120; not fixed)
+
+**Criterion 3's last two failures are this, and it is silent data loss on the primary journey.**
+
+`useLearningSession`'s `run()` wrapper gates every mutation on a single flag:
+
+```ts
+const run = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | null> => {
+  if (busyRef.current) return null;   // no request, no error, no retry
+  ...
+```
+
+`submitAnswer`, `finalizeExam`, `skipExamItem`, `chooseTopic` — all of them. A second call while
+the first is in flight returns `null` and **does nothing at all**. Nothing surfaces: `setError` is
+not called, and `ExamScreen`'s `handleSubmit` has already advanced `currentDisplayOrder` and set
+`Answer submitted for question N` before any of this is known.
+
+**Measured on staging, from one run's own artifacts:**
+
+| spec | answers the test submitted | `POST /answers` actually sent | `POST /exam/finalize` sent |
+|---|---|---|---|
+| `journey-student` | 10 | **2** | **0** |
+| `hint-displacement` | 10 | **1** | **0** |
+
+The page snapshot is unambiguous: the question navigator shows questions **1 and 9** as
+"answered, locked" and the rest "not yet answered", the status line reads *"Answer submitted for
+question 10"*, and the finalize modal is open with *"8 questions still need an answer"* — its
+Submit button `[active]`, i.e. clicked. `handleFinalizeConfirm` ran, `onFinalize` returned falsy
+because `run()` dropped it, so `setModalOpen(false)` never fired and the modal stayed for the full
+30 s. **Zero console errors, zero failed requests, zero 4xx/5xx** — from the browser's point of view
+nothing went wrong.
+
+**Real-user impact, which is why P1 rather than a harness complaint:**
+1. **A submitted answer can be lost with positive confirmation shown.** The student sees the
+   advance and the status message; the answer never reaches the server and the item stays
+   unanswered, so it is marked incorrect at finalize. That corrupts the pre-exam score, and
+   therefore `learning_gain`, and therefore the parent report.
+2. **"Submit exam" immediately after answering the last question is a normal human action
+   sequence**, and on staging a `POST /answers` takes ~200-400 ms — so the finalize lands inside
+   the window, is dropped, and the modal simply does nothing when confirmed. The student is stuck
+   on a dialog whose button appears dead.
+
+**The intended design exists and was never wired up.** `ExamScreen` already accepts a `busy` prop
+and `App.tsx` passes **`busy={false}`** at every call site, while the hook keeps its flag in a
+`useRef` — non-reactive by construction, so it cannot drive the UI. Whatever the original intent,
+the guard currently protects the hook's internal state at the cost of the student's work.
+
+**Why it never showed before this session:** `MockBedrockProvider` and a local Postgres answer in
+~1 ms, so the in-flight window is too small for the next click to land inside it. This is the
+**fifth** finding in the "only staging can see it" family (AUD-C-02, AUD-F-19, AUD-F-21, AUD-F-26,
+AUD-F-27) and the third that is a *race* the mock is too fast to lose.
+
+**✅ Fixed 2026-07-29 (D-120, user decision): wire the prop that already existed, and stop being
+silent.** `busy` is now state as well as a ref — the ref for `run()`'s synchronous guard (state is a
+render behind, so two clicks in one tick would both pass it), the state for the UI — wired to all six
+`App.tsx` call sites, and a refused call sets a real error instead of returning `null` quietly.
+`ExamScreen` needed no change at all: it already disabled every control on `busy` and switched its
+label to "Submitting…".
+
+**Deliberately not a queue.** An answer arriving after a finalize has nowhere valid to land (AUD-F-02's
+409), so serialize-and-refuse is the honest behaviour; the fix is to make the second click impossible,
+not to replay it. `recordItemTime` stays outside the guard — fire-and-forget telemetry, and gating it
+would re-open AUD-F-01.
+
+**Regression test** (`mutation-serialization.spec.ts`) holds the answer POST open for 1200 ms with
+`route.continue()` after a timer, reproducing staging's latency on the mock, and asserts a **count**:
+three answers submitted, three `POST /answers` sent. Watched failing with the wiring reverted —
+**2 of 3 reached the server** — which is the defect in miniature.
+
+**And it caught a harness bug the fix would otherwise have introduced.** The new "Submitting…" label
+made `answerCurrentQuestion`'s exact-name locator miss, and that function returning false means "no
+answerable question", which `answerWholeExam` treats as *the end of the exam* — so it would have
+answered fewer items than it reported, on staging, silently. The fixture now waits out an in-flight
+submission first.

@@ -6192,3 +6192,77 @@ it repairs the image's own stated intent ("already has every workspace package i
 than working around it. **Criterion 3 was deliberately left failing on this** rather than scoping the
 chips test back to `local` (user decision): a gate criterion going green while a launch-journey
 feature is dead on staging is the failure mode AUD-F-23 was about.
+
+---
+
+## D-120 — AUD-F-27: the client discarded the student's work and said it had saved it (accepted, 2026-07-29)
+
+Criterion 3's run against `26a56f6e` came back **51 passed / 2 failed / 3 skipped** — up from
+49/3/4, with `time-telemetry` passing for the first time (AUD-F-26's fix confirmed live) and the
+chips passing (AUD-F-25 confirmed live). Both remaining failures turned out to be **one new P1**,
+and this time the artifacts were read before anything was written.
+
+### 1. What it is
+
+`useLearningSession.run()` serializes mutations and used to discard anything arriving while another
+was in flight — `if (busyRef.current) return null`: no request, no error, no retry. Meanwhile
+`ExamScreen.handleSubmit` had already advanced the question and set *"Answer submitted for question
+N"*. So the student got positive confirmation for work that was thrown away.
+
+Measured, from one run's own artifacts:
+
+| spec | answers submitted | `POST /answers` sent | finalize sent |
+|---|---|---|---|
+| `journey-student` | 10 | **2** | **0** |
+| `hint-displacement` | 10 | **1** | **0** |
+
+The page snapshot corroborates exactly: questions 1 and 9 "answered, locked", the rest "not yet
+answered", status line *"Answer submitted for question 10"*, and the finalize modal open reading
+*"8 questions still need an answer"* with its confirm button `[active]` — clicked, dropped, so
+`setModalOpen(false)` never ran and it sat there looking dead. **Zero console errors, zero failed
+requests, zero non-2xx.** Nothing anywhere said a thing.
+
+**Why it is P1 and not a harness artefact.** A lost answer is scored incorrect, which corrupts the
+pre-exam score, the `learning_gain` computed from it, and the parent report built on that. And
+"answer the last question, then click Submit exam" is an ordinary human sequence well inside the
+~200-400 ms an answer takes on staging, so the dead-modal path is reachable by a real student, not
+just by a test clicking at machine speed.
+
+### 2. The fix, which was mostly already written
+
+**`ExamScreen` already accepted a `busy` prop and disabled every control on it, switching its label
+to "Submitting…" — and `App.tsx` passed `busy={false}` at all six call sites.** The hook kept its
+flag in a `useRef`, non-reactive by construction, so the UI *could not* have read it. The intended
+design was present and unreachable.
+
+So: `busy` is now state as well as a ref (the ref for `run()`'s synchronous guard, since state is a
+render behind and two clicks in one tick would both pass it; the state for the UI), wired to all six
+screens, and a refused call now sets a real error instead of returning `null` in silence.
+
+**Deliberately not a queue** (the option was considered and declined): an answer that arrives after
+a finalize has nowhere valid to land — that is AUD-F-02's 409 — so serialize-and-refuse is the honest
+behaviour, and the fix is to stop the second click from being possible rather than to replay it.
+`recordItemTime` stays outside the guard: it is fire-and-forget telemetry and gating it would
+re-open AUD-F-01.
+
+### 3. A harness bug the fix would have introduced, caught by its own test
+
+The new "Submitting…" label meant `answerCurrentQuestion`'s exact-name locator for *"Submit answer"*
+found nothing, and that function returning false means **"no answerable question"** — which
+`answerWholeExam` reads as *the end of the exam*. It would have stopped early whenever a submit was
+in flight, answering fewer items than it reported, on staging, quietly. Found because the new spec
+failed with `could not answer question 2` on its first run. The fixture now waits out an in-flight
+submission before concluding there is nothing to answer.
+
+Worth noting as a pattern alongside D-118 §3 and D-117 §3: **this session produced three separate
+cases of a harness that would have reported success while measuring less than it claimed.** The
+common tell is a helper that returns a boolean meaning "nothing here" when the honest answer is "not
+yet".
+
+### 4. Fifth in the family, and the delay trick is now the standard tool
+
+AUD-C-02, AUD-F-19, AUD-F-21, AUD-F-26, AUD-F-27 — all invisible locally because the mock answers in
+~1 ms. Three of them (F-21, F-26, F-27) are *races* rather than behaviours, and all three are now
+covered locally by holding a request open with `route.continue()` after a timer, which reproduces
+staging's timing on the mock without faking any content. That is the pattern to reach for first when
+a staging-only failure appears, in preference to reasoning about the code.
