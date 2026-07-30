@@ -828,7 +828,15 @@ been counting the DOM before `/chat/meta` resolved and skipping itself on every 
 (**AUD-F-23**, P3, fixed — that journey has now been driven once), and the parent-dashboard skip's
 message was itself the defect (**AUD-F-22**, P2, filed — the dashboard button exists only on
 `StartScreen`, gated on a `studentId` a parent gets by starting a session, and on `ResultsScreen`).
-**⛔ Criterion 3 still cannot be claimed, and the reason changed twice before it was understood.**
+**✅ CRITERION 3 IS MET (2026-07-29, D-120): two consecutive clean runs against live staging**, both
+**53 passed / 0 failed / 4 skipped** on build `447d412617a2` with the identity asserted, **zero
+console errors and zero page errors** across 52 tests, and the only `serverError` being the 500
+`response-shapes.spec.ts` stubs on purpose for AUD-C-10. The 4 skips are deliberate target scopes with
+written reasons. It took five findings — AUD-F-21, AUD-F-24, AUD-F-25, AUD-F-26, AUD-F-27 — and only
+the last two were what the failures actually were.
+
+**The history below is kept because the wrong turns are the useful part.**
+**⛔ Criterion 3 could not be claimed for a long time, and the reason changed twice before it was understood.**
 AUD-F-21's fix deployed and the failure did not close; AUD-F-24's fix deployed and it *still* did not
 close. The dwell read 2116 → 1578 → 1653 ms across three staging runs. The actual cause is
 **AUD-F-26** (P1, fixed, D-119): `_initial_snapshot` responded with state read *before* a ~2.3 s
