@@ -932,6 +932,14 @@ monitored inbox. Two notes for whoever re-runs this: D-121's "2 consecutive minu
 the last N datapoints that *exist*), and the chat induction **cost $17.25** in real Bedrock calls
 because a threshold set 25% above the normal p95 takes four runs to straddle successfully.
 
+**▶️▶️ Criterion 1 is swept end to end — 37 of 37 sections — and now turns on one sentence
+(2026-07-30, D-128).** Its two clauses split: "100% mapped to implementation + test" is **satisfied**;
+"every discrepancy dispositioned" is **not**, because **T-02 is open** (§5.1.2's first-visit notice,
+owned only by implication). That disposition is a scheduling call, not a build. Tranche 6 also added
+a fourth verdict, **structural**, for requirements naming an artifact rather than a behavior —
+fenced by a mandatory enforcing mechanism, with §5.3 and §5.36 recorded as *descriptive* because
+nothing mechanical breaks if their description drifts.
+*(How it started:)*
 **▶️ Criterion 1 is started, has an artifact, and is no longer undefined (2026-07-30, D-124).**
 [TRACEABILITY.md](TRACEABILITY.md) supplies what it had always lacked — a **denominator**
 (§5's 37 sections / ~197 subsections, minus §5.17 per D-078, §5.30.3's EKS-only controls per D-004,
