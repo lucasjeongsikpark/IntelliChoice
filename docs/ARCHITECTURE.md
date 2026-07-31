@@ -150,6 +150,28 @@ to rot, because nothing fails when it does.)*
   exists to stop. Unsettled reservations stay charged at their estimate — over-counting, which is the
   safe direction for a spend control. The per-session gateway budget is *not* covered and remains
   stateless by design (D-072).
+- **A paid-API call needs an *input* bound, not only spend and output bounds — and the bound must be
+  sized against the timeout, not the context window** (AUD-F-34/AUD-F-36, D-141). The gateway has
+  always bounded output tokens, per-call timeouts, retries, the circuit breaker and per-session spend.
+  Nothing bounded how much went *in*, so `memory-consolidate` built a 215,355-token prompt from
+  13,865 `learning_events` against a 200,000-token context and failed **every** call for its entire
+  existence — while exiting 0, because it caught its own errors and printed a summary. Two rules came
+  out of fixing it, and both generalise past this job:
+  1. **Any payload assembled from an unbounded row count needs a batch bound**, expressed in the same
+     serialisation the gateway sends (`model_dump_json`) so the estimate cannot drift from the payload,
+     plus a **cap on calls per subject** — otherwise the fix converts one failing call into an
+     unbounded number of succeeding paid ones.
+  2. **The context window is usually the least binding of three constraints.** The first bound (120k
+     tokens) fitted the window and still failed: 12 cents of input per call, and slower than the 20 s
+     call timeout. Latency on a structured-output path tracks the **output** budget — here derived from
+     a student's existing fact count — so a batch has to be sized against timeout and cost first.
+- **A job that catches its own errors must not report success by exhaustion** (AUD-F-34, D-141 §1).
+  The scheduled-job failure alarm matches `containers.exitCode: [{"anything-but": [0]}]`, so a CLI that
+  swallows every failure and returns 0 is invisible in every console — which is how a job that had never
+  once worked survived unnoticed until it was run by hand. Every scheduled CLI therefore owes a non-zero
+  exit when its whole unit of work failed, and a summary line that distinguishes "nothing to do" from
+  "nothing worked". Budget exhaustion is *not* a failure and must not trip it, or the alarm gets
+  disabled within a month.
 - **One attempt per exam item, enforced by the database** — `assessment_attempts` is unique on
   `(assessment_session_id, question_variant_id)`; the `Idempotency-Key` deduplicates a retry of the
   same submission and does not license a second answer (S42, AUD-L-10, D-110 §1). Scoring counts

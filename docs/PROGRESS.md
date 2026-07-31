@@ -3399,6 +3399,56 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
+### Off-roadmap — AUD-F-34 found, fixed in three deploys, and criterion 3 failed its re-run (2026-07-31, third session) ⏸ partial
+- **Scope: PROGRESS.md's own pointer (post-D-138/D-139), then user-directed.** The user chose the strict
+  criterion-6 reading (**08-09**) and approved the de-risking run; the run found the job broken, and the
+  user then chose **fix now / chunk it / trim the synthetic rows** for the fix. Marked ⏸ because
+  **criterion 3 is not met** and two new P2s are open, not because anything planned was skipped.
+- **⛔ AUD-F-34 (P1) found by the de-risking run, before the job's first-ever firing.** Every model call
+  failed on prompt length and the process **exited 0**, printing `Consolidation run complete`. Three
+  reasons nothing would have caught it: exit 0 defeats the ops-task rule (`exitCode: anything-but 0`);
+  `0 added` is indistinguishable from "nothing to do", which is the *correct* output for both purge
+  jobs; and **the reader written earlier the same day would have certified it**, because that summary
+  line prints on total failure. D-140.
+- **✅ Fixed and verified: 8 of 8 calls, exit 0, 5 facts reconfirmed, 23.26 cents** on
+  `gha-cfe9dbc0d507` / ops-task rev 40 — the first clean run in the job's history. Token-budgeted
+  chronological chunking, `existing_facts` re-read per call so a later batch sees an earlier batch's
+  writes, and `main()` returning 1 when every call fails. **Keeper: a job that catches its own errors
+  must not report success by exhaustion.** D-141 §1, §7.
+- **⚠️ Three deploys, because two of my own constants were wrong and both were found by running it.**
+  120k input tokens was sized against the **context window** — the least binding constraint — and cost
+  **66.18 cents for two students** while missing the 20 s timeout. 20k cut cost 5.9× **and the timeouts
+  persisted**, refuting the input hypothesis: the driver is the **output** budget, which scales with a
+  student's fact count (0 facts → 1280 → always succeeded; 7 → 2176 → always timed out, twice-observed).
+  Timeout 20 → 120 s, which **walks back D-141 §3's own reasoning** explicitly. D-141 §3, §6.
+- **⚠️ Five of ten new tests were worthless and an inverted control caught it.** They computed input
+  sizes *from* the constants they pinned, so a 100,000,000-token control scaled the inputs and all 21
+  still passed. Rewritten against absolute sizes; three controls now fail the right tests (5 / 2 / 1)
+  and pass restored. D-141 §2.
+- **⛔ The approved trim was aimed at the wrong table, and counting first is the only reason it did not
+  happen.** `tutor_chat_messages` holds **3 rows and 28 characters**; the real input is **13,865
+  `learning_events`** at ~15 tokens each. **Not done, and recommended against** for `learning_events`
+  too — the cap already bounds cost and that table is the evidence base the new facts cite. AUD-F-34's
+  cause paragraph corrected. D-141 §5.
+- **⛔ Criterion 3 re-run: run 1 clean (53/4, matching D-134), run 2 FAILED** on
+  `journey-parent.spec.ts:17`, same image, no deploy between. `/respond` 200 and the interrupt heading
+  never cleared across 60 s, with zero errors anywhere. Timings discriminate: passing record has the SSE
+  stream **178 ms before** `/respond`, failing record has both at the **same millisecond**. **AUD-F-36
+  (P2)**, ~1 in 3 whole-suite runs, 0 of 3 in isolation. **Deliberately did not re-run until two landed
+  clean** — at ~⅔ per run that is claiming the criterion by selection. D-141 §9.
+- **Also filed: AUD-F-35 (P2)** — `promote_if_eligible` applies no evidence bar despite its name and
+  despite `reconfirm_fact`'s docstring claiming it does. Not fixed (it changes what the tutor reads);
+  batching would have amplified it, so `_maybe_promote` skips this run's own creations. D-141 §4.
+- **⚠️ Scaling number filed, not fixed:** ~2–3 cents per real student per week ⇒ **$90–120/month at
+  1,000 MAU, comparable to the whole current AWS bill**, and `bedrock_run_budget_cents = 200` stops the
+  run after ~70–90 students. **The weekly job as configured cannot serve the pilot cohort.** D-141 §8.
+- **Verification:** `make lint` clean, `pyright` 0 errors, **645 passed / 2 skipped** (from 634 — 11 new
+  tests). Three staging deploys, all canary-clean; four manual ops-task runs; every AWS read read-only
+  apart from those runs. PRs #74, #75, #76 merged; #77 open.
+- **Not done, and why:** Messages A and D (yours to send); the 08-01 re-probe and 08-02 criterion-6 read
+  (dates); AUD-F-33 and the r = 5 purchase (need an apply); AUD-F-35 and AUD-F-36 fixes (both change app
+  code, and AUD-F-36 must be verified against the whole suite).
+
 ### Off-roadmap — the criterion-6 date is wrong by a week, and the Fargate price confirmed from the bill (2026-07-31, second session) ✅
 - **Scope: PROGRESS.md's own "Next session" pointer (post-D-136/D-137)**, not a numbered roadmap block.
   Every item on it was date-gated (08-01, 08-02), human (Messages A/D), or blocked behind the apply
