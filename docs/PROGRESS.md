@@ -78,6 +78,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   them outside Terraform, the D-116 pattern). Contained today by `ignore_changes = [task_definition,
   desired_count]`, but **no routine `terraform apply` here is safe unattended**; this session used
   `-target`. Capacity was pinned to 2/2 for the sweep and **restored to min 2 / max 3** afterwards.
+  **🔬 A live test of the new alarm is running as this session closes, unplanned:** the e2e suite
+  scaled **chat-api to 2 tasks against its floor of 1**, and both `capacity-above-floor` alarms have
+  since gone `INSUFFICIENT_DATA` → **OK**, so they are evaluating real data. If chat-api scales in
+  normally the alarm stays OK; if it does not, `intellichoice-staging-chat-api-capacity-above-floor`
+  fires ~60 minutes later and **AUD-F-33 has just been caught on a second service**, which would kill
+  the remaining `min_capacity` hypothesis too. **Check that alarm's history first thing next session** —
+  either outcome is informative and neither needs any setup.
   **634 passed / 2 skipped**, lint and pyright clean.
 - **⛔ AUD-F-31's staging before/after ran, and it refutes the reason the fix was prioritised
   (2026-07-31, D-132). The fix is confirmed; the p95 claim is dead.** Capacity-matched at 25
