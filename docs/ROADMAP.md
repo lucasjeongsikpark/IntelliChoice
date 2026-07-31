@@ -821,7 +821,29 @@ the 3-task ceiling. **Decision (user call, D-122 §3): 25 is the documented pilo
 p95 ≤ 3 s would need ~6× the capacity (~12 tasks, ~$216/month) and is carried as a post-pilot
 obligation. The cheapest remaining lever is `select_topic`, the p95 driver in every run.
 
-**▶️ That lever has been pulled in code but NOT yet measured on staging (2026-07-30, D-131).**
+**⛔ That lever was pulled AND measured, and it does not move this criterion (2026-07-31, D-132).**
+The staging before/after ran at 25 concurrent, 2 tasks on both arms. **AUD-F-31's fix is confirmed in
+the quantity it claimed** — 49 → 9 SQL statements per `select_topic` (identical in 125/125 traces each
+arm), SQL time in the request 1037 → 156 ms median, `select_topic` k6 median 2.37 → 1.23 s with
+disjoint 5-run ranges. **And criterion 7's own threshold metric did not improve:**
+`http_req_duration` p95 went from median-of-p95 2.72 s with **0 of 5 runs breaching** the 3 s
+threshold to **3.31 s with 3 of 5 breaching**. Overlapping ranges at n=5 mean no regression is
+claimed; the projected *improvement* is refuted.
+
+**The reason is that the task is CPU-bound at 25 concurrent, not I/O-bound** (ECS CPU peaks 79–92%
+before, 72–96% after). Removing round-trips cannot raise a CPU-limited throughput ceiling —
+`flow_total` and answers/s are both unchanged — so the returned ~1.1 s reappears as queueing in the
+answer phase (p95 2.56 → 3.42 s). **The supported concurrency is still the documented 25 and the
+~$216/month capacity obligation is still OPEN**, now for a measured reason rather than an unmeasured
+one. **Stop describing `select_topic` as the cheapest remaining lever — it has been pulled.**
+
+**What criterion 7 actually needs next is AUD-F-32**, filed off this measurement: ~726 ms of every
+answer request is neither SQL nor graph-node time, ×10 answers ≈ 7.3 s of a ~15 s flow, and that is
+what the p95 is now made of. It is a CPU/overhead question. **Size it before optimising it** —
+D-132 §3's lesson is that `select_topic` was the biggest span in the profile and the wrong target,
+because the profile could not show which resource was scarce.
+
+*(Superseded — how this read after D-131 and before the measurement:)*
 AUD-F-31 is fixed: the build issues **7 SQL statements instead of 47**, and ~40 fewer round-trips at
 the ~32 ms each measured at 25 concurrent projects to most of the 1.62 s span that dominates the p95.
 **Nothing about criterion 7 changes yet.** The supported concurrency is still the documented **25**,
@@ -829,7 +851,8 @@ and the ~$216/month capacity obligation is still open, because the evidence is a
 plus a projection — not a staging before/after. **What closes this: a k6 run at 25 concurrent before
 and after the change deploys, plus an X-Ray re-profile of `langgraph.select_topic`.** Only then can
 the ~$0 fix be said to have replaced the ~$216/month purchase; until then it is *probable*, which is
-the word this criterion exists to disallow.
+the word this criterion exists to disallow. *(D-132 ran it. The caution was right and the projection
+was wrong: ~$0 did not replace ~$216/month.)*
 *(The original finding, kept because the before/after is the useful part:)*
 **✅ Criterion 7's learning-app leg is measured (2026-07-30, D-121) — and it FAILS at the criterion's
 own 150 concurrent (AUD-F-28, P1):** p95 **36.01 s** against ≤ 3 s, **13.16%** errors against < 1%,
@@ -973,11 +996,15 @@ sub-item read as done. [scripts/scan_logs_pii.py](../scripts/scan_logs_pii.py) f
 four failure modes were control-tested in both directions (truncated slice → FAIL, unreadable
 window → FAIL, zero events → FAIL, a configured log group that no longer exists → FAIL, clean
 corpus → CLEAN).
-**Two findings came off the same run — AUD-F-30 and AUD-F-31**, and the second is the useful one:
-`select_topic`'s 1.6 s is **51 sequential SQL statements and no model call**, so criterion 7's
-remaining p95 gap has a ~$0 fix that the ~$216/month capacity estimate was hiding.
-**AUD-F-31 is now fixed in code (2026-07-30, D-131 — 47 → 7 statements locally), with the staging
-before/after still owed;** AUD-F-30 remains open and is the cheapest unfixed finding.
+**Two findings came off the same run — AUD-F-30 and AUD-F-31.** AUD-F-31: `select_topic`'s 1.6 s is
+**51 sequential SQL statements and no model call**. It read at the time as criterion 7's remaining
+p95 gap having a ~$0 fix that the ~$216/month capacity estimate was hiding.
+**Both are now fixed and measured (D-131, D-132), and the "~$0 fix" reading was wrong.** AUD-F-31's
+statement count is confirmed on staging (**49 → 9**, 125/125 traces each arm) and criterion 7's
+threshold metric **did not improve** — the task is CPU-bound at 25 concurrent, so removing
+round-trips moved the queueing instead of removing it. **The ~$216/month obligation stays open**, and
+the successor target is **AUD-F-32** (~726 ms per answer request that is neither SQL nor graph work).
+AUD-F-30 is fixed the same session, after the measurement rather than with it (D-129 §6).
 
 **✅ CRITERION 1 IS MET (2026-07-30, D-129) — the one sentence got written.** T-02 is dispositioned:
 **S45 builds §5.1.2's first-visit notice; the §6.1 legal-and-policy track enumerates the eleven

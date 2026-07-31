@@ -7210,3 +7210,125 @@ pre→study→post→completed cycle really ran against MySQL and Postgres rathe
 migration. No SPEC behavior was reinterpreted; §5.9.1's fixed set, §5.9/§5.13's `unseen` starting
 state and §5.13.2's parallel-form rule are all where they were, and the `unseen` policy
 deliberately stayed in `assessment_builder.py` rather than moving into the repository.
+
+## D-132 — AUD-F-31's staging before/after: the statement count held exactly, the latency projection did not, and the constraint was never the one being profiled (accepted, 2026-07-31)
+
+**Context.** D-131 batched `select_topic`'s exam build and deliberately refused to claim a p95 from a
+local statement count, leaving "a k6 run at 25 concurrent before and after this branch deploys, plus
+an X-Ray re-profile" as the next engineering step. This is that step. AUD-F-30 was landed after it,
+in the order D-129 §6 requires.
+
+### 1. What was confirmed
+
+Capacity-matched at 25 concurrent, 2 tasks on both arms, task definition `:39` → `:40`
+(`gha-9bfce904ebad`, verified against local HEAD):
+
+| | before | after |
+|---|---|---|
+| SQL statements per `select_topic` span | **49**, identical in 125/125 traces | **9**, 125/125 |
+| SQL time in the whole request, median | 1037 ms | **156 ms** |
+| non-SQL remainder of the request (derived) | 1185 ms | **1164 ms** |
+| `select_topic` k6 median, 5-run range | 1.90–3.00 s | **1.00–1.47 s** (disjoint) |
+| whole request (root span), median | 2222 ms | **1320 ms** |
+
+The 902 ms median improvement is fully accounted for by the 881 ms of SQL removed, and the non-SQL
+remainder is invariant within 2%. **Two independent quantities agreeing is what makes this a
+measurement rather than a number.** D-131's local 47 and D-129's staging 51 both reconcile with 49.
+
+### 2. What was refuted, and it is the more important half
+
+**Criterion 7's own threshold metric did not improve.** `http_req_duration` p95, threshold < 3 s:
+
+| arm, 2 tasks | runs | median-of-p95 | breaches |
+|---|---|---|---|
+| before `:39` | 5 | 2.72 s | **0 of 5** |
+| after `:40`, warm | 5 | 3.31 s | **3 of 5** |
+
+Ranges overlap (2.14–2.96 against 2.48–3.60) at n=5 per arm, so **a regression is not established
+and is not claimed**. What is established is that the projected improvement did not appear.
+**D-129 §5 said "criterion 7's gap just got cheap"; that is now known to be false.** The
+~$216/month capacity obligation from D-122 §3 **stays open**, and the ~$0 alternative did not
+replace it. Criterion 7 remains met at the documented 25 concurrent, unchanged, for the same reason
+as before rather than a new one.
+
+**The mechanism is evidenced, not assumed.** ECS CPU peaks are the same on both arms (79–92% before,
+72–96% after) with 60 s averages slightly *lower* after. The task is CPU-bound at 25 concurrent, so
+removing I/O wait cannot raise the throughput ceiling — `flow_total` median is unchanged
+(15.37 → 15.93 s), throughput is unchanged (14.6–15.9 → 13.2–16.6 answers/s), and the ~1.1 s
+`select_topic` returned reappears as queueing in the CPU-bound answer phase, whose p95 goes
+**2.56 → 3.42 s**. Little's law: **the bottleneck moved, it did not disappear.**
+
+**The fix is still correct and still worth having** — 5× less database work, connections held far
+less time (which strictly improves the RDS connection-arithmetic carry-over, though it does not
+settle it), and it repaired a real determinism bug on the way. It is simply not a latency purchase,
+and the roadmap should stop describing it as one.
+
+### 3. The generalisable lesson, which is worth more than the fix
+
+**A span that dominates a profile is not a span that dominates a budget.** `select_topic` was the
+largest span in the trace and 93% SQL by its own duration, and removing 82% of its statements bought
+no aggregate latency — because the saturated resource was CPU, and CPU was never what the profile
+was reporting on. **Profile the constraint, not the biggest number.** The prior three sessions'
+lesson was that an instrument needs checking before its output means anything (D-104 §8, D-121,
+D-129 §5, D-131 §4); this one is a level up — the instrument was *correct* and the *inference* from
+it was wrong, because a per-span time series cannot tell you which resource is scarce.
+
+**A pre-registered expectation is what made this legible.** Before the after arm ran, the log
+recorded: "the task is CPU-saturated, so removing 40 SQL waits should not return the full ~1.0 s;
+expect the end-to-end p95 to improve by materially less than the SQL time removed." That was
+directionally right and understated. **Writing the prediction down first is the difference between
+a surprising result and a result that can be rationalised afterwards** — and it should become the
+habit for every before/after this project runs.
+
+### 4. Four measurement-protocol findings, all of which changed the answer
+
+1. **Back-to-back runs are not independent samples.** Four exploratory runs 20 s apart drifted
+   1.75 → 3.03 s. The arms use **5 runs at 120 s spacing** because of it, and report every run
+   rather than only an aggregate.
+2. **The burstable-database hypothesis was tested and rejected**, not assumed either way: both RDS
+   instances are `db.t4g.micro`, but `CPUCreditBalance` sat at its 288 maximum and Postgres CPU
+   peaked at 10%. **A plausible confound that is never measured is indistinguishable from a real
+   one.**
+3. **The first after arm was invalid and said so.** It scaled 2 → 3 tasks mid-arm at 00:22:51Z,
+   triggered by the *cold post-deploy warm-up run*, giving the after arm capacity the before arm
+   never had — **in the direction that flatters it**. Discarded and re-run warm at a matched 2 tasks,
+   with task count verified at the start *and* end of every run.
+4. **`langgraph.select_student` is a trap as a control span**, and the guard written to catch it had
+   the same bug it was catching. The span is real and findable and reports **0.028 ms with no SQL**,
+   so a profile of it prints a tidy table of zeros — and "0 statements" is also exactly what a
+   successful batching fix looks like. The first guard tested `median == 0.0`, never fired, and sat
+   beside a table that displayed "med 0" under a `:.0f` format. **The guard read as firing and was
+   not.** It is a `< 1.0 ms` threshold now and durations print at one decimal. The drift controls
+   moved to the k6 client-side trends (`learning_select_student`, `learning_create_session`), which
+   the diff does not touch.
+
+### 5. The instrument is now a script, on purpose
+
+`scripts/profile_xray_span.py` (`make profile-span`) replaces D-129 §5's hand-rolled pipeline, whose
+first answer was 102 statements and 131% of wall time in SQL because X-Ray records each SQLAlchemy
+statement **twice** — a child subsegment *and* a standalone segment. **The correction is structural
+rather than timestamp-based**: a statement counts only if it is a descendant of the target span, so
+the standalone copies are excluded by construction. The `(start_time, query)` dedup is still computed
+over whole traces and printed beside it, and the two agree (12,750 nodes seen, 6,375 deduped, 6,125
+in-span, and 6,125 ÷ 125 = 49 exactly). **Both arms measured by one reviewable script is the point** —
+a correction re-derived by hand on the second arm is not the same correction.
+
+Four guards, each verified firing against live traces: SQL time exceeding its own span → INVALID;
+zero matching spans → FAIL; degenerate (~0 ms) span → DEGENERATE; coverage always printed, because
+~97% of staging's traces were `/readyz` and an unfiltered denominator flatters a profile that never
+saw the request.
+
+### 6. What this session did not resolve
+
+**AUD-F-32 (new, P2): the ceiling is ~726 ms per answer request that is neither SQL nor graph work.**
+Over 1,247 answer requests: 836 ms median request, 110 ms of SQL, 98 ms in `langgraph.submit_answer`.
+Ten answers per flow makes ~7.3 s of a ~15 s flow unexplained, and that is what criterion 7's p95 is
+now made of. **This, not `select_topic`, is the next latency target**, and D-132's lesson says to
+size it before batching anything: `submit_answer` also issues **15 statements per answer, 150 per
+exam**, which is AUD-F-31's shape at a fraction of the prize.
+
+**AUD-F-33 (new, P3): learning-api did not scale back in for over two hours** while its scale-in
+alarm was in ALARM, with no scaling activity recorded. It scaled in correctly earlier the same day,
+so it is intermittent. D-122 cited "2 → 3 in ~1 min" as criterion 7's autoscaling evidence — that
+covers scaling **out** only, and a service that scales out reliably and in unreliably has a cost
+floor set by its worst recent minute. `desired-count` was restored to 2 manually.
