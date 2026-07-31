@@ -663,10 +663,10 @@ def _summary(event_id: str, chars: int) -> MemoryEventSummary:
 # pins cannot fail. Controls were then re-run against both constants and these do fail:
 # removing the input bound collapses the split/truncate assertions, and removing the call cap
 # collapses the drop assertion.
-_ASSUMED_CHARS_PER_CALL = 360_000  # 120,000 tokens x 3 chars/token
+_ASSUMED_CHARS_PER_CALL = 60_000  # 20,000 tokens x 3 chars/token
 _ASSUMED_CALL_CAP = 4
-# Big enough that two cannot share one call (2 x 200,000 > 360,000), small enough that one can.
-_BIG = 200_000
+# Big enough that two cannot share one call (2 x 40,000 > 60,000), small enough that one can.
+_BIG = 40_000
 
 
 def test_the_batching_constants_are_what_these_tests_assume() -> None:
@@ -688,7 +688,7 @@ def test_small_event_set_still_makes_exactly_one_call() -> None:
 
 
 def test_events_are_split_when_they_exceed_the_per_call_budget() -> None:
-    """Three 200,000-char events cannot share a 360,000-char call, so this is 3 batches.
+    """Three 40,000-char events cannot share a 60,000-char call, so this is 3 batches.
     Unbounded, it would be 1 - which is what the control confirmed.
     """
     batches, dropped = _batch_summaries([_summary(f"e{i}", _BIG) for i in range(3)])

@@ -8151,3 +8151,103 @@ which every call failed must exit non-zero**, so D-105 §3's rule fires. That is
 lesson — *a job that catches its own errors must not report success by exhaustion* — and it is the
 difference between this being found by a scheduled alarm and being found by a manual run that happened
 to be recommended for an unrelated reason.
+
+## D-141 — AUD-F-34 fixed by bounding the payload's input, and the fix's first deployed constant was wrong in two new ways (accepted, 2026-07-31)
+
+**Context.** D-140 left AUD-F-34 (P1) diagnosed and unfixed, with three decisions for the user: fix
+now and re-run criterion 3, or hold; which fix; and what to do about staging's synthetic data. The
+user chose **fix now**, **chunk the window into calls that fit the context window** (their own
+proposal), and **trim the synthetic rows**. This entry records what that produced, including the two
+things it got wrong on the way, because both are more instructive than the fix.
+
+### 1. The fix, and the three properties that make chunking safe rather than merely smaller
+
+`_batch_summaries` packs chronologically ordered event summaries into calls under an input budget.
+
+- **Token-budgeted, not message-counted.** Sizes come from `model_dump_json()` — the same
+  serialisation the gateway sends — so the estimate cannot drift from the payload. 3 chars/token is
+  pessimistic deliberately: this estimate is allowed to be wrong only in the direction that costs a
+  call.
+- **Chronological order is load-bearing.** `existing_facts` is re-read before each call, so a later
+  batch sees the facts an earlier one wrote. That reproduces what running weekly all along would have
+  produced, and lets a within-week contradiction demote a fact the way a between-week one does. Any
+  other order silently changes which of two conflicting facts wins.
+- **Evidence scoping was already correct and is what made this cheap.** `_verify_evidence` restricts
+  a candidate fact's citations to *the batch the call was built from*, so no batch can produce a fact
+  citing another batch's events. Chunking is safe by construction here; had that check been
+  window-scoped instead, this change would have needed a new one.
+
+Over the per-student call cap the **oldest** batches are dropped, counted and logged: recency is what
+a memory system wants, and a silent cap is the failure mode being fixed.
+
+**The generalisable half is the exit code.** `main()` returns 1 when every model call in a run failed,
+so the ops-task rule (`exitCode: anything-but 0`) fires. Partial failure stays exit 0 and is reported
+in the summary line — the gateway already retries, and a rule that pages on any single failure gets
+turned off within a month. **Keeper: a job that catches its own errors must not report success by
+exhaustion.**
+
+### 2. ⚠️ Five of the ten new tests were worthless, and only an inverted control found it
+
+They computed their input sizes *from* the constants they were meant to pin
+(`half = _MAX_EVENT_CHARS_PER_CALL // 2`). Raising the bound to 100,000,000 tokens as a control
+scaled the inputs with it and **all 21 tests still passed**. A test that scales with the thing it
+pins cannot fail.
+
+Rewritten against **absolute** sizes, with one test pinning the constants themselves as the single
+place to update on a deliberate tune. Three controls now behave: input bound removed → 5 fail; call
+cap removed → 2 fail; failure counting removed → 1 fail; restored → 22 pass. **Ninth consecutive
+session in which the instrument needed checking before its output meant anything — and the second in
+this session where the instrument was mine.**
+
+### 3. ⚠️ The first deployed constant, 120k tokens, was sized against the least binding constraint
+
+Deployed as `gha-461c4315ddb3` (ops-task revision 38) and run against staging. **It worked** — 7 facts
+written, the first this job has ever produced. It also produced two new failures:
+
+- **Timeouts.** `bedrock_call_timeout_s` is 20 s and a 120k-token prompt does not reliably finish
+  inside it. Two calls timed out; because `max_retries` is 2 those two calls burned **6 attempts**
+  against a `circuit_failure_threshold` of **5**, so the breaker opened and took the student's fourth
+  call with it. Diagnosed from `BedrockTimeoutError(f"Bedrock call failed: {exc}")` printing an
+  **empty** detail — `asyncio.TimeoutError` has an empty `str()`, which is itself worth knowing.
+- **Cost.** Haiku 4.5 input is 0.1 cents/1k tokens, so 120k tokens is ~12 cents of *input* per call.
+  The observed run: **66.18 cents for two students**, and 52.39 of it went to a student that produced
+  **zero facts**. The 200-cent run budget would cover four students.
+
+**Re-tuned to 20,000 tokens.** ~2 cents a call, comfortably inside the timeout, and it costs nothing
+in coverage where coverage matters: a real student's week is single-digit thousands of tokens, so one
+call still holds all of it. **The lesson is the ordering of constraints** — the context window was
+the *least* binding of the three, and sizing against it alone moved a hard failure into two softer
+ones. Lengthening the timeout to fit the prompt would have been AUD-F-34's own mistake repeated:
+growing a bound to accommodate unbounded work.
+
+### 4. AUD-F-35 (P2) found on the way, deliberately not fixed
+
+`promote_if_eligible` applies **no evidence bar** — despite its name, and despite `reconfirm_fact`'s
+docstring stating that it carries one. Plan §9's ">=3 events across >=2 sessions" is enforced at
+creation and bypassed on the next reconfirmation. Not fixed here: the fix changes which facts the
+tutor reads, which is a product decision, and burying it inside another finding's fix makes both
+un-reviewable. **What this change does instead is refuse to amplify it** — batching creates a new
+path where a fact can be created *and* reconfirmed inside one run, so `_maybe_promote` skips this
+run's own creations, leaving multi-batch students behaving exactly as single-batch ones do today.
+
+### 5. ⛔ The user-approved cleanup was aimed at the wrong table, and measuring first is the only reason it was not done
+
+The plan — endorsed by me on my own framing — was to trim staging's load-test **tutor chat**, on the
+stated ground that a student had accumulated ~215k tokens of it. Counted directly before deleting
+anything: **`tutor_chat_messages` holds 3 rows and 28 characters**, and **3** of the window's events
+are `chat_turn`. The input is **13,865 `learning_events`** at ~15 tokens each.
+
+**So it is a count problem, not a message-length problem**, and the approved delete would have removed
+28 characters and changed nothing. AUD-F-34's cause paragraph is corrected accordingly.
+
+**Recommendation: do not trim, and this supersedes the approved action.** Two reasons, the second
+stronger. The 20k re-tune bounds cost at ~8 cents per student per run *regardless of volume*, so the
+cleanup's purpose is already served by the cap. And `learning_events` is the **evidence base** — the
+7 facts just written cite event ids, `_verify_evidence` re-checks them, and the learning-gain and
+progress surfaces read the same table; deleting 13,865 rows to save pennies trades a real dependency
+for a cost the cap already controls.
+
+**One gap this exposed and did not close:** `chat-purge` covers `tutor_chat_messages`,
+`retention-purge` covers three more tables, and **nothing purges `learning_events`** — the one table
+that actually grows without bound and the one that broke this job. That is a SPEC question about
+retention, not a defect, and it is filed on AUD-F-34 rather than decided here.

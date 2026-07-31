@@ -81,11 +81,24 @@ _SYSTEM_PROMPT = (
 # tutor chat built a 215,355-token prompt against Haiku 4.5's 200,000-token context and every
 # call failed - while the process exited 0.
 #
-# 120k rather than something nearer the 200k ceiling, because this bounds only the *events*
-# half of the payload: `existing_facts`, the system prompt, the JSON schema and the derived
-# output budget share the same window, and the size below is a character heuristic rather than
-# a real tokenizer.
-_MAX_EVENT_TOKENS_PER_CALL = 120_000
+# **20k, and the first deployed value of 120k is why this comment is long.** The context window
+# is the *least* binding of the three constraints on a batch, and sizing against it alone put a
+# working job straight into two new failure modes on staging (D-141 §3):
+#
+#   - **The call timeout.** `bedrock_call_timeout_s` is 20 s. A 120k-token prompt does not
+#     reliably finish inside it - two calls timed out, and because `max_retries` is 2 those two
+#     calls burned 6 attempts against a `circuit_failure_threshold` of 5, so the breaker opened
+#     and took the rest of that student's run with it. Lengthening the timeout to fit a bigger
+#     prompt would be the same mistake that produced AUD-F-34: growing a bound to accommodate
+#     unbounded work.
+#   - **Cost.** Haiku 4.5 input is 0.1 cents/1k tokens, so 120k tokens is ~12 cents of input per
+#     call. Four calls per student is ~50 cents, and the 200-cent run budget then covers four
+#     students. At 20k it is ~2 cents a call, ~8 cents a student, ~20+ students per run.
+#
+# 20k also costs nothing in coverage where coverage matters: a real student's week of tutor chat
+# is single-digit thousands of tokens, so one call still holds all of it. What shrinks is how
+# much of a *load-tested* student's week gets consolidated, and `events_dropped` reports that.
+_MAX_EVENT_TOKENS_PER_CALL = 20_000
 # Pessimistic on purpose. English prose runs ~4 chars/token; JSON with short keys and uuid-ish
 # ids is denser, and *under*-estimating is precisely the failure this constant exists to
 # prevent - so the estimate is allowed to be wrong only in the direction that costs a call.
