@@ -712,7 +712,19 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**⛔ Standing as of 2026-07-31 (post-D-138): the gate does NOT close on 2026-08-02.** `memory-consolidate`
+**⛔⛔ Standing as of 2026-07-31 (post-D-140): criterion 6 is blocked on a P1 code fix, not on the
+calendar.** **AUD-F-34** — `memory-consolidate` has **never once worked**: every model call fails on
+prompt length (`215355 tokens > 200000 maximum`) and the job **exits 0**, so the ops-task failure rule
+(`exitCode: anything-but 0`) cannot fire and its own summary line reads `Consolidation run complete …
+0 added`. Found by the de-risking run recommended in D-138 §6, **before** the job's first-ever firing.
+So 08-02 would have produced a firing count, a work line, exit 0, no alarm — and a tick. **2026-08-09
+is now only a floor**: a second firing would fail identically and look identical. Criterion 6's date is
+unknowable until the fix lands and the job fires successfully twice, and the fix is application code, so
+it ages criterion 3's evidence and needs the deploy D-137's prohibition protects — sequencing is a user
+call (D-140 §5). Zero open P0/P1 (criterion 2) is also affected: this is a new P1.
+
+*(Superseded, post-D-138 — the date correction below stands; it is simply no longer the binding
+constraint:)* **the gate does NOT close on 2026-08-02.** `memory-consolidate`
 **has never fired** — created 2026-07-27 02:48:30Z against a `cron(30 18 ? * SUN *)` UTC expression, so
 Sunday 07-26's slot had passed 8h18m before the schedule existed; the metric has no datapoint at any
 Sunday 18:30Z and the ops-task log group has zero `Consolidation` lines in its whole history, behind a

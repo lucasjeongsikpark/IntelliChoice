@@ -8063,3 +8063,91 @@ already being incurred. Second, **the per-run and per-request bounds are doing r
 be relaxed casually**; `memory-consolidate`'s 200-cent per-run budget (D-105 §2) is the only reason an
 unattended weekly job that calls a paid API is safe to leave running, and D-138 §6's recommended manual
 run is bounded by that same number.
+
+## D-140 — The de-risking run found the job broken: `memory-consolidate` has never worked, fails silently, and criterion 6 would have been ticked on it (accepted, 2026-07-31)
+
+**Context.** D-138 §6 recommended one manual `memory-consolidate` run before its first-ever scheduled
+firing on 2026-08-02, on the argument that nothing had exercised it against the real database and
+gateway and that a failure on 08-02 would push the second firing to 08-16. The user approved both that
+and the strict reading (⇒ 08-09). **The run failed on every student, and it exits 0 while doing so.**
+Filed as **AUD-F-34 (P1)**.
+
+### 1. What the run did
+
+`aws ecs run-task` against the **unpinned** `intellichoice-staging-ops-task` family — deliberately, so
+it resolved to revision **37**, the same revision the 08-02 schedule will resolve — with the container
+override read back from the live schedule rather than retyped
+(`["python","-m","intellichoice_memory.consolidate_cli"]`). Image `gha-544c6fe9749c`, i.e. the running
+one. `MEMORY_BEDROCK_PROVIDER=bedrock` (not the mock D-105 §4 warns about), model
+`us.anthropic.claude-haiku-4-5-20251001-v1:0`.
+
+Result: **exit 0**, 53 seconds, and `prompt is too long: 215355 tokens > 200000 maximum` for
+`student-ext-4`, `215225` for `student-ext-1`. Zero facts added, **0.0000 cents spent**, and a final
+line reading `Consolidation run complete: 2 student(s), 0 added, …`.
+
+**A `run-task` rather than the one-shot Scheduler probe AUD-F-15 used**, for a reason worth recording:
+a probe schedule is a real AWS resource created outside Terraform, so it is drift with a cleanup
+obligation — and D-137 is a whole entry about drift that outlived the session that created it. The
+Scheduler → ops-task delivery path is already evidenced eight times over by the two purge jobs (same
+role, same target shape, same override mechanism); what had never been exercised is this job's
+*command* and its `MEMORY_*` wiring, and `run-task` exercises those completely. The override's
+*content* was verified by reading it back from the live schedule instead of assumed.
+
+### 2. Why nothing would have caught it, which is the part that generalises
+
+- **Exit 0 defeats the failure notification.** The live rule matches
+  `containers.exitCode: [{"anything-but": [0]}]`. D-105 §3 added it so that "a schedule that runs
+  nightly and exits 1 every time" could not hide; this job exits **0** every time. The guard is sound
+  and the job walks through the one gap in it.
+- **The summary line reads as success.** `0 added` is indistinguishable from "nothing to do" without
+  reading the lines above it — and "nothing to do" is the *correct* output for both purge jobs, so a
+  reader is primed to accept it.
+- **⚠️ The instrument written this session to prove the job runs would have certified it.** The first
+  version of `read_scheduler_evidence.py` treated `Consolidation run complete` as the work line, and
+  that line prints on total failure. Fixed in the same commit: `_FAILURE_LINES` per job, presence fails
+  the verdict regardless of exit code. **Eighth consecutive session in which the instrument needed
+  checking before its output meant anything, and the first in which the instrument was mine and wrong
+  in the same session it was written.**
+- A second bug in that fix, caught by re-running rather than by reasoning: a generic `Traceback`
+  signature searched the *group*, which is shared by all three jobs plus every manual `make`
+  invocation, so 11 historical manual-run tracebacks were reported against all three schedules at
+  once. Now attributed by **log stream** — one Fargate task is one stream, and a stream carrying a
+  job's own work line *is* that job's run. Job-specific signatures self-attribute; generic ones only
+  count inside an already-identified stream.
+
+### 3. Cause, and the bound that is missing
+
+The window is a rolling `[now - 7 days, now)` and the prompt is built from **every** tutor-chat message
+in it, with no cap on input size. Staging's chat volume is load-test exhaust (D-132/D-134's k6 runs at
+up to 25 VUs), so two seeded students hold ~215k tokens each against Haiku 4.5's 200k context.
+
+**The per-run spend bound worked and is not the gap.** `bedrock_run_budget_cents = 200` is a *spend*
+cap; there is no per-call *input* cap, so the job fails validation before inference and costs nothing.
+That is the cheap failure mode of this bug and it is luck, not design: the same unbounded prompt under
+a larger context window would have produced a large bill instead of an error.
+
+### 4. What this does to criterion 6, which is why it is a P1 rather than a bug report
+
+Criterion 6 needs each job to be observed **running unattended**. This job cannot run successfully at
+all, so it cannot be evidenced by firing — and 08-02's firing would have produced a firing count, a
+work line, exit 0, no alarm, and a tick. **The strict reading chosen this session (two firings ⇒
+08-09) is not what saved this; the de-risking run is.** A second firing on 08-09 would have failed
+identically and looked identical.
+
+**So criterion 6 is now blocked on a code fix, not on the calendar**, and its date is unknowable until
+the fix lands and the job fires successfully twice. The 08-09 date stands only as a floor.
+
+### 5. The fix is not attempted here, and that is a trade-off rather than an omission
+
+The fix is application code, so it **ages criterion 3's byte-identical-to-HEAD evidence and needs a
+deploy** — and the deploy is what D-137's prohibition protects, because the schedules run the ops-task
+family's latest revision un-pinned. Three things therefore need sequencing by the user, not by me:
+whether to fix now and re-run criterion 3's two staging runs, or hold until the criterion-6 window
+closes; which fix; and whether to keep the pilot's Bedrock spend shape in mind while choosing (D-139 §4
+— the model line is already 55% of the bill).
+
+**One half of the fix is independent of all that and should land with whichever option wins: a run in
+which every call failed must exit non-zero**, so D-105 §3's rule fires. That is the generalisable
+lesson — *a job that catches its own errors must not report success by exhaustion* — and it is the
+difference between this being found by a scheduled alarm and being found by a manual run that happened
+to be recommended for an unrelated reason.

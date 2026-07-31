@@ -118,6 +118,21 @@ _WORK_LINE = {
     "retention-purge": "semantic_memory row(s) older than",
     "memory-consolidate": "Consolidation run complete",
 }
+
+# **A work line is not enough, and AUD-F-34 is why.** `memory-consolidate` prints
+# "Consolidation run complete" and exits **0** even when every per-student model call failed,
+# so the summary line above is satisfied by a run that changed nothing. Worse, exit 0 means
+# the ops-task failure rule (`exitCode: anything-but 0`) never fires, so the run is silent in
+# every console. A reader that stopped at the work line would have certified this job as
+# working - which is what the first version of this script did, one commit before this comment.
+#
+# So each job also declares the lines that mean "this run did nothing", and their presence
+# fails the verdict. `Traceback` is checked for every job as a catch-all: a job that dies
+# after printing its summary is the same class of problem in a different order.
+_SHARED_FAILURE = ("Traceback",)
+_FAILURE_LINES = {
+    "memory-consolidate": ("bedrock_call_failed", "memory consolidation call failed"),
+}
 _OPS_LOG_GROUP = "/ecs/intellichoice-staging-ops-task"
 
 # "Unattended for ≥ 1 week" needs both a span and a recurrence: one datapoint cannot
@@ -178,6 +193,9 @@ class JobReading:
     firings: list[datetime] = field(default_factory=list)
     missed: list[datetime] = field(default_factory=list)
     work_lines: list[datetime] = field(default_factory=list)
+    # Lines proving a run did nothing despite exiting 0 (AUD-F-34). Kept separate from
+    # `work_lines` because a run can produce both: the summary is printed either way.
+    failure_lines: list[datetime] = field(default_factory=list)
 
     @property
     def unattended(self) -> timedelta:
@@ -202,6 +220,13 @@ class JobReading:
             problems.append(f"{len(self.missed)} expected firing(s) missing")
         if not self.work_lines:
             problems.append("fired but no work line in the ops log (the AUD-F-15 shape)")
+        if self.failure_lines:
+            # Deliberately listed before the calendar shortfall: a job that runs and does
+            # nothing is not "not yet", it is broken, and waiting does not fix it.
+            problems.append(
+                f"{len(self.failure_lines)} failure line(s) in the ops log despite exit 0 "
+                "- silent, so the ops-task failure rule never fired (AUD-F-34)"
+            )
         if len(self.firings) < _MIN_FIRINGS:
             problems.append(f"only {len(self.firings)} firing - a repeat is not evidenced")
         if self.unattended < _WEEK:
@@ -373,10 +398,45 @@ def _any_event(logs: object, start_ms: int, end_ms: int) -> bool:
             return False
 
 
-def _read_work_lines(
+def _matching(logs: object, start_ms: int, end_ms: int, needle: str) -> list[tuple[datetime, str]]:
+    """`(timestamp, log stream)` for every event containing `needle`, paginated to exhaustion.
+
+    Exhaustion is not optional: D-102's log scan reported zero hits for strings that were
+    demonstrably present because it read only the first page.
+
+    The **stream** comes back with the timestamp because the ops-task log group is shared by
+    all three jobs plus every manual `make` invocation, and one Fargate task is one stream. A
+    job-specific needle attributes itself; a generic one like `Traceback` does not, and
+    attributing it by group would blame every job for every other job's failure - which the
+    first version of this did, reporting 11 historical manual-run tracebacks against all
+    three schedules at once.
+    """
+    found: list[tuple[datetime, str]] = []
+    token = None
+    while True:
+        kwargs: dict[str, object] = {
+            "logGroupName": _OPS_LOG_GROUP,
+            "startTime": start_ms,
+            "endTime": end_ms,
+            "filterPattern": f'"{needle}"',
+        }
+        if token:
+            kwargs["nextToken"] = token
+        page = logs.filter_log_events(**kwargs)  # type: ignore[attr-defined]
+        found.extend(
+            (datetime.fromtimestamp(event["timestamp"] / 1000, UTC), event["logStreamName"])
+            for event in page["events"]
+        )
+        token = page.get("nextToken")
+        if not token:
+            return sorted(found)
+
+
+def _read_log_evidence(
     session: boto3.Session, start: datetime, end: datetime, jobs: list[str]
-) -> dict[str, list[datetime]] | None:
-    """Per-job work lines from the ops log group, behind a positive control (guard 1).
+) -> tuple[dict[str, list[datetime]], dict[str, list[datetime]]] | None:
+    """Per-job work lines *and* failure lines from the ops log group, behind a positive
+    control (guard 1).
 
     Returns `None` when the control fails, which the caller must treat as INVALID rather
     than as three jobs having never run.
@@ -392,34 +452,31 @@ def _read_work_lines(
     if not _any_event(logs, start_ms, end_ms):
         return None
 
-    out: dict[str, list[datetime]] = {}
+    work: dict[str, list[datetime]] = {}
+    failures: dict[str, list[datetime]] = {}
+    # A run is one log stream, so a stream that carries a job's own work line *is* that job's
+    # run. That mapping is what makes a generic failure signature attributable at all.
+    streams: dict[str, set[str]] = {}
     for job in jobs:
         needle = _WORK_LINE.get(job)
-        if needle is None:
-            out[job] = []
-            continue
+        hits = _matching(logs, start_ms, end_ms, needle) if needle else []
+        work[job] = [moment for moment, _ in hits]
+        streams[job] = {stream for _, stream in hits}
+
+    for job in jobs:
         found: list[datetime] = []
-        token = None
-        while True:
-            kwargs = {
-                "logGroupName": _OPS_LOG_GROUP,
-                "startTime": start_ms,
-                "endTime": end_ms,
-                "filterPattern": f'"{needle}"',
-            }
-            if token:
-                kwargs["nextToken"] = token
-            # Paginated to exhaustion on purpose: D-102's log scan reported zero hits for
-            # strings that were present because it read only the first page.
-            page = logs.filter_log_events(**kwargs)
+        for signature in _FAILURE_LINES.get(job, ()):
+            # Job-specific: self-attributing, so every hit counts.
+            found.extend(moment for moment, _ in _matching(logs, start_ms, end_ms, signature))
+        for signature in _SHARED_FAILURE:
+            # Generic: only counts inside a stream already known to be this job's run.
             found.extend(
-                datetime.fromtimestamp(event["timestamp"] / 1000, UTC) for event in page["events"]
+                moment
+                for moment, stream in _matching(logs, start_ms, end_ms, signature)
+                if stream in streams[job]
             )
-            token = page.get("nextToken")
-            if not token:
-                break
-        out[job] = sorted(found)
-    return out
+        failures[job] = sorted(found)
+    return work, failures
 
 
 def _check_attributable(schedules: list[Schedule]) -> list[str]:
@@ -514,6 +571,11 @@ def _report(
             lines = work.get(job, [])
             last = f", last {_z(max(lines))}" if lines else ""
             print(f"  work lines in log  {len(lines)}{last}")
+            if reading.failure_lines:
+                print(
+                    f"  FAILURE lines      {len(reading.failure_lines)}, last "
+                    f"{_z(max(reading.failure_lines))}  <-- exit 0, so no alarm (AUD-F-34)"
+                )
 
         ok, note = reading.verdict
         print(f"  verdict            {'✅' if ok else '❌'} {note}")
@@ -616,10 +678,14 @@ def main() -> int:
     firings = _read_firings(session, args.group, start, end)
     readings, unattributed = _attribute(schedules, firings, end)
     errors = _read_errors(session, args.group, start, end)
-    work = _read_work_lines(session, start, end, list(readings))
-    if work is not None:
+    evidence = _read_log_evidence(session, start, end, list(readings))
+    work = None
+    if evidence is not None:
+        work, failures = evidence
         for job, lines in work.items():
             readings[job].work_lines = lines
+        for job, lines in failures.items():
+            readings[job].failure_lines = lines
     return _report(readings, unattributed, errors, work, start, end)
 
 

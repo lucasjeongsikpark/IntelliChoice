@@ -5,6 +5,33 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⛔⛔ AUD-F-34 (P1): `memory-consolidate` has never once worked, it fails silently, and criterion 6
+  would have been ticked on it (2026-07-31, D-140).** Found by the de-risking run approved this
+  session — **before** the job's first-ever firing, which is what made it findable at all.
+  **Every model call fails on prompt length and the job exits 0:** `prompt is too long: 215355 tokens
+  > 200000 maximum` for `student-ext-4`, 215225 for `student-ext-1`, **0 facts written, 0.0000 cents
+  spent**, and a closing line reading `Consolidation run complete: 2 student(s), 0 added, …`.
+  **Three independent reasons nothing would have caught it:** exit 0 means
+  `intellichoice-staging-ops-task-failed` (`exitCode: anything-but 0`, verified against the live rule)
+  **cannot fire** — D-105 §3 built that guard against a job exiting 1 every time, and this one exits 0
+  every time; `0 added` is indistinguishable from "nothing to do", which is the *correct* output for
+  both purge jobs; and **the instrument written this session to prove the job runs would have certified
+  it**, because `Consolidation run complete` prints on total failure. Fixed in the same commit —
+  `_FAILURE_LINES` per job, presence fails the verdict regardless of exit code.
+  **Cause: no bound on input size.** The rolling `[now − 7d, now)` window builds a prompt from *every*
+  tutor-chat message in it; staging's volume is load-test exhaust (25-VU k6 runs), so two students hold
+  ~215k tokens each against Haiku 4.5's 200k. **The per-run *spend* cap worked and is not the gap** —
+  `bedrock_run_budget_cents = 200` bounds cost, nothing bounds *input*, so it fails validation before
+  inference. That is luck: the same prompt under a larger context window bills instead of erroring.
+  **⚠️ So criterion 6 is now blocked on a code fix, not on the calendar.** 08-09 stands only as a
+  floor; a second firing would have failed identically and looked identical. **The strict reading did
+  not save this — the de-risking run did.**
+  **The fix is deliberately not attempted**: it is app code, so it ages criterion 3's
+  byte-identical-to-HEAD evidence *and* needs the deploy D-137's prohibition protects. Three calls are
+  the user's — fix now and re-run criterion 3, or hold; which fix (bound messages per call and page the
+  window, vs. cap input tokens and skip-with-warning); and the Bedrock spend shape (D-139 §4). **One
+  half should land either way: a run in which every call failed must exit non-zero.** The keeper is
+  **a job that catches its own errors must not report success by exhaustion.**
 - **⛔ The gate does not close on 2026-08-02. `memory-consolidate` has never fired, and D-135 read a
   firing that could not have happened (2026-07-31, D-138/D-139).** The last gate date moves
   **08-02 → 2026-08-09** on D-135's own rule.
@@ -1077,8 +1104,27 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-31 second close, post-D-138/D-139). The gate's last date moved out
-  by a week and the only genuinely new item is a decision, not work:**
+- **Next session, in order (2026-07-31 third close, post-D-140). Criterion 6 is no longer a date — it is
+  a P1 code fix, and item 1 is the whole session:**
+  1. **⛔⛔ AUD-F-34 (P1) blocks criterion 6 and needs three decisions before any code (D-140 §5).**
+     (a) **Fix now and re-run criterion 3's two staging runs, or hold** until the criterion-6 window
+     closes — the fix is app code, so it ages the byte-identical-to-HEAD evidence *and* needs the deploy
+     D-137's prohibition protects. (b) **Which fix:** bound the messages per consolidation call and page
+     the window (correct, and makes the job's cost predictable), or cap input tokens and
+     skip-with-warning above it (fails closed, keeps the promise honest, consolidates nothing).
+     (c) **Land the silent-failure half either way** — a run in which every call failed must exit
+     non-zero so D-105 §3's rule fires. One line, and it is the half that generalises.
+     **Do not read criterion 6 as a date until this lands:** 08-09 is a floor, and a second firing would
+     fail identically and look identical.
+  2. **Re-run `make scheduler-evidence` after the fix deploys and the job fires twice.** It now fails
+     the verdict on failure lines regardless of exit code, so it will not certify a hollow run again.
+  3. **The rest of the previous pointer is unchanged and still queued behind the same apply
+     prohibition** — Messages A and D (yours to send), the 08-01 re-probe, the Billing-console credit
+     look (D-139 §3), r = 5 capacity at ~$43/month, AUD-F-33.
+  **Keeper minted here:** a job that catches its own errors must not report success by exhaustion.
+
+- **Superseded — pointer as of the D-138/D-139 close (2026-07-31). Item 3's de-risking run was taken and
+  found AUD-F-34, which turns item 2's date question into a code fix; the rest still stands:**
   1. **⛔ The apply prohibition still stands, and it now runs to the later date (D-137 §7, D-138 §2).**
      Any apply replaces three task definitions including `module.ops_task`, whose family's *latest*
      revision is what the schedules run — so it would swap the image under criterion 6's evidence window,

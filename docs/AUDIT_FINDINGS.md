@@ -3755,3 +3755,59 @@ evidence was wrong. Worth a look before quoting the autoscaling
 half of criterion 7 again, and worth an alarm on `desiredCount > min_capacity` sustained over some
 window — the condition was invisible for two hours and only surfaced because a measurement needed
 the capacity to hold still.
+
+### AUD-F-34 — `memory-consolidate` has never once worked: every model call fails on prompt length, and it exits 0 (**P1** — found 2026-07-31, D-140; blocks gate criterion 6)
+
+Found by the manual de-risking run D-138 §6 recommended, before the job's first-ever scheduled
+firing on 2026-08-02. It exits **0** and prints its own success summary:
+
+```
+bedrock_call_failed
+memory consolidation call failed, no facts changed: Bedrock call failed: An error occurred
+  (ValidationException) when calling the Converse operation: The model returned the following
+  errors: prompt is too long: 215355 tokens > 200000 maximum
+  student-ext-4: +0 facts, 0 reconfirmed, 0 contested, 0 expired (0.0000 cents)
+  ... identical for student-ext-1 at 215225 tokens ...
+Consolidation run complete: 2 student(s), 0 added, 0 reconfirmed, 0 contested, 0 expired,
+  0.00 cents spent.
+```
+
+**Both students, both over the limit, no facts written.** `consolidate_student_window` catches the
+gateway exception, logs a warning, returns a zero-valued result, and the CLI's summary line reports
+the run as complete — so the process ends 0.
+
+**Three independent reasons nothing would have caught this.**
+
+1. **Exit 0 means the failure notification cannot fire.** `intellichoice-staging-ops-task-failed`
+   matches `containers.exitCode: [{"anything-but": [0]}]` (verified against the live rule). D-105 §3
+   added that rule precisely so a job that "exits 1 every time" could not hide; this job exits **0**
+   every time, which is the same outcome through the one gap in that guard.
+2. **The summary line reads as success.** `Consolidation run complete: 2 student(s)` is what a human
+   scanning the log group sees, and `0 added` looks like "nothing to do" rather than "nothing worked"
+   — the two are indistinguishable without reading the lines above it.
+3. **The first version of `read_scheduler_evidence.py` counted that summary as a work line**, i.e.
+   the instrument written this session to prove the job runs would have certified it. Fixed in the
+   same commit: each job now declares failure signatures, and their presence fails the verdict
+   regardless of exit code (`_FAILURE_LINES`).
+
+**Cause.** The consolidation window is a rolling `[now - 7 days, now)` and the prompt is built from
+every tutor-chat message a student produced in it, with **no bound on input size**. Staging's chat
+volume comes from load testing (D-132/D-134's k6 runs at up to 25 VUs), so two seeded students have
+accumulated ~215k tokens each against Haiku 4.5's 200k context. The per-run **spend** bound
+(`bedrock_run_budget_cents`, 200) exists and works; there is no per-call **input** bound, so the job
+fails validation instead of costing money — 0.0000 cents, which is the one piece of good news.
+
+**Why P1.** It is the same shape as AUD-F-15 (a retention job that had never run) one level deeper:
+this job runs, is observed to run, and does nothing. It also directly blocks **gate criterion 6** —
+the job cannot evidence "running unattended" by firing successfully when it cannot succeed — and
+criterion 6 is the gate's last open criterion. Left alone, 2026-08-02's firing would have produced a
+clean firing count, a work line, exit 0, no alarm, and a tick.
+
+**Fix not attempted this session, deliberately**, and the reason is a trade-off the user should
+make: the fix is application code, so it ages criterion 3's "byte-identical to HEAD" evidence and
+needs a deploy — which is also the thing D-137's prohibition is protecting. Candidate fixes, cheapest
+first: bound the messages per consolidation call and page the window (correct, and it makes the job's
+cost predictable rather than incidental); or cap input tokens and skip-with-warning above it (fails
+closed, keeps the promise honest, does not consolidate). **Whatever the fix, the failure must stop
+being silent** — a run where every call failed should exit non-zero so D-105 §3's rule fires. That
+part is one line and is the half that generalises.
