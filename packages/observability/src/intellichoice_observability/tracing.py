@@ -166,8 +166,29 @@ def configure_tracing_provider(
     return provider
 
 
+# The health endpoints, excluded from tracing (AUD-F-30). `excluded_urls` is matched by
+# OTel as a comma-separated list of regexes against the request path, so these are
+# substrings and not anchored patterns.
+#
+# Measured, not assumed: **2,394 traces in an idle hour and every one of them was
+# `GET /readyz`** - two ALB checks every 15s per task, times however many tasks. That put
+# recorded traces at ~1.7M/month against X-Ray's 100k free tier (~17x, ~$8/month), and the
+# comment in variables.tf claiming the free tier covered it was written when it did.
+#
+# The cost is the smaller half. The corpus is criterion 9's evidence base, and a scan
+# reporting "2,747 traces CLEAN" reads as breadth when ~97% of it is the same three-span
+# health check repeated. Excluding these makes the denominator mean what a reader assumes.
+#
+# `/metrics` is deliberately NOT excluded: it is not routed at the edge and is not polled
+# on a timer, so it contributes no volume, and if something ever does scrape it that is
+# worth seeing in a trace.
+HEALTH_ENDPOINT_URLS = "healthz,readyz"
+
+
 def instrument_fastapi_app(app: FastAPI, provider: TracerProvider) -> None:
-    FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)
+    FastAPIInstrumentor.instrument_app(
+        app, tracer_provider=provider, excluded_urls=HEALTH_ENDPOINT_URLS
+    )
 
 
 def instrument_sqlalchemy_engines(*engines: AsyncEngine, provider: TracerProvider) -> None:

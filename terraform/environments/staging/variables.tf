@@ -77,8 +77,20 @@ variable "app_environment" {
 #
 # Defaults true because §2.6 criterion 9 requires the PII floor to be verified against
 # live staging *traces*, and an audit criterion that depends on someone remembering to set
-# a flag is not a criterion. Costs: one small sidecar per task plus X-Ray ingest, both
-# negligible at this scale - X-Ray's free tier covers 100k traces/month.
+# a flag is not a criterion. Costs: one small sidecar per task plus X-Ray ingest.
+#
+# The cost note here used to read "negligible at this scale - X-Ray's free tier covers 100k
+# traces/month". That was true when written and stopped being true without anything
+# changing in this file (AUD-F-30): at the measured rate of 2,394 traces/hour - **all of
+# them `GET /readyz`**, two ALB checks every 15s per task - recorded traces reached
+# ~1.7M/month, about 17x the 100k free tier, ~$8/month. Health endpoints are now excluded
+# from instrumentation in `intellichoice_observability.tracing.HEALTH_ENDPOINT_URLS`, which
+# removes ~97% of recorded traces and brings this back under the tier.
+#
+# Recorded because the shape recurs: an assumption that is checked once, written into a
+# comment, and then silently invalidated by a change somewhere else (here, task count going
+# up). If the task ceiling or the check interval changes again, re-derive the number rather
+# than trusting this paragraph.
 variable "enable_otel_tracing" {
   type    = bool
   default = true
