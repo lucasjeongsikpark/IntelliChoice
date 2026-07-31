@@ -247,13 +247,22 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   than testable, and "mapped to implementation + test" cannot mean the same for "use Pydantic v2
   everywhere" as for "grading never involves an LLM". Say so per section; do not invent a test to
   point at.
-- **⚠️ Superseded 2026-07-31 (D-132): criterion 8 is now 3 of 4.** The inbox was read and holds seven
-  of the eight `learning-api-p95-latency` transitions including the 18:44:38Z one this entry went
-  looking for, so **that alarm is confirmed reaching a human**. `learning-api-5xx-rate` fired exactly
-  once (ALARM 18:26:40Z / OK 18:29:40Z) and is **not among them** — search
-  `from:no-reply@sns.amazonaws.com "learning-api-5xx-rate"`. The entry below stands as written for the
-  chat pair and for its reasoning about not closing on inference, which is why 4 of 4 is still not
-  claimed.
+- **✅ CRITERION 8 IS MET — 4 of 4, confirmed 2026-07-31 (D-133).** All four alarms induced and
+  confirmed reaching the monitored inbox:
+
+  | alarm | artifact confirmed in the inbox |
+  |---|---|
+  | `chat-api-p95-latency` | ALARM + OK (D-126) |
+  | `chat-api-5xx-rate` | ALARM + OK, the synthetic induction explaining itself in its own body (D-126) |
+  | `learning-api-p95-latency` | 7 of its 8 state transitions, incl. the 18:44:38Z one D-126 sought |
+  | `learning-api-5xx-rate` | the OK notice of its single induction cycle (18:29:40Z), matching `describe-alarm-history` exactly |
+
+  **It took three sessions and none of the delay was technical** — the alarms had fired correctly the
+  whole time. D-126 declined to close on "they almost certainly arrived", and that was right: the
+  learning pair turned out to be an hour away in the inbox, and finding them needed a targeted search
+  per alarm rather than one sweep. **A criterion whose evidence lives in a human's mailbox decays: the
+  cost of confirming "which four" rises every day.** Worth remembering for any future criterion whose
+  proof no API can attest.
 - **⚠️ Criterion 8 is 2 of 4 confirmed, not complete — the four emails produced are two alarms
   counted twice (2026-07-30, D-126).** `chat-api-p95-latency` ALARM (19:17:56Z), `chat-api-5xx-rate`
   ALARM (19:18:35Z), and the matching **OK** notices for both. **The two `learning-api` emails were
@@ -853,11 +862,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 - **Next session, in order (2026-07-31 close, post-D-132). The gate needs a mailbox and two dates and
   nothing else; the engineering queue has a new head:**
-  1. **The human items.** **(a) Send Message A** (ninth session carrying it; re-read it, it gained a
-     week-boundary question in D-130) — the only item with external lead time, and it gates S43 rather
-     than the gate. **(b) One more email**: criterion 8 reached **3 of 4** when the inbox was read;
-     `learning-api-p95-latency` is confirmed, `learning-api-5xx-rate` (fired once, 18:26:40Z) is not —
-     search `from:no-reply@sns.amazonaws.com "learning-api-5xx-rate"`. **(c) Criterion 6's dates:
+  1. **The human items — criterion 8 is DONE, so only two remain.** **(a) Send Message A** (ninth
+     session carrying it; re-read it, it gained a week-boundary question in D-130) — the only item with
+     external lead time, and it gates S43 rather than the gate. **(b) Criterion 6's dates:
      2026-08-02** (`chat-purge`, `memory-consolidate`) **and 2026-08-05** (`retention-purge`), read
      **per job** — `chat-purge` has a history of never having run (AUD-F-15). Also **2026-08-01:
      re-probe "How do I enroll a student?"**
@@ -874,10 +881,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      verification per request, LangGraph checkpoint serialisation, Pydantic validation of graph state,
      interrupt/resume plumbing. `make profile-span` reports any span by name and the gap between a root
      span and its children is exactly what it prints.
-  3. **Decide what to do about the ~$216/month obligation now that the ~$0 alternative is gone.**
-     D-132 removed the cheap option; the honest choices are to buy capacity, to reduce CPU per request
-     (item 2), or to keep the pilot at 25 concurrent and say so. **This is a product/spend call, not an
-     engineering one.**
+  3. ~~**Decide what to do about the ~$216/month obligation**~~ **(⏸ deferred by user call 2026-07-31,
+     D-133 — and the number turned out to be wrong low.)** ~$216 prices **compute only**: 12 learning
+     tasks need ~252 connections against `db.t4g.micro`'s **~112**, so RDS must be resized too and the
+     figure is a floor. Re-price only after **(a)** the org confirms whether 150 concurrent is a real
+     requirement — it is §6.23's number, not measured demand, against a documented pilot target of 25
+     — and **(b)** AUD-F-32 is measured, since CPU-per-request is the lever that changes the task
+     count. Nothing forces it: no real users, criterion 7 met at 25.
   4. **AUD-F-33** — an alarm on `desiredCount > min_capacity` sustained over a window. The condition
      was invisible for two hours and only surfaced because a measurement needed the capacity to hold
      still. Cheap, and it protects a cost floor.

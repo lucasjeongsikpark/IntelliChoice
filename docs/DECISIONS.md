@@ -7364,3 +7364,61 @@ and `e2e/config.ts` defaults them to `""`, so D-097's secret gate 404s and every
 fails together. **A wall of failures that all share one dependency is a harness signal, not a product
 signal** — but it was diagnosed rather than assumed, and confirmed by the run passing once the two
 secrets were exported. Worth teaching the target to fetch them itself.
+
+## D-133 — Criterion 8 is met at 4 of 4; and the ~$216/month capacity purchase is deferred, because the price omits the database (accepted, 2026-07-31)
+
+### 1. Criterion 8, closed
+
+All four alarms are induced and confirmed in the monitored inbox. The last one,
+`learning-api-5xx-rate`, fired exactly once (ALARM 18:26:40Z, OK 18:29:40Z) and its **OK notice is in
+the mailbox**, matching `describe-alarm-history` to the second. The other three were confirmed in
+D-126 and D-132.
+
+**Three sessions of delay, none of it technical.** The alarms worked the whole time. D-126 refused to
+close on "they almost certainly arrived with the others" and that refusal was correct — the
+`learning-api` pair sat an hour away in the inbox and needed a per-alarm search, not one sweep.
+**A criterion whose evidence lives in a human's mailbox decays**: reconstructing "which four" gets
+harder every day, and the fix is to read the inbox in the same session that induces the alarms — the
+same sequencing lesson D-129 §1 learned for trace scans.
+
+### 2. The ~$216/month is deferred, and the number is wrong low
+
+**The arithmetic that produced it is sound and verifiable.** D-122 measured throughput flat at
+5.8 req/s from 10 concurrent upward with latency growing linearly (Little's law within 4%), then
+**3.0× throughput for 3.0× CPU** after resizing — so linearity is measured, not assumed. 25 concurrent
+supported on 2 tasks, 150 ÷ 25 = 6×, 12 tasks. At Fargate's rate a 0.5 vCPU / 1 GB task is
+(0.5 × $0.04048 + 1 × $0.004445) × 730 = **$18.02/month**, so 12 × $18.02 = **$216.25**. The figure
+checks out exactly, and **D-132 strengthened its premise** by showing the constraint really is CPU.
+
+**But it prices compute only.** Postgres is `db.t4g.micro`, whose `max_connections` derives from
+instance memory — currently **~112**. Measured peak during this session's load was **68**. Pool
+arithmetic is ~21 connections per task (10 + 10 plus a checkpoint connection, PROGRESS's standing
+carry-over), so:
+
+| | connections |
+|---|---|
+| 12 learning tasks | ~252 |
+| plus chat-api at its 3-task ceiling | ~315 |
+| available on `db.t4g.micro` | **~112** |
+
+**Over 2× the ceiling before chat-api is counted.** Buying 12 tasks therefore requires resizing RDS
+as well, so **~$216 is a floor, not a total** — and `t4g` is burstable, which is a second question
+under sustained load rather than today's idle-with-full-credits state.
+
+### 3. Two cheaper questions come first
+
+**(a) 150 concurrent has never been validated as a requirement.** It is SPEC §6.23's number, not a
+measured demand figure. The pilot's documented target is 25, against ~1,000 MAU. **Buying 6× capacity
+for an unvalidated target is paying monthly for a question nobody has asked the org.** It belongs in
+the same channel as the S42 asks.
+
+**(b) AUD-F-32 is the cheaper lever and it is now the *right kind* of lever.** ~726 ms per answer
+request is neither SQL nor graph-node time. D-132 proved the constraint is CPU, and this is
+CPU-per-request: halving it roughly halves the task count needed, taking ~$216 toward ~$108. **But
+D-132's own lesson applies to this too** — the composition of that 726 ms is unmeasured, and
+`select_topic` was also the biggest number in a profile and the wrong target. **Measure it in its own
+session before committing to a fix, and before committing to a price.**
+
+**Decision (user call): defer the purchase; re-price after (a) and (b).** Nothing forces it now —
+there are no real users, and criterion 7 is met at the documented 25. When it is priced again it must
+include RDS.
