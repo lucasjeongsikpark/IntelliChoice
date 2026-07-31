@@ -6885,3 +6885,540 @@ mapped, evidenced, and with its reading recorded — not "everything is perfect"
 either traced, dispositioned, or explicitly flagged as descriptive". Recommendation, unchanged from
 D-126: **S45**, with the eleven disclosures enumerated by the §6.1 track so the UI work is
 transcription rather than drafting.
+
+## D-129 — Criterion 9 met by running the load and the scans in one session; criterion 1 met by writing the sentence; and the p95 driver turns out to be 51 SQL statements (accepted, 2026-07-30)
+
+**Context.** The gate was down to one criterion needing real work (9), one needing a sentence (1),
+one needing a mailbox (8) and one needing a calendar (6). This session did 9 and 1, found two things
+worth their own IDs on the way, and did not touch 8.
+
+### 1. Criterion 9's evidence is a sequencing result, not a measurement result
+
+The scan is nearly free; the traffic is not; and X-Ray's window is hours. Every prior attempt failed
+on that arithmetic rather than on difficulty — **D-121/D-122 produced exactly the authenticated
+traffic criterion 9 needed and it aged out unscanned**, and every scan that did run covered guest
+traffic only (D-104), which is not where a name or an email would enter a span. So the whole method
+was: authenticated load at the pilot's documented 25 concurrent, then both scans, in one sitting.
+
+| store | evidence | result |
+|---|---|---|
+| traces | `make scan-traces HOURS=1` | **CLEAN** — 2,747 traces / 21,234 segments / 1,568,546 strings, control **20/20** |
+| logs | new `make scan-logs`, pinned to the run window | **CLEAN** — 495 events; **CLEAN** again over the surrounding hour (2,774 events / 58,054 strings) |
+| metrics | no custom CloudWatch namespace exists; Prometheus labels are bounded enums plus a *templated* route path; `/metrics` is not routed at the edge | nothing app-controlled can carry an identifier |
+| payloads | nothing stores them by design; an echoed name or prompt would have hit the fixture-name and shape patterns in either store | nothing observable to leak |
+
+**The load run itself passed on every threshold** (p95 2.75 s ≤ 3 s, 0.00% errors, 250 answers
+submitted, 0 attendance-blocked, 350/350 requests, 25 VUs), which matters only as evidence that the
+traffic was *real* — a run that refused early would have produced a clean corpus by producing no
+corpus.
+
+**The claim is stated as a reading, like criterion 2's:** zero PII found by a positive-controlled
+detector over a corpus **proven to contain** authenticated traffic, in the two stores that record
+request data. Not a proof that none can ever arrive. D-104 §4's rule stands — a floor is per-store
+and re-opens whenever instrumentation is added.
+
+### 2. The coverage control is the part of this that would have been easy to skip
+
+A positive control proves the detector fires; it says nothing about whether the detector was pointed
+at the interesting data. So before the CLEAN was believed: **350 authenticated traces in the run
+window, exactly matching k6's 350 requests**, and a sample topic-selection trace taken apart to show
+what its segments actually carry. That mattered more than expected, because **2,394 of the 2,747
+traces were health checks** (AUD-F-30) — "2,747 traces CLEAN" reads as broad coverage and is mostly
+one three-span request repeated. The authenticated share was 13%.
+
+Two real negative results fell out of the same look: **no `Authorization` header key appears in any
+segment** (the SSE `?token=` path is the only one that ever carried a credential, and
+`RedactingSpanExporter` handles it), and the access log's key set is exactly `method`, `path`,
+`status_code`, `duration_ms` and trace ids — **no student reference at all**.
+
+### 3. The log half had the weakest evidence in the gate, and it read as done
+
+Criterion 9 says logs *and* traces. The trace half has had a self-checking, repeatable script since
+D-104. The log half rested on **S38's one-off CLI pipeline over guest traffic** — the same pipeline
+whose first version reported zero hits for strings that were demonstrably present, because
+`filter-log-events --max-items` paginates. Nobody noticed, because a checked-off sub-item looks
+identical to a well-evidenced one.
+
+[scripts/scan_logs_pii.py](../scripts/scan_logs_pii.py) (`make scan-logs`) closes that, and the
+design decision worth recording is that **it imports the trace scanner's patterns and matcher rather
+than re-implementing them**. A second hand-rolled detector would need its own proof, and D-104 §8
+records three instruments in one session that were wrong before the systems they measured were. It
+inherits a matcher that walks JSON-in-string (log lines *are* JSON here) and the same 20-pattern
+positive control.
+
+**Four failure modes, all control-tested in both directions**, because a check that cannot fail and
+a check that cannot pass are the same bug:
+
+- **truncation → FAIL.** Logs Insights caps a query at 10,000 records, which is S38's pagination bug
+  in a new hat. Forced the cap to 50 over the load window: `FAIL - 2 slice(s) returned the cap`.
+- **unreadable window → FAIL.** A window older than retention is *rejected*, not answered with zero
+  rows. The first version crashed with a traceback; now each slice is recorded as unqueryable and the
+  run fails, because **"I could not look" must not report as CLEAN.**
+- **zero events → FAIL.** A valid but empty one-second window: `FAIL - zero log events`.
+- **a configured log group that no longer exists → FAIL.** This one started as a `NOTE` and was
+  changed after being written: a renamed log group would have been skipped and the run would still
+  have printed CLEAN, which is the same hole as the one two bullets up wearing a friendlier word.
+  A log group does not vanish when retention expires — it stays and goes empty — so absence means the
+  infrastructure moved and the list is stale.
+- and the positive direction: CLEAN over 2,774 real events with 20/20 patterns firing.
+
+**The allowlist is empty, as a measured result rather than an oversight.** It was written expecting
+to need one for `shape:pii-field-name` (uvicorn's bind address, Container Insights' network fields);
+over 2,774 events **nothing fired at all**, so the exception was deleted and the measurement written
+where the rule would have gone. An allowlist that never fires is a hole waiting for a real hit to
+fall through.
+
+### 4. Criterion 1: the sentence, and what claiming it does not mean
+
+**T-02 is dispositioned as two assignments in a mandatory order.** The **§6.1 legal-and-policy track
+enumerates §5.1.2's eleven disclosures** as a written deliverable; **S45 builds the first-visit
+notice** in `apps/learning-web`, transcribing that list, following `LocationConsentModal.tsx`'s
+pattern for §5.1.3. The order is load-bearing: a notice drafted from an implementer's reading of
+§5.1.2 is how a compliance artifact ends up disagreeing with the privacy policy it exists to
+summarize. Both documents now name it — ROADMAP.md's S45 block and its §6.1 track block — because a
+disposition that lives only in a decision log is the same "owned by implication" problem in a new
+place.
+
+**Criterion 1 is therefore met, on the same terms as criterion 2 (D-123): nothing is undecided,
+which is weaker than nothing is missing.** T-02 is scheduled, not shipped.
+
+**One near-miss found while writing it.** TRACEABILITY.md's discrepancy table already said
+**"Open: none"** in the same commit (`c44414f`) whose table below it marked T-02 **Open**. A summary
+line agreeing with the claim you want, sitting above a table that contradicts it, is how a rubric
+passes itself. Corrected by the disposition rather than by editing the summary — and flagged in the
+file, because the next such contradiction will not be found by whoever wrote it.
+
+### 5. `select_topic` is not what anyone thought, and criterion 7's gap just got cheap (AUD-F-31)
+
+The standing hypothesis, carried for three sessions, was "a LangGraph invoke with checkpoint writes".
+The trace says the node is **51 sequential SQL statements and not one Bedrock call** — 1.624 s of
+deduped SQL inside a 1.62 s span, at ~32 ms per round-trip, in a clean N+1 pattern over the 10 exam
+items (`INSERT question_variants`, `SELECT question_variants`, `INSERT assessment_items`,
+`INSERT assessment_item_state`, ×10). **No checkpoint write appears in the hot path at all.**
+
+That reframes criterion 7's remaining obligation. D-122 priced 150-concurrent p95 ≤ 3 s at ~6× the
+capacity (~12 tasks, ~$216/month). Batching those four per-item statements takes ~51 statements to
+~6 for **~$0** and targets the exact span that dominates the p95 in every run. Filed, not fixed: it
+touches assessment-item persistence, which is deterministic-core code (SPEC §5.0) and deserves its
+own session and its own before/after rather than being absorbed into a measurement session.
+
+**And the instrument was wrong first, again.** X-Ray records each SQLAlchemy statement **twice** — a
+child subsegment of the graph span *and* a standalone segment — so the naive profile reported **102
+statements and 131% of wall time in SQL**. A profile claiming more SQL time than the request took is
+reporting on itself. Deduping on `(start_time, sanitized_query)` gives 51 and 1.624 s, which
+reconciles exactly with the span duration. **Third session in a row where the measuring tool needed
+checking before its output meant anything** (D-104 §8, D-121's alarm-window misreading, this).
+
+### 6. A cost assumption in the code stopped holding (AUD-F-30)
+
+`variables.tf` defaults `enable_otel_tracing` to true and justifies it with "X-Ray's free tier covers
+100k traces/month". At the measured rate — **2,394 traces/hour, all of them `/readyz`** — that is
+~1.7M/month, about **17× the free tier**, ~$8/month. July's bill is genuinely $0 because tracing has
+been on four days and the task count only doubled today. Small money, familiar shape: **an assumption
+that was true when written and silently stopped being true**, which is §5.15's retention story
+(D-072 → AUD-L-04) at a much lower stake. Fix direction is `excluded_urls` or a 0% sampling rule for
+the health endpoints — ~97% fewer recorded traces and a scan denominator that means what a reader
+assumes. **Deliberately not applied mid-measurement**: changing the corpus while establishing
+evidence over it makes the evidence unreproducible.
+
+### 7. What the gate now reads, and what it does not
+
+**1, 2, 3, 4, 5 and 9 met; 7 met on the pilot's 25 concurrent; 6 on the calendar (2026-08-02 /
+2026-08-05); 8 at 2 of 4 confirmed.** Nothing on that list needs engineering. **Three of the six
+"met" are met on a stated reading** — 1 (traced *or* dispositioned), 2 (no P1 open *without a
+decision*), 9 (nothing found by a controlled detector over a proven corpus). Quote the reading rather
+than the tick; each one is written out where it is claimed.
+
+**The one item that has not moved in six sessions is still S42's discovery asks to the org**, which
+are external, have real lead time, and gate S43 — where §7-R8's actual fix lives. Everything the gate
+now lacks is either a date or a mailbox; the pilot's real blocker is a set of unsent questions.
+
+## D-130 — The org's time convention becomes a switch with a provisional default, because the answer is theirs and the code needed one anyway (accepted, 2026-07-30)
+
+**Context.** S42's Message A asks the org which timezone convention their sessions follow, and
+that ask has been unsent for seven sessions. Meanwhile `current_week_key()` — the attendance
+gate's key and the fixture seeder's column value — was reading the ISO week straight off **UTC**.
+Waiting for the answer meant carrying an unstated assumption; guessing it meant hardcoding
+someone else's operational decision. So: make it configurable, default it to the honest guess,
+and make the guess announce itself.
+
+### 1. The UTC reading was already wrong, quietly
+
+ISO weeks start Monday, and Sunday evening in Central is **already Monday in UTC** — Sunday
+19:00 CDT is Monday 00:00 UTC. So a Sunday session was filed under the *next* week's key. With
+fail-closed gating (unknown attendance ≠ present, SPEC §5.4.4), the consequence is not a wrong
+report: **a student who attended on Sunday gets blocked out of their weekly exam.**
+
+It is invisible today because there are no real users and because the dev fake seeds its own
+`week_key` with the same function — the fixture and the query were consistently wrong together,
+which is the failure mode a shared helper produces when it encodes an assumption instead of
+reading one. Whether it would ever fire depends on whether the org runs Sunday-evening sessions,
+**which nobody has asked** (see §4).
+
+### 2. Two defensible conventions, and the choice is not an engineering one
+
+- **`local_dst_aware`** — real local time in a named IANA zone. Correct; disagrees by an hour
+  with the org's own reports from mid-March to early November.
+- **`legacy_fixed_utc_minus_6`** — reproduce icrest's hard-coded `-6` exactly. Always agrees
+  with what staff already read; both are an hour early in summer.
+
+Either way something is off, and *which* kind of off is operationally acceptable belongs to the
+people who read these times. The code's job is to hold both and switch cheaply.
+
+### 3. What "switch cheaply" means concretely
+
+[org_time.py](../packages/shared/src/intellichoice_shared/org_time.py) resolves three
+environment variables — `ORG_TIMEZONE`, `ORG_TIME_CONVENTION`, `ORG_TIME_CONFIRMED` — into a
+frozen `OrgTimeConfig` that owns `local()` and `week_key()`. Switching after the org answers is
+**a tfvars edit and an apply**. Four choices in it are deliberate:
+
+- **Unprefixed env vars**, against the `LEARNING_`/`CHAT_` convention every other setting
+  follows. Per-app prefixes would permit the two services to disagree about what week it is,
+  which is a defect with no legitimate use; one organization is never in two timezones.
+- **Passed explicitly in Terraform** rather than relying on the app default, so the deployed
+  convention is readable from the task definition instead of inferred from code.
+- **A bad value raises `InvalidOrgTimeConfigError` instead of falling back.** A typo'd
+  `ORG_TIMEZONE` silently reverting to Chicago would undo a *confirmed* decision at deploy
+  time, invisibly — the exact class of failure this module exists to prevent.
+- **`ORG_TIME_CONFIRMED` changes no behavior at all.** It only lowers a startup log line from
+  WARNING to INFO. That line is the whole mechanism: an unconfirmed assumption that decides
+  whether a student reaches their exam should be visible in every deploy's logs, not
+  discoverable by reading a source file. **AUD-F-30, filed hours earlier the same day, is a
+  cost comment that was true when written and silently stopped being true** — this is that
+  lesson applied before the fact rather than after.
+
+Default: `local_dst_aware` + `America/Chicago`, unconfirmed. Chosen because it is correct by
+construction, and because the alternative exists only to mirror a display bug.
+
+**Tests (30 new, 622 passed / 2 skipped):** both conventions, the Sunday boundary in both
+directions, the disputed 00:00–00:59 window where even the *date* differs, winter where the two
+conventions are identical (which is why nobody noticed), naive-datetime handling, invalid values
+raising, and both log levels. The seam test lives outside `test_mysql_profile_adapter.py`
+because that module skips entirely without a reachable MySQL, and **a skipped test is not a
+passing one**.
+
+### 4. The ask itself was incomplete, and that is the more useful finding
+
+Message A asks which *display offset* to follow. The code's actual question is where the **week
+boundary** falls, and those are different: the offset changes what hour is shown, the boundary
+changes whether a Sunday session counts as this week — i.e. whether a student is let in. The
+draft would have come back correctly answered and still left S43 guessing.
+
+**Added to Message A:** whether sessions ever run Sunday evening, and whether any run between
+midnight and 1:00 am local — the only two windows where the conventions disagree about the date.
+**Generalisable:** a question drafted from reading someone else's code asks what that code made
+visible. Ours became visible only when a real consumer of the answer was written.
+
+## D-131 — AUD-F-31 fixed: `select_topic`'s exam build goes from 47 SQL statements to 7, and the measurement instrument was wrong twice on the way (accepted, 2026-07-30)
+
+**Context.** D-129 §5 profiled `langgraph.select_topic` — the p95 driver of the learning app in
+every load run since D-121 — and found 1.624 s of deduped SQL inside a 1.62 s span, 51 sequential
+statements, and not one Bedrock call. Filed rather than fixed because it touches assessment-item
+persistence, which is deterministic core (SPEC §5.0) and wanted its own session and its own
+before/after. This is that session.
+
+### 1. What it was, mechanically
+
+Every repository write on the path was `add()` + `await flush()` — one round-trip each. Over a
+10-item exam: 10 `INSERT question_variants`, 10 `INSERT assessment_items`, 10
+`INSERT assessment_item_state`, plus 5 `SELECT question_templates` (one per difficulty) and 10
+`SELECT question_variants` from `flow.items_view` reading each variant back one at a time.
+
+**Locally the same path measured 47 statements, and the 47 reconciles with staging's 51** — the
+four not driven by a local call are the router's `SELECT topics`, the attendance gate's read, and
+two connection-level statements. That reconciliation is the reason the local number is worth
+anything: two independent instruments agreeing on the same shape.
+
+### 2. What it is now
+
+| | before | after |
+|---|---|---|
+| pre-exam build + `items_view` | **47** | **7** |
+| pre-exam build alone | 36 | 5 |
+| post-exam build | 52 | 7 |
+| local wall time, Postgres half (median of 20) | ~39 ms | **~10 ms** |
+
+Reads batched (`get_active_questions_by_difficulty`, `get_variants`, `get_templates`), writes
+batched (`create_variants`, `add_items`, `create_item_states`), and `generate_and_store_variant`
+split so its pure half — `build_variant_row` — can render a whole exam in memory before anything
+is written. `build_post_exam` got the same treatment; leaving it half-done is how the pattern
+grows back.
+
+**The local ~39 → ~10 ms is a floor, not the claim.** Local round-trips are ~0.3 ms against a
+Docker Postgres on the same machine; staging measured ~32 ms per round-trip at 25 concurrent,
+partly queueing. 40 fewer round-trips there projects to most of the 1.62 s span, but
+**criterion 7's p95 remains unmeasured on this change** — the staging before/after was deliberately
+deferred, because D-129 §6's rule cuts both ways: changing the corpus while establishing evidence
+over it makes the evidence unreproducible, and the reverse (claiming a p95 from a projection) is
+worse. **The number to quote until then is the statement count, not a latency.**
+
+### 3. Determinism was the actual risk, and it was already broken
+
+The obvious danger in batching five per-difficulty template reads into one query is not
+performance, it is that **`rng.sample(templates, 2)` consumes the list's order**, so a different
+row order picks different templates — the same seed builds a different exam. `get_active_questions`
+**had no `ORDER BY`**, so "the same seed builds the same exam" (CLAUDE.md non-negotiable #2) was
+already resting on Postgres returning rows in whatever order it happened to. Both the single and
+batch forms now order by primary key.
+
+Held to it three ways: the RNG is consumed in exactly the original sequence (only the I/O left the
+loop, the generation order did not); a test asserts two equally-seeded builds match and a
+differently-seeded one does not; and **the ten questions the unbatched builder produced at a fixed
+seed are pinned as literals** in `test_select_topic_sql_shape.py`, so the refactor is held to
+building *the same exam*, not merely a valid one.
+
+### 4. The instrument was wrong twice, in one file, in one sitting
+
+D-104 §8's rule keeps earning its keep — this is the fourth session running.
+
+**First:** the statement counter counted the rollback harness's own `SAVEPOINT` as a data
+statement. Caught by the control assertion on its first execution. Transaction-control statements
+are now excluded *by name and with a comment*, and still displayed, because a count is only as
+honest as its denominator.
+
+**Second, and worse because it passed:** the counter reported a "rows" column, computed as
+`len(parameters)`. A raw `executemany` arrives at `before_cursor_execute` as a list of parameter
+*sets* — so the length is the row count — while SQLAlchemy's insertmanyvalues path arrives as one
+flattened tuple, so a 10-row insert into an 11-column table reads **110**. The control asserted
+`rows == 3` and **passed, because the control table happened to have exactly one column**. A metric
+that is right for the wrong reason is worse than no metric: the accessor was deleted rather than
+fixed, since the claim here is about statement counts, and that a batched INSERT really carries ten
+rows is proven independently by the structure test counting the rows it wrote.
+
+**The generalisable form:** a positive control proves the detector fires. It does not prove the
+detector measures the quantity in its own variable name. Where a control can pass for a degenerate
+reason — one column, one row, one item — pick the non-degenerate case deliberately.
+
+### 5. Two smaller things worth keeping
+
+**`Session.get()` is not a cache you can rely on.** The 10 `SELECT question_variants` fired even
+though those variants had just been written in the same session, because the Session holds only
+*weak* references to persistent objects: once `build_pre_exam` returned and its locals dropped, the
+identity map was collected. Batch reads exist for real reasons on this path, not as belt-and-braces.
+
+**Primary keys are assigned by the flush, not by `__init__`.** `default=new_uuid` is a column
+default, so `AssessmentItem(...).assessment_item_id` is `None` until written — which is why items
+and their state rows go in two flushes rather than one. It costs the same two statements, and it
+cost one `NotNullViolationError` to learn.
+
+### 6. What this does not change
+
+The exam's content, structure and policy are untouched: 628 passed / 2 skipped (was 622/2, +6 new),
+**all 175 learning-api tests passing with zero skips** — so `test_learning_flow.py`'s full
+pre→study→post→completed cycle really ran against MySQL and Postgres rather than skipping — and
+**57/57 local e2e**, including the student journey through topic selection. No schema change, so no
+migration. No SPEC behavior was reinterpreted; §5.9.1's fixed set, §5.9/§5.13's `unseen` starting
+state and §5.13.2's parallel-form rule are all where they were, and the `unseen` policy
+deliberately stayed in `assessment_builder.py` rather than moving into the repository.
+
+## D-132 — AUD-F-31's staging before/after: the statement count held exactly, the latency projection did not, and the constraint was never the one being profiled (accepted, 2026-07-31)
+
+**Context.** D-131 batched `select_topic`'s exam build and deliberately refused to claim a p95 from a
+local statement count, leaving "a k6 run at 25 concurrent before and after this branch deploys, plus
+an X-Ray re-profile" as the next engineering step. This is that step. AUD-F-30 was landed after it,
+in the order D-129 §6 requires.
+
+### 1. What was confirmed
+
+Capacity-matched at 25 concurrent, 2 tasks on both arms, task definition `:39` → `:40`
+(`gha-9bfce904ebad`, verified against local HEAD):
+
+| | before | after |
+|---|---|---|
+| SQL statements per `select_topic` span | **49**, identical in 125/125 traces | **9**, 125/125 |
+| SQL time in the whole request, median | 1037 ms | **156 ms** |
+| non-SQL remainder of the request (derived) | 1185 ms | **1164 ms** |
+| `select_topic` k6 median, 5-run range | 1.90–3.00 s | **1.00–1.47 s** (disjoint) |
+| whole request (root span), median | 2222 ms | **1320 ms** |
+
+The 902 ms median improvement is fully accounted for by the 881 ms of SQL removed, and the non-SQL
+remainder is invariant within 2%. **Two independent quantities agreeing is what makes this a
+measurement rather than a number.** D-131's local 47 and D-129's staging 51 both reconcile with 49.
+
+### 2. What was refuted, and it is the more important half
+
+**Criterion 7's own threshold metric did not improve.** `http_req_duration` p95, threshold < 3 s:
+
+| arm, 2 tasks | runs | median-of-p95 | breaches |
+|---|---|---|---|
+| before `:39` | 5 | 2.72 s | **0 of 5** |
+| after `:40`, warm | 5 | 3.31 s | **3 of 5** |
+
+Ranges overlap (2.14–2.96 against 2.48–3.60) at n=5 per arm, so **a regression is not established
+and is not claimed**. What is established is that the projected improvement did not appear.
+**D-129 §5 said "criterion 7's gap just got cheap"; that is now known to be false.** The
+~$216/month capacity obligation from D-122 §3 **stays open**, and the ~$0 alternative did not
+replace it. Criterion 7 remains met at the documented 25 concurrent, unchanged, for the same reason
+as before rather than a new one.
+
+**The mechanism is evidenced, not assumed.** ECS CPU peaks are the same on both arms (79–92% before,
+72–96% after) with 60 s averages slightly *lower* after. The task is CPU-bound at 25 concurrent, so
+removing I/O wait cannot raise the throughput ceiling — `flow_total` median is unchanged
+(15.37 → 15.93 s), throughput is unchanged (14.6–15.9 → 13.2–16.6 answers/s), and the ~1.1 s
+`select_topic` returned reappears as queueing in the CPU-bound answer phase, whose p95 goes
+**2.56 → 3.42 s**. Little's law: **the bottleneck moved, it did not disappear.**
+
+**The fix is still correct and still worth having** — 5× less database work, connections held far
+less time (which strictly improves the RDS connection-arithmetic carry-over, though it does not
+settle it), and it repaired a real determinism bug on the way. It is simply not a latency purchase,
+and the roadmap should stop describing it as one.
+
+### 3. The generalisable lesson, which is worth more than the fix
+
+**A span that dominates a profile is not a span that dominates a budget.** `select_topic` was the
+largest span in the trace and 93% SQL by its own duration, and removing 82% of its statements bought
+no aggregate latency — because the saturated resource was CPU, and CPU was never what the profile
+was reporting on. **Profile the constraint, not the biggest number.** The prior three sessions'
+lesson was that an instrument needs checking before its output means anything (D-104 §8, D-121,
+D-129 §5, D-131 §4); this one is a level up — the instrument was *correct* and the *inference* from
+it was wrong, because a per-span time series cannot tell you which resource is scarce.
+
+**A pre-registered expectation is what made this legible.** Before the after arm ran, the log
+recorded: "the task is CPU-saturated, so removing 40 SQL waits should not return the full ~1.0 s;
+expect the end-to-end p95 to improve by materially less than the SQL time removed." That was
+directionally right and understated. **Writing the prediction down first is the difference between
+a surprising result and a result that can be rationalised afterwards** — and it should become the
+habit for every before/after this project runs.
+
+### 4. Four measurement-protocol findings, all of which changed the answer
+
+1. **Back-to-back runs are not independent samples.** Four exploratory runs 20 s apart drifted
+   1.75 → 3.03 s. The arms use **5 runs at 120 s spacing** because of it, and report every run
+   rather than only an aggregate.
+2. **The burstable-database hypothesis was tested and rejected**, not assumed either way: both RDS
+   instances are `db.t4g.micro`, but `CPUCreditBalance` sat at its 288 maximum and Postgres CPU
+   peaked at 10%. **A plausible confound that is never measured is indistinguishable from a real
+   one.**
+3. **The first after arm was invalid and said so.** It scaled 2 → 3 tasks mid-arm at 00:22:51Z,
+   triggered by the *cold post-deploy warm-up run*, giving the after arm capacity the before arm
+   never had — **in the direction that flatters it**. Discarded and re-run warm at a matched 2 tasks,
+   with task count verified at the start *and* end of every run.
+4. **`langgraph.select_student` is a trap as a control span**, and the guard written to catch it had
+   the same bug it was catching. The span is real and findable and reports **0.028 ms with no SQL**,
+   so a profile of it prints a tidy table of zeros — and "0 statements" is also exactly what a
+   successful batching fix looks like. The first guard tested `median == 0.0`, never fired, and sat
+   beside a table that displayed "med 0" under a `:.0f` format. **The guard read as firing and was
+   not.** It is a `< 1.0 ms` threshold now and durations print at one decimal. The drift controls
+   moved to the k6 client-side trends (`learning_select_student`, `learning_create_session`), which
+   the diff does not touch.
+
+### 5. The instrument is now a script, on purpose
+
+`scripts/profile_xray_span.py` (`make profile-span`) replaces D-129 §5's hand-rolled pipeline, whose
+first answer was 102 statements and 131% of wall time in SQL because X-Ray records each SQLAlchemy
+statement **twice** — a child subsegment *and* a standalone segment. **The correction is structural
+rather than timestamp-based**: a statement counts only if it is a descendant of the target span, so
+the standalone copies are excluded by construction. The `(start_time, query)` dedup is still computed
+over whole traces and printed beside it, and the two agree (12,750 nodes seen, 6,375 deduped, 6,125
+in-span, and 6,125 ÷ 125 = 49 exactly). **Both arms measured by one reviewable script is the point** —
+a correction re-derived by hand on the second arm is not the same correction.
+
+Four guards, each verified firing against live traces: SQL time exceeding its own span → INVALID;
+zero matching spans → FAIL; degenerate (~0 ms) span → DEGENERATE; coverage always printed, because
+~97% of staging's traces were `/readyz` and an unfiltered denominator flatters a profile that never
+saw the request.
+
+### 6. What this session did not resolve
+
+**AUD-F-32 (new, P2): the ceiling is ~726 ms per answer request that is neither SQL nor graph work.**
+Over 1,247 answer requests: 836 ms median request, 110 ms of SQL, 98 ms in `langgraph.submit_answer`.
+Ten answers per flow makes ~7.3 s of a ~15 s flow unexplained, and that is what criterion 7's p95 is
+now made of. **This, not `select_topic`, is the next latency target**, and D-132's lesson says to
+size it before batching anything: `submit_answer` also issues **15 statements per answer, 150 per
+exam**, which is AUD-F-31's shape at a fraction of the prize.
+
+**AUD-F-33 (new, P3): learning-api did not scale back in for over two hours** while its scale-in
+alarm was in ALARM, with no scaling activity recorded. It scaled in correctly earlier the same day,
+so it is intermittent. D-122 cited "2 → 3 in ~1 min" as criterion 7's autoscaling evidence — that
+covers scaling **out** only, and a service that scales out reliably and in unreliably has a cost
+floor set by its worst recent minute. `desired-count` was restored to 2 manually.
+
+### 7. Post-hoc: a second instrument, the inbox, and the e2e re-run (added at the session close)
+
+**The alarm agrees with k6, which upgrades §2's claim.** `learning-api-p95-latency` — ALB
+`TargetResponseTime` p95, server-side, independent of k6 — went **OK → ALARM at 02:34:38Z** on
+datapoints **3.21 / 3.80 / 3.54 s**, i.e. the after arm's runs 3–5. `describe-alarm-history` shows
+**no transition during the before arm**, same five-run structure and spacing. §2 said "a regression is
+not established"; that was right on one instrument. With two agreeing, the statement is: **the after
+arm tripped the deployed 3 s paging threshold and the before arm did not.** Still small (3.2–3.8 s
+against 3.0), still n=5, but no longer attributable to one tool's noise.
+
+**Criterion 8 is 3 of 4, not 4 of 4.** The monitored inbox was read and contains **seven of the eight**
+`learning-api-p95-latency` transitions, including the 18:44:38Z one D-126 went looking for — so that
+alarm is **confirmed reaching a human**. `learning-api-5xx-rate` fired exactly once (ALARM 18:26:40Z,
+OK 18:29:40Z) and is **not among them**. Not closed by inference: "it almost certainly arrived with the
+others" is the precise claim this criterion exists to replace (D-126).
+
+**Criterion 3's evidence was aged by this session's own deploys, and the re-run is one clean run, not
+two.** Four deploys landed today, one of them changing deterministic-core code, so the two consecutive
+clean staging runs that met criterion 3 (D-120) were against older images. Re-run against `:43`
+(build sha `544c6fe9749c`, verified equal to HEAD): **53 passed / 4 skipped / 0 failed**, with
+**`narrative-refresh.spec.ts` flaky** — it failed its first attempt and passed on retry, confirmed by
+re-running the spec alone (`✘` at 4.7 s, then `1 passed`). **Criterion 3 needs a second consecutive
+clean run**, and the flake should be looked at rather than absorbed: a journey that passes only on
+retry is weaker evidence than the criterion's wording implies.
+
+**A harness note worth keeping:** the first e2e attempt reported **17 failures** and none were real.
+`make e2e-staging` does not fetch the `/dev/token` secrets the way `make load-staging-learning` does,
+and `e2e/config.ts` defaults them to `""`, so D-097's secret gate 404s and every authenticated journey
+fails together. **A wall of failures that all share one dependency is a harness signal, not a product
+signal** — but it was diagnosed rather than assumed, and confirmed by the run passing once the two
+secrets were exported. Worth teaching the target to fetch them itself.
+
+## D-133 — Criterion 8 is met at 4 of 4; and the ~$216/month capacity purchase is deferred, because the price omits the database (accepted, 2026-07-31)
+
+### 1. Criterion 8, closed
+
+All four alarms are induced and confirmed in the monitored inbox. The last one,
+`learning-api-5xx-rate`, fired exactly once (ALARM 18:26:40Z, OK 18:29:40Z) and its **OK notice is in
+the mailbox**, matching `describe-alarm-history` to the second. The other three were confirmed in
+D-126 and D-132.
+
+**Three sessions of delay, none of it technical.** The alarms worked the whole time. D-126 refused to
+close on "they almost certainly arrived with the others" and that refusal was correct — the
+`learning-api` pair sat an hour away in the inbox and needed a per-alarm search, not one sweep.
+**A criterion whose evidence lives in a human's mailbox decays**: reconstructing "which four" gets
+harder every day, and the fix is to read the inbox in the same session that induces the alarms — the
+same sequencing lesson D-129 §1 learned for trace scans.
+
+### 2. The ~$216/month is deferred, and the number is wrong low
+
+**The arithmetic that produced it is sound and verifiable.** D-122 measured throughput flat at
+5.8 req/s from 10 concurrent upward with latency growing linearly (Little's law within 4%), then
+**3.0× throughput for 3.0× CPU** after resizing — so linearity is measured, not assumed. 25 concurrent
+supported on 2 tasks, 150 ÷ 25 = 6×, 12 tasks. At Fargate's rate a 0.5 vCPU / 1 GB task is
+(0.5 × $0.04048 + 1 × $0.004445) × 730 = **$18.02/month**, so 12 × $18.02 = **$216.25**. The figure
+checks out exactly, and **D-132 strengthened its premise** by showing the constraint really is CPU.
+
+**But it prices compute only.** Postgres is `db.t4g.micro`, whose `max_connections` derives from
+instance memory — currently **~112**. Measured peak during this session's load was **68**. Pool
+arithmetic is ~21 connections per task (10 + 10 plus a checkpoint connection, PROGRESS's standing
+carry-over), so:
+
+| | connections |
+|---|---|
+| 12 learning tasks | ~252 |
+| plus chat-api at its 3-task ceiling | ~315 |
+| available on `db.t4g.micro` | **~112** |
+
+**Over 2× the ceiling before chat-api is counted.** Buying 12 tasks therefore requires resizing RDS
+as well, so **~$216 is a floor, not a total** — and `t4g` is burstable, which is a second question
+under sustained load rather than today's idle-with-full-credits state.
+
+### 3. Two cheaper questions come first
+
+**(a) 150 concurrent has never been validated as a requirement.** It is SPEC §6.23's number, not a
+measured demand figure. The pilot's documented target is 25, against ~1,000 MAU. **Buying 6× capacity
+for an unvalidated target is paying monthly for a question nobody has asked the org.** It belongs in
+the same channel as the S42 asks.
+
+**(b) AUD-F-32 is the cheaper lever and it is now the *right kind* of lever.** ~726 ms per answer
+request is neither SQL nor graph-node time. D-132 proved the constraint is CPU, and this is
+CPU-per-request: halving it roughly halves the task count needed, taking ~$216 toward ~$108. **But
+D-132's own lesson applies to this too** — the composition of that 726 ms is unmeasured, and
+`select_topic` was also the biggest number in a profile and the wrong target. **Measure it in its own
+session before committing to a fix, and before committing to a price.**
+
+**Decision (user call): defer the purchase; re-price after (a) and (b).** Nothing forces it now —
+there are no real users, and criterion 7 is met at the documented 25. When it is priced again it must
+include RDS.

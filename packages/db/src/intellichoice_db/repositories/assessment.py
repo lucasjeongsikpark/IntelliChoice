@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import datetime
 
 from sqlalchemy import select
@@ -26,6 +27,18 @@ class AssessmentRepository:
         self._session.add(item)
         await self._session.flush()
         return item
+
+    async def add_items(self, items: Sequence[AssessmentItem]) -> list[AssessmentItem]:
+        """Insert a whole exam's items in one round-trip (AUD-F-31).
+
+        One flush over N rows is one `executemany`, where the per-item `add_item` above
+        was N flushes. Primary keys are assigned by the flush, not by `__init__`, so a
+        caller that needs `assessment_item_id` (to build the state rows, say) must await
+        this before reading them.
+        """
+        self._session.add_all(items)
+        await self._session.flush()
+        return list(items)
 
     async def record_attempt(self, attempt: AssessmentAttempt) -> AssessmentAttempt:
         self._session.add(attempt)
@@ -101,6 +114,16 @@ class AssessmentRepository:
         self._session.add(item_state)
         await self._session.flush()
         return item_state
+
+    async def create_item_states(
+        self, item_states: Sequence[AssessmentItemState]
+    ) -> list[AssessmentItemState]:
+        """The batch form of `create_item_state` - one round-trip for a whole exam's state
+        rows (AUD-F-31).
+        """
+        self._session.add_all(item_states)
+        await self._session.flush()
+        return list(item_states)
 
     async def get_item_states(self, assessment_session_id: str) -> list[AssessmentItemState]:
         stmt = (

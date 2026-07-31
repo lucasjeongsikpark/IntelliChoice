@@ -3274,3 +3274,260 @@ carry-over rather than done under a capacity change.
 
 **Post-fix evidence:** the 150-concurrent run after the change produced zero connection errors, zero
 5xx, and no replacement, at a concurrency 3× higher than the one that killed a task before.
+
+## Criterion 9's authenticated half (2026-07-30, D-129)
+
+Two findings, both from the same 25-VU authenticated load run that produced the criterion-9
+evidence. Neither is a correctness defect; both are things a measurement was quietly wrong about.
+
+### AUD-F-30 — 97% of every trace this project has ever scanned is a health check, and X-Ray's free tier stopped covering it (P3, found 2026-07-30, D-129; ✅ fixed 2026-07-31, D-132, on the third attempt)
+
+Measured, not estimated: **2,394 traces in the hour before the load run, and every one of them was
+`GET /readyz`** — 5 tasks × ~478 checks each. The 350 authenticated requests the load run generated
+were 13% of the corpus the criterion-9 scan then walked; on an idle window it is 100% health checks.
+
+Two consequences, in increasing order of importance:
+
+1. **The cost assumption in the code is now false.**
+   [terraform/environments/staging/variables.tf:78-81](../terraform/environments/staging/variables.tf#L78-L81)
+   defaults `enable_otel_tracing` to true and justifies it with "X-Ray's free tier covers 100k
+   traces/month". At the measured rate that is **~57k traces/day, ~1.7M/month — about 17× the free
+   tier**, or ~$8/month at $5 per million recorded. July's bill is genuinely $0 (85,892 traces
+   stored, under the tier) but only because tracing has been on for four days *and* the task count
+   doubled on 2026-07-30 (learning-api `min_capacity` 1 → 2, chat-api sitting at 3). **The comment
+   was true when written and is now an assumption that silently stopped holding** — the same shape as
+   D-072's retention assumption (see §5.15 in [TRACEABILITY.md](TRACEABILITY.md)), at a much lower
+   stake.
+2. **It dilutes the one criterion that depends on the trace corpus.** A scan reporting "2,747 traces
+   CLEAN" sounds like broad coverage and is mostly the same three-span health check repeated. This is
+   exactly why D-104 §3's coverage control exists and why this session ran one: the claim that
+   matters is not the total, it is that the **350 authenticated traces were in the scanned set**.
+
+**✅ FIXED (2026-07-31, D-132) — on the third attempt, and the first two were measured wrong in
+opposite ways. The "~97%" in the fix direction below was not merely imprecise; the first attempt got
+the sign wrong.**
+
+| attempt | change | idle traces / 10 min |
+|---|---|---|
+| baseline | — | **320**, 100% `GET /readyz` |
+| 1 | `excluded_urls` on `FastAPIInstrumentor` | **1,095** ⬆ **3.4× worse**, 100% no-URL orphans |
+| 2 | + `suppress_instrumentation` inside `ping_engine` | **160**, still all orphans |
+| 3 | + suppression around each `/readyz` **handler body** | **0** ✅ |
+
+**And zero is only meaningful with the coverage control**, because "no traces at all" is exactly how
+AUD-F-12 certified an empty store as PII-clean. Immediately after the idle measurement, a 3-VU
+authenticated run produced **42 traces for 42 requests** — 3 `token`, 3 `sessions`, 3 `student`,
+3 `topics`, 30 `answers`, i.e. the flow's exact shape, every one attributable by URL and not one
+`/readyz`. **Idle costs nothing; real traffic is still fully traced.** Criterion 9's evidence base is
+intact and its denominator now means what a reader assumes.
+
+**Attempt 1 was worse, not just insufficient: dropping a server span orphans its children rather
+than removing them.** `/readyz` pings two engines; each ping emits a `connect` and a `SELECT` span.
+With no parent server span, each becomes its own **root segment — its own trace**. One attributable
+health-check trace became four unattributable ones, so both halves of this finding got worse: more
+traces to pay for, and a corpus whose denominator can no longer be read at all, since nothing
+identifies the survivors as health checks.
+
+**Attempt 2 left 160/10 min because per-query suppression only covers the queries someone
+annotated.** chat-api's `/readyz` also runs AUD-C-16's embedding-provenance check through
+`RagRepository` — not `ping_engine`, added later, for an unrelated reason, by someone not thinking
+about a path polled every 15 s. **The fix belongs at the handler**: `/readyz` should cost nothing
+*as an endpoint*, so whatever is added inside it is free by construction. `excluded_urls` stays, so
+no server span is created either.
+
+**Three things worth keeping.** (a) **A fix aimed at a mechanism can move the metric the wrong
+way** — only re-measuring caught it, and the estimate ("~97% fewer") would have been reported as the
+result had the plan not called for measuring it. (b) **The test that shipped with attempt 1 asserted
+`"GET /readyz" not in names` and passed cleanly against the regression.** An assertion that names
+the mechanism you fixed cannot see a mechanism you did not think of — count the output instead; the
+test now asserts the total span count is zero. (c) The inward contextvar propagation the handler-level
+fix relies on was **verified empirically**, because an earlier docstring of `ping_engine` asserted
+the opposite: `asyncio.wait_for` creates a Task, a Task copies contextvars at creation, so an outer
+suppression *does* apply inside. Pinned by a test.
+
+*(Superseded — the fix direction as originally filed, kept because its confidence is the point:)*
+**Fix direction** (not applied — it changes what staging records, and criterion 9's evidence was
+being gathered in the same session): exclude the health endpoints from instrumentation, e.g.
+`FastAPIInstrumentor`'s `excluded_urls` (`readyz,healthz`) or an X-Ray sampling rule at 0% for them.
+Either drops recorded traces by ~97%, removes the cost question entirely, and makes the scan's
+denominator mean what a reader assumes it means. **Deliberately not done mid-measurement**: changing
+the corpus while establishing evidence over it is how a clean result becomes unreproducible.
+*(The first of those two options was implemented and made it 3.4× worse. "Either drops recorded
+traces by ~97%" was a guess stated as an arithmetic certainty.)*
+
+### AUD-F-31 — `select_topic` spends its 1.6 s on ~50 sequential SQL round-trips, and none of them are checkpoint writes (P2, found 2026-07-30, D-129; ✅ fixed 2026-07-30, D-131; ✅ verified on staging 2026-07-31, D-132)
+
+**✅ VERIFIED ON STAGING (2026-07-31, D-132) — and the verification refutes the reason the fix was
+prioritised.** Capacity-matched before/after at 25 concurrent, 2 tasks on both arms, `:39` → `:40`:
+
+| | before | after |
+|---|---|---|
+| SQL statements per `select_topic` span | **49** (identical in 125/125 traces) | **9** (125/125) |
+| SQL time in the whole request, median | 1037 ms | **156 ms** |
+| non-SQL remainder of the request (derived) | 1185 ms | **1164 ms** — unchanged |
+| `select_topic` k6 median, range over 5 runs | 1.90–3.00 s | **1.00–1.47 s**, no overlap |
+| whole request (root span), median | 2222 ms | **1320 ms** |
+
+The 902 ms median improvement is fully accounted for by the 881 ms of SQL removed, and the non-SQL
+remainder is invariant within 2%. **The fix removed SQL and nothing else, which is exactly the
+claim.**
+
+**But criterion 7's own threshold metric did not improve.** `http_req_duration` p95 (threshold
+< 3 s): before, median-of-p95 **2.72 s** with **0 of 5 runs breaching**; after, **3.31 s** with
+**3 of 5 breaching**. Ranges overlap (2.14–2.96 against 2.48–3.60) and n=5 per arm, so a *regression*
+is not established — but the projected *improvement* is refuted. **D-129 §5's "criterion 7's gap
+just got cheap" was wrong, and the ~$216/month capacity obligation stays open.**
+
+**⚠️ A second, independent instrument agrees, and it upgrades the claim.** The deployed
+`learning-api-p95-latency` alarm — ALB `TargetResponseTime` p95, measured server-side by CloudWatch,
+entirely separate from k6's client-side timing — **went OK → ALARM at 02:34:38Z on datapoints 3.21 /
+3.80 / 3.54 s**, which are the after arm's runs 3, 4 and 5 (02:28, 02:30, 02:31). `describe-alarm-history`
+shows **no transition at all during the before arm** (23:44:30–23:54:30Z), which ran the same five-run
+structure at the same ~2 min 18 s spacing. So the honest statement is stronger than "the projected
+improvement did not appear": **the after arm tripped the deployed 3 s paging threshold and the before
+arm did not.** The margin is small (3.2–3.8 s against 3.0) and n is still 5 per arm — but it is no
+longer one instrument's noise, and the alarm is the operational promise the environment makes about
+itself.
+
+**Why, evidenced rather than asserted.** ECS CPU peaks are the same on both arms (79–92% before,
+72–96% after) while 60 s averages are slightly lower after. The task is **CPU-bound at 25
+concurrent**, so removing I/O wait cannot raise the throughput ceiling: `flow_total` median is
+unchanged (15.37 → 15.93 s) and so is throughput (14.6–15.9 → 13.2–16.6 answers/s). The ~1.1 s
+`select_topic` gave back reappears as deeper queueing in the CPU-bound answer phase, whose p95 went
+**2.56 → 3.42 s**. Little's law: the bottleneck moved, it did not disappear. **The fix is still
+worth having** — 5× less database work, connections held far less time (which strictly improves the
+RDS connection-arithmetic carry-over), and it fixed a real determinism bug on the way — but it is
+not a latency purchase.
+
+**The generalisable lesson: a span that dominates a profile is not the same as a span that dominates
+a budget.** `select_topic` was 93% SQL and the single largest span, and removing 82% of its SQL
+bought no aggregate latency, because the resource actually saturated was never the one being
+profiled. **Profile the constraint, not the biggest number.**
+
+*(Superseded — how the local fix read at the time, D-131:)*
+Reads and writes batched: the same path measures **47 → 7
+statements** locally (post-exam build 52 → 7), and the Postgres half of `select_topic` drops from
+~39 ms to ~10 ms median locally. **The local 47 reconciled with the 51 measured here**, which is
+what made the local number usable — the four extra are the router's `SELECT topics`, the attendance
+read, and two connection-level statements. The staging count of 49 measured in D-132 reconciles with
+both.
+
+**The p95 claim is deliberately not made.** Local round-trips are ~0.3 ms against a same-machine
+Postgres, so ~74% off the builder locally does not establish criterion 7's staging p95; that needs a
+before/after at 25 concurrent, which was not run. **Quote the statement count, not a latency.**
+*(D-132 ran it. The caution was correct: the statement count held up exactly, the latency projection
+did not.)*
+
+**The real risk was not performance.** `rng.sample()` consumes the template list's order, and
+`get_active_questions` had **no `ORDER BY`** — so "the same seed builds the same exam" (SPEC §5.0
+deterministic core) was already resting on Postgres's row-order discretion. Both read forms now
+order by primary key, and the ten questions the unbatched builder produced at a fixed seed are
+pinned as literals in `test_select_topic_sql_shape.py`.
+
+*(How it read when filed:)*
+
+`select_topic` has been the p95 driver in every load run since D-121, and the standing hypothesis in
+PROGRESS.md was "a LangGraph invoke with checkpoint writes". **The trace says otherwise.** Over the
+25 topic-selection requests in this session's run:
+
+| | median | p95 |
+|---|---|---|
+| request wall time | 2.484 s | 2.997 s |
+| `langgraph.select_topic` span | 1.62 s | — |
+| SQL time inside it (deduped) | 1.624 s | — |
+| SQL statements per request (deduped) | **51** | 51 |
+
+**The graph node is its SQL and nothing else** — 1.624 s of SQL inside a 1.62 s span, and **not one
+Bedrock subsegment**. The statements are an N+1 write pattern over the 10 exam items:
+
+```
+10 × INSERT question_variants        10 × SELECT question_variants
+10 × INSERT assessment_items         10 × INSERT assessment_item_state
+ 5 × SELECT question_templates        1 × INSERT assessment_sessions
+ 1 × SELECT topics, 1 × SELECT attendance, 2 × connection-level
+```
+
+At ~32 ms per round-trip (measured at 25 concurrent, so partly queueing), batching the four per-item
+statements into multi-row writes and the template lookups into one query takes ~51 statements to ~6.
+**That is the cheapest available move on criterion 7's remaining gap**: ~$0 against the ~$216/month
+of the 6× capacity D-122 priced, and it targets the exact span that dominates the p95. Filed rather
+than fixed because it touches assessment-item persistence, which is deterministic-core code
+(SPEC §5.0) and wants its own session and its own before/after.
+
+**Instrument caveat, recorded because it nearly became the finding:** X-Ray records each SQLAlchemy
+statement **twice** — once as a child subsegment of the graph span and once as a standalone segment —
+so the naive count is **102** statements and the naive SQL total (3.37 s) exceeds the request's own
+wall time (2.57 s). A profile that reports 131% of wall time in SQL is reporting on its instrument.
+Deduping on `(start_time, sanitized_query)` gives 51 and 1.624 s, which reconciles exactly with the
+span. D-104 §8's rule holds: every measurement apparatus needs its own correctness check first.
+
+### AUD-F-32 — the learning app's latency ceiling is ~726 ms per answer request that is neither SQL nor graph work (P2, found 2026-07-31, D-132; not fixed)
+
+Found by the measurement that closed AUD-F-31, and it is the direct successor to it: with
+`select_topic` batched, **`select_topic` is no longer the p95 driver of anything.** Over 1,247 answer
+requests in the after arm:
+
+| answer request (`POST .../answers`) | median | p95 |
+|---|---|---|
+| whole request (root span) | 836.0 ms | 3064.7 ms |
+| SQL time inside it | 110.1 ms | 577.4 ms |
+| `langgraph.submit_answer` span | 97.8 ms | 469.8 ms |
+| **neither SQL nor graph node (derived)** | **~726 ms** | **~2.5 s** |
+
+A flow submits **ten** answers, so ~7.3 s of the ~15 s `flow_total` is work that is neither database
+time nor time inside the graph node. That is the largest unexplained term in the learning app and it
+is what criterion 7's `http_req_duration` p95 is now made of.
+
+**Why this is the right next target and AUD-F-31 was not.** D-132 established that the task is
+CPU-saturated at 25 concurrent (ECS CPU peaks 72–96% on both arms), so latency work has to reduce
+**CPU per request**, not round-trips. Candidates, none yet measured: FastAPI/Starlette middleware
+depth, JWT verification per request, LangGraph checkpoint serialisation, Pydantic validation of graph
+state, and the interrupt/resume plumbing. **The instrument for this already exists** —
+`scripts/profile_xray_span.py` reports any span by name, and the gap between a root span and the sum
+of its children is exactly what it is printing.
+
+**Secondary, and a smaller sibling of AUD-F-31:** `langgraph.submit_answer` issues **15 SQL
+statements per answer**, invariant across all 1,247 traces — **150 per exam**. At 82 ms median it is
+not the dominant term, so batching it is a smaller prize than AUD-F-31 was, and D-132's lesson says
+to size it before doing it.
+
+### AUD-F-33 — learning-api scaled out and then did not scale back in for over two hours, with its scale-in alarm in ALARM the whole time (P3, found 2026-07-31, D-132; not fixed)
+
+Observed while trying to capacity-match D-132's two arms. The service went to 3 tasks at
+**00:22:51Z** (`learning-api-p95-latency-scale-out`, triggered by a cold post-deploy run) and was
+still at 3 at **02:15Z**, while `learning-api-p95-latency-scale-in` had been in **ALARM since
+00:51Z** — 84 minutes. The policy is configured with a `-1` step and a 300 s cooldown, and
+`describe-scaling-activities` records **no scaling activity at all** after 19:35Z. It did scale in
+correctly earlier the same day (19:35Z, ~55 min after a scale-out), so this is intermittent rather
+than broken-by-construction.
+
+**Why it matters beyond the measurement it obstructed.** D-122 cited "**2 → 3 in ~1 min**" as
+criterion 7's autoscaling evidence, and that evidence covers scaling **out** only. A service that
+scales out reliably and scales in unreliably has a cost floor set by its worst recent minute:
+staging sat at 150% of its baseline capacity for hours with no traffic, and nothing alarmed on it.
+On the pilot's real usage pattern (school hours, then idle) that is the common case, not the corner.
+
+**It is learning-api-specific, and a same-hour control rules out the generic explanations.**
+`chat-api`'s scale-in policy fired **twice in the same hour**, exactly as configured — 3 → 2 at
+**00:15:32Z** and 2 → 1 at **00:21:32Z**, six minutes apart, consistent with its own 300 s cooldown —
+while `learning-api` sat at 3 from 00:22:51Z with its scale-in alarm in ALARM from 00:51Z and **no
+activity at all**. Both services use step scaling on a p95-latency alarm pair. So this is not
+Application Auto Scaling declining to act on a sustained ALARM in general, not an account-level
+issue, and not a cooldown that applies to both: **something specific to learning-api's alarm or
+policy pair.** The likeliest candidates are the alarm's own datapoint configuration (periods,
+`datapoints_to_alarm`, treatment of missing data) and the fact that learning-api's `min_capacity` is
+2 against chat-api's 1 — but both are unverified, and the difference between them is exactly what a
+controlled repro would settle.
+
+**Not diagnosed further.** This entry records the observation, the same-hour control, and the
+narrowed hypothesis rather than guessing a mechanism. **`desired-count` was set back to 2 manually**
+to restore the baseline.
+
+**Related, and worth knowing before quoting criterion 7's chat leg:** chat-api's `min_capacity` is
+**1**, so its baseline is one task and the "**3 tasks running, ≥ 2 ✅**" recorded for criterion 7 was
+supplied by scale-out *during* the run, not by resting capacity. That is legitimate for a criterion
+measured under load — but a reader who checks the service at rest will find one task and think the
+evidence was wrong. Worth a look before quoting the autoscaling
+half of criterion 7 again, and worth an alarm on `desiredCount > min_capacity` sustained over some
+window — the condition was invisible for two hours and only surfaced because a measurement needed
+the capacity to hold still.

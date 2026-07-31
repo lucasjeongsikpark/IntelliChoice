@@ -712,7 +712,28 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**Standing as of 2026-07-30 (post-D-123): 2, 3, 4 and 5 are met; 8 is met but for a human
+**Standing as of 2026-07-31 (post-D-133): 1, 2, 4, 5, 8 and 9 are met; 7 is met on a re-stated target
+and did NOT improve when its cheapest lever was pulled; 6 is on the calendar (2026-08-02 /
+2026-08-05); 3 has slipped back to needing one more clean run.** Two criteria moved in opposite
+directions this session. **Criterion 8 is now MET at 4 of 4** (D-133) — the inbox was read and all
+four alarms are confirmed reaching a human; it took three sessions and none of the delay was
+technical. **Criterion 3 is no longer freely claimable** — this session's four staging deploys, one
+touching deterministic-core code, aged D-120's two consecutive clean runs. One clean re-run exists
+against the new image (53 passed / 4 skipped / 0 failed, with `narrative-refresh.spec.ts` flaky);
+**a second consecutive run is owed**. Nothing regressed in the product; the evidence aged because the
+artifact under test changed, which is the ordinary cost of deploying during a gate.
+
+**So the gate now needs: one more clean e2e run, and two calendar dates.** No open engineering.
+
+*(Prior standing, post-D-129:)* **1, 2, 3, 4, 5 and 9 are met; 7 is met on a re-stated
+target; 6 is on the calendar (2026-08-02 / 2026-08-05); 8 is 2 of 4 confirmed and needs a human to
+read an inbox.** Every criterion except 6 and 8 is now closed on written evidence, and the two that
+remain need a calendar and a mailbox rather than work. **Three of the six "met" claims are met on a
+stated reading rather than absolutely** — 1 (every requirement traced *or* dispositioned; T-02 is
+dispositioned, not built), 2 (no P1 open *without a decision*; §7-R8/R9 are live exposures), and 7
+(the pilot's documented 25 concurrent, not the criterion's original 150). Quote the reading, not the
+tick.
+*(Prior standing, post-D-123:)* **2, 3, 4 and 5 are met; 8 is met but for a human
 confirmation; 6 is on the calendar; 7 is met on a re-stated target; 1 and 9 are the two that
 nobody has finished measuring.** Read the per-criterion notes below before quoting that summary —
 **2 is met on a written reading, not by having zero P1-severity exposure** (§7-R8/R9), and **7 is
@@ -812,6 +833,49 @@ target-tracking, an explicit 384-unit app share, and `unhealthy_threshold` 3 →
 the 3-task ceiling. **Decision (user call, D-122 §3): 25 is the documented pilot target**; 150 at
 p95 ≤ 3 s would need ~6× the capacity (~12 tasks, ~$216/month) and is carried as a post-pilot
 obligation. The cheapest remaining lever is `select_topic`, the p95 driver in every run.
+
+**⛔ That lever was pulled AND measured, and it does not move this criterion (2026-07-31, D-132).**
+The staging before/after ran at 25 concurrent, 2 tasks on both arms. **AUD-F-31's fix is confirmed in
+the quantity it claimed** — 49 → 9 SQL statements per `select_topic` (identical in 125/125 traces each
+arm), SQL time in the request 1037 → 156 ms median, `select_topic` k6 median 2.37 → 1.23 s with
+disjoint 5-run ranges. **And criterion 7's own threshold metric did not improve:**
+`http_req_duration` p95 went from median-of-p95 2.72 s with **0 of 5 runs breaching** the 3 s
+threshold to **3.31 s with 3 of 5 breaching**. Overlapping ranges at n=5 mean no regression is
+claimed; the projected *improvement* is refuted.
+
+**The reason is that the task is CPU-bound at 25 concurrent, not I/O-bound** (ECS CPU peaks 79–92%
+before, 72–96% after). Removing round-trips cannot raise a CPU-limited throughput ceiling —
+`flow_total` and answers/s are both unchanged — so the returned ~1.1 s reappears as queueing in the
+answer phase (p95 2.56 → 3.42 s). **The supported concurrency is still the documented 25 and the
+~$216/month capacity obligation is still OPEN**, now for a measured reason rather than an unmeasured
+one. **Stop describing `select_topic` as the cheapest remaining lever — it has been pulled.**
+
+**What criterion 7 actually needs next is AUD-F-32**, filed off this measurement: ~726 ms of every
+answer request is neither SQL nor graph-node time, ×10 answers ≈ 7.3 s of a ~15 s flow, and that is
+what the p95 is now made of. It is a CPU/overhead question. **Size it before optimising it** —
+D-132 §3's lesson is that `select_topic` was the biggest span in the profile and the wrong target,
+because the profile could not show which resource was scarce.
+
+**⚠️ And the ~$216/month figure quoted throughout this block prices compute only (D-133).** The
+Fargate arithmetic is exact — 12 × $18.02 — and its linearity is measured rather than assumed. But
+Postgres is `db.t4g.micro` with `max_connections` **~112**, and 12 learning tasks alone need ~252
+connections by pool arithmetic (~21/task), ~315 with chat-api at its 3-task ceiling. **Over 2× the
+ceiling**, so 12 tasks requires resizing RDS too and **~$216 is a floor, not a total**. Two questions
+come before the money: **150 concurrent has never been validated as a requirement** (it is §6.23's
+number, not measured demand, against a documented pilot target of 25), and **AUD-F-32 is the
+CPU-per-request lever** that could roughly halve the task count. **Purchase deferred (user call,
+D-133); re-price after both, and include the database.**
+
+*(Superseded — how this read after D-131 and before the measurement:)*
+AUD-F-31 is fixed: the build issues **7 SQL statements instead of 47**, and ~40 fewer round-trips at
+the ~32 ms each measured at 25 concurrent projects to most of the 1.62 s span that dominates the p95.
+**Nothing about criterion 7 changes yet.** The supported concurrency is still the documented **25**,
+and the ~$216/month capacity obligation is still open, because the evidence is a local statement count
+plus a projection — not a staging before/after. **What closes this: a k6 run at 25 concurrent before
+and after the change deploys, plus an X-Ray re-profile of `langgraph.select_topic`.** Only then can
+the ~$0 fix be said to have replaced the ~$216/month purchase; until then it is *probable*, which is
+the word this criterion exists to disallow. *(D-132 ran it. The caution was right and the projection
+was wrong: ~$0 did not replace ~$216/month.)*
 *(The original finding, kept because the before/after is the useful part:)*
 **✅ Criterion 7's learning-app leg is measured (2026-07-30, D-121) — and it FAILS at the criterion's
 own 150 concurrent (AUD-F-28, P1):** p95 **36.01 s** against ≤ 3 s, **13.16%** errors against < 1%,
@@ -932,6 +996,47 @@ monitored inbox. Two notes for whoever re-runs this: D-121's "2 consecutive minu
 the last N datapoints that *exist*), and the chat induction **cost $17.25** in real Bedrock calls
 because a threshold set 25% above the normal p95 takes four runs to straddle successfully.
 
+**✅ CRITERION 9 IS MET (2026-07-30, D-129) — and it was met by ordering, not by effort.** The
+authenticated load run, the trace scan and the log scan happened **in one session**, which is the
+whole trick: D-121/D-122's authenticated traffic aged out of X-Ray unscanned because the scan came
+later, and every trace scan before this one covered guest traffic only (D-104).
+
+| store | evidence | result |
+|---|---|---|
+| traces | `make scan-traces HOURS=1` over the run window | **CLEAN** — 2,747 traces / 21,234 segments / 1,568,546 strings, positive control **20/20** |
+| — coverage | 350 authenticated traces in the window, = the run's 350 requests exactly | the interesting data was **in** the scanned set |
+| logs | new `make scan-logs`, same patterns and matcher | **CLEAN** — 495 events pinned to the run window; **CLEAN** again over the surrounding hour (2,774 events / 58,054 strings) |
+| metrics | no custom CloudWatch namespace exists at all; Prometheus labels are bounded enumerations + a *templated* route path, and `/metrics` is not routed at the edge (returns the SPA) | no app-controlled dimension can carry an identifier |
+| payloads | no store holds them by design; the scans would have caught an echoed name or prompt in either store | nothing observable to leak |
+
+**The reading, stated because criterion 9 is easy to over-claim:** this is *zero PII found by a
+positive-controlled detector over a corpus proven to contain authenticated traffic*, in the two
+stores that actually record request data. It is not a proof that no PII can ever reach them — D-104
+§4's rule stands, that a floor is per-store and re-opens whenever instrumentation is added.
+**The log half had no repeatable tool until this session**; it rested on S38's one-off CLI pipeline
+over guest traffic, which is the weakest evidence in the gate and nobody had noticed because the
+sub-item read as done. [scripts/scan_logs_pii.py](../scripts/scan_logs_pii.py) fixes that, and its
+four failure modes were control-tested in both directions (truncated slice → FAIL, unreadable
+window → FAIL, zero events → FAIL, a configured log group that no longer exists → FAIL, clean
+corpus → CLEAN).
+**Two findings came off the same run — AUD-F-30 and AUD-F-31.** AUD-F-31: `select_topic`'s 1.6 s is
+**51 sequential SQL statements and no model call**. It read at the time as criterion 7's remaining
+p95 gap having a ~$0 fix that the ~$216/month capacity estimate was hiding.
+**Both are now fixed and measured (D-131, D-132), and the "~$0 fix" reading was wrong.** AUD-F-31's
+statement count is confirmed on staging (**49 → 9**, 125/125 traces each arm) and criterion 7's
+threshold metric **did not improve** — the task is CPU-bound at 25 concurrent, so removing
+round-trips moved the queueing instead of removing it. **The ~$216/month obligation stays open**, and
+the successor target is **AUD-F-32** (~726 ms per answer request that is neither SQL nor graph work).
+AUD-F-30 is fixed the same session, after the measurement rather than with it (D-129 §6).
+
+**✅ CRITERION 1 IS MET (2026-07-30, D-129) — the one sentence got written.** T-02 is dispositioned:
+**S45 builds §5.1.2's first-visit notice; the §6.1 legal-and-policy track enumerates the eleven
+disclosures first**, in that order, because a notice drafted from an implementer's reading of the
+spec is how it ends up disagreeing with the policy it summarizes. Both clauses now hold — 37 of 37
+sections mapped, zero open discrepancies. **Met the way criterion 2 is met (D-123):** nothing is
+undecided, which is weaker than nothing is missing. T-02 is scheduled, not shipped.
+
+*(How it stood one session earlier:)*
 **▶️▶️ Criterion 1 is swept end to end — 37 of 37 sections — and now turns on one sentence
 (2026-07-30, D-128).** Its two clauses split: "100% mapped to implementation + test" is **satisfied**;
 "every discrepancy dispositioned" is **not**, because **T-02 is open** (§5.1.2's first-visit notice,
@@ -975,6 +1080,10 @@ all now reachable. **1** is unassessed since S37.
   refresh/revocation, logout semantics.
 - **S45 — consent** (I9, I10): ledger (external ids + enums only, no PII), parent-grants-for-
   child capture UI, age-band derivation, no-consent→no-token; legal text from the §6.1 track.
+  **Plus, assigned here by D-129 as T-02's disposition: §5.1.2's first-visit Adaptive Learning
+  notice** in `apps/learning-web` — the eleven required disclosures, gated on the §6.1 track having
+  enumerated them, following `LocationConsentModal.tsx`'s pattern for §5.1.3. It was owned only by
+  implication until [TRACEABILITY.md](TRACEABILITY.md) went looking for it.
 - **S46 — role scoping + frontend completion** (I2, I8): student/parent-only issuance, the
   formal D-086 disposition, entry/login/session UX end-to-end in both apps.
 - **S47 — integration-specific test pass**: E2E against a production-schema replica seeded with
@@ -998,6 +1107,14 @@ knowledge docs are real; curriculum is `linear_equations`-only authored, D-060) 
 ### Parallel track (any time, non-coding) — Phase 0 legal & policy docs (§6.1)
 Privacy Notice, AI Use Notice, product Learning Notice, retention policy, etc. Drafting can
 happen in a writing-focused session; **counsel review is a launch gate, not a dev blocker.**
+**Now also gating a coding session (D-129, T-02): enumerate §5.1.2's eleven first-visit
+disclosures** — AI may err; AI does not replace a tutor; exam results adjust the estimated level;
+limited sharing with tutors/branch managers; parents see the complete record; learning memory is
+created from questions and events; images are deleted immediately; YouTube recommendations;
+minimized external data; the right to challenge results; the right to report questions — as a
+written deliverable **S45 transcribes rather than drafts**. It must agree with the Privacy Notice,
+including D-114 §4's standing obligation to state the 90/90/365 retention windows and to avoid
+implying that deleting a chat removes text derived from it.
 Also required before launch: real accounts/credentials from §5.35 (AWS, Google Cloud, GitHub
 org, LangSmith, domains). The expansion adds two more decision gates that need sign-off
 *before their sessions*, not at launch: the §5.30.1 payload widening (S21/S24) and the

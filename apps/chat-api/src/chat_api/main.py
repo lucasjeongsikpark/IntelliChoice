@@ -34,11 +34,13 @@ from intellichoice_shared.db_ready import ping_engine
 from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.maps import GeocodeQuery, RouteQuery
 from intellichoice_shared.mcp import McpTool, McpToolRegistry
+from intellichoice_shared.org_time import log_org_time_convention
 from intellichoice_shared.rate_limit import (
     InMemoryRateLimiter,
     install_global_rate_limit_middleware,
 )
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from opentelemetry.instrumentation.utils import suppress_instrumentation
 from pydantic import BaseModel
 
 from chat_api.config import get_settings
@@ -61,6 +63,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # `learning_api.main.lifespan`'s same ordering.
     configure_logging(level=settings.log_level)
     configure_langsmith()
+    # The org's local-time convention is still a provisional default (D-130): it decides
+    # which week attendance is read for, and it logs at WARNING until confirmed.
+    log_org_time_convention()
 
     adapter = MySQLProfileAdapter(settings.mysql_url)
     app.state.profile_adapter = adapter
@@ -237,22 +242,27 @@ async def readyz(request: Request) -> JSONResponse:
     no-approved-source refusal (SPEC §5.21.8) already covers the no-corpus case.
     """
     settings = get_settings()
-    postgres_ok = await ping_engine(request.app.state.db_engine)
-    mysql_ok = await ping_engine(request.app.state.profile_adapter.engine)
-    corpus_mismatches: int | None = None
-    if postgres_ok:
-        async with request.app.state.db_session_factory() as session:
-            corpus_mismatches = await RagRepository(
-                session
-            ).count_embedding_provenance_mismatches(
-                embedding_provider=settings.bedrock_provider,
-                embedding_model_id=settings.bedrock_embedding_model_id,
-            )
+    # AUD-F-30: the whole handler emits no telemetry, not each query individually.
+    # Suppressing per-query is what failed here: `ping_engine` suppressed itself, and the
+    # corpus check below - added later, for an unrelated reason - kept emitting orphaned
+    # root segments because nobody remembered it was on a path polled every 15s. A health
+    # endpoint should cost nothing *as an endpoint*, so anything added inside it is
+    # covered by construction.
+    with suppress_instrumentation():
+        postgres_ok = await ping_engine(request.app.state.db_engine)
+        mysql_ok = await ping_engine(request.app.state.profile_adapter.engine)
+        corpus_mismatches: int | None = None
+        if postgres_ok:
+            async with request.app.state.db_session_factory() as session:
+                corpus_mismatches = await RagRepository(
+                    session
+                ).count_embedding_provenance_mismatches(
+                    embedding_provider=settings.bedrock_provider,
+                    embedding_model_id=settings.bedrock_embedding_model_id,
+                )
     corpus_ok = corpus_mismatches == 0
     if postgres_ok and mysql_ok and corpus_ok:
-        return JSONResponse(
-            {"status": "ready", "postgres": True, "mysql": True, "corpus": True}
-        )
+        return JSONResponse({"status": "ready", "postgres": True, "mysql": True, "corpus": True})
     return JSONResponse(
         {
             "status": "not_ready",

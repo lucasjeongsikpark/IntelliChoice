@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs
 
 up:
 	docker compose up -d
@@ -163,6 +163,33 @@ load-staging-learning:
 scan-traces:
 	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
 	  uv run python -u scripts/scan_xray_pii.py --hours $${HOURS:-6}
+
+# Criterion 9's *log* half, which until now rested on S38's one-off CLI pipeline over guest
+# traffic only. Same patterns and same matcher as scan-traces, on purpose - D-104 §4's rule is
+# that a PII floor is per-store and is not inherited, and a second hand-rolled detector would
+# need its own proof. Takes a window rather than only a lookback, so a scan can be pinned to
+# the authenticated load run that produced the interesting traffic:
+#   make scan-logs START=2026-07-30T21:38:00Z END=2026-07-30T21:40:00Z
+scan-logs:
+	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
+	  uv run python -u scripts/scan_logs_pii.py --minutes $${MINUTES:-60} \
+	    $${START:+--start $$START} $${END:+--end $$END}
+
+# Criterion 7 / AUD-F-31's before-after instrument. D-129 §5's hand-rolled profile of the
+# same span first reported 102 statements and 131% of wall time in SQL, because X-Ray records
+# each SQLAlchemy statement twice (a child subsegment *and* a standalone segment). The
+# correction lives in the script rather than in a shell pipeline so that both arms of a
+# comparison are measured identically - see its docstring. Pin it to the load run whose
+# traffic you care about, and keep --url-contains: ~97% of staging's traces are /readyz
+# (AUD-F-30), so an unfiltered denominator flatters a profile that never saw the request.
+#   make profile-span START=2026-07-30T23:38:00Z END=2026-07-30T23:42:00Z
+profile-span:
+	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
+	  uv run python -u scripts/profile_xray_span.py \
+	    --span $${SPAN:-langgraph.select_topic} \
+	    --url-contains $${URL_CONTAINS:-topics} \
+	    $${START:+--start $$START} $${END:+--end $$END} \
+	    $${MINUTES:+--minutes $$MINUTES} $${LABEL:+--label "$$LABEL"}
 
 # S33 (D-089/D-094): authorized OWASP ZAP baseline scan against the real staging
 # CloudFront URLs - you own this AWS account/app, so this is authorized self-testing,

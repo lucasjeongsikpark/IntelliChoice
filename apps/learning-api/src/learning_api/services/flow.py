@@ -150,9 +150,13 @@ def is_exam_expired(session_row: AssessmentSession, now: datetime) -> bool:
 
 
 async def items_view(question_repo: QuestionRepository, items: list) -> list[QuestionItemView]:
+    """One read for every item's variant instead of one per item (AUD-F-31) - this was 10
+    of the 47 statements the `select_topic` path issued. `items` order is preserved.
+    """
+    variants = await question_repo.get_variants([item.question_variant_id for item in items])
     views = []
     for item in items:
-        variant = await question_repo.get_variant(item.question_variant_id)
+        variant = variants.get(item.question_variant_id)
         assert variant is not None
         views.append(
             QuestionItemView(
@@ -169,12 +173,9 @@ async def items_view(question_repo: QuestionRepository, items: list) -> list[Que
 
 
 async def _used_template_ids(question_repo: QuestionRepository, items: list) -> set[str]:
-    template_ids: set[str] = set()
-    for item in items:
-        variant = await question_repo.get_variant(item.question_variant_id)
-        assert variant is not None
-        template_ids.add(variant.question_template_id)
-    return template_ids
+    variants = await question_repo.get_variants([item.question_variant_id for item in items])
+    assert len(variants) == len({item.question_variant_id for item in items})
+    return {variant.question_template_id for variant in variants.values()}
 
 
 async def select_topic(

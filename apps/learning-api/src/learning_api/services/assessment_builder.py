@@ -16,7 +16,7 @@ from intellichoice_db.repositories.assessment import AssessmentRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 
 from learning_api.services import exam_policy
-from learning_api.services.variant_persistence import generate_and_store_variant
+from learning_api.services.variant_persistence import build_variant_row
 
 DIFFICULTIES = (1, 2, 3, 4, 5)
 QUESTIONS_PER_DIFFICULTY = 2
@@ -26,24 +26,41 @@ class AssessmentBuildError(Exception):
     """Not enough approved templates exist for a topic/difficulty to build a fixed set."""
 
 
-async def _add_item(
+async def _store_items(
     *,
     assessment_repo: AssessmentRepository,
     assessment_session_id: str,
-    question_variant_id: str,
-    display_order: int,
-) -> AssessmentItem:
-    item = await assessment_repo.add_item(
-        AssessmentItem(
-            assessment_session_id=assessment_session_id,
-            question_variant_id=question_variant_id,
-            display_order=display_order,
-        )
+    question_variant_ids: list[str],
+) -> list[AssessmentItem]:
+    """Writes a whole exam's items and their state rows in two round-trips, not two per
+    item (AUD-F-31).
+
+    `display_order` is the position in `question_variant_ids`, so the caller controls the
+    order and this function never re-sorts it.
+
+    Two flushes rather than one because `assessment_item_id` is assigned by the flush, not
+    by the constructor - the state rows cannot be built until the items have been written.
+    It costs the same two statements either way.
+    """
+    items = await assessment_repo.add_items(
+        [
+            AssessmentItem(
+                assessment_session_id=assessment_session_id,
+                question_variant_id=question_variant_id,
+                display_order=display_order,
+            )
+            for display_order, question_variant_id in enumerate(question_variant_ids)
+        ]
     )
-    await assessment_repo.create_item_state(
-        AssessmentItemState(assessment_item_id=item.assessment_item_id, status="unseen")
+    # SPEC §5.9/§5.13: every item starts unseen. The policy lives here, not in the
+    # repository, which only knows how to write the two tables in one round-trip each.
+    await assessment_repo.create_item_states(
+        [
+            AssessmentItemState(assessment_item_id=item.assessment_item_id, status="unseen")
+            for item in items
+        ]
     )
-    return item
+    return items
 
 
 async def build_pre_exam(
@@ -54,6 +71,14 @@ async def build_pre_exam(
     topic_id: str,
     rng: random.Random,
 ) -> AssessmentSession:
+    """AUD-F-31: batched. Every variant is rendered in memory first, then the whole exam is
+    written in two flushes instead of three round-trips per item.
+
+    The RNG is consumed in exactly the order the unbatched version consumed it - per
+    difficulty, `rng.sample` then one `build_variant_row` per sampled template - because
+    that order *is* the exam's identity for a given seed (CLAUDE.md non-negotiable #2).
+    Only the I/O moved out of the loop; the generation sequence did not.
+    """
     policy = exam_policy.get_policy("pre_exam")
     session_row = await assessment_repo.create_session(
         AssessmentSession(
@@ -65,25 +90,26 @@ async def build_pre_exam(
         )
     )
 
-    display_order = 0
+    templates_by_difficulty = await question_repo.get_active_questions_by_difficulty(
+        topic_id, DIFFICULTIES
+    )
+    variant_rows = []
     for difficulty in DIFFICULTIES:
-        templates = await question_repo.get_active_questions(topic_id, difficulty)
+        templates = templates_by_difficulty[difficulty]
         if len(templates) < QUESTIONS_PER_DIFFICULTY:
             raise AssessmentBuildError(
                 f"topic {topic_id} difficulty {difficulty} has only {len(templates)} "
                 f"approved templates, need {QUESTIONS_PER_DIFFICULTY}"
             )
         for template in rng.sample(templates, QUESTIONS_PER_DIFFICULTY):
-            variant_row = await generate_and_store_variant(
-                question_repo=question_repo, template=template, rng=rng
-            )
-            await _add_item(
-                assessment_repo=assessment_repo,
-                assessment_session_id=session_row.assessment_session_id,
-                question_variant_id=variant_row.question_variant_id,
-                display_order=display_order,
-            )
-            display_order += 1
+            variant_rows.append(build_variant_row(template=template, rng=rng))
+
+    stored_variants = await question_repo.create_variants(variant_rows)
+    await _store_items(
+        assessment_repo=assessment_repo,
+        assessment_session_id=session_row.assessment_session_id,
+        question_variant_ids=[v.question_variant_id for v in stored_variants],
+    )
 
     return session_row
 
@@ -96,6 +122,14 @@ async def build_post_exam(
     pre_assessment_session_id: str,
     rng: random.Random,
 ) -> AssessmentSession:
+    """SPEC §5.13.1-§5.13.2: one post-exam slot per pre-exam slot, same template family,
+    a freshly rendered variant.
+
+    Batched the same way as `build_pre_exam` (AUD-F-31), and for the same reason: the
+    per-item reads of the pre-exam's variants and their templates were N+1, and the writes
+    were three round-trips per item. The iteration order over `pre_items` is unchanged, so
+    each slot still draws from the RNG in the same sequence.
+    """
     pre_items = await assessment_repo.get_items(pre_assessment_session_id)
     pre_session = await assessment_repo.get_session(pre_assessment_session_id)
     assert pre_session is not None
@@ -110,23 +144,33 @@ async def build_post_exam(
         )
     )
 
-    for display_order, pre_item in enumerate(pre_items):
-        pre_variant = await question_repo.get_variant(pre_item.question_variant_id)
-        assert pre_variant is not None
-        template = await question_repo.get_template(pre_variant.question_template_id)
-        assert template is not None
+    pre_variants = await question_repo.get_variants(
+        [item.question_variant_id for item in pre_items]
+    )
+    templates = await question_repo.get_templates(
+        [variant.question_template_id for variant in pre_variants.values()]
+    )
 
-        variant_row = await generate_and_store_variant(
-            question_repo=question_repo,
-            template=template,
-            rng=rng,
-            avoid_rendered_question=pre_variant.rendered_question,
+    variant_rows = []
+    for pre_item in pre_items:
+        pre_variant = pre_variants.get(pre_item.question_variant_id)
+        assert pre_variant is not None
+        template = templates.get(pre_variant.question_template_id)
+        assert template is not None
+        # SPEC §5.13.2: same template family, a rendering that isn't the pre-exam's.
+        variant_rows.append(
+            build_variant_row(
+                template=template,
+                rng=rng,
+                avoid_rendered_question=pre_variant.rendered_question,
+            )
         )
-        await _add_item(
-            assessment_repo=assessment_repo,
-            assessment_session_id=session_row.assessment_session_id,
-            question_variant_id=variant_row.question_variant_id,
-            display_order=display_order,
-        )
+
+    stored_variants = await question_repo.create_variants(variant_rows)
+    await _store_items(
+        assessment_repo=assessment_repo,
+        assessment_session_id=session_row.assessment_session_id,
+        question_variant_ids=[v.question_variant_id for v in stored_variants],
+    )
 
     return session_row
