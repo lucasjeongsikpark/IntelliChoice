@@ -14,7 +14,20 @@ class MemoryConsolidationSettings(BaseSettings):
     bedrock_provider: str = "mock"
     bedrock_aws_region: str = "us-east-1"
     bedrock_consolidation_model_id: str = "anthropic.claude-sonnet-5"
-    bedrock_call_timeout_s: float = 20.0
+    # **120 s, not the 20 s every interactive surface uses (D-141 §6).** Measured on staging
+    # twice: this job's calls time out as a function of the *output* budget, not the input.
+    # `max_output_tokens_for` scales with a student's existing fact count - 0 facts is 1280
+    # tokens and completes; 7 facts is 2176 and does not finish in 20 s. The evidence is that
+    # `student-ext-4` (0 facts) succeeded in every arm while `student-ext-1` succeeded on the
+    # one call it made with 0 facts and timed out on every call it made with 7.
+    #
+    # Raising a timeout is what AUD-F-34's own fix warned against - but that warning was about
+    # growing a bound to accommodate *unbounded* work, and both bounds now exist: 20k input
+    # tokens per call and at most 4 calls per student. With the work bounded, 20 s is simply the
+    # wrong number for a weekly background job where nobody is waiting; it was inherited from
+    # surfaces where a user is. Two timeouts also cost 6 attempts against a
+    # `circuit_failure_threshold` of 5, so a timeout here does not fail one call, it ends the run.
+    bedrock_call_timeout_s: float = 120.0
     bedrock_max_retries: int = 2
     bedrock_circuit_failure_threshold: int = 5
     bedrock_circuit_cooldown_s: float = 30.0
