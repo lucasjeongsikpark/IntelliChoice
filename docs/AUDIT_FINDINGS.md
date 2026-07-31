@@ -3548,10 +3548,32 @@ wait. That gives AUD-F-31-style batching of `submit_answer` a *CPU* rationale ex
 showed the *latency* rationale was empty. **Untested**: nobody has measured CPU per request as a
 function of statement count, and this finding's own history says to size it before doing it.
 
-**Still owed:** the staging arm. The local relationship predicts the gap should scale with
-concurrency-per-task there too — at 5 VUs over 2 tasks, roughly a fifth of D-132's 726 ms. Needs
-capacity pinned for the duration, since a 25-concurrent run trips the scale-out alarm and an arm
-that gains a task mid-run is the invalid arm D-132 had to throw away.
+##### Pre-registered prediction for the staging arm, written before it ran
+
+Recorded and committed before the run, for the same reason D-132 did it: a prediction written
+afterwards is a story.
+
+If the local relationship holds on staging, the gap is set by **concurrency per task × CPU per
+request**. D-132 measured a 726 ms gap at 25 VUs over 2 tasks — 12.5 concurrent per task — which
+implies a staging CPU cost of **~58 ms per answer request**. That is ~4.3× the local 13.5 ms, which is
+the right order for a Fargate vCPU against Apple Silicon, and is itself a consistency check rather
+than a fitted parameter.
+
+So at **5 VUs over the same 2 tasks** (2.5 per task) the prediction is:
+
+- gap ≈ 2.5 × 58 ≈ **145 ms**, i.e. gap(25 VUs) ÷ gap(5 VUs) ≈ **5**;
+- statements per answer **unchanged at 15** — concurrency must not change the SQL shape, and if it
+  does, the arms are not comparable and nothing else in the table is readable.
+
+**What would refute it:** a gap that barely moves between 5 and 25 VUs. That would mean staging's
+~726 ms *is* fixed per-request work after all, contradicting the local sweep and putting AUD-F-32's
+original candidate list back in play. The prediction is worth making because it can fail.
+
+**Protocol, from D-132's three findings:** capacity **pinned** at 2 for the duration (a 25-concurrent
+run trips the scale-out alarm, and an arm that gains a task mid-run is the invalid arm D-132 had to
+throw away), task count verified at the start *and* end of every run, and runs spaced rather than
+back-to-back — four exploratory runs 20 s apart once drifted 1.75 → 3.03 s, so back-to-back runs are
+not independent samples.
 
 ### AUD-F-33 — learning-api scaled out and then did not scale back in for over two hours, with its scale-in alarm in ALARM the whole time (P3, found 2026-07-31, D-132; not fixed)
 
