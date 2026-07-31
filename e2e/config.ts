@@ -43,10 +43,28 @@ export const CHAT_API = trimSlash(
 /**
  * Per-app and deliberately not interchangeable (D-097). Absent locally, where
  * `/dev/token` is open. Never logged, never written to an artifact.
+ *
+ * On staging an empty secret is fatal *here* rather than seventeen specs later. Both
+ * values used to default to `""`, `mintToken` omitted the header, and every
+ * authenticated journey failed on its own 404 - a wall of unrelated-looking failures
+ * with one cause, which is the most expensive shape a harness can fail in. `make
+ * e2e-staging` now fetches both from Secrets Manager; this check is what makes running
+ * `npx playwright test` by hand say so instead of lying.
  */
+function stagingSecret(app: "learning" | "chat", name: string): string {
+  const value = process.env[name] ?? "";
+  if (TARGET === "staging" && value === "") {
+    throw new Error(
+      `${name} is unset, so every authenticated ${app} journey would fail on a 404 from ` +
+        `the secret-gated /dev/token (D-097). Run \`make e2e-staging\`, which fetches it.`,
+    );
+  }
+  return value;
+}
+
 export const STAGING_TOKEN_SECRET = {
-  learning: process.env.STAGING_TOKEN_SECRET_LEARNING ?? "",
-  chat: process.env.STAGING_TOKEN_SECRET_CHAT ?? "",
+  learning: stagingSecret("learning", "STAGING_TOKEN_SECRET_LEARNING"),
+  chat: stagingSecret("chat", "STAGING_TOKEN_SECRET_CHAT"),
 };
 
 /**
