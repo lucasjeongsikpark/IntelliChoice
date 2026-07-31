@@ -102,8 +102,7 @@ e2e:
 
 # Same suite against the real staging CloudFront distributions. `/dev/token` is
 # secret-gated there (D-097), so the harness mints tokens out of band and seeds
-# localStorage - export the two per-app secrets first, and never echo them:
-#   export STAGING_TOKEN_SECRET_LEARNING=$$(aws secretsmanager get-secret-value ... )
+# localStorage. The target fetches both secrets itself - see the comment above the recipe.
 #
 # S42: the two URLs are set here, and that is the fix, not a convenience. `E2E_TARGET=
 # staging` alone does NOT retarget the browser - `config.ts` defaults LEARNING_WEB/
@@ -115,11 +114,31 @@ e2e:
 STAGING_LEARNING_WEB_URL ?= https://d35dfnjzmgrm01.cloudfront.net
 STAGING_CHAT_WEB_URL ?= https://d222glidpp4azv.cloudfront.net
 
+# Fetches both `/dev/token` secrets (D-097) the way load-staging-learning does, for the
+# reason D-132 recorded: without them e2e/config.ts defaulted each to "", mintToken sent
+# no header, and all seventeen authenticated journeys failed together on a 404 that looks
+# like an application fault. Same length sanity check as the load target; the values are
+# passed as environment assignments rather than arguments, so they land in the child's envp
+# and never in argv, `ps`, or a shell history, and the recipe is `@`-prefixed so make does
+# not echo the fetch. config.ts now also refuses to start a staging run with either empty.
+# E2E_ARGS forwards a spec path or `--repeat-each`, e.g.
+#   make e2e-staging E2E_ARGS="tests/learning/narrative-refresh.spec.ts"
 e2e-staging:
-	cd e2e && E2E_TARGET=staging \
-		LEARNING_WEB_URL=$(STAGING_LEARNING_WEB_URL) \
-		CHAT_WEB_URL=$(STAGING_CHAT_WEB_URL) \
-		npx playwright test
+	@LEARNING_SECRET="$$(aws $${AWS_PROFILE:+--profile $$AWS_PROFILE} secretsmanager get-secret-value \
+	    --secret-id intellichoice-staging/learning-api/staging-token-shared-secret \
+	    --query SecretString --output text)" && \
+	  CHAT_SECRET="$$(aws $${AWS_PROFILE:+--profile $$AWS_PROFILE} secretsmanager get-secret-value \
+	    --secret-id intellichoice-staging/chat-api/staging-token-shared-secret \
+	    --query SecretString --output text)" && \
+	  if [ $${#LEARNING_SECRET} -lt 10 ] || [ $${#CHAT_SECRET} -lt 10 ]; then \
+	    echo "FATAL: a token secret came back too short to be real - refusing to run"; exit 1; \
+	  fi && \
+	  cd e2e && E2E_TARGET=staging \
+	    LEARNING_WEB_URL=$(STAGING_LEARNING_WEB_URL) \
+	    CHAT_WEB_URL=$(STAGING_CHAT_WEB_URL) \
+	    STAGING_TOKEN_SECRET_LEARNING="$$LEARNING_SECRET" \
+	    STAGING_TOKEN_SECRET_CHAT="$$CHAT_SECRET" \
+	    npx playwright test $(E2E_ARGS)
 
 e2e-typecheck:
 	cd e2e && npx tsc --noEmit

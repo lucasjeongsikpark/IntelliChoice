@@ -5,6 +5,87 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ The gate is down to two calendar dates, and AUD-F-32's ~726 ms turned out to be queueing
+  (2026-07-31, D-134).** Criterion 3 is met again and criterion 7's margin is now measured.
+  **Criterion 3: two consecutive whole-suite staging runs, 53 passed / 4 skipped / 0 failed each, no
+  deploy between**, against an image whose code is **byte-identical to HEAD** (`git diff
+  544c6fe..HEAD -- apps/ packages/ curriculum/ knowledge-content/` is empty — this session touched
+  only `e2e/`, `scripts/`, `terraform/` and `docs/`). **So the gate now needs 2026-08-02 and
+  2026-08-05, read per job, and nothing else.**
+  **⚠️ The `narrative-refresh` flake was the test, not the defect it probes.** Two compounding faults:
+  its precondition was an **absence** ("no Continue button after reaching pre_exam"), which is
+  satisfied both when a narrative was dismissed *and* when the LLM narrative has not arrived yet —
+  opposite states with opposite expected outcomes after a reload, ~26 ms apart on the mock and seconds
+  apart on real Bedrock; and **`test.fail()` made a missing precondition, a timeout, a harness bug and
+  the real finding all report identically.** Rewritten to establish the state positively, wait a
+  bounded time for the narrative to return, and assert directly — no `test.fail()`, and an
+  inconclusive run **skips with its reason**. 5/5 locally, both controls watched (inverted assertion
+  fails with its own message; unreachable arrival window skips rather than passing), and it passed in
+  both staging runs plus a third targeted run. **Keeper: an assertion about an absence needs a bounded
+  wait, and a precondition stated as an absence is not a precondition.**
+  **AUD-F-32 measured before being optimised, and the session's own plan was the first casualty.** The
+  plan was to instrument the candidates and deploy; the measurement removed the reason to. A local
+  sweep varying **only** concurrency (same process, database, client, code): the gap grew **13.5 →
+  388.4 ms (×29)** from concurrency 1 → 25 while `submit_answer` grew ×1.5. **Per-request work cannot
+  do that.** The sequential arm bounds *all* per-request non-SQL work at **13.5 ms**, so AUD-F-32's own
+  candidate list — middleware depth, JWT verification, checkpoint serialisation, Pydantic validation —
+  is refuted as a source of hundreds of milliseconds. **Deploying spans to hunt them would have been
+  D-132's mistake repeated one finding later.**
+  **⚠️ Then the staging arm refuted my own pre-registered prediction, and that is the better half.**
+  Predicted (committed *before* the run, `05392db`): gap ≈145 ms at 5 VUs, ratio ≈5. Measured **64–81 ms
+  and a ratio of 9.6–12.1** — the relationship is **super-linear, about `concurrency^1.55`**, not the
+  flat `gap ÷ concurrency` local showed. **Three independent instruments agree** (X-Ray span, ALB p95 at
+  9.1×, k6). The mechanism: locally the event loop was the bottleneck on a machine with spare cores —
+  utilisation well below 1, the linear regime — while on Fargate the app is pinned to 384 CPU units and
+  12.5 concurrent/task sits near utilisation 1, where queue depth outgrows arrivals. **"The gap is
+  queueing" holds; "13.5 ms of CPU × concurrency" is a lower bound valid only away from saturation**,
+  and the "~58 ms CPU/request on Fargate" figure in the pre-registration was an artifact of assuming
+  linearity — do not quote it.
+  **What replicated, which is what makes the rest trustworthy: D-132's 726 ms gap came back at 777 ms**
+  on the same 25 VUs / 2 tasks in a different session (within 7%), and **statements per answer request
+  are 19 at the median in every arm, identical to local** — the reconciliation D-131 requires before a
+  local count may speak about staging. The A′ drift control matched A on all three instruments.
+  **⚠️ Criterion 7 is met with a 0.7% margin.** ALB p95 **2.98 s against the deployed 3.00 s
+  threshold** at the documented 25 concurrent; D-132's client-side 3.31 s was already over. At 2.5
+  concurrent/task the same metric is **0.3 s (10× headroom)**, so the constraint is capacity per
+  concurrent user and nothing else. **Quote the margin with the tick.**
+  **And D-133's ~$216 is now known to buy a knife-edge rather than a pass:** 150 concurrent at 12.5
+  per task is 12 tasks, and 12.5/task *is* the arm measuring 2.98 s. A comfortable p95 needs ~5/task ⇒
+  ~30 tasks. **Re-price against a target concurrency-per-task ratio, not a task count** — and still
+  after the RDS resize D-133 identified. Nothing forces it: no real users, and 150 is still §6.23's
+  number rather than measured demand.
+  **One priced lever exists and it is small:** OTel instrumentation costs **~2.8 of ~20 ms CPU per
+  answer request (~14%)**, paired arms run twice (20.24/20.57 vs 17.55/17.48). **Not taken** — it
+  trades against criterion 9's trace corpus and AUD-F-30 already removed the cost argument, so it
+  wants a decision. A cProfile pass shows why nothing bigger is there: the ranking is the event loop
+  idling, asyncio scheduling, psycopg, SQLAlchemy cache keys, OTel `start_span` — **no single dominant
+  consumer.** Successor target, **untested and named as such**: the 19 statements per answer each cost
+  SQLAlchemy compilation, a round-trip and a span, so batching `submit_answer` has a *CPU* rationale
+  exactly where D-132 showed the *latency* rationale was empty. Size it first.
+  **✅ AUD-F-33 has detection, and one of its two hypotheses is dead.** Both services' scale-in alarms
+  are **configured identically** (15 × 60 s, p95, threshold 1 s, `treat_missing_data = breaching`, no
+  `datapoints_to_alarm`), so the alarm-configuration hypothesis is refuted and only the `min_capacity`
+  difference remains. New `{service}-capacity-above-floor` alarm: `DesiredTaskCount` above the
+  service's own floor for 60 minutes, per-service floors (learning-api 2, chat-api 1). **It alarms on
+  the outcome, not a mechanism** — during the incident every alarm on the machinery said "fine".
+  `INSUFFICIENT_DATA` at creation is why the metric was then checked directly: nine consecutive
+  datapoints per service at exactly its floor. Deliberately **not** in the canary alarm list.
+  **✅ `make e2e-staging` now fetches its own secrets** — 17 authenticated journeys used to fail
+  together on one 404 because `config.ts` defaults both to `""`; `config.ts` now also refuses a
+  staging run with either empty, so a hand-rolled invocation says so instead of lying 17 times.
+  **⚠️ Carry-over found only by needing an apply: `terraform plan` against staging is NOT clean** —
+  both task definitions report "must be replaced" (pre-existing drift; `deploy-staging.yml` registers
+  them outside Terraform, the D-116 pattern). Contained today by `ignore_changes = [task_definition,
+  desired_count]`, but **no routine `terraform apply` here is safe unattended**; this session used
+  `-target`. Capacity was pinned to 2/2 for the sweep and **restored to min 2 / max 3** afterwards.
+  **🔬 A live test of the new alarm is running as this session closes, unplanned:** the e2e suite
+  scaled **chat-api to 2 tasks against its floor of 1**, and both `capacity-above-floor` alarms have
+  since gone `INSUFFICIENT_DATA` → **OK**, so they are evaluating real data. If chat-api scales in
+  normally the alarm stays OK; if it does not, `intellichoice-staging-chat-api-capacity-above-floor`
+  fires ~60 minutes later and **AUD-F-33 has just been caught on a second service**, which would kill
+  the remaining `min_capacity` hypothesis too. **Check that alarm's history first thing next session** —
+  either outcome is informative and neither needs any setup.
+  **634 passed / 2 skipped**, lint and pyright clean.
 - **⛔ AUD-F-31's staging before/after ran, and it refutes the reason the fix was prioritised
   (2026-07-31, D-132). The fix is confirmed; the p95 claim is dead.** Capacity-matched at 25
   concurrent, 2 tasks both arms, `:39` → `:40`.
@@ -860,8 +941,39 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-31 close, post-D-132). The gate needs a mailbox and two dates and
-  nothing else; the engineering queue has a new head:**
+- **Next session, in order (2026-07-31 close, post-D-134). The gate needs two dates and nothing else,
+  and the latency question has changed shape rather than closed:**
+  1. **The only gate item left: criterion 6's dates.** **2026-08-02** (`chat-purge`,
+     `memory-consolidate`) and **2026-08-05** (`retention-purge`), read **per job** — `chat-purge` has
+     a history of never having run (AUD-F-15). Also **2026-08-01: re-probe "How do I enroll a student?"**
+     and widen `chat_qa_staging.js`'s question list beyond the four documents effective today.
+  2. **Send Message A** (tenth session carrying it; re-read it, it gained a week-boundary question in
+     D-130). It gates S43, not the gate, and it is the only item with external lead time. **It now also
+     carries a second question worth asking in the same message: is 150 concurrent a real requirement?**
+     D-134 §7 prices the difference and §6.23's number has never been validated against demand.
+  3. **The capacity decision, re-priced against a ratio.** D-134 §7: ~$216/month buys 12 tasks =
+     12.5 concurrent/task = the arm that measured ALB p95 **2.98 s against a 3.00 s threshold**. Decide a
+     target **concurrency-per-task** first (2.5/task measured 0.3 s), then price tasks *and* the RDS
+     resize D-133 identified. Do not re-derive a task count from a linear extrapolation — the
+     relationship is `concurrency^1.55`.
+  4. **If latency work continues, the target is CPU per request and the lead is untested.** The 19 SQL
+     statements per answer each cost SQLAlchemy compilation, a round-trip and a span, so batching
+     `submit_answer` has a CPU rationale where D-132 showed the latency rationale was empty — **but
+     nobody has measured CPU as a function of statement count. Size it before doing it**, and use
+     `scripts/profile_local_request.py --cprofile` plus the tracing-on/off arms, not a staging deploy.
+     The one priced lever (OTel sampling, ~14% of CPU) needs a decision about criterion 9's corpus
+     before it is worth taking.
+  5. **`terraform plan` is not clean** (both task definitions "must be replaced", pre-existing drift).
+     Either resolve it or write the `-target` requirement into the runbook — an unattended apply here
+     would register task definitions from Terraform's image variable.
+  **Carry-overs unchanged:** `/readyz` still cannot distinguish "database gone" from "I am busy"; RDS
+  connection arithmetic (now sharper — D-134's ratio work changes the task-count input to it);
+  answer brevity (D-115 (i)); AUD-F-22 and AUD-F-24's sibling; D-112's retrieval-margin re-measure;
+  the ~2–4% `rag_answer` `schema_invalid` rate. **AUD-F-33 keeps its open half** — detection landed,
+  the mechanism is still unknown and the `min_capacity` hypothesis is untested.
+
+- **Superseded — next-session pointer as of the D-133 close (2026-07-31). Items 1a, 2 and 4 are done
+  (D-134); item 1(b) is the only live remainder; item 3 stays deferred and is now re-priced:**
   1. **The human items — criterion 8 is DONE, so only two remain.** **(a) Send Message A** (ninth
      session carrying it; re-read it, it gained a week-boundary question in D-130) — the only item with
      external lead time, and it gates S43 rather than the gate. **(b) Criterion 6's dates:

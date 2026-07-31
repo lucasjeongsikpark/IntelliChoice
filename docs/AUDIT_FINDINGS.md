@@ -3491,6 +3491,136 @@ statements per answer**, invariant across all 1,247 traces — **150 per exam**.
 not the dominant term, so batching it is a smaller prize than AUD-F-31 was, and D-132's lesson says
 to size it before doing it.
 
+#### Measured 2026-07-31 (D-134): the ~726 ms is **queueing, not work** — and the hypothesis list above is refuted
+
+Measured with `scripts/profile_local_request.py`, which decomposes a real `POST .../answers` from
+its own OTel span tree using the same definitions `profile_xray_span.py` uses, so the local and
+staging numbers are comparable. **The expectation was pre-registered in the script's docstring
+before the first run** (D-132's habit), and it was right: this is contention, not a hidden cost.
+
+One controlled experiment settles it. Same process, same database, same client, same code — **only
+the number of flows in flight varied**:
+
+| concurrency | whole request | SQL inside it | `submit_answer` | **the gap** | gap ÷ concurrency | throughput |
+|---|---|---|---|---|---|---|
+| 1 | 22.2 ms | 8.7 ms | 9.4 ms | **13.5 ms** | 13.5 | 31.8 answers/s |
+| 5 | 77.7 ms | 14.5 ms | 13.8 ms | **62.8 ms** | 12.6 | 46.8 answers/s |
+| 10 | 158.9 ms | 18.7 ms | 19.7 ms | **138.9 ms** | 13.9 | 45.0 answers/s |
+| 25 | 411.0 ms | 21.5 ms | 14.5 ms | **388.4 ms** | 15.5 | 42.6 answers/s |
+
+**Per-request work cannot grow ×29 with concurrency; queueing must.** The graph node grew ×1.5 and
+SQL ×2.5 over the same range. And the local concurrent arm *reproduces staging's shape* — 93.6% of
+the request outside SQL against staging's 86.8% — on a laptop with no ECS, no ALB and no Fargate, so
+the shape belongs to running 25 flows through one event loop, not to the deployment.
+
+**Three consequences, in descending order of how much they change the roadmap.**
+
+1. **There is no hidden 726 ms to find.** The sequential arm bounds *all* per-request non-SQL work
+   at **13.5 ms**. Middleware depth, JWT verification, checkpoint serialisation and Pydantic
+   validation of graph state — this finding's own candidate list — are together a fraction of that.
+   Deploying spans to hunt them would have been D-132's mistake repeated one finding later.
+2. **But the queueing is *made of* that work, so code changes are not powerless.** `gap ÷
+   concurrency` is flat at **12.6–15.5 ms** across a 25× range — that constant *is* the per-request
+   CPU cost, and latency at N concurrent is about N times it. Cutting CPU per request cuts p95
+   proportionally at fixed capacity. This is also why D-132's result was not a contradiction:
+   removing 881 ms of SQL *wait* bought nothing because wait was never the scarce resource, and the
+   same arithmetic says removing CPU would.
+3. **The service saturates at ~5 concurrent per task.** Throughput is flat at 42–47 answers/s from
+   concurrency 5 to 25. Past that, added concurrency buys latency and no throughput at all, which is
+   the quantitative version of "the bottleneck moved; it did not disappear".
+
+**One priced, actionable lever, and it is smaller than it looks:** OTel instrumentation costs
+**~2.8 ms of ~20 ms CPU per answer request (~14%)** — paired arms, run twice, 20.24/20.57 ms with
+tracing against 17.55/17.48 ms without. Under (2) a 14% CPU cut is a ~14% latency cut at fixed
+concurrency. Sampling is the remedy. It is a **floor** for staging, where the exporter serialises to
+protobuf over a network hop rather than into memory. **Not taken here**: it trades against criterion
+9's trace corpus and AUD-F-30 already removed the cost argument, so it wants a decision, not a
+drive-by.
+
+**Where the rest of the CPU goes: nowhere in particular.** A cProfile pass over the same flow ranks
+`select.kqueue.control` (the event loop idling), then asyncio scheduling, psycopg, SQLAlchemy cache
+keys and OTel `start_span` — **no single dominant consumer**. This is diffuse framework overhead, so
+there is no cheap 2× available.
+
+**The one untested lead, and it is now the successor target.** Each of the **19 SQL statements per
+answer request** costs SQLAlchemy compilation, a psycopg round-trip and a span — i.e. CPU, not only
+wait. That gives AUD-F-31-style batching of `submit_answer` a *CPU* rationale exactly where D-132
+showed the *latency* rationale was empty. **Untested**: nobody has measured CPU per request as a
+function of statement count, and this finding's own history says to size it before doing it.
+
+##### Pre-registered prediction for the staging arm, written before it ran
+
+Recorded and committed before the run, for the same reason D-132 did it: a prediction written
+afterwards is a story.
+
+If the local relationship holds on staging, the gap is set by **concurrency per task × CPU per
+request**. D-132 measured a 726 ms gap at 25 VUs over 2 tasks — 12.5 concurrent per task — which
+implies a staging CPU cost of **~58 ms per answer request**. That is ~4.3× the local 13.5 ms, which is
+the right order for a Fargate vCPU against Apple Silicon, and is itself a consistency check rather
+than a fitted parameter.
+
+So at **5 VUs over the same 2 tasks** (2.5 per task) the prediction is:
+
+- gap ≈ 2.5 × 58 ≈ **145 ms**, i.e. gap(25 VUs) ÷ gap(5 VUs) ≈ **5**;
+- statements per answer **unchanged at 15** — concurrency must not change the SQL shape, and if it
+  does, the arms are not comparable and nothing else in the table is readable.
+
+**What would refute it:** a gap that barely moves between 5 and 25 VUs. That would mean staging's
+~726 ms *is* fixed per-request work after all, contradicting the local sweep and putting AUD-F-32's
+original candidate list back in play. The prediction is worth making because it can fail.
+
+**Protocol, from D-132's three findings:** capacity **pinned** at 2 for the duration (a 25-concurrent
+run trips the scale-out alarm, and an arm that gains a task mid-run is the invalid arm D-132 had to
+throw away), task count verified at the start *and* end of every run, and runs spaced rather than
+back-to-back — four exploratory runs 20 s apart once drifted 1.75 → 3.03 s, so back-to-back runs are
+not independent samples.
+
+##### Result: the queueing claim is confirmed and the *linear law* is refuted (2026-07-31)
+
+Three arms — 5, 25, 5 VUs, the third a drift control — with capacity pinned at 2 tasks and the count
+verified before and after each. **Pinning was not a formality: the service was found running 3 tasks
+after the e2e suite**, so an unpinned sweep would have measured two different capacities.
+
+| arm | VUs | conc/task | request median | SQL median | **gap** | ALB p95 | k6 p95 |
+|---|---|---|---|---|---|---|---|
+| A | 5 | 2.5 | 94.3 ms | 30.1 ms | **64.2 ms** | 0.33 s | 413 ms |
+| A′ | 5 | 2.5 | 134.0 ms | 53.0 ms | **81.0 ms** | 0.29 s | 362 ms |
+| B | 25 | 12.5 | 874.2 ms | 97.1 ms | **777.1 ms** | 2.98 s | — |
+
+**What held.** The gap is overwhelmingly the request (89% of it at 25 VUs), it is steeply
+concurrency-dependent, and **D-132's number reproduced independently: 777 ms today against its
+726 ms**, same 25 VUs on 2 tasks, different session — within 7%. Statements per answer request are
+**19 at the median in every arm**, identical to the local measurement, which is the reconciliation
+D-131's rule requires before a local count is allowed to say anything about staging. A′ ≈ A on all
+three instruments, so no drift contaminated the ordering.
+
+**What was refuted, and it was my own prediction.** Predicted gap at 5 VUs ≈ **145 ms** and a ratio of
+**≈5**. Measured **64–81 ms** and a ratio of **9.6–12.1**. The relationship is **super-linear** —
+about `concurrency^1.55` — not the flat `gap ÷ concurrency` the local sweep showed. Three independent
+instruments agree on it (X-Ray span, ALB `TargetResponseTime` p95 at 9.1×, and k6), so this is not one
+tool's artifact.
+
+**Why local was linear and staging is not, and it is the useful part.** Locally the single event loop
+was the bottleneck on a machine with spare cores for everything else — utilisation well below 1, the
+linear regime. On Fargate the app is pinned to 384 CPU units and at 12.5 concurrent per task
+utilisation is close to 1, where queue depth grows faster than arrivals. **So "the gap is queueing" is
+right and "the gap is 13.5 ms of CPU times the concurrency" is a lower bound that only holds away from
+saturation.** The implied "~58 ms of CPU per request on Fargate" in the prediction above was an
+artifact of assuming linearity and should not be quoted.
+
+**Two consequences worth carrying to the capacity decision.**
+
+1. **Criterion 7 is met at 25 concurrent with almost no margin.** ALB p95 is **2.98 s against the
+   deployed 3.00 s threshold** — 0.7% — and D-132's client-side `http_req_duration` p95 of 3.31 s was
+   already over. "Met at the documented 25 concurrent" is true and is a knife-edge, not a comfortable
+   pass. At 2.5 concurrent per task the same metric is 0.3 s, i.e. **10× headroom**, so the shortfall
+   is capacity per concurrent user and nothing else.
+2. **D-133's 12-task figure preserves today's marginal latency, not a passing one.** 150 concurrent at
+   12.5 per task is 12 tasks — and 12.5 per task is exactly the arm measuring 2.98 s. Holding a
+   comfortable p95 needs a lower ratio (5 per task ⇒ 30 tasks), so **~$216/month is a floor for a
+   knife-edge, and the figure for a criterion 7 that passes with margin is materially larger** — before
+   the RDS resize D-133 already identified. Re-price with a target ratio, not a target task count.
+
 ### AUD-F-33 — learning-api scaled out and then did not scale back in for over two hours, with its scale-in alarm in ALARM the whole time (P3, found 2026-07-31, D-132; not fixed)
 
 Observed while trying to capacity-match D-132's two arms. The service went to 3 tasks at
@@ -3522,6 +3652,49 @@ controlled repro would settle.
 **Not diagnosed further.** This entry records the observation, the same-hour control, and the
 narrowed hypothesis rather than guessing a mechanism. **`desired-count` was set back to 2 manually**
 to restore the baseline.
+
+#### Detection added 2026-07-31 (D-134); one hypothesis refuted, the mechanism still unknown
+
+**The alarm-configuration hypothesis is dead.** `describe-alarms` on both scale-in alarms shows them
+**configured identically** — 15 evaluation periods of 60 s, `p95` extended statistic, threshold 1 s,
+`treat_missing_data = breaching`, no `datapoints_to_alarm` on either. So the difference between the
+service that scaled in twice in an hour and the one that did not for two hours is **not** its alarm's
+datapoint configuration. What remains from the original pair of hypotheses is the `min_capacity`
+difference (learning-api 2, chat-api 1), untested, and a controlled repro is still what would settle
+it.
+
+**So detection landed instead of a fix, and it alarms on the outcome rather than on any mechanism.**
+`{name_prefix}-{service}-capacity-above-floor`: `DesiredTaskCount` (`ECS/ContainerInsights`,
+`Maximum` over 5-minute periods) above the service's own floor for **60 minutes**, actioned to the
+alerts topic. The reasoning for shape over cause is the incident itself: the scale-in alarm was
+correctly in ALARM, the `-1` policy was correctly configured, and no scaling activity was recorded —
+every alarm on the machinery said "fine". An alarm that fires only for one named cause would have
+missed this one. 60 minutes clears a *legitimate* scale-in (15 quiet minutes plus a 300 s cooldown,
+so ~20 minutes of normal behaviour) three times over, and is well under the 84+ minutes observed.
+
+Per-service floors, since they differ — learning-api 2, chat-api 1 — and **the ECS service name is
+passed explicitly rather than derived from the map key**: a dimension assembled by string convention
+reports `INSUFFICIENT_DATA` when the convention changes, which is indistinguishable from a healthy
+service and is exactly AUD-F-12's false negative.
+
+**Applied and controlled.** Applied with `-target` on the two alarms alone, because `terraform plan`
+is *not* clean (see the carry-over below). Both alarms exist; both read `INSUFFICIENT_DATA` at
+creation, which is why the metric was then checked directly rather than trusted:
+`get-metric-statistics` returns nine consecutive 5-minute datapoints for each service at exactly its
+floor — **learning-api 2.0, chat-api 1.0** — so the dimensions resolve, the metric publishes, and the
+thresholds sit where they were meant to.
+
+**Deliberately NOT added to `deploy-staging.yml`'s canary alarm list** (which names its four alarms
+explicitly, so this required no action). A service holding extra capacity is a cost problem; rolling
+a good deploy back over it would be a worse outcome than the condition.
+
+**Carry-over found while applying this:** `terraform plan` against staging reports **both task
+definitions "must be replaced"** — pre-existing drift, unrelated to this change, because
+`deploy-staging.yml` registers task definitions outside Terraform (the D-116 pattern). The blast
+radius is contained today (`aws_ecs_service` has `ignore_changes = [task_definition, desired_count]`,
+so a replacement registers an unused revision and does not move the service) but it means **no
+routine `terraform apply` against this environment is safe to run unattended**, and every future
+apply needs `-target` or a resolved plan.
 
 **Related, and worth knowing before quoting criterion 7's chat leg:** chat-api's `min_capacity` is
 **1**, so its baseline is one task and the "**3 tasks running, ≥ 2 ✅**" recorded for criterion 7 was
