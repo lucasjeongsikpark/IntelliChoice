@@ -712,7 +712,33 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**Standing as of 2026-07-31 (post-D-134): 1, 2, 3, 4, 5, 8 and 9 are met; 7 is met on a re-stated
+**⛔⛔ Standing as of 2026-07-31 (post-D-140): criterion 6 is blocked on a P1 code fix, not on the
+calendar.** **AUD-F-34** — `memory-consolidate` has **never once worked**: every model call fails on
+prompt length (`215355 tokens > 200000 maximum`) and the job **exits 0**, so the ops-task failure rule
+(`exitCode: anything-but 0`) cannot fire and its own summary line reads `Consolidation run complete …
+0 added`. Found by the de-risking run recommended in D-138 §6, **before** the job's first-ever firing.
+So 08-02 would have produced a firing count, a work line, exit 0, no alarm — and a tick. **2026-08-09
+is now only a floor**: a second firing would fail identically and look identical. Criterion 6's date is
+unknowable until the fix lands and the job fires successfully twice, and the fix is application code, so
+it ages criterion 3's evidence and needs the deploy D-137's prohibition protects — sequencing is a user
+call (D-140 §5). Zero open P0/P1 (criterion 2) is also affected: this is a new P1.
+
+*(Superseded, post-D-138 — the date correction below stands; it is simply no longer the binding
+constraint:)* **the gate does NOT close on 2026-08-02.** `memory-consolidate`
+**has never fired** — created 2026-07-27 02:48:30Z against a `cron(30 18 ? * SUN *)` UTC expression, so
+Sunday 07-26's slot had passed 8h18m before the schedule existed; the metric has no datapoint at any
+Sunday 18:30Z and the ops-task log group has zero `Consolidation` lines in its whole history, behind a
+positive control. **08-02 is its FIRST firing, so D-135's "second firing" reading gives 2026-08-09.**
+The other two jobs also move, measured from real creation times: `chat-purge` ≥7 days at **08-03**
+(5 of 5 expected firings so far), `retention-purge` at **08-05** — where D-134 originally had it.
+**The reading for a weekly job is an open decision** (two firings ⇒ 08-09, recommended; one successful
+firing plus `chat-purge`'s week of the same mechanism ⇒ 08-02) and it is the *only* thing the date
+depends on — D-138 §5. **Read it with `make scheduler-evidence`**, which is per job (D-114 §3) and
+computes expected firings from each schedule's own expression rather than from anything written down;
+D-135's per-job counts came from an inference, because `AWS/Scheduler` publishes no per-schedule
+dimension at all.
+
+*(Superseded, post-D-134:)* **1, 2, 3, 4, 5, 8 and 9 are met; 7 is met on a re-stated
 target and now with a *measured* 0.7% margin; 6 is on the calendar (2026-08-02 / 2026-08-05) and is
 the only criterion still open.** **Criterion 3 is met again**: two consecutive whole-suite staging runs,
 **53 passed / 4 skipped / 0 failed** each, no deploy between them, against an image whose code is
@@ -736,9 +762,32 @@ against the new image (53 passed / 4 skipped / 0 failed, with `narrative-refresh
 **a second consecutive run is owed**. Nothing regressed in the product; the evidence aged because the
 artifact under test changed, which is the ordinary cost of deploying during a gate.
 
-**So the gate now needs two calendar dates and nothing else: 2026-08-02 and 2026-08-05, read per
-job.** No open engineering, and no remaining human action beyond reading those two results.
-*(Superseded, post-D-133: "one more clean e2e run, and two calendar dates".)*
+*(Corrected by D-138 — `memory-consolidate` had not "fired at most once", it had never fired at all, so
+08-02 is its first firing and not its second. The mid-clock-addition argument for `retention-purge`
+still holds on its merits; it was being applied to the wrong shortfall.)*
+**So the gate now needs ONE date: 2026-08-02, read per job.** No open engineering, and no remaining
+human action beyond that single read. **D-135 pulled 08-05 in to 08-02** on a stated reading —
+`retention-purge` was enabled 07-29, four days into the clock, and treating it as a mid-clock addition
+rather than a clock restart costs nothing because **the extra three days generate no information**:
+staging's oldest data is 2026-07-22 against 90/365-day cutoffs, so the job logs `purged 0 rows` today
+and will until ~2026-10-20.
+**⚠️ 08-02 is a floor and no reading moves it**: `memory-consolidate` is **weekly**, has fired at most
+once, and a weekly job cannot evidence a week of unattended operation before its second firing. That is
+a missing observation, not a strict reading.
+**⚠️ No `terraform apply` against staging before the criterion-6 read (D-137, and the window is now a
+week longer — D-138 §2).** The schedules run the
+ops-task family's **latest revision, un-pinned** (`task_definition_arn` has no revision suffix, by
+design), and any apply here replaces **three** task definitions including `module.ops_task` — so an
+apply would swap the image under criterion 6's own evidence window. That is D-129 §6's rule, and it
+would cost the re-run D-133 already paid for on criterion 3. If an incident forces an apply, use
+`INCIDENT_RESPONSE.md`'s `-target` form.
+
+**⚠️ Quote this reading with the tick.** Criterion 6 will evidence *the schedules fire unattended and
+the jobs execute cleanly against the real database*. It will **not** evidence that the retention promise
+deletes correctly — neither purge job has ever deleted a row on staging and neither can until ~October,
+so that rests on unit tests (D-135 §4).
+*(Superseded, post-D-134: "two calendar dates, 2026-08-02 and 2026-08-05". Superseded, post-D-133:
+"one more clean e2e run, and two calendar dates".)*
 
 *(Prior standing, post-D-129:)* **1, 2, 3, 4, 5 and 9 are met; 7 is met on a re-stated
 target; 6 is on the calendar (2026-08-02 / 2026-08-05); 8 is 2 of 4 confirmed and needs a human to
@@ -880,6 +929,30 @@ come before the money: **150 concurrent has never been validated as a requiremen
 number, not measured demand, against a documented pilot target of 25), and **AUD-F-32 is the
 CPU-per-request lever** that could roughly halve the task count. **Purchase deferred (user call,
 D-133); re-price after both, and include the database.**
+
+**✅ Re-priced 2026-07-31 against a ratio, and the two paragraphs above are now superseded in both
+halves (D-136).** AUD-F-32 was measured (D-134: the gap is queueing) and the last CPU lever was sized
+and rejected (**batching `submit_answer` saves 0.9 ms of ~20 ms, 4.6%**), so **there is no remaining
+code lever that materially changes CPU per request** — the "could roughly halve the task count" hope is
+gone, and capacity is bought rather than optimised. Interpolating ALB p95 between the only two measured
+arms, `p95 ≈ 0.31 s × (r/2.5)^1.4` for `r` concurrent users per task (**not** extrapolable outside
+r ∈ [2.5, 12.5]):
+
+| target r | p95 | tasks at 25 | tasks at 150 |
+|---|---|---|---|
+| 12.5 (today) | 2.95 s | **2** | 12 |
+| 7.5 | 1.44 s | 4 | 20 |
+| 5 | **0.82 s** | **5** | 30 |
+
+**The expensive target and the real target are not the same target.** At the documented pilot 25,
+moving off the 0.7% knife-edge costs **three more tasks** (2 → 5, ~+$54/month), and the ~$216 was always
+for §6.23's 150. **And the RDS half of the obligation shrinks to nothing for the pilot:** D-133's
+~21 connections/task is a *per-task constant* sized in S34 for one process serving 150 concurrent, so
+multiplying tasks multiplies idle pool capacity — with `pool_size ≈ target r`, 25 concurrent needs ~40
+connections and **`db.t4g.micro`'s ~112 suffices**. 150 still needs a resize, at 1.6× not 2.8×, and
+**that resize has lead time, not just cost**: this account rejected `db.t4g.small` outright in S32/D-084.
+**Recommendation: target r = 5, sized for the pilot, separable from the 150 question** — which Message D
+still decides. Nothing forces it; criterion 7 is met at 25 on its stated reading.
 
 *(Superseded — how this read after D-131 and before the measurement:)*
 AUD-F-31 is fixed: the build issues **7 SQL statements instead of 47**, and ~40 fewer round-trips at

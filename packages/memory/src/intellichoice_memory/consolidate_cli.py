@@ -42,7 +42,20 @@ def _build_gateway(settings: MemoryConsolidationSettings) -> ResilientBedrockGat
     )
 
 
-async def main() -> None:
+async def main() -> int:
+    """Returns a process exit code.
+
+    **Non-zero when every model call in the run failed (AUD-F-34, D-141).** That is not
+    defensive coding, it is the difference between this job being findable and not: the ECS
+    failure rule that watches these runs matches `containers.exitCode: [{"anything-but": [0]}]`,
+    so a run that catches its own errors and returns 0 is invisible in every console - which is
+    how a job that had never once succeeded went unnoticed until it was run by hand.
+
+    Partial failure deliberately stays exit 0 and is reported in the summary line instead: the
+    gateway already retries, one student's bad batch should not page anyone, and a rule that
+    fires on any failure would be turned off within a month. `run budget reached` is not a
+    failure at all and is counted separately.
+    """
     settings = get_consolidation_settings()
     gateway = _build_gateway(settings)
     window_end = datetime.now(UTC)
@@ -59,6 +72,7 @@ async def main() -> None:
             )
             spend = 0.0
             total_added = total_updated = total_contested = total_expired = 0
+            total_attempted = total_failed = total_dropped = 0
             for student_id in student_ids:
                 if spend >= settings.bedrock_run_budget_cents:
                     print(
@@ -80,20 +94,42 @@ async def main() -> None:
                 total_updated += result.updated
                 total_contested += result.contested
                 total_expired += result.expired
+                total_attempted += result.calls_attempted
+                total_failed += result.calls_failed
+                total_dropped += result.events_dropped
+                detail = (
+                    f" [{result.calls_failed}/{result.calls_attempted} call(s) FAILED]"
+                    if result.calls_failed
+                    else ""
+                )
+                if result.events_dropped:
+                    detail += f" [{result.events_dropped} event(s) dropped over the call cap]"
                 print(
                     f"  {student_id}: +{result.added} facts, {result.updated} "
                     f"reconfirmed, {result.contested} contested, {result.expired} "
-                    f"expired ({result.cost_cents:.4f} cents)"
+                    f"expired ({result.cost_cents:.4f} cents){detail}"
                 )
             await session.commit()
+        # The counts go in the summary line unconditionally, including the zeros. The old line
+        # said "complete" and nothing else, so a run in which nothing worked read exactly like a
+        # run with nothing to do - and `0 added` is the correct output for both.
         print(
             f"Consolidation run complete: {len(student_ids)} student(s), "
             f"{total_added} added, {total_updated} reconfirmed, {total_contested} "
-            f"contested, {total_expired} expired, {spend:.2f} cents spent."
+            f"contested, {total_expired} expired, {spend:.2f} cents spent; "
+            f"{total_attempted} model call(s), {total_failed} failed, "
+            f"{total_dropped} event(s) dropped."
         )
+        if total_attempted and total_failed == total_attempted:
+            print(
+                f"FAILED: all {total_attempted} model call(s) failed and no fact changed. "
+                "Exiting non-zero so the ops-task failure alarm fires (AUD-F-34)."
+            )
+            return 1
+        return 0
     finally:
         await engine.dispose()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(asyncio.run(main()))

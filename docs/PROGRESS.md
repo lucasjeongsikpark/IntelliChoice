@@ -5,6 +5,139 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⛔⛔ AUD-F-34 (P1): `memory-consolidate` has never once worked, it fails silently, and criterion 6
+  would have been ticked on it (2026-07-31, D-140).** Found by the de-risking run approved this
+  session — **before** the job's first-ever firing, which is what made it findable at all.
+  **Every model call fails on prompt length and the job exits 0:** `prompt is too long: 215355 tokens
+  > 200000 maximum` for `student-ext-4`, 215225 for `student-ext-1`, **0 facts written, 0.0000 cents
+  spent**, and a closing line reading `Consolidation run complete: 2 student(s), 0 added, …`.
+  **Three independent reasons nothing would have caught it:** exit 0 means
+  `intellichoice-staging-ops-task-failed` (`exitCode: anything-but 0`, verified against the live rule)
+  **cannot fire** — D-105 §3 built that guard against a job exiting 1 every time, and this one exits 0
+  every time; `0 added` is indistinguishable from "nothing to do", which is the *correct* output for
+  both purge jobs; and **the instrument written this session to prove the job runs would have certified
+  it**, because `Consolidation run complete` prints on total failure. Fixed in the same commit —
+  `_FAILURE_LINES` per job, presence fails the verdict regardless of exit code.
+  **Cause: no bound on input size.** The rolling `[now − 7d, now)` window builds a prompt from *every*
+  tutor-chat message in it; staging's volume is load-test exhaust (25-VU k6 runs), so two students hold
+  ~215k tokens each against Haiku 4.5's 200k. **The per-run *spend* cap worked and is not the gap** —
+  `bedrock_run_budget_cents = 200` bounds cost, nothing bounds *input*, so it fails validation before
+  inference. That is luck: the same prompt under a larger context window bills instead of erroring.
+  **⚠️ So criterion 6 is now blocked on a code fix, not on the calendar.** 08-09 stands only as a
+  floor; a second firing would have failed identically and looked identical. **The strict reading did
+  not save this — the de-risking run did.**
+  **The fix is deliberately not attempted**: it is app code, so it ages criterion 3's
+  byte-identical-to-HEAD evidence *and* needs the deploy D-137's prohibition protects. Three calls are
+  the user's — fix now and re-run criterion 3, or hold; which fix (bound messages per call and page the
+  window, vs. cap input tokens and skip-with-warning); and the Bedrock spend shape (D-139 §4). **One
+  half should land either way: a run in which every call failed must exit non-zero.** The keeper is
+  **a job that catches its own errors must not report success by exhaustion.**
+- **⛔ The gate does not close on 2026-08-02. `memory-consolidate` has never fired, and D-135 read a
+  firing that could not have happened (2026-07-31, D-138/D-139).** The last gate date moves
+  **08-02 → 2026-08-09** on D-135's own rule.
+  **Three independent readings agree, and the first one is decisive on its own:** the schedule was
+  created **2026-07-27 02:48:30Z**, and its expression is `cron(30 18 ? * SUN *)` UTC — so Sunday
+  07-26's 18:30Z slot had passed **8h18m before the schedule existed**. `InvocationAttemptCount` has
+  **no datapoint at any Sunday 18:30Z**, and the ops-task log group contains **zero** `Consolidation`
+  lines in its entire history while the same filter returns all nine `purged …` lines (positive
+  control, so the zero is the job's and not the query's). **08-02 18:30Z is its FIRST firing.**
+  **The other two jobs' dates move the same way**, measured from real creation times rather than a
+  remembered clock start: `chat-purge` 5 of 5 expected firings, 4d 15h unattended, ≥7d at **08-03**;
+  `retention-purge` 3 of 3, 2d 4h, ≥7d at **08-05** — which is where D-134 originally had it. D-135's
+  "enabled four days after the clock started" was two; the clock started 07-27, not 07-25.
+  **⚠️ D-135's per-job counts could not have come from where they said.** `AWS/Scheduler` publishes
+  **no per-schedule dimension** — `list-metrics` returns only `ScheduleGroup=default` — so the metric
+  sums every schedule in the group, *including deleted ones*. That table was an inference from the cron
+  expressions dressed as a measurement: **right for the two daily jobs, wrong for the weekly one.**
+  Attribution is possible here only because the three crons fire at distinct minutes (18:10/18:30/18:50),
+  so `read_scheduler_evidence.py` asserts that and **refuses to attribute at all** if two enabled
+  schedules could share a 5-minute bucket. The two unattributed firings on 07-27 (02:50Z, 03:20Z) are
+  D-105 §5's deliberate failure tests and are **reported, not absorbed**.
+  **🔬 New instrument: `scripts/read_scheduler_evidence.py` / `make scheduler-evidence`** — read-only,
+  per job (D-114 §3), exit code follows the weakest job. **D-135's own bucket-offset error reproduced
+  inside it on the first run**: CloudWatch lays buckets out from `StartTime`, so an 18:10 firing landed
+  in a bucket labelled 18:06 and `chat-purge` read as zero firings while its work lines sat in the log.
+  Fixed by aligning the window to a period boundary. **Seventh consecutive session where the instrument
+  needed checking before its output meant anything** — the standing rule is now that a new measurement
+  gets a positive control *and* a known-answer arm before its first reading is quoted. Both guards
+  earned their keep immediately: the log control caught its own `limit=1` pagination bug (empty first
+  page with a `nextToken`, D-102's shape) before it could certify three jobs as never having run.
+  **The decision this leaves is the user's:** two firings (**08-09**, recommended) or one successful
+  firing plus a week of the same mechanism evidenced by `chat-purge` (**08-02**). Recommended strictly,
+  for a reason specific to this job — it is the **only enabled job that calls a paid API**, has **zero
+  retries by design** (D-105 §2), and its `MEMORY_*` wiring is the exact configuration D-105 §4 records
+  as failing *silently* into a mock. **⚠️ And its 08-02 firing is unproven wiring:** a failure there
+  pushes the second firing to 08-16. A manual run is bounded at **200 cents** and idempotent per
+  (student, week) — recommended before 08-02, and it is a spend decision, not an engineering one.
+  **✅ The Fargate rate is confirmed from the account's own bill (D-139), and D-136's correction was
+  right to the tenth of a percent.** `$0.032380/vCPU-hour` and `$0.003560/GB-hour` (ARM64, us-east-1),
+  read from billed usage ⇒ **$14.42/task/month** for a 0.5 vCPU / 1 GB task. D-133's $18.02 reproduces
+  exactly from x86 rates, so the diagnosis is confirmed, not just the fix. **The pilot's r = 5 is
+  ~+$43/month, not ~$54**; 150 at r = 12.5 is ~$173, at r = 5 is ~$433. Recommendation unchanged.
+  **⚠️ But none of it is currently being paid: July is $72.12 of usage and −$72.12 of credit, netting
+  $0** (May/June empty — staging is 07-22 onward). Every price in D-133/D-136/D-139 is **credit burn,
+  not cash**, and the remaining balance **is not readable from Cost Explorer** — one Billing-console
+  look is owed before the 150 question is priced at all. **And the bill's shape is not what the capacity
+  argument assumed: Bedrock is $39.79, 55% of it**, against $32.33 for all infrastructure — with no real
+  users, so that is load tests and this month's own measurement sessions.
+  **Staging untouched:** no apply, no deploy, no capacity change; every read above is read-only.
+  **634 passed / 2 skipped**, lint and pyright clean.
+- **✅ Criterion 7's latency question is closed by exhaustion, the capacity purchase is re-priced and
+  much smaller than it looked, and the `terraform plan` carry-over closed itself the hard way
+  (2026-07-31, D-136/D-137).** The gate still needs **one read: 2026-08-02**.
+  **⛔ The last named latency lead is dead at 0.9 ms.** Batching `submit_answer` saves **4 × 236 µs ≈
+  0.9 ms of a ~20 ms request, 4.6%** — a third of the OTel lever already declined. New instrument
+  `scripts/size_statement_cpu.py`, built on the rule that this decision needs a **slope, never a total ÷
+  a count**. Its pre-registered expectation **held on price** (225–236 µs/statement against a predicted
+  0.15–0.45 ms; R² ≥ 0.999; a span is ~48 µs and costs the same in both statement shapes) and **failed on
+  quantity**: the 19 is **17 statements + 2 `connect` spans**, **14 of 19 distinct**, only **4 repeated**,
+  one against MySQL. **Keeper: "N statements" is not a unit of waste** — the prediction multiplied a good
+  price by a quantity borrowed from AUD-F-31's `select_topic` (47 → 7, which really was one lookup in a
+  loop) and dropped the property that made it true. **The 19 stays 19** in the existing table: it is the
+  local↔staging reconciliation figure, so redefining it mid-comparison would void it (D-129 §6).
+  **So every lever has now been measured and none of them moves p95:** `select_topic`'s 47 → 7 bought
+  nothing (D-132), the ~726 ms is queueing (D-134), OTel is ~14% but trades against criterion 9's corpus,
+  batching is 4.6%. **Capacity is bought, not optimised.**
+  **✅ And bought, it is far cheaper than D-133 priced — for the target that actually exists.**
+  `p95 ≈ 0.31 s × (r/2.5)^1.4` between the only two measured arms (**not** extrapolable outside
+  r ∈ [2.5, 12.5] — D-134's own error in the other direction). At the documented pilot **25**, leaving the
+  0.7% knife-edge costs **three more tasks**: 2 → 5, p95 2.98 s → **~0.8 s**, ~+$54/month. The ~$216 was
+  always for §6.23's **150**. **Two corrections to D-133, the second the consequential one:** its ~21
+  connections/task is a per-task constant sized in S34 for **one** process at 150 concurrent, so
+  multiplying tasks multiplies *idle pool capacity* — with `pool_size ≈ target r`, 25 concurrent needs ~40
+  connections and **`db.t4g.micro`'s ~112 suffices, so the pilot needs no RDS resize at all**. 150 does,
+  at 1.6× not 2.8×, and **that resize is lead time before it is money** (this account rejected
+  `db.t4g.small` outright, S32/D-084). Its $18.02/task also uses x86 rates for an **ARM64** task, so
+  ~20% high — **confirm against the real bill before quoting any price.** Recommendation: **target r = 5**,
+  sized for the pilot and separable from the 150 question, which Message D still decides.
+  **🔬 The `terraform plan` carry-over is closed, because the hazard fired unnoticed inside the session
+  that filed it.** The plan is **clean** — and the reason is that **D-134's own capacity-pinning
+  `-target` apply replaced both task definitions**, since `aws_ecs_task_definition.this` lives *inside*
+  the ecs-service module. Both latest revisions were registered **09:31:56, three ms apart**, which CI
+  cannot produce (it deploys sequentially with `wait services-stable`). **Nothing broke:**
+  `ignore_changes = [task_definition]` held under a real unplanned test of it and the services still run
+  43/42.
+  **⚠️ But the drift moved where `plan` cannot see it.** `deploy-staging.yml` describes the task
+  definition by **family name**, which ECS resolves to the *latest* revision — now Terraform's — so the
+  next CI deploy inherits Terraform's shape while `plan` says "No changes" forever. **`ignore_changes`
+  converts a visible drift into an invisible one.** The shapes were **diffed, not assumed**: image tag
+  plus D-130's three org-time env vars, and that half is benign because `resolve_org_time`'s defaults are
+  *identical* to what Terraform sets.
+  **✅ The real hazard was S39's, on a different fix, two sessions later.** tfvars' floor was
+  `gha-447d412617a2` (07-29) while the running image is `gha-544c6fe9749c` (07-30) — and **544c6fe is
+  AUD-F-30's `/readyz` tracing suppression**, criterion 9's evidence base. The file's own comment already
+  said "bump this whenever a fix must survive a bare apply"; **the instruction was there and was not
+  followed**, which makes it a checklist item rather than a comment. Bumped, and the honest consequence is
+  that **`plan` goes clean → dirty, which is the improvement** — today's clean plan agreed with a stale
+  image.
+  **⚠️ Verifying that prediction found a third task definition and a hard date constraint.** "3 to add,
+  3 to destroy, 0 changed" — the third is `module.ops_task`, sharing the bumped tag, and the schedules run
+  that family's **latest revision, un-pinned by design**. So an apply would swap the image under criterion
+  6's own evidence window. **No `terraform apply` against staging before the 08-02 read**, short of an
+  incident; the runbook's `-target` form exists for that case. **`INCIDENT_RESPONSE.md` fixed**: it told an
+  operator to run a bare `terraform apply -replace=...` mid-credential-incident.
+  **Staging untouched this session** — no apply, no deploy, no capacity change. **634 passed / 2 skipped**,
+  lint and pyright clean.
 - **✅ The gate is down to two calendar dates, and AUD-F-32's ~726 ms turned out to be queueing
   (2026-07-31, D-134).** Criterion 3 is met again and criterion 7's margin is now measured.
   **Criterion 3: two consecutive whole-suite staging runs, 53 passed / 4 skipped / 0 failed each, no
@@ -70,6 +203,24 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   the outcome, not a mechanism** — during the incident every alarm on the machinery said "fine".
   `INSUFFICIENT_DATA` at creation is why the metric was then checked directly: nine consecutive
   datapoints per service at exactly its floor. Deliberately **not** in the canary alarm list.
+  **✅ Criterion 6 is down to one date, 2026-08-02 (D-135), and the evidence was checked rather than
+  assumed.** Scheduler's own metrics (which count firings only, so manual invocations in the same log
+  group cannot be mistaken for them): `chat-purge` **4 unattended daily firings** (07-27→07-30),
+  `retention-purge` **2** (from 07-29), `memory-consolidate` **≤1** (weekly, next 08-02), and **every
+  Scheduler error metric empty**. The jobs are doing work, not merely starting — the ops-task log carries
+  `purged 0 tutor_chat_messages row(s) older than 90 days` on 07-28/29/30, which is AUD-F-15's
+  distinction checked directly rather than inferred from a firing count.
+  **⚠️ A near-miss worth keeping: a first pass concluded the schedules had stopped firing on 07-30–31**
+  — i.e. that the clock was *broken*, not short. It was an artifact of reading `InvocationAttemptCount`
+  in 86,400 s buckets offset from `--start-time`, so each bucket straddled two days, plus today's runs
+  being at 18:10/18:50 UTC and still in the future. **Sixth session running where the instrument needed
+  checking before its output meant anything** (D-104 §8, D-121, D-129 §5, D-131 §4, D-132, this).
+  **⚠️ And the reading criterion 6 will be claimed on is narrower than its wording:** neither purge job
+  has **ever deleted a row** on staging and neither can until ~2026-10-20, so the criterion evidences
+  *the schedules fire unattended and the jobs run cleanly against the real database* — **not** that the
+  retention promise deletes correctly, which rests on unit coverage
+  (`test_purge_cli_deletes_only_rows_past_the_real_90_day_cutoff`). AUD-F-15 was a job that never ran;
+  this is a job that runs and has never had anything to do. **Quote the reading with the tick.**
   **✅ `make e2e-staging` now fetches its own secrets** — 17 authenticated journeys used to fail
   together on one 404 because `config.ts` defaults both to `""`; `config.ts` now also refuses a
   staging run with either empty, so a hand-rolled invocation says so instead of lying 17 times.
@@ -78,13 +229,25 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   them outside Terraform, the D-116 pattern). Contained today by `ignore_changes = [task_definition,
   desired_count]`, but **no routine `terraform apply` here is safe unattended**; this session used
   `-target`. Capacity was pinned to 2/2 for the sweep and **restored to min 2 / max 3** afterwards.
-  **🔬 A live test of the new alarm is running as this session closes, unplanned:** the e2e suite
-  scaled **chat-api to 2 tasks against its floor of 1**, and both `capacity-above-floor` alarms have
-  since gone `INSUFFICIENT_DATA` → **OK**, so they are evaluating real data. If chat-api scales in
-  normally the alarm stays OK; if it does not, `intellichoice-staging-chat-api-capacity-above-floor`
-  fires ~60 minutes later and **AUD-F-33 has just been caught on a second service**, which would kill
-  the remaining `min_capacity` hypothesis too. **Check that alarm's history first thing next session** —
-  either outcome is informative and neither needs any setup.
+  **🔬 The unplanned live test resolved within the hour, and AUD-F-33 is now P2.** The e2e suite left
+  **chat-api at 2 tasks against its floor of 1**; the alarm created at 09:32 went
+  `INSUFFICIENT_DATA → OK` at 09:33 (evaluating real data) and **`OK → ALARM` at 10:32:34** with the
+  correct reason, and `describe-alarm-history --history-item-type Action` records **"Successfully
+  executed action … intellichoice-staging-alerts"**. **Detection, threshold, dimensions and
+  notification all validated against a condition nobody staged** — the best possible outcome for a new
+  alarm, and it arrived 60 minutes after it existed.
+  **⚠️ What it caught kills all three candidate explanations of AUD-F-33.** chat-api's own record:
+  00:25:31 scale-in alarm OK→ALARM → 00:25:32 `3→2` → **00:33:32 `2→1` eight minutes later inside one
+  uninterrupted ALARM**; then 10:17:31 OK→ALARM → 10:17:32 `3→2` → **nothing for 15+ minutes**. So
+  **(1)** it is *not* learning-api-specific — chat-api was this finding's own control and now exhibits
+  the fault; **(2)** it is *not* the `min_capacity` difference — chat-api's floor is 1 and it stuck at
+  2, so the `-1` had somewhere to go; **(3)** it is *not* "one step per alarm transition" — the
+  00:25/00:33 pair is two steps inside one ALARM, so re-application after the 300 s cooldown
+  demonstrably works, *sometimes*. **Re-scoped: step scaling intermittently stops re-applying while its
+  alarm remains in ALARM and the cooldown has long expired, on both services.** P3 → **P2**: the cost
+  floor is silent, it affects every service on this pattern, and school-hours-then-idle makes it the
+  common case rather than the corner. Mechanism still unknown; the controlled repro is now cheap
+  because the alarm makes the condition visible without anyone watching. `desired-count` restored to 1.
   **634 passed / 2 skipped**, lint and pyright clean.
 - **⛔ AUD-F-31's staging before/after ran, and it refutes the reason the fix was prioritised
   (2026-07-31, D-132). The fix is confirmed; the p95 claim is dead.** Capacity-matched at 25
@@ -941,16 +1104,123 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-31 close, post-D-134). The gate needs two dates and nothing else,
-  and the latency question has changed shape rather than closed:**
-  1. **The only gate item left: criterion 6's dates.** **2026-08-02** (`chat-purge`,
-     `memory-consolidate`) and **2026-08-05** (`retention-purge`), read **per job** — `chat-purge` has
-     a history of never having run (AUD-F-15). Also **2026-08-01: re-probe "How do I enroll a student?"**
-     and widen `chat_qa_staging.js`'s question list beyond the four documents effective today.
+- **Next session, in order (2026-07-31 third close, post-D-140). Criterion 6 is no longer a date — it is
+  a P1 code fix, and item 1 is the whole session:**
+  1. **⛔⛔ AUD-F-34 (P1) blocks criterion 6 and needs three decisions before any code (D-140 §5).**
+     (a) **Fix now and re-run criterion 3's two staging runs, or hold** until the criterion-6 window
+     closes — the fix is app code, so it ages the byte-identical-to-HEAD evidence *and* needs the deploy
+     D-137's prohibition protects. (b) **Which fix:** bound the messages per consolidation call and page
+     the window (correct, and makes the job's cost predictable), or cap input tokens and
+     skip-with-warning above it (fails closed, keeps the promise honest, consolidates nothing).
+     (c) **Land the silent-failure half either way** — a run in which every call failed must exit
+     non-zero so D-105 §3's rule fires. One line, and it is the half that generalises.
+     **Do not read criterion 6 as a date until this lands:** 08-09 is a floor, and a second firing would
+     fail identically and look identical.
+  2. **Re-run `make scheduler-evidence` after the fix deploys and the job fires twice.** It now fails
+     the verdict on failure lines regardless of exit code, so it will not certify a hollow run again.
+  3. **The rest of the previous pointer is unchanged and still queued behind the same apply
+     prohibition** — Messages A and D (yours to send), the 08-01 re-probe, the Billing-console credit
+     look (D-139 §3), r = 5 capacity at ~$43/month, AUD-F-33.
+  **Keeper minted here:** a job that catches its own errors must not report success by exhaustion.
+
+- **Superseded — pointer as of the D-138/D-139 close (2026-07-31). Item 3's de-risking run was taken and
+  found AUD-F-34, which turns item 2's date question into a code fix; the rest still stands:**
+  1. **⛔ The apply prohibition still stands, and it now runs to the later date (D-137 §7, D-138 §2).**
+     Any apply replaces three task definitions including `module.ops_task`, whose family's *latest*
+     revision is what the schedules run — so it would swap the image under criterion 6's evidence window,
+     which is exactly the window that just got longer. Incident-only, via `INCIDENT_RESPONSE.md`'s
+     `-target` form.
+  2. **Decide criterion 6's reading for a weekly job, because the date depends on it and nothing else
+     does (D-138 §5).** Two firings ⇒ **2026-08-09**; one successful firing plus `chat-purge`'s week of
+     the same mechanism ⇒ **08-02** (and 08-03 for `chat-purge` on its own arithmetic). **Strict is
+     recommended** — `memory-consolidate` is the only enabled job calling a paid API, has zero retries by
+     design, and its `MEMORY_*` wiring is what D-105 §4 records as failing silently into a mock.
+  3. **⚠️ Before 08-02, consider one manual `memory-consolidate` run — a spend decision, ≤200 cents
+     (D-138 §6).** Nothing has ever exercised this job against the real database and gateway. If its
+     first-ever firing fails on 08-02, the second slips to **08-16**. Idempotent per (student, week), so
+     it cannot corrupt the scheduled run's window.
+  4. **On the day, the read is one command: `make scheduler-evidence`.** Per job, exit code follows the
+     weakest, and it computes expected firings from each schedule's own expression and creation time
+     rather than from anything written down. **Still quote the reading with the tick** (D-135 §4): it
+     evidences that the schedules fire unattended and the jobs execute cleanly, **not** that the
+     retention promise deletes correctly — neither purge job has ever deleted a row and neither can
+     until ~2026-10-20. Also **2026-08-01: re-probe "How do I enroll a student?"** and widen
+     `chat_qa_staging.js`'s question list beyond the four documents effective today.
+  5. **Send Message A** (twelfth session carrying it) **and Message D**, separately — S42_ORG_ASKS.md's
+     one-ask-per-message rule. A gates S43; D decides whether the 150-concurrent question is ever worth
+     pricing.
+  6. **One Billing-console look is owed before any price is quoted as money (D-139 §3).** The whole July
+     bill is credited to zero, and the remaining credit balance is not exposed by any API — so every
+     figure in D-133/D-136/D-139 is a credit-burn rate, not cash, and the date it becomes payable is
+     unknown.
+  7. **If capacity is bought: r = 5, +3 tasks, ~$43/month, no RDS change** — price now confirmed against
+     the bill (D-139 §1), so D-136's ~$54 is superseded. `autoscaling_max_capacity` is **3** and must
+     move; `pool_size`/`max_overflow` should come *down* toward r. Needs an apply, so it waits on item 1.
+  8. **AUD-F-33 (P2) is still the only real engineering left**, still deferred by user call, and still
+     needs an apply — so it waits on item 1 too, which now means a week longer.
+  **Carry-overs unchanged:** `/readyz` still cannot distinguish "database gone" from "I am busy"; answer
+  brevity (D-115 (i)); AUD-F-22 and AUD-F-24's sibling; D-112's retrieval-margin re-measure; the ~2–4%
+  `rag_answer` `schema_invalid` rate. **Minted here:** the credit-balance look (item 6).
+
+- **Superseded — next-session pointer as of the D-136/D-137 close (2026-07-31). Item 2's date was wrong
+  and is corrected by D-138; the rest still stands:**
+  1. **⛔ Do not `terraform apply` against staging before item 2 is ticked (D-137 §7).** The schedules run
+     the ops-task family's latest revision un-pinned, and any apply replaces three task definitions
+     including `module.ops_task` — swapping the image under criterion 6's own evidence window, which is
+     D-129 §6's rule and would cost D-133's re-run over again. If an incident forces one, use
+     `INCIDENT_RESPONSE.md`'s `-target` form.
+  2. **The gate's last item is ONE read: 2026-08-02, per job.** Confirm `memory-consolidate`'s **second**
+     firing landed (the only thing still unobserved — a weekly job cannot evidence a week before it),
+     re-read all three jobs' firing counts and error metrics from Scheduler's own metrics, and tick.
+     **Quote the reading with the tick** (D-135 §4): it evidences that the schedules fire unattended and
+     the jobs run cleanly, **not** that the retention promise deletes correctly — neither purge job has
+     ever deleted a row and neither can until ~2026-10-20. Also **2026-08-01: re-probe "How do I enroll a
+     student?"** and widen `chat_qa_staging.js`'s question list beyond the four documents effective today.
+  3. **Send Message A** (eleventh session carrying it; re-read it first, it gained a week-boundary question
+     in D-130) **and Message D**, separately — S42_ORG_ASKS.md's own one-ask-per-message rule. A gates S43,
+     not the gate; **D now decides whether the 150-concurrent question is ever worth pricing**, since
+     D-136 showed the pilot's own sizing does not wait on it.
+  4. **If capacity is bought, buy r = 5 for the pilot, not 12 tasks for 150 (D-136 §5).** 2 → 5 tasks,
+     p95 2.98 s → ~0.8 s, ~+$54/month, **no RDS change**. Prerequisites: `autoscaling_max_capacity` is
+     **3** and must move; `pool_size`/`max_overflow` should come *down* to ≈ r as tasks go up (they are
+     sized for one process at 150); and **confirm the real Fargate per-task rate against the bill** —
+     D-133's $18.02 is an x86 rate for an ARM64 task. Do not re-derive a task count by extrapolating the
+     ratio curve outside r ∈ [2.5, 12.5].
+  5. **No latency work remains to do — the question is closed by exhaustion (D-136 §4).** If anyone
+     reopens it, the only undecided lever is **OTel sampling (~14% of CPU)**, and it needs a decision about
+     criterion 9's trace corpus first, not a measurement. **Do not re-open batching**; it is 4.6%.
+  6. **AUD-F-33 (P2) is the only real engineering left, and it was deferred by user call, not closed.**
+     All three candidate explanations are dead; the remaining ones are inside Application Auto Scaling
+     itself (whether a scaling activity's completion re-arms the policy; whether `desired_count`'s
+     `ignore_changes` or a concurrent ECS deployment suppresses re-application). The repro is two
+     OK→ALARM cycles with capacity and traffic held identical — cheap now that `capacity-above-floor`
+     makes the condition visible unattended. **Note it needs an apply, so it waits for item 2.**
+  **Carry-overs unchanged:** `/readyz` still cannot distinguish "database gone" from "I am busy"; answer
+  brevity (D-115 (i)); AUD-F-22 and AUD-F-24's sibling; D-112's retrieval-margin re-measure; the ~2–4%
+  `rag_answer` `schema_invalid` rate. **Retired this session:** the RDS connection-arithmetic carry-over
+  (D-136 §5 replaces it with a rule — ceilings scale with total concurrency, not task count) and the
+  `terraform plan` carry-over (D-137, closed with a prohibition attached).
+
+- **Superseded — next-session pointer as of the D-134/D-135 close (2026-07-31). Items 3, 4 and 5 are done
+  (D-136/D-137); item 1's date is still the gate's last item; item 2 is still unsent; item 6 was deferred
+  by user call:**
+  1. **The only gate item left is ONE date: 2026-08-02, read per job (D-135).** 08-05 was pulled in to
+     08-02 — `retention-purge` was enabled 07-29, mid-clock, and the extra three days generate **no
+     information** (staging's oldest data is 2026-07-22 against 90/365-day cutoffs, so it logs `purged 0
+     rows` today and until ~2026-10-20). **08-02 is a floor no reading moves:** `memory-consolidate` is
+     weekly and a weekly job cannot show a week before its second firing — that is a missing
+     observation, not a strict reading. **On the day: confirm memory-consolidate's second firing, re-read
+     all three jobs' firing counts and error metrics, tick.** Also **2026-08-01: re-probe "How do I
+     enroll a student?"** and widen `chat_qa_staging.js`'s question list beyond the four documents
+     effective today.
   2. **Send Message A** (tenth session carrying it; re-read it, it gained a week-boundary question in
-     D-130). It gates S43, not the gate, and it is the only item with external lead time. **It now also
-     carries a second question worth asking in the same message: is 150 concurrent a real requirement?**
-     D-134 §7 prices the difference and §6.23's number has never been validated against demand.
+     D-130). It gates S43, not the gate, and it is the only item with external lead time.
+     **And send Message D, which is new and drafted ready to go** — the one number that prices the
+     capacity decision: how many students use the app *at the same moment* at peak. ~~worth asking in
+     the same message as A~~ — **corrected: it is its own message.** S42_ORG_ASKS.md's own rule is one
+     kind of ask per message, and bundling a capacity-planning number under a request for judgment is
+     the bundling that file explicitly rejects. D asks only about *their* schedule, so whoever knows it
+     can answer without involving anyone technical.
   3. **The capacity decision, re-priced against a ratio.** D-134 §7: ~$216/month buys 12 tasks =
      12.5 concurrent/task = the arm that measured ALB p95 **2.98 s against a 3.00 s threshold**. Decide a
      target **concurrency-per-task** first (2.5/task measured 0.3 s), then price tasks *and* the RDS
@@ -966,11 +1236,17 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   5. **`terraform plan` is not clean** (both task definitions "must be replaced", pre-existing drift).
      Either resolve it or write the `-target` requirement into the runbook — an unattended apply here
      would register task definitions from Terraform's image variable.
+  6. **AUD-F-33 is now a P2 with a cheap controlled repro available.** All three candidate
+     explanations are dead (see Current status), so the remaining candidates are inside Application
+     Auto Scaling itself: whether a scaling activity's completion re-arms the policy, and whether the
+     `desired_count` `ignore_changes` interaction or a concurrent ECS deployment suppresses
+     re-application. **The repro is two OK→ALARM cycles with capacity and traffic held identical** —
+     newly affordable because `capacity-above-floor` makes the condition visible without anyone
+     watching for it.
   **Carry-overs unchanged:** `/readyz` still cannot distinguish "database gone" from "I am busy"; RDS
   connection arithmetic (now sharper — D-134's ratio work changes the task-count input to it);
   answer brevity (D-115 (i)); AUD-F-22 and AUD-F-24's sibling; D-112's retrieval-margin re-measure;
-  the ~2–4% `rag_answer` `schema_invalid` rate. **AUD-F-33 keeps its open half** — detection landed,
-  the mechanism is still unknown and the `min_capacity` hypothesis is untested.
+  the ~2–4% `rag_answer` `schema_invalid` rate.
 
 - **Superseded — next-session pointer as of the D-133 close (2026-07-31). Items 1a, 2 and 4 are done
   (D-134); item 1(b) is the only live remainder; item 3 stays deferred and is now re-priced:**
@@ -3039,6 +3315,173 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### Off-roadmap — the criterion-6 date is wrong by a week, and the Fargate price confirmed from the bill (2026-07-31, second session) ✅
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-136/D-137)**, not a numbered roadmap block.
+  Every item on it was date-gated (08-01, 08-02), human (Messages A/D), or blocked behind the apply
+  prohibition, so the instruction was to do whatever needed neither a person nor a calendar. That turned
+  out to include the one thing that mattered.
+- **Landed D-136/D-137 first** (`e7df97e`, PR #74, 9/9 CI checks green): docs + `size_statement_cpu.py` +
+  `profile_local_request.py --statements`. Nothing under `apps/`/`packages/`/`curriculum/`/
+  `knowledge-content/`, checked rather than assumed, so criterion 3's byte-identical-to-HEAD evidence
+  survives the merge. **One defect fixed on the way in:** the D-137 runbook edit had split
+  `random_password.jwt_signing_secret_learning` across a line *inside* a backtick span, rendering a
+  corrupted command in the credential-rotation path — the one place nobody proofreads before pasting.
+- **⛔ Then the criterion-6 finding (D-138), which is why the pointer's "one read" was not one read.**
+  `memory-consolidate` **has never fired.** Created 2026-07-27 02:48:30Z against `cron(30 18 ? * SUN *)`
+  UTC — Sunday 07-26's slot had passed **8h18m before the schedule existed**. Confirmed three ways: the
+  creation date, no `InvocationAttemptCount` datapoint at any Sunday 18:30Z, and **zero** `Consolidation`
+  lines in the ops log group's entire history against a positive control that finds all nine `purged …`
+  lines. **08-02 is its first firing; D-135's own rule then gives 2026-08-09.** `chat-purge` reaches
+  ≥7 days on **08-03** and `retention-purge` on **08-05**, measured from real creation times.
+- **⚠️ D-135's per-job table came from an inference wearing a measurement's clothes.** `AWS/Scheduler`
+  publishes **no per-schedule dimension** — only `ScheduleGroup` — so its metric sums every schedule in
+  the group including deleted ones. The table was right for the two daily jobs and **wrong for the weekly
+  one**, which is that substitution's signature failure.
+- **🔬 `scripts/read_scheduler_evidence.py` / `make scheduler-evidence`** — read-only, per job, exit code
+  follows the weakest job, attribution by 5-minute bucket with a hard refusal if two enabled schedules
+  could share one. **D-135's bucket-offset error reproduced inside it on the first run** (CloudWatch lays
+  buckets out from `StartTime`, so 18:10 landed in a bucket labelled 18:06 and `chat-purge` read as zero
+  firings) and its own log control caught a `limit=1` pagination bug before it could certify three jobs as
+  never having run. **Seventh session running where the instrument needed checking first.**
+- **✅ Fargate rate confirmed from billed usage (D-139):** `$0.032380/vCPU-hour`, `$0.003560/GB-hour`
+  ARM64 ⇒ **$14.42/task/month**, exactly 80.0% of D-133's $18.02 (which reproduces from x86 rates, so the
+  diagnosis is confirmed and not just the fix). **Pilot r = 5 is ~+$43/month, not ~$54.**
+- **⚠️ And none of it is being paid: July is $72.12 usage, −$72.12 credit, net $0.** Every price in
+  D-133/D-136/D-139 is credit burn; the balance is not exposed by any API. **Bedrock is $39.79 — 55% of
+  the bill** with no real users.
+- **Staging untouched** — no apply, no deploy, no capacity change, every read read-only. `make lint`
+  clean, `pyright` 0 errors, **634 passed / 2 skipped**.
+- **Not done, and why:** Messages A/D (yours to send); the 08-01 re-probe and the criterion-6 read
+  (dates); AUD-F-33 and the r = 5 purchase (need an apply, blocked); the manual `memory-consolidate`
+  de-risking run (**spends money and writes rows — a decision, not work**).
+
+### Off-roadmap — the last latency lead sized and rejected, capacity re-priced against a ratio, terraform drift explained (2026-07-31) ✅
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-134/D-135)**, not a numbered roadmap block.
+  User chose items **5 → 4 → 3**; **item 6 (AUD-F-33's mechanism) deferred by user call** — it is a P2
+  with working detection, and the repro costs two ≥60-minute staging cycles for a mechanism that stays
+  unknown either way. Items 1 (08-01 re-probe, 08-02 read) and 2 (Messages A, D) are date-gated or human.
+- **Baseline verified green first:** `make lint`, `pyright` 0 errors, **634 passed / 2 skipped** —
+  matching D-134's recorded figures, so nothing was inherited red.
+- **⛔ Item 4: the last named latency lead is dead at 0.9 ms, and the price was right while the quantity
+  was wrong.** New instrument `scripts/size_statement_cpu.py`, built on the rule that a batching
+  decision needs a **slope, never a total ÷ a count** (a request's CPU includes middleware, JWT and
+  checkpoint work no batch removes). Expectation pre-registered before the first run and **held**:
+  R² ≥ 0.999 in every arm, marginal traced cost **225–236 µs/statement** against a predicted 0.15–0.45 ms;
+  untraced 176 µs, so a span is **~48 µs and costs the same in both statement shapes** — the internal
+  cross-check that the ON/OFF split is a decomposition rather than drift. Then `--statements` (added to
+  `profile_local_request.py`) priced the other factor: the **19 is 17 statements + 2 `connect` spans**,
+  **14 of 19 are distinct**, only **4 repeat**, and one is against MySQL. **4 × 236 µs ≈ 0.9 ms of ~20 ms
+  = 4.6%** — a third of the OTel lever already declined. **Do not batch `submit_answer`.**
+- **⚠️ Why that prediction missed is the keeper: it multiplied a well-estimated price by a quantity
+  borrowed from AUD-F-31's `select_topic` (47 → 7).** That path's 47 were one lookup in a loop; this
+  path's 17 are 14 different things. **"N statements" is not a unit of waste** — the analogy carried the
+  number and dropped the property that mattered. Third session running where a pre-registered
+  expectation was wrong more usefully than it could have been right (D-132, D-134, this).
+  **The 19 was deliberately left as 19** in the existing table: it is the figure D-131/D-132/D-134
+  reconcile local against staging with, so redefining it mid-comparison would void that (D-129 §6).
+- **✅ Item 3: capacity re-priced against a ratio, and the expensive target is not the real one.**
+  `p95 ≈ 0.31 s × (r/2.5)^1.4`, interpolated between the only two measured arms and **explicitly not
+  extrapolable outside r ∈ [2.5, 12.5]** — the error D-134's own pre-registration made in the other
+  direction. At the documented pilot 25, leaving the 0.7% knife-edge costs **three more tasks** (2 → 5,
+  p95 2.98 → ~0.8 s, ~+$54/month); ~$216 was always for §6.23's 150. **Two corrections to D-133**, the
+  second consequential: its ~21 connections/task is a per-task constant sized in S34 for *one* process
+  at 150 concurrent, so tasks multiply idle pool capacity — with `pool_size ≈ target r` the pilot needs
+  ~40 connections and **`db.t4g.micro` suffices, no RDS resize for the pilot at all**. Its $18.02/task
+  also uses x86 rates for an ARM64 task (~20% high) — **flagged to confirm against the real bill, not
+  quoted as a number.** Recommendation: **target r = 5**, separable from the 150 question.
+- **🔬 Item 5: the `terraform plan` carry-over closed itself, because the hazard fired unnoticed inside
+  the session that filed it.** Plan came back **clean**; establishing *why* was the work. Both families'
+  latest revisions were registered **09:31:56, three milliseconds apart** — impossible for CI, which
+  deploys sequentially with `wait services-stable`. It was **D-134's own capacity-pinning `-target`
+  apply**: `aws_ecs_task_definition.this` lives *inside* the ecs-service module. **Nothing broke** —
+  services still run 43/42, `ignore_changes = [task_definition]` did its documented job under a real
+  unplanned test of it.
+- **⚠️ But the drift moved where `plan` cannot see it.** `deploy-staging.yml` describes the task
+  definition by **family name**, which ECS resolves to the *latest* revision — now Terraform's — so the
+  next CI deploy inherits Terraform's shape while `plan` reports "No changes" indefinitely.
+  **`ignore_changes` converts a visible drift into an invisible one.** Shapes were **diffed, not
+  assumed**: they differ by the image tag and D-130's three org-time env vars, and that half is benign
+  because `resolve_org_time`'s defaults are *identical* to the values Terraform sets (checked, not hoped).
+- **✅ The real hazard was S39's, repeated on a different fix.** tfvars' floor was `gha-447d412617a2`
+  (07-29) while the running image is `gha-544c6fe9749c` (07-30) — and 544c6fe **is AUD-F-30's `/readyz`
+  tracing suppression**, criterion 9's evidence base. The tfvars comment already said "bump this whenever
+  a fix must survive a bare apply"; **the instruction was in the file and was not followed.** Bumped —
+  and the honest consequence is that **`plan` goes clean → dirty, which is the improvement.**
+- **⚠️ Verifying that prediction found a third task definition and a date constraint.** Measured "3 to
+  add, 3 to destroy, 0 changed" — the third is `module.ops_task`, which shares the bumped tag. The
+  schedules run that family's **latest revision, un-pinned by design**, so an apply would swap the image
+  under criterion 6's evidence window. **No `terraform apply` against staging before 08-02.**
+- **Deliberately not done: no apply, no deploy.** A deploy would age criterion 3's evidence again, which
+  D-133 already paid for. Fixed the **runbook** instead — `INCIDENT_RESPONSE.md` told an operator to run a
+  bare `terraform apply -replace=...` mid-credential-incident; it now carries the `-target` form, why
+  `-replace` is not scoped, and the instruction to check the tfvars tag against the running image first.
+- **Verification:** `make lint` clean, `pyright` 0 errors, **634 passed / 2 skipped** (unchanged from
+  baseline). `terraform plan` run twice (read-only) and its diff confirmed field-by-field. **Staging
+  untouched** — no apply, no deploy, no capacity change; services left at 2/1 as found.
+- **Decisions:** D-136 (batching refuted; capacity re-priced against a ratio), D-137 (the drift's
+  mechanism, the stale floor, the no-apply-before-08-02 constraint). **ROADMAP.md edited (scope
+  consequence):** the ~$216 capacity block is superseded with the ratio table and the pilot/150 split,
+  and the gate block gained the no-apply constraint. **ARCHITECTURE.md edited:** two capacity bullets —
+  the priced ratio table, and connection ceilings scaling with total concurrency rather than task count.
+- **Carry-over:** criterion 6's 08-02 read and the 08-01 chat re-probe; **Messages A and D still unsent
+  (A's tenth session)**; AUD-F-33's mechanism (P2, deferred this session, repro cheap); the OTel-sampling
+  decision (~14% of CPU, still trades against criterion 9's corpus); **confirm the real Fargate per-task
+  rate against the bill** before quoting a capacity price; `autoscaling_max_capacity` must move from 3
+  before any r = 5 sizing; and the unchanged four — `/readyz` cannot distinguish "database gone" from
+  "I am busy", answer brevity (D-115 (i)), AUD-F-22 and AUD-F-24's sibling, D-112's retrieval-margin
+  re-measure, the ~2–4% `rag_answer` `schema_invalid` rate.
+
+### Off-roadmap — criterion 3 closed, AUD-F-32 measured instead of optimised, AUD-F-33 reproduced (2026-07-31) ✅
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-132/D-133)**, not a numbered roadmap
+  block. Items taken, in the order run: merge PR #72 → the e2e secret harness → AUD-F-32 (item 2) →
+  AUD-F-33's alarm (item 4) → criterion 3's second clean run (item 1a). Item 1(b)'s dates and Message A
+  stay with the human. **The user then asked to pull the gate's dates in, which added D-135.**
+- **Baseline verified green first:** `make lint`, `make typecheck` (pyright 0 errors), **634 passed / 2
+  skipped** — matching the recorded count, so nothing was inherited red.
+- **✅ Criterion 3 is met, and the flake was diagnosed rather than absorbed.** Two consecutive
+  whole-suite staging runs, **53 passed / 4 skipped / 0 failed** each (6.2 and 6.5 min), no deploy
+  between, against an image whose code is **byte-identical to HEAD** (`git diff 544c6fe..HEAD -- apps/
+  packages/ curriculum/ knowledge-content/` empty). `narrative-refresh.spec.ts` **was the flake, not
+  AUD-F-05**: its precondition was an *absence* satisfied by two opposite states, and `test.fail()` made
+  every failure cause report identically. Rewritten, 5/5 locally, **both controls watched** (inverted
+  assertion fails with its own message; unreachable arrival window skips rather than passing), and
+  confirmed `result=passed` on staging via a third targeted run rather than inferred from the skip count.
+- **✅ AUD-F-32 measured, and the session's own plan was the first casualty.** The plan was to instrument
+  the finding's CPU candidates and deploy; a local sweep varying **only** concurrency (gap 13.5 → 388.4 ms,
+  ×29, while the graph node grew ×1.5) showed the gap is queueing and bounded *all* per-request non-SQL
+  work at 13.5 ms — so the candidate list is refuted and **the deploy was cancelled**, which is D-132's
+  lesson applied rather than repeated. New instrument: `scripts/profile_local_request.py`, with the same
+  guard style as the other measuring scripts and its expectation pre-registered in its docstring.
+- **⚠️ The staging arm then refuted that pre-registration.** Predicted (committed first, `05392db`) gap
+  ≈145 ms at 5 VUs and a ratio ≈5; measured **64–81 ms and 9.6–12.1**, i.e. **`concurrency^1.55`**, on
+  three independent instruments. Local was the linear regime; Fargate at 12.5 concurrent/task is near
+  utilisation 1. **D-132's 726 ms reproduced at 777 ms** and statements/answer are **19 in every arm,
+  identical to local** — the D-131 reconciliation. Capacity **pinned at 2** for the sweep (it was found
+  at 3 after the e2e suite, so pinning earned its keep) and **restored to min 2 / max 3**.
+- **✅ AUD-F-33: detection landed and then caught a real occurrence 60 minutes later** — on chat-api, the
+  service this finding used as its *control*. That killed all three candidate explanations
+  (not learning-api-specific, not `min_capacity`, not "one step per alarm transition" — the 00:25/00:33
+  pair is two steps inside one ALARM). **Re-scoped and raised P3 → P2.** The alarm validated itself
+  end-to-end: `INSUFFICIENT_DATA → OK`, then `OK → ALARM` with the right reason and a successful SNS
+  publish in its action history. `desired-count` restored to 1.
+- **✅ Criterion 6 pulled from two dates to one (D-135).** 08-05 → 08-02 on a stated reading;
+  **08-02 is a floor no reading moves** because `memory-consolidate` is weekly and its second firing is
+  the missing observation. Evidence checked per job against Scheduler's own metrics plus real log output,
+  not firing counts alone.
+- **Verification:** `make lint` clean, `pyright` 0 errors, `make e2e-typecheck` clean, **634 passed / 2
+  skipped**, plus the two staging e2e runs above. Staging left at baseline, all six alarms OK.
+- **Decisions:** D-134 (AUD-F-32, the e2e harness, the flake, AUD-F-33's first half), D-135 (criterion 6's
+  date). **ROADMAP.md edited (scope consequence):** the §2.6 standing summary now reads 1–5 and 7–9 met
+  with criterion 6 the only open one, criterion 7's 0.7% margin is quoted with its tick, and the gate's
+  "what's left" line went from two dates to one. **ARCHITECTURE.md: no change** — no new service,
+  database or API; the two new alarms are additions to an already-documented alarm set.
+- **Carry-over:** criterion 6's single date (08-02) and the 08-01 chat re-probe; **Message A still
+  unsent, tenth session** — now joined by **Message D**, drafted this session, the one number that prices
+  the capacity decision; **AUD-F-33's mechanism** (P2, repro now cheap); the capacity re-price against a
+  *ratio* rather than a task count; `terraform plan` is **not clean** (both task definitions "must be
+  replaced" — no unattended apply); and the untested lead that batching `submit_answer`'s 19 statements
+  has a CPU rationale where the latency one was empty.
 
 ### Off-roadmap — AUD-F-31's staging before/after, and it refutes the projection (2026-07-31) ⛔✅
 - **Scope: item 2 of PROGRESS.md's own "Next session" pointer (post-D-131)** — the staging

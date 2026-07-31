@@ -3621,7 +3621,7 @@ artifact of assuming linearity and should not be quoted.
    knife-edge, and the figure for a criterion 7 that passes with margin is materially larger** — before
    the RDS resize D-133 already identified. Re-price with a target ratio, not a target task count.
 
-### AUD-F-33 — learning-api scaled out and then did not scale back in for over two hours, with its scale-in alarm in ALARM the whole time (P3, found 2026-07-31, D-132; not fixed)
+### AUD-F-33 — step scaling intermittently stops scaling in while its alarm stays in ALARM, on both services (**P2** — raised from P3 same day, found 2026-07-31 D-132, reproduced and re-scoped D-134; detection added, mechanism unknown)
 
 Observed while trying to capacity-match D-132's two arms. The service went to 3 tasks at
 **00:22:51Z** (`learning-api-p95-latency-scale-out`, triggered by a cold post-deploy run) and was
@@ -3696,6 +3696,57 @@ so a replacement registers an unused revision and does not move the service) but
 routine `terraform apply` against this environment is safe to run unattended**, and every future
 apply needs `-target` or a resolved plan.
 
+#### Upgraded to P2 the same day: it reproduced on **chat-api**, and both surviving hypotheses are dead
+
+The alarm above was created at 09:32 CDT. **It caught a real occurrence 60 minutes later**, and the
+service it caught was not the one this finding was about.
+
+**The alarm's own end-to-end validation, which came free with the reproduction:**
+`INSUFFICIENT_DATA → OK` at **09:33:34** (so it was evaluating real data, not sitting blind),
+`OK → ALARM` at **10:32:34** with the correct reason ("12 datapoints were greater than the threshold
+(1.0)"), and `describe-alarm-history --history-item-type Action` records **"Successfully executed
+action … intellichoice-staging-alerts"**. Detection, threshold, dimensions and notification all
+confirmed against a condition nobody staged.
+
+**What it caught, cross-referencing alarm transitions against scaling activity on chat-api:**
+
+| time (CDT) | scale-in alarm | scaling action | tasks |
+|---|---|---|---|
+| 00:25:31 | OK → **ALARM** | 00:25:32 "desired count to 2" | 3 → 2 |
+| — | *still ALARM, no transition* | **00:33:32 "desired count to 1"** | 2 → **1** ✅ |
+| 09:34:31 | ALARM → OK | 09:35:23 "desired count to 3" | 1 → 3 |
+| 10:17:31 | OK → **ALARM** | 10:17:32 "desired count to 2" | 3 → 2 |
+| — | *still ALARM, 15+ min* | **nothing** | stuck at **2** ❌ |
+
+**Three hypotheses die on this table.**
+
+1. **"It is learning-api-specific."** This finding's central narrowing came from chat-api scaling in
+   twice in one hour as a same-hour control. **chat-api now exhibits the fault itself**, so the
+   difference was never between the services.
+2. **"It is the `min_capacity` difference (2 against 1)."** The last hypothesis standing after D-134
+   §4. chat-api's floor is **1** and it is stuck at **2** — the `-1` step had somewhere to go and did
+   not take it.
+3. **"Step scaling only acts on an alarm *transition*, so recovering N tasks needs N transitions."**
+   The most attractive explanation, and the 00:25/00:33 pair refutes it: two `-1` steps **8 minutes
+   apart inside one uninterrupted ALARM**, consistent with the policy re-applying after its 300 s
+   cooldown. So re-application while in ALARM demonstrably works — sometimes.
+
+**So the finding is now: step scaling intermittently stops re-applying while its alarm remains in
+ALARM and the cooldown has long expired — on both services, with a within-service control nine hours
+apart showing the correct behaviour under an identical alarm state.** That is a sharper and worse
+statement than the original, and it is why this moves **P3 → P2**: the cost floor it creates is
+silent, it affects every service on this scaling pattern, and the pilot's usage shape (school hours,
+then idle) makes it the common case.
+
+**Not diagnosed to a mechanism, and the next step is named rather than guessed.** The remaining
+candidates are inside Application Auto Scaling's own behaviour: whether a scaling activity's
+completion re-arms the policy, and whether the `desired_count` `ignore_changes` interaction or a
+concurrent ECS deployment suppresses re-application. A controlled repro is two OK→ALARM cycles with
+capacity and traffic held identical, which is cheap now that the alarm makes the condition visible
+without anyone watching for it.
+
+**`desired-count` restored to 1 manually** (its floor), as D-132 did for learning-api.
+
 **Related, and worth knowing before quoting criterion 7's chat leg:** chat-api's `min_capacity` is
 **1**, so its baseline is one task and the "**3 tasks running, ≥ 2 ✅**" recorded for criterion 7 was
 supplied by scale-out *during* the run, not by resting capacity. That is legitimate for a criterion
@@ -3704,3 +3755,113 @@ evidence was wrong. Worth a look before quoting the autoscaling
 half of criterion 7 again, and worth an alarm on `desiredCount > min_capacity` sustained over some
 window — the condition was invisible for two hours and only surfaced because a measurement needed
 the capacity to hold still.
+
+### AUD-F-34 — `memory-consolidate` has never once worked: every model call fails on prompt length, and it exits 0 (**P1** — found 2026-07-31, D-140; blocks gate criterion 6)
+
+Found by the manual de-risking run D-138 §6 recommended, before the job's first-ever scheduled
+firing on 2026-08-02. It exits **0** and prints its own success summary:
+
+```
+bedrock_call_failed
+memory consolidation call failed, no facts changed: Bedrock call failed: An error occurred
+  (ValidationException) when calling the Converse operation: The model returned the following
+  errors: prompt is too long: 215355 tokens > 200000 maximum
+  student-ext-4: +0 facts, 0 reconfirmed, 0 contested, 0 expired (0.0000 cents)
+  ... identical for student-ext-1 at 215225 tokens ...
+Consolidation run complete: 2 student(s), 0 added, 0 reconfirmed, 0 contested, 0 expired,
+  0.00 cents spent.
+```
+
+**Both students, both over the limit, no facts written.** `consolidate_student_window` catches the
+gateway exception, logs a warning, returns a zero-valued result, and the CLI's summary line reports
+the run as complete — so the process ends 0.
+
+**Three independent reasons nothing would have caught this.**
+
+1. **Exit 0 means the failure notification cannot fire.** `intellichoice-staging-ops-task-failed`
+   matches `containers.exitCode: [{"anything-but": [0]}]` (verified against the live rule). D-105 §3
+   added that rule precisely so a job that "exits 1 every time" could not hide; this job exits **0**
+   every time, which is the same outcome through the one gap in that guard.
+2. **The summary line reads as success.** `Consolidation run complete: 2 student(s)` is what a human
+   scanning the log group sees, and `0 added` looks like "nothing to do" rather than "nothing worked"
+   — the two are indistinguishable without reading the lines above it.
+3. **The first version of `read_scheduler_evidence.py` counted that summary as a work line**, i.e.
+   the instrument written this session to prove the job runs would have certified it. Fixed in the
+   same commit: each job now declares failure signatures, and their presence fails the verdict
+   regardless of exit code (`_FAILURE_LINES`).
+
+**Cause.** The consolidation window is a rolling `[now - 7 days, now)` and the prompt is built from
+every tutor-chat message a student produced in it, with **no bound on input size**. Staging's chat
+volume comes from load testing (D-132/D-134's k6 runs at up to 25 VUs), so two seeded students have
+accumulated ~215k tokens each against Haiku 4.5's 200k context. The per-run **spend** bound
+(`bedrock_run_budget_cents`, 200) exists and works; there is no per-call **input** bound, so the job
+fails validation instead of costing money — 0.0000 cents, which is the one piece of good news.
+
+**Why P1.** It is the same shape as AUD-F-15 (a retention job that had never run) one level deeper:
+this job runs, is observed to run, and does nothing. It also directly blocks **gate criterion 6** —
+the job cannot evidence "running unattended" by firing successfully when it cannot succeed — and
+criterion 6 is the gate's last open criterion. Left alone, 2026-08-02's firing would have produced a
+clean firing count, a work line, exit 0, no alarm, and a tick.
+
+**Fix not attempted this session, deliberately**, and the reason is a trade-off the user should
+make: the fix is application code, so it ages criterion 3's "byte-identical to HEAD" evidence and
+needs a deploy — which is also the thing D-137's prohibition is protecting. Candidate fixes, cheapest
+first: bound the messages per consolidation call and page the window (correct, and it makes the job's
+cost predictable rather than incidental); or cap input tokens and skip-with-warning above it (fails
+closed, keeps the promise honest, does not consolidate). **Whatever the fix, the failure must stop
+being silent** — a run where every call failed should exit non-zero so D-105 §3's rule fires. That
+part is one line and is the half that generalises.
+
+### AUD-F-35 — `promote_if_eligible` applies no evidence bar, so plan §9's stability rule is enforced at creation and bypassed on the next reconfirmation (**P2** — found 2026-07-31 while fixing AUD-F-34, D-141 §4; not fixed, guarded against amplification)
+
+Found by reading the merge path in order to batch it safely, not by a failing test — there is no
+test covering it, which is part of the finding.
+
+`packages/db/src/intellichoice_db/repositories/memory.py`:
+
+```python
+async def promote_if_eligible(self, semantic_memory_id: str) -> SemanticMemory | None:
+    fact = await self.get_fact(semantic_memory_id)
+    if fact is None:
+        return None
+    if fact.status == "provisional":
+        fact.status = "active"          # <- no bar, no condition
+        await self._session.flush()
+    return fact
+```
+
+**Two places in the codebase state that this method carries the bar, and it does not.** Its own
+name says `if_eligible`; `reconfirm_fact`'s docstring says `provisional` is left alone there
+"since promotion has its own evidence-bar check (`promote_if_eligible`), meant to be called
+right after this". The actual check lives only at *creation*, in `consolidation.py`:
+
+```python
+status = "active" if _meets_stability_bar(verified_ids, events_by_id) else "provisional"
+```
+
+So plan §9's "a new stable fact needs ≥3 supporting events across ≥2 sessions; below that it's
+stored as status=provisional (never read by the tutor payload)" holds for exactly one call. A
+fact created `provisional` off one event is promoted to `active` — and therefore becomes
+readable by the tutor — the next time the model proposes it, at 2 events and possibly 1 session.
+
+**Why P2 rather than P1.** It makes the tutor read facts earlier than §9 licenses, which is a
+correctness-of-personalization problem rather than a safety or privacy one: the fact still had to
+survive `_verify_evidence`, the closed `FACT_TYPES` enum and the PII screen, so nothing
+unsupported or unsafe is stored — it is promoted sooner than the stability rule says.
+
+**Deliberately not fixed here, and this is a scope call rather than an oversight.** The fix
+changes which facts the tutor reads, which is a product decision about the memory system's
+behaviour, and it needs its own evidence bar over *accumulated* evidence (`reconfirm_fact`
+unions `evidence_event_ids`, so the data is there, but counting distinct **sessions** across
+prior windows needs a lookup the repository does not currently do). Doing that inside a fix for
+a different finding is how two bugs become one un-reviewable change.
+
+**What AUD-F-34's fix does instead: it refuses to amplify it.** Batching introduces a path that
+did not exist before — one student now gets up to 4 calls per run, so a fact can be created and
+reconfirmed *inside a single run*, which is precisely the promotion this bug mishandles. So
+`_maybe_promote` skips facts created earlier in the same run, leaving multi-batch students
+behaving exactly as single-batch ones do today. The bug is neither fixed nor made worse.
+
+**When it is fixed**, the test to write first is the one that does not exist: create a fact with
+one supporting event, reconfirm it with one more, and assert it is still `provisional`. Run the
+inverted control — the current code passes an `active` assertion, which is how this survived.

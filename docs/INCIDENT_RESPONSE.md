@@ -84,6 +84,21 @@ exploitable for as long as it's valid):
      -replace=random_password.jwt_signing_secret_learning` (or `_chat`) generates a new
      one; requires a redeploy to actually take effect (ECS tasks read it at container
      start, not live).
+     **⚠️ `-replace` does not mean "only this resource" - it applies the whole plan.**
+     Scope it, every time, or you apply whatever else has drifted while under incident
+     time pressure:
+     `terraform apply -target=random_password.jwt_signing_secret_learning -replace=random_password.jwt_signing_secret_learning`
+     The specific thing that bites here (D-137): a plan against staging routinely wants to
+     replace **both `aws_ecs_task_definition`s**, because `deploy-staging.yml` registers
+     revisions outside Terraform. Replacing them does not disturb the running service -
+     `lifecycle.ignore_changes = [task_definition]` holds - but it makes *Terraform's*
+     revision each family's **latest**, and CI's next deploy resolves the family name to
+     the latest and inherits its shape. So a bare apply silently changes what the next
+     deploy is built from, and if `learning_api_image_tag` in `terraform.tfvars` is stale
+     it stages a rollback of whatever fix landed after it. **Check that tag against the
+     running image before any apply here** (`aws ecs describe-services` → the revision's
+     image), and note that `-target`ing the ecs-service *module* is not narrow enough:
+     the task definition lives inside it.
    - Any other secret: rotate at the source (AWS console/CLI), then redeploy anything
      that reads it.
 2. **Delete the exposure**, not just the credential: the specific CloudWatch log

@@ -21,6 +21,10 @@ from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.memory import MemoryRepository
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_memory.consolidation import (
+    _MAX_CALLS_PER_STUDENT,
+    _MAX_EVENT_CHARS_PER_CALL,
+    _batch_summaries,
+    _summary_chars,
     consolidate_student_session,
     consolidate_student_window,
 )
@@ -28,6 +32,8 @@ from intellichoice_shared.bedrock import (
     BedrockGatewayError,
     BedrockGenerationResult,
     BedrockTask,
+    CostBudgetExceededError,
+    MemoryEventSummary,
     MemoryFactCandidate,
     MemoryFactUpdate,
     MemoryUpdateResponse,
@@ -629,5 +635,197 @@ def test_consolidation_sends_a_fact_count_derived_budget() -> None:
             assert gateway2.max_output_tokens_seen == [budget_for(1)]
             # The point of the two passes: a fixed cap makes these two numbers equal.
             assert budget_for(1) > budget_for(0)
+
+    asyncio.run(run())
+
+
+# ---------------------------------------------------------------------------
+# AUD-F-34 / D-141: input-bounded batching, and the silent-failure fix.
+#
+# The pure batching tests do not touch Postgres and are deliberately not written
+# through `consolidate_student_window`: `_batch_summaries` is where the arithmetic
+# lives, and driving it through a database plus a fake gateway would test the
+# plumbing while leaving the boundary conditions unexercised. The behavioural
+# tests below it *do* go through the real entrypoint.
+# ---------------------------------------------------------------------------
+
+
+def _summary(event_id: str, chars: int) -> MemoryEventSummary:
+    return MemoryEventSummary(
+        event_id=event_id, event_type="study_outcome", summary="x" * chars
+    )
+
+
+# **The sizes below are absolute, not derived from the constants under test, and that is the
+# whole point.** The first version of these tests computed its inputs as fractions of
+# `_MAX_EVENT_CHARS_PER_CALL` - so when the bound was raised to 100,000,000 tokens as a control,
+# the inputs grew with it and all of them still passed. A test that scales with the thing it
+# pins cannot fail. Controls were then re-run against both constants and these do fail:
+# removing the input bound collapses the split/truncate assertions, and removing the call cap
+# collapses the drop assertion.
+_ASSUMED_CHARS_PER_CALL = 360_000  # 120,000 tokens x 3 chars/token
+_ASSUMED_CALL_CAP = 4
+# Big enough that two cannot share one call (2 x 200,000 > 360,000), small enough that one can.
+_BIG = 200_000
+
+
+def test_the_batching_constants_are_what_these_tests_assume() -> None:
+    """The single place to update when the bound is tuned on purpose - and a loud, obvious
+    failure when it is tuned by accident. Every absolute number below depends on these two.
+    """
+    assert _MAX_EVENT_CHARS_PER_CALL == _ASSUMED_CHARS_PER_CALL
+    assert _MAX_CALLS_PER_STUDENT == _ASSUMED_CALL_CAP
+
+
+def test_small_event_set_still_makes_exactly_one_call() -> None:
+    """The regression guard for the fix itself: batching must not turn the ordinary case into
+    several paid calls. Every other test in this file covers one call implicitly; this says so.
+    """
+    batches, dropped = _batch_summaries([_summary(f"e{i}", 100) for i in range(50)])
+    assert len(batches) == 1
+    assert dropped == 0
+    assert [s.event_id for s in batches[0]] == [f"e{i}" for i in range(50)]
+
+
+def test_events_are_split_when_they_exceed_the_per_call_budget() -> None:
+    """Three 200,000-char events cannot share a 360,000-char call, so this is 3 batches.
+    Unbounded, it would be 1 - which is what the control confirmed.
+    """
+    batches, dropped = _batch_summaries([_summary(f"e{i}", _BIG) for i in range(3)])
+    assert [len(b) for b in batches] == [1, 1, 1]
+    assert dropped == 0
+    for batch in batches:
+        assert sum(_summary_chars(s) for s in batch) <= _ASSUMED_CHARS_PER_CALL
+
+
+def test_batches_stay_chronological_and_never_reorder() -> None:
+    """Order is load-bearing: a later batch sees the facts an earlier one wrote, so reordering
+    silently changes which of two conflicting facts wins a contradiction.
+    """
+    summaries = [_summary(f"e{i:02d}", _BIG) for i in range(4)]
+    batches, _ = _batch_summaries(summaries)
+    assert len(batches) > 1, "test needs more than one batch to be meaningful"
+    flattened = [s.event_id for batch in batches for s in batch]
+    assert flattened == ["e00", "e01", "e02", "e03"]
+
+
+def test_over_the_call_cap_the_oldest_events_are_dropped_and_counted() -> None:
+    """Seven un-shareable events against a cap of 4: the three OLDEST go. Recency is what a
+    memory system wants, and the dropped count is asserted because a silent cap is the failure
+    mode being fixed. Without the cap this is 7 batches and 0 dropped.
+    """
+    summaries = [_summary(f"e{i:02d}", _BIG) for i in range(7)]
+    batches, dropped = _batch_summaries(summaries)
+    assert len(batches) == 4
+    assert dropped == 3
+    kept = [s.event_id for batch in batches for s in batch]
+    assert kept == ["e03", "e04", "e05", "e06"]
+    assert "e00" not in kept
+
+
+def test_a_single_event_larger_than_the_budget_is_truncated_not_dropped() -> None:
+    """Without this the batcher either loops forever or emits a batch guaranteed to fail.
+    Truncation is marked; dropping would make evidence vanish silently. Unbounded, the summary
+    comes back at its original 1,000,000 chars and the length assertion fails.
+    """
+    batches, dropped = _batch_summaries([_summary("huge", 1_000_000)])
+    assert dropped == 0
+    assert len(batches) == 1 and len(batches[0]) == 1
+    only = batches[0][0]
+    assert only.event_id == "huge"
+    assert only.summary.endswith("…[truncated]")
+    assert len(only.summary) < 1_000_000
+    assert _summary_chars(only) <= _ASSUMED_CHARS_PER_CALL
+
+
+def test_no_events_means_no_batches_and_no_calls() -> None:
+    assert _batch_summaries([]) == ([], 0)
+
+
+def test_every_call_failing_is_reported_rather_than_swallowed() -> None:
+    """AUD-F-34's core: this exact shape used to return zeros that the CLI printed as a
+    completed run, and exit 0. The counts now travel with the result.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            tutor_chat_repo = TutorChatMessageRepository(session)
+            event = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+
+            gateway = _FakeGateway([BedrockGatewayError("prompt is too long")])
+            result = await consolidate_student_window(
+                memory_repo=memory_repo,
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway,
+                student_external_id=STUDENT_ID,
+                window_start=event.occurred_at - timedelta(minutes=1),
+                window_end=event.occurred_at + timedelta(minutes=1),
+                session_spend_cents=0.0,
+            )
+            assert result.added == 0
+            assert result.calls_attempted == 1
+            assert result.calls_failed == 1
+            # The condition the CLI turns into a non-zero exit code.
+            assert result.calls_failed == result.calls_attempted
+
+    asyncio.run(run())
+
+
+def test_a_successful_call_reports_no_failures() -> None:
+    """The negative arm. Without it, a result object that always reported failures would
+    pass the test above and exit non-zero on every healthy run.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            tutor_chat_repo = TutorChatMessageRepository(session)
+            event = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+
+            gateway = _FakeGateway([_weak_skill_response(seed.skill_id, [event.event_id])])
+            result = await consolidate_student_window(
+                memory_repo=memory_repo,
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway,
+                student_external_id=STUDENT_ID,
+                window_start=event.occurred_at - timedelta(minutes=1),
+                window_end=event.occurred_at + timedelta(minutes=1),
+                session_spend_cents=0.0,
+            )
+            assert result.calls_attempted == 1
+            assert result.calls_failed == 0
+            assert result.budget_stopped is False
+
+    asyncio.run(run())
+
+
+def test_budget_exhaustion_is_not_counted_as_a_failed_call() -> None:
+    """`CostBudgetExceededError` is the run budget working. Counting it as a failure would
+    make a correctly-bounded run exit non-zero and page someone every week.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            tutor_chat_repo = TutorChatMessageRepository(session)
+            event = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+
+            gateway = _FakeGateway([CostBudgetExceededError("budget would be exceeded")])
+            result = await consolidate_student_window(
+                memory_repo=memory_repo,
+                tutor_chat_repo=tutor_chat_repo,
+                gateway=gateway,
+                student_external_id=STUDENT_ID,
+                window_start=event.occurred_at - timedelta(minutes=1),
+                window_end=event.occurred_at + timedelta(minutes=1),
+                session_spend_cents=0.0,
+            )
+            assert result.calls_failed == 0
+            assert result.calls_attempted == 0
+            assert result.budget_stopped is True
 
     asyncio.run(run())

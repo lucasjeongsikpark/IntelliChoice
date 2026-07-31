@@ -165,6 +165,11 @@ class RequestProfile:
     sql_inside_node_ms: float
     statements: int
     span_names: list[str] = field(default_factory=list)
+    # The statements themselves, in issue order, for `--statements`. D-134 §8 proposed
+    # batching this path on the strength of "19 statements"; deciding that needs to know
+    # how many of the 19 are the *same lookup repeated*, which is the only kind
+    # AUD-F-31's batch helpers (`get_variants`/`get_templates`) can remove.
+    statement_texts: list[str] = field(default_factory=list)
 
     @property
     def sql_outside_node_ms(self) -> float:
@@ -243,6 +248,10 @@ def _decompose_trace(spans: list[ReadableSpan]) -> RequestProfile | None:
         sql_inside_node_ms=sum(_ms(span) for span in sql_inside_node),
         statements=len(sql_spans),
         span_names=sorted({span.name for span in under_root if not _is_sql(span)}),
+        statement_texts=[
+            " ".join(str((span.attributes or {}).get("db.statement", span.name)).split())
+            for span in sorted(sql_spans, key=lambda span: span.start_time or 0)
+        ],
     )
 
 
@@ -456,6 +465,57 @@ def _report(profiles: list[RequestProfile], skipped: int, concurrency: int) -> i
     return 0
 
 
+def _report_statements(profiles: list[RequestProfile]) -> None:
+    """The statement mix of one answer request, grouped by identical statement text.
+
+    Why this is a separate opt-in report rather than part of the table above: it answers a
+    different question. The table prices the statements as a group; this says how many of
+    them a batch could remove at all. `scripts/size_statement_cpu.py` measured the marginal
+    cost of one statement (~225 us of CPU traced), and a saving is that number times the
+    *removable* count - so quoting a saving without this breakdown would be multiplying a
+    measured price by an assumed quantity. D-134 §8's "19 -> 7" was an analogy to AUD-F-31's
+    `select_topic` result, not a count of this path.
+
+    One request is enough because every profiled request here runs the same phase of the
+    same flow, and the run asserts as much: a mix that differs between requests is printed
+    rather than averaged away.
+    """
+    mixes = {tuple(p.statement_texts) for p in profiles}
+    print(f"\n  statement mix: {len(mixes)} distinct mix(es) across {len(profiles)} requests")
+    if len(mixes) > 1:
+        print("  (requests differ - these are grouped per mix, not pooled)")
+
+    for mix_index, mix in enumerate(sorted(mixes, key=len)):
+        grouped: dict[str, int] = defaultdict(int)
+        for statement in mix:
+            grouped[statement] += 1
+
+        # `_is_sql` keys off `db.system`, which SQLAlchemy's instrumentation also sets on
+        # its `connect` spans - pool checkouts, not statements. They are left in the count
+        # above on purpose: "19 statements per answer request" is the figure D-131/D-132/
+        # D-134 compare local against staging with, and redefining it mid-comparison would
+        # invalidate that reconciliation (D-129 §6). They are excluded *here*, because a
+        # batch cannot remove a connection checkout.
+        connects = sum(count for name, count in grouped.items() if name == "connect")
+        statements = len(mix) - connects
+        removable = sum(
+            count - 1 for name, count in grouped.items() if count > 1 and name != "connect"
+        )
+        repeated = sum(count for name, count in grouped.items() if count > 1 and name != "connect")
+        print(
+            f"\n  mix {mix_index + 1}: {len(mix)} spans = {statements} statements + "
+            f"{connects} `connect` (pool checkouts, not statements); "
+            f"{len(grouped)} distinct; {repeated} are repeats"
+        )
+        print(
+            f"  an identical-statement batch could remove at most {removable} of the "
+            f"{statements} statements ({removable / statements:.0%})"
+        )
+        for statement, count in sorted(grouped.items(), key=lambda item: -item[1]):
+            marker = " <-- repeated" if count > 1 and statement != "connect" else ""
+            print(f"    {count:>3}x  {statement[:96]}{marker}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -478,6 +538,15 @@ def main() -> int:
         help=(
             "disable OTel instrumentation, to price it. Read from argv before this parser "
             "runs, because the app is instrumented at import time. Skips the span table."
+        ),
+    )
+    parser.add_argument(
+        "--statements",
+        action="store_true",
+        help=(
+            "also print the request's statement mix, grouped by identical statement - the "
+            "removable count a batching decision needs alongside the per-statement cost "
+            "measured by scripts/size_statement_cpu.py"
         ),
     )
     args = parser.parse_args()
@@ -517,6 +586,8 @@ def main() -> int:
             return 0
         profiles, skipped = _profiles_from_spans(_flush_and_take())
         exit_code = _report(profiles, skipped, args.concurrency)
+        if args.statements and exit_code == 0:
+            _report_statements(profiles)
     finally:
         asyncio.run(sweep())  # type: ignore[operator]
 
