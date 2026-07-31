@@ -23,11 +23,13 @@ from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_memory.consolidation import (
     _MAX_CALLS_PER_STUDENT,
     _MAX_EVENT_CHARS_PER_CALL,
+    _MAX_EVENT_TOKENS_PER_CALL,
     _batch_summaries,
     _summary_chars,
     consolidate_student_session,
     consolidate_student_window,
 )
+from intellichoice_memory.settings import MemoryConsolidationSettings
 from intellichoice_shared.bedrock import (
     BedrockGatewayError,
     BedrockGenerationResult,
@@ -829,3 +831,25 @@ def test_budget_exhaustion_is_not_counted_as_a_failed_call() -> None:
             assert result.budget_stopped is True
 
     asyncio.run(run())
+
+
+def test_the_consolidation_call_timeout_leaves_room_for_the_largest_output_budget() -> None:
+    """D-141 §6: this job times out on *output* generation, not input, and the output budget
+    scales with a student's existing fact count. 20 s (every interactive surface's value, and
+    this job's original) does not finish a 2176-token structured response; a student at the
+    `MAX_SAFE_EXISTING_FACTS` ceiling asks for nearly 4000.
+
+    Pinned as a test rather than left as a comment because the failure it prevents is invisible:
+    a timeout here costs 3 attempts, two timeouts trip the circuit breaker at 5, and the run
+    ends having printed a summary. Also asserts the input bound still exists - raising the
+    timeout is only safe because the work is bounded on the other axis.
+    """
+    settings = MemoryConsolidationSettings()
+    assert settings.bedrock_call_timeout_s >= 60.0, (
+        "a background job's timeout must fit the largest output budget it can ask for; "
+        f"max_output_tokens_for(MAX_SAFE_EXISTING_FACTS) is "
+        f"{MemoryUpdateResponse.max_output_tokens_for(MemoryUpdateResponse.MAX_SAFE_EXISTING_FACTS)}"
+    )
+    # The other half of the pair: the timeout may only be generous because the input is capped.
+    assert _MAX_EVENT_TOKENS_PER_CALL <= 40_000
+    assert _MAX_CALLS_PER_STUDENT <= 8
