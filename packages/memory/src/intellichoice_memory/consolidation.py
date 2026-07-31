@@ -26,6 +26,7 @@ from intellichoice_shared.bedrock import (
     BedrockGateway,
     BedrockGatewayError,
     BedrockTask,
+    CostBudgetExceededError,
     MemoryConsolidationPayload,
     MemoryEventSummary,
     MemoryExistingFact,
@@ -75,6 +76,27 @@ _SYSTEM_PROMPT = (
 )
 
 
+# AUD-F-34 (D-141): the payload had no *input* bound at all. The gateway bounds output tokens
+# and per-run spend; nothing bounded how much went in, so one week of a load-tested student's
+# tutor chat built a 215,355-token prompt against Haiku 4.5's 200,000-token context and every
+# call failed - while the process exited 0.
+#
+# 120k rather than something nearer the 200k ceiling, because this bounds only the *events*
+# half of the payload: `existing_facts`, the system prompt, the JSON schema and the derived
+# output budget share the same window, and the size below is a character heuristic rather than
+# a real tokenizer.
+_MAX_EVENT_TOKENS_PER_CALL = 120_000
+# Pessimistic on purpose. English prose runs ~4 chars/token; JSON with short keys and uuid-ish
+# ids is denser, and *under*-estimating is precisely the failure this constant exists to
+# prevent - so the estimate is allowed to be wrong only in the direction that costs a call.
+_CHARS_PER_TOKEN = 3.0
+_MAX_EVENT_CHARS_PER_CALL = int(_MAX_EVENT_TOKENS_PER_CALL * _CHARS_PER_TOKEN)
+# Bounds paid calls per student per run deterministically. Without it the number of model calls
+# is a function of chat volume, which is the same unbounded shape that produced AUD-F-34 one
+# layer up: a fix that turns "one failing call" into "N succeeding calls" has to say what N is.
+_MAX_CALLS_PER_STUDENT = 4
+
+
 @dataclass(frozen=True)
 class ConsolidationResult:
     added: int
@@ -82,6 +104,156 @@ class ConsolidationResult:
     contested: int
     expired: int
     cost_cents: float
+    # AUD-F-34's reporting half. `calls_attempted == calls_failed` with a non-zero count is the
+    # exact condition that used to print "Consolidation run complete" and exit 0, so the caller
+    # needs to be able to see it rather than infer it from `added == 0` - which is also what a
+    # student with nothing to consolidate looks like.
+    calls_attempted: int = 0
+    calls_failed: int = 0
+    # Events dropped because the student exceeded `_MAX_CALLS_PER_STUDENT`. Reported so the
+    # cap's cost is visible; a silent cap is the thing D-105 §4's mock-provider lesson is about.
+    events_dropped: int = 0
+    # True when the run budget stopped this student early. Distinct from `calls_failed` because
+    # it is designed behaviour, not a fault, and must not make the process exit non-zero.
+    budget_stopped: bool = False
+
+
+@dataclass
+class _RunningTotals:
+    """Mutable accumulator across one student's batches.
+
+    A plain dataclass rather than threading six return values through the batch loop: the
+    counts are genuinely accumulated across calls, and `ConsolidationResult` stays frozen so
+    callers cannot be handed something that mutates under them.
+    """
+
+    added: int = 0
+    updated: int = 0
+    contested: int = 0
+    expired: int = 0
+    cost_cents: float = 0.0
+    calls_attempted: int = 0
+    calls_failed: int = 0
+    events_dropped: int = 0
+    budget_stopped: bool = False
+
+    def as_result(self) -> ConsolidationResult:
+        return ConsolidationResult(
+            added=self.added,
+            updated=self.updated,
+            contested=self.contested,
+            expired=self.expired,
+            cost_cents=self.cost_cents,
+            calls_attempted=self.calls_attempted,
+            calls_failed=self.calls_failed,
+            events_dropped=self.events_dropped,
+            budget_stopped=self.budget_stopped,
+        )
+
+
+async def _maybe_promote(
+    memory_repo: MemoryRepository, semantic_memory_id: str, created_this_run: set[str]
+) -> None:
+    """Promote a reconfirmed fact, unless this run is the thing that created it.
+
+    **This guard exists to avoid amplifying AUD-F-35, not to fix it.** `promote_if_eligible`
+    promotes any `provisional` fact unconditionally, despite its name and despite
+    `reconfirm_fact`'s docstring stating that "promotion has its own evidence-bar check" - so
+    plan §9's ">=3 supporting events across >=2 sessions" bar is applied when a fact is created
+    and bypassed the next time it is reconfirmed. That is a pre-existing defect and fixing it
+    changes what the tutor reads, which is a product decision (filed, not taken).
+
+    What batching would otherwise add is a *new* path into it: before this change one student
+    got one call per run, so a fact could not be created and reconfirmed inside the same run.
+    Now it can, several times over. Excluding this run's own creations keeps multi-batch
+    students behaving exactly as single-batch ones do today - the bug is neither fixed nor
+    made worse, which is the most a fix for a different finding should do.
+    """
+    if semantic_memory_id in created_this_run:
+        return
+    await memory_repo.promote_if_eligible(semantic_memory_id)
+
+
+def _summary_chars(summary: MemoryEventSummary) -> int:
+    """What one event summary costs in the serialised payload, counted rather than guessed.
+
+    `model_dump_json` is what the gateway actually sends (`payload.model_dump_json()`), so
+    measuring the same serialisation is the only estimate that cannot drift from it - a
+    hand-rolled `len(summary.summary)` would miss the ids, keys and quoting, which for short
+    summaries is most of the bytes.
+    """
+    return len(summary.model_dump_json())
+
+
+def _truncate_summary(summary: MemoryEventSummary, budget_chars: int) -> MemoryEventSummary:
+    """Shrink one pathologically large event summary to fit a call on its own.
+
+    A single event bigger than the whole per-call budget cannot be packed anywhere, so
+    without this the batcher either loops forever or emits a batch guaranteed to fail. The
+    choice made here is to **truncate the text and mark it**, not to drop the event: an event
+    dropped silently is evidence that vanishes, while a marked truncation is still evidence
+    and is visible to anyone reading the payload or this log line.
+    """
+    overhead = _summary_chars(summary) - len(summary.summary)
+    keep = max(0, budget_chars - overhead - len(_TRUNCATION_MARKER))
+    logger.warning(
+        "memory_consolidation_event_truncated",
+        extra={
+            # A length and an id, never the text: this log line would otherwise be a copy of
+            # a student's chat message, which is the one thing that must not reach the logs
+            # (SPEC §5.30). The id is an internal event id, not a student identifier.
+            "event_id": summary.event_id,
+            "original_chars": len(summary.summary),
+            "kept_chars": keep,
+        },
+    )
+    return summary.model_copy(update={"summary": summary.summary[:keep] + _TRUNCATION_MARKER})
+
+
+_TRUNCATION_MARKER = " …[truncated]"
+
+
+def _batch_summaries(
+    summaries: list[MemoryEventSummary],
+) -> tuple[list[list[MemoryEventSummary]], int]:
+    """Pack chronologically ordered summaries into calls that fit the input budget.
+
+    Returns `(batches, dropped_event_count)`.
+
+    **Chronological order is load-bearing rather than cosmetic.** `existing_facts` is re-read
+    before each call, so a later batch sees the facts an earlier one wrote - which reproduces
+    what running this job weekly all along would have produced, and lets a contradiction
+    inside one week demote a fact the same way a contradiction between weeks does. Any other
+    order silently changes which of two conflicting facts wins.
+
+    **Over the call cap the OLDEST batches are dropped**, because recency is what a memory
+    system wants and because dropping the newest would make the job blind to what just
+    happened. `list_events_in_window` already orders by `occurred_at`, and this relies on it.
+    """
+    batches: list[list[MemoryEventSummary]] = []
+    current: list[MemoryEventSummary] = []
+    current_chars = 0
+
+    for summary in summaries:
+        chars = _summary_chars(summary)
+        if chars > _MAX_EVENT_CHARS_PER_CALL:
+            summary = _truncate_summary(summary, _MAX_EVENT_CHARS_PER_CALL)
+            chars = _summary_chars(summary)
+        if current and current_chars + chars > _MAX_EVENT_CHARS_PER_CALL:
+            batches.append(current)
+            current, current_chars = [], 0
+        current.append(summary)
+        current_chars += chars
+
+    if current:
+        batches.append(current)
+
+    dropped = 0
+    if len(batches) > _MAX_CALLS_PER_STUDENT:
+        surplus = batches[: len(batches) - _MAX_CALLS_PER_STUDENT]
+        dropped = sum(len(batch) for batch in surplus)
+        batches = batches[len(batches) - _MAX_CALLS_PER_STUDENT :]
+    return batches, dropped
 
 
 def _meets_stability_bar(event_ids: list[str], events_by_id: dict[str, LearningEvent]) -> bool:
@@ -207,6 +379,65 @@ async def _consolidate_events(
         for event in events
     ]
 
+    batches, events_dropped = _batch_summaries(event_summaries)
+    if events_dropped:
+        logger.warning(
+            "memory_consolidation_events_dropped",
+            extra={
+                # Counts and a reason, no student id - the same floor as
+                # `memory_consolidation_payload_oversized` below.
+                "events_dropped": events_dropped,
+                "events_total": len(event_summaries),
+                "max_calls_per_student": _MAX_CALLS_PER_STUDENT,
+            },
+        )
+
+    totals = _RunningTotals(events_dropped=events_dropped)
+    spend_so_far = session_spend_cents
+    # Facts created earlier in *this* run. They are excluded from promotion below - see
+    # `_apply_update`'s note on AUD-F-35.
+    created_this_run: set[str] = set()
+
+    for batch in batches:
+        batch_events_by_id = {
+            event_id: events_by_id[event_id]
+            for event_id in (summary.event_id for summary in batch)
+            if event_id in events_by_id
+        }
+        stopped = await _consolidate_one_batch(
+            memory_repo=memory_repo,
+            gateway=gateway,
+            student_external_id=student_external_id,
+            batch=batch,
+            events_by_id=batch_events_by_id,
+            session_spend_cents=spend_so_far,
+            totals=totals,
+            created_this_run=created_this_run,
+        )
+        spend_so_far = session_spend_cents + totals.cost_cents
+        if stopped:
+            break
+
+    return totals.as_result()
+
+
+async def _consolidate_one_batch(
+    *,
+    memory_repo: MemoryRepository,
+    gateway: BedrockGateway,
+    student_external_id: str,
+    batch: list[MemoryEventSummary],
+    events_by_id: dict[str, LearningEvent],
+    session_spend_cents: float,
+    totals: "_RunningTotals",
+    created_this_run: set[str],
+) -> bool:
+    """One model call over one batch, applied. Returns True when the run should stop.
+
+    `existing_facts` is re-read here rather than once per student, which is what makes a
+    later batch see an earlier batch's writes (the repository flushes on every mutation, so
+    they are visible inside the open transaction before the CLI's single commit).
+    """
     existing_facts = await memory_repo.list_facts_for_student(
         student_external_id, statuses=LIVE_STATUSES
     )
@@ -223,7 +454,7 @@ async def _consolidate_events(
     ]
 
     payload = MemoryConsolidationPayload(
-        events=event_summaries,
+        events=batch,
         existing_facts=existing_payload,
         allowed_fact_types=sorted(FACT_TYPES),
     )
@@ -247,6 +478,7 @@ async def _consolidate_events(
             },
         )
 
+    totals.calls_attempted += 1
     try:
         result = await gateway.generate_structured(
             task=BedrockTask.MEMORY_CONSOLIDATION,
@@ -256,13 +488,26 @@ async def _consolidate_events(
             max_output_tokens=max_output_tokens,
             session_spend_cents=session_spend_cents,
         )
+    except CostBudgetExceededError as exc:
+        # Designed behaviour, not a fault: the run budget is doing its job. Not counted as a
+        # failed call, because doing so would make a correctly-bounded run exit non-zero and
+        # page someone every week - the opposite of AUD-F-34's fix.
+        totals.calls_attempted -= 1
+        totals.cost_cents += exc.cost_cents
+        totals.budget_stopped = True
+        return True
     except BedrockGatewayError as exc:
+        # AUD-F-34: this branch used to be the whole story - log a warning, return zeros, and
+        # let the caller print a success summary. It still swallows the error per batch (one
+        # bad batch should not lose the others), but the count now travels with the result so
+        # the process can exit non-zero when *every* call failed.
         logger.warning("memory consolidation call failed, no facts changed: %s", exc)
-        return ConsolidationResult(
-            added=0, updated=0, contested=0, expired=0, cost_cents=exc.cost_cents
-        )
+        totals.calls_failed += 1
+        totals.cost_cents += exc.cost_cents
+        return False
 
     update = result.value
+    totals.cost_cents += result.cost_cents
     added = updated = contested = expired = 0
 
     for candidate in update.facts_to_add:
@@ -282,7 +527,7 @@ async def _consolidate_events(
         )
 
         if existing_live is None:
-            await memory_repo.add_fact(
+            created = await memory_repo.add_fact(
                 SemanticMemory(
                     student_external_id=student_external_id,
                     fact_type=candidate.fact_type,
@@ -295,6 +540,7 @@ async def _consolidate_events(
                     status=status,
                 )
             )
+            created_this_run.add(created.semantic_memory_id)
             added += 1
             continue
 
@@ -307,7 +553,9 @@ async def _consolidate_events(
                 confidence=candidate.confidence,
                 evidence_event_ids=verified_ids,
             )
-            await memory_repo.promote_if_eligible(existing_live.semantic_memory_id)
+            await _maybe_promote(
+                memory_repo, existing_live.semantic_memory_id, created_this_run
+            )
             updated += 1
             continue
 
@@ -355,7 +603,7 @@ async def _consolidate_events(
             confidence=fact_update.confidence,
             evidence_event_ids=verified_ids,
         )
-        await memory_repo.promote_if_eligible(fact_update.semantic_memory_id)
+        await _maybe_promote(memory_repo, fact_update.semantic_memory_id, created_this_run)
         updated += 1
 
     for fact_id in update.facts_to_expire:
@@ -365,10 +613,8 @@ async def _consolidate_events(
         await memory_repo.expire_fact(fact_id)
         expired += 1
 
-    return ConsolidationResult(
-        added=added,
-        updated=updated,
-        contested=contested,
-        expired=expired,
-        cost_cents=result.cost_cents,
-    )
+    totals.added += added
+    totals.updated += updated
+    totals.contested += contested
+    totals.expired += expired
+    return False

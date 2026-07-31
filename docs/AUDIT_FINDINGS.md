@@ -3811,3 +3811,57 @@ cost predictable rather than incidental); or cap input tokens and skip-with-warn
 closed, keeps the promise honest, does not consolidate). **Whatever the fix, the failure must stop
 being silent** — a run where every call failed should exit non-zero so D-105 §3's rule fires. That
 part is one line and is the half that generalises.
+
+### AUD-F-35 — `promote_if_eligible` applies no evidence bar, so plan §9's stability rule is enforced at creation and bypassed on the next reconfirmation (**P2** — found 2026-07-31 while fixing AUD-F-34, D-141 §4; not fixed, guarded against amplification)
+
+Found by reading the merge path in order to batch it safely, not by a failing test — there is no
+test covering it, which is part of the finding.
+
+`packages/db/src/intellichoice_db/repositories/memory.py`:
+
+```python
+async def promote_if_eligible(self, semantic_memory_id: str) -> SemanticMemory | None:
+    fact = await self.get_fact(semantic_memory_id)
+    if fact is None:
+        return None
+    if fact.status == "provisional":
+        fact.status = "active"          # <- no bar, no condition
+        await self._session.flush()
+    return fact
+```
+
+**Two places in the codebase state that this method carries the bar, and it does not.** Its own
+name says `if_eligible`; `reconfirm_fact`'s docstring says `provisional` is left alone there
+"since promotion has its own evidence-bar check (`promote_if_eligible`), meant to be called
+right after this". The actual check lives only at *creation*, in `consolidation.py`:
+
+```python
+status = "active" if _meets_stability_bar(verified_ids, events_by_id) else "provisional"
+```
+
+So plan §9's "a new stable fact needs ≥3 supporting events across ≥2 sessions; below that it's
+stored as status=provisional (never read by the tutor payload)" holds for exactly one call. A
+fact created `provisional` off one event is promoted to `active` — and therefore becomes
+readable by the tutor — the next time the model proposes it, at 2 events and possibly 1 session.
+
+**Why P2 rather than P1.** It makes the tutor read facts earlier than §9 licenses, which is a
+correctness-of-personalization problem rather than a safety or privacy one: the fact still had to
+survive `_verify_evidence`, the closed `FACT_TYPES` enum and the PII screen, so nothing
+unsupported or unsafe is stored — it is promoted sooner than the stability rule says.
+
+**Deliberately not fixed here, and this is a scope call rather than an oversight.** The fix
+changes which facts the tutor reads, which is a product decision about the memory system's
+behaviour, and it needs its own evidence bar over *accumulated* evidence (`reconfirm_fact`
+unions `evidence_event_ids`, so the data is there, but counting distinct **sessions** across
+prior windows needs a lookup the repository does not currently do). Doing that inside a fix for
+a different finding is how two bugs become one un-reviewable change.
+
+**What AUD-F-34's fix does instead: it refuses to amplify it.** Batching introduces a path that
+did not exist before — one student now gets up to 4 calls per run, so a fact can be created and
+reconfirmed *inside a single run*, which is precisely the promotion this bug mishandles. So
+`_maybe_promote` skips facts created earlier in the same run, leaving multi-batch students
+behaving exactly as single-batch ones do today. The bug is neither fixed nor made worse.
+
+**When it is fixed**, the test to write first is the one that does not exist: create a fact with
+one supporting event, reconfirm it with one more, and assert it is still `provisional`. Run the
+inverted control — the current code passes an `active` assertion, which is how this survived.
