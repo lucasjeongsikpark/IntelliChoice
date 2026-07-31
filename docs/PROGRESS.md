@@ -2944,20 +2944,41 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   double-count **structurally** (descendant-of-span, not timestamp dedup) and prints the timestamp
   method beside it so the two can be seen to agree. Four guards, each verified firing live — including
   one that exists because its own first version had the bug it was written to catch.
-- **✅ AUD-F-30 fixed after the measurement** (D-129 §6's ordering rule). Health endpoints excluded
-  from tracing; test asserts both halves and verified failing without the fix; the false free-tier
-  comment in `variables.tf` corrected with a note to re-derive rather than trust it.
+- **A second, independent instrument corroborates it.** The deployed `learning-api-p95-latency` alarm
+  (ALB `TargetResponseTime` p95, server-side) went **OK → ALARM at 02:34:38Z** on datapoints
+  3.21/3.80/3.54 s — the after arm's runs 3–5 — while `describe-alarm-history` shows **no transition
+  during the before arm** at the same structure and spacing. On one instrument "no regression is
+  established" was right; on two, **the after arm tripped the deployed 3 s paging threshold and the
+  before arm did not.**
+- **✅ AUD-F-30 fixed after the measurement (D-129 §6's ordering rule) — on the third attempt.** Idle
+  traces per 10 min: **320 → 1,095 (⬆3.4× WORSE) → 160 → 0.** Attempt 1 (`excluded_urls`) was worse
+  because **dropping a server span orphans its children into separate root traces**; attempt 2
+  (suppress in `ping_engine`) left 160 because chat-api's `/readyz` also runs AUD-C-16's provenance
+  check; attempt 3 suppresses the **whole handler**. **Zero alone would be AUD-F-12's failure mode**,
+  so a 3-VU run followed immediately: **42 traces for 42 requests**, flow-shaped, all URL-attributable.
+  The false free-tier comment in `variables.tf` is corrected with a note to re-derive rather than trust.
 - **Two findings minted: AUD-F-32 (P2)** — ~726 ms per answer request that is neither SQL nor graph
   work, ≈7.3 s of a ~15 s flow, the successor latency target; **AUD-F-33 (P3)** — learning-api did not
-  scale back in for 2 h+ with its scale-in alarm in ALARM.
-- **Verification:** `make lint` clean, `make typecheck` clean, **630 passed / 2 skipped** (+2 new).
-  Two staging deploys, both `success` with canary bake, migrations replayed clean; deployed image
-  verified against local HEAD. `desired-count` restored to 2. No schema change, no migration.
+  scale back in for 2 h+ with its scale-in alarm in ALARM, while **chat-api scaled in twice in the
+  same hour**, which narrows it to learning-api's own alarm/policy pair.
+- **Verification:** `make lint` clean, `make typecheck` clean (pyright 0 errors), **634 passed /
+  2 skipped** (+6 new). **Four staging deploys**, all `success` with canary bake and clean migration
+  replay; deployed image verified byte-identical to HEAD (`544c6fe9749c`). **Staging e2e re-run against
+  the new image: 53 passed / 4 skipped / 0 failed**, one flake. `desired-count` restored to 2. No
+  schema change, no migration, no Terraform apply (the `variables.tf` edit is comment-only).
+- **⚠️ Two gate criteria moved, one up and one down.** **Criterion 8: 2 → 3 of 4** (inbox read;
+  `learning-api-p95-latency` confirmed, `learning-api-5xx-rate` not). **Criterion 3: met → one clean
+  run owed**, because this session's own deploys aged D-120's evidence and `narrative-refresh.spec.ts`
+  is flaky. Nothing regressed in the product — the artifact under test changed, which is the ordinary
+  cost of deploying during a gate, and it is recorded rather than quietly re-claimed.
 - **ROADMAP.md edited (scope consequence):** criterion 7's block said the `select_topic` lever was
   unmeasured and projected to close the gap; it now records that it was measured and does not. The
-  §2.6 gate paragraph on AUD-F-30/31 was corrected the same way.
-- **Carry-over:** criterion 8 still 2 of 4; criterion 6's two dates; **S42's org asks still unsent,
-  ninth session**; AUD-F-32 now the head of the engineering queue.
+  §2.6 gate paragraph and the standing summary were corrected the same way. **ARCHITECTURE.md edited:**
+  its PII-floor paragraph asserts what the live trace scan covers, and AUD-F-30 changed that corpus.
+- **Carry-over:** criterion 8 at 3 of 4 (one email); criterion 6's two dates; criterion 3's second
+  clean run; **S42's org asks still unsent, ninth session**; AUD-F-32 the head of the engineering
+  queue; and `make e2e-staging` should fetch the `/dev/token` secrets itself the way
+  `load-staging-learning` does — not doing so produced 17 failures that were all one missing variable.
 
 ### Off-roadmap — the first post-gate engineering session: AUD-F-31 fixed (2026-07-30) ✅
 - **Scope: item 5 of PROGRESS.md's own "Next session" pointer (post-D-129/D-130)**, not a numbered

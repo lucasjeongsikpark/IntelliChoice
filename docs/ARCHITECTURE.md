@@ -57,6 +57,11 @@ to rot, because nothing fails when it does.)*
   `make scan-logs` share one positive-controlled matcher whose needles come from the fixture
   seed module, and both **fail rather than report clean** when they cannot see their window
   (D-129). Instrumentation added later re-opens the question rather than inheriting the answer.
+  **Health endpoints emit no telemetry at all** (AUD-F-30, D-132), suppressed at the `/readyz`
+  handler rather than per query, so the trace corpus a scan walks is now real traffic instead of
+  ~97% ALB health checks — the denominator means what a reader assumes. That fix took three
+  attempts and the first made volume 3.4× *worse*, because excluding a server span **orphans its
+  child spans into separate root traces** rather than removing them; only re-measuring caught it.
 - **Deterministic core** — grading, attendance gating, authorization, mastery, study-plan
   selection, and question validation are code, never an LLM (non-negotiable #2). The S9 AI
   pipeline only proposes *shape keys from an allowlist*; every output is re-validated

@@ -712,7 +712,18 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**Standing as of 2026-07-30 (post-D-129): 1, 2, 3, 4, 5 and 9 are met; 7 is met on a re-stated
+**Standing as of 2026-07-31 (post-D-132): 1, 2, 4, 5 and 9 are met; 7 is met on a re-stated target
+and did NOT improve when its cheapest lever was pulled; 6 is on the calendar (2026-08-02 /
+2026-08-05); 8 is 3 of 4; and 3 has slipped back to needing one more clean run.** Two changes from
+the D-129 standing, both from D-132: **criterion 8 moved 2 → 3 of 4** (the inbox was read;
+`learning-api-p95-latency` is confirmed, `learning-api-5xx-rate` is not), and **criterion 3 is no
+longer freely claimable** — that session's four staging deploys, one of them touching
+deterministic-core code, aged D-120's two consecutive clean runs. One clean re-run exists against the
+new image (53 passed / 4 skipped / 0 failed, with `narrative-refresh.spec.ts` flaky); **a second
+consecutive run is owed**. Nothing regressed in the product; the evidence aged because the artifact
+under test changed, which is the ordinary cost of deploying during a gate.
+
+*(Prior standing, post-D-129:)* **1, 2, 3, 4, 5 and 9 are met; 7 is met on a re-stated
 target; 6 is on the calendar (2026-08-02 / 2026-08-05); 8 is 2 of 4 confirmed and needs a human to
 read an inbox.** Every criterion except 6 and 8 is now closed on written evidence, and the two that
 remain need a calendar and a mailbox rather than work. **Three of the six "met" claims are met on a
