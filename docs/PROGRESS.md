@@ -3085,6 +3085,57 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
+### Off-roadmap — criterion 3 closed, AUD-F-32 measured instead of optimised, AUD-F-33 reproduced (2026-07-31) ✅
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-132/D-133)**, not a numbered roadmap
+  block. Items taken, in the order run: merge PR #72 → the e2e secret harness → AUD-F-32 (item 2) →
+  AUD-F-33's alarm (item 4) → criterion 3's second clean run (item 1a). Item 1(b)'s dates and Message A
+  stay with the human. **The user then asked to pull the gate's dates in, which added D-135.**
+- **Baseline verified green first:** `make lint`, `make typecheck` (pyright 0 errors), **634 passed / 2
+  skipped** — matching the recorded count, so nothing was inherited red.
+- **✅ Criterion 3 is met, and the flake was diagnosed rather than absorbed.** Two consecutive
+  whole-suite staging runs, **53 passed / 4 skipped / 0 failed** each (6.2 and 6.5 min), no deploy
+  between, against an image whose code is **byte-identical to HEAD** (`git diff 544c6fe..HEAD -- apps/
+  packages/ curriculum/ knowledge-content/` empty). `narrative-refresh.spec.ts` **was the flake, not
+  AUD-F-05**: its precondition was an *absence* satisfied by two opposite states, and `test.fail()` made
+  every failure cause report identically. Rewritten, 5/5 locally, **both controls watched** (inverted
+  assertion fails with its own message; unreachable arrival window skips rather than passing), and
+  confirmed `result=passed` on staging via a third targeted run rather than inferred from the skip count.
+- **✅ AUD-F-32 measured, and the session's own plan was the first casualty.** The plan was to instrument
+  the finding's CPU candidates and deploy; a local sweep varying **only** concurrency (gap 13.5 → 388.4 ms,
+  ×29, while the graph node grew ×1.5) showed the gap is queueing and bounded *all* per-request non-SQL
+  work at 13.5 ms — so the candidate list is refuted and **the deploy was cancelled**, which is D-132's
+  lesson applied rather than repeated. New instrument: `scripts/profile_local_request.py`, with the same
+  guard style as the other measuring scripts and its expectation pre-registered in its docstring.
+- **⚠️ The staging arm then refuted that pre-registration.** Predicted (committed first, `05392db`) gap
+  ≈145 ms at 5 VUs and a ratio ≈5; measured **64–81 ms and 9.6–12.1**, i.e. **`concurrency^1.55`**, on
+  three independent instruments. Local was the linear regime; Fargate at 12.5 concurrent/task is near
+  utilisation 1. **D-132's 726 ms reproduced at 777 ms** and statements/answer are **19 in every arm,
+  identical to local** — the D-131 reconciliation. Capacity **pinned at 2** for the sweep (it was found
+  at 3 after the e2e suite, so pinning earned its keep) and **restored to min 2 / max 3**.
+- **✅ AUD-F-33: detection landed and then caught a real occurrence 60 minutes later** — on chat-api, the
+  service this finding used as its *control*. That killed all three candidate explanations
+  (not learning-api-specific, not `min_capacity`, not "one step per alarm transition" — the 00:25/00:33
+  pair is two steps inside one ALARM). **Re-scoped and raised P3 → P2.** The alarm validated itself
+  end-to-end: `INSUFFICIENT_DATA → OK`, then `OK → ALARM` with the right reason and a successful SNS
+  publish in its action history. `desired-count` restored to 1.
+- **✅ Criterion 6 pulled from two dates to one (D-135).** 08-05 → 08-02 on a stated reading;
+  **08-02 is a floor no reading moves** because `memory-consolidate` is weekly and its second firing is
+  the missing observation. Evidence checked per job against Scheduler's own metrics plus real log output,
+  not firing counts alone.
+- **Verification:** `make lint` clean, `pyright` 0 errors, `make e2e-typecheck` clean, **634 passed / 2
+  skipped**, plus the two staging e2e runs above. Staging left at baseline, all six alarms OK.
+- **Decisions:** D-134 (AUD-F-32, the e2e harness, the flake, AUD-F-33's first half), D-135 (criterion 6's
+  date). **ROADMAP.md edited (scope consequence):** the §2.6 standing summary now reads 1–5 and 7–9 met
+  with criterion 6 the only open one, criterion 7's 0.7% margin is quoted with its tick, and the gate's
+  "what's left" line went from two dates to one. **ARCHITECTURE.md: no change** — no new service,
+  database or API; the two new alarms are additions to an already-documented alarm set.
+- **Carry-over:** criterion 6's single date (08-02) and the 08-01 chat re-probe; **Message A still
+  unsent, tenth session** — now joined by **Message D**, drafted this session, the one number that prices
+  the capacity decision; **AUD-F-33's mechanism** (P2, repro now cheap); the capacity re-price against a
+  *ratio* rather than a task count; `terraform plan` is **not clean** (both task definitions "must be
+  replaced" — no unattended apply); and the untested lead that batching `submit_answer`'s 19 statements
+  has a CPU rationale where the latency one was empty.
+
 ### Off-roadmap — AUD-F-31's staging before/after, and it refutes the projection (2026-07-31) ⛔✅
 - **Scope: item 2 of PROGRESS.md's own "Next session" pointer (post-D-131)** — the staging
   before/after D-131 deliberately deferred — **then item 3 (AUD-F-30), strictly after it.** Items 1's

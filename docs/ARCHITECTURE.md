@@ -62,6 +62,18 @@ to rot, because nothing fails when it does.)*
   ~97% ALB health checks — the denominator means what a reader assumes. That fix took three
   attempts and the first made volume 3.4× *worse*, because excluding a server span **orphans its
   child spans into separate root traces** rather than removing them; only re-measuring caught it.
+- **Capacity scales with *simultaneous* users, not total users, and the relationship is
+  measured** (D-134). Each task runs **one uvicorn worker**, so a task's throughput is bounded by
+  CPU per request and cannot be bought with a bigger task past 1024 CPU units — the lever is task
+  count. Measured on staging at a pinned 2 tasks: **throughput saturates at roughly 5 concurrent
+  requests per task**, and beyond that added concurrency buys latency and nothing else, growing
+  about **`concurrency^1.55`** (ALB p95 0.33 s at 2.5 concurrent/task against 2.98 s at 12.5).
+  **So most of a loaded request is queueing, not work:** at 25 concurrent, ~89% of an answer
+  request is neither SQL nor time inside the graph node, while an unloaded request spends 13.5 ms
+  there in total. Two consequences worth knowing before optimising anything here: removing
+  round-trips does **not** buy latency when CPU is the scarce resource (D-132 measured exactly
+  that), and capacity should be planned from a target **concurrency-per-task ratio** rather than a
+  task count.
 - **Deterministic core** — grading, attendance gating, authorization, mastery, study-plan
   selection, and question validation are code, never an LLM (non-negotiable #2). The S9 AI
   pipeline only proposes *shape keys from an allowlist*; every output is re-validated
