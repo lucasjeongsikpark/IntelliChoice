@@ -736,9 +736,21 @@ against the new image (53 passed / 4 skipped / 0 failed, with `narrative-refresh
 **a second consecutive run is owed**. Nothing regressed in the product; the evidence aged because the
 artifact under test changed, which is the ordinary cost of deploying during a gate.
 
-**So the gate now needs two calendar dates and nothing else: 2026-08-02 and 2026-08-05, read per
-job.** No open engineering, and no remaining human action beyond reading those two results.
-*(Superseded, post-D-133: "one more clean e2e run, and two calendar dates".)*
+**So the gate now needs ONE date: 2026-08-02, read per job.** No open engineering, and no remaining
+human action beyond that single read. **D-135 pulled 08-05 in to 08-02** on a stated reading —
+`retention-purge` was enabled 07-29, four days into the clock, and treating it as a mid-clock addition
+rather than a clock restart costs nothing because **the extra three days generate no information**:
+staging's oldest data is 2026-07-22 against 90/365-day cutoffs, so the job logs `purged 0 rows` today
+and will until ~2026-10-20.
+**⚠️ 08-02 is a floor and no reading moves it**: `memory-consolidate` is **weekly**, has fired at most
+once, and a weekly job cannot evidence a week of unattended operation before its second firing. That is
+a missing observation, not a strict reading.
+**⚠️ Quote this reading with the tick.** Criterion 6 will evidence *the schedules fire unattended and
+the jobs execute cleanly against the real database*. It will **not** evidence that the retention promise
+deletes correctly — neither purge job has ever deleted a row on staging and neither can until ~October,
+so that rests on unit tests (D-135 §4).
+*(Superseded, post-D-134: "two calendar dates, 2026-08-02 and 2026-08-05". Superseded, post-D-133:
+"one more clean e2e run, and two calendar dates".)*
 
 *(Prior standing, post-D-129:)* **1, 2, 3, 4, 5 and 9 are met; 7 is met on a re-stated
 target; 6 is on the calendar (2026-08-02 / 2026-08-05); 8 is 2 of 4 confirmed and needs a human to

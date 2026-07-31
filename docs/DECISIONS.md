@@ -7596,3 +7596,76 @@ the functional form. Both were only legible because they were recorded before th
   concurrency-per-task ratio, not a target task count.**
 - Nothing here forces the purchase: there are still no real users, 150 is still SPEC §6.23's number
   rather than measured demand, and the org has still not been asked (D-133 §3(a), and the S42 asks).
+
+## D-135 — Criterion 6 closes on 2026-08-02 for all three jobs, on a stated reading; and it cannot close earlier for a reason no reading can fix (accepted, 2026-07-31)
+
+**Context.** Asked to move the gate's remaining dates up. The answer splits cleanly into one date that
+cannot move and one that can, and the distinction is worth recording because it is not about rigour.
+
+### 1. Nothing can move below 2026-08-02, and that is an observation problem
+
+`memory-consolidate` runs **weekly** — `cron(30 18 ? * SUN *)`, UTC. It has fired at most once
+(2026-07-26). **A weekly job cannot evidence a week of unattended operation until its second firing**,
+which is Sunday **2026-08-02**. D-114 §3 requires criterion 6 be read **per job**, so the weakest job
+binds the criterion, and no stated reading helps: the second data point does not exist yet. Claiming it
+on 07-31 would not be a generous reading of the evidence, it would be a claim about a run that has not
+happened.
+
+### 2. What can move: 08-05 → 08-02, a real three-day gain with no weakened claim
+
+`retention-purge` was applied and ENABLED on **2026-07-29**, four days after the clock started, and its
+separate 08-05 date existed only because it started late. **Decision: treat it as a mid-clock addition
+rather than a restart of the criterion's clock.** Two reasons, and the first is the load-bearing one:
+
+- **The extra three days generate no information whatsoever.** Staging's oldest data is 2026-07-22
+  (S32/D-084), and the job's cutoffs are 90 days (`semantic_memory`, `stage_transitions`,
+  `tutor_chat_messages`) and 365 days (`student_reports`). Nothing in the database can match either
+  bound until roughly **2026-10-20**. Its 07-29 and 07-30 runs logged `purged 0 … row(s)` and it will
+  log exactly that every day until October. **08-05 tells a reader precisely what 08-02 tells them.**
+- **The mechanism under test is already being evidenced by another job.** It is the identical
+  EventBridge Scheduler → ops-task path that `chat-purge` will have run unattended for a full week by
+  08-02, and the deletion logic itself has unit coverage
+  (`test_purge_cli_deletes_only_rows_past_the_real_90_day_cutoff`).
+
+### 3. The evidence as it stands on 2026-07-31
+
+Scheduler's own metrics, which count schedule firings only and so cannot be confused with the many
+manual invocations in the same log group:
+
+| job | schedule (UTC) | unattended firings | errors |
+|---|---|---|---|
+| `chat-purge` | daily 18:10 | 07-27, 07-28, 07-29, 07-30 (**4**; 07-31 due at 18:10) | 0 |
+| `retention-purge` | daily 18:50, enabled 07-29 | 07-29, 07-30 (**2**) | 0 |
+| `memory-consolidate` | weekly, Sun 18:30 | **≤1** (07-26); next **08-02** | 0 |
+
+`TargetErrorCount`, `TargetErrorThrottledCount`, `InvocationDroppedCount` and
+`InvocationThrottleCount` are all **empty** across 07-25 → 08-01. And the jobs are doing work rather
+than merely starting — the ops-task log carries `purged 0 tutor_chat_messages row(s) older than 90
+days` on 07-28/29/30 and the three-table retention line from 07-29, which is the AUD-F-15 distinction
+(that finding was a job that had never once run) checked directly rather than inferred from a firing
+count.
+
+**A correction worth recording, because it nearly became the answer.** A first pass at this read
+`InvocationAttemptCount` in 86,400-second buckets and concluded there had been **no firings on 07-30 or
+07-31** — i.e. that criterion 6's clock was broken, not merely short. It was neither. The buckets are
+offset from the `--start-time`, so each one straddles two calendar days, and 07-31's runs are at 18:10
+and 18:50 UTC — still in the future when the query ran. **Two days of "missing" evidence were an
+artifact of the reporting period.** Sixth session in a row in which the instrument needed checking
+before its output meant anything (D-104 §8, D-121, D-129 §5, D-131 §4, D-132, this).
+
+### 4. ⚠️ The limitation this reading carries, which must be quoted with the tick
+
+Neither purge job **has ever deleted a row** on staging, and neither can until ~2026-10-20. So what
+criterion 6 evidences is: **the schedules fire unattended on time, and the jobs execute cleanly against
+the real database.** It does **not** evidence that the retention promise deletes correctly under
+production conditions — that rests on unit tests. This is a narrower claim than the criterion's wording
+("scheduled jobs running unattended ≥1 week") suggests to a casual reader, and it is AUD-F-15's lesson
+one level deeper: that finding was a job that never ran; this is a job that runs and has never yet had
+anything to do. **Quote the reading, not the tick** — the same instruction already attached to criteria
+1, 2 and 7.
+
+### 5. So 2026-08-02 is a read-and-tick
+
+Confirm `memory-consolidate`'s second firing landed (that is the whole of what is still unobserved),
+re-read the three jobs' firing counts and error metrics per job, and criterion 6 — and with it the
+gate — closes. Nothing else is owed.

@@ -70,6 +70,24 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   the outcome, not a mechanism** — during the incident every alarm on the machinery said "fine".
   `INSUFFICIENT_DATA` at creation is why the metric was then checked directly: nine consecutive
   datapoints per service at exactly its floor. Deliberately **not** in the canary alarm list.
+  **✅ Criterion 6 is down to one date, 2026-08-02 (D-135), and the evidence was checked rather than
+  assumed.** Scheduler's own metrics (which count firings only, so manual invocations in the same log
+  group cannot be mistaken for them): `chat-purge` **4 unattended daily firings** (07-27→07-30),
+  `retention-purge` **2** (from 07-29), `memory-consolidate` **≤1** (weekly, next 08-02), and **every
+  Scheduler error metric empty**. The jobs are doing work, not merely starting — the ops-task log carries
+  `purged 0 tutor_chat_messages row(s) older than 90 days` on 07-28/29/30, which is AUD-F-15's
+  distinction checked directly rather than inferred from a firing count.
+  **⚠️ A near-miss worth keeping: a first pass concluded the schedules had stopped firing on 07-30–31**
+  — i.e. that the clock was *broken*, not short. It was an artifact of reading `InvocationAttemptCount`
+  in 86,400 s buckets offset from `--start-time`, so each bucket straddled two days, plus today's runs
+  being at 18:10/18:50 UTC and still in the future. **Sixth session running where the instrument needed
+  checking before its output meant anything** (D-104 §8, D-121, D-129 §5, D-131 §4, D-132, this).
+  **⚠️ And the reading criterion 6 will be claimed on is narrower than its wording:** neither purge job
+  has **ever deleted a row** on staging and neither can until ~2026-10-20, so the criterion evidences
+  *the schedules fire unattended and the jobs run cleanly against the real database* — **not** that the
+  retention promise deletes correctly, which rests on unit coverage
+  (`test_purge_cli_deletes_only_rows_past_the_real_90_day_cutoff`). AUD-F-15 was a job that never ran;
+  this is a job that runs and has never had anything to do. **Quote the reading with the tick.**
   **✅ `make e2e-staging` now fetches its own secrets** — 17 authenticated journeys used to fail
   together on one 404 because `config.ts` defaults both to `""`; `config.ts` now also refuses a
   staging run with either empty, so a hand-rolled invocation says so instead of lying 17 times.
@@ -955,10 +973,15 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 - **Next session, in order (2026-07-31 close, post-D-134). The gate needs two dates and nothing else,
   and the latency question has changed shape rather than closed:**
-  1. **The only gate item left: criterion 6's dates.** **2026-08-02** (`chat-purge`,
-     `memory-consolidate`) and **2026-08-05** (`retention-purge`), read **per job** — `chat-purge` has
-     a history of never having run (AUD-F-15). Also **2026-08-01: re-probe "How do I enroll a student?"**
-     and widen `chat_qa_staging.js`'s question list beyond the four documents effective today.
+  1. **The only gate item left is ONE date: 2026-08-02, read per job (D-135).** 08-05 was pulled in to
+     08-02 — `retention-purge` was enabled 07-29, mid-clock, and the extra three days generate **no
+     information** (staging's oldest data is 2026-07-22 against 90/365-day cutoffs, so it logs `purged 0
+     rows` today and until ~2026-10-20). **08-02 is a floor no reading moves:** `memory-consolidate` is
+     weekly and a weekly job cannot show a week before its second firing — that is a missing
+     observation, not a strict reading. **On the day: confirm memory-consolidate's second firing, re-read
+     all three jobs' firing counts and error metrics, tick.** Also **2026-08-01: re-probe "How do I
+     enroll a student?"** and widen `chat_qa_staging.js`'s question list beyond the four documents
+     effective today.
   2. **Send Message A** (tenth session carrying it; re-read it, it gained a week-boundary question in
      D-130). It gates S43, not the gate, and it is the only item with external lead time.
      **And send Message D, which is new and drafted ready to go** — the one number that prices the
