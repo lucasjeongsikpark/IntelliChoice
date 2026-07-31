@@ -712,7 +712,20 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**Standing as of 2026-07-31 (post-D-133): 1, 2, 4, 5, 8 and 9 are met; 7 is met on a re-stated target
+**Standing as of 2026-07-31 (post-D-134): 1, 2, 3, 4, 5, 8 and 9 are met; 7 is met on a re-stated
+target and now with a *measured* 0.7% margin; 6 is on the calendar (2026-08-02 / 2026-08-05) and is
+the only criterion still open.** **Criterion 3 is met again**: two consecutive whole-suite staging runs,
+**53 passed / 4 skipped / 0 failed** each, no deploy between them, against an image whose code is
+**byte-identical to HEAD** (`git diff 544c6fe..HEAD -- apps/ packages/ curriculum/ knowledge-content/`
+is empty). The `narrative-refresh.spec.ts` flake was diagnosed rather than absorbed — **it was the
+test**, not the defect it probes (D-134 §5) — and the rewritten spec passed in both runs plus a third
+targeted run.
+**Criterion 7's margin is now quantified and it is thin.** At the documented 25 concurrent on 2 tasks,
+ALB p95 is **2.98 s against the deployed 3.00 s threshold**; at 2.5 concurrent per task it is 0.3 s.
+So the criterion is met on its stated reading and has essentially no headroom — quote the margin with
+the tick (D-134 §7).
+
+*(Prior standing, post-D-133:)* **1, 2, 4, 5, 8 and 9 are met; 7 is met on a re-stated target
 and did NOT improve when its cheapest lever was pulled; 6 is on the calendar (2026-08-02 /
 2026-08-05); 3 has slipped back to needing one more clean run.** Two criteria moved in opposite
 directions this session. **Criterion 8 is now MET at 4 of 4** (D-133) — the inbox was read and all
@@ -723,7 +736,9 @@ against the new image (53 passed / 4 skipped / 0 failed, with `narrative-refresh
 **a second consecutive run is owed**. Nothing regressed in the product; the evidence aged because the
 artifact under test changed, which is the ordinary cost of deploying during a gate.
 
-**So the gate now needs: one more clean e2e run, and two calendar dates.** No open engineering.
+**So the gate now needs two calendar dates and nothing else: 2026-08-02 and 2026-08-05, read per
+job.** No open engineering, and no remaining human action beyond reading those two results.
+*(Superseded, post-D-133: "one more clean e2e run, and two calendar dates".)*
 
 *(Prior standing, post-D-129:)* **1, 2, 3, 4, 5 and 9 are met; 7 is met on a re-stated
 target; 6 is on the calendar (2026-08-02 / 2026-08-05); 8 is 2 of 4 confirmed and needs a human to

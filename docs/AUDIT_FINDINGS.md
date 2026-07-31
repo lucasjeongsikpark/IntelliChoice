@@ -3575,6 +3575,52 @@ throw away), task count verified at the start *and* end of every run, and runs s
 back-to-back — four exploratory runs 20 s apart once drifted 1.75 → 3.03 s, so back-to-back runs are
 not independent samples.
 
+##### Result: the queueing claim is confirmed and the *linear law* is refuted (2026-07-31)
+
+Three arms — 5, 25, 5 VUs, the third a drift control — with capacity pinned at 2 tasks and the count
+verified before and after each. **Pinning was not a formality: the service was found running 3 tasks
+after the e2e suite**, so an unpinned sweep would have measured two different capacities.
+
+| arm | VUs | conc/task | request median | SQL median | **gap** | ALB p95 | k6 p95 |
+|---|---|---|---|---|---|---|---|
+| A | 5 | 2.5 | 94.3 ms | 30.1 ms | **64.2 ms** | 0.33 s | 413 ms |
+| A′ | 5 | 2.5 | 134.0 ms | 53.0 ms | **81.0 ms** | 0.29 s | 362 ms |
+| B | 25 | 12.5 | 874.2 ms | 97.1 ms | **777.1 ms** | 2.98 s | — |
+
+**What held.** The gap is overwhelmingly the request (89% of it at 25 VUs), it is steeply
+concurrency-dependent, and **D-132's number reproduced independently: 777 ms today against its
+726 ms**, same 25 VUs on 2 tasks, different session — within 7%. Statements per answer request are
+**19 at the median in every arm**, identical to the local measurement, which is the reconciliation
+D-131's rule requires before a local count is allowed to say anything about staging. A′ ≈ A on all
+three instruments, so no drift contaminated the ordering.
+
+**What was refuted, and it was my own prediction.** Predicted gap at 5 VUs ≈ **145 ms** and a ratio of
+**≈5**. Measured **64–81 ms** and a ratio of **9.6–12.1**. The relationship is **super-linear** —
+about `concurrency^1.55` — not the flat `gap ÷ concurrency` the local sweep showed. Three independent
+instruments agree on it (X-Ray span, ALB `TargetResponseTime` p95 at 9.1×, and k6), so this is not one
+tool's artifact.
+
+**Why local was linear and staging is not, and it is the useful part.** Locally the single event loop
+was the bottleneck on a machine with spare cores for everything else — utilisation well below 1, the
+linear regime. On Fargate the app is pinned to 384 CPU units and at 12.5 concurrent per task
+utilisation is close to 1, where queue depth grows faster than arrivals. **So "the gap is queueing" is
+right and "the gap is 13.5 ms of CPU times the concurrency" is a lower bound that only holds away from
+saturation.** The implied "~58 ms of CPU per request on Fargate" in the prediction above was an
+artifact of assuming linearity and should not be quoted.
+
+**Two consequences worth carrying to the capacity decision.**
+
+1. **Criterion 7 is met at 25 concurrent with almost no margin.** ALB p95 is **2.98 s against the
+   deployed 3.00 s threshold** — 0.7% — and D-132's client-side `http_req_duration` p95 of 3.31 s was
+   already over. "Met at the documented 25 concurrent" is true and is a knife-edge, not a comfortable
+   pass. At 2.5 concurrent per task the same metric is 0.3 s, i.e. **10× headroom**, so the shortfall
+   is capacity per concurrent user and nothing else.
+2. **D-133's 12-task figure preserves today's marginal latency, not a passing one.** 150 concurrent at
+   12.5 per task is 12 tasks — and 12.5 per task is exactly the arm measuring 2.98 s. Holding a
+   comfortable p95 needs a lower ratio (5 per task ⇒ 30 tasks), so **~$216/month is a floor for a
+   knife-edge, and the figure for a criterion 7 that passes with margin is materially larger** — before
+   the RDS resize D-133 already identified. Re-price with a target ratio, not a target task count.
+
 ### AUD-F-33 — learning-api scaled out and then did not scale back in for over two hours, with its scale-in alarm in ALARM the whole time (P3, found 2026-07-31, D-132; not fixed)
 
 Observed while trying to capacity-match D-132's two arms. The service went to 3 tasks at

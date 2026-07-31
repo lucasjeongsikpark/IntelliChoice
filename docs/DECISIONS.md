@@ -7548,3 +7548,51 @@ arrival window skips instead of passing.
 bounded wait, and a precondition stated as an absence is not a precondition.* This is the same lesson
 `test_health_endpoint_tracing.py` recorded from the other direction — count the output rather than
 asserting the absence of the mechanism you happen to have in mind.
+
+### 6. The staging arm: the queueing claim confirmed, my own prediction refuted
+
+Run after §1–§5, with the prediction committed first (`05392db`). Three arms — 5, 25, 5 VUs, the third
+a drift control — capacity **pinned at 2 tasks**, count verified before and after each. Pinning earned
+its keep immediately: **the service was found running 3 tasks after the e2e suite**, so an unpinned
+sweep would have compared two capacities.
+
+| arm | VUs | conc/task | request median | SQL | **gap** | ALB p95 |
+|---|---|---|---|---|---|---|
+| A | 5 | 2.5 | 94.3 ms | 30.1 | **64.2 ms** | 0.33 s |
+| A′ | 5 | 2.5 | 134.0 ms | 53.0 | **81.0 ms** | 0.29 s |
+| B | 25 | 12.5 | 874.2 ms | 97.1 | **777.1 ms** | 2.98 s |
+
+**Confirmed.** The gap is 89% of the request at 25 VUs; **D-132's 726 ms reproduced independently at
+777 ms** on the same shape in a different session (within 7%); statements per answer request are **19
+in every arm, identical to local**, which is the reconciliation D-131 requires before a local count may
+speak about staging; and A′ ≈ A on all three instruments, so ordering did not contaminate the result.
+
+**Refuted — the prediction I wrote, not someone else's.** Predicted a gap of ~145 ms at 5 VUs and a
+ratio near 5. Measured **64–81 ms** and a ratio of **9.6–12.1**: the relationship is **super-linear,
+about `concurrency^1.55`**, not the flat `gap ÷ concurrency` the local sweep showed. Three independent
+instruments agree (X-Ray, ALB p95 at 9.1×, k6), so it is not one tool's noise. **The mechanism is the
+interesting part:** locally the event loop was the bottleneck on a machine with spare cores, i.e.
+utilisation well below 1 and the linear regime; on Fargate the app is pinned to 384 CPU units and 12.5
+concurrent per task sits near utilisation 1, where queue depth outgrows arrivals. So §1's "the gap is
+queueing" holds, and §2's "13.5 ms of CPU times the concurrency" is a **lower bound valid only away
+from saturation**. The "~58 ms of CPU per request on Fargate" figure in the pre-registration was an
+artifact of assuming linearity and should not be quoted.
+
+**This is the third session running in which a written-down expectation was the thing that made the
+result readable, and the first in which the expectation was wrong in a way worth keeping.** D-132's
+prediction was directionally right and understated; this one was directionally right and wrong about
+the functional form. Both were only legible because they were recorded before the run.
+
+### 7. What this does to the capacity question
+
+- **Criterion 7 is met at 25 concurrent with a 0.7% margin.** ALB p95 **2.98 s against the deployed
+  3.00 s threshold**, and D-132's client-side p95 of 3.31 s was already over. The claim "met at the
+  documented 25 concurrent" is true and is a knife-edge. At 2.5 concurrent per task the same metric is
+  **0.3 s — 10× headroom** — so the constraint is capacity per concurrent user and nothing else.
+- **D-133's ~$216 buys a knife-edge, not a pass.** 150 concurrent at 12.5 per task is 12 tasks, and
+  12.5 per task *is* the arm that measured 2.98 s. A comfortable p95 needs a lower ratio (5 per task ⇒
+  30 tasks). So **~$216/month is a floor for marginal behaviour**, and a passing criterion 7 at 150
+  costs materially more — before the RDS resize D-133 already identified. **Re-price against a target
+  concurrency-per-task ratio, not a target task count.**
+- Nothing here forces the purchase: there are still no real users, 150 is still SPEC §6.23's number
+  rather than measured demand, and the org has still not been asked (D-133 §3(a), and the S42 asks).
