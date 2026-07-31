@@ -3491,6 +3491,68 @@ statements per answer**, invariant across all 1,247 traces — **150 per exam**.
 not the dominant term, so batching it is a smaller prize than AUD-F-31 was, and D-132's lesson says
 to size it before doing it.
 
+#### Measured 2026-07-31 (D-134): the ~726 ms is **queueing, not work** — and the hypothesis list above is refuted
+
+Measured with `scripts/profile_local_request.py`, which decomposes a real `POST .../answers` from
+its own OTel span tree using the same definitions `profile_xray_span.py` uses, so the local and
+staging numbers are comparable. **The expectation was pre-registered in the script's docstring
+before the first run** (D-132's habit), and it was right: this is contention, not a hidden cost.
+
+One controlled experiment settles it. Same process, same database, same client, same code — **only
+the number of flows in flight varied**:
+
+| concurrency | whole request | SQL inside it | `submit_answer` | **the gap** | gap ÷ concurrency | throughput |
+|---|---|---|---|---|---|---|
+| 1 | 22.2 ms | 8.7 ms | 9.4 ms | **13.5 ms** | 13.5 | 31.8 answers/s |
+| 5 | 77.7 ms | 14.5 ms | 13.8 ms | **62.8 ms** | 12.6 | 46.8 answers/s |
+| 10 | 158.9 ms | 18.7 ms | 19.7 ms | **138.9 ms** | 13.9 | 45.0 answers/s |
+| 25 | 411.0 ms | 21.5 ms | 14.5 ms | **388.4 ms** | 15.5 | 42.6 answers/s |
+
+**Per-request work cannot grow ×29 with concurrency; queueing must.** The graph node grew ×1.5 and
+SQL ×2.5 over the same range. And the local concurrent arm *reproduces staging's shape* — 93.6% of
+the request outside SQL against staging's 86.8% — on a laptop with no ECS, no ALB and no Fargate, so
+the shape belongs to running 25 flows through one event loop, not to the deployment.
+
+**Three consequences, in descending order of how much they change the roadmap.**
+
+1. **There is no hidden 726 ms to find.** The sequential arm bounds *all* per-request non-SQL work
+   at **13.5 ms**. Middleware depth, JWT verification, checkpoint serialisation and Pydantic
+   validation of graph state — this finding's own candidate list — are together a fraction of that.
+   Deploying spans to hunt them would have been D-132's mistake repeated one finding later.
+2. **But the queueing is *made of* that work, so code changes are not powerless.** `gap ÷
+   concurrency` is flat at **12.6–15.5 ms** across a 25× range — that constant *is* the per-request
+   CPU cost, and latency at N concurrent is about N times it. Cutting CPU per request cuts p95
+   proportionally at fixed capacity. This is also why D-132's result was not a contradiction:
+   removing 881 ms of SQL *wait* bought nothing because wait was never the scarce resource, and the
+   same arithmetic says removing CPU would.
+3. **The service saturates at ~5 concurrent per task.** Throughput is flat at 42–47 answers/s from
+   concurrency 5 to 25. Past that, added concurrency buys latency and no throughput at all, which is
+   the quantitative version of "the bottleneck moved; it did not disappear".
+
+**One priced, actionable lever, and it is smaller than it looks:** OTel instrumentation costs
+**~2.8 ms of ~20 ms CPU per answer request (~14%)** — paired arms, run twice, 20.24/20.57 ms with
+tracing against 17.55/17.48 ms without. Under (2) a 14% CPU cut is a ~14% latency cut at fixed
+concurrency. Sampling is the remedy. It is a **floor** for staging, where the exporter serialises to
+protobuf over a network hop rather than into memory. **Not taken here**: it trades against criterion
+9's trace corpus and AUD-F-30 already removed the cost argument, so it wants a decision, not a
+drive-by.
+
+**Where the rest of the CPU goes: nowhere in particular.** A cProfile pass over the same flow ranks
+`select.kqueue.control` (the event loop idling), then asyncio scheduling, psycopg, SQLAlchemy cache
+keys and OTel `start_span` — **no single dominant consumer**. This is diffuse framework overhead, so
+there is no cheap 2× available.
+
+**The one untested lead, and it is now the successor target.** Each of the **19 SQL statements per
+answer request** costs SQLAlchemy compilation, a psycopg round-trip and a span — i.e. CPU, not only
+wait. That gives AUD-F-31-style batching of `submit_answer` a *CPU* rationale exactly where D-132
+showed the *latency* rationale was empty. **Untested**: nobody has measured CPU per request as a
+function of statement count, and this finding's own history says to size it before doing it.
+
+**Still owed:** the staging arm. The local relationship predicts the gap should scale with
+concurrency-per-task there too — at 5 VUs over 2 tasks, roughly a fifth of D-132's 726 ms. Needs
+capacity pinned for the duration, since a 25-concurrent run trips the scale-out alarm and an arm
+that gains a task mid-run is the invalid arm D-132 had to throw away.
+
 ### AUD-F-33 — learning-api scaled out and then did not scale back in for over two hours, with its scale-in alarm in ALARM the whole time (P3, found 2026-07-31, D-132; not fixed)
 
 Observed while trying to capacity-match D-132's two arms. The service went to 3 tasks at
@@ -3522,6 +3584,49 @@ controlled repro would settle.
 **Not diagnosed further.** This entry records the observation, the same-hour control, and the
 narrowed hypothesis rather than guessing a mechanism. **`desired-count` was set back to 2 manually**
 to restore the baseline.
+
+#### Detection added 2026-07-31 (D-134); one hypothesis refuted, the mechanism still unknown
+
+**The alarm-configuration hypothesis is dead.** `describe-alarms` on both scale-in alarms shows them
+**configured identically** — 15 evaluation periods of 60 s, `p95` extended statistic, threshold 1 s,
+`treat_missing_data = breaching`, no `datapoints_to_alarm` on either. So the difference between the
+service that scaled in twice in an hour and the one that did not for two hours is **not** its alarm's
+datapoint configuration. What remains from the original pair of hypotheses is the `min_capacity`
+difference (learning-api 2, chat-api 1), untested, and a controlled repro is still what would settle
+it.
+
+**So detection landed instead of a fix, and it alarms on the outcome rather than on any mechanism.**
+`{name_prefix}-{service}-capacity-above-floor`: `DesiredTaskCount` (`ECS/ContainerInsights`,
+`Maximum` over 5-minute periods) above the service's own floor for **60 minutes**, actioned to the
+alerts topic. The reasoning for shape over cause is the incident itself: the scale-in alarm was
+correctly in ALARM, the `-1` policy was correctly configured, and no scaling activity was recorded —
+every alarm on the machinery said "fine". An alarm that fires only for one named cause would have
+missed this one. 60 minutes clears a *legitimate* scale-in (15 quiet minutes plus a 300 s cooldown,
+so ~20 minutes of normal behaviour) three times over, and is well under the 84+ minutes observed.
+
+Per-service floors, since they differ — learning-api 2, chat-api 1 — and **the ECS service name is
+passed explicitly rather than derived from the map key**: a dimension assembled by string convention
+reports `INSUFFICIENT_DATA` when the convention changes, which is indistinguishable from a healthy
+service and is exactly AUD-F-12's false negative.
+
+**Applied and controlled.** Applied with `-target` on the two alarms alone, because `terraform plan`
+is *not* clean (see the carry-over below). Both alarms exist; both read `INSUFFICIENT_DATA` at
+creation, which is why the metric was then checked directly rather than trusted:
+`get-metric-statistics` returns nine consecutive 5-minute datapoints for each service at exactly its
+floor — **learning-api 2.0, chat-api 1.0** — so the dimensions resolve, the metric publishes, and the
+thresholds sit where they were meant to.
+
+**Deliberately NOT added to `deploy-staging.yml`'s canary alarm list** (which names its four alarms
+explicitly, so this required no action). A service holding extra capacity is a cost problem; rolling
+a good deploy back over it would be a worse outcome than the condition.
+
+**Carry-over found while applying this:** `terraform plan` against staging reports **both task
+definitions "must be replaced"** — pre-existing drift, unrelated to this change, because
+`deploy-staging.yml` registers task definitions outside Terraform (the D-116 pattern). The blast
+radius is contained today (`aws_ecs_service` has `ignore_changes = [task_definition, desired_count]`,
+so a replacement registers an unused revision and does not move the service) but it means **no
+routine `terraform apply` against this environment is safe to run unattended**, and every future
+apply needs `-target` or a resolved plan.
 
 **Related, and worth knowing before quoting criterion 7's chat leg:** chat-api's `min_capacity` is
 **1**, so its baseline is one task and the "**3 tasks running, ≥ 2 ✅**" recorded for criterion 7 was

@@ -7422,3 +7422,129 @@ session before committing to a fix, and before committing to a price.**
 **Decision (user call): defer the purchase; re-price after (a) and (b).** Nothing forces it now —
 there are no real users, and criterion 7 is met at the documented 25. When it is priced again it must
 include RDS.
+
+## D-134 — AUD-F-32 measured before being optimised: the ~726 ms is queueing, the candidate list was wrong, and the one flaky e2e test was flaky because of its own design (accepted, 2026-07-31)
+
+**Context.** PROGRESS's post-D-132 pointer named AUD-F-32 "the whole of criterion 7's remaining
+latency question" and instructed: measure before optimising, because D-132's lesson is that
+`select_topic` was the biggest span in a profile and the wrong target. This session took that
+literally — the original plan was to instrument the candidates and deploy — and the measurement
+removed the reason to deploy anything.
+
+### 1. The gap is queueing, not work — and the expectation was pre-registered
+
+`scripts/profile_local_request.py` decomposes a real `POST .../answers` from its own OTel span tree
+using the same definitions `profile_xray_span.py` uses, so local and staging numbers are comparable.
+Its docstring states, **before the first run**, that a per-request-work explanation predicts the same
+shape locally at smaller magnitude, a queueing explanation predicts a much smaller *share*, and that
+the second was expected weakly. D-132 established that habit; this is the second use of it, and again
+it is what makes the result legible rather than a story fitted afterwards.
+
+One controlled experiment settles it. Same process, same database, same client, same code, **only the
+flows in flight varied**:
+
+| concurrency | whole request | SQL | `submit_answer` | **gap** | gap ÷ concurrency | throughput |
+|---|---|---|---|---|---|---|
+| 1 | 22.2 ms | 8.7 | 9.4 | **13.5 ms** | 13.5 | 31.8/s |
+| 5 | 77.7 ms | 14.5 | 13.8 | **62.8 ms** | 12.6 | 46.8/s |
+| 10 | 158.9 ms | 18.7 | 19.7 | **138.9 ms** | 13.9 | 45.0/s |
+| 25 | 411.0 ms | 21.5 | 14.5 | **388.4 ms** | 15.5 | 42.6/s |
+
+**Per-request work cannot grow ×29 with concurrency; queueing must.** The graph node grew ×1.5 over
+the same range. And the concurrent arm reproduces staging's *shape* — 93.6% of the request outside SQL
+against staging's 86.8% — on a laptop with no ECS, ALB or Fargate, so the shape belongs to 25 flows on
+one event loop rather than to the deployment.
+
+### 2. What that changes, including one thing it changes back
+
+- **There is no hidden 726 ms to find.** The sequential arm bounds *all* per-request non-SQL work at
+  **13.5 ms**. AUD-F-32's own candidates — middleware depth, JWT verification, checkpoint
+  serialisation, Pydantic validation of graph state — are together a fraction of that. **Instrumenting
+  them and deploying, which is what this session set out to do, would have been D-132's mistake
+  repeated one finding later.**
+- **But the queueing is made of that work, so D-133 §3(b) survives in mechanism and shrinks in size.**
+  `gap ÷ concurrency` is flat at **12.6–15.5 ms** across a 25× range — that constant *is* the
+  per-request CPU cost, and latency at N concurrent is about N times it. So "halving CPU per request
+  roughly halves the tasks needed" is *correct arithmetic*. What is now measured is that there is no
+  halving available: the cost is diffuse.
+- **The service saturates at ~5 concurrent per task.** Throughput is flat from 5 to 25. Past that,
+  concurrency buys latency and no throughput — the quantitative form of D-132's "the bottleneck moved".
+- **It explains D-132 rather than contradicting it.** Removing 881 ms of SQL *wait* bought no latency
+  because wait was never the scarce resource. The same arithmetic says removing CPU would.
+
+### 3. The only priced lever, and it is small
+
+**OTel instrumentation costs ~2.8 ms of ~20 ms CPU per answer request (~14%)** — paired arms, run
+twice: 20.24/20.57 ms with tracing against 17.55/17.48 ms without. A floor for staging, where the
+exporter serialises to protobuf over a network hop. Under §2 that is a ~14% latency cut at fixed
+concurrency, and sampling is the remedy.
+
+**Not taken.** It trades against criterion 9's trace corpus, and AUD-F-30 already removed the *cost*
+argument for sampling, so what is left is a 14% CPU argument against an evidence base the gate
+depends on. That is a decision, not a drive-by. A cProfile pass confirms why nothing bigger is
+available: the ranking is the event loop idling, then asyncio scheduling, psycopg, SQLAlchemy cache
+keys, OTel `start_span` — **no single dominant consumer**.
+
+**Successor target, untested and named as such:** each of the **19 SQL statements per answer request**
+costs SQLAlchemy compilation, a psycopg round-trip and a span — CPU, not only wait. Batching
+`submit_answer` therefore has a *CPU* rationale precisely where D-132 showed the *latency* rationale
+was empty. Nobody has measured CPU as a function of statement count; size it first.
+
+### 4. AUD-F-33: detection, one hypothesis refuted, and a carry-over found by applying it
+
+`describe-alarms` shows both services' scale-in alarms **configured identically** (15 × 60 s, p95,
+threshold 1 s, `treat_missing_data = breaching`, no `datapoints_to_alarm`), so the alarm-configuration
+hypothesis is dead and only the `min_capacity` difference remains.
+
+So **detection landed rather than a fix, and it alarms on the outcome rather than a mechanism**:
+`DesiredTaskCount` above the service's own floor for 60 minutes, per-service floors (learning-api 2,
+chat-api 1), actioned to the alerts topic. During the incident every alarm on the *machinery* said
+"fine", so an alarm naming one cause would have missed it. 60 minutes clears a legitimate scale-in
+(15 quiet minutes plus a 300 s cooldown) three times over.
+
+**`INSUFFICIENT_DATA` at creation is why the metric was then checked directly** rather than trusted:
+`get-metric-statistics` returns nine consecutive datapoints per service at exactly its floor, so the
+dimensions resolve and the thresholds sit where intended. Deliberately **not** added to
+`deploy-staging.yml`'s canary list — extra capacity is a cost problem, and rolling a deploy back over
+it is worse than the condition.
+
+**Carry-over, found only because this needed an apply: `terraform plan` against staging is not
+clean.** Both task definitions report "must be replaced" — pre-existing drift, because
+`deploy-staging.yml` registers task definitions outside Terraform (the D-116 pattern). Contained today
+(`ignore_changes = [task_definition, desired_count]` means a replacement registers an unused revision
+and does not move the service), but **no routine `terraform apply` here is safe unattended**; this one
+used `-target`.
+
+### 5. The e2e harness, and a flake that was the test
+
+Two fixes, and the second is the more interesting.
+
+**`make e2e-staging` now fetches its own secrets.** Seventeen authenticated journeys used to fail
+together on a 404 from the secret-gated `/dev/token`, because `e2e/config.ts` defaults both per-app
+secrets to `""` and `mintToken` then omits the header. The target now fetches both from Secrets
+Manager the way `load-staging-learning` does, and `config.ts` refuses to start a staging run with
+either empty — so a hand-rolled `npx playwright test` says so at load time instead of lying seventeen
+times. Verified both directions.
+
+**`narrative-refresh.spec.ts` was flaky because of its own design, not because AUD-F-05 is
+intermittent.** Two faults, and they compound:
+
+1. **Its precondition was an absence, so two opposite states satisfied it.** "No `Continue` button
+   after reaching `pre_exam`" is true when a narrative was shown and dismissed, and equally true when
+   the narrative *has not arrived yet*. `stage_narrative` is an LLM call: ~26 ms on the mock, seconds
+   on real Bedrock. So locally the probe always ran, and on staging it sometimes tested nothing — and
+   in that case the reload had no dismissed narrative to restore, nothing came back, and the assertion
+   inverted.
+2. **`test.fail()` made every cause of failure look like the defect.** A missing precondition, a
+   timeout, a harness bug and the real finding all reported identically.
+
+It now waits for a narrative, captures its text, dismisses it, confirms the dismissal, reloads, waits
+a bounded time for *that same text*, and asserts directly that it returns — no `test.fail()`. An
+inconclusive run **skips with its reason** rather than being readable as either result. Verified 5/5
+locally plus both controls: inverting the assertion fails with its own message, and an unreachable
+arrival window skips instead of passing.
+
+**The generalisable part, and it is the session's keeper:** *an assertion about an absence needs a
+bounded wait, and a precondition stated as an absence is not a precondition.* This is the same lesson
+`test_health_endpoint_tracing.py` recorded from the other direction — count the output rather than
+asserting the absence of the mechanism you happen to have in mind.
