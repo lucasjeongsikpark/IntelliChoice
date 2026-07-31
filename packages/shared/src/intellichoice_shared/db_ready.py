@@ -31,17 +31,24 @@ async def ping_engine(engine: AsyncEngine, timeout_s: float = 3.0) -> bool:
     two, and the new ones carry no HTTP URL at all, which is strictly worse for reading a
     scan's denominator: they cannot even be attributed to a route.
 
-    Suppressing here instead removes the spans at the source, which is the only place
-    that knows this query is a health check rather than real work. `excluded_urls` stays
-    in `tracing.py` so no *server* span is created either; the two together are what make
-    `/readyz` cost nothing.
+    **The suppression that actually matters is at the `/readyz` handler**, not here:
+    per-query suppression is what failed the second time. This function suppressed itself
+    and chat-api's corpus-provenance check - on the same handler, added later for an
+    unrelated reason - kept emitting. Both apps' handlers now wrap their whole body, so
+    anything added inside them is covered by construction. `excluded_urls` in `tracing.py`
+    stops the *server* span; those two together are what make `/readyz` cost nothing.
+
+    The suppression is kept here as well, because a health-check ping should not be traced
+    whoever calls it, and this is the only place that knows the query is a liveness probe
+    rather than work. It is belt-and-braces, not the mechanism.
     """
 
     async def _ping() -> None:
-        # Suppression is set inside the coroutine, not around `wait_for`, so it applies in
-        # the task that actually executes the query - OTel context does not propagate
-        # outward from an awaited task to its parent, and a suppression attached to the
-        # wrong context silently does nothing.
+        # Redundant when the caller already suppressed - and a caller's suppression *does*
+        # reach in here, verified rather than assumed: `asyncio.wait_for` creates a Task,
+        # and a Task copies the current contextvars at creation, so an outer
+        # `suppress_instrumentation()` applies inside. (Propagation is inward only;
+        # changes made in here would not escape to the caller.)
         with suppress_instrumentation():
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))

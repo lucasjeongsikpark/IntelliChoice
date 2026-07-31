@@ -137,6 +137,89 @@ def test_readyz_emits_no_spans_at_all_including_its_database_pings() -> None:
         FastAPIInstrumentor.uninstrument_app(app)
 
 
+def test_a_query_readyz_makes_outside_ping_engine_is_also_suppressed() -> None:
+    """The second regression, and the reason suppression moved to the handler.
+
+    Per-query suppression passed every test above and still leaked live: chat-api's
+    `/readyz` also runs AUD-C-16's embedding-provenance check via `RagRepository`, which
+    is not `ping_engine`, so it kept emitting orphaned root segments. 160 traces per idle
+    10 minutes survived the first "fix".
+
+    So this models the shape that leaked - a health handler doing a query of its own next
+    to the pings - and requires zero spans from the whole handler. A test that only ever
+    exercises `ping_engine` cannot see this class of bug, which is precisely how it
+    reached staging twice.
+    """
+    exporter, provider = _install_test_provider()
+
+    engine = create_engine("sqlite:///:memory:")
+    app = FastAPI()
+    instrument_fastapi_app(app, provider)
+
+    @app.get("/readyz")
+    async def readyz() -> dict:
+        # The real handlers' shape: one suppression around the entire body, so the ping
+        # *and* the extra check *and* whatever is added next are all covered.
+        with suppress_instrumentation():
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            # Stands in for the corpus-provenance check - a second, unrelated query that
+            # nobody thought of as being on a hot path.
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 2"))
+        return {"status": "ready"}
+
+    try:
+        SQLAlchemyInstrumentor().instrument(engines=[engine], tracer_provider=provider)
+        with TestClient(app) as client:
+            assert client.get("/readyz").status_code == 200
+        assert exporter.get_finished_spans() == ()
+    finally:
+        SQLAlchemyInstrumentor().uninstrument()
+        FastAPIInstrumentor.uninstrument_app(app)
+
+
+def test_an_outer_suppression_reaches_into_ping_engines_wait_for_task() -> None:
+    """Pins the contextvar behaviour the handler-level fix depends on.
+
+    `ping_engine` runs its query inside `asyncio.wait_for`, i.e. in a new Task. The
+    handler-level suppression only works because a Task copies the current contextvars at
+    creation, so the suppression set in the handler applies inside the task. That was
+    checked empirically rather than reasoned about - an earlier version of `ping_engine`'s
+    docstring asserted the opposite - and it is pinned here so a future asyncio or OTel
+    change that breaks inward propagation fails loudly instead of quietly restoring 97%
+    health-check traces.
+    """
+    exporter, provider = _install_test_provider()
+
+    async def scenario() -> tuple[int, int]:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        try:
+            SQLAlchemyInstrumentor().instrument(
+                engines=[engine.sync_engine], tracer_provider=provider
+            )
+
+            async def query() -> None:
+                async with engine.connect() as conn:
+                    await conn.execute(text("SELECT 1"))
+
+            # An outer suppression around a wait_for-created Task.
+            with suppress_instrumentation():
+                await asyncio.wait_for(query(), timeout=3)
+            suppressed = len(exporter.get_finished_spans())
+
+            await asyncio.wait_for(query(), timeout=3)
+            unsuppressed = len(exporter.get_finished_spans())
+            return suppressed, unsuppressed
+        finally:
+            SQLAlchemyInstrumentor().uninstrument()
+            await engine.dispose()
+
+    suppressed, unsuppressed = asyncio.run(scenario())
+    assert suppressed == 0
+    assert unsuppressed > 0
+
+
 def test_ping_engine_itself_emits_no_spans() -> None:
     """`ping_engine` is the shared helper both apps' `/readyz` calls, so the suppression
     belongs to it rather than to each handler. Asserted against a real instrumented async

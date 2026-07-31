@@ -33,6 +33,7 @@ from intellichoice_shared.org_time import log_org_time_convention
 from intellichoice_shared.profiles import AttendanceStatus, ProfileAdapter
 from intellichoice_shared.rate_limit import install_global_rate_limit_middleware
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from opentelemetry.instrumentation.utils import suppress_instrumentation
 from pydantic import BaseModel
 
 from learning_api.authorization import resolve_target_student
@@ -230,8 +231,12 @@ async def readyz(request: Request) -> JSONResponse:
     """S34: the ALB target group's real health check (see `db_ready.py`'s docstring) -
     `/healthz` above stays dependency-free.
     """
-    postgres_ok = await ping_engine(request.app.state.db_engine)
-    mysql_ok = await ping_engine(request.app.state.profile_adapter.engine)
+    # AUD-F-30: suppressed at the handler, not per query - see chat-api's `/readyz` for
+    # why. This one currently only pings, but the ALB polls it every 15s per task, so
+    # whatever gets added here later must be free too.
+    with suppress_instrumentation():
+        postgres_ok = await ping_engine(request.app.state.db_engine)
+        mysql_ok = await ping_engine(request.app.state.profile_adapter.engine)
     if postgres_ok and mysql_ok:
         return JSONResponse({"status": "ready", "postgres": True, "mysql": True})
     return JSONResponse(
