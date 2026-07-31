@@ -7669,3 +7669,232 @@ anything to do. **Quote the reading, not the tick** — the same instruction alr
 Confirm `memory-consolidate`'s second firing landed (that is the whole of what is still unobserved),
 re-read the three jobs' firing counts and error metrics per job, and criterion 6 — and with it the
 gate — closes. Nothing else is owed.
+
+## D-136 — The last named latency lead dies at 0.9 ms, and the capacity question turns out to be cheap at the target that actually exists (accepted, 2026-07-31)
+
+**Context.** D-134 §8 left one named successor target for criterion 7's latency work — batching
+`submit_answer`'s 19 SQL statements, on the reasoning that each costs "SQLAlchemy compilation, a
+round-trip and a span" — and explicitly said nobody had measured CPU as a function of statement count,
+so it should be sized first. D-133 §3(b) had also made that same CPU-per-request lever the thing that
+would re-price the ~$216/month capacity purchase. This session sized it. **The price per statement was
+predicted almost exactly; the quantity was wrong by 3×, and the quantity is what decided it.**
+
+### 1. A new instrument, because the existing one prices the wrong thing
+
+`scripts/size_statement_cpu.py`. `profile_local_request.py` decomposes a request into root / node /
+SQL, which prices the statements **as a group and as wall time**; a batching decision needs the
+**marginal** cost of the statements it would remove, in **CPU**, since D-134 §6 established CPU at
+saturation as the binding constraint.
+
+**The methodological rule the script is built around: report the slope, never a total divided by a
+count.** A request's CPU includes work batching cannot remove — middleware, JWT verification,
+checkpoint serialisation, Pydantic validation. Dividing ~20 ms by 19 statements attributes all of it
+to statements. So the same statement shape runs at 100/300/600/1000 counts and a line is fitted: the
+**slope** is one more statement, the **intercept** is what a batch still pays. The script prints the
+misleading total÷count column deliberately, labelled `NOT the marginal cost`, because that is the
+number a reader would otherwise compute themselves.
+
+### 2. What a statement costs: 225–236 µs, and the prediction held
+
+Pre-registered before the first run (this repo's habit since D-132): R² > 0.98, and a marginal traced
+cost of **0.15–0.45 ms**.
+
+| shape | traced | untraced | the span's share |
+|---|---|---|---|
+| `orm_select` (one indexed row, hydrated) | **225–236 µs** | 176 µs | ~50 µs |
+| `raw_select_1` (round-trip floor) | 136–142 µs | 96 µs | ~47 µs |
+
+R² ≥ 0.999 in every arm across three runs. **The span costs ~48 µs and costs the same in both
+shapes** — an internal cross-check that the ON/OFF split is a real decomposition rather than drift,
+since a span's cost should not depend on the statement it wraps. 17 SQL spans × ~48 µs ≈ 0.8 ms, i.e.
+SQL spans are under a third of the ~2.8 ms D-134 §8 measured for *all* OTel instrumentation.
+
+### 3. What killed it: the count, not the cost
+
+`profile_local_request.py --statements` (added here) groups a request's statements by identical text.
+For the answer path:
+
+- The **19** is **17 statements plus 2 `connect` spans** — pool checkouts, which SQLAlchemy's
+  instrumentation also tags with `db.system`, so `_is_sql` counts them. **The count is left as 19 in
+  the existing table on purpose**: it is the figure D-131/D-132/D-134 reconcile local against staging
+  with, and redefining it mid-comparison would invalidate that reconciliation (D-129 §6). It is
+  excluded only in the new report, where the question is what a batch could remove.
+- **14 of the 19 are distinct.** Only **4** are the same statement issued more than once — the only
+  kind an identical-statement batch removes. Two are `SAVEPOINT`/`RELEASE SAVEPOINT`, and **one is
+  against the org's MySQL rather than Postgres**, so no batch spans it.
+
+**So the saving is 4 × 236 µs ≈ 0.9 ms of a ~20 ms request — about 4.6%.** That is a third of the
+OTel lever already judged not worth taking, and it is inside the run-to-run spread of the arms that
+measured it. **Decision: do not batch `submit_answer`.**
+
+**Why the prediction failed, which is the part worth keeping.** It predicted 10–25%, by multiplying a
+well-estimated price by a quantity **borrowed from AUD-F-31's `select_topic`** (47 → 7). That path's 47
+really were one lookup in a loop; this path's 17 are 14 different things. **"N statements" is not a
+unit of waste** — the two paths differ in the only property that mattered, and the analogy carried the
+number across while dropping the property. Third session in a row where a pre-registered expectation
+was wrong in a way that taught more than being right would have (D-132, D-134, this).
+
+**One claim explicitly not settled.** The pre-registration also predicted that the 19 statements do
+**not** each pay compilation, because SQLAlchemy caches compiled statements per process. The slope
+measured here is a cache *hit*, which is the right cost for a warm process — but it repeats one shape,
+so it says nothing about what 14 distinct statements cost on a cold task. That remains an inference
+from documented behaviour, not a measurement, and should not be quoted as one.
+
+### 4. So criterion 7's latency question is closed by exhaustion, not by a fix
+
+Every lever that has been measured: `select_topic`'s 47 → 7 statements (D-131) bought **no p95**
+(D-132); the ~726 ms gap is queueing, not work (D-134 §1–2); OTel is ~14% of CPU and trades against
+criterion 9's corpus (D-134 §8, still undecided); batching is 4.6% (this). **There is no remaining
+code lever that materially changes CPU per request.** Capacity is therefore bought, not optimised —
+which is what makes §5 the whole of the remaining question.
+
+### 5. The capacity model, re-priced against a ratio as the pointer required
+
+Interpolating ALB p95 between the only two measured arms (r = concurrent users per task):
+**`p95 ≈ 0.31 s × (r/2.5)^1.4`**, exponent **1.37–1.45** depending on whether A (0.33 s) or A′
+(0.29 s) anchors the low end, and reproducing the 12.5 arm's 2.98 s to within 1%.
+
+| target r | p95 | tasks at 25 concurrent | tasks at 150 |
+|---|---|---|---|
+| 12.5 (**today**) | 2.95 s | **2** | 12 |
+| 10 | 2.16 s | 3 | 15 |
+| 7.5 | 1.44 s | 4 | 20 |
+| 5 | **0.82 s** | **5** | 30 |
+| 2.5 | 0.31 s | 10 | 60 |
+
+**⚠️ Not extrapolable outside r ∈ [2.5, 12.5].** Two points cannot establish a functional form — that
+is precisely the error D-134's own pre-registration made in the other direction, and repeating it with
+a different exponent would not be an improvement.
+
+**The finding that changes the decision: the expensive target and the real target are not the same
+target.** D-133 priced 150 concurrent and got ~$216/month for what D-134 §7 then showed to be a
+knife-edge. But at the **documented pilot target of 25**, moving off the knife-edge costs **three more
+tasks** — 2 → 5, p95 2.98 s → ~0.8 s, ~+$54/month at D-133's own per-task figure. **The 6× purchase
+was always for §6.23's 150, never for the pilot.**
+
+**Two corrections to D-133's arithmetic, one in each direction.** (a) Its $18.02/task uses x86 Fargate
+rates while `cpu_architecture = "ARM64"` (D-122), so the per-task figure is likely ~20% high — **but
+confirm against the current price list and the real bill rather than a recalled rate before quoting a
+number.** (b) Its connection arithmetic is the more consequential one, and it is high by more than
+that: **`pool_size=10, max_overflow=10` is a per-task constant sized in S34 for one process serving
+150 concurrent sessions**, so multiplying tasks multiplies idle pool capacity, not useful connections.
+A session holds one connection for its whole transaction, so the demand rule is **`pool_size ≈ target
+r`** plus one psycopg connection per task for the checkpointer. Under that rule 25 concurrent needs
+~40 connections across both services — **`db.t4g.micro`'s ~112 is sufficient and no RDS resize is
+required for the pilot at all**, where D-133's fixed 21-per-task implied one was. 150 concurrent needs
+~180 and does require a resize, at 1.6× the ceiling rather than 2.8×.
+
+**⚠️ And the resize has lead time that is not money.** This account's Free Tier restrictions rejected
+`db.t4g.small` **outright**, with a real `CreateDBInstance` failure in S32/D-084. Anything above
+`micro` is a prerequisite to verify, not a line item to approve — it belongs with Message A and B on
+the list of things with external lead time.
+
+**Decision: the purchase stays deferred, and the recommendation changes shape.** Not "defer until the
+org answers", but: **target r = 5, which at the pilot's 25 concurrent is 5 tasks and needs no database
+change** — and it is separable from the 150 question entirely. Message D (unsent, S42_ORG_ASKS.md)
+still decides whether 150 is ever a requirement; nothing about the pilot's own sizing waits on it, and
+`autoscaling_max_capacity` is the only thing that has to move to allow it. Still nothing forces even
+that: there are no real users, and criterion 7 is met at 25 on its stated reading.
+
+## D-137 — The "terraform plan is not clean" carry-over resolved itself, by the hazard firing unnoticed inside the session that filed it (accepted, 2026-07-31)
+
+**Context.** D-134 minted a carry-over: `terraform plan` against staging reports **both task
+definitions "must be replaced"**, so "no routine `terraform apply` here is safe unattended". This
+session went to resolve or document it. **The plan is now clean — `No changes. Your infrastructure
+matches the configuration.`** Establishing *why* mattered more than the tick, because a clean plan
+produced by the wrong mechanism is worse evidence than a dirty one.
+
+### 1. What actually happened, from timestamps
+
+Both families' latest revisions (`learning-api:44`, `chat-api:43`) were registered at
+**09:31:56 −05:00 on 2026-07-31, three milliseconds apart**. CI cannot produce that: `deploy-staging.
+yml` deploys the two services sequentially with `aws ecs wait services-stable` between them, minutes
+apart. **One Terraform apply did it** — D-134's own capacity-pinning apply, which `-target`ed the
+`ecs_service` modules to pin `autoscaling_min_capacity` at 2/2 for the sweep. **`aws_ecs_task_
+definition.this` lives inside that module**, so targeting the module replaced both task definitions.
+
+**So the hazard fired inside the session that filed it as a carry-over, and nobody noticed** — and
+because it fired, Terraform's state and the live latest revision now agree, which is the entire reason
+today's plan is clean. The carry-over is closed by the thing it warned about.
+
+### 2. Nothing broke, and the reason is the guard that was already there
+
+Services still run **43** and **42**. `lifecycle.ignore_changes = [task_definition]` did exactly its
+documented job. The design held under a real unplanned test of it, which is worth recording as
+positive evidence rather than only as a near-miss.
+
+### 3. But the drift moved somewhere `plan` cannot see it
+
+`deploy-staging.yml` describes `--task-definition intellichoice-staging-learning-api` — a **family
+name**, which ECS resolves to the family's **latest ACTIVE revision** — then copies that revision's
+shape (`containerDefinitions`, `cpu`, `memory`, roles) and patches only the app container's image tag.
+Terraform's revision is now the latest. **So the next CI deploy inherits Terraform's shape, not the
+running one**, and `terraform plan` will keep reporting "No changes" the whole time, because from
+Terraform's point of view there is nothing wrong. This is the generalisable half: **`ignore_changes`
+converts a visible drift into an invisible one.** It stops Terraform fighting CI over the running
+service, at the cost of the plan no longer being the place the disagreement shows up.
+
+### 4. The shape difference, diffed rather than assumed — and it is benign
+
+`43` vs `44` (and `42` vs `43`) differ in exactly two things: the image tag, and the three D-130
+org-time variables (`ORG_TIME_CONVENTION=local_dst_aware`, `ORG_TIMEZONE=America/Chicago`,
+`ORG_TIME_CONFIRMED=false`), present in Terraform's revision and absent from the running one — the
+running tasks were deployed before the template gained them.
+
+**No live defect, and this was checked rather than hoped:** `resolve_org_time`'s defaults are
+`LOCAL_DST_AWARE`, `America/Chicago`, and unconfirmed — **identical to the values Terraform sets**. The
+running services already behave exactly as D-130 documents, including the WARNING every startup. The
+next deploy makes explicit what is currently implicit, which is the desirable direction.
+
+### 5. The one real hazard, and it is S39's repeated on a different fix
+
+`terraform.tfvars`' floor tags were **`gha-447d412617a2`** (447d412, 2026-07-29) while the running
+image is **`gha-544c6fe9749c`** (544c6fe, 2026-07-30). Both are ancestors of HEAD, so the floor was a
+day and several commits stale — and **544c6fe is AUD-F-30's `/readyz` tracing suppression**, which is
+criterion 9's evidence base. CI patches the tag on top, so an ordinary deploy is unaffected; but
+anyone who applied and then pointed a service at Terraform's revision would have reverted it.
+
+That is **precisely the S39 failure the tfvars comment already documents** ("only comparing it against
+what is *running* shows it. Bump this whenever a fix must survive a bare apply"), on a different fix,
+two sessions later. **The instruction was in the file and was not followed, which makes it a checklist
+item rather than a comment.**
+
+**Fixed: floor bumped 447d412 → 544c6fe.** Note the consequence honestly — `terraform plan` will now
+report a task-definition replacement again, i.e. **the plan goes from clean back to dirty, and that is
+the improvement.** Today's clean plan was clean because it agreed with a stale image.
+
+### 6. What was deliberately *not* done
+
+**No apply and no deploy.** Registering revisions is harmless, but pointing a service at one is a
+deploy, and D-133 already paid for that lesson: four deploys aged criterion 3's evidence and cost a
+whole re-run. The gate is **one read away (2026-08-02)**, so nothing gets deployed here for a benign
+env-var difference. The bumped floor takes effect on whatever apply happens next, for whatever reason.
+
+**Runbook fixed instead, because that is where this actually bites.** `INCIDENT_RESPONSE.md`'s
+leaked-credential playbook told an operator to run a bare `terraform apply -replace=random_password.
+jwt_signing_secret_learning` — under incident time pressure, which is the worst moment to apply an
+unreviewed plan. It now carries the `-target` form, the reason, and the instruction to check the
+tfvars tag against the running image first. **`-replace` does not mean "only this resource"**, and
+`-target`ing the ecs-service *module* is not narrow enough because the task definition is inside it.
+
+### 7. ⚠️ Verifying the prediction found a third task definition, and a date constraint
+
+Predicted: after the bump, `plan` shows a task-definition replacement and nothing else. **Measured: 3
+to add, 3 to destroy, nothing changed in place — and the third is `module.ops_task`**, whose
+`image = local.learning_api_image` shares the tag that was just bumped. D-134's carry-over said "both
+task definitions"; the correct count under a tag change is **three**.
+
+That third one carries a constraint the other two do not. `scheduled-jobs` sets
+`task_definition_arn = var.ops_task_definition_arn_prefix` — **the family ARN with no revision suffix,
+so every schedule runs the family's latest revision** (deliberately: an IAM policy pinned to one
+revision would start denying after the next deploy, per that module's own comment). So an apply here
+would register a new ops-task revision and **the next unattended firing of `chat-purge` /
+`retention-purge` / `memory-consolidate` would run a different image**.
+
+**Criterion 6's window closes 2026-08-02 and it is the last open criterion.** Swapping the artifact
+mid-window is D-129 §6's rule exactly ("changing the corpus while establishing evidence over it makes
+the evidence unreproducible"), and it would cost the same re-run D-133 paid for on criterion 3.
+
+**So: no `terraform apply` against staging before 2026-08-02's read, for any reason short of an
+incident** — and if an incident forces one, the runbook's `-target` form is now the way to keep it off
+the ops task. The bumped floor is preventive and costs nothing while it waits.

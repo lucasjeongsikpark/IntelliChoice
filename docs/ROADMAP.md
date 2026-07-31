@@ -745,6 +745,13 @@ and will until ~2026-10-20.
 **⚠️ 08-02 is a floor and no reading moves it**: `memory-consolidate` is **weekly**, has fired at most
 once, and a weekly job cannot evidence a week of unattended operation before its second firing. That is
 a missing observation, not a strict reading.
+**⚠️ No `terraform apply` against staging before the 08-02 read (D-137).** The schedules run the
+ops-task family's **latest revision, un-pinned** (`task_definition_arn` has no revision suffix, by
+design), and any apply here replaces **three** task definitions including `module.ops_task` — so an
+apply would swap the image under criterion 6's own evidence window. That is D-129 §6's rule, and it
+would cost the re-run D-133 already paid for on criterion 3. If an incident forces an apply, use
+`INCIDENT_RESPONSE.md`'s `-target` form.
+
 **⚠️ Quote this reading with the tick.** Criterion 6 will evidence *the schedules fire unattended and
 the jobs execute cleanly against the real database*. It will **not** evidence that the retention promise
 deletes correctly — neither purge job has ever deleted a row on staging and neither can until ~October,
@@ -892,6 +899,30 @@ come before the money: **150 concurrent has never been validated as a requiremen
 number, not measured demand, against a documented pilot target of 25), and **AUD-F-32 is the
 CPU-per-request lever** that could roughly halve the task count. **Purchase deferred (user call,
 D-133); re-price after both, and include the database.**
+
+**✅ Re-priced 2026-07-31 against a ratio, and the two paragraphs above are now superseded in both
+halves (D-136).** AUD-F-32 was measured (D-134: the gap is queueing) and the last CPU lever was sized
+and rejected (**batching `submit_answer` saves 0.9 ms of ~20 ms, 4.6%**), so **there is no remaining
+code lever that materially changes CPU per request** — the "could roughly halve the task count" hope is
+gone, and capacity is bought rather than optimised. Interpolating ALB p95 between the only two measured
+arms, `p95 ≈ 0.31 s × (r/2.5)^1.4` for `r` concurrent users per task (**not** extrapolable outside
+r ∈ [2.5, 12.5]):
+
+| target r | p95 | tasks at 25 | tasks at 150 |
+|---|---|---|---|
+| 12.5 (today) | 2.95 s | **2** | 12 |
+| 7.5 | 1.44 s | 4 | 20 |
+| 5 | **0.82 s** | **5** | 30 |
+
+**The expensive target and the real target are not the same target.** At the documented pilot 25,
+moving off the 0.7% knife-edge costs **three more tasks** (2 → 5, ~+$54/month), and the ~$216 was always
+for §6.23's 150. **And the RDS half of the obligation shrinks to nothing for the pilot:** D-133's
+~21 connections/task is a *per-task constant* sized in S34 for one process serving 150 concurrent, so
+multiplying tasks multiplies idle pool capacity — with `pool_size ≈ target r`, 25 concurrent needs ~40
+connections and **`db.t4g.micro`'s ~112 suffices**. 150 still needs a resize, at 1.6× not 2.8×, and
+**that resize has lead time, not just cost**: this account rejected `db.t4g.small` outright in S32/D-084.
+**Recommendation: target r = 5, sized for the pilot, separable from the 150 question** — which Message D
+still decides. Nothing forces it; criterion 7 is met at 25 on its stated reading.
 
 *(Superseded — how this read after D-131 and before the measurement:)*
 AUD-F-31 is fixed: the build issues **7 SQL statements instead of 47**, and ~40 fewer round-trips at

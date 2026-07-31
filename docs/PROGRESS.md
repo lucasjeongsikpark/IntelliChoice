@@ -5,6 +5,62 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ Criterion 7's latency question is closed by exhaustion, the capacity purchase is re-priced and
+  much smaller than it looked, and the `terraform plan` carry-over closed itself the hard way
+  (2026-07-31, D-136/D-137).** The gate still needs **one read: 2026-08-02**.
+  **⛔ The last named latency lead is dead at 0.9 ms.** Batching `submit_answer` saves **4 × 236 µs ≈
+  0.9 ms of a ~20 ms request, 4.6%** — a third of the OTel lever already declined. New instrument
+  `scripts/size_statement_cpu.py`, built on the rule that this decision needs a **slope, never a total ÷
+  a count**. Its pre-registered expectation **held on price** (225–236 µs/statement against a predicted
+  0.15–0.45 ms; R² ≥ 0.999; a span is ~48 µs and costs the same in both statement shapes) and **failed on
+  quantity**: the 19 is **17 statements + 2 `connect` spans**, **14 of 19 distinct**, only **4 repeated**,
+  one against MySQL. **Keeper: "N statements" is not a unit of waste** — the prediction multiplied a good
+  price by a quantity borrowed from AUD-F-31's `select_topic` (47 → 7, which really was one lookup in a
+  loop) and dropped the property that made it true. **The 19 stays 19** in the existing table: it is the
+  local↔staging reconciliation figure, so redefining it mid-comparison would void it (D-129 §6).
+  **So every lever has now been measured and none of them moves p95:** `select_topic`'s 47 → 7 bought
+  nothing (D-132), the ~726 ms is queueing (D-134), OTel is ~14% but trades against criterion 9's corpus,
+  batching is 4.6%. **Capacity is bought, not optimised.**
+  **✅ And bought, it is far cheaper than D-133 priced — for the target that actually exists.**
+  `p95 ≈ 0.31 s × (r/2.5)^1.4` between the only two measured arms (**not** extrapolable outside
+  r ∈ [2.5, 12.5] — D-134's own error in the other direction). At the documented pilot **25**, leaving the
+  0.7% knife-edge costs **three more tasks**: 2 → 5, p95 2.98 s → **~0.8 s**, ~+$54/month. The ~$216 was
+  always for §6.23's **150**. **Two corrections to D-133, the second the consequential one:** its ~21
+  connections/task is a per-task constant sized in S34 for **one** process at 150 concurrent, so
+  multiplying tasks multiplies *idle pool capacity* — with `pool_size ≈ target r`, 25 concurrent needs ~40
+  connections and **`db.t4g.micro`'s ~112 suffices, so the pilot needs no RDS resize at all**. 150 does,
+  at 1.6× not 2.8×, and **that resize is lead time before it is money** (this account rejected
+  `db.t4g.small` outright, S32/D-084). Its $18.02/task also uses x86 rates for an **ARM64** task, so
+  ~20% high — **confirm against the real bill before quoting any price.** Recommendation: **target r = 5**,
+  sized for the pilot and separable from the 150 question, which Message D still decides.
+  **🔬 The `terraform plan` carry-over is closed, because the hazard fired unnoticed inside the session
+  that filed it.** The plan is **clean** — and the reason is that **D-134's own capacity-pinning
+  `-target` apply replaced both task definitions**, since `aws_ecs_task_definition.this` lives *inside*
+  the ecs-service module. Both latest revisions were registered **09:31:56, three ms apart**, which CI
+  cannot produce (it deploys sequentially with `wait services-stable`). **Nothing broke:**
+  `ignore_changes = [task_definition]` held under a real unplanned test of it and the services still run
+  43/42.
+  **⚠️ But the drift moved where `plan` cannot see it.** `deploy-staging.yml` describes the task
+  definition by **family name**, which ECS resolves to the *latest* revision — now Terraform's — so the
+  next CI deploy inherits Terraform's shape while `plan` says "No changes" forever. **`ignore_changes`
+  converts a visible drift into an invisible one.** The shapes were **diffed, not assumed**: image tag
+  plus D-130's three org-time env vars, and that half is benign because `resolve_org_time`'s defaults are
+  *identical* to what Terraform sets.
+  **✅ The real hazard was S39's, on a different fix, two sessions later.** tfvars' floor was
+  `gha-447d412617a2` (07-29) while the running image is `gha-544c6fe9749c` (07-30) — and **544c6fe is
+  AUD-F-30's `/readyz` tracing suppression**, criterion 9's evidence base. The file's own comment already
+  said "bump this whenever a fix must survive a bare apply"; **the instruction was there and was not
+  followed**, which makes it a checklist item rather than a comment. Bumped, and the honest consequence is
+  that **`plan` goes clean → dirty, which is the improvement** — today's clean plan agreed with a stale
+  image.
+  **⚠️ Verifying that prediction found a third task definition and a hard date constraint.** "3 to add,
+  3 to destroy, 0 changed" — the third is `module.ops_task`, sharing the bumped tag, and the schedules run
+  that family's **latest revision, un-pinned by design**. So an apply would swap the image under criterion
+  6's own evidence window. **No `terraform apply` against staging before the 08-02 read**, short of an
+  incident; the runbook's `-target` form exists for that case. **`INCIDENT_RESPONSE.md` fixed**: it told an
+  operator to run a bare `terraform apply -replace=...` mid-credential-incident.
+  **Staging untouched this session** — no apply, no deploy, no capacity change. **634 passed / 2 skipped**,
+  lint and pyright clean.
 - **✅ The gate is down to two calendar dates, and AUD-F-32's ~726 ms turned out to be queueing
   (2026-07-31, D-134).** Criterion 3 is met again and criterion 7's margin is now measured.
   **Criterion 3: two consecutive whole-suite staging runs, 53 passed / 4 skipped / 0 failed each, no
@@ -971,8 +1027,48 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-31 close, post-D-134). The gate needs two dates and nothing else,
-  and the latency question has changed shape rather than closed:**
+- **Next session, in order (2026-07-31 close, post-D-136/D-137). The gate needs ONE read and no
+  engineering; everything else on this list is optional, and one item is a prohibition:**
+  1. **⛔ Do not `terraform apply` against staging before item 2 is ticked (D-137 §7).** The schedules run
+     the ops-task family's latest revision un-pinned, and any apply replaces three task definitions
+     including `module.ops_task` — swapping the image under criterion 6's own evidence window, which is
+     D-129 §6's rule and would cost D-133's re-run over again. If an incident forces one, use
+     `INCIDENT_RESPONSE.md`'s `-target` form.
+  2. **The gate's last item is ONE read: 2026-08-02, per job.** Confirm `memory-consolidate`'s **second**
+     firing landed (the only thing still unobserved — a weekly job cannot evidence a week before it),
+     re-read all three jobs' firing counts and error metrics from Scheduler's own metrics, and tick.
+     **Quote the reading with the tick** (D-135 §4): it evidences that the schedules fire unattended and
+     the jobs run cleanly, **not** that the retention promise deletes correctly — neither purge job has
+     ever deleted a row and neither can until ~2026-10-20. Also **2026-08-01: re-probe "How do I enroll a
+     student?"** and widen `chat_qa_staging.js`'s question list beyond the four documents effective today.
+  3. **Send Message A** (eleventh session carrying it; re-read it first, it gained a week-boundary question
+     in D-130) **and Message D**, separately — S42_ORG_ASKS.md's own one-ask-per-message rule. A gates S43,
+     not the gate; **D now decides whether the 150-concurrent question is ever worth pricing**, since
+     D-136 showed the pilot's own sizing does not wait on it.
+  4. **If capacity is bought, buy r = 5 for the pilot, not 12 tasks for 150 (D-136 §5).** 2 → 5 tasks,
+     p95 2.98 s → ~0.8 s, ~+$54/month, **no RDS change**. Prerequisites: `autoscaling_max_capacity` is
+     **3** and must move; `pool_size`/`max_overflow` should come *down* to ≈ r as tasks go up (they are
+     sized for one process at 150); and **confirm the real Fargate per-task rate against the bill** —
+     D-133's $18.02 is an x86 rate for an ARM64 task. Do not re-derive a task count by extrapolating the
+     ratio curve outside r ∈ [2.5, 12.5].
+  5. **No latency work remains to do — the question is closed by exhaustion (D-136 §4).** If anyone
+     reopens it, the only undecided lever is **OTel sampling (~14% of CPU)**, and it needs a decision about
+     criterion 9's trace corpus first, not a measurement. **Do not re-open batching**; it is 4.6%.
+  6. **AUD-F-33 (P2) is the only real engineering left, and it was deferred by user call, not closed.**
+     All three candidate explanations are dead; the remaining ones are inside Application Auto Scaling
+     itself (whether a scaling activity's completion re-arms the policy; whether `desired_count`'s
+     `ignore_changes` or a concurrent ECS deployment suppresses re-application). The repro is two
+     OK→ALARM cycles with capacity and traffic held identical — cheap now that `capacity-above-floor`
+     makes the condition visible unattended. **Note it needs an apply, so it waits for item 2.**
+  **Carry-overs unchanged:** `/readyz` still cannot distinguish "database gone" from "I am busy"; answer
+  brevity (D-115 (i)); AUD-F-22 and AUD-F-24's sibling; D-112's retrieval-margin re-measure; the ~2–4%
+  `rag_answer` `schema_invalid` rate. **Retired this session:** the RDS connection-arithmetic carry-over
+  (D-136 §5 replaces it with a rule — ceilings scale with total concurrency, not task count) and the
+  `terraform plan` carry-over (D-137, closed with a prohibition attached).
+
+- **Superseded — next-session pointer as of the D-134/D-135 close (2026-07-31). Items 3, 4 and 5 are done
+  (D-136/D-137); item 1's date is still the gate's last item; item 2 is still unsent; item 6 was deferred
+  by user call:**
   1. **The only gate item left is ONE date: 2026-08-02, read per job (D-135).** 08-05 was pulled in to
      08-02 — `retention-purge` was enabled 07-29, mid-clock, and the extra three days generate **no
      information** (staging's oldest data is 2026-07-22 against 90/365-day cutoffs, so it logs `purged 0
@@ -3084,6 +3180,82 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### Off-roadmap — the last latency lead sized and rejected, capacity re-priced against a ratio, terraform drift explained (2026-07-31) ✅
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-134/D-135)**, not a numbered roadmap block.
+  User chose items **5 → 4 → 3**; **item 6 (AUD-F-33's mechanism) deferred by user call** — it is a P2
+  with working detection, and the repro costs two ≥60-minute staging cycles for a mechanism that stays
+  unknown either way. Items 1 (08-01 re-probe, 08-02 read) and 2 (Messages A, D) are date-gated or human.
+- **Baseline verified green first:** `make lint`, `pyright` 0 errors, **634 passed / 2 skipped** —
+  matching D-134's recorded figures, so nothing was inherited red.
+- **⛔ Item 4: the last named latency lead is dead at 0.9 ms, and the price was right while the quantity
+  was wrong.** New instrument `scripts/size_statement_cpu.py`, built on the rule that a batching
+  decision needs a **slope, never a total ÷ a count** (a request's CPU includes middleware, JWT and
+  checkpoint work no batch removes). Expectation pre-registered before the first run and **held**:
+  R² ≥ 0.999 in every arm, marginal traced cost **225–236 µs/statement** against a predicted 0.15–0.45 ms;
+  untraced 176 µs, so a span is **~48 µs and costs the same in both statement shapes** — the internal
+  cross-check that the ON/OFF split is a decomposition rather than drift. Then `--statements` (added to
+  `profile_local_request.py`) priced the other factor: the **19 is 17 statements + 2 `connect` spans**,
+  **14 of 19 are distinct**, only **4 repeat**, and one is against MySQL. **4 × 236 µs ≈ 0.9 ms of ~20 ms
+  = 4.6%** — a third of the OTel lever already declined. **Do not batch `submit_answer`.**
+- **⚠️ Why that prediction missed is the keeper: it multiplied a well-estimated price by a quantity
+  borrowed from AUD-F-31's `select_topic` (47 → 7).** That path's 47 were one lookup in a loop; this
+  path's 17 are 14 different things. **"N statements" is not a unit of waste** — the analogy carried the
+  number and dropped the property that mattered. Third session running where a pre-registered
+  expectation was wrong more usefully than it could have been right (D-132, D-134, this).
+  **The 19 was deliberately left as 19** in the existing table: it is the figure D-131/D-132/D-134
+  reconcile local against staging with, so redefining it mid-comparison would void that (D-129 §6).
+- **✅ Item 3: capacity re-priced against a ratio, and the expensive target is not the real one.**
+  `p95 ≈ 0.31 s × (r/2.5)^1.4`, interpolated between the only two measured arms and **explicitly not
+  extrapolable outside r ∈ [2.5, 12.5]** — the error D-134's own pre-registration made in the other
+  direction. At the documented pilot 25, leaving the 0.7% knife-edge costs **three more tasks** (2 → 5,
+  p95 2.98 → ~0.8 s, ~+$54/month); ~$216 was always for §6.23's 150. **Two corrections to D-133**, the
+  second consequential: its ~21 connections/task is a per-task constant sized in S34 for *one* process
+  at 150 concurrent, so tasks multiply idle pool capacity — with `pool_size ≈ target r` the pilot needs
+  ~40 connections and **`db.t4g.micro` suffices, no RDS resize for the pilot at all**. Its $18.02/task
+  also uses x86 rates for an ARM64 task (~20% high) — **flagged to confirm against the real bill, not
+  quoted as a number.** Recommendation: **target r = 5**, separable from the 150 question.
+- **🔬 Item 5: the `terraform plan` carry-over closed itself, because the hazard fired unnoticed inside
+  the session that filed it.** Plan came back **clean**; establishing *why* was the work. Both families'
+  latest revisions were registered **09:31:56, three milliseconds apart** — impossible for CI, which
+  deploys sequentially with `wait services-stable`. It was **D-134's own capacity-pinning `-target`
+  apply**: `aws_ecs_task_definition.this` lives *inside* the ecs-service module. **Nothing broke** —
+  services still run 43/42, `ignore_changes = [task_definition]` did its documented job under a real
+  unplanned test of it.
+- **⚠️ But the drift moved where `plan` cannot see it.** `deploy-staging.yml` describes the task
+  definition by **family name**, which ECS resolves to the *latest* revision — now Terraform's — so the
+  next CI deploy inherits Terraform's shape while `plan` reports "No changes" indefinitely.
+  **`ignore_changes` converts a visible drift into an invisible one.** Shapes were **diffed, not
+  assumed**: they differ by the image tag and D-130's three org-time env vars, and that half is benign
+  because `resolve_org_time`'s defaults are *identical* to the values Terraform sets (checked, not hoped).
+- **✅ The real hazard was S39's, repeated on a different fix.** tfvars' floor was `gha-447d412617a2`
+  (07-29) while the running image is `gha-544c6fe9749c` (07-30) — and 544c6fe **is AUD-F-30's `/readyz`
+  tracing suppression**, criterion 9's evidence base. The tfvars comment already said "bump this whenever
+  a fix must survive a bare apply"; **the instruction was in the file and was not followed.** Bumped —
+  and the honest consequence is that **`plan` goes clean → dirty, which is the improvement.**
+- **⚠️ Verifying that prediction found a third task definition and a date constraint.** Measured "3 to
+  add, 3 to destroy, 0 changed" — the third is `module.ops_task`, which shares the bumped tag. The
+  schedules run that family's **latest revision, un-pinned by design**, so an apply would swap the image
+  under criterion 6's evidence window. **No `terraform apply` against staging before 08-02.**
+- **Deliberately not done: no apply, no deploy.** A deploy would age criterion 3's evidence again, which
+  D-133 already paid for. Fixed the **runbook** instead — `INCIDENT_RESPONSE.md` told an operator to run a
+  bare `terraform apply -replace=...` mid-credential-incident; it now carries the `-target` form, why
+  `-replace` is not scoped, and the instruction to check the tfvars tag against the running image first.
+- **Verification:** `make lint` clean, `pyright` 0 errors, **634 passed / 2 skipped** (unchanged from
+  baseline). `terraform plan` run twice (read-only) and its diff confirmed field-by-field. **Staging
+  untouched** — no apply, no deploy, no capacity change; services left at 2/1 as found.
+- **Decisions:** D-136 (batching refuted; capacity re-priced against a ratio), D-137 (the drift's
+  mechanism, the stale floor, the no-apply-before-08-02 constraint). **ROADMAP.md edited (scope
+  consequence):** the ~$216 capacity block is superseded with the ratio table and the pilot/150 split,
+  and the gate block gained the no-apply constraint. **ARCHITECTURE.md edited:** two capacity bullets —
+  the priced ratio table, and connection ceilings scaling with total concurrency rather than task count.
+- **Carry-over:** criterion 6's 08-02 read and the 08-01 chat re-probe; **Messages A and D still unsent
+  (A's tenth session)**; AUD-F-33's mechanism (P2, deferred this session, repro cheap); the OTel-sampling
+  decision (~14% of CPU, still trades against criterion 9's corpus); **confirm the real Fargate per-task
+  rate against the bill** before quoting a capacity price; `autoscaling_max_capacity` must move from 3
+  before any r = 5 sizing; and the unchanged four — `/readyz` cannot distinguish "database gone" from
+  "I am busy", answer brevity (D-115 (i)), AUD-F-22 and AUD-F-24's sibling, D-112's retrieval-margin
+  re-measure, the ~2–4% `rag_answer` `schema_invalid` rate.
 
 ### Off-roadmap — criterion 3 closed, AUD-F-32 measured instead of optimised, AUD-F-33 reproduced (2026-07-31) ✅
 - **Scope: PROGRESS.md's own "Next session" pointer (post-D-132/D-133)**, not a numbered roadmap

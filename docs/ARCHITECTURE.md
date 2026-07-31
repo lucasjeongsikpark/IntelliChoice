@@ -74,6 +74,35 @@ to rot, because nothing fails when it does.)*
   round-trips does **not** buy latency when CPU is the scarce resource (D-132 measured exactly
   that), and capacity should be planned from a target **concurrency-per-task ratio** rather than a
   task count.
+- **The ratio is now priced, and the answer is that the pilot's real target is cheap while
+  §6.23's 150 is not** (D-136). Interpolating ALB p95 between the only two measured arms —
+  `p95 ≈ 0.31 s × (r/2.5)^1.4`, where `r` is concurrent users per task, exponent 1.37–1.45
+  depending on which of A/A′ anchors the low end:
+
+  | target `r` | p95 | tasks at 25 concurrent | tasks at 150 |
+  |---|---|---|---|
+  | 12.5 (**today**) | 2.95 s | **2** | 12 |
+  | 10 | 2.16 s | 3 | 15 |
+  | 7.5 | 1.44 s | 4 | 20 |
+  | 5 | **0.82 s** | **5** | 30 |
+  | 2.5 | 0.31 s | 10 | 60 |
+
+  **Do not extrapolate outside `r` ∈ [2.5, 12.5]** — two points cannot establish a functional
+  form, which is the exact error D-134's own pre-registered prediction made in the other
+  direction. The headline: **at the documented pilot target of 25 concurrent, a comfortable p95
+  costs three more tasks, not twenty-eight.** 2 → 5 tasks moves p95 from a 0.7%-margin 2.98 s to
+  ~0.8 s.
+- **Connection ceilings scale with total concurrency, not with task count — provided the pool is
+  resized with it.** `create_engine`'s `pool_size=10, max_overflow=10` was sized in S34 for **one**
+  process serving 150 concurrent sessions; it is a per-task constant, so multiplying tasks
+  multiplies *idle pool capacity* rather than useful connections. A session holds one connection
+  for its whole transaction, so the demand rule is **`pool_size ≈ target r`** (plus one psycopg
+  connection per task for `AsyncPostgresSaver`). Under that rule 25 concurrent needs ~40
+  connections across both services and **`db.t4g.micro`'s ~112 is sufficient**; 150 concurrent
+  needs ~180 and does require a resize — 1.6× the ceiling, not the 2.8× a fixed 21-per-task
+  implies. **⚠️ And a resize has lead time that is not money:** this account's Free Tier
+  restrictions rejected `db.t4g.small` outright with a real `CreateDBInstance` failure in S32/D-084,
+  so anything above `micro` is a prerequisite to check before it is a line item.
 - **Deterministic core** — grading, attendance gating, authorization, mastery, study-plan
   selection, and question validation are code, never an LLM (non-negotiable #2). The S9 AI
   pipeline only proposes *shape keys from an allowlist*; every output is re-validated
