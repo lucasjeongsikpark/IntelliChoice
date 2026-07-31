@@ -3451,10 +3451,27 @@ scales out reliably and scales in unreliably has a cost floor set by its worst r
 staging sat at 150% of its baseline capacity for hours with no traffic, and nothing alarmed on it.
 On the pilot's real usage pattern (school hours, then idle) that is the common case, not the corner.
 
-**Not diagnosed.** Distinguishing "Application Auto Scaling only acts on the alarm's OK→ALARM
-*transition*" from a cooldown interaction needs a controlled repro, which is its own exercise; this
-entry records the observation and the evidence rather than guessing the mechanism. **`desired-count`
-was set back to 2 manually** to restore the baseline. Worth a look before quoting the autoscaling
+**It is learning-api-specific, and a same-hour control rules out the generic explanations.**
+`chat-api`'s scale-in policy fired **twice in the same hour**, exactly as configured — 3 → 2 at
+**00:15:32Z** and 2 → 1 at **00:21:32Z**, six minutes apart, consistent with its own 300 s cooldown —
+while `learning-api` sat at 3 from 00:22:51Z with its scale-in alarm in ALARM from 00:51Z and **no
+activity at all**. Both services use step scaling on a p95-latency alarm pair. So this is not
+Application Auto Scaling declining to act on a sustained ALARM in general, not an account-level
+issue, and not a cooldown that applies to both: **something specific to learning-api's alarm or
+policy pair.** The likeliest candidates are the alarm's own datapoint configuration (periods,
+`datapoints_to_alarm`, treatment of missing data) and the fact that learning-api's `min_capacity` is
+2 against chat-api's 1 — but both are unverified, and the difference between them is exactly what a
+controlled repro would settle.
+
+**Not diagnosed further.** This entry records the observation, the same-hour control, and the
+narrowed hypothesis rather than guessing a mechanism. **`desired-count` was set back to 2 manually**
+to restore the baseline.
+
+**Related, and worth knowing before quoting criterion 7's chat leg:** chat-api's `min_capacity` is
+**1**, so its baseline is one task and the "**3 tasks running, ≥ 2 ✅**" recorded for criterion 7 was
+supplied by scale-out *during* the run, not by resting capacity. That is legitimate for a criterion
+measured under load — but a reader who checks the service at rest will find one task and think the
+evidence was wrong. Worth a look before quoting the autoscaling
 half of criterion 7 again, and worth an alarm on `desiredCount > min_capacity` sustained over some
 window — the condition was invisible for two hours and only surfaced because a measurement needed
 the capacity to hold still.
