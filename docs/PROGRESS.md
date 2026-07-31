@@ -5,6 +5,47 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ AUD-F-34 is fixed and verified on staging — the job had its first clean run ever, and it took
+  three deploys because two of my own constants were wrong (2026-07-31, D-141).**
+  `gha-cfe9dbc0d507` / ops-task rev 40: **8 of 8 model calls succeeded, exit 0, 5 facts reconfirmed,
+  23.26 cents** — against 0/1 before the fix. **644 → 645 tests**, lint and pyright clean.
+  **The fix is token-budgeted chronological chunking**, as the user proposed: pack event summaries
+  into calls under an input budget, re-reading `existing_facts` per call so a later batch sees an
+  earlier batch's writes. Order is load-bearing, not cosmetic. `_verify_evidence` already scoped
+  citations to the batch that was sent, which is what made chunking safe by construction.
+  **The generalisable half: `main()` now returns 1 when every call in a run failed**, so the
+  ops-task rule (`exitCode: anything-but 0`) fires. **Keeper: a job that catches its own errors must
+  not report success by exhaustion.**
+  **⚠️ Two of my constants were wrong, and both were found by deploying, not by review.** 120k
+  tokens was sized against the *context window* — the least binding of three constraints: it cost
+  **66.18 cents for two students** (52 of it on a student producing zero facts) and did not finish
+  inside the 20 s timeout. Re-tuned to 20k → cost fell 5.9×, **and the timeouts persisted**, which
+  refuted the input hypothesis. The real driver is the **output** budget, which scales with a
+  student's existing fact count: 0 facts → 1280 tokens → always succeeded; 7 facts → 2176 → always
+  timed out, twice-observed. `bedrock_call_timeout_s` 20 → 120 s (memory-specific). **That walks back
+  my own "raising a timeout repeats AUD-F-34's mistake"** — true for unbounded work, and by then both
+  bounds existed.
+  **⚠️ Five of ten new tests were worthless and an inverted control caught it.** They computed input
+  sizes *from* the constants they pinned, so raising the bound to 100,000,000 tokens scaled the inputs
+  and all 21 still passed. Rewritten against absolute sizes; three controls now fail the right tests
+  (5, 2, 1) and pass restored.
+  **⛔ The approved trim was aimed at the wrong table, and counting first is the only reason it did not
+  happen.** `tutor_chat_messages` holds **3 rows and 28 characters**; 3 of the window's events are
+  `chat_turn`. The real input is **13,865 `learning_events`** at ~15 tokens each — a **count** problem,
+  not a message-length one. **Recommendation: do not trim** (supersedes the approved action): the 20k
+  cap bounds cost regardless of volume, and `learning_events` is the evidence base the new facts cite.
+  **Gap noted, not closed: nothing purges `learning_events`** — the one table that grows without bound.
+  **⚠️ A scaling number for the pilot (D-141 §8):** ~2–3 cents per real student per week ⇒ **$90–120/month
+  at 1,000 MAU, comparable to the entire current AWS bill**. And `bedrock_run_budget_cents = 200` stops
+  the run after ~70–90 students. **The weekly job as configured cannot serve the pilot cohort** — now at
+  least visible via `budget_stopped` and the summary line. Launch work, not decided.
+  **AUD-F-35 (P2) filed, not fixed:** `promote_if_eligible` applies no evidence bar despite its name and
+  despite `reconfirm_fact`'s docstring claiming it does, so plan §9's ≥3-events/≥2-sessions rule is
+  enforced at creation and bypassed on the next reconfirmation. Fixing it changes what the tutor reads.
+  Batching would have amplified it, so `_maybe_promote` skips this run's own creations — neither fixed
+  nor made worse.
+  **Criterion 6 is unblocked but not evidenced:** the job can now succeed, so 08-02's firing is a real
+  test rather than a guaranteed failure. The date still rests on the two-firing reading (**08-09**).
 - **⛔⛔ AUD-F-34 (P1): `memory-consolidate` has never once worked, it fails silently, and criterion 6
   would have been ticked on it (2026-07-31, D-140).** Found by the de-risking run approved this
   session — **before** the job's first-ever firing, which is what made it findable at all.
@@ -1104,8 +1145,30 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-31 third close, post-D-140). Criterion 6 is no longer a date — it is
-  a P1 code fix, and item 1 is the whole session:**
+- **Next session, in order (2026-07-31 fourth close, post-D-141). AUD-F-34 is fixed and deployed; what
+  is left is one date, two decisions and the messages:**
+  1. **2026-08-02: read criterion 6 with `make scheduler-evidence`.** `memory-consolidate`'s first-ever
+     firing lands that day and the job is now capable of succeeding, so this is a real test. **The date
+     for the criterion itself is 2026-08-09** on the two-firing reading chosen this session. Also
+     **08-01: re-probe "How do I enroll a student?"** and widen `chat_qa_staging.js`'s question list.
+  2. **Decide `bedrock_run_budget_cents` before the pilot (D-141 §8).** At ~2–3 cents per real student
+     per week the 200-cent budget stops the run after ~70–90 students, and 1,000 MAU implies **$90–120
+     /month, comparable to the entire current AWS bill**. Also decide whether students skipped by the
+     budget should be paged into the next run rather than silently dropped — `budget_stopped` makes the
+     condition visible but nothing acts on it.
+  3. **Decide whether `learning_events` gets a retention promise (D-141 §5).** `chat-purge` and
+     `retention-purge` cover four tables; nothing purges the one that grows without bound and broke this
+     job. A SPEC question. **Do not trim it as a cleanup** — the new facts cite those event ids.
+  4. **Send Message A** (twelfth session carrying it) **and Message D**, separately.
+  5. **AUD-F-35 (P2):** fix `promote_if_eligible`'s missing evidence bar. Write the failing test first —
+     create a fact with one supporting event, reconfirm with one more, assert it is still `provisional` —
+     and run the inverted control, because the current code passes an `active` assertion.
+  6. **One Billing-console look** for the remaining credit balance (D-139 §3).
+  7. **If capacity is bought: r = 5, +3 tasks, ~$43/month** (D-139 §2). **AUD-F-33 (P2)** still needs an
+     apply; the criterion-6 apply prohibition still holds until the read.
+
+- **Superseded — pointer as of the D-140 close (2026-07-31). Item 1 is done (D-141): the fix landed in
+  three deploys, and the trim in item 1(c)'s spirit was refuted by measurement:**
   1. **⛔⛔ AUD-F-34 (P1) blocks criterion 6 and needs three decisions before any code (D-140 §5).**
      (a) **Fix now and re-run criterion 3's two staging runs, or hold** until the criterion-6 window
      closes — the fix is app code, so it ages the byte-identical-to-HEAD evidence *and* needs the deploy

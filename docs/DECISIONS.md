@@ -8251,3 +8251,63 @@ for a cost the cap already controls.
 `retention-purge` covers three more tables, and **nothing purges `learning_events`** — the one table
 that actually grows without bound and the one that broke this job. That is a SPEC question about
 retention, not a defect, and it is filed on AUD-F-34 rather than decided here.
+
+### 6. ⚠️ And the second wrong constant: the timeouts were never about the prompt at all
+
+The 20k re-tune cut cost 5.9× (66.18 → 11.24 cents) and `student-ext-1` **still failed all four
+calls**. So input size was never the cause. What is:
+
+| existing facts | `max_output_tokens` | outcome |
+|---|---|---|
+| 0 | 1280 | `student-ext-4` — succeeded in **every** arm, at 120k input *and* at 20k |
+| 7 | 2176 | `student-ext-1` — timed out in **every** arm |
+| 21 (`MAX_SAFE_EXISTING_FACTS`) | 3968 | — |
+
+Twice-observed and consistent. In the 120k run `student-ext-1` began at 0 facts, its **first** call
+succeeded and wrote the 7 facts, and the three calls after it — now at 2176 output tokens — timed
+out. The 20k run started it at 7 facts and all four timed out. **Latency on this path scales with
+the output budget, which scales with a student's existing fact count**, and `max_output_tokens_for`
+is derived from that count deliberately (S43), so clamping it would truncate the answer instead of
+the prompt.
+
+`MemoryConsolidationSettings.bedrock_call_timeout_s`: **20 → 120 s**, memory-specific, so no
+interactive surface moves. **This walks back §3's own reasoning and it is worth saying why rather
+than quietly editing it.** §3 said lengthening the timeout would repeat AUD-F-34's mistake. That
+warning is about growing a bound to accommodate *unbounded* work — and by this point both bounds
+exist: 20k input tokens per call and at most 4 calls per student. With the work bounded on both
+axes, 20 s is simply the wrong number for a weekly background job where nobody is waiting; it was
+inherited from surfaces where someone is. A timeout here also does not cost one call: `max_retries`
+is 2, so two timeouts spend 6 attempts against a `circuit_failure_threshold` of 5 and end the run.
+
+### 7. Verified on staging, and the first clean run this job has ever had
+
+`gha-cfe9dbc0d507`, ops-task revision 40:
+
+```
+student-ext-4: +0 facts, 0 reconfirmed ... (11.2416 cents) [5485 event(s) dropped]
+student-ext-1: +0 facts, 5 reconfirmed ... (12.0160 cents) [6355 event(s) dropped]
+Consolidation run complete: 2 student(s), 0 added, 5 reconfirmed, 0 contested, 0 expired,
+  23.26 cents spent; 8 model call(s), 0 failed, 11840 event(s) dropped.
+```
+
+**8 of 8 calls succeeded, exit 0, and 5 facts reconfirmed** — against 0/1 before the fix, 5/8 at
+120k, and 4/8 at 20k with the old timeout. The `events_dropped` counts are the cap working on
+load-test exhaust and are reported rather than silent, which is the point.
+
+Three arms, one conclusion each, and none of them was reachable by reasoning: the fix works, the
+first constant was wrong on cost and timeout, and the second constant was wrong about which axis
+mattered. **Every one of those was found by deploying and running it, not by review.**
+
+### 8. ⚠️ A scaling number the pilot should know, filed rather than fixed
+
+This run cost **~12 cents per student**, with the call cap saturated on synthetic volume. A real
+student's week fits in **one** call (~2 cents of input plus output), so realistically ~2–3 cents per
+student per week.
+
+**At 1,000 MAU that is roughly $20–30 a week, i.e. $90–120/month — comparable to the entire current
+AWS bill** (D-139 §4: $72.12 for July, all services). And `bedrock_run_budget_cents` is **200**, with
+a comment reading "a small cohort pre-launch": at 2–3 cents a student the budget stops the run after
+~70–90 students, and at this run's 12 cents after ~17. **So the weekly job as configured cannot serve
+the pilot's cohort, let alone 1,000 MAU** — it will silently stop early, which is now at least
+visible in the summary line and the `budget_stopped` flag. Sizing that budget, and deciding whether
+students should be paged across runs rather than dropped, is launch work and is not decided here.

@@ -712,8 +712,16 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**⛔⛔ Standing as of 2026-07-31 (post-D-140): criterion 6 is blocked on a P1 code fix, not on the
-calendar.** **AUD-F-34** — `memory-consolidate` has **never once worked**: every model call fails on
+**✅ Standing as of 2026-07-31 (post-D-141): AUD-F-34 is fixed, deployed and verified — criterion 6 is
+unblocked but not yet evidenced.** `memory-consolidate` had its first clean run ever on
+`gha-cfe9dbc0d507` (ops-task rev 40): **8 of 8 calls succeeded, exit 0, 5 facts reconfirmed**. So
+2026-08-02's firing is now a real test rather than a guaranteed failure. **The date still rests on the
+two-firing reading chosen this session: 2026-08-09.** Criterion 2 is affected: AUD-F-34 closes, and
+**AUD-F-35 (P2)** is newly open. Read criterion 6 with `make scheduler-evidence`, which now also fails
+its verdict on failure lines regardless of exit code, so it cannot certify a hollow run.
+
+*(Superseded, post-D-140 — the analysis stands, the blocker is cleared:)* **criterion 6 is blocked on a
+P1 code fix, not on the calendar.** **AUD-F-34** — `memory-consolidate` has **never once worked**: every model call fails on
 prompt length (`215355 tokens > 200000 maximum`) and the job **exits 0**, so the ops-task failure rule
 (`exitCode: anything-but 0`) cannot fire and its own summary line reads `Consolidation run complete …
 0 added`. Found by the de-risking run recommended in D-138 §6, **before** the job's first-ever firing.
