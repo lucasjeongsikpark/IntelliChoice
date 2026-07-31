@@ -3280,7 +3280,7 @@ carry-over rather than done under a capacity change.
 Two findings, both from the same 25-VU authenticated load run that produced the criterion-9
 evidence. Neither is a correctness defect; both are things a measurement was quietly wrong about.
 
-### AUD-F-30 — 97% of every trace this project has ever scanned is a health check, and X-Ray's free tier stopped covering it (P3, found 2026-07-30, D-129; not fixed)
+### AUD-F-30 — 97% of every trace this project has ever scanned is a health check, and X-Ray's free tier stopped covering it (P3, found 2026-07-30, D-129; ✅ fixed 2026-07-31, D-132, on the third attempt)
 
 Measured, not estimated: **2,394 traces in the hour before the load run, and every one of them was
 `GET /readyz`** — 5 tasks × ~478 checks each. The 350 authenticated requests the load run generated
@@ -3303,12 +3303,57 @@ Two consequences, in increasing order of importance:
    exactly why D-104 §3's coverage control exists and why this session ran one: the claim that
    matters is not the total, it is that the **350 authenticated traces were in the scanned set**.
 
+**✅ FIXED (2026-07-31, D-132) — on the third attempt, and the first two were measured wrong in
+opposite ways. The "~97%" in the fix direction below was not merely imprecise; the first attempt got
+the sign wrong.**
+
+| attempt | change | idle traces / 10 min |
+|---|---|---|
+| baseline | — | **320**, 100% `GET /readyz` |
+| 1 | `excluded_urls` on `FastAPIInstrumentor` | **1,095** ⬆ **3.4× worse**, 100% no-URL orphans |
+| 2 | + `suppress_instrumentation` inside `ping_engine` | **160**, still all orphans |
+| 3 | + suppression around each `/readyz` **handler body** | **0** ✅ |
+
+**And zero is only meaningful with the coverage control**, because "no traces at all" is exactly how
+AUD-F-12 certified an empty store as PII-clean. Immediately after the idle measurement, a 3-VU
+authenticated run produced **42 traces for 42 requests** — 3 `token`, 3 `sessions`, 3 `student`,
+3 `topics`, 30 `answers`, i.e. the flow's exact shape, every one attributable by URL and not one
+`/readyz`. **Idle costs nothing; real traffic is still fully traced.** Criterion 9's evidence base is
+intact and its denominator now means what a reader assumes.
+
+**Attempt 1 was worse, not just insufficient: dropping a server span orphans its children rather
+than removing them.** `/readyz` pings two engines; each ping emits a `connect` and a `SELECT` span.
+With no parent server span, each becomes its own **root segment — its own trace**. One attributable
+health-check trace became four unattributable ones, so both halves of this finding got worse: more
+traces to pay for, and a corpus whose denominator can no longer be read at all, since nothing
+identifies the survivors as health checks.
+
+**Attempt 2 left 160/10 min because per-query suppression only covers the queries someone
+annotated.** chat-api's `/readyz` also runs AUD-C-16's embedding-provenance check through
+`RagRepository` — not `ping_engine`, added later, for an unrelated reason, by someone not thinking
+about a path polled every 15 s. **The fix belongs at the handler**: `/readyz` should cost nothing
+*as an endpoint*, so whatever is added inside it is free by construction. `excluded_urls` stays, so
+no server span is created either.
+
+**Three things worth keeping.** (a) **A fix aimed at a mechanism can move the metric the wrong
+way** — only re-measuring caught it, and the estimate ("~97% fewer") would have been reported as the
+result had the plan not called for measuring it. (b) **The test that shipped with attempt 1 asserted
+`"GET /readyz" not in names` and passed cleanly against the regression.** An assertion that names
+the mechanism you fixed cannot see a mechanism you did not think of — count the output instead; the
+test now asserts the total span count is zero. (c) The inward contextvar propagation the handler-level
+fix relies on was **verified empirically**, because an earlier docstring of `ping_engine` asserted
+the opposite: `asyncio.wait_for` creates a Task, a Task copies contextvars at creation, so an outer
+suppression *does* apply inside. Pinned by a test.
+
+*(Superseded — the fix direction as originally filed, kept because its confidence is the point:)*
 **Fix direction** (not applied — it changes what staging records, and criterion 9's evidence was
 being gathered in the same session): exclude the health endpoints from instrumentation, e.g.
 `FastAPIInstrumentor`'s `excluded_urls` (`readyz,healthz`) or an X-Ray sampling rule at 0% for them.
 Either drops recorded traces by ~97%, removes the cost question entirely, and makes the scan's
 denominator mean what a reader assumes it means. **Deliberately not done mid-measurement**: changing
 the corpus while establishing evidence over it is how a clean result becomes unreproducible.
+*(The first of those two options was implemented and made it 3.4× worse. "Either drops recorded
+traces by ~97%" was a guess stated as an arithmetic certainty.)*
 
 ### AUD-F-31 — `select_topic` spends its 1.6 s on ~50 sequential SQL round-trips, and none of them are checkpoint writes (P2, found 2026-07-30, D-129; ✅ fixed 2026-07-30, D-131; ✅ verified on staging 2026-07-31, D-132)
 
@@ -3332,6 +3377,17 @@ claim.**
 **3 of 5 breaching**. Ranges overlap (2.14–2.96 against 2.48–3.60) and n=5 per arm, so a *regression*
 is not established — but the projected *improvement* is refuted. **D-129 §5's "criterion 7's gap
 just got cheap" was wrong, and the ~$216/month capacity obligation stays open.**
+
+**⚠️ A second, independent instrument agrees, and it upgrades the claim.** The deployed
+`learning-api-p95-latency` alarm — ALB `TargetResponseTime` p95, measured server-side by CloudWatch,
+entirely separate from k6's client-side timing — **went OK → ALARM at 02:34:38Z on datapoints 3.21 /
+3.80 / 3.54 s**, which are the after arm's runs 3, 4 and 5 (02:28, 02:30, 02:31). `describe-alarm-history`
+shows **no transition at all during the before arm** (23:44:30–23:54:30Z), which ran the same five-run
+structure at the same ~2 min 18 s spacing. So the honest statement is stronger than "the projected
+improvement did not appear": **the after arm tripped the deployed 3 s paging threshold and the before
+arm did not.** The margin is small (3.2–3.8 s against 3.0) and n is still 5 per arm — but it is no
+longer one instrument's noise, and the alarm is the operational promise the environment makes about
+itself.
 
 **Why, evidenced rather than asserted.** ECS CPU peaks are the same on both arms (79–92% before,
 72–96% after) while 60 s averages are slightly lower after. The task is **CPU-bound at 25

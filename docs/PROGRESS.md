@@ -65,7 +65,37 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **AUD-F-33 (P3): learning-api did not scale back in for over two hours** while its scale-in alarm
   sat in ALARM, no scaling activity recorded; it scaled in fine earlier the same day, so it is
   intermittent. D-122's "2 → 3 in ~1 min" evidences scaling **out** only. `desired-count` restored to
-  2 manually. **630 passed / 2 skipped** (+2), lint and pyright clean.
+  2 manually. **634 passed / 2 skipped** (+6), lint and pyright clean.
+  **⚠️ A second instrument agrees, and it upgrades the claim (added at close).** The deployed
+  `learning-api-p95-latency` alarm — ALB `TargetResponseTime` p95, server-side, independent of k6 —
+  went **OK → ALARM at 02:34:38Z** on datapoints 3.21 / 3.80 / 3.54 s, which are the after arm's runs
+  3–5; and `describe-alarm-history` shows **no transition during the before arm**, same structure and
+  spacing. "No regression is established" was right on one instrument. On two: **the after arm tripped
+  the deployed 3 s paging threshold and the before arm did not.** Small (3.2–3.8 s against 3.0) and
+  still n=5, but not one tool's noise.
+  **✅ AUD-F-30 closed on the third attempt, with the coverage control that makes zero meaningful.**
+  Idle 10 minutes: **320 → 1,095 (⬆3.4× worse) → 160 → 0**. Attempt 1 (`excluded_urls` alone) was
+  worse because **dropping a server span orphans its children rather than removing them** — each
+  `SELECT 1` became its own root trace, unattributable. Attempt 2 (suppress inside `ping_engine`) left
+  160 because chat-api's `/readyz` *also* runs AUD-C-16's provenance check, added later for an
+  unrelated reason. Attempt 3 suppresses the **whole handler**, so anything added inside is free by
+  construction. **Zero alone would be the AUD-F-12 failure**, so a 3-VU run followed immediately:
+  **42 traces for 42 requests**, the flow's exact shape, every one URL-attributable, zero `/readyz`.
+  **⚠️ Criterion 8 is 3 of 4, not 4 of 4** — the inbox was read. Seven of the eight
+  `learning-api-p95-latency` transitions are there including 18:44:38Z, so **that alarm is confirmed
+  reaching a human**. `learning-api-5xx-rate` fired once (18:26:40Z) and is **not among them**; search
+  `from:no-reply@sns.amazonaws.com "learning-api-5xx-rate"`. Not closed by inference.
+  **⚠️ Criterion 3's evidence was aged by this session's own four deploys** — one changed
+  deterministic-core code, and D-120's two clean runs were against older images. Re-run against `:43`
+  (sha `544c6fe9749c` = HEAD): **53 passed / 4 skipped / 0 failed**, but **`narrative-refresh.spec.ts`
+  is flaky** (failed first attempt, passed on retry; confirmed by running it alone). **That is one
+  clean run; the criterion needs two consecutive**, and a journey that passes only on retry is weaker
+  than the wording implies.
+  **Harness keeper:** the first e2e attempt reported **17 failures and none were real** —
+  `make e2e-staging` does not fetch the `/dev/token` secrets the way `load-staging-learning` does, and
+  `e2e/config.ts` defaults them to `""`, so D-097's gate 404s and every authenticated journey fails
+  together. **A wall of failures sharing one dependency is a harness signal** — diagnosed, not assumed,
+  and confirmed by the passing re-run. Teach the target to fetch them.
 - **✅ AUD-F-31 fixed: the learning app's p95 driver goes from 47 SQL statements to 7 (2026-07-30,
   D-131) — and the exam it builds is provably the same one.** `select_topic`'s build was three
   round-trips per item over ten items, five per-difficulty template reads, and ten more reads to
@@ -217,6 +247,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   than testable, and "mapped to implementation + test" cannot mean the same for "use Pydantic v2
   everywhere" as for "grading never involves an LLM". Say so per section; do not invent a test to
   point at.
+- **⚠️ Superseded 2026-07-31 (D-132): criterion 8 is now 3 of 4.** The inbox was read and holds seven
+  of the eight `learning-api-p95-latency` transitions including the 18:44:38Z one this entry went
+  looking for, so **that alarm is confirmed reaching a human**. `learning-api-5xx-rate` fired exactly
+  once (ALARM 18:26:40Z / OK 18:29:40Z) and is **not among them** — search
+  `from:no-reply@sns.amazonaws.com "learning-api-5xx-rate"`. The entry below stands as written for the
+  chat pair and for its reasoning about not closing on inference, which is why 4 of 4 is still not
+  claimed.
 - **⚠️ Criterion 8 is 2 of 4 confirmed, not complete — the four emails produced are two alarms
   counted twice (2026-07-30, D-126).** `chat-api-p95-latency` ALARM (19:17:56Z), `chat-api-5xx-rate`
   ALARM (19:18:35Z), and the matching **OK** notices for both. **The two `learning-api` emails were
@@ -816,13 +853,19 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 - **Next session, in order (2026-07-31 close, post-D-132). The gate needs a mailbox and two dates and
   nothing else; the engineering queue has a new head:**
-  1. **The three human items, unchanged in substance and now more urgent by the calendar** — see the
-     superseded pointer below for full detail. **(a) Send Message A** (ninth session carrying it;
-     re-read it, it gained a week-boundary question in D-130). **(b) Read the inbox** for the two
-     `learning-api` SNS notices — search `from:no-reply@sns.amazonaws.com learning-api`, they fired
-     ~1 h before the chat pair — which takes criterion 8 from 2 of 4 to 4 of 4. **(c) Criterion 6's
-     dates: 2026-08-02 and 2026-08-05**, read per job. Also **2026-08-01: re-probe "How do I enroll a
-     student?"** — that is tomorrow.
+  1. **The human items.** **(a) Send Message A** (ninth session carrying it; re-read it, it gained a
+     week-boundary question in D-130) — the only item with external lead time, and it gates S43 rather
+     than the gate. **(b) One more email**: criterion 8 reached **3 of 4** when the inbox was read;
+     `learning-api-p95-latency` is confirmed, `learning-api-5xx-rate` (fired once, 18:26:40Z) is not —
+     search `from:no-reply@sns.amazonaws.com "learning-api-5xx-rate"`. **(c) Criterion 6's dates:
+     2026-08-02** (`chat-purge`, `memory-consolidate`) **and 2026-08-05** (`retention-purge`), read
+     **per job** — `chat-purge` has a history of never having run (AUD-F-15). Also **2026-08-01:
+     re-probe "How do I enroll a student?"**
+  1a. **Criterion 3 needs a second consecutive clean staging run**, newly owed because this session's
+     four deploys aged D-120's evidence. The first re-run passed (53/4/0 against sha `544c6fe9749c`)
+     but **`narrative-refresh.spec.ts` was flaky** — look at the flake rather than absorbing it. Export
+     `STAGING_TOKEN_SECRET_LEARNING`/`_CHAT` first or 17 journeys fail for one reason; better, teach
+     `make e2e-staging` to fetch them the way `load-staging-learning` does.
   2. **AUD-F-32, and this is now the whole of criterion 7's remaining latency question.** ~726 ms of
      every answer request is neither SQL nor graph-node time; ×10 answers ≈ 7.3 s of a ~15 s flow.
      **Measure before optimising** — D-132's lesson is that `select_topic` was the biggest span in the

@@ -7332,3 +7332,35 @@ alarm was in ALARM, with no scaling activity recorded. It scaled in correctly ea
 so it is intermittent. D-122 cited "2 → 3 in ~1 min" as criterion 7's autoscaling evidence — that
 covers scaling **out** only, and a service that scales out reliably and in unreliably has a cost
 floor set by its worst recent minute. `desired-count` was restored to 2 manually.
+
+### 7. Post-hoc: a second instrument, the inbox, and the e2e re-run (added at the session close)
+
+**The alarm agrees with k6, which upgrades §2's claim.** `learning-api-p95-latency` — ALB
+`TargetResponseTime` p95, server-side, independent of k6 — went **OK → ALARM at 02:34:38Z** on
+datapoints **3.21 / 3.80 / 3.54 s**, i.e. the after arm's runs 3–5. `describe-alarm-history` shows
+**no transition during the before arm**, same five-run structure and spacing. §2 said "a regression is
+not established"; that was right on one instrument. With two agreeing, the statement is: **the after
+arm tripped the deployed 3 s paging threshold and the before arm did not.** Still small (3.2–3.8 s
+against 3.0), still n=5, but no longer attributable to one tool's noise.
+
+**Criterion 8 is 3 of 4, not 4 of 4.** The monitored inbox was read and contains **seven of the eight**
+`learning-api-p95-latency` transitions, including the 18:44:38Z one D-126 went looking for — so that
+alarm is **confirmed reaching a human**. `learning-api-5xx-rate` fired exactly once (ALARM 18:26:40Z,
+OK 18:29:40Z) and is **not among them**. Not closed by inference: "it almost certainly arrived with the
+others" is the precise claim this criterion exists to replace (D-126).
+
+**Criterion 3's evidence was aged by this session's own deploys, and the re-run is one clean run, not
+two.** Four deploys landed today, one of them changing deterministic-core code, so the two consecutive
+clean staging runs that met criterion 3 (D-120) were against older images. Re-run against `:43`
+(build sha `544c6fe9749c`, verified equal to HEAD): **53 passed / 4 skipped / 0 failed**, with
+**`narrative-refresh.spec.ts` flaky** — it failed its first attempt and passed on retry, confirmed by
+re-running the spec alone (`✘` at 4.7 s, then `1 passed`). **Criterion 3 needs a second consecutive
+clean run**, and the flake should be looked at rather than absorbed: a journey that passes only on
+retry is weaker evidence than the criterion's wording implies.
+
+**A harness note worth keeping:** the first e2e attempt reported **17 failures** and none were real.
+`make e2e-staging` does not fetch the `/dev/token` secrets the way `make load-staging-learning` does,
+and `e2e/config.ts` defaults them to `""`, so D-097's secret gate 404s and every authenticated journey
+fails together. **A wall of failures that all share one dependency is a harness signal, not a product
+signal** — but it was diagnosed rather than assumed, and confirmed by the run passing once the two
+secrets were exported. Worth teaching the target to fetch them itself.
