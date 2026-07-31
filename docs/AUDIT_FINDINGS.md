@@ -3791,11 +3791,25 @@ the run as complete — so the process ends 0.
    regardless of exit code (`_FAILURE_LINES`).
 
 **Cause.** The consolidation window is a rolling `[now - 7 days, now)` and the prompt is built from
-every tutor-chat message a student produced in it, with **no bound on input size**. Staging's chat
-volume comes from load testing (D-132/D-134's k6 runs at up to 25 VUs), so two seeded students have
-accumulated ~215k tokens each against Haiku 4.5's 200k context. The per-run **spend** bound
+**every `learning_events` row** in it, with **no bound on input size**. The per-run **spend** bound
 (`bedrock_run_budget_cents`, 200) exists and works; there is no per-call **input** bound, so the job
 fails validation instead of costing money — 0.0000 cents, which is the one piece of good news.
+
+**⚠️ Corrected 2026-07-31 (D-141 §5), because the first version of this entry named the wrong
+table.** It said the prompt was built from tutor-chat messages and that staging had accumulated
+~215k tokens of chat. Measured directly: `tutor_chat_messages` holds **3 rows totalling 28
+characters**, and only **3** of the window's events are `chat_turn`. The real input is
+**13,865 `learning_events`** at roughly **15 tokens each** — so this is a **count** problem, not a
+message-length problem, and it is load-test exhaust from the k6 learning-session runs
+(D-132/D-134 at up to 25 VUs) rather than from anyone chatting. The distinction matters twice: the
+fix has to bound *how many events* go into a call (it does), and the cleanup that looked obvious —
+trimming chat rows — would have deleted 28 characters and changed nothing.
+
+**A gap this exposed and did not close:** `chat-purge` deletes `tutor_chat_messages` and
+`retention-purge` deletes `semantic_memory`/`stage_transitions`/`student_reports`. **Nothing purges
+`learning_events`**, which is the table that actually grows without bound and the one that broke
+this job. Whether it should have a retention promise is a SPEC question, not a bug — filed here so
+it is not rediscovered from the same symptom.
 
 **Why P1.** It is the same shape as AUD-F-15 (a retention job that had never run) one level deeper:
 this job runs, is observed to run, and does nothing. It also directly blocks **gate criterion 6** —
