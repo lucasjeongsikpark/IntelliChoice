@@ -5,6 +5,20 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⛔ Criterion 3 did not pass its post-deploy re-run, and the failure is a new P2 (AUD-F-36,
+  D-141 §9).** Run 1 clean (**53 passed / 4 skipped**, matching D-134 exactly); **run 2 failed** on
+  `journey-parent.spec.ts:17` — **same image, no deploy between**, so not a regression from this
+  session's code. A parent picked a child, `/respond` returned **200**, and the "who's learning today"
+  heading **never cleared** — 123 polls across 60 s, **zero console/page/server errors, every call 200**.
+  **The harness's own timings discriminate:** passing record has the SSE stream opening **178 ms before**
+  `/respond`; failing record has both at the **same millisecond**. Leading hypothesis (n=1 per arm): a
+  resume processed before the subscription exists publishes to nobody, and the client waits forever
+  because it trusts the stream instead of re-reading. **Not parallel load** — `workers: 1`,
+  `fullyParallel: false`, the suite is sequential, which refutes the obvious explanation.
+  **~1 in 3 whole-suite runs; 0 of 3 in isolation** (1.3–1.6 s each), so a fix must be verified against
+  the whole suite. Same class as AUD-F-26 (D-119). **Criterion 3 is owed two consecutive clean runs, and
+  it is owed them behind a P2 that makes any run ~⅔ likely to pass — re-running until two land clean
+  would be claiming the criterion by selection.**
 - **✅ AUD-F-34 is fixed and verified on staging — the job had its first clean run ever, and it took
   three deploys because two of my own constants were wrong (2026-07-31, D-141).**
   `gha-cfe9dbc0d507` / ops-task rev 40: **8 of 8 model calls succeeded, exit 0, 5 facts reconfirmed,
@@ -1147,24 +1161,30 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 - **Next session, in order (2026-07-31 fourth close, post-D-141). AUD-F-34 is fixed and deployed; what
   is left is one date, two decisions and the messages:**
-  1. **2026-08-02: read criterion 6 with `make scheduler-evidence`.** `memory-consolidate`'s first-ever
+  1. **⛔ AUD-F-36 (P2) blocks criterion 3, and the honest order is fix-then-re-run.** A parent's
+     child-selection interrupt hangs forever when `/respond` beats the SSE subscription. Verify any fix
+     against the **whole suite** — it is 0 of 3 in isolation. Likely the AUD-F-26 fix shape: re-read
+     authoritative state after a resume rather than trust a stream event that may never arrive.
+     **Do not simply re-run until two runs land clean** — at ~⅔ per run that is claiming the criterion
+     by selection, which is what D-141 §9 says plainly.
+  2. **2026-08-02: read criterion 6 with `make scheduler-evidence`.** `memory-consolidate`'s first-ever
      firing lands that day and the job is now capable of succeeding, so this is a real test. **The date
      for the criterion itself is 2026-08-09** on the two-firing reading chosen this session. Also
      **08-01: re-probe "How do I enroll a student?"** and widen `chat_qa_staging.js`'s question list.
-  2. **Decide `bedrock_run_budget_cents` before the pilot (D-141 §8).** At ~2–3 cents per real student
+  3. **Decide `bedrock_run_budget_cents` before the pilot (D-141 §8).** At ~2–3 cents per real student
      per week the 200-cent budget stops the run after ~70–90 students, and 1,000 MAU implies **$90–120
      /month, comparable to the entire current AWS bill**. Also decide whether students skipped by the
      budget should be paged into the next run rather than silently dropped — `budget_stopped` makes the
      condition visible but nothing acts on it.
-  3. **Decide whether `learning_events` gets a retention promise (D-141 §5).** `chat-purge` and
+  4. **Decide whether `learning_events` gets a retention promise (D-141 §5).** `chat-purge` and
      `retention-purge` cover four tables; nothing purges the one that grows without bound and broke this
      job. A SPEC question. **Do not trim it as a cleanup** — the new facts cite those event ids.
-  4. **Send Message A** (twelfth session carrying it) **and Message D**, separately.
-  5. **AUD-F-35 (P2):** fix `promote_if_eligible`'s missing evidence bar. Write the failing test first —
+  5. **Send Message A** (twelfth session carrying it) **and Message D**, separately.
+  6. **AUD-F-35 (P2):** fix `promote_if_eligible`'s missing evidence bar. Write the failing test first —
      create a fact with one supporting event, reconfirm with one more, assert it is still `provisional` —
      and run the inverted control, because the current code passes an `active` assertion.
-  6. **One Billing-console look** for the remaining credit balance (D-139 §3).
-  7. **If capacity is bought: r = 5, +3 tasks, ~$43/month** (D-139 §2). **AUD-F-33 (P2)** still needs an
+  7. **One Billing-console look** for the remaining credit balance (D-139 §3).
+  8. **If capacity is bought: r = 5, +3 tasks, ~$43/month** (D-139 §2). **AUD-F-33 (P2)** still needs an
      apply; the criterion-6 apply prohibition still holds until the read.
 
 - **Superseded — pointer as of the D-140 close (2026-07-31). Item 1 is done (D-141): the fix landed in

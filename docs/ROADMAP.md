@@ -712,6 +712,15 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
+**⛔ Criterion 3 is NOT met as of 2026-07-31 (post-D-141 §9), and criterion 2 has two new P2s.** The
+post-deploy re-run produced one clean whole-suite run (53 passed / 4 skipped) and **one failure** —
+`journey-parent.spec.ts:17`, same image, no deploy between, so not a regression. **AUD-F-36 (P2)**: a
+parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription (passing
+record: stream open 178 ms before respond; failing record: same millisecond). ~1 in 3 whole-suite runs,
+0 of 3 in isolation. **Criterion 3 is owed two consecutive clean runs, behind a P2 that makes any run
+~⅔ likely to pass — re-running until two land clean would be claiming it by selection.** Criterion 2
+now carries **AUD-F-35** and **AUD-F-36**.
+
 **✅ Standing as of 2026-07-31 (post-D-141): AUD-F-34 is fixed, deployed and verified — criterion 6 is
 unblocked but not yet evidenced.** `memory-consolidate` had its first clean run ever on
 `gha-cfe9dbc0d507` (ops-task rev 40): **8 of 8 calls succeeded, exit 0, 5 facts reconfirmed**. So

@@ -8311,3 +8311,30 @@ a comment reading "a small cohort pre-launch": at 2–3 cents a student the budg
 the pilot's cohort, let alone 1,000 MAU** — it will silently stop early, which is now at least
 visible in the summary line and the `budget_stopped` flag. Sizing that budget, and deciding whether
 students should be paged across runs rather than dropped, is launch work and is not decided here.
+
+### 9. ⛔ Criterion 3 was re-run as the plan required, and it did not pass — AUD-F-36
+
+Two consecutive whole-suite staging runs were owed after the deploy. **Run 1 was clean** (53 passed
+/ 4 skipped, matching D-134 exactly). **Run 2 failed** on `journey-parent.spec.ts:17`, against the
+**same image with no deploy between**, so it is not a regression from this session's code.
+
+A parent picked a child, `/respond` returned 200, and the "who's learning today" interrupt heading
+never cleared — 123 polls across a 60 s timeout, with zero console, page or server errors and every
+API call 200. The harness's own timings discriminate: in the passing record the SSE stream opened
+**178 ms before** `/respond`; in the failing record both are stamped at the **same millisecond**.
+Leading hypothesis: a resume processed before the subscription exists publishes its state-change
+event to nobody, and the client waits forever because it trusts the stream instead of re-reading.
+
+**Not parallel load** — `workers: 1`, `fullyParallel: false`, so the suite is sequential. That was
+the obvious explanation and the config refutes it.
+
+Filed as **AUD-F-36 (P2)**: ~1 in 3 whole-suite runs, **0 of 3 in isolation**, so a fix must be
+verified against the whole suite. Same class as AUD-F-26 (D-119), and likely the same fix shape —
+re-read authoritative state after a resume rather than trust a possibly-missed stream event.
+
+**So criterion 3 is NOT met and is owed two consecutive clean runs.** It is now owed them *behind* a
+P2 that makes any given run ~⅔ likely to pass, which is worth stating plainly rather than absorbing
+as flake: re-running until two land clean would be claiming the criterion by selection. **This is the
+second time in two sessions that criterion 3's evidence was aged by a deploy this project chose to
+make** (D-133 was the first), and the second finding surfaced *by* the re-run rather than by the
+feature work — the re-run is doing real work and should not be treated as a formality.

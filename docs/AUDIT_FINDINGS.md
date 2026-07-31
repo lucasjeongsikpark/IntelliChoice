@@ -3879,3 +3879,56 @@ behaving exactly as single-batch ones do today. The bug is neither fixed nor mad
 **When it is fixed**, the test to write first is the one that does not exist: create a fact with
 one supporting event, reconfirm it with one more, and assert it is still `provisional`. Run the
 inverted control — the current code passes an `active` assertion, which is how this survived.
+
+### AUD-F-36 — the parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription (**P2** — found 2026-07-31, D-141 §9; blocks gate criterion 3)
+
+Found by criterion 3's own re-run, not by looking for it. Run 1 of 2 was clean (53 passed / 4
+skipped, matching D-134); **run 2 failed** on `journey-parent.spec.ts:17` — "parent with two
+children is asked which child, and the choice sticks" — against the **same deployed image** with no
+deploy between, so it is not a code regression.
+
+```
+Locator:  getByRole('heading', { name: /who's learning today/i })
+Expected: 0        Received: 1        Timeout: 60000ms
+  123 × locator resolved to 1 element
+```
+
+The parent picked a child, `/respond` returned **200**, and the interrupt heading **never cleared**
+for the full 60 s. **Zero console errors, zero page errors, zero server errors, and every API call
+200** — nothing failed, the UI simply never learned that the graph had resumed.
+
+**The discriminator, from the harness's own captured timings:**
+
+| run | SSE stream opened | `/respond` | outcome |
+|---|---|---|---|
+| passing | 1298 ms | 1476 ms | subscription live **178 ms before** the resume → event delivered |
+| failing | 886 ms | 886 ms | **same millisecond** → resume processed before the subscription existed |
+
+**Leading hypothesis (n=1 per arm, stated as a hypothesis):** when `/respond` resumes the LangGraph
+interrupt before the client's SSE subscription is established, the resulting state-change event is
+published to nobody, and the client — which relies on the stream rather than re-reading — waits
+forever. It explains every observation: the 200s, the absence of any error, the permanence of the
+hang, and why it is suite-only (test ordering shifts the two calls' relative timing).
+
+**Not parallel load, which was the obvious explanation and is refuted.** `playwright.config.ts` sets
+`workers: 1` and `fullyParallel: false`, so the suite runs sequentially — there was no concurrent
+traffic from other tests. The remaining differences between suite and isolated runs are accumulated
+shared state and *timing*, and the timings above point at timing.
+
+**Reproduction:** ~1 in 3 whole-suite staging runs. **Does not reproduce in isolation** — 3 of 3
+targeted runs of the same spec passed in 1.3-1.6 s. Any attempt to fix this must therefore be
+verified against the whole suite, not the spec.
+
+**Why it matters beyond the gate.** A parent selects their child and the app stops responding, with
+no error anywhere and a successful HTTP status. There is no retry, no timeout, no fallback: the only
+recovery is a reload. It is rare, and it is the worst shape a rare bug can have.
+
+**Same class as AUD-F-26** (D-119: "re-read the checkpoint after the narrative call"), and the fix is
+likely the same shape: the client should re-read authoritative state after a resume rather than trust
+a stream event it may have missed, or the subscription must be established before any call that can
+resume the graph. **Not fixed here** — it is app code and would age criterion 3's evidence again,
+which is the same trade-off D-140 §5 recorded, now with a second instance.
+
+**Discriminating next step, cheap and named:** instrument the two calls' ordering across several
+whole-suite runs and check whether every failure has `respond <= stream_open`. The harness already
+records both timestamps in `e2e/artifacts/journeys.jsonl`, so this needs runs, not code.
