@@ -141,6 +141,44 @@ resource "aws_cloudwatch_metric_alarm" "target_5xx" {
 # number. A sensitive scaling signal and an insensitive paging signal on the same metric is
 # the point of having two alarms: capacity should react long before a human is woken
 # (D-113 §2).
+# AUD-F-33: the service is above its own capacity floor and has stayed there.
+#
+# This alarms on the *outcome* rather than on a mechanism, deliberately. The observed
+# incident had a scale-in alarm correctly in ALARM, a correctly configured `-1` policy, and
+# no scaling activity at all - so every alarm on the machinery said "fine". The two
+# hypotheses D-132 could not separate (the alarm's own datapoint configuration, and
+# learning-api's `min_capacity` of 2 against chat-api's 1) both predict a *silent* failure,
+# and an alarm that only fires when one named cause occurs would have missed this one.
+# `DesiredTaskCount` above the floor for an hour is true whatever the cause.
+#
+# `Maximum` over 5-minute periods, so a single scale-out during a load test does not have to
+# be smoothed away by an average: the question is "was it ever above the floor in this
+# period", and the sustained window is what makes that mean something.
+#
+# `notBreaching` on missing data: ContainerInsights publishes only while the service exists,
+# and a deleted service is not a capacity problem. That does mean this alarm cannot see "the
+# service is gone" - which is the 5xx and latency alarms' job, on a different metric source.
+resource "aws_cloudwatch_metric_alarm" "capacity_above_floor" {
+  for_each            = var.capacity_floors
+  alarm_name          = "${var.name_prefix}-${each.key}-capacity-above-floor"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = ceil(var.capacity_floor_alarm_minutes / 5)
+  metric_name         = "DesiredTaskCount"
+  namespace           = "ECS/ContainerInsights"
+  period              = 300
+  statistic           = "Maximum"
+  threshold           = each.value.min_capacity
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "AUD-F-33: ${each.key} has been above its capacity floor of ${each.value.min_capacity} task(s) for ${var.capacity_floor_alarm_minutes} minutes - a scale-in may have silently not happened, which costs money with no traffic to justify it."
+  dimensions = {
+    ClusterName = var.ecs_cluster_name
+    ServiceName = each.value.ecs_service_name
+  }
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+  tags          = var.tags
+}
+
 resource "aws_cloudwatch_metric_alarm" "target_latency_p95" {
   for_each            = var.services
   alarm_name          = "${var.name_prefix}-${each.key}-p95-latency"

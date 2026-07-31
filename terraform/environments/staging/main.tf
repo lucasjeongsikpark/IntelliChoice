@@ -616,6 +616,22 @@ module "observability" {
   latency_p95_alarm_thresholds = {
     chat-api = 20
   }
+  # AUD-F-33: alarm when either service sits above its own floor for an hour. The floors
+  # differ - learning-api is pinned to 2 for criterion 7, chat-api uses the module's default
+  # of 1 - so this is per-service and not one number. Deliberately NOT added to
+  # deploy-staging.yml's canary alarm list: a service holding extra capacity is a cost
+  # problem, and rolling a deploy back over it would be a worse outcome than the condition.
+  ecs_cluster_name = aws_ecs_cluster.this.name
+  capacity_floors = {
+    learning-api = {
+      ecs_service_name = module.ecs_service_learning_api.service_name
+      min_capacity     = 2
+    }
+    chat-api = {
+      ecs_service_name = module.ecs_service_chat_api.service_name
+      min_capacity     = 1
+    }
+  }
   tags = local.common_tags
 }
 
