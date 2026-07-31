@@ -3621,7 +3621,7 @@ artifact of assuming linearity and should not be quoted.
    knife-edge, and the figure for a criterion 7 that passes with margin is materially larger** — before
    the RDS resize D-133 already identified. Re-price with a target ratio, not a target task count.
 
-### AUD-F-33 — learning-api scaled out and then did not scale back in for over two hours, with its scale-in alarm in ALARM the whole time (P3, found 2026-07-31, D-132; not fixed)
+### AUD-F-33 — step scaling intermittently stops scaling in while its alarm stays in ALARM, on both services (**P2** — raised from P3 same day, found 2026-07-31 D-132, reproduced and re-scoped D-134; detection added, mechanism unknown)
 
 Observed while trying to capacity-match D-132's two arms. The service went to 3 tasks at
 **00:22:51Z** (`learning-api-p95-latency-scale-out`, triggered by a cold post-deploy run) and was
@@ -3695,6 +3695,57 @@ radius is contained today (`aws_ecs_service` has `ignore_changes = [task_definit
 so a replacement registers an unused revision and does not move the service) but it means **no
 routine `terraform apply` against this environment is safe to run unattended**, and every future
 apply needs `-target` or a resolved plan.
+
+#### Upgraded to P2 the same day: it reproduced on **chat-api**, and both surviving hypotheses are dead
+
+The alarm above was created at 09:32 CDT. **It caught a real occurrence 60 minutes later**, and the
+service it caught was not the one this finding was about.
+
+**The alarm's own end-to-end validation, which came free with the reproduction:**
+`INSUFFICIENT_DATA → OK` at **09:33:34** (so it was evaluating real data, not sitting blind),
+`OK → ALARM` at **10:32:34** with the correct reason ("12 datapoints were greater than the threshold
+(1.0)"), and `describe-alarm-history --history-item-type Action` records **"Successfully executed
+action … intellichoice-staging-alerts"**. Detection, threshold, dimensions and notification all
+confirmed against a condition nobody staged.
+
+**What it caught, cross-referencing alarm transitions against scaling activity on chat-api:**
+
+| time (CDT) | scale-in alarm | scaling action | tasks |
+|---|---|---|---|
+| 00:25:31 | OK → **ALARM** | 00:25:32 "desired count to 2" | 3 → 2 |
+| — | *still ALARM, no transition* | **00:33:32 "desired count to 1"** | 2 → **1** ✅ |
+| 09:34:31 | ALARM → OK | 09:35:23 "desired count to 3" | 1 → 3 |
+| 10:17:31 | OK → **ALARM** | 10:17:32 "desired count to 2" | 3 → 2 |
+| — | *still ALARM, 15+ min* | **nothing** | stuck at **2** ❌ |
+
+**Three hypotheses die on this table.**
+
+1. **"It is learning-api-specific."** This finding's central narrowing came from chat-api scaling in
+   twice in one hour as a same-hour control. **chat-api now exhibits the fault itself**, so the
+   difference was never between the services.
+2. **"It is the `min_capacity` difference (2 against 1)."** The last hypothesis standing after D-134
+   §4. chat-api's floor is **1** and it is stuck at **2** — the `-1` step had somewhere to go and did
+   not take it.
+3. **"Step scaling only acts on an alarm *transition*, so recovering N tasks needs N transitions."**
+   The most attractive explanation, and the 00:25/00:33 pair refutes it: two `-1` steps **8 minutes
+   apart inside one uninterrupted ALARM**, consistent with the policy re-applying after its 300 s
+   cooldown. So re-application while in ALARM demonstrably works — sometimes.
+
+**So the finding is now: step scaling intermittently stops re-applying while its alarm remains in
+ALARM and the cooldown has long expired — on both services, with a within-service control nine hours
+apart showing the correct behaviour under an identical alarm state.** That is a sharper and worse
+statement than the original, and it is why this moves **P3 → P2**: the cost floor it creates is
+silent, it affects every service on this scaling pattern, and the pilot's usage shape (school hours,
+then idle) makes it the common case.
+
+**Not diagnosed to a mechanism, and the next step is named rather than guessed.** The remaining
+candidates are inside Application Auto Scaling's own behaviour: whether a scaling activity's
+completion re-arms the policy, and whether the `desired_count` `ignore_changes` interaction or a
+concurrent ECS deployment suppresses re-application. A controlled repro is two OK→ALARM cycles with
+capacity and traffic held identical, which is cheap now that the alarm makes the condition visible
+without anyone watching for it.
+
+**`desired-count` restored to 1 manually** (its floor), as D-132 did for learning-api.
 
 **Related, and worth knowing before quoting criterion 7's chat leg:** chat-api's `min_capacity` is
 **1**, so its baseline is one task and the "**3 tasks running, ≥ 2 ✅**" recorded for criterion 7 was

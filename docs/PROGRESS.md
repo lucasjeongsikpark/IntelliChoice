@@ -78,13 +78,25 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   them outside Terraform, the D-116 pattern). Contained today by `ignore_changes = [task_definition,
   desired_count]`, but **no routine `terraform apply` here is safe unattended**; this session used
   `-target`. Capacity was pinned to 2/2 for the sweep and **restored to min 2 / max 3** afterwards.
-  **🔬 A live test of the new alarm is running as this session closes, unplanned:** the e2e suite
-  scaled **chat-api to 2 tasks against its floor of 1**, and both `capacity-above-floor` alarms have
-  since gone `INSUFFICIENT_DATA` → **OK**, so they are evaluating real data. If chat-api scales in
-  normally the alarm stays OK; if it does not, `intellichoice-staging-chat-api-capacity-above-floor`
-  fires ~60 minutes later and **AUD-F-33 has just been caught on a second service**, which would kill
-  the remaining `min_capacity` hypothesis too. **Check that alarm's history first thing next session** —
-  either outcome is informative and neither needs any setup.
+  **🔬 The unplanned live test resolved within the hour, and AUD-F-33 is now P2.** The e2e suite left
+  **chat-api at 2 tasks against its floor of 1**; the alarm created at 09:32 went
+  `INSUFFICIENT_DATA → OK` at 09:33 (evaluating real data) and **`OK → ALARM` at 10:32:34** with the
+  correct reason, and `describe-alarm-history --history-item-type Action` records **"Successfully
+  executed action … intellichoice-staging-alerts"**. **Detection, threshold, dimensions and
+  notification all validated against a condition nobody staged** — the best possible outcome for a new
+  alarm, and it arrived 60 minutes after it existed.
+  **⚠️ What it caught kills all three candidate explanations of AUD-F-33.** chat-api's own record:
+  00:25:31 scale-in alarm OK→ALARM → 00:25:32 `3→2` → **00:33:32 `2→1` eight minutes later inside one
+  uninterrupted ALARM**; then 10:17:31 OK→ALARM → 10:17:32 `3→2` → **nothing for 15+ minutes**. So
+  **(1)** it is *not* learning-api-specific — chat-api was this finding's own control and now exhibits
+  the fault; **(2)** it is *not* the `min_capacity` difference — chat-api's floor is 1 and it stuck at
+  2, so the `-1` had somewhere to go; **(3)** it is *not* "one step per alarm transition" — the
+  00:25/00:33 pair is two steps inside one ALARM, so re-application after the 300 s cooldown
+  demonstrably works, *sometimes*. **Re-scoped: step scaling intermittently stops re-applying while its
+  alarm remains in ALARM and the cooldown has long expired, on both services.** P3 → **P2**: the cost
+  floor is silent, it affects every service on this pattern, and school-hours-then-idle makes it the
+  common case rather than the corner. Mechanism still unknown; the controlled repro is now cheap
+  because the alarm makes the condition visible without anyone watching. `desired-count` restored to 1.
   **634 passed / 2 skipped**, lint and pyright clean.
 - **⛔ AUD-F-31's staging before/after ran, and it refutes the reason the fix was prioritised
   (2026-07-31, D-132). The fix is confirmed; the p95 claim is dead.** Capacity-matched at 25
@@ -948,9 +960,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      a history of never having run (AUD-F-15). Also **2026-08-01: re-probe "How do I enroll a student?"**
      and widen `chat_qa_staging.js`'s question list beyond the four documents effective today.
   2. **Send Message A** (tenth session carrying it; re-read it, it gained a week-boundary question in
-     D-130). It gates S43, not the gate, and it is the only item with external lead time. **It now also
-     carries a second question worth asking in the same message: is 150 concurrent a real requirement?**
-     D-134 §7 prices the difference and §6.23's number has never been validated against demand.
+     D-130). It gates S43, not the gate, and it is the only item with external lead time.
+     **And send Message D, which is new and drafted ready to go** — the one number that prices the
+     capacity decision: how many students use the app *at the same moment* at peak. ~~worth asking in
+     the same message as A~~ — **corrected: it is its own message.** S42_ORG_ASKS.md's own rule is one
+     kind of ask per message, and bundling a capacity-planning number under a request for judgment is
+     the bundling that file explicitly rejects. D asks only about *their* schedule, so whoever knows it
+     can answer without involving anyone technical.
   3. **The capacity decision, re-priced against a ratio.** D-134 §7: ~$216/month buys 12 tasks =
      12.5 concurrent/task = the arm that measured ALB p95 **2.98 s against a 3.00 s threshold**. Decide a
      target **concurrency-per-task** first (2.5/task measured 0.3 s), then price tasks *and* the RDS
@@ -966,11 +982,17 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   5. **`terraform plan` is not clean** (both task definitions "must be replaced", pre-existing drift).
      Either resolve it or write the `-target` requirement into the runbook — an unattended apply here
      would register task definitions from Terraform's image variable.
+  6. **AUD-F-33 is now a P2 with a cheap controlled repro available.** All three candidate
+     explanations are dead (see Current status), so the remaining candidates are inside Application
+     Auto Scaling itself: whether a scaling activity's completion re-arms the policy, and whether the
+     `desired_count` `ignore_changes` interaction or a concurrent ECS deployment suppresses
+     re-application. **The repro is two OK→ALARM cycles with capacity and traffic held identical** —
+     newly affordable because `capacity-above-floor` makes the condition visible without anyone
+     watching for it.
   **Carry-overs unchanged:** `/readyz` still cannot distinguish "database gone" from "I am busy"; RDS
   connection arithmetic (now sharper — D-134's ratio work changes the task-count input to it);
   answer brevity (D-115 (i)); AUD-F-22 and AUD-F-24's sibling; D-112's retrieval-margin re-measure;
-  the ~2–4% `rag_answer` `schema_invalid` rate. **AUD-F-33 keeps its open half** — detection landed,
-  the mechanism is still unknown and the `min_capacity` hypothesis is untested.
+  the ~2–4% `rag_answer` `schema_invalid` rate.
 
 - **Superseded — next-session pointer as of the D-133 close (2026-07-31). Items 1a, 2 and 4 are done
   (D-134); item 1(b) is the only live remainder; item 3 stays deferred and is now re-priced:**
