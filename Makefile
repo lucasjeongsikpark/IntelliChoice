@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence
 
 up:
 	docker compose up -d
@@ -193,6 +193,19 @@ scan-logs:
 	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
 	  uv run python -u scripts/scan_logs_pii.py --minutes $${MINUTES:-60} \
 	    $${START:+--start $$START} $${END:+--end $$END}
+
+# Criterion 6's read, per job (D-114 §3). Read-only. Exists because the hand reading has been
+# wrong twice in opposite directions and both errors were in the instrument: D-135 §3 read
+# daily buckets offset from midnight and saw a broken clock that was not broken, then recorded
+# per-job counts as if AWS/Scheduler had a per-schedule dimension - it does not, so the weekly
+# job's count was an inference that happened to be false. This target computes the expected
+# firings from each schedule's own expression and creation time, attributes the group-level
+# metric by 5-minute bucket (refusing to attribute at all if two enabled schedules could
+# share one), and confirms execution independently from the ops-task log group behind a
+# positive control. Exit code follows the weakest job, so 08-02-style reads have an answer.
+scheduler-evidence:
+	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
+	  uv run python -u scripts/read_scheduler_evidence.py --days $${DAYS:-21}
 
 # Criterion 7 / AUD-F-31's before-after instrument. D-129 §5's hand-rolled profile of the
 # same span first reported 102 statements and 131% of wall time in SQL, because X-Ray records

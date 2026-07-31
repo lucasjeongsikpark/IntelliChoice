@@ -7898,3 +7898,168 @@ the evidence unreproducible"), and it would cost the same re-run D-133 paid for 
 **So: no `terraform apply` against staging before 2026-08-02's read, for any reason short of an
 incident** — and if an incident forces one, the runbook's `-target` form is now the way to keep it off
 the ops task. The bumped floor is preventive and costs nothing while it waits.
+
+## D-138 — Criterion 6 does not close on 2026-08-02: the weekly job has never fired, and D-135 read a firing that could not have happened (accepted, 2026-07-31)
+
+**Context.** D-135 closed criterion 6 down to a single date — "2026-08-02 is a read-and-tick" — on the
+premise that `memory-consolidate` had fired once already (2026-07-26) and that 08-02 would be its
+**second** firing, satisfying "a weekly job cannot evidence a week of unattended operation until its
+second firing". Asked to do everything that did not need a person or a calendar date, this session
+built the instrument for that read (`scripts/read_scheduler_evidence.py`, `make scheduler-evidence`)
+and validated it against the data that already exists. **The premise is false, and the date moves.**
+
+### 1. `memory-consolidate` has never run — and it could not have run on 07-26
+
+Three independent readings, in the order they were taken:
+
+- **Scheduler's own record.** `get-schedule` reports `CreationDate` **2026-07-26T21:48:30-05:00 =
+  2026-07-27T02:48:30Z**, and the expression is `cron(30 18 ? * SUN *)` UTC. 2026-07-26 *was* a Sunday,
+  but its 18:30Z slot had passed **eight hours and eighteen minutes** before the schedule existed. A
+  schedule cannot fire before it is created, so the 07-26 firing D-135 recorded is not a mis-read
+  metric — it is an event with no possible cause.
+- **The metric.** `InvocationAttemptCount` at 300 s over 07-10 → 07-31 contains **no datapoint at any
+  Sunday 18:30Z**. Firings resolve to 5 for `chat-purge` (07-27 … 07-31, 18:10Z) and 3 for
+  `retention-purge` (07-29 … 07-31, 18:50Z), each exactly matching its expected count since creation.
+- **The ops-task log group.** Filtering its **entire history** for `Consolidation` and for
+  `consolidate` returns **zero events**, while the same filter mechanism returns all nine `purged …`
+  lines. That is a positive control, so the zero is the job's and not the query's.
+
+**So 2026-08-02 18:30Z is `memory-consolidate`'s FIRST firing, not its second.** Under D-135's own
+stated rule the criterion needs the second: **2026-08-09**.
+
+### 2. The dates for the other two jobs also move, and in the same direction
+
+Measured from each schedule's real creation time rather than from a remembered "clock start":
+
+| job | created (UTC) | firings | unattended so far | ≥7 days at |
+|---|---|---|---|---|
+| `chat-purge` | 07-27 02:48:30Z | 5 of 5 expected | 4d 15h | **08-03** 02:48Z |
+| `retention-purge` | 07-29 14:41:04Z | 3 of 3 expected | 2d 4h | **08-05** 14:41Z |
+| `memory-consolidate` | 07-27 02:48:30Z | **0** (first is 08-02) | — | **08-09** (2nd firing) |
+
+D-135 described `retention-purge` as enabled "four days after the clock started"; the clock actually
+started 07-27, so it was two. And **08-05 is where `retention-purge` lands on its own arithmetic** —
+the date D-134 originally had, which D-135 pulled in to 08-02. That pull-in argument still holds on its
+merits (the extra days generate no information: staging's oldest row is 2026-07-22 against 90/365-day
+cutoffs, so the job logs `purged 0` until ~2026-10-20), but it is a **stated reading applied to a
+shortfall**, not an absence of one, and it was being applied to the wrong shortfall.
+
+### 3. Why D-135's per-job counts could not have come from where they said
+
+**`AWS/Scheduler` publishes no per-schedule dimension.** `list-metrics` on this account returns exactly
+two series — `InvocationAttemptCount` with `ScheduleGroup=default`, and the same metric with no
+dimensions at all. There is no `ScheduleName` to filter on, so the metric is the **sum over every
+schedule in the group, including schedules since deleted**. D-135's per-job table was therefore an
+inference from the cron expressions dressed as a measurement, and it was **right for the two daily jobs
+and wrong for the weekly one** — the characteristic failure of that substitution: correct everywhere
+except the case that decides the question.
+
+Per-job attribution *is* possible here, but only through a property of this configuration: the three
+enabled crons fire at three distinct minutes (18:10 / 18:30 / 18:50), so a datapoint's 5-minute bucket
+identifies the job. The script asserts that property and **refuses to attribute anything** if two
+enabled schedules could share a bucket, because the next schedule someone adds may not preserve it.
+
+Two firings on 07-27 at **02:50Z and 03:20Z** match no enabled slot. They are **reported, not absorbed**
+— they are D-105 §5's deliberate failure tests of the notification path, thirty minutes apart, from a
+configuration that no longer exists. A naive group-level count would have added them to some job.
+
+### 4. D-135's own bucket-offset error reproduced inside the script that was written to prevent it
+
+The first run of `read_scheduler_evidence.py` attributed **zero** firings to `chat-purge` while its work
+lines sat in the log. Cause: CloudWatch lays its buckets out from `StartTime` (floored to the minute),
+not from the wall clock, so a window opened at 19:37 puts the 18:10 firing in a bucket **labelled
+18:06** — and the script identifies a job *by its bucket*. This is D-135 §3's daily-bucket error at
+1/288th the scale, in a script whose docstring already described that error. Fixed by aligning the
+window to a period boundary (`_align`), which is now the only reason a bucket label means what it says.
+
+**Seventh consecutive session in which the instrument needed checking before its output meant
+anything** (D-104 §8, D-121, D-129 §5, D-131 §4, D-132, D-135 §3, this). The pattern has outlived
+"unlucky": the standing rule is now that **any new measurement gets a positive control and a
+known-answer arm before its first real reading is quoted**, and both of this script's guards earned
+their place on their first run — the log control caught its own `limit=1` pagination bug (empty first
+page with a `nextToken`, D-102's shape) before it could certify three jobs as never having run.
+
+### 5. What is owed, and what remains a decision rather than a measurement
+
+**Owed, and now unambiguous:** `memory-consolidate` must fire successfully at least once, and 08-02
+18:30Z is that first opportunity.
+
+**The decision, which is the user's:** whether "≥1 week unattended" for a weekly job requires the two
+firings D-135 committed to in writing (⇒ **08-09**) or one successful firing plus a week of the same
+Scheduler → ops-task mechanism evidenced by `chat-purge` (⇒ **08-02**, and 08-03 for `chat-purge`'s own
+week). **The strict reading is recommended, and the reason is specific to this job rather than
+procedural:** `memory-consolidate` is the only enabled job that calls a paid API, it has **zero retries
+by design** (D-105 §2 — three attempts is three budgets), and its `MEMORY_*` wiring is the exact
+configuration D-105 §4 records as failing *silently* by falling back to a mock. Reading it as evidenced
+before its first-ever run is AUD-F-15's error one level deeper: that finding was a job that had never
+run, and this would be a job whose first run is assumed to succeed.
+
+### 6. ⚠️ The 08-02 firing is unproven wiring, and de-risking it is cheap
+
+Because it has never run, nothing has yet exercised `memory-consolidate` against the real database with
+the real gateway. If it fails on 08-02, the next opportunity is 08-09 and the second firing slips to
+08-16. A manual run costs at most the per-run bound (`bedrock_run_budget_cents`, default **200 cents**)
+and is idempotent per (student, week), so it cannot corrupt the scheduled run's window. **Recommended
+before 08-02, and it needs a spend decision rather than an engineering one** — it is the only item here
+that touches a paid API and writes rows.
+
+## D-139 — The Fargate rate is confirmed from the account's own bill, and it is 20.0% below D-133's figure; the whole staging bill is currently credited to zero (accepted, 2026-07-31)
+
+**Context.** D-136 §5 flagged that D-133's **$18.02/task/month** was an x86 rate applied to an ARM64
+task and instructed: *confirm against the real bill before quoting any price.* Done, from Cost
+Explorer, and the number the pilot decision rests on changes.
+
+### 1. The rates, read from billed usage rather than from a price list
+
+July 2026, `RECORD_TYPE=Usage`, service = Amazon Elastic Container Service:
+
+| usage type | quantity | cost | implied rate |
+|---|---|---|---|
+| `USE1-Fargate-ARM-vCPU-Hours:perCPU` | 116.4199 | $3.7697 | **$0.032380 / vCPU-hour** |
+| `USE1-Fargate-ARM-GB-Hours` | 232.8398 | $0.8289 | **$0.003560 / GB-hour** |
+
+A task is `cpu = 512, memory = 1024` with `cpu_architecture = "ARM64"` (staging `main.tf`), i.e.
+0.5 vCPU + 1 GB ⇒ **$0.019750/hour ⇒ $14.42/task/month** at 730 hours.
+
+D-133's $18.02 reproduces **exactly** from the x86 rates ($0.04048 / $0.004445), which confirms the
+diagnosis rather than merely the correction. The ARM figure is **80.0%** of it — D-136's "~20% high"
+was right to the tenth of a percent. No Savings Plan or private rate is in play: the implied rates match
+public ARM list price, so this is a corrected list price, not a negotiated one.
+
+### 2. What that does to the capacity decision
+
+| option | tasks | D-133 arithmetic | corrected |
+|---|---|---|---|
+| pilot at r = 5 (D-136 §5) | 2 → 5 (+3) | ~+$54/month | **~+$43/month** |
+| 150 concurrent at r = 12.5 | 12 | ~$216/month | ~$173/month |
+| 150 concurrent at r = 5 | 30 | — | ~$433/month |
+
+The recommendation does not change and gets cheaper: **r = 5 for the pilot, +3 tasks, ~$43/month, no
+RDS resize** (D-136 §5's connection arithmetic is unaffected — it is about pool sizing, not price).
+
+### 3. ⚠️ The finding that reframes all of the above: none of it is currently being paid
+
+July's bill is **$72.12 of usage and −$72.12 of credit**, netting **$0**, and that is the whole
+account, not just ECS. May and June are empty (staging first deployed 07-22). So every price in this
+entry and in D-133/D-136 is **credit burn, not cash**, and "+$43/month" is a *rate at which a credit
+balance is consumed* until the credit runs out — at which point the entire bill, not the increment,
+starts arriving.
+
+**The remaining credit balance is not readable from Cost Explorer** (no API exposes it; it is a Billing
+console screen). So the honest position is: the incremental cost of the pilot's capacity is known
+exactly, the date at which any of it becomes payable is **unknown and worth one look before the
+150-concurrent question is priced at all**. Filed as a carry-over rather than guessed at.
+
+### 4. Where the money actually goes, which was not the expected shape
+
+July, usage before credit: **Bedrock (Claude Haiku 4.5) $39.79 — 55% of a $72.12 bill**, against
+$32.33 for *all* infrastructure (VPC $13.01, RDS $7.46, ECS $4.60, ALB $4.39, CloudWatch $2.03,
+Secrets Manager $0.56, X-Ray $0.16, ECR $0.10, S3 $0.01). With **no real users**: that spend is load
+tests, e2e runs and this month's own measurement sessions.
+
+Two consequences worth recording. First, the capacity argument has been conducted entirely about the
+smaller half of the bill — tripling ECS tasks (+$43) is still less than one month of the model spend
+already being incurred. Second, **the per-run and per-request bounds are doing real work and should not
+be relaxed casually**; `memory-consolidate`'s 200-cent per-run budget (D-105 §2) is the only reason an
+unattended weekly job that calls a paid API is safe to leave running, and D-138 §6's recommended manual
+run is bounded by that same number.

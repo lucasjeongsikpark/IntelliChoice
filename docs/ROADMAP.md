@@ -712,7 +712,21 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**Standing as of 2026-07-31 (post-D-134): 1, 2, 3, 4, 5, 8 and 9 are met; 7 is met on a re-stated
+**⛔ Standing as of 2026-07-31 (post-D-138): the gate does NOT close on 2026-08-02.** `memory-consolidate`
+**has never fired** — created 2026-07-27 02:48:30Z against a `cron(30 18 ? * SUN *)` UTC expression, so
+Sunday 07-26's slot had passed 8h18m before the schedule existed; the metric has no datapoint at any
+Sunday 18:30Z and the ops-task log group has zero `Consolidation` lines in its whole history, behind a
+positive control. **08-02 is its FIRST firing, so D-135's "second firing" reading gives 2026-08-09.**
+The other two jobs also move, measured from real creation times: `chat-purge` ≥7 days at **08-03**
+(5 of 5 expected firings so far), `retention-purge` at **08-05** — where D-134 originally had it.
+**The reading for a weekly job is an open decision** (two firings ⇒ 08-09, recommended; one successful
+firing plus `chat-purge`'s week of the same mechanism ⇒ 08-02) and it is the *only* thing the date
+depends on — D-138 §5. **Read it with `make scheduler-evidence`**, which is per job (D-114 §3) and
+computes expected firings from each schedule's own expression rather than from anything written down;
+D-135's per-job counts came from an inference, because `AWS/Scheduler` publishes no per-schedule
+dimension at all.
+
+*(Superseded, post-D-134:)* **1, 2, 3, 4, 5, 8 and 9 are met; 7 is met on a re-stated
 target and now with a *measured* 0.7% margin; 6 is on the calendar (2026-08-02 / 2026-08-05) and is
 the only criterion still open.** **Criterion 3 is met again**: two consecutive whole-suite staging runs,
 **53 passed / 4 skipped / 0 failed** each, no deploy between them, against an image whose code is
@@ -736,6 +750,9 @@ against the new image (53 passed / 4 skipped / 0 failed, with `narrative-refresh
 **a second consecutive run is owed**. Nothing regressed in the product; the evidence aged because the
 artifact under test changed, which is the ordinary cost of deploying during a gate.
 
+*(Corrected by D-138 — `memory-consolidate` had not "fired at most once", it had never fired at all, so
+08-02 is its first firing and not its second. The mid-clock-addition argument for `retention-purge`
+still holds on its merits; it was being applied to the wrong shortfall.)*
 **So the gate now needs ONE date: 2026-08-02, read per job.** No open engineering, and no remaining
 human action beyond that single read. **D-135 pulled 08-05 in to 08-02** on a stated reading —
 `retention-purge` was enabled 07-29, four days into the clock, and treating it as a mid-clock addition
@@ -745,7 +762,8 @@ and will until ~2026-10-20.
 **⚠️ 08-02 is a floor and no reading moves it**: `memory-consolidate` is **weekly**, has fired at most
 once, and a weekly job cannot evidence a week of unattended operation before its second firing. That is
 a missing observation, not a strict reading.
-**⚠️ No `terraform apply` against staging before the 08-02 read (D-137).** The schedules run the
+**⚠️ No `terraform apply` against staging before the criterion-6 read (D-137, and the window is now a
+week longer — D-138 §2).** The schedules run the
 ops-task family's **latest revision, un-pinned** (`task_definition_arn` has no revision suffix, by
 design), and any apply here replaces **three** task definitions including `module.ops_task` — so an
 apply would swap the image under criterion 6's own evidence window. That is D-129 §6's rule, and it

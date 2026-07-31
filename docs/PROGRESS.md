@@ -5,6 +5,56 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⛔ The gate does not close on 2026-08-02. `memory-consolidate` has never fired, and D-135 read a
+  firing that could not have happened (2026-07-31, D-138/D-139).** The last gate date moves
+  **08-02 → 2026-08-09** on D-135's own rule.
+  **Three independent readings agree, and the first one is decisive on its own:** the schedule was
+  created **2026-07-27 02:48:30Z**, and its expression is `cron(30 18 ? * SUN *)` UTC — so Sunday
+  07-26's 18:30Z slot had passed **8h18m before the schedule existed**. `InvocationAttemptCount` has
+  **no datapoint at any Sunday 18:30Z**, and the ops-task log group contains **zero** `Consolidation`
+  lines in its entire history while the same filter returns all nine `purged …` lines (positive
+  control, so the zero is the job's and not the query's). **08-02 18:30Z is its FIRST firing.**
+  **The other two jobs' dates move the same way**, measured from real creation times rather than a
+  remembered clock start: `chat-purge` 5 of 5 expected firings, 4d 15h unattended, ≥7d at **08-03**;
+  `retention-purge` 3 of 3, 2d 4h, ≥7d at **08-05** — which is where D-134 originally had it. D-135's
+  "enabled four days after the clock started" was two; the clock started 07-27, not 07-25.
+  **⚠️ D-135's per-job counts could not have come from where they said.** `AWS/Scheduler` publishes
+  **no per-schedule dimension** — `list-metrics` returns only `ScheduleGroup=default` — so the metric
+  sums every schedule in the group, *including deleted ones*. That table was an inference from the cron
+  expressions dressed as a measurement: **right for the two daily jobs, wrong for the weekly one.**
+  Attribution is possible here only because the three crons fire at distinct minutes (18:10/18:30/18:50),
+  so `read_scheduler_evidence.py` asserts that and **refuses to attribute at all** if two enabled
+  schedules could share a 5-minute bucket. The two unattributed firings on 07-27 (02:50Z, 03:20Z) are
+  D-105 §5's deliberate failure tests and are **reported, not absorbed**.
+  **🔬 New instrument: `scripts/read_scheduler_evidence.py` / `make scheduler-evidence`** — read-only,
+  per job (D-114 §3), exit code follows the weakest job. **D-135's own bucket-offset error reproduced
+  inside it on the first run**: CloudWatch lays buckets out from `StartTime`, so an 18:10 firing landed
+  in a bucket labelled 18:06 and `chat-purge` read as zero firings while its work lines sat in the log.
+  Fixed by aligning the window to a period boundary. **Seventh consecutive session where the instrument
+  needed checking before its output meant anything** — the standing rule is now that a new measurement
+  gets a positive control *and* a known-answer arm before its first reading is quoted. Both guards
+  earned their keep immediately: the log control caught its own `limit=1` pagination bug (empty first
+  page with a `nextToken`, D-102's shape) before it could certify three jobs as never having run.
+  **The decision this leaves is the user's:** two firings (**08-09**, recommended) or one successful
+  firing plus a week of the same mechanism evidenced by `chat-purge` (**08-02**). Recommended strictly,
+  for a reason specific to this job — it is the **only enabled job that calls a paid API**, has **zero
+  retries by design** (D-105 §2), and its `MEMORY_*` wiring is the exact configuration D-105 §4 records
+  as failing *silently* into a mock. **⚠️ And its 08-02 firing is unproven wiring:** a failure there
+  pushes the second firing to 08-16. A manual run is bounded at **200 cents** and idempotent per
+  (student, week) — recommended before 08-02, and it is a spend decision, not an engineering one.
+  **✅ The Fargate rate is confirmed from the account's own bill (D-139), and D-136's correction was
+  right to the tenth of a percent.** `$0.032380/vCPU-hour` and `$0.003560/GB-hour` (ARM64, us-east-1),
+  read from billed usage ⇒ **$14.42/task/month** for a 0.5 vCPU / 1 GB task. D-133's $18.02 reproduces
+  exactly from x86 rates, so the diagnosis is confirmed, not just the fix. **The pilot's r = 5 is
+  ~+$43/month, not ~$54**; 150 at r = 12.5 is ~$173, at r = 5 is ~$433. Recommendation unchanged.
+  **⚠️ But none of it is currently being paid: July is $72.12 of usage and −$72.12 of credit, netting
+  $0** (May/June empty — staging is 07-22 onward). Every price in D-133/D-136/D-139 is **credit burn,
+  not cash**, and the remaining balance **is not readable from Cost Explorer** — one Billing-console
+  look is owed before the 150 question is priced at all. **And the bill's shape is not what the capacity
+  argument assumed: Bedrock is $39.79, 55% of it**, against $32.33 for all infrastructure — with no real
+  users, so that is load tests and this month's own measurement sessions.
+  **Staging untouched:** no apply, no deploy, no capacity change; every read above is read-only.
+  **634 passed / 2 skipped**, lint and pyright clean.
 - **✅ Criterion 7's latency question is closed by exhaustion, the capacity purchase is re-priced and
   much smaller than it looked, and the `terraform plan` carry-over closed itself the hard way
   (2026-07-31, D-136/D-137).** The gate still needs **one read: 2026-08-02**.
@@ -1027,8 +1077,47 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-31 close, post-D-136/D-137). The gate needs ONE read and no
-  engineering; everything else on this list is optional, and one item is a prohibition:**
+- **Next session, in order (2026-07-31 second close, post-D-138/D-139). The gate's last date moved out
+  by a week and the only genuinely new item is a decision, not work:**
+  1. **⛔ The apply prohibition still stands, and it now runs to the later date (D-137 §7, D-138 §2).**
+     Any apply replaces three task definitions including `module.ops_task`, whose family's *latest*
+     revision is what the schedules run — so it would swap the image under criterion 6's evidence window,
+     which is exactly the window that just got longer. Incident-only, via `INCIDENT_RESPONSE.md`'s
+     `-target` form.
+  2. **Decide criterion 6's reading for a weekly job, because the date depends on it and nothing else
+     does (D-138 §5).** Two firings ⇒ **2026-08-09**; one successful firing plus `chat-purge`'s week of
+     the same mechanism ⇒ **08-02** (and 08-03 for `chat-purge` on its own arithmetic). **Strict is
+     recommended** — `memory-consolidate` is the only enabled job calling a paid API, has zero retries by
+     design, and its `MEMORY_*` wiring is what D-105 §4 records as failing silently into a mock.
+  3. **⚠️ Before 08-02, consider one manual `memory-consolidate` run — a spend decision, ≤200 cents
+     (D-138 §6).** Nothing has ever exercised this job against the real database and gateway. If its
+     first-ever firing fails on 08-02, the second slips to **08-16**. Idempotent per (student, week), so
+     it cannot corrupt the scheduled run's window.
+  4. **On the day, the read is one command: `make scheduler-evidence`.** Per job, exit code follows the
+     weakest, and it computes expected firings from each schedule's own expression and creation time
+     rather than from anything written down. **Still quote the reading with the tick** (D-135 §4): it
+     evidences that the schedules fire unattended and the jobs execute cleanly, **not** that the
+     retention promise deletes correctly — neither purge job has ever deleted a row and neither can
+     until ~2026-10-20. Also **2026-08-01: re-probe "How do I enroll a student?"** and widen
+     `chat_qa_staging.js`'s question list beyond the four documents effective today.
+  5. **Send Message A** (twelfth session carrying it) **and Message D**, separately — S42_ORG_ASKS.md's
+     one-ask-per-message rule. A gates S43; D decides whether the 150-concurrent question is ever worth
+     pricing.
+  6. **One Billing-console look is owed before any price is quoted as money (D-139 §3).** The whole July
+     bill is credited to zero, and the remaining credit balance is not exposed by any API — so every
+     figure in D-133/D-136/D-139 is a credit-burn rate, not cash, and the date it becomes payable is
+     unknown.
+  7. **If capacity is bought: r = 5, +3 tasks, ~$43/month, no RDS change** — price now confirmed against
+     the bill (D-139 §1), so D-136's ~$54 is superseded. `autoscaling_max_capacity` is **3** and must
+     move; `pool_size`/`max_overflow` should come *down* toward r. Needs an apply, so it waits on item 1.
+  8. **AUD-F-33 (P2) is still the only real engineering left**, still deferred by user call, and still
+     needs an apply — so it waits on item 1 too, which now means a week longer.
+  **Carry-overs unchanged:** `/readyz` still cannot distinguish "database gone" from "I am busy"; answer
+  brevity (D-115 (i)); AUD-F-22 and AUD-F-24's sibling; D-112's retrieval-margin re-measure; the ~2–4%
+  `rag_answer` `schema_invalid` rate. **Minted here:** the credit-balance look (item 6).
+
+- **Superseded — next-session pointer as of the D-136/D-137 close (2026-07-31). Item 2's date was wrong
+  and is corrected by D-138; the rest still stands:**
   1. **⛔ Do not `terraform apply` against staging before item 2 is ticked (D-137 §7).** The schedules run
      the ops-task family's latest revision un-pinned, and any apply replaces three task definitions
      including `module.ops_task` — swapping the image under criterion 6's own evidence window, which is
@@ -3180,6 +3269,46 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### Off-roadmap — the criterion-6 date is wrong by a week, and the Fargate price confirmed from the bill (2026-07-31, second session) ✅
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-136/D-137)**, not a numbered roadmap block.
+  Every item on it was date-gated (08-01, 08-02), human (Messages A/D), or blocked behind the apply
+  prohibition, so the instruction was to do whatever needed neither a person nor a calendar. That turned
+  out to include the one thing that mattered.
+- **Landed D-136/D-137 first** (`e7df97e`, PR #74, 9/9 CI checks green): docs + `size_statement_cpu.py` +
+  `profile_local_request.py --statements`. Nothing under `apps/`/`packages/`/`curriculum/`/
+  `knowledge-content/`, checked rather than assumed, so criterion 3's byte-identical-to-HEAD evidence
+  survives the merge. **One defect fixed on the way in:** the D-137 runbook edit had split
+  `random_password.jwt_signing_secret_learning` across a line *inside* a backtick span, rendering a
+  corrupted command in the credential-rotation path — the one place nobody proofreads before pasting.
+- **⛔ Then the criterion-6 finding (D-138), which is why the pointer's "one read" was not one read.**
+  `memory-consolidate` **has never fired.** Created 2026-07-27 02:48:30Z against `cron(30 18 ? * SUN *)`
+  UTC — Sunday 07-26's slot had passed **8h18m before the schedule existed**. Confirmed three ways: the
+  creation date, no `InvocationAttemptCount` datapoint at any Sunday 18:30Z, and **zero** `Consolidation`
+  lines in the ops log group's entire history against a positive control that finds all nine `purged …`
+  lines. **08-02 is its first firing; D-135's own rule then gives 2026-08-09.** `chat-purge` reaches
+  ≥7 days on **08-03** and `retention-purge` on **08-05**, measured from real creation times.
+- **⚠️ D-135's per-job table came from an inference wearing a measurement's clothes.** `AWS/Scheduler`
+  publishes **no per-schedule dimension** — only `ScheduleGroup` — so its metric sums every schedule in
+  the group including deleted ones. The table was right for the two daily jobs and **wrong for the weekly
+  one**, which is that substitution's signature failure.
+- **🔬 `scripts/read_scheduler_evidence.py` / `make scheduler-evidence`** — read-only, per job, exit code
+  follows the weakest job, attribution by 5-minute bucket with a hard refusal if two enabled schedules
+  could share one. **D-135's bucket-offset error reproduced inside it on the first run** (CloudWatch lays
+  buckets out from `StartTime`, so 18:10 landed in a bucket labelled 18:06 and `chat-purge` read as zero
+  firings) and its own log control caught a `limit=1` pagination bug before it could certify three jobs as
+  never having run. **Seventh session running where the instrument needed checking first.**
+- **✅ Fargate rate confirmed from billed usage (D-139):** `$0.032380/vCPU-hour`, `$0.003560/GB-hour`
+  ARM64 ⇒ **$14.42/task/month**, exactly 80.0% of D-133's $18.02 (which reproduces from x86 rates, so the
+  diagnosis is confirmed and not just the fix). **Pilot r = 5 is ~+$43/month, not ~$54.**
+- **⚠️ And none of it is being paid: July is $72.12 usage, −$72.12 credit, net $0.** Every price in
+  D-133/D-136/D-139 is credit burn; the balance is not exposed by any API. **Bedrock is $39.79 — 55% of
+  the bill** with no real users.
+- **Staging untouched** — no apply, no deploy, no capacity change, every read read-only. `make lint`
+  clean, `pyright` 0 errors, **634 passed / 2 skipped**.
+- **Not done, and why:** Messages A/D (yours to send); the 08-01 re-probe and the criterion-6 read
+  (dates); AUD-F-33 and the r = 5 purchase (need an apply, blocked); the manual `memory-consolidate`
+  de-risking run (**spends money and writes rows — a decision, not work**).
 
 ### Off-roadmap — the last latency lead sized and rejected, capacity re-priced against a ratio, terraform drift explained (2026-07-31) ✅
 - **Scope: PROGRESS.md's own "Next session" pointer (post-D-134/D-135)**, not a numbered roadmap block.
