@@ -12,9 +12,21 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **8/8 calls, 0 failed, 24.73 cents, exit 0**, one-off auto-deleted, weekly schedule untouched),
   combined with the purge jobs' existing unattended record (5/5, 3/3) and the job's clean runs.
   **Condition recorded in D-148 §2: the 08-02/08-03/08-05/08-09 scheduled firings become free
-  confirmation reads, and a failure in any of them reopens criterion 6.** Tomorrow's
-  `make scheduler-evidence` will show one unattributed 03:47Z firing — that is D-148's one-off,
-  expected. Criteria 1, 2, 3, 7, 9 were already met.
+  confirmation reads, and a failure in any of them reopens criterion 6.** Criteria 1, 2, 3, 7, 9
+  were already met.
+  **✅ And the cron path is proven too (D-149), so 08-02 is now confirmation of one enum value.**
+  A second throwaway clone — `cron(39 4 ? * SAT *)`, differing from the real schedule in only
+  **minute, hour and the day-of-week enum** — fired at **04:39:01.854Z against a 04:39:00Z slot**,
+  `startedBy: chronos-schedule`, exit 0, 8/8 calls, and deleted itself. The real weekly schedule's
+  **`LastModificationDate` still equals its `CreationDate`**, which proves it was never touched.
+  Output was byte-identical to the 03:47Z run, so a positive control ran before quoting it: **two
+  completion lines, 03:51:25Z and 04:43:20Z, in two different log streams** — two real tasks, not a
+  re-read. Only **`SUN` vs `SAT`** stays unobserved, and no timezone reaches Sunday before 10:00Z.
+  **⚠️ Correction from D-149 §4:** the consolidation window is a **rolling `[now − 7d, now)`, not a
+  calendar/ISO week** — 08-02 sees a window shifted ~38 h, not the same bucket. And expect
+  `0 added, 0 reconfirmed` with full spend (seen twice, the stable state of an already-consolidated
+  static corpus), plus two unattributed firings in tomorrow's `make scheduler-evidence`
+  (03:47Z and 04:39Z — D-148's and D-149's clones).
 - **✅ Both fixes are deployed and criterion 3 is met again — two clean whole-suite staging runs,
   first attempt, no selection (2026-08-01, D-147).** Commit `653d5f9` → PR #77 **9/9 green** (the
   container-scan red was a runner segfault; passed on re-run with the new commit) → squash-merged,

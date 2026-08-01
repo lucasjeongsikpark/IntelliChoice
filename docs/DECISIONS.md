@@ -8677,3 +8677,59 @@ one-off (the reader attributes by cron minute and correctly refuses to absorb an
 D-105 §5's deliberate-failure tests set the precedent of reporting them). The 08-02 18:30Z firing
 remains worth reading: it is the first exercise of the *weekly cron itself*, and §2's condition
 makes it a reopening trigger if it fails.
+
+## D-149 — the weekly cron path is proven too, by a throwaway cron clone: the 08-02 read is now confirmation of one enum value (accepted, 2026-08-01)
+
+**Context.** D-148 closed criterion 6 on a one-off `at()` firing and left one link unobserved: the
+*cron expression itself* evaluating to a firing at its own slot. The user's argument for closing that
+gap now rather than waiting ~38 hours — "there are no users yet" — is right about cost, so it was
+closed. One objection was kept and is not about users: **the real weekly schedule was not touched**,
+because D-148 §1 rests on it being untouched and editing the certified artifact to test it would
+corrupt the evidence it certifies.
+
+### 1. What was run
+
+A throwaway clone, `…-memory-consolidate-cron-d149`: **`cron(39 4 ? * SAT *)`**, UTC, flexible
+window OFF, `EndDate` 6 minutes out, auto-delete, and the real schedule's target cloned verbatim
+(same cluster, same un-pinned `ops-task` family, same scheduler IAM role, same container override).
+It differs from the real weekly schedule in exactly **three values: minute, hour, and the
+day-of-week enum** — the expression *kind* (named-day-of-week weekly cron), timezone, window mode,
+target and role are identical.
+
+**Result:** task created **04:39:01.854Z against a 04:39:00Z slot** (1.85 s — flexible window OFF
+behaving exactly as configured), `startedBy: chronos-schedule/…`, **exit 0**, `8 model call(s),
+0 failed, 24.73 cents`, no failure lines. The clone deleted itself. The real weekly schedule
+verified untouched — and not merely by inspection: its **`LastModificationDate` still equals its
+`CreationDate`** (2026-07-26T21:48:30), which is proof no modification ever occurred rather than a
+claim that none was intended.
+
+### 2. The output was byte-identical to the 03:47Z run, and that was checked rather than trusted
+
+`24.73 cents / 8 calls / 11840 events dropped` matched D-148's firing exactly — which is the
+signature of *re-reading the old log*, this project's most-repeated instrument error. Positive
+control run before quoting it: exactly **two** completion lines in the window, at **03:51:25Z and
+04:43:20Z**, in **two different log streams** (`1cb9138b…` and `c647f366…`). Two distinct tasks. The
+identity is real and expected — a static corpus, identical inputs 52 minutes apart, deterministic
+token accounting.
+
+### 3. What remains unobserved, stated exactly
+
+**The `SUN` enum value specifically.** The day-of-week *field* is now demonstrated working via
+`SAT`; `SUN` is a different member of it, validated by AWS at creation. It could not be exercised
+today: no timezone reaches Sunday until 10:00Z (UTC+14), so any "test SUN now" would be a
+timezone contrivance rather than a test. **D-148 §2's reopening condition stands unchanged** — if
+the real weekly firing fails on 08-02 18:30Z, criterion 6 reopens.
+
+### 4. A correction this produced, and a stable observation
+
+**Correction:** the consolidation window is a **rolling `[now − 7d, now)` computed per run,
+deliberately not snapped to a calendar week** (`settings.window_days`' own comment). An earlier
+reading in conversation guessed an ISO-week bucket and was wrong; `consolidate_cli.py`'s docstring
+said "idempotent per (student, week)", which is the loose wording that invited it, and has been
+corrected to name the rolling window. Consequence for the 08-02 read: that firing sees a window
+shifted ~38 h, not the same bucket.
+
+**Observation, now twice:** `0 added, 0 reconfirmed` with a full 8 calls and full spend, against
+this morning's `5 reconfirmed` (D-141). Seen identically at 03:47Z and 04:39Z, so it is the stable
+state of a static already-consolidated corpus, not a fluke. `11840 of ~13865 events dropped` is the
+20k token budget doing its job. Neither is a defect; both are what the 08-02 read should expect.
