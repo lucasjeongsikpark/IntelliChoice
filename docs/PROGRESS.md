@@ -3452,7 +3452,7 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
-### Off-roadmap — AUD-F-34 found, fixed in three deploys, and criterion 3 failed its re-run (2026-07-31, third session) ⏸ partial
+### Off-roadmap — AUD-F-34 found, fixed in three deploys; criterion 3 failed its re-run; the apply landed; the suite went red at midnight (2026-07-31 → 2026-08-01, third session) ⏸ partial, suite RED
 - **Scope: PROGRESS.md's own pointer (post-D-138/D-139), then user-directed.** The user chose the strict
   criterion-6 reading (**08-09**) and approved the de-risking run; the run found the job broken, and the
   user then chose **fix now / chunk it / trim the synthetic rows** for the fix. Marked ⏸ because
@@ -3498,9 +3498,31 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
 - **Verification:** `make lint` clean, `pyright` 0 errors, **645 passed / 2 skipped** (from 634 — 11 new
   tests). Three staging deploys, all canary-clean; four manual ops-task runs; every AWS read read-only
   apart from those runs. PRs #74, #75, #76 merged; #77 open.
-- **Not done, and why:** Messages A and D (yours to send); the 08-01 re-probe and 08-02 criterion-6 read
-  (dates); AUD-F-33 and the r = 5 purchase (need an apply); AUD-F-35 and AUD-F-36 fixes (both change app
-  code, and AUD-F-36 must be verified against the whole suite).
+- **✅ The apply, after the prohibition was lifted by user decision — and it was not safe as-is (D-142).**
+  tfvars' floor was `gha-544c6fe9749c` (07-30) against a deployed `gha-cfe9dbc0d507`; a real
+  `terraform plan` confirmed a bare apply would make the **pre-AUD-F-34** image the ops-task family's
+  revision, and the schedules resolve that family un-pinned — so the 08-02 firing would have run the
+  broken job and been read as criterion 6's evidence. **Third instance in three days.** Bumped the floor,
+  applied from a **saved plan file**, and verified after: plan clean via `-detailed-exitcode` *and*
+  agreeing with the running image; services untouched on revisions 47/46 at 2/2 (`ignore_changes` held a
+  third time); alarms OK; Terraform's rev 41 compared against CI's rev 40 (same 9 env var names,
+  `MEMORY_*` correct — without it the CLI silently mocks, D-105 §4); and proven through the **un-pinned
+  family name the schedule uses**: rev 41, **8/8 calls, 0 failed, exit 0**.
+- **⛔ Then the suite went red at 2026-08-01T00:00Z, from the clock rather than from code (D-143,
+  AUD-C-17 P1).** Eleven `rag_documents` have `effective_from = 2026-08-01T00:00Z`, so the effective
+  corpus went **3 → 14** mid-session and `adversarial` fell **100% → 66.7%** against a **1.0** threshold.
+  The containment assertion had been passing by having **nothing to retrieve**, so every prior green on it
+  was vacuous — **fourth instance of this project's most-repeated failure mode**. The two composite rates
+  also fell but their failure lists are long-standing measured-only cases (`no_answer` 0% since S37,
+  `paraphrase` 28.6%), checked against AUDIT_FINDINGS.md:1098 rather than assumed; **reporting them as
+  regressions would have been wrong.**
+- **Also filed: AUD-X-16 (P2)** — `.gitignore:40` matches `*.tfvars`, so the file whose comment records
+  three near-misses, and which D-142 called "a step, not advice", is **untracked**. A fresh checkout has
+  neither the comment nor the bumped floor. That explains the repetition better than inattention does.
+- **Not done, and why:** **AUD-C-17 (P1) is unfixed and the suite is red** — it is chat-api behaviour,
+  criterion 3 is already blocked by AUD-F-36, and **no "done" claim is made on a red suite**. Messages A
+  and D (yours to send); the 08-01 re-probe and 08-02 criterion-6 read (dates); AUD-F-33 and the r = 5
+  purchase (decisions, not blocked any more — the prohibition is retired); AUD-F-35 and AUD-F-36 fixes.
 
 ### Off-roadmap — the criterion-6 date is wrong by a week, and the Fargate price confirmed from the bill (2026-07-31, second session) ✅
 - **Scope: PROGRESS.md's own "Next session" pointer (post-D-136/D-137)**, not a numbered roadmap block.

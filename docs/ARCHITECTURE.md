@@ -165,6 +165,16 @@ to rot, because nothing fails when it does.)*
      tokens) fitted the window and still failed: 12 cents of input per call, and slower than the 20 s
      call timeout. Latency on a structured-output path tracks the **output** budget — here derived from
      a student's existing fact count — so a batch has to be sized against timeout and cost first.
+- **A check that can pass over an empty corpus has to fail on the empty corpus instead** (AUD-C-17,
+  D-143; earlier: AUD-F-12, D-102, D-135 §3). Four times now a green signal has meant "there was
+  nothing to look at": an empty X-Ray store certified "no PII"; a log scan reported zero hits because
+  it read one page; daily metric buckets offset from midnight showed a schedule that had not fired;
+  and the RAG suite's one **architectural** assertion — adversarial containment, threshold 1.0 —
+  passed for months because only 3 documents were effective, then failed the instant 11 more became
+  effective at a date boundary. `scan_xray_pii.py` already encodes the fix for scanners (**zero traces
+  scanned is an explicit FAIL**); the rule generalises to every measurement and every eval: **assert
+  the denominator, not just the rate.** A suite whose green depends on the wall clock, or on a table
+  being empty, is reporting its own coverage rather than the system's behaviour.
 - **A job that catches its own errors must not report success by exhaustion** (AUD-F-34, D-141 §1).
   The scheduled-job failure alarm matches `containers.exitCode: [{"anything-but": [0]}]`, so a CLI that
   swallows every failure and returns 0 is invisible in every console — which is how a job that had never
