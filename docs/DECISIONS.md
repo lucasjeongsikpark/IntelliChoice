@@ -8338,3 +8338,121 @@ as flake: re-running until two land clean would be claiming the criterion by sel
 second time in two sessions that criterion 3's evidence was aged by a deploy this project chose to
 make** (D-133 was the first), and the second finding surfaced *by* the re-run rather than by the
 feature work — the re-run is doing real work and should not be treated as a formality.
+
+## D-142 — The apply prohibition is lifted and the apply is done; the plan against the stale floor would have reverted AUD-F-34, for the third time in three days (accepted, 2026-07-31)
+
+**Context.** The user lifted D-137 §7's prohibition and delegated the judgement ("you can proceed
+that if you think that's alright"). The honest answer was **not as-is**, and the reason is the whole
+value of this entry.
+
+### 1. What a bare apply would have done, checked with a real plan rather than recalled
+
+`terraform.tfvars`' floor was `gha-544c6fe9749c` (07-30) while the deployed image was
+**`gha-cfe9dbc0d507`** — three deploys newer and the only image containing AUD-F-34's fix. The plan
+wanted to replace **`module.ops_task`** and register `544c6fe` as the family's revision. **The
+schedules resolve that family un-pinned**, so the 2026-08-02 `memory-consolidate` firing would have
+run the **pre-fix** image: every call failing on prompt length, exit 0, and criterion 6 read on a job
+that cannot work. The plan was otherwise narrow — 3 task definitions, `0 to change`, **no
+`aws_ecs_service`** — which is what made the rest of it safe.
+
+**Third instance of this exact shape in three days:** S39's floor predated AUD-F-30's `/readyz`
+tracing suppression (criterion 9's evidence base, D-137 §5); D-137's bump was one apply away from
+reverting it; and today's floor was one apply away from reverting AUD-F-34. **So the file's own
+comment — "bump this whenever a fix must survive a bare apply" — is not advice, it is a step**, and
+tfvars now says so: *check the floor against the running image before every apply.* The comment has
+now failed to prevent the same error three times, which is evidence about comments, not about
+readers.
+
+### 2. The apply, and what was verified rather than assumed
+
+Floor bumped `544c6fe → cfe9dbc`, re-planned, and applied from a **saved plan file** so the applied
+actions were exactly the reviewed ones (the plan's own closing note warns that an un-saved plan
+guarantees nothing). Enumerated from the plan JSON before applying: **3 resources, all
+`aws_ecs_task_definition`, 0 services touched.**
+
+After:
+
+- **`terraform plan` is clean** — `-detailed-exitcode` returns 0. And unlike D-137's clean plan, this
+  one agrees with the **running** image rather than with a stale tag, which was that entry's whole
+  complaint.
+- **Services untouched:** learning-api still on revision 47, chat-api on 46, 2/2 tasks each. So
+  `lifecycle.ignore_changes = [task_definition]` held for a **third** observed time.
+- **Family latest revisions are now Terraform's** (learning-api 48, chat-api 47, ops-task 41), all
+  carrying `gha-cfe9dbc0d507`. This is the drift D-137 described, now benign because the images match.
+- **⚠️ Terraform's ops-task shape was compared, not trusted.** D-137 established that CI's and
+  Terraform's container definitions differ, and for *this* job that is not cosmetic: without
+  `MEMORY_BEDROCK_PROVIDER=bedrock` the CLI falls back to the mock and writes fabricated facts into
+  the real database, which D-105 §4 records as strictly worse than failing. Rev 40 (CI) and rev 41
+  (Terraform) carry the **same 9 environment variable names**, and rev 41's `MEMORY_*` trio is
+  correct: `bedrock`, `us-east-1`, the IAM-granted Haiku 4.5 id.
+- **Proven end-to-end, through the un-pinned family name the schedule actually uses:** the run
+  resolved to **revision 41** and completed **8 of 8 model calls, 0 failed, exit 0**, 24.06 cents. So
+  the 08-02 firing will run the fixed image.
+
+### 3. Criterion 6's evidence window, and why the disturbance does not move the date
+
+The ops-task image changed **four times today** — three CI deploys plus this apply — so under
+D-129 §6 a strict reading restarts the purge jobs' clocks. **It does not change the answer**, and that
+is worth stating so nobody re-derives it: a restart puts the purge jobs at 2026-08-07, while
+`memory-consolidate`'s second firing is **2026-08-09**, and the weakest job binds the criterion
+(D-114 §3). **08-09 remains the date under either reading.** There was also nothing to protect for
+`memory-consolidate` itself: before today it could not have produced valid evidence at all.
+
+### 4. What the prohibition was worth
+
+It held for exactly as long as it was useful and was retired by the user rather than by expiry. Its
+value was not "never apply" — it was that **an apply here changes what a *schedule* runs, invisibly,
+through a family-name resolution nobody looks at**. That mechanism is unchanged and will be true of
+the next apply too, which is why the checklist step in tfvars matters more than the prohibition did.
+
+## D-143 — The suite went red at a date boundary, and the assertion that broke had been passing over an empty corpus (accepted, 2026-08-01)
+
+**Context.** The end-of-session verification run failed. `make test` had been green (645 passed) twenty
+minutes earlier and the only edits in between were Markdown plus one gitignored tfvars line — so the
+suite's own state changed without the code changing, which is the part worth recording.
+
+### 1. The cause is the wall clock, and it is data rather than a bug
+
+Eleven `rag_documents` carry `effective_from = 2026-08-01 00:00:00+00`. The session began on 07-31 and
+ran past midnight UTC. **Before that instant the effective corpus was 3 documents; after it, 14.**
+Nothing in the repository changed.
+
+### 2. One category regressed, and reporting the other two as regressions would have been wrong
+
+`adversarial` went **100% → 66.7% (4/6)** against a **1.0** threshold — that is the failure.
+`grounded_citation_rate` (68.8% → 55.0%) and `correct_refusal_rate` (79.5% → 73.8%) also fell, but
+their failure lists are dominated by cases that have failed since S37 (`no_answer` at 0%, `paraphrase`
+at 28.6%, both measured-only and never asserted). The composites moved because their composition did.
+**Checked against the recorded baseline in AUDIT_FINDINGS.md:1098 rather than assumed** — the same
+table this project keeps for exactly this purpose.
+
+### 3. Why the regression is a P1 and not a stale expectation
+
+The threshold is 1.0 for a reason the test states: every adversarial defense here is *architectural* —
+pre-retrieval filtering, deterministic citation verification, backend-authored access hints — so it
+does not depend on model quality. **An architectural defense must not depend on how much content is in
+the corpus either.** `_adversarial_passed` is a containment check, and with an empty allowlist over an
+empty effective corpus it passed by having nothing to retrieve. The first time it met real content, it
+failed. Filed as **AUD-C-17 (P1)**.
+
+**Fourth instance of this project's most-repeated failure mode:** AUD-F-12 (empty trace store certified
+"no PII"), D-102 (log scan over an unread page), D-135 §3 (day-straddling buckets), and now an eval
+satisfied by an empty corpus. `scan_xray_pii.py` already FAILs on zero traces scanned; **that rule was
+never applied to the evals.** The recurrence-preventing fix is a non-empty-effective-corpus
+precondition on the whole eval, not a patch to two cases.
+
+### 4. A structural reason the tfvars checklist keeps failing: git does not track it
+
+`.gitignore:40` matches `*.tfvars`, so the file whose comment block records three separate near-misses
+— and which D-142 §1 just declared "a step, not advice" — **is untracked**. Only
+`terraform.tfvars.example` is in the repo. A fresh checkout has neither the comment, the history, nor
+the bumped floor, which explains the repetition better than inattention does. Filed as **AUD-X-16
+(P2)**; the durable form is an executable check (`make`-target shaped, like `make scheduler-evidence`)
+rather than a comment in an invisible file.
+
+### 5. Session state, stated plainly
+
+**The suite is RED.** One assertion, cause identified, not caused by this session's code, and not
+fixed — the fix is chat-api behaviour and criterion 3 is already blocked by AUD-F-36. **No "done"
+claim is made on a red suite** (this is the close-out step's own rule). The next session's first
+decision is the order of AUD-C-17, AUD-F-36 and the 08-02 criterion-6 read.

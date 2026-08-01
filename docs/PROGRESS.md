@@ -5,6 +5,54 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⛔ THE SUITE IS RED. `adversarial` 100% → 66.7% at the 2026-08-01T00:00Z date boundary, and the
+  assertion had been passing over an empty corpus (D-143, AUD-C-17 P1).** `make test` was green
+  (645 passed) twenty minutes earlier; **the only thing that changed was the clock.** Eleven
+  `rag_documents` carry `effective_from = 2026-08-01T00:00Z`, so the effective corpus went from **3
+  documents to 14** mid-session.
+  **One category regressed, and calling the other two regressions would have been wrong.**
+  `adversarial` 100% → **66.7% (4/6)** against a **1.0** threshold is the failure
+  (`adversarial-system-override`, `adversarial-false-premise`). `grounded_citation_rate` (68.8% → 55.0%)
+  and `correct_refusal_rate` (79.5% → 73.8%) also fell, but their failure lists are dominated by cases
+  failing since S37 (`no_answer` 0%, `paraphrase` 28.6%, both measured-only) — checked against the
+  recorded baseline at AUDIT_FINDINGS.md:1098, not assumed.
+  **Why P1:** the threshold is 1.0 because every adversarial defense here is *architectural* —
+  pre-retrieval filtering, deterministic citation verification, backend-authored access hints. **An
+  architectural defense must not depend on how much content is in the corpus.** The containment check
+  passed by having nothing to retrieve, and failed the first time it met real content. **Fourth instance
+  of this project's most-repeated failure mode** (AUD-F-12's empty trace store, D-102's unread page,
+  D-135 §3's straddling buckets). `scan_xray_pii.py` already FAILs on zero traces scanned; **that rule
+  was never applied to the evals**, and the recurrence-preventing fix is a non-empty-effective-corpus
+  precondition on the whole eval rather than a patch to two cases.
+  **Also filed: AUD-X-16 (P2) — `.gitignore:40` matches `*.tfvars`, so the file whose comment records
+  three separate near-misses is untracked.** A fresh checkout has neither the comment nor the bumped
+  floor, which explains the repetition better than inattention does. The durable form is an executable
+  check, `make`-target shaped.
+  **Not fixed:** it is chat-api behaviour, criterion 3 is already blocked by AUD-F-36, and **no "done"
+  claim is made on a red suite.**
+- **✅ The apply prohibition is lifted and the apply is done — and the plan against the stale floor
+  would have reverted AUD-F-34's fix (2026-07-31, D-142).** User lifted D-137 §7 and delegated the
+  call; the honest answer was **not as-is**.
+  **`terraform.tfvars`' floor was `gha-544c6fe9749c` (07-30) while the deployed image is
+  `gha-cfe9dbc0d507`** — the only image containing today's fix. A bare apply would have made 544c6fe
+  the ops-task family's revision, and **the schedules resolve that family un-pinned**, so the 08-02
+  `memory-consolidate` firing would have run the **pre-fix** image and been read as criterion 6's
+  evidence. **Third instance in three days** (S39's floor vs AUD-F-30; D-137's vs the same; today's vs
+  AUD-F-34), so tfvars now carries it as a **step, not a comment**: check the floor against the running
+  image before every apply.
+  **Applied after bumping the floor, from a saved plan file** so the applied actions were the reviewed
+  ones. Enumerated from the plan JSON first: **3 task definitions, 0 services touched.**
+  **Verified after:** `terraform plan` **clean** (`-detailed-exitcode` 0) *and agreeing with the running
+  image*, unlike D-137's clean-plan-on-a-stale-tag; services untouched on revisions 47/46 at 2/2, so
+  `ignore_changes` held a **third** observed time; all four canary alarms OK.
+  **⚠️ Terraform's ops-task shape was compared, not trusted** — without `MEMORY_BEDROCK_PROVIDER=bedrock`
+  the CLI falls back to the mock and writes fabricated facts (D-105 §4, strictly worse than failing).
+  Rev 40 (CI) and rev 41 (Terraform) carry the **same 9 env var names** and rev 41's `MEMORY_*` trio is
+  correct. **Proven through the un-pinned family name the schedule uses:** resolved to **rev 41**,
+  **8 of 8 calls, 0 failed, exit 0**, 24.06 cents.
+  **Criterion 6's window was disturbed four times today** (3 deploys + this apply), but **the date does
+  not move**: a strict restart puts the purge jobs at 08-07 while `memory-consolidate`'s second firing is
+  **08-09**, and the weakest job binds (D-114 §3).
 - **⛔ Criterion 3 did not pass its post-deploy re-run, and the failure is a new P2 (AUD-F-36,
   D-141 §9).** Run 1 clean (**53 passed / 4 skipped**, matching D-134 exactly); **run 2 failed** on
   `journey-parent.spec.ts:17` — **same image, no deploy between**, so not a regression from this
@@ -1161,30 +1209,35 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 - **Next session, in order (2026-07-31 fourth close, post-D-141). AUD-F-34 is fixed and deployed; what
   is left is one date, two decisions and the messages:**
-  1. **⛔ AUD-F-36 (P2) blocks criterion 3, and the honest order is fix-then-re-run.** A parent's
+  1. **⛔ FIRST: the suite is red — AUD-C-17 (P1).** `adversarial` 66.7% against a 1.0 threshold, from
+     the 08-01 corpus widening. Fix the eval's vacuity **as well as** the two cases: assert a non-empty
+     effective corpus as a precondition of the whole eval, or the next empty-corpus green means nothing
+     either. Diagnose which containment condition fails (out-of-allowlist citation vs forbidden
+     substring) with a per-case dump first.
+  2. **⛔ AUD-F-36 (P2) blocks criterion 3, and the honest order is fix-then-re-run.** A parent's
      child-selection interrupt hangs forever when `/respond` beats the SSE subscription. Verify any fix
      against the **whole suite** — it is 0 of 3 in isolation. Likely the AUD-F-26 fix shape: re-read
      authoritative state after a resume rather than trust a stream event that may never arrive.
      **Do not simply re-run until two runs land clean** — at ~⅔ per run that is claiming the criterion
      by selection, which is what D-141 §9 says plainly.
-  2. **2026-08-02: read criterion 6 with `make scheduler-evidence`.** `memory-consolidate`'s first-ever
+  3. **2026-08-02: read criterion 6 with `make scheduler-evidence`.** `memory-consolidate`'s first-ever
      firing lands that day and the job is now capable of succeeding, so this is a real test. **The date
      for the criterion itself is 2026-08-09** on the two-firing reading chosen this session. Also
      **08-01: re-probe "How do I enroll a student?"** and widen `chat_qa_staging.js`'s question list.
-  3. **Decide `bedrock_run_budget_cents` before the pilot (D-141 §8).** At ~2–3 cents per real student
+  4. **Decide `bedrock_run_budget_cents` before the pilot (D-141 §8).** At ~2–3 cents per real student
      per week the 200-cent budget stops the run after ~70–90 students, and 1,000 MAU implies **$90–120
      /month, comparable to the entire current AWS bill**. Also decide whether students skipped by the
      budget should be paged into the next run rather than silently dropped — `budget_stopped` makes the
      condition visible but nothing acts on it.
-  4. **Decide whether `learning_events` gets a retention promise (D-141 §5).** `chat-purge` and
+  5. **Decide whether `learning_events` gets a retention promise (D-141 §5).** `chat-purge` and
      `retention-purge` cover four tables; nothing purges the one that grows without bound and broke this
      job. A SPEC question. **Do not trim it as a cleanup** — the new facts cite those event ids.
-  5. **Send Message A** (twelfth session carrying it) **and Message D**, separately.
-  6. **AUD-F-35 (P2):** fix `promote_if_eligible`'s missing evidence bar. Write the failing test first —
+  6. **Send Message A** (twelfth session carrying it) **and Message D**, separately.
+  7. **AUD-F-35 (P2):** fix `promote_if_eligible`'s missing evidence bar. Write the failing test first —
      create a fact with one supporting event, reconfirm with one more, assert it is still `provisional` —
      and run the inverted control, because the current code passes an `active` assertion.
-  7. **One Billing-console look** for the remaining credit balance (D-139 §3).
-  8. **If capacity is bought: r = 5, +3 tasks, ~$43/month** (D-139 §2). **AUD-F-33 (P2)** still needs an
+  8. **One Billing-console look** for the remaining credit balance (D-139 §3).
+  9. **If capacity is bought: r = 5, +3 tasks, ~$43/month** (D-139 §2). **AUD-F-33 (P2)** still needs an
      apply; the criterion-6 apply prohibition still holds until the read.
 
 - **Superseded — pointer as of the D-140 close (2026-07-31). Item 1 is done (D-141): the fix landed in

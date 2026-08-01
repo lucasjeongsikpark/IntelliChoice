@@ -712,6 +712,21 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
+**⛔ Criterion 4 (green full test runs) is BROKEN as of 2026-08-01T00:21Z, and criterion 2 gains a P1
+(D-143).** `make test` went red **at a date boundary with no code change**: eleven `rag_documents` carry
+`effective_from = 2026-08-01T00:00Z`, the effective corpus went from 3 documents to 14, and
+`adversarial` fell 100% → **66.7%** against a **1.0** threshold. **AUD-C-17 (P1)** — the containment
+assertion had been passing by having nothing to retrieve, which makes every prior green on it vacuous.
+Also **AUD-X-16 (P2)**: `*.tfvars` is gitignored, so the checklist step that has failed three times is
+in an untracked file. **No criterion may be claimed while the suite is red.**
+
+**✅ The `terraform apply` prohibition is retired (2026-07-31, D-142).** The user lifted it, the floor
+was bumped `544c6fe → cfe9dbc` **first** — a bare apply would have made the pre-AUD-F-34 image the
+ops-task family's revision, and the schedules resolve that family un-pinned — and the apply is done.
+`terraform plan` is clean *and* agrees with the running image. Criterion 6's date is unchanged at
+**2026-08-09**: the window was disturbed four times today, but a strict restart puts the purge jobs at
+08-07 while `memory-consolidate`'s second firing binds at 08-09 (D-114 §3).
+
 **⛔ Criterion 3 is NOT met as of 2026-07-31 (post-D-141 §9), and criterion 2 has two new P2s.** The
 post-deploy re-run produced one clean whole-suite run (53 passed / 4 skipped) and **one failure** —
 `journey-parent.spec.ts:17`, same image, no deploy between, so not a regression. **AUD-F-36 (P2)**: a

@@ -3932,3 +3932,73 @@ which is the same trade-off D-140 §5 recorded, now with a second instance.
 **Discriminating next step, cheap and named:** instrument the two calls' ordering across several
 whole-suite runs and check whether every failure has `respond <= stream_open`. The harness already
 records both timestamps in `e2e/artifacts/journeys.jsonl`, so this needs runs, not code.
+
+### AUD-C-17 — the adversarial containment cases were passing over an empty-in-practice corpus, and broke the moment 11 documents became effective (**P1** — found 2026-08-01T00:21Z, D-143; suite is red)
+
+Found by the end-of-session verification run, which went red **while nothing but the clock had
+changed** — `make test` was green (645 passed) twenty minutes earlier and the only edits between were
+Markdown and a gitignored tfvars line.
+
+**Cause: the corpus widened at a date boundary.** Eleven `rag_documents` carry
+`effective_from = 2026-08-01 00:00:00+00`. Until that instant the effective corpus was **3**
+documents (About IntelliChoice / Branch Directory / Our Team, effective 07-18); after it, **14**.
+
+**What broke, precisely — one category, not three.**
+
+| category | recorded mock baseline (AUDIT_FINDINGS.md:1098) | now | enforced threshold |
+|---|---|---|---|
+| `adversarial` | **100%** | **66.7% (4/6)** | **1.0 — tripped** |
+| `grounded_citation_rate` | 68.8% | 55.0% | composite, not asserted |
+| `correct_refusal_rate` | 79.5% | 73.8% | composite, not asserted |
+
+The two composites fell too, but their failure lists are dominated by **long-standing** measured-only
+cases (`no_answer` has been 0% since S37; `paraphrase` 28.6%), so they are not new regressions and
+should not be reported as such. The genuine regression is `adversarial-system-override` and
+`adversarial-false-premise`.
+
+**Why this is P1 rather than a stale expectation.** The threshold is 1.0 for a stated reason, in the
+test's own words: *"Every adversarial defense in this suite is architectural (pre-retrieval filtering,
+deterministic citation verification, backend-authored access hints), so none of it depends on model
+quality and the bar is the same for the mock and for a real model."* **An architectural defense must
+not depend on how much content is in the corpus.** `_adversarial_passed` is a containment check — cite
+nothing outside the case's allowlist, repeat none of its forbidden strings — and with an empty
+allowlist and an empty effective corpus it passed by having nothing to retrieve. **The first time it
+was exercised against real content, it failed.** That is a green that meant nothing, and it touches
+non-negotiable #5 (fail closed: no answer without an approved, effective, citation-supported source)
+and #3 (filters applied *before* retrieval).
+
+**Fourth instance of this project's most-repeated failure mode** — AUD-F-12 (an empty trace store
+certified "no PII"), D-102 (a log scan reporting zero hits over an unread page), D-135 §3 (buckets
+that straddled days), and now an eval whose hardest assertion was satisfied by an empty corpus. The
+generalisable rule is already written down for scanners (`scan_xray_pii.py` FAILs on zero traces
+scanned); **it was never applied to the evals.** The fix that prevents recurrence is not the two cases
+— it is asserting a **non-empty effective corpus** as a precondition of the whole eval, so it cannot
+pass by vacuity again.
+
+**Not diagnosed further, and deliberately not fixed.** Which of the two conditions fails
+(out-of-allowlist citation vs a forbidden substring) needs a per-case dump, and the fix is chat-api
+behaviour, so it changes app code — with criterion 3 already blocked by AUD-F-36 and the suite red,
+sequencing that is the next session's first decision, not a change to make at the end of this one.
+
+**⚠️ Read the date-boundary lesson too, which is separate and cheap:** the standing note anticipated
+2026-08-01 as the day the corpus widens (it asked for a re-probe and for `chat_qa_staging.js`'s
+question list to be widened) — but **nobody anticipated that the local test suite's own thresholds
+were calibrated against the pre-08-01 corpus.** A date-dependent fixture makes the suite's green a
+function of the wall clock, which is a property no test suite should have.
+
+### AUD-X-16 — the three-times-failed checklist step lives in a gitignored file (**P2** — found 2026-08-01, D-143)
+
+`.gitignore:40` matches `*.tfvars`, so `terraform/environments/staging/terraform.tfvars` — the file
+holding `learning_api_image_tag` and the comment block that now records three separate near-misses —
+**is not tracked by git.** Only `terraform.tfvars.example` is.
+
+So the instruction that has now failed to prevent the same error three times (S39/AUD-F-30,
+D-137, D-142/AUD-F-34) **cannot reach anyone who has not already been bitten**: a fresh checkout does
+not have the comment, the history, or the bumped floor. D-142 §1 concluded that "the comment is a
+step, not advice" and wrote that step into the file — into the one file that is invisible to the repo.
+
+**This explains the repetition better than inattention does.** The fix is to move the check somewhere
+tracked and preferably executable: a `terraform.tfvars.example` comment is still only a comment, so
+the durable form is a script or a `make` target that compares the floor against the running image and
+exits non-zero on a mismatch — the same shape as `make scheduler-evidence`. Filed rather than done;
+it is one small script and it belongs with whoever next touches the deploy path.
