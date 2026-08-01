@@ -8623,3 +8623,57 @@ they are clean.
 un-pinned family — it contains AUD-F-34's fix (inherited from cfe9dbc) plus this session's chat-api
 and eval changes, none of which touch the consolidation path. Note the image when reading the
 evidence, as the pointer already says.
+
+## D-148 — criterion 6 closed early by user decision, on manufactured-but-real evidence: a Scheduler-initiated firing today instead of two calendar Sundays (accepted, 2026-08-01)
+
+**Context.** With criterion 3 re-met (D-147), the gate's only remaining blocker was criterion 6's
+calendar: `memory-consolidate`'s first scheduled firing on 08-02 and the strict two-firing date of
+08-09 (D-138), plus the purge jobs' ≥7-day marks (08-03, 08-05). The user directed: "just bypass
+that blocker for once." The decision is theirs to make — D-138 §5 explicitly left the reading to
+the user — and this entry records what was done so the bypass is a documented reading change, not
+an undocumented shortcut.
+
+### 1. What "bypass" was implemented as — the missing evidence was manufactured for real, not waived
+
+A **one-off EventBridge schedule** (`…-memory-consolidate-oneoff-d148`, `at(2026-08-01T03:47:00)`
+UTC, flexible window OFF, auto-delete after completion) cloned the real schedule's exact target:
+same ECS cluster, same un-pinned `ops-task` family, same scheduler IAM role, same container
+override. It fired unattended:
+
+- `startedBy: chronos-schedule/…` — **Scheduler-initiated, no human in the loop**;
+- ops-task **rev 42 = `gha-75a966d31810`** (today's deploy, resolved through the un-pinned family —
+  the exact resolution path the real weekly firing uses);
+- `Consolidation run complete: 2 student(s), … 8 model call(s), 0 failed, 24.73 cents spent` —
+  and the spend itself refutes D-105 §4's silent-mock hazard, since the mock bills 0.0000;
+- **exit code 0**, 4m42s, no failure lines (`_FAILURE_LINES` scan clean);
+- `0 added, 0 reconfirmed` is the idempotency working, not a hollow run: D-142's manual run
+  earlier the same day already consolidated this (student, week) window;
+- the one-off deleted itself; the real weekly schedule verified untouched (`cron(30 18 ? * SUN *)`,
+  ENABLED).
+
+### 2. The reading this closes criterion 6 on, stated in full
+
+- **Scheduler→ECS→job wiring for `memory-consolidate`:** proven end-to-end today, unattended (§1).
+- **The unattended-schedule mechanism itself:** `chat-purge` 5/5 daily firings over ~6 days,
+  `retention-purge` 3/3 — same Scheduler, same task family, same log evidence, work lines verified
+  (D-135/D-138).
+- **The job's correctness:** first-ever clean runs on 2026-07-31 (D-141) and today, 8/8 calls each.
+
+**What this deliberately does not evidence:** the weekly cron expression firing at its own Sunday
+18:30Z slot, and the purge jobs' full ≥7 unattended days (they stand at ~6 and ~4). Under D-138's
+strict reading those complete on 08-03/08-05/08-09; under this decision they are **free
+confirmation reads, not gate blockers**. **Condition attached: a failure in any of those scheduled
+firings reopens criterion 6** — the bypass waives the wait, not the evidence standard going forward.
+
+### 3. So the gate has no remaining dates
+
+Criteria 1, 2, 3 (re-met today, D-147), 7, and 9 were already met; criterion 6 closes on §2's
+reading. **The §2.6 gate is closed as of 2026-08-01, on a documented user decision.**
+
+### 4. Notes for the next reader of `make scheduler-evidence`
+
+Tomorrow's read will show **one unattributed firing at 03:47Z on 08-01** — that is this entry's
+one-off (the reader attributes by cron minute and correctly refuses to absorb an `at()` firing;
+D-105 §5's deliberate-failure tests set the precedent of reporting them). The 08-02 18:30Z firing
+remains worth reading: it is the first exercise of the *weekly cron itself*, and §2's condition
+makes it a reopening trigger if it fails.
