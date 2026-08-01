@@ -8251,3 +8251,338 @@ for a cost the cap already controls.
 `retention-purge` covers three more tables, and **nothing purges `learning_events`** — the one table
 that actually grows without bound and the one that broke this job. That is a SPEC question about
 retention, not a defect, and it is filed on AUD-F-34 rather than decided here.
+
+### 6. ⚠️ And the second wrong constant: the timeouts were never about the prompt at all
+
+The 20k re-tune cut cost 5.9× (66.18 → 11.24 cents) and `student-ext-1` **still failed all four
+calls**. So input size was never the cause. What is:
+
+| existing facts | `max_output_tokens` | outcome |
+|---|---|---|
+| 0 | 1280 | `student-ext-4` — succeeded in **every** arm, at 120k input *and* at 20k |
+| 7 | 2176 | `student-ext-1` — timed out in **every** arm |
+| 21 (`MAX_SAFE_EXISTING_FACTS`) | 3968 | — |
+
+Twice-observed and consistent. In the 120k run `student-ext-1` began at 0 facts, its **first** call
+succeeded and wrote the 7 facts, and the three calls after it — now at 2176 output tokens — timed
+out. The 20k run started it at 7 facts and all four timed out. **Latency on this path scales with
+the output budget, which scales with a student's existing fact count**, and `max_output_tokens_for`
+is derived from that count deliberately (S43), so clamping it would truncate the answer instead of
+the prompt.
+
+`MemoryConsolidationSettings.bedrock_call_timeout_s`: **20 → 120 s**, memory-specific, so no
+interactive surface moves. **This walks back §3's own reasoning and it is worth saying why rather
+than quietly editing it.** §3 said lengthening the timeout would repeat AUD-F-34's mistake. That
+warning is about growing a bound to accommodate *unbounded* work — and by this point both bounds
+exist: 20k input tokens per call and at most 4 calls per student. With the work bounded on both
+axes, 20 s is simply the wrong number for a weekly background job where nobody is waiting; it was
+inherited from surfaces where someone is. A timeout here also does not cost one call: `max_retries`
+is 2, so two timeouts spend 6 attempts against a `circuit_failure_threshold` of 5 and end the run.
+
+### 7. Verified on staging, and the first clean run this job has ever had
+
+`gha-cfe9dbc0d507`, ops-task revision 40:
+
+```
+student-ext-4: +0 facts, 0 reconfirmed ... (11.2416 cents) [5485 event(s) dropped]
+student-ext-1: +0 facts, 5 reconfirmed ... (12.0160 cents) [6355 event(s) dropped]
+Consolidation run complete: 2 student(s), 0 added, 5 reconfirmed, 0 contested, 0 expired,
+  23.26 cents spent; 8 model call(s), 0 failed, 11840 event(s) dropped.
+```
+
+**8 of 8 calls succeeded, exit 0, and 5 facts reconfirmed** — against 0/1 before the fix, 5/8 at
+120k, and 4/8 at 20k with the old timeout. The `events_dropped` counts are the cap working on
+load-test exhaust and are reported rather than silent, which is the point.
+
+Three arms, one conclusion each, and none of them was reachable by reasoning: the fix works, the
+first constant was wrong on cost and timeout, and the second constant was wrong about which axis
+mattered. **Every one of those was found by deploying and running it, not by review.**
+
+### 8. ⚠️ A scaling number the pilot should know, filed rather than fixed
+
+This run cost **~12 cents per student**, with the call cap saturated on synthetic volume. A real
+student's week fits in **one** call (~2 cents of input plus output), so realistically ~2–3 cents per
+student per week.
+
+**At 1,000 MAU that is roughly $20–30 a week, i.e. $90–120/month — comparable to the entire current
+AWS bill** (D-139 §4: $72.12 for July, all services). And `bedrock_run_budget_cents` is **200**, with
+a comment reading "a small cohort pre-launch": at 2–3 cents a student the budget stops the run after
+~70–90 students, and at this run's 12 cents after ~17. **So the weekly job as configured cannot serve
+the pilot's cohort, let alone 1,000 MAU** — it will silently stop early, which is now at least
+visible in the summary line and the `budget_stopped` flag. Sizing that budget, and deciding whether
+students should be paged across runs rather than dropped, is launch work and is not decided here.
+
+### 9. ⛔ Criterion 3 was re-run as the plan required, and it did not pass — AUD-F-36
+
+Two consecutive whole-suite staging runs were owed after the deploy. **Run 1 was clean** (53 passed
+/ 4 skipped, matching D-134 exactly). **Run 2 failed** on `journey-parent.spec.ts:17`, against the
+**same image with no deploy between**, so it is not a regression from this session's code.
+
+A parent picked a child, `/respond` returned 200, and the "who's learning today" interrupt heading
+never cleared — 123 polls across a 60 s timeout, with zero console, page or server errors and every
+API call 200. The harness's own timings discriminate: in the passing record the SSE stream opened
+**178 ms before** `/respond`; in the failing record both are stamped at the **same millisecond**.
+Leading hypothesis: a resume processed before the subscription exists publishes its state-change
+event to nobody, and the client waits forever because it trusts the stream instead of re-reading.
+
+**Not parallel load** — `workers: 1`, `fullyParallel: false`, so the suite is sequential. That was
+the obvious explanation and the config refutes it.
+
+Filed as **AUD-F-36 (P2)**: ~1 in 3 whole-suite runs, **0 of 3 in isolation**, so a fix must be
+verified against the whole suite. Same class as AUD-F-26 (D-119), and likely the same fix shape —
+re-read authoritative state after a resume rather than trust a possibly-missed stream event.
+
+**So criterion 3 is NOT met and is owed two consecutive clean runs.** It is now owed them *behind* a
+P2 that makes any given run ~⅔ likely to pass, which is worth stating plainly rather than absorbing
+as flake: re-running until two land clean would be claiming the criterion by selection. **This is the
+second time in two sessions that criterion 3's evidence was aged by a deploy this project chose to
+make** (D-133 was the first), and the second finding surfaced *by* the re-run rather than by the
+feature work — the re-run is doing real work and should not be treated as a formality.
+
+## D-142 — The apply prohibition is lifted and the apply is done; the plan against the stale floor would have reverted AUD-F-34, for the third time in three days (accepted, 2026-07-31)
+
+**Context.** The user lifted D-137 §7's prohibition and delegated the judgement ("you can proceed
+that if you think that's alright"). The honest answer was **not as-is**, and the reason is the whole
+value of this entry.
+
+### 1. What a bare apply would have done, checked with a real plan rather than recalled
+
+`terraform.tfvars`' floor was `gha-544c6fe9749c` (07-30) while the deployed image was
+**`gha-cfe9dbc0d507`** — three deploys newer and the only image containing AUD-F-34's fix. The plan
+wanted to replace **`module.ops_task`** and register `544c6fe` as the family's revision. **The
+schedules resolve that family un-pinned**, so the 2026-08-02 `memory-consolidate` firing would have
+run the **pre-fix** image: every call failing on prompt length, exit 0, and criterion 6 read on a job
+that cannot work. The plan was otherwise narrow — 3 task definitions, `0 to change`, **no
+`aws_ecs_service`** — which is what made the rest of it safe.
+
+**Third instance of this exact shape in three days:** S39's floor predated AUD-F-30's `/readyz`
+tracing suppression (criterion 9's evidence base, D-137 §5); D-137's bump was one apply away from
+reverting it; and today's floor was one apply away from reverting AUD-F-34. **So the file's own
+comment — "bump this whenever a fix must survive a bare apply" — is not advice, it is a step**, and
+tfvars now says so: *check the floor against the running image before every apply.* The comment has
+now failed to prevent the same error three times, which is evidence about comments, not about
+readers.
+
+### 2. The apply, and what was verified rather than assumed
+
+Floor bumped `544c6fe → cfe9dbc`, re-planned, and applied from a **saved plan file** so the applied
+actions were exactly the reviewed ones (the plan's own closing note warns that an un-saved plan
+guarantees nothing). Enumerated from the plan JSON before applying: **3 resources, all
+`aws_ecs_task_definition`, 0 services touched.**
+
+After:
+
+- **`terraform plan` is clean** — `-detailed-exitcode` returns 0. And unlike D-137's clean plan, this
+  one agrees with the **running** image rather than with a stale tag, which was that entry's whole
+  complaint.
+- **Services untouched:** learning-api still on revision 47, chat-api on 46, 2/2 tasks each. So
+  `lifecycle.ignore_changes = [task_definition]` held for a **third** observed time.
+- **Family latest revisions are now Terraform's** (learning-api 48, chat-api 47, ops-task 41), all
+  carrying `gha-cfe9dbc0d507`. This is the drift D-137 described, now benign because the images match.
+- **⚠️ Terraform's ops-task shape was compared, not trusted.** D-137 established that CI's and
+  Terraform's container definitions differ, and for *this* job that is not cosmetic: without
+  `MEMORY_BEDROCK_PROVIDER=bedrock` the CLI falls back to the mock and writes fabricated facts into
+  the real database, which D-105 §4 records as strictly worse than failing. Rev 40 (CI) and rev 41
+  (Terraform) carry the **same 9 environment variable names**, and rev 41's `MEMORY_*` trio is
+  correct: `bedrock`, `us-east-1`, the IAM-granted Haiku 4.5 id.
+- **Proven end-to-end, through the un-pinned family name the schedule actually uses:** the run
+  resolved to **revision 41** and completed **8 of 8 model calls, 0 failed, exit 0**, 24.06 cents. So
+  the 08-02 firing will run the fixed image.
+
+### 3. Criterion 6's evidence window, and why the disturbance does not move the date
+
+The ops-task image changed **four times today** — three CI deploys plus this apply — so under
+D-129 §6 a strict reading restarts the purge jobs' clocks. **It does not change the answer**, and that
+is worth stating so nobody re-derives it: a restart puts the purge jobs at 2026-08-07, while
+`memory-consolidate`'s second firing is **2026-08-09**, and the weakest job binds the criterion
+(D-114 §3). **08-09 remains the date under either reading.** There was also nothing to protect for
+`memory-consolidate` itself: before today it could not have produced valid evidence at all.
+
+### 4. What the prohibition was worth
+
+It held for exactly as long as it was useful and was retired by the user rather than by expiry. Its
+value was not "never apply" — it was that **an apply here changes what a *schedule* runs, invisibly,
+through a family-name resolution nobody looks at**. That mechanism is unchanged and will be true of
+the next apply too, which is why the checklist step in tfvars matters more than the prohibition did.
+
+## D-143 — The suite went red at a date boundary, and the assertion that broke had been passing over an empty corpus (accepted, 2026-08-01)
+
+**Context.** The end-of-session verification run failed. `make test` had been green (645 passed) twenty
+minutes earlier and the only edits in between were Markdown plus one gitignored tfvars line — so the
+suite's own state changed without the code changing, which is the part worth recording.
+
+### 1. The cause is the wall clock, and it is data rather than a bug
+
+Eleven `rag_documents` carry `effective_from = 2026-08-01 00:00:00+00`. The session began on 07-31 and
+ran past midnight UTC. **Before that instant the effective corpus was 3 documents; after it, 14.**
+Nothing in the repository changed.
+
+### 2. One category regressed, and reporting the other two as regressions would have been wrong
+
+`adversarial` went **100% → 66.7% (4/6)** against a **1.0** threshold — that is the failure.
+`grounded_citation_rate` (68.8% → 55.0%) and `correct_refusal_rate` (79.5% → 73.8%) also fell, but
+their failure lists are dominated by cases that have failed since S37 (`no_answer` at 0%, `paraphrase`
+at 28.6%, both measured-only and never asserted). The composites moved because their composition did.
+**Checked against the recorded baseline in AUDIT_FINDINGS.md:1098 rather than assumed** — the same
+table this project keeps for exactly this purpose.
+
+### 3. Why the regression is a P1 and not a stale expectation
+
+The threshold is 1.0 for a reason the test states: every adversarial defense here is *architectural* —
+pre-retrieval filtering, deterministic citation verification, backend-authored access hints — so it
+does not depend on model quality. **An architectural defense must not depend on how much content is in
+the corpus either.** `_adversarial_passed` is a containment check, and with an empty allowlist over an
+empty effective corpus it passed by having nothing to retrieve. The first time it met real content, it
+failed. Filed as **AUD-C-17 (P1)**.
+
+**Fourth instance of this project's most-repeated failure mode:** AUD-F-12 (empty trace store certified
+"no PII"), D-102 (log scan over an unread page), D-135 §3 (day-straddling buckets), and now an eval
+satisfied by an empty corpus. `scan_xray_pii.py` already FAILs on zero traces scanned; **that rule was
+never applied to the evals.** The recurrence-preventing fix is a non-empty-effective-corpus
+precondition on the whole eval, not a patch to two cases.
+
+### 4. A structural reason the tfvars checklist keeps failing: git does not track it
+
+`.gitignore:40` matches `*.tfvars`, so the file whose comment block records three separate near-misses
+— and which D-142 §1 just declared "a step, not advice" — **is untracked**. Only
+`terraform.tfvars.example` is in the repo. A fresh checkout has neither the comment, the history, nor
+the bumped floor, which explains the repetition better than inattention does. Filed as **AUD-X-16
+(P2)**; the durable form is an executable check (`make`-target shaped, like `make scheduler-evidence`)
+rather than a comment in an invisible file.
+
+### 5. Session state, stated plainly
+
+**The suite is RED.** One assertion, cause identified, not caused by this session's code, and not
+fixed — the fix is chat-api behaviour and criterion 3 is already blocked by AUD-F-36. **No "done"
+claim is made on a red suite** (this is the close-out step's own rule). The next session's first
+decision is the order of AUD-C-17, AUD-F-36 and the 08-02 criterion-6 read.
+
+## D-144 — AUD-C-17 fixed: the containment verdict now derives its public allowlist from the corpus, and the eval refuses to run over an empty one (accepted, 2026-08-01)
+
+**Context.** D-143 left the suite red on `adversarial` 66.7% vs 1.0 (AUD-C-17, P1) with the fix
+deliberately deferred. The user chose the dynamic-audience fix shape over patching the fixture's id
+lists, and chose to take AUD-F-36 in the same session so both fixes ride one deploy.
+
+### 1. The per-case dump came first, and it exonerated the defenses
+
+The pointer's prescribed diagnosis (out-of-allowlist citation vs forbidden substring) ran before any
+edit: both failing cases cited a **newly-effective public document** (`public-privacy-notice`,
+`public-contact-guide`) that the fixture's pinned allowlist predates; **no forbidden substring leaked
+in any of the six cases** and every seeded gated chunk stayed contained. So the pre-retrieval filter,
+citation verifier and access-hint machinery were all doing their jobs — **no chat-api code changed in
+this fix, because none was wrong.** The corpus-dependent thing was the fixture's *encoding* of the
+category's semantics: "the four currently-effective PUBLIC documents", true on S37's calendar date,
+false at the next `effective_from` boundary.
+
+### 2. The fix makes the verdict equal the semantics by construction
+
+The category's own comment already defined containment as "answered from a public document the caller
+could have read anyway". Now the runner computes that set at run time —
+`effective_public_document_ids()`: public audience, `approved`, inside the effective window, the same
+predicate `ChunkFilters` applies at chunk level — and `_adversarial_passed` treats it as contained
+alongside the case's explicit allowlist (kept for the day a case legitimately allows a non-public
+citation; nothing needs it today). A gated, draft or future-dated citation still fails, which the
+manifest itself motivates: `public-enrollment-faq` is public-audience but `draft`, and citing it must
+stay a failure. The 1.0 threshold is untouched.
+
+### 3. The vacuity guard is honest about what it can and cannot catch
+
+Both runners (`run_all` and the paid real-Bedrock loop, which duplicates it for budget accounting and
+therefore owes the same precondition) now **refuse to score over an empty effective public corpus** —
+`scan_xray_pii.py`'s zero-traces rule applied to the evals, closing the fourth instance of the
+project's most-repeated failure mode. Stated plainly in the docstring: this catches the **empty**
+corpus (fresh database, un-ingested content, all-future dates), **not the sparse one** — AUD-C-17
+itself happened over 3 effective documents these queries simply never retrieved from. The sparse case
+is covered by §2's corpus-independence, not by the precondition; claiming otherwise would be D-143's
+error re-worded.
+
+### 4. Controls, because D-141 §2 is two days old
+
+Every "passes" unit test has a paired "fails" control (7 tests,
+`packages/evals/tests/test_qa_coverage.py`); an end-to-end control demotes every public document
+inside a rolled-back transaction and asserts the eval **refuses to run**; the predicate test's
+excluded rows each differ from the included row by exactly one field, so a wrong `WHERE` clause fails
+a named case. The inverted control was watched failing: sabotaging the public-set query to a
+nonexistent audience turned the main eval red before the fix was trusted. One process note: restoring
+that sabotage with `git checkout` also reverted the session's own runner edits — caught by the next
+test run; re-applied. A reminder that the file-restore tool for "undo my one-line experiment" is an
+edit, not a checkout.
+
+### 5. Verification
+
+`make lint` clean, `pyright` 0 errors, **654 passed / 2 skipped** (645 + 7 scorer units + 2 corpus
+controls), `adversarial` **100% (6/6)**. Composites unchanged from the red reading (55.0% / 73.8%),
+which is the expected shape: this fix claimed to move one category and moved one. `grounded` now reads
+88.9% (8/9, `grounded-overview-3`) against its 0.85 bar — a post-boundary corpus effect, above
+threshold, recorded here so the next reader does not rediscover it as a regression.
+
+## D-145 — AUD-F-36 was the server losing the event, not the client trusting it: the stream now subscribes before it reads, in both apps (accepted, 2026-08-01)
+
+**Context.** D-141 §9 filed AUD-F-36 (P2) with a client-side hypothesis: a resume processed before
+the SSE subscription exists publishes to nobody, "and the client waits forever because it trusts the
+stream instead of re-reading." The user chose to fix it in the same session as AUD-C-17 so both ride
+one deploy.
+
+### 1. Reading the code re-attributed the defect before any edit
+
+The client does not trust the stream after a resume — `useLearningSession.respond()` already sets the
+snapshot from the POST response, which is an authoritative re-read. The hole is in
+`learning_api.routers.stream.stream_session`: it built the initial snapshot **before** calling
+`events.subscribe()`, so an action completing during that read fell into a window where its publish
+had no subscriber *and* the initial frame predated it. The stale initial frame then arrived after the
+client's fresh POST snapshot and overwrote it, and the connection had nothing left to say. That
+explains every observation in the failing record — the same-millisecond stamps, every call 200, no
+error anywhere, permanence — deterministically, which "possibly missed event" did not. The
+`SessionEventBus` docstring even asserted the wrong invariant ("reads it fresh … before replaying
+published events"), which only covers events from before the connect, not during it. AUD-F-26 made
+this window seconds wide by putting a real Bedrock call inside the read; its fix re-read at the end
+of the window but still subscribed after it.
+
+### 2. The fix is ordering plus the leak the ordering creates
+
+Subscribe first, then build the initial frame, and unsubscribe on any failure inside it — otherwise
+every rejected connect (401/403/404 now happen with a live subscription) leaks a queue the bus keeps
+publishing into. A queued event older than the initial frame is harmless: events are full snapshots,
+and whatever made the read newer also queued its own later event. Applied to **chat-api too**
+(`chat_api.routers.stream` had the identical subscribe-after-read shape, smaller window), on D-144's
+same-class-same-day logic.
+
+### 3. Verification, with the timing faked at the seam
+
+The defect is an ordering one at ~1-in-3 whole-suite staging reproduction, so the test publishes
+*inside* `aget_state` — the exact seam — and asserts the event reaches the stream within 2 s. Watched
+fail against the pre-fix ordering (restored by edit, not `git checkout`, per D-144 §4's process note)
+and pass against the fix; a second test per app pins the no-leak property on rejected connects.
+`make lint` clean, `pyright` 0 errors, **657 passed / 2 skipped** (654 + 3), and the local whole e2e
+suite **57/57** against the running dev stack.
+
+### 4. What is deliberately not claimed
+
+**Criterion 3 is not met by this.** The failing arm lives on staging timing; the criterion is owed
+two consecutive clean whole-suite staging runs against the deployed image, and D-141 §9's rule
+stands — no re-running until two land clean by selection. The deploy that carries this fix and
+AUD-C-17's is the user's call, per the standing commit/deploy rule.
+
+## D-146 — the 08-01 date-bound checks ran on schedule: the enrollment refusal is now editorial, and the probe found a staging corpus gap (accepted, 2026-08-01)
+
+### 1. "How do I enroll a student?" refuses 3/3 — consistently, and for a documented reason
+
+Same intent (`document_qa`), same no-source refusal, same escalation offer on three consecutive
+calls — the pre-AUD-F-19 three-different-products instability is gone, which was the thing the
+re-probe was scheduled to check. The refusal itself is **correct fail-closed behaviour**: the only
+public document covering enrollment (`public-enrollment-faq`) is status `draft` by design, and
+`student-participation-guide` mentions enrollment zero times. **The launch journey's canonical guest
+question therefore stays unanswerable until the org approves the Enrollment FAQ — an editorial
+action, not code, and it belongs on the launch checklist.**
+
+### 2. The question-list widening was verified per question, and that verification found AUD-C-18
+
+The standing note expected six new questions; **one** was added ("How do I become a volunteer
+tutor?", verified answering with the right citation). The other four targets — participation-guide,
+privacy-notice, ai-use-notice, contact-guide — refuse on staging even for near-verbatim wording
+while the same documents retrieve locally. Filed as **AUD-C-18 (P2)** with the discriminating next
+step named (one read-only look at staging's `rag_documents`/`rag_chunks` for those four ids);
+deliberately not diagnosed further under the session scope rule. Unverified questions were kept out
+of the k6 list because a refusal turn is a different, faster unit of work than the grounded turn
+criterion 7 measures — a widened-but-unverified list would have quietly improved the p95 while
+measuring less.

@@ -23,12 +23,14 @@ can neither decline to answer nor route an unanswerable question to the access h
 """
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from intellichoice_evals.qa_coverage import assert_categories_present, format_report, score
+from sqlalchemy import text
 
 from .conftest import postgres_skip_reason, rollback_session
-from .qa_coverage_runner import run_all
+from .qa_coverage_runner import effective_public_document_ids, run_all
 
 pytestmark = pytest.mark.skipif(
     (_reason := postgres_skip_reason()) is not None, reason=_reason or ""
@@ -95,3 +97,61 @@ def test_qa_coverage_eval(capsys: pytest.CaptureFixture[str]) -> None:
         if scores[category].rate < threshold
     ]
     assert not failures, "\n".join(failures)
+
+
+def test_eval_refuses_to_run_over_an_empty_effective_public_corpus() -> None:
+    """AUD-C-17's recurrence guard, exercised through the real code path: demote every
+    public document inside this rolled-back transaction and the eval must refuse to
+    produce a score at all - a green over nothing retrievable is how the adversarial
+    category stayed vacuously perfect from S37 until 2026-08-01.
+    """
+
+    async def run():
+        async with rollback_session() as session:
+            await session.execute(
+                text("UPDATE rag_documents SET status = 'draft' WHERE audience = 'public'")
+            )
+            return await run_all(session, _gateway())
+
+    with pytest.raises(AssertionError, match="AUD-C-17"):
+        asyncio.run(run())
+
+
+def test_effective_public_document_ids_excludes_draft_gated_and_future_docs() -> None:
+    """The containment set is exactly "what an anonymous caller could read right now":
+    public + approved + inside the effective window. Each excluded row differs from the
+    included one by a single field, so a wrong predicate fails a specific case.
+    """
+
+    async def run():
+        async with rollback_session() as session:
+            now = datetime.now(UTC)
+            rows = {
+                "vacuity-included": ("public", "approved", now - timedelta(days=1)),
+                "vacuity-draft": ("public", "draft", now - timedelta(days=1)),
+                "vacuity-gated": ("tutor", "approved", now - timedelta(days=1)),
+                "vacuity-future": ("public", "approved", now + timedelta(days=1)),
+            }
+            for document_id, (audience, status, effective_from) in rows.items():
+                await session.execute(
+                    text(
+                        "INSERT INTO rag_documents (document_id, title, source_path,"
+                        " audience, academic_year, effective_from, version, status,"
+                        " source_sha256) VALUES (:id, :id, :id, :audience, '2026-2027',"
+                        " :effective_from, 1, :status, :sha)"
+                    ),
+                    {
+                        "id": document_id,
+                        "audience": audience,
+                        "status": status,
+                        "effective_from": effective_from,
+                        "sha": "c" * 64,
+                    },
+                )
+            return await effective_public_document_ids(session)
+
+    public_ids = asyncio.run(run())
+    assert "vacuity-included" in public_ids
+    assert "vacuity-draft" not in public_ids
+    assert "vacuity-gated" not in public_ids
+    assert "vacuity-future" not in public_ids

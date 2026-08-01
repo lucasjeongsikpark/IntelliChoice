@@ -712,8 +712,40 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**⛔⛔ Standing as of 2026-07-31 (post-D-140): criterion 6 is blocked on a P1 code fix, not on the
-calendar.** **AUD-F-34** — `memory-consolidate` has **never once worked**: every model call fails on
+**⛔ Criterion 4 (green full test runs) is BROKEN as of 2026-08-01T00:21Z, and criterion 2 gains a P1
+(D-143).** `make test` went red **at a date boundary with no code change**: eleven `rag_documents` carry
+`effective_from = 2026-08-01T00:00Z`, the effective corpus went from 3 documents to 14, and
+`adversarial` fell 100% → **66.7%** against a **1.0** threshold. **AUD-C-17 (P1)** — the containment
+assertion had been passing by having nothing to retrieve, which makes every prior green on it vacuous.
+Also **AUD-X-16 (P2)**: `*.tfvars` is gitignored, so the checklist step that has failed three times is
+in an untracked file. **No criterion may be claimed while the suite is red.**
+
+**✅ The `terraform apply` prohibition is retired (2026-07-31, D-142).** The user lifted it, the floor
+was bumped `544c6fe → cfe9dbc` **first** — a bare apply would have made the pre-AUD-F-34 image the
+ops-task family's revision, and the schedules resolve that family un-pinned — and the apply is done.
+`terraform plan` is clean *and* agrees with the running image. Criterion 6's date is unchanged at
+**2026-08-09**: the window was disturbed four times today, but a strict restart puts the purge jobs at
+08-07 while `memory-consolidate`'s second firing binds at 08-09 (D-114 §3).
+
+**⛔ Criterion 3 is NOT met as of 2026-07-31 (post-D-141 §9), and criterion 2 has two new P2s.** The
+post-deploy re-run produced one clean whole-suite run (53 passed / 4 skipped) and **one failure** —
+`journey-parent.spec.ts:17`, same image, no deploy between, so not a regression. **AUD-F-36 (P2)**: a
+parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription (passing
+record: stream open 178 ms before respond; failing record: same millisecond). ~1 in 3 whole-suite runs,
+0 of 3 in isolation. **Criterion 3 is owed two consecutive clean runs, behind a P2 that makes any run
+~⅔ likely to pass — re-running until two land clean would be claiming it by selection.** Criterion 2
+now carries **AUD-F-35** and **AUD-F-36**.
+
+**✅ Standing as of 2026-07-31 (post-D-141): AUD-F-34 is fixed, deployed and verified — criterion 6 is
+unblocked but not yet evidenced.** `memory-consolidate` had its first clean run ever on
+`gha-cfe9dbc0d507` (ops-task rev 40): **8 of 8 calls succeeded, exit 0, 5 facts reconfirmed**. So
+2026-08-02's firing is now a real test rather than a guaranteed failure. **The date still rests on the
+two-firing reading chosen this session: 2026-08-09.** Criterion 2 is affected: AUD-F-34 closes, and
+**AUD-F-35 (P2)** is newly open. Read criterion 6 with `make scheduler-evidence`, which now also fails
+its verdict on failure lines regardless of exit code, so it cannot certify a hollow run.
+
+*(Superseded, post-D-140 — the analysis stands, the blocker is cleared:)* **criterion 6 is blocked on a
+P1 code fix, not on the calendar.** **AUD-F-34** — `memory-consolidate` has **never once worked**: every model call fails on
 prompt length (`215355 tokens > 200000 maximum`) and the job **exits 0**, so the ops-task failure rule
 (`exitCode: anything-but 0`) cannot fire and its own summary line reads `Consolidation run complete …
 0 added`. Found by the de-risking run recommended in D-138 §6, **before** the job's first-ever firing.

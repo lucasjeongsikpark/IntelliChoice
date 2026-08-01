@@ -33,7 +33,14 @@ import pytest
 from intellichoice_evals.qa_coverage import assert_categories_present, format_report, score
 
 from .conftest import postgres_skip_reason, rollback_session
-from .qa_coverage_runner import ask, load_cases, reembed_corpus, seed_chunk, to_outcome
+from .qa_coverage_runner import (
+    ask,
+    effective_public_document_ids,
+    load_cases,
+    reembed_corpus,
+    seed_chunk,
+    to_outcome,
+)
 
 PER_CASE_BUDGET_CENTS = 15.0
 RUN_BUDGET_CENTS = 400.0
@@ -83,6 +90,13 @@ def test_qa_coverage_eval_against_real_bedrock(capsys: pytest.CaptureFixture[str
         async with rollback_session() as session:
             n = await reembed_corpus(session, gateway)
             print(f"re-embedded {n} approved chunks with the real embedding model")
+            # Same AUD-C-17 vacuity guard as `run_all` - this loop is a copy of it with
+            # budget accounting added, so it owes the same precondition.
+            public_document_ids = await effective_public_document_ids(session)
+            assert public_document_ids, (
+                "no public document is approved and effective right now - the eval "
+                "would pass over an empty corpus and mean nothing (AUD-C-17)"
+            )
             for case in load_cases():
                 for key in ("seed", "extra_seed"):
                     if key in case:
@@ -91,7 +105,7 @@ def test_qa_coverage_eval_against_real_bedrock(capsys: pytest.CaptureFixture[str
                     session, gateway, query=case["query"], thread_id=f"realeval-{case['id']}"
                 )
                 spent += float(result.get("bedrock_spend_cents") or 0.0)
-                outcomes.append(to_outcome(case, result))
+                outcomes.append(to_outcome(case, result, public_document_ids))
                 if spent > RUN_BUDGET_CENTS:
                     raise RunBudgetExceeded(
                         f"run budget of {RUN_BUDGET_CENTS} cents exceeded after "

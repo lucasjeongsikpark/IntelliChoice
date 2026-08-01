@@ -5,6 +5,146 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ The suite is GREEN again — AUD-C-17 and AUD-F-36 are both fixed in code, and the 08-01 probe
+  found a staging corpus gap (2026-08-01, D-144/D-145/D-146).** `make lint` clean, `pyright` 0
+  errors, **657 passed / 2 skipped** (645 + 12 new tests), local whole e2e suite **57/57**.
+  **AUD-C-17 (P1, was the red suite):** the per-case dump ran first and **exonerated the defenses** —
+  both failing cases cited a newly-effective *public* document; zero forbidden substrings leaked in
+  all six cases. No chat-api behaviour changed: the fixture had pinned "the four currently-effective
+  public documents" by id, frozen at S37's date. The containment verdict now derives the
+  approved-effective-public set from the corpus at run time (gated/draft/future still fails,
+  threshold still 1.0), and **both eval runners refuse to run over an empty effective public corpus**
+  — the `scan_xray_pii.py` zero-traces rule, applied to the evals, with its honest limit stated:
+  it catches the *empty* corpus, and the *sparse* one (AUD-C-17's actual shape: 3 effective documents
+  these queries never retrieved from) is covered by the corpus-independence, not the precondition.
+  7 scorer unit tests with paired fail controls; the inverted control was watched turning the eval red.
+  **AUD-F-36 (P2, blocks criterion 3):** reading the code re-attributed it — **the server was losing
+  the event, not the client trusting the stream**. `/stream` subscribed to the event bus only *after*
+  building its initial snapshot (a read AUD-F-26 made seconds wide with a real Bedrock call inside),
+  so an action completing in that window published to nobody and the stale initial frame overwrote
+  the client's own fresh `/respond` snapshot. Fixed by subscribing first + unsubscribing on rejected
+  connects, **in both apps** (chat-api had the identical pattern). The seam test publishes inside
+  `aget_state`; watched fail on pre-fix ordering, passes on the fix.
+  **⛔ Criterion 3 is NOT claimed:** the fix is verified locally only; the criterion is owed two
+  consecutive clean whole-suite staging runs against the *deployed* image (D-141 §9's no-selection
+  rule). The deploy carrying both fixes is the user's call.
+  **The 08-01 date-bound checks ran on schedule (D-146):** "How do I enroll a student?" refuses
+  **3/3 consistently** — correct fail-closed behaviour, since `public-enrollment-faq` is `draft` by
+  design and nothing else covers enrollment. **The launch journey's canonical question stays
+  unanswerable until the org approves the Enrollment FAQ — editorial, on the launch checklist.**
+  **⚠️ AUD-C-18 (P2) filed:** four of the six newly-effective public documents
+  (participation-guide, privacy-notice, ai-use-notice, contact-guide) are **unretrievable on staging
+  even near-verbatim** while the same corpus answers them locally; volunteer-guide works. Found by
+  verifying each candidate question before widening `chat_qa_staging.js` — the list gained **one**
+  verified question, not six unverified ones. Next step named in the finding: one read-only look at
+  staging's `rag_documents`/`rag_chunks` for the four ids.
+  **PR #77's CI red is explained and now fixable:** `lint-typecheck-test` failed on exactly AUD-C-17
+  (confirmed in the job log); the same run's `learning-api-container-scan` failure is a build-runner
+  segfault in `uv sync` (exit 139) — the same commit passed the same scan six minutes earlier, so
+  re-run before treating it as real.
+- **⛔ (superseded 2026-08-01 — the suite was red from D-143 §1's date boundary; fixed above) THE SUITE WAS RED. `adversarial` 100% → 66.7% at the 2026-08-01T00:00Z date boundary, and the
+  assertion had been passing over an empty corpus (D-143, AUD-C-17 P1).** `make test` was green
+  (645 passed) twenty minutes earlier; **the only thing that changed was the clock.** Eleven
+  `rag_documents` carry `effective_from = 2026-08-01T00:00Z`, so the effective corpus went from **3
+  documents to 14** mid-session.
+  **One category regressed, and calling the other two regressions would have been wrong.**
+  `adversarial` 100% → **66.7% (4/6)** against a **1.0** threshold is the failure
+  (`adversarial-system-override`, `adversarial-false-premise`). `grounded_citation_rate` (68.8% → 55.0%)
+  and `correct_refusal_rate` (79.5% → 73.8%) also fell, but their failure lists are dominated by cases
+  failing since S37 (`no_answer` 0%, `paraphrase` 28.6%, both measured-only) — checked against the
+  recorded baseline at AUDIT_FINDINGS.md:1098, not assumed.
+  **Why P1:** the threshold is 1.0 because every adversarial defense here is *architectural* —
+  pre-retrieval filtering, deterministic citation verification, backend-authored access hints. **An
+  architectural defense must not depend on how much content is in the corpus.** The containment check
+  passed by having nothing to retrieve, and failed the first time it met real content. **Fourth instance
+  of this project's most-repeated failure mode** (AUD-F-12's empty trace store, D-102's unread page,
+  D-135 §3's straddling buckets). `scan_xray_pii.py` already FAILs on zero traces scanned; **that rule
+  was never applied to the evals**, and the recurrence-preventing fix is a non-empty-effective-corpus
+  precondition on the whole eval rather than a patch to two cases.
+  **Also filed: AUD-X-16 (P2) — `.gitignore:40` matches `*.tfvars`, so the file whose comment records
+  three separate near-misses is untracked.** A fresh checkout has neither the comment nor the bumped
+  floor, which explains the repetition better than inattention does. The durable form is an executable
+  check, `make`-target shaped.
+  **Not fixed:** it is chat-api behaviour, criterion 3 is already blocked by AUD-F-36, and **no "done"
+  claim is made on a red suite.**
+- **✅ The apply prohibition is lifted and the apply is done — and the plan against the stale floor
+  would have reverted AUD-F-34's fix (2026-07-31, D-142).** User lifted D-137 §7 and delegated the
+  call; the honest answer was **not as-is**.
+  **`terraform.tfvars`' floor was `gha-544c6fe9749c` (07-30) while the deployed image is
+  `gha-cfe9dbc0d507`** — the only image containing today's fix. A bare apply would have made 544c6fe
+  the ops-task family's revision, and **the schedules resolve that family un-pinned**, so the 08-02
+  `memory-consolidate` firing would have run the **pre-fix** image and been read as criterion 6's
+  evidence. **Third instance in three days** (S39's floor vs AUD-F-30; D-137's vs the same; today's vs
+  AUD-F-34), so tfvars now carries it as a **step, not a comment**: check the floor against the running
+  image before every apply.
+  **Applied after bumping the floor, from a saved plan file** so the applied actions were the reviewed
+  ones. Enumerated from the plan JSON first: **3 task definitions, 0 services touched.**
+  **Verified after:** `terraform plan` **clean** (`-detailed-exitcode` 0) *and agreeing with the running
+  image*, unlike D-137's clean-plan-on-a-stale-tag; services untouched on revisions 47/46 at 2/2, so
+  `ignore_changes` held a **third** observed time; all four canary alarms OK.
+  **⚠️ Terraform's ops-task shape was compared, not trusted** — without `MEMORY_BEDROCK_PROVIDER=bedrock`
+  the CLI falls back to the mock and writes fabricated facts (D-105 §4, strictly worse than failing).
+  Rev 40 (CI) and rev 41 (Terraform) carry the **same 9 env var names** and rev 41's `MEMORY_*` trio is
+  correct. **Proven through the un-pinned family name the schedule uses:** resolved to **rev 41**,
+  **8 of 8 calls, 0 failed, exit 0**, 24.06 cents.
+  **Criterion 6's window was disturbed four times today** (3 deploys + this apply), but **the date does
+  not move**: a strict restart puts the purge jobs at 08-07 while `memory-consolidate`'s second firing is
+  **08-09**, and the weakest job binds (D-114 §3).
+- **⛔ Criterion 3 did not pass its post-deploy re-run, and the failure is a new P2 (AUD-F-36,
+  D-141 §9).** Run 1 clean (**53 passed / 4 skipped**, matching D-134 exactly); **run 2 failed** on
+  `journey-parent.spec.ts:17` — **same image, no deploy between**, so not a regression from this
+  session's code. A parent picked a child, `/respond` returned **200**, and the "who's learning today"
+  heading **never cleared** — 123 polls across 60 s, **zero console/page/server errors, every call 200**.
+  **The harness's own timings discriminate:** passing record has the SSE stream opening **178 ms before**
+  `/respond`; failing record has both at the **same millisecond**. Leading hypothesis (n=1 per arm): a
+  resume processed before the subscription exists publishes to nobody, and the client waits forever
+  because it trusts the stream instead of re-reading. **Not parallel load** — `workers: 1`,
+  `fullyParallel: false`, the suite is sequential, which refutes the obvious explanation.
+  **~1 in 3 whole-suite runs; 0 of 3 in isolation** (1.3–1.6 s each), so a fix must be verified against
+  the whole suite. Same class as AUD-F-26 (D-119). **Criterion 3 is owed two consecutive clean runs, and
+  it is owed them behind a P2 that makes any run ~⅔ likely to pass — re-running until two land clean
+  would be claiming the criterion by selection.**
+- **✅ AUD-F-34 is fixed and verified on staging — the job had its first clean run ever, and it took
+  three deploys because two of my own constants were wrong (2026-07-31, D-141).**
+  `gha-cfe9dbc0d507` / ops-task rev 40: **8 of 8 model calls succeeded, exit 0, 5 facts reconfirmed,
+  23.26 cents** — against 0/1 before the fix. **644 → 645 tests**, lint and pyright clean.
+  **The fix is token-budgeted chronological chunking**, as the user proposed: pack event summaries
+  into calls under an input budget, re-reading `existing_facts` per call so a later batch sees an
+  earlier batch's writes. Order is load-bearing, not cosmetic. `_verify_evidence` already scoped
+  citations to the batch that was sent, which is what made chunking safe by construction.
+  **The generalisable half: `main()` now returns 1 when every call in a run failed**, so the
+  ops-task rule (`exitCode: anything-but 0`) fires. **Keeper: a job that catches its own errors must
+  not report success by exhaustion.**
+  **⚠️ Two of my constants were wrong, and both were found by deploying, not by review.** 120k
+  tokens was sized against the *context window* — the least binding of three constraints: it cost
+  **66.18 cents for two students** (52 of it on a student producing zero facts) and did not finish
+  inside the 20 s timeout. Re-tuned to 20k → cost fell 5.9×, **and the timeouts persisted**, which
+  refuted the input hypothesis. The real driver is the **output** budget, which scales with a
+  student's existing fact count: 0 facts → 1280 tokens → always succeeded; 7 facts → 2176 → always
+  timed out, twice-observed. `bedrock_call_timeout_s` 20 → 120 s (memory-specific). **That walks back
+  my own "raising a timeout repeats AUD-F-34's mistake"** — true for unbounded work, and by then both
+  bounds existed.
+  **⚠️ Five of ten new tests were worthless and an inverted control caught it.** They computed input
+  sizes *from* the constants they pinned, so raising the bound to 100,000,000 tokens scaled the inputs
+  and all 21 still passed. Rewritten against absolute sizes; three controls now fail the right tests
+  (5, 2, 1) and pass restored.
+  **⛔ The approved trim was aimed at the wrong table, and counting first is the only reason it did not
+  happen.** `tutor_chat_messages` holds **3 rows and 28 characters**; 3 of the window's events are
+  `chat_turn`. The real input is **13,865 `learning_events`** at ~15 tokens each — a **count** problem,
+  not a message-length one. **Recommendation: do not trim** (supersedes the approved action): the 20k
+  cap bounds cost regardless of volume, and `learning_events` is the evidence base the new facts cite.
+  **Gap noted, not closed: nothing purges `learning_events`** — the one table that grows without bound.
+  **⚠️ A scaling number for the pilot (D-141 §8):** ~2–3 cents per real student per week ⇒ **$90–120/month
+  at 1,000 MAU, comparable to the entire current AWS bill**. And `bedrock_run_budget_cents = 200` stops
+  the run after ~70–90 students. **The weekly job as configured cannot serve the pilot cohort** — now at
+  least visible via `budget_stopped` and the summary line. Launch work, not decided.
+  **AUD-F-35 (P2) filed, not fixed:** `promote_if_eligible` applies no evidence bar despite its name and
+  despite `reconfirm_fact`'s docstring claiming it does, so plan §9's ≥3-events/≥2-sessions rule is
+  enforced at creation and bypassed on the next reconfirmation. Fixing it changes what the tutor reads.
+  Batching would have amplified it, so `_maybe_promote` skips this run's own creations — neither fixed
+  nor made worse.
+  **Criterion 6 is unblocked but not evidenced:** the job can now succeed, so 08-02's firing is a real
+  test rather than a guaranteed failure. The date still rests on the two-firing reading (**08-09**).
 - **⛔⛔ AUD-F-34 (P1): `memory-consolidate` has never once worked, it fails silently, and criterion 6
   would have been ticked on it (2026-07-31, D-140).** Found by the de-risking run approved this
   session — **before** the job's first-ever firing, which is what made it findable at all.
@@ -1104,8 +1244,70 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-31 third close, post-D-140). Criterion 6 is no longer a date — it is
-  a P1 code fix, and item 1 is the whole session:**
+- **Next session, in order (2026-08-01 close, post-D-144/D-145/D-146). The suite is green, both
+  fixes are code-complete and undeployed:**
+  1. **Deploy the AUD-C-17 + AUD-F-36 fixes (user's call), then criterion 3: two consecutive clean
+     whole-suite staging runs, no deploy between.** Check the tfvars floor against the running image
+     first (D-142's step), and bump it with the deploy. PR #77 carries the work; re-run its flaked
+     `learning-api-container-scan` (uv segfault, exit 139 — passed 6 min earlier on the same commit)
+     rather than debugging it, unless it segfaults twice.
+  2. **2026-08-02 18:30Z: read criterion 6 with `make scheduler-evidence`** — `memory-consolidate`'s
+     first-ever scheduled firing, now against a job with a clean manual run. The criterion's own date
+     stays **08-09** (two-firing reading). ⚠️ If the deploy in item 1 lands before 08-02, the
+     schedule runs the new image (un-pinned family) — it contains the AUD-F-34 fix either way, but
+     note which image fired when reading the evidence.
+  3. **AUD-C-18 (P2): one read-only look at staging's `rag_documents`/`rag_chunks`** for
+     student-participation-guide / privacy-notice / ai-use-notice / contact-guide — present? chunks
+     embedded? provenance current (AUD-C-16's shape)? Then widen `chat_qa_staging.js` with the four
+     parked questions once they verify.
+  4. **The Enrollment FAQ needs org approval** (editorial, launch checklist) — the launch journey's
+     canonical guest question refuses correctly until it lands. Belongs in Message A's channel or
+     alongside it.
+  5. **Send Message A** (thirteenth session carrying it) **and Message D**, separately.
+  6. **AUD-F-35 (P2):** `promote_if_eligible`'s missing evidence bar — failing test first, inverted
+     control (the current code passes an `active` assertion).
+  7. **AUD-X-16 (P2):** the tfvars floor check as an executable `make` target, not a comment in a
+     gitignored file.
+  8. **Decisions still parked:** `bedrock_run_budget_cents` before the pilot (D-141 §8);
+     `learning_events` retention (D-141 §5, a SPEC question); the Billing-console credit look
+     (D-139 §3); r = 5 capacity at ~$43/month + AUD-F-33's apply.
+
+- **Superseded — pointer as of the 07-31 fourth close (post-D-141). Items 1-2 are done (D-144/D-145:
+  both fixed in code, deploy + staging re-run owed) and item 3's 08-01 half ran on schedule (D-146,
+  AUD-C-18 filed); the rest carried into the pointer above:**
+  1. **⛔ FIRST: the suite is red — AUD-C-17 (P1).** `adversarial` 66.7% against a 1.0 threshold, from
+     the 08-01 corpus widening. Fix the eval's vacuity **as well as** the two cases: assert a non-empty
+     effective corpus as a precondition of the whole eval, or the next empty-corpus green means nothing
+     either. Diagnose which containment condition fails (out-of-allowlist citation vs forbidden
+     substring) with a per-case dump first.
+  2. **⛔ AUD-F-36 (P2) blocks criterion 3, and the honest order is fix-then-re-run.** A parent's
+     child-selection interrupt hangs forever when `/respond` beats the SSE subscription. Verify any fix
+     against the **whole suite** — it is 0 of 3 in isolation. Likely the AUD-F-26 fix shape: re-read
+     authoritative state after a resume rather than trust a stream event that may never arrive.
+     **Do not simply re-run until two runs land clean** — at ~⅔ per run that is claiming the criterion
+     by selection, which is what D-141 §9 says plainly.
+  3. **2026-08-02: read criterion 6 with `make scheduler-evidence`.** `memory-consolidate`'s first-ever
+     firing lands that day and the job is now capable of succeeding, so this is a real test. **The date
+     for the criterion itself is 2026-08-09** on the two-firing reading chosen this session. Also
+     **08-01: re-probe "How do I enroll a student?"** and widen `chat_qa_staging.js`'s question list.
+  4. **Decide `bedrock_run_budget_cents` before the pilot (D-141 §8).** At ~2–3 cents per real student
+     per week the 200-cent budget stops the run after ~70–90 students, and 1,000 MAU implies **$90–120
+     /month, comparable to the entire current AWS bill**. Also decide whether students skipped by the
+     budget should be paged into the next run rather than silently dropped — `budget_stopped` makes the
+     condition visible but nothing acts on it.
+  5. **Decide whether `learning_events` gets a retention promise (D-141 §5).** `chat-purge` and
+     `retention-purge` cover four tables; nothing purges the one that grows without bound and broke this
+     job. A SPEC question. **Do not trim it as a cleanup** — the new facts cite those event ids.
+  6. **Send Message A** (twelfth session carrying it) **and Message D**, separately.
+  7. **AUD-F-35 (P2):** fix `promote_if_eligible`'s missing evidence bar. Write the failing test first —
+     create a fact with one supporting event, reconfirm with one more, assert it is still `provisional` —
+     and run the inverted control, because the current code passes an `active` assertion.
+  8. **One Billing-console look** for the remaining credit balance (D-139 §3).
+  9. **If capacity is bought: r = 5, +3 tasks, ~$43/month** (D-139 §2). **AUD-F-33 (P2)** still needs an
+     apply; the criterion-6 apply prohibition still holds until the read.
+
+- **Superseded — pointer as of the D-140 close (2026-07-31). Item 1 is done (D-141): the fix landed in
+  three deploys, and the trim in item 1(c)'s spirit was refuted by measurement:**
   1. **⛔⛔ AUD-F-34 (P1) blocks criterion 6 and needs three decisions before any code (D-140 §5).**
      (a) **Fix now and re-run criterion 3's two staging runs, or hold** until the criterion-6 window
      closes — the fix is app code, so it ages the byte-identical-to-HEAD evidence *and* needs the deploy
@@ -3315,6 +3517,78 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### Off-roadmap — AUD-F-34 found, fixed in three deploys; criterion 3 failed its re-run; the apply landed; the suite went red at midnight (2026-07-31 → 2026-08-01, third session) ⏸ partial, suite RED
+- **Scope: PROGRESS.md's own pointer (post-D-138/D-139), then user-directed.** The user chose the strict
+  criterion-6 reading (**08-09**) and approved the de-risking run; the run found the job broken, and the
+  user then chose **fix now / chunk it / trim the synthetic rows** for the fix. Marked ⏸ because
+  **criterion 3 is not met** and two new P2s are open, not because anything planned was skipped.
+- **⛔ AUD-F-34 (P1) found by the de-risking run, before the job's first-ever firing.** Every model call
+  failed on prompt length and the process **exited 0**, printing `Consolidation run complete`. Three
+  reasons nothing would have caught it: exit 0 defeats the ops-task rule (`exitCode: anything-but 0`);
+  `0 added` is indistinguishable from "nothing to do", which is the *correct* output for both purge
+  jobs; and **the reader written earlier the same day would have certified it**, because that summary
+  line prints on total failure. D-140.
+- **✅ Fixed and verified: 8 of 8 calls, exit 0, 5 facts reconfirmed, 23.26 cents** on
+  `gha-cfe9dbc0d507` / ops-task rev 40 — the first clean run in the job's history. Token-budgeted
+  chronological chunking, `existing_facts` re-read per call so a later batch sees an earlier batch's
+  writes, and `main()` returning 1 when every call fails. **Keeper: a job that catches its own errors
+  must not report success by exhaustion.** D-141 §1, §7.
+- **⚠️ Three deploys, because two of my own constants were wrong and both were found by running it.**
+  120k input tokens was sized against the **context window** — the least binding constraint — and cost
+  **66.18 cents for two students** while missing the 20 s timeout. 20k cut cost 5.9× **and the timeouts
+  persisted**, refuting the input hypothesis: the driver is the **output** budget, which scales with a
+  student's fact count (0 facts → 1280 → always succeeded; 7 → 2176 → always timed out, twice-observed).
+  Timeout 20 → 120 s, which **walks back D-141 §3's own reasoning** explicitly. D-141 §3, §6.
+- **⚠️ Five of ten new tests were worthless and an inverted control caught it.** They computed input
+  sizes *from* the constants they pinned, so a 100,000,000-token control scaled the inputs and all 21
+  still passed. Rewritten against absolute sizes; three controls now fail the right tests (5 / 2 / 1)
+  and pass restored. D-141 §2.
+- **⛔ The approved trim was aimed at the wrong table, and counting first is the only reason it did not
+  happen.** `tutor_chat_messages` holds **3 rows and 28 characters**; the real input is **13,865
+  `learning_events`** at ~15 tokens each. **Not done, and recommended against** for `learning_events`
+  too — the cap already bounds cost and that table is the evidence base the new facts cite. AUD-F-34's
+  cause paragraph corrected. D-141 §5.
+- **⛔ Criterion 3 re-run: run 1 clean (53/4, matching D-134), run 2 FAILED** on
+  `journey-parent.spec.ts:17`, same image, no deploy between. `/respond` 200 and the interrupt heading
+  never cleared across 60 s, with zero errors anywhere. Timings discriminate: passing record has the SSE
+  stream **178 ms before** `/respond`, failing record has both at the **same millisecond**. **AUD-F-36
+  (P2)**, ~1 in 3 whole-suite runs, 0 of 3 in isolation. **Deliberately did not re-run until two landed
+  clean** — at ~⅔ per run that is claiming the criterion by selection. D-141 §9.
+- **Also filed: AUD-F-35 (P2)** — `promote_if_eligible` applies no evidence bar despite its name and
+  despite `reconfirm_fact`'s docstring claiming it does. Not fixed (it changes what the tutor reads);
+  batching would have amplified it, so `_maybe_promote` skips this run's own creations. D-141 §4.
+- **⚠️ Scaling number filed, not fixed:** ~2–3 cents per real student per week ⇒ **$90–120/month at
+  1,000 MAU, comparable to the whole current AWS bill**, and `bedrock_run_budget_cents = 200` stops the
+  run after ~70–90 students. **The weekly job as configured cannot serve the pilot cohort.** D-141 §8.
+- **Verification:** `make lint` clean, `pyright` 0 errors, **645 passed / 2 skipped** (from 634 — 11 new
+  tests). Three staging deploys, all canary-clean; four manual ops-task runs; every AWS read read-only
+  apart from those runs. PRs #74, #75, #76 merged; #77 open.
+- **✅ The apply, after the prohibition was lifted by user decision — and it was not safe as-is (D-142).**
+  tfvars' floor was `gha-544c6fe9749c` (07-30) against a deployed `gha-cfe9dbc0d507`; a real
+  `terraform plan` confirmed a bare apply would make the **pre-AUD-F-34** image the ops-task family's
+  revision, and the schedules resolve that family un-pinned — so the 08-02 firing would have run the
+  broken job and been read as criterion 6's evidence. **Third instance in three days.** Bumped the floor,
+  applied from a **saved plan file**, and verified after: plan clean via `-detailed-exitcode` *and*
+  agreeing with the running image; services untouched on revisions 47/46 at 2/2 (`ignore_changes` held a
+  third time); alarms OK; Terraform's rev 41 compared against CI's rev 40 (same 9 env var names,
+  `MEMORY_*` correct — without it the CLI silently mocks, D-105 §4); and proven through the **un-pinned
+  family name the schedule uses**: rev 41, **8/8 calls, 0 failed, exit 0**.
+- **⛔ Then the suite went red at 2026-08-01T00:00Z, from the clock rather than from code (D-143,
+  AUD-C-17 P1).** Eleven `rag_documents` have `effective_from = 2026-08-01T00:00Z`, so the effective
+  corpus went **3 → 14** mid-session and `adversarial` fell **100% → 66.7%** against a **1.0** threshold.
+  The containment assertion had been passing by having **nothing to retrieve**, so every prior green on it
+  was vacuous — **fourth instance of this project's most-repeated failure mode**. The two composite rates
+  also fell but their failure lists are long-standing measured-only cases (`no_answer` 0% since S37,
+  `paraphrase` 28.6%), checked against AUDIT_FINDINGS.md:1098 rather than assumed; **reporting them as
+  regressions would have been wrong.**
+- **Also filed: AUD-X-16 (P2)** — `.gitignore:40` matches `*.tfvars`, so the file whose comment records
+  three near-misses, and which D-142 called "a step, not advice", is **untracked**. A fresh checkout has
+  neither the comment nor the bumped floor. That explains the repetition better than inattention does.
+- **Not done, and why:** **AUD-C-17 (P1) is unfixed and the suite is red** — it is chat-api behaviour,
+  criterion 3 is already blocked by AUD-F-36, and **no "done" claim is made on a red suite**. Messages A
+  and D (yours to send); the 08-01 re-probe and 08-02 criterion-6 read (dates); AUD-F-33 and the r = 5
+  purchase (decisions, not blocked any more — the prohibition is retired); AUD-F-35 and AUD-F-36 fixes.
 
 ### Off-roadmap — the criterion-6 date is wrong by a week, and the Fargate price confirmed from the bill (2026-07-31, second session) ✅
 - **Scope: PROGRESS.md's own "Next session" pointer (post-D-136/D-137)**, not a numbered roadmap block.

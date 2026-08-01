@@ -216,10 +216,25 @@ async def stream_session(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
 ) -> StreamingResponse:
-    initial = await _initial_snapshot(
-        learning_session_id, graph, profile_adapter, db, bedrock_gateway, token
-    )
+    # AUD-F-36: subscribe BEFORE the initial-snapshot read. The read can dwell (the S26
+    # pre-intro is a real Bedrock call), and an action completing inside that window -
+    # measured: a parent's child-selection `/respond`, stamped the same millisecond as
+    # this connect - used to publish to nobody and be too early for the queue, so the
+    # stream served a pre-action initial frame and then never spoke again; the client
+    # sat on a cleared interrupt forever. Subscribed first, that publish waits in the
+    # queue and corrects the initial frame immediately after it. A queued event older
+    # than the initial read is harmless: events are full snapshots, and anything that
+    # made the read newer also queued its own later event.
     queue = events.subscribe(learning_session_id)
+    try:
+        initial = await _initial_snapshot(
+            learning_session_id, graph, profile_adapter, db, bedrock_gateway, token
+        )
+    except BaseException:
+        # The auth/404 failures inside `_initial_snapshot` must not leak the queue now
+        # that it is registered before they run.
+        events.unsubscribe(learning_session_id, queue)
+        raise
 
     async def event_stream():
         try:
