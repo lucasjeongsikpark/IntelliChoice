@@ -5,6 +5,17 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ Both fixes are deployed and criterion 3 is met again — two clean whole-suite staging runs,
+  first attempt, no selection (2026-08-01, D-147).** Commit `653d5f9` → PR #77 **9/9 green** (the
+  container-scan red was a runner segfault; passed on re-run with the new commit) → squash-merged,
+  `main = 75a966d` → deploy run **30679910035** dispatched pinned to that SHA, succeeded → both
+  services verified on `gha-75a966d31810` (learning-api rev 49 at 2/2, chat-api rev 48 at 1/1),
+  fault alarms OK, **tfvars floor bumped at deploy time** (first of four bumps not prompted by
+  staleness). **Criterion 3: 53 passed / 4 skipped, twice, no deploy between**, image byte-identical
+  to HEAD. Stated precisely: run 2's timings show the benign ordering (stream 275 ms before
+  `/respond`), so the runs satisfy the criterion while the race being *handled* rests on D-145's
+  deterministic seam tests. **The gate is back to dates and decisions: 08-02/08-09 (criterion 6),
+  and the parked items in the pointer.**
 - **✅ The suite is GREEN again — AUD-C-17 and AUD-F-36 are both fixed in code, and the 08-01 probe
   found a staging corpus gap (2026-08-01, D-144/D-145/D-146).** `make lint` clean, `pyright` 0
   errors, **657 passed / 2 skipped** (645 + 12 new tests), local whole e2e suite **57/57**.
@@ -1246,11 +1257,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 - **Next session, in order (2026-08-01 close, post-D-144/D-145/D-146). The suite is green, both
   fixes are code-complete and undeployed:**
-  1. **Deploy the AUD-C-17 + AUD-F-36 fixes (user's call), then criterion 3: two consecutive clean
-     whole-suite staging runs, no deploy between.** Check the tfvars floor against the running image
-     first (D-142's step), and bump it with the deploy. PR #77 carries the work; re-run its flaked
-     `learning-api-container-scan` (uv segfault, exit 139 — passed 6 min earlier on the same commit)
-     rather than debugging it, unless it segfaults twice.
+  1. ~~Deploy the AUD-C-17 + AUD-F-36 fixes, then criterion 3~~ **(✅ done same day, D-147: deployed
+     as `gha-75a966d31810`, floor bumped at deploy time, criterion 3 met — 53/4 twice, first
+     attempt, no deploy between. The container-scan red was the runner flake, passed on re-run.)**
   2. **2026-08-02 18:30Z: read criterion 6 with `make scheduler-evidence`** — `memory-consolidate`'s
      first-ever scheduled firing, now against a job with a clean manual run. The criterion's own date
      stays **08-09** (two-firing reading). ⚠️ If the deploy in item 1 lands before 08-02, the
