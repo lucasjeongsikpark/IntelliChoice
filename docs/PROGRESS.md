@@ -3549,6 +3549,67 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
+### Off-roadmap — the red suite fixed, AUD-F-36 re-attributed and fixed, deployed, and the §2.6 gate closed (2026-08-01) ✅
+- **Scope: PROGRESS.md's own pointer (post-D-144 close), then user-directed three times** — the user
+  approved the deploy chain ("yes"), then directed the criterion-6 calendar be bypassed, then argued
+  the cron test was cheap enough to just run. Each is recorded as a decision, not absorbed.
+- **✅ AUD-C-17 (P1, the red suite) fixed — and the per-case dump exonerated the defenses first.**
+  Both failing cases cited a newly-effective **public** document; **zero** forbidden substrings leaked
+  across all six cases and every seeded gated chunk stayed contained, so **no chat-api behaviour
+  changed, because none was wrong.** The fixture had pinned "the four currently-effective public
+  documents" by id, frozen at S37's calendar date. The runner now derives that set from the corpus at
+  run time and the scorer treats it as contained (gated/draft/future still fail, threshold still 1.0),
+  and **both eval runners refuse to score over an empty effective public corpus**. Honest limit
+  recorded: that precondition catches the *empty* corpus, not the *sparse* one — which was AUD-C-17's
+  actual shape. D-144.
+- **✅ AUD-F-36 (P2) fixed, after reading the code re-attributed it.** D-141 §9's hypothesis blamed the
+  client for trusting the stream; the client already re-reads. **The server was losing the event:**
+  `/stream` subscribed to the event bus only *after* building its initial snapshot — a read S26's
+  Bedrock call makes seconds wide — so an action completing in that window published to nobody and the
+  stale frame overwrote the client's own fresh `/respond` snapshot. Subscribe first, unsubscribe on
+  rejected connects, **in both apps**. D-145.
+- **✅ The 08-01 date-bound checks ran on schedule.** "How do I enroll a student?" refuses **3/3
+  consistently** — correct fail-closed behaviour, since `public-enrollment-faq` is `draft` by design.
+  **The launch journey's canonical guest question is now blocked on org approval, not on code.**
+  D-146.
+- **⚠️ AUD-C-18 (P2) filed by that same probe.** Four of six newly-effective public documents are
+  unretrievable on staging even near-verbatim, while the same corpus answers them locally. Found only
+  because each candidate was verified before widening `chat_qa_staging.js` — the list gained **one**
+  verified question instead of six unverified ones, which would have poisoned criterion 7's p95 with
+  refusal-speed turns.
+- **✅ Deployed, and criterion 3 re-met.** PR #77 CI **9/9** (the container-scan red was a runner
+  segfault, passed on re-run) → `main = 75a966d` → deploy run **30679910035** pinned by head SHA →
+  both services on `gha-75a966d31810`, alarms OK, **floor bumped at deploy time** (first of four bumps
+  not prompted by finding it stale). **Criterion 3: 53 passed / 4 skipped, twice, first attempt, no
+  deploy between.** Scope stated: run 2's timings show the benign ordering, so the runs satisfy the
+  *criterion* while the race being handled rests on the seam tests. D-147.
+- **✅ Criterion 6 closed early by user decision — the §2.6 gate is CLOSED.** The bypass was
+  implemented by manufacturing the missing evidence rather than waiving it: a **one-off Scheduler
+  firing** (`startedBy: chronos-schedule`, rev 42, 8/8 calls, 24.73 cents, exit 0, auto-deleted). Then,
+  on the user's cost argument, a **second throwaway clone with a real cron expression** fired at
+  **04:39:01.854Z against a 04:39:00Z slot**, closing the last unobserved link. **The real weekly
+  schedule was never touched, and that is proven, not asserted** — its `LastModificationDate` still
+  equals its `CreationDate`. Residual gap: the `SUN` enum value alone. D-148, D-149.
+- **⚠️ The near-miss worth keeping: the cron clone's output was byte-identical to the earlier firing**
+  — `24.73 cents / 8 calls / 11840 dropped` — which is the exact signature of re-reading an old log,
+  this project's most-repeated instrument error. A positive control ran **before** the number was
+  quoted: two completion lines, 03:51:25Z and 04:43:20Z, in **two different log streams**. Two real
+  tasks; the identity was deterministic output on a static corpus. **Eighth consecutive session where
+  the instrument needed checking before its output meant anything.**
+- **⚠️ A correction to my own earlier reading:** the consolidation window is a **rolling
+  `[now − 7d, now)`, deliberately not snapped to a calendar week**. An ISO-week bucket was guessed in
+  conversation and was wrong; `consolidate_cli.py`'s loose "idempotent per (student, week)" docstring
+  invited it and was corrected. Consequence: 08-02 sees a window shifted ~38 h, not the same bucket.
+- **Verification:** `make lint` clean, `pyright` 0 errors, **657 passed / 2 skipped** (645 + 12 new),
+  local whole e2e suite **57/57**, two staging e2e suites 53/4 each. Every control watched failing
+  first: the sabotaged public-set query turned the eval red; the pre-fix subscribe order timed out the
+  seam test. PRs #77, #78, #79, #80 merged. ARCHITECTURE.md gained the subscribe-before-read invariant
+  and the evals clause on the empty-corpus one.
+- **Not done, and why:** AUD-C-18 (filed same day, scope rule — the next step is one read-only DB
+  look); AUD-F-35 and AUD-X-16 (queued P2s); Messages A and D and the Enrollment FAQ approval (yours);
+  the budget/retention/capacity decisions (yours). **08-02 18:30Z remains a confirmation read — a
+  failure there still reopens criterion 6.**
+
 ### Off-roadmap — AUD-F-34 found, fixed in three deploys; criterion 3 failed its re-run; the apply landed; the suite went red at midnight (2026-07-31 → 2026-08-01, third session) ⏸ partial, suite RED
 - **Scope: PROGRESS.md's own pointer (post-D-138/D-139), then user-directed.** The user chose the strict
   criterion-6 reading (**08-09**) and approved the de-risking run; the run found the job broken, and the

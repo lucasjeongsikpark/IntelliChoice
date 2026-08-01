@@ -175,6 +175,11 @@ to rot, because nothing fails when it does.)*
   scanned is an explicit FAIL**); the rule generalises to every measurement and every eval: **assert
   the denominator, not just the rate.** A suite whose green depends on the wall clock, or on a table
   being empty, is reporting its own coverage rather than the system's behaviour.
+  **Now enforced in the evals too** (D-144): both Q&A coverage runners refuse to score over an empty
+  effective public corpus, and the adversarial containment verdict derives its allowlist from the
+  corpus at run time instead of pinning document ids, so the verdict cannot go stale at the next
+  `effective_from`. The honest limit is recorded with it — a precondition catches the *empty* corpus,
+  not the *sparse* one; corpus-independence by construction is what covers the sparse case.
 - **A job that catches its own errors must not report success by exhaustion** (AUD-F-34, D-141 §1).
   The scheduled-job failure alarm matches `containers.exitCode: [{"anything-but": [0]}]`, so a CLI that
   swallows every failure and returns 0 is invisible in every console — which is how a job that had never
@@ -198,6 +203,15 @@ to rot, because nothing fails when it does.)*
   inventing rows; `learning_checkpoint_repairs_total` counts it, so a flat zero is the evidence the
   unfixed ordering is not being hit. **Partial: only the mid-finalize seam. The mid-interrupt seam
   and the commit ordering itself are still open** (S42, D-110 §3).
+- **An SSE stream subscribes before it reads its initial snapshot, never after** (AUD-F-36, D-145) —
+  both apps' `routers/stream.py` register on the in-process event bus *first*, then build the frame,
+  and unsubscribe if that build fails. Reversed, an action completing during the read publishes to
+  nobody **and** is too early for the queue, so the event is provably lost rather than merely missed:
+  the client receives a pre-action initial frame that overwrites its own fresh POST response, and the
+  connection has nothing left to say. That hung a parent's child-selection interrupt indefinitely
+  with every HTTP call returning 200 and no error anywhere. The read is not instantaneous and must
+  not be assumed so — S26's `pre_intro` puts a real Bedrock call inside it. "The checkpoint is read
+  fresh on connect" covers events from *before* the connect, never during it.
 - **External actions are interrupt-gated** — child selection, attendance emails, and the
   hint/solution/video choice each pause via LangGraph `interrupt()` and survive restart via
   the Postgres checkpointer (S7); chat-api's admin-escalation email and calendar action
