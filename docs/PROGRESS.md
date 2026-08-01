@@ -5,6 +5,16 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ THE §2.6 GATE IS CLOSED (2026-08-01, D-148) — criterion 6 closed early by user decision, on
+  manufactured-but-real evidence.** The user directed the calendar blocker be bypassed; the
+  implementation was a **one-off Scheduler firing of `memory-consolidate` today** (same target,
+  family, IAM as the real schedule; `startedBy: chronos-schedule`, rev 42 = `gha-75a966d31810`,
+  **8/8 calls, 0 failed, 24.73 cents, exit 0**, one-off auto-deleted, weekly schedule untouched),
+  combined with the purge jobs' existing unattended record (5/5, 3/3) and the job's clean runs.
+  **Condition recorded in D-148 §2: the 08-02/08-03/08-05/08-09 scheduled firings become free
+  confirmation reads, and a failure in any of them reopens criterion 6.** Tomorrow's
+  `make scheduler-evidence` will show one unattributed 03:47Z firing — that is D-148's one-off,
+  expected. Criteria 1, 2, 3, 7, 9 were already met.
 - **✅ Both fixes are deployed and criterion 3 is met again — two clean whole-suite staging runs,
   first attempt, no selection (2026-08-01, D-147).** Commit `653d5f9` → PR #77 **9/9 green** (the
   container-scan red was a runner segfault; passed on re-run with the new commit) → squash-merged,
@@ -1260,11 +1270,11 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   1. ~~Deploy the AUD-C-17 + AUD-F-36 fixes, then criterion 3~~ **(✅ done same day, D-147: deployed
      as `gha-75a966d31810`, floor bumped at deploy time, criterion 3 met — 53/4 twice, first
      attempt, no deploy between. The container-scan red was the runner flake, passed on re-run.)**
-  2. **2026-08-02 18:30Z: read criterion 6 with `make scheduler-evidence`** — `memory-consolidate`'s
-     first-ever scheduled firing, now against a job with a clean manual run. The criterion's own date
-     stays **08-09** (two-firing reading). ⚠️ If the deploy in item 1 lands before 08-02, the
-     schedule runs the new image (un-pinned family) — it contains the AUD-F-34 fix either way, but
-     note which image fired when reading the evidence.
+  2. ~~2026-08-02: read criterion 6~~ **(✅ criterion 6 closed early 2026-08-01 by user decision,
+     D-148 — a real one-off Scheduler firing stood in for the calendar.)** **Still read
+     `make scheduler-evidence` after 08-02 18:30Z as a confirmation**: it is the weekly cron's first
+     exercise at its own slot, a failure there **reopens** the criterion (D-148 §2), and the read
+     will show D-148's expected unattributed 03:47Z firing.
   3. **AUD-C-18 (P2): one read-only look at staging's `rag_documents`/`rag_chunks`** for
      student-participation-guide / privacy-notice / ai-use-notice / contact-guide — present? chunks
      embedded? provenance current (AUD-C-16's shape)? Then widen `chat_qa_staging.js` with the four
