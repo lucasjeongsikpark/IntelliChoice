@@ -5,8 +5,11 @@ Run with: uv run python -m intellichoice_memory.consolidate_cli
 Mirrors `intellichoice_youtube.sync_cli`'s shape (own engine, own session, `make`
 target, provider selection off a `bedrock_provider` setting). Manual trigger only this
 session - a real EventBridge Sunday schedule is later infra work (same "schedule later"
-posture as `youtube-sync`/`webcontent-sync`). Idempotent per (student, week) - see
-`consolidation.consolidate_student_window`'s own docstring.
+posture as `youtube-sync`/`webcontent-sync`). Idempotent per (student, *window*) - the
+window is the rolling `[now - window_days, now)` computed below, deliberately not
+snapped to a calendar week (see `settings.window_days`), so two runs on the same day
+see different windows. The looser "per (student, week)" wording this replaces was read
+as an ISO-week bucket during D-149 and is not one.
 """
 
 import asyncio
