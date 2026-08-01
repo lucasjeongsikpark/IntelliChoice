@@ -3880,7 +3880,7 @@ behaving exactly as single-batch ones do today. The bug is neither fixed nor mad
 one supporting event, reconfirm it with one more, and assert it is still `provisional`. Run the
 inverted control — the current code passes an `active` assertion, which is how this survived.
 
-### AUD-F-36 — the parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription (**P2** — found 2026-07-31, D-141 §9; ✅ FIXED in code 2026-08-01, D-145 — criterion 3's staging verification still owed, post-deploy)
+### AUD-F-36 — the parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription (**P2** — found 2026-07-31, D-141 §9; ✅ FIXED 2026-08-01, D-145 — deployed, and criterion 3 re-met behind it, D-147)
 
 Found by criterion 3's own re-run, not by looking for it. Run 1 of 2 was clean (53 passed / 4
 skipped, matching D-134); **run 2 failed** on `journey-parent.spec.ts:17` — "parent with two
@@ -3946,9 +3946,13 @@ would otherwise introduce) — in **both apps**, since `chat_api.routers.stream`
 pattern. Guards: a deterministic seam test per app publishes inside `aget_state` and asserts the
 event reaches the stream (pre-fix ordering: watched fail on a 2 s timeout; post-fix: passes), plus a
 leaked-subscription test on rejected connects. 657 passed / 2 skipped; local whole e2e suite 57/57.
-**Criterion 3 is deliberately not claimed:** the failing arm is a staging timing (~1 in 3 whole-suite
-runs), so the criterion is owed two consecutive clean whole-suite staging runs against the deployed
-fix, per D-141 §9's no-selection rule.
+**Criterion 3 was deliberately not claimed on the code fix alone** — and was then re-met the same
+day against the deployed image (D-147): two consecutive clean whole-suite staging runs, **53 passed /
+4 skipped each, first attempt, no deploy between**, against `gha-75a966d31810` (byte-identical to
+HEAD). Honest scope of that evidence: run 2's own harness timings show the stream opening 275 ms
+before `/respond` — the benign ordering — so the staging runs satisfy the *criterion* while the proof
+that the *race itself* is handled remains the deterministic seam test, which publishes at the exact
+seam and was watched failing against the pre-fix ordering.
 
 ### AUD-C-17 — the adversarial containment cases were passing over an empty-in-practice corpus, and broke the moment 11 documents became effective (**P1** — found 2026-08-01T00:21Z, D-143; ✅ FIXED 2026-08-01, D-144)
 

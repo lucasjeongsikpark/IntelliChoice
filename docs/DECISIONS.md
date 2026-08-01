@@ -8586,3 +8586,40 @@ deliberately not diagnosed further under the session scope rule. Unverified ques
 of the k6 list because a refusal turn is a different, faster unit of work than the grounded turn
 criterion 7 measures — a widened-but-unverified list would have quietly improved the p95 while
 measuring less.
+
+## D-147 — the fixes are deployed and criterion 3 is met again: two clean whole-suite staging runs, first attempt, no selection (accepted, 2026-08-01)
+
+**Context.** The user approved the commit/merge/deploy in one word; D-141 §9's rule governed the
+verification: no re-running until two land clean.
+
+### 1. The deploy chain, each link pinned
+
+Commit `653d5f9` → PR #77 CI **9/9 green** (the `lint-typecheck-test` red flipped on exactly the
+AUD-C-17 fix, and both container scans passed — last night's `uv sync` segfault confirmed as a
+runner flake, not a finding) → squash-merged, `main = 75a966d` → `deploy-staging.yml` dispatched and
+verified by **pinned run id 30679910035 / head SHA**, per the workflow's own never-trust-latest rule
+→ success → both services confirmed running `gha-75a966d31810` (learning-api rev 49 at 2/2, chat-api
+rev 48 at 1/1), every fault alarm OK (the two scale-in alarms in ALARM are idle staging's normal
+state), and the tfvars floor bumped to the same tag **at deploy time rather than at the next
+near-miss** — the first floor bump in four that was not prompted by finding it stale.
+
+### 2. Criterion 3: met, with its evidence stated precisely
+
+Two consecutive whole-suite `make e2e-staging` runs, **53 passed / 4 skipped each** (matching
+D-134's clean shape), **first attempt, no deploy between**, against an image byte-identical to HEAD
+(`git diff origin/main HEAD -- apps/ packages/ curriculum/ knowledge-content/` empty). No selection
+occurred: two runs were owed, two were run, both passed.
+
+**What the two runs do and do not prove.** At AUD-F-36's pre-fix ~⅓-per-run failure rate, two clean
+runs by luck alone is ~44% — so the runs alone would be weak evidence the race is fixed. They are
+not the evidence: the harness timings show run 2's stream opened **275 ms before** `/respond` (the
+benign ordering), i.e. the race window was not even exercised. The race being handled rests on the
+deterministic seam tests (D-145 §3); the staging runs are the *criterion's* required reading, and
+they are clean.
+
+### 3. Standing note for the 08-02 read
+
+`memory-consolidate`'s first scheduled firing (08-02 18:30Z) will now run `gha-75a966d31810` via the
+un-pinned family — it contains AUD-F-34's fix (inherited from cfe9dbc) plus this session's chat-api
+and eval changes, none of which touch the consolidation path. Note the image when reading the
+evidence, as the pointer already says.
