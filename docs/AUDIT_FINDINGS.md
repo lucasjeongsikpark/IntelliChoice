@@ -4069,7 +4069,7 @@ failure arms exercised**: a doctored stale floor produced FAIL naming the offend
 missing file produced the fresh-checkout message, exit 1. `terraform.tfvars.example` now points
 at the target so a fresh checkout finds it.
 
-### AUD-C-18 — four of the six newly-effective public documents are unretrievable on staging, while the same corpus answers them locally (**P2** — found 2026-08-01, during the scheduled 08-01 re-probe; ✅ DIAGNOSED and FIXED IN CODE 2026-08-01, D-150 — deploy pending, live verification owed after it)
+### AUD-C-18 — four of the six newly-effective public documents are unretrievable on staging, while the same corpus answers them locally (**P2** — found 2026-08-01, during the scheduled 08-01 re-probe; ✅ FIXED and LIVE-VERIFIED 2026-08-01, D-150 — deployed as `gha-812db34916a6`, all four questions 15/15 grounded with correct citations)
 
 Found by verifying every candidate question against live staging *before* widening
 `chat_qa_staging.js`'s list, which is the only reason the list didn't get six unverified questions
@@ -4130,5 +4130,8 @@ included — AUD-C-02's mock-vs-real lesson on yet another surface.
 `\s+` to a single space before the substring check; the words must still match exactly and in
 order, so AUD-C-13's open concern (a too-short quote verifying trivially) is unchanged in either
 direction. Failing-first test reproduces the staging refusal with a wrapped chunk; a control pins
-that a reordered/paraphrased quote still fails. **Live verification and widening
-`chat_qa_staging.js` with the four parked questions are owed after the fix deploys.**
+that a reordered/paraphrased quote still fails. **Live-verified 2026-08-01 after the same-day
+deploy (user decision, D-150 §5): all four questions answer 3/3 as fresh guest sessions with
+citations to their own documents (15/15 including the volunteer control), at grounded-turn
+latencies of 7.5–11.7 s — the slow healthy shape, not refusal speed. `chat_qa_staging.js`
+widened from 6 to 10 questions, each verified before being added.**

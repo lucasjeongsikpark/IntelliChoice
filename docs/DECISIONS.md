@@ -8818,3 +8818,35 @@ is the plan-§9 behaviour, later than the buggy one, never earlier.
   S42/S43), the Enrollment FAQ org approval, `bedrock_run_budget_cents` (D-141 §8),
   `learning_events` retention (D-141 §5), the Billing-console credit look (D-139 §3), r = 5
   capacity + AUD-F-33's apply.
+
+### 5. Addendum, same day: the user chose to deploy today, and the §4 recommendation was replaced by a de-risking run
+
+The wait-for-08-02 recommendation in §4 was explained and the user decided to proceed today —
+with the middle path that keeps tomorrow's read meaningful: **deploy, then immediately exercise
+the changed job on the new image**, so a failure at the 08-02 slot would cleanly indict the
+schedule path rather than today's code (D-138 §6 / D-140's pattern).
+
+**Executed, in order, each pinned rather than trusted:**
+- PR #82, CI **9/9 green first attempt**, squash-merged as `812db34`.
+- Deploy run **30713006010**, dispatched pinned to that SHA, succeeded. Both services verified on
+  `gha-812db34916a6` (learning-api rev 50 at 2/2, chat-api rev 49 at 1/1); the only alarms in
+  ALARM are the two autoscaling *scale-in* alarms (idle-service normal), no fault alarms.
+- **The floor was bumped at deploy time and the new check read the result**: `make
+  tfvars-floor-check` → OK, seven sources agreeing on `gha-812db34916a6` — the first deploy
+  whose floor step was executable rather than remembered (AUD-X-16's fix, exercised in anger the
+  day it landed).
+- **De-risking run on ops-task rev 43** (the new image, the schedule's exact command, the
+  taskdef's own `MEMORY_*` wiring): **8/8 calls, 0 failed, exit 0, 24.73 cents,
+  0 added / 0 reconfirmed** — byte-matching the stable state D-148/D-149 established, now proven
+  on the code the 08-02 firing will run. AUD-F-35's changed promotion path is deployed and the
+  job is clean under it.
+- **AUD-C-18 live-verified: 15/15.** Each of the four previously-refusing questions answers 3/3
+  as a fresh guest session with citations to its own document, 7.5–11.7 s grounded turns; the
+  volunteer control still passes. `chat_qa_staging.js` widened 6 → 10 questions.
+
+**What this changes about tomorrow's read:** the 08-02 18:30Z firing runs `gha-812db34916a6`,
+not the image criterion 6 was closed against — by user decision, de-risked as above. The
+ops-task log window now also carries **today's third `Consolidation run complete` line**
+(~05:5xZ, this de-risking run) on top of D-148/D-149's two clones; like them it is a `run-task`,
+not a Scheduler firing, so `InvocationAttemptCount` attribution is unaffected — but anyone
+counting *log lines* tomorrow should expect three manual ones today, not two.
