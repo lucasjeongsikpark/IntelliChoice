@@ -8,3 +8,10 @@ notification_email = "you@example.com"
 # learning_api_image_tag = "unset"
 # chat_api_image_tag     = "unset"
 # bedrock_provider       = "mock"
+
+# The image tags above are the FLOOR Terraform registers - deploy-staging.yml patches
+# the real tag on top. Before EVERY apply run `make tfvars-floor-check` (AUD-X-16): it
+# compares this floor against the running services and each family's latest revision,
+# and exits non-zero on any disagreement. Set the floor to the RUNNING image, never an
+# older one - three near-misses (S39/AUD-F-30, D-137, D-142/AUD-F-34) were a bare apply
+# away from reverting that week's most important fix.

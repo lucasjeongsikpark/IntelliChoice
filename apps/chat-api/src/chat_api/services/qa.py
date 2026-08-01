@@ -8,6 +8,7 @@ trigger, so *something* has to actually check that).
 
 import hashlib
 import logging
+import re
 
 from intellichoice_db.models.rag import RagChunk
 from intellichoice_db.repositories.rag import RagRepository
@@ -34,6 +35,15 @@ CONFLICT_MESSAGE = (
 )
 
 
+def _normalized_for_containment(text: str) -> str:
+    """AUD-C-18: source documents may be hard-wrapped, so chunk_text carries newlines
+    mid-sentence; a model quoting "verbatim" renders those as spaces and the quote is
+    still real text. Whitespace runs collapse to one space before the containment
+    check - the words themselves must still match exactly, in order.
+    """
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
 def _no_answer(reason: str, citations: list[Citation]) -> GroundedAnswer:
     return GroundedAnswer(
         answer=reason,
@@ -55,7 +65,10 @@ async def _verify_citations(
         quote = llm_citation.quote.strip()
         # A quote must be a real substring of the chunk it cites - never trust the
         # model's own claim that a citation supports the answer (SPEC §5.21.8).
-        if not quote or quote.lower() not in chunk.chunk_text.lower():
+        # Whitespace-insensitive (AUD-C-18), word-exact.
+        if not quote or _normalized_for_containment(quote) not in _normalized_for_containment(
+            chunk.chunk_text
+        ):
             continue
         document = await repo.get_document(chunk.document_id)
         if document is None:

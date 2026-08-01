@@ -5,6 +5,53 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ The pointer's three P2s are closed in one post-gate session — AUD-C-18 diagnosed to a
+  one-line root cause and fixed, AUD-X-16's floor check is executable, AUD-F-35's evidence bar is
+  enforced (2026-08-01, second close, D-150).** `make lint` clean, `pyright` 0 errors,
+  **663 passed / 2 skipped** (657 + 6 new). **No deploy, no apply** — all staging access was
+  read-only ops-task runs (~2.8¢ Bedrock; two `run-task` log entries that are NOT Scheduler
+  firings, so 08-02's attribution is unaffected).
+  **AUD-C-18: the corpus and retrieval were both innocent.** The read-only look found all five
+  documents present/approved/effective, embeddings real-Titan, sha256 identical to local; a
+  stage-by-stage pipeline replay inside the VPC then showed rerank putting the right chunks first
+  (0.8–0.95) and the answer model answering at 0.95 — **and `_verify_citations` dropping every
+  quote**. Root cause: the six 08-01 documents are hard-wrapped at ~84 columns, chunk_text keeps
+  the newlines, and a verbatim quote crossing a wrapped line break fails the raw substring check.
+  Fixed with whitespace-insensitive, word-exact containment (failing test watched fail first;
+  paraphrase control still fails; AUD-C-13 unchanged). Invisible locally — the mock cuts quotes
+  newline-included — the mock-vs-real gap's fifth surface.
+  **AUD-X-16: `make tfvars-floor-check`** (`scripts/check_tfvars_floor.py`): every recorded image
+  tag must agree — tfvars floor ×2, running services ×2, family latest ×3 including the un-pinned
+  ops-task family the schedules resolve. Exit 1 on disagreement, 2 on unreadable AWS, FAIL with
+  instructions on the fresh-checkout missing-tfvars case. OK live on `gha-75a966d31810`; both
+  failure arms exercised before the OK was quoted.
+  **AUD-F-35: fixed test-first exactly as filed** — the 2-events promotion was watched happening
+  on pre-fix code, then `promote_if_eligible` gained the ≥3-events/≥2-sessions bar over
+  **accumulated** evidence, resolved to the fact's own student's real events; `contested` is not
+  resurrected; the `created_this_run` stopgap is removed as superseded. Inverted control fails
+  exactly the two guard tests.
+  **⚠️ Both app-code fixes are local-only; the deploy is the user's call.** Recommended: deploy
+  **after** the 08-02 18:30Z `make scheduler-evidence` read, so criterion 6's first unattended
+  weekly firing runs on the image it was closed against (D-148 §2 reads cleanest with nothing
+  swapped underneath). After the deploy: verify the four AUD-C-18 questions live, widen
+  `chat_qa_staging.js`, re-run `make tfvars-floor-check`.
+
+- **Next session, in order (2026-08-01 second close, post-D-150):**
+  1. **2026-08-02, after 18:30Z: `make scheduler-evidence`** — criterion 6's confirmation read
+     (D-148 §2: a failure reopens it). Expect two unattributed firings (03:47Z and 04:39Z,
+     D-148/D-149's clones), a ~38h-shifted rolling window, and `0 added, 0 reconfirmed` at full
+     spend (the stable state, seen twice).
+  2. **Deploy the AUD-C-18 + AUD-F-35 fixes** (recommended after item 1) — `make
+     tfvars-floor-check` before any apply is now the executable step. Then verify the four
+     parked questions live (3/3 each) and widen `chat_qa_staging.js` with the ones that pass.
+  3. **Send Message A** (fourteenth session carrying it) **and Message D**, separately — A gates
+     S42/S43 discovery, which is otherwise the next roadmap scope.
+  4. **The Enrollment FAQ needs org approval** (editorial, launch checklist) — the launch
+     journey's canonical guest question refuses correctly until it lands.
+  5. **Decisions still parked:** `bedrock_run_budget_cents` before the pilot (D-141 §8);
+     `learning_events` retention (D-141 §5, a SPEC question); the Billing-console credit look
+     (D-139 §3); r = 5 capacity at ~$43/month + AUD-F-33's apply.
+
 - **✅ THE §2.6 GATE IS CLOSED (2026-08-01, D-148) — criterion 6 closed early by user decision, on
   manufactured-but-real evidence.** The user directed the calendar blocker be bypassed; the
   implementation was a **one-off Scheduler firing of `memory-consolidate` today** (same target,
@@ -1277,8 +1324,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-08-01 close, post-D-144/D-145/D-146). The suite is green, both
-  fixes are code-complete and undeployed:**
+- **Superseded — pointer as of the 08-01 first close (post-D-144/D-145/D-146). Items 3, 6, 7 are
+  done (D-150: AUD-C-18 diagnosed+fixed in code, AUD-F-35 fixed, AUD-X-16 fixed); items 4, 5, 8
+  carried into the pointer above:**
   1. ~~Deploy the AUD-C-17 + AUD-F-36 fixes, then criterion 3~~ **(✅ done same day, D-147: deployed
      as `gha-75a966d31810`, floor bumped at deploy time, criterion 3 met — 53/4 twice, first
      attempt, no deploy between. The container-scan red was the runner flake, passed on re-run.)**

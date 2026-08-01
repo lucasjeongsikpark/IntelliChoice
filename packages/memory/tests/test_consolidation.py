@@ -210,6 +210,90 @@ def test_candidate_dropped_when_no_evidence_ids_resolve() -> None:
     asyncio.run(run())
 
 
+def test_reconfirmation_does_not_promote_below_the_accumulated_evidence_bar() -> None:
+    """AUD-F-35: plan §9's ">=3 supporting events across >=2 sessions" bar was enforced
+    at creation and bypassed on the next reconfirmation - a fact created off one event
+    became tutor-readable the second time the model proposed it, at two events. The bar
+    must hold over the fact's ACCUMULATED evidence at promotion time.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            tutor_chat_repo = TutorChatMessageRepository(session)
+            event_1 = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+            event_2 = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s2")
+            window_start = event_1.occurred_at - timedelta(minutes=1)
+            window_end = event_2.occurred_at + timedelta(minutes=1)
+
+            # Run 1 creates the fact off one event (provisional); run 2's same-polarity
+            # duplicate proposal reconfirms it with a second event from a second session.
+            # Accumulated evidence is then 2 events / 2 sessions - still below the bar.
+            for event in (event_1, event_2):
+                gateway = _FakeGateway([_weak_skill_response(seed.skill_id, [event.event_id])])
+                await consolidate_student_window(
+                    memory_repo=memory_repo,
+                    tutor_chat_repo=tutor_chat_repo,
+                    gateway=gateway,
+                    student_external_id=STUDENT_ID,
+                    window_start=window_start,
+                    window_end=window_end,
+                    session_spend_cents=0.0,
+                )
+
+            active = await memory_repo.list_facts_for_student(STUDENT_ID, statuses=("active",))
+            assert active == []
+            provisional = await memory_repo.list_facts_for_student(
+                STUDENT_ID, statuses=("provisional",)
+            )
+            assert len(provisional) == 1
+            assert len(provisional[0].evidence_event_ids) == 2
+
+    asyncio.run(run())
+
+
+def test_reconfirmation_promotes_once_accumulated_evidence_meets_the_bar() -> None:
+    """The counterpart: a fact whose accumulated evidence reaches 3 events across 2
+    sessions IS promoted on reconfirmation - the AUD-F-35 fix must not fail closed so
+    hard that legitimately re-evidenced facts stay provisional forever.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            tutor_chat_repo = TutorChatMessageRepository(session)
+            event_1 = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+            event_2 = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s1")
+            event_3 = await _add_event(memory_repo, skill_id=seed.skill_id, session_id="s2")
+            window_start = event_1.occurred_at - timedelta(minutes=1)
+            window_end = event_3.occurred_at + timedelta(minutes=1)
+
+            gateway = _FakeGateway(
+                [
+                    _weak_skill_response(seed.skill_id, [event_1.event_id, event_2.event_id]),
+                    _weak_skill_response(seed.skill_id, [event_3.event_id]),
+                ]
+            )
+            for _ in range(2):
+                await consolidate_student_window(
+                    memory_repo=memory_repo,
+                    tutor_chat_repo=tutor_chat_repo,
+                    gateway=gateway,
+                    student_external_id=STUDENT_ID,
+                    window_start=window_start,
+                    window_end=window_end,
+                    session_spend_cents=0.0,
+                )
+
+            active = await memory_repo.list_facts_for_student(STUDENT_ID, statuses=("active",))
+            assert len(active) == 1
+            assert len(active[0].evidence_event_ids) == 3
+
+    asyncio.run(run())
+
+
 def test_new_fact_below_minimum_evidence_is_provisional() -> None:
     async def run() -> None:
         async with _rollback_session() as session:

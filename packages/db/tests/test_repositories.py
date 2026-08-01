@@ -718,6 +718,141 @@ def test_memory_repository_round_trip() -> None:
     asyncio.run(run())
 
 
+def test_promote_if_eligible_enforces_the_accumulated_evidence_bar() -> None:
+    """AUD-F-35: promotion applies plan §9's bar (min_events across min_sessions) to
+    the fact's accumulated evidence_event_ids - it used to promote any provisional
+    fact unconditionally. Evidence that doesn't resolve to this student's own events
+    counts for nothing (the write-time `_verify_evidence` posture, re-applied here).
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            chain = await _seed_question_chain(session)
+            memory = MemoryRepository(session)
+
+            events = []
+            for session_id in ("s1", "s1", "s2"):
+                events.append(
+                    await memory.record_event(
+                        LearningEvent(
+                            student_external_id="student-ext-1",
+                            session_id=session_id,
+                            event_type="question_attempted",
+                            skill_id=chain.skill_id,
+                        )
+                    )
+                )
+            other_students = await memory.record_event(
+                LearningEvent(
+                    student_external_id="student-ext-2",
+                    session_id="s9",
+                    event_type="question_attempted",
+                    skill_id=chain.skill_id,
+                )
+            )
+
+            async def provisional_fact(evidence: list[str]):
+                return await memory.add_fact(
+                    SemanticMemory(
+                        student_external_id="student-ext-1",
+                        fact_type="strength",
+                        skill_id=chain.skill_id,
+                        fact_text="Consistent with one-step equations",
+                        confidence=0.7,
+                        status="provisional",
+                        evidence_event_ids=evidence,
+                        first_observed_at=datetime.now(UTC),
+                        last_confirmed_at=datetime.now(UTC),
+                    )
+                )
+
+            # Below the event count: 2 events / 2 sessions stays provisional.
+            below_events = await provisional_fact([events[0].event_id, events[2].event_id])
+            result = await memory.promote_if_eligible(
+                below_events.semantic_memory_id, min_events=3, min_sessions=2
+            )
+            assert result is not None and result.status == "provisional"
+
+            # Below the session diversity: 3 events all in one session stays provisional
+            # (needs a third same-session event to construct).
+            same_session = await memory.record_event(
+                LearningEvent(
+                    student_external_id="student-ext-1",
+                    session_id="s1",
+                    event_type="question_attempted",
+                    skill_id=chain.skill_id,
+                )
+            )
+            single_session = await provisional_fact(
+                [events[0].event_id, events[1].event_id, same_session.event_id]
+            )
+            result = await memory.promote_if_eligible(
+                single_session.semantic_memory_id, min_events=3, min_sessions=2
+            )
+            assert result is not None and result.status == "provisional"
+
+            # Another student's event does not count toward the bar.
+            padded = await provisional_fact(
+                [events[0].event_id, events[2].event_id, other_students.event_id]
+            )
+            result = await memory.promote_if_eligible(
+                padded.semantic_memory_id, min_events=3, min_sessions=2
+            )
+            assert result is not None and result.status == "provisional"
+
+            # The bar met - 3 own events across 2 sessions - promotes.
+            eligible = await provisional_fact([event.event_id for event in events])
+            result = await memory.promote_if_eligible(
+                eligible.semantic_memory_id, min_events=3, min_sessions=2
+            )
+            assert result is not None and result.status == "active"
+
+    asyncio.run(run())
+
+
+def test_promote_if_eligible_leaves_non_provisional_statuses_alone() -> None:
+    """A `contested` fact meeting the bar is NOT resurrected by promotion - only
+    `reconfirm_fact` returns a contested fact to active (plan §9's demotion semantics).
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            chain = await _seed_question_chain(session)
+            memory = MemoryRepository(session)
+
+            events = [
+                await memory.record_event(
+                    LearningEvent(
+                        student_external_id="student-ext-1",
+                        session_id=session_id,
+                        event_type="question_attempted",
+                        skill_id=chain.skill_id,
+                    )
+                )
+                for session_id in ("s1", "s2", "s3")
+            ]
+            contested = await memory.add_fact(
+                SemanticMemory(
+                    student_external_id="student-ext-1",
+                    fact_type="strength",
+                    skill_id=chain.skill_id,
+                    fact_text="Contradicted last window",
+                    confidence=0.7,
+                    status="contested",
+                    evidence_event_ids=[event.event_id for event in events],
+                    first_observed_at=datetime.now(UTC),
+                    last_confirmed_at=datetime.now(UTC),
+                )
+            )
+
+            result = await memory.promote_if_eligible(
+                contested.semantic_memory_id, min_events=3, min_sessions=2
+            )
+            assert result is not None and result.status == "contested"
+
+    asyncio.run(run())
+
+
 def test_semantic_memory_purge_keys_on_last_confirmed_not_first_observed() -> None:
     """AUD-L-04 (D-114): the 90-day boundary D-072 reasoned about, restored for the
     derived text. Keyed on `last_confirmed_at` so a fact the weekly consolidation keeps

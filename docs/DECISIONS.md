@@ -8733,3 +8733,88 @@ shifted ~38 h, not the same bucket.
 this morning's `5 reconfirmed` (D-141). Seen identically at 03:47Z and 04:39Z, so it is the stable
 state of a static already-consolidated corpus, not a fluke. `11840 of ~13865 events dropped` is the
 20k token budget doing its job. Neither is a defect; both are what the 08-02 read should expect.
+
+## D-150 — the three pointer P2s land in one session: AUD-C-18 diagnosed to a one-line root cause and fixed, AUD-X-16's floor check made executable, AUD-F-35's evidence bar enforced (accepted, 2026-08-01)
+
+**Context.** The gate is closed (D-148/D-149) and S42's discovery scope is blocked on the org
+replying, so this session took the pointer's three engineering items in order. All three closed.
+`make lint` clean, `pyright` 0 errors, **663 passed / 2 skipped** (657 + 6 new tests). Everything
+below is local code plus read-only staging reads — **no deploy, no apply**; the deploy carrying
+AUD-C-18's and AUD-F-35's fixes is a separate decision (§4).
+
+### 1. AUD-C-18 — the corpus was innocent, retrieval was innocent, and the defect is one character class in the citation gate
+
+The finding's own hypothesis (partial ingest / partial re-embed) was refuted by its named next
+step: the read-only ops-task look found all five documents present, approved, effective, 5 chunks
+each, embeddings real-Titan-stamped, `source_sha256` byte-identical to local content. So a second
+probe replayed the whole pipeline stage by stage inside the VPC with staging's exact models —
+and retrieval/rerank ranked the right chunks first (0.8–0.95) for **every** "unretrievable"
+question, the answer model answered at confidence 0.95 with correct citations, and
+`_verify_citations` dropped **every quote**: `verbatim_pass: false, normalized_pass: true`,
+uniformly.
+
+**Root cause:** the six 08-01 documents are hard-wrapped at ~84 columns (the four older ones run
+to 608-char lines); `chunk_text` preserves the newlines, the model renders a wrapped line break
+as a space, and `quote.lower() in chunk_text.lower()` fails for any quote crossing a line break.
+Every prior "volunteer-guide works" observation was quotes that happened to fit on one line.
+Invisible locally because `MockBedrockProvider` cuts quotes from the chunk verbatim, newlines
+included — the mock-vs-real gap (AUD-C-02, AUD-C-16, AUD-F-19...) on a fifth surface.
+
+**Fix (one function):** `qa._normalized_for_containment` — both sides collapse `\s+` to a single
+space, then the same substring check. Word-exact and order-exact, so AUD-C-13 (a short quote
+verifying trivially) is unchanged. Failing-first test reproduces the wrapped-chunk refusal;
+a control pins that a paraphrased/reordered quote still fails.
+
+**Two hygiene notes from the probes.** (a) The two ops-task runs (read + probes, ~2.8 cents
+Bedrock total) will appear in the ops-task log group; they are `run-task` invocations, not
+Scheduler firings, so tomorrow's `make scheduler-evidence` attribution is unaffected. (b) The
+first probe's contact-guide answer survived on a `public-branch-directory` citation alone — the
+unwrapped document — which is the root cause visible from the other side, and a useful reminder
+that "answers" and "answers from the right document" are different observations.
+
+### 2. AUD-X-16 — the checklist step is now a program: `make tfvars-floor-check`
+
+`scripts/check_tfvars_floor.py`, same shape as `make scheduler-evidence`. The invariant is one
+sentence: **every place a task image tag is recorded must agree** — the two tfvars floor tags,
+each service's *running* image (primary deployment), and each family's *latest* revision
+including ops-task, because the schedules resolve that family un-pinned (D-137's incident).
+Disagreement exits 1 with the full table; unreadable AWS exits 2 (INVALID); a missing tfvars —
+the fresh-checkout case the finding is about — FAILs with instructions. Verified live (OK,
+seven sources agreeing on `gha-75a966d31810`) and both failure arms exercised before the OK was
+quoted: a doctored floor FAILed naming the offending source; a moved-away tfvars produced the
+fresh-checkout message. `terraform.tfvars.example` (tracked) now points at the target.
+
+### 3. AUD-F-35 — the bar `promote_if_eligible` always claimed, now enforced over accumulated evidence
+
+Test-first, exactly as the finding prescribed: the consolidation-level test (create off one
+event, reconfirm with one more, assert still `provisional`) was watched failing on pre-fix code —
+the fact went `active` at 2 events. `promote_if_eligible(id, *, min_events, min_sessions)` now
+resolves the fact's accumulated `evidence_event_ids` to real events, filters them to the fact's
+own student (write-time `_verify_evidence`'s fail-closed posture, re-applied at promotion), and
+promotes only at ≥3 events across ≥2 distinct sessions. Thresholds are caller policy —
+consolidation passes its `MIN_EVIDENCE_*` constants — not repository defaults. Non-`provisional`
+statuses are untouched: a `contested` fact meeting the bar stays contested; only `reconfirm_fact`
+returns it to active. **The `created_this_run` guard is removed** — it existed to avoid
+amplifying the unconditional promotion (D-141 §4), and with a real bar a fact created and
+re-evidenced inside one run should promote exactly as if the evidence arrived a week apart.
+Six new tests; the inverted control (bar forced true) fails exactly the two guard tests.
+
+**What this changes in production:** provisional facts that today would flip active on their
+second mention stay unread by the tutor until genuinely evidenced. On staging's load-test corpus
+the observable effect is nil (both 08-01 firings: `0 added, 0 reconfirmed`); for real students it
+is the plan-§9 behaviour, later than the buggy one, never earlier.
+
+### 4. Left open, deliberately
+
+- **Deploy timing for the two app-code fixes.** Recommended: **after** the 08-02 18:30Z
+  `make scheduler-evidence` confirmation read, so criterion 6's first unattended weekly firing
+  runs on the image the criterion was closed against (D-148 §2's reopening condition reads
+  cleanest with nothing swapped underneath it). Deploying earlier is safe but muddies attribution
+  if that firing fails. User's call.
+- **After the deploy:** verify the four AUD-C-18 questions live (3/3 each), then widen
+  `chat_qa_staging.js` with them; re-run `make tfvars-floor-check` (the deploy bumps every tag
+  together, so it should read OK with the new tag).
+- The rest of the pointer is untouched and unchanged: Messages A and D (yours to send, gating
+  S42/S43), the Enrollment FAQ org approval, `bedrock_run_budget_cents` (D-141 §8),
+  `learning_events` retention (D-141 §5), the Billing-console credit look (D-139 §3), r = 5
+  capacity + AUD-F-33's apply.

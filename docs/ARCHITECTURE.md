@@ -247,10 +247,11 @@ to rot, because nothing fails when it does.)*
   vector search - there is no "search everything, then hide" step to get wrong (S13).
 - **A citation is only trusted after code re-verifies it** — the RAG-answer model proposes
   which chunk/quote supports its answer, but `chat_api.services.qa` drops any citation
-  whose quote isn't a real, verbatim substring of the chunk it cites before anything reaches
-  a caller; an answer with zero surviving citations becomes a no-answer/escalation response
-  instead (S13, mirrors D-024's "verify calculations with tools" pattern for hint/solution
-  content).
+  whose quote isn't a real substring of the chunk it cites (word-exact and order-exact;
+  whitespace-insensitive since D-150 — hard-wrapped source documents put newlines
+  mid-sentence, AUD-C-18) before anything reaches a caller; an answer with zero surviving
+  citations becomes a no-answer/escalation response instead (S13, mirrors D-024's "verify
+  calculations with tools" pattern for hint/solution content).
 - **Retrieved content is data, never instructions** — the Q&A graph's Scope Guard/Intent
   Router runs on the user's own query only, entirely before retrieval; document text is
   never concatenated into a system prompt, and no tool exists yet that a document's text
@@ -720,7 +721,7 @@ flowchart LR
     VERIFY -->|"fails enum/PII/evidence"| DROP["candidate dropped"]
     VERIFY -->|"ok, <3 events or <2 sessions"| PROV["status=provisional<br/>(never read by tutor payload)"]
     VERIFY -->|"ok, >=3 events, >=2 sessions"| ACTIVE["status=active"]
-    VERIFY -->|"same-polarity match<br/>vs. an existing live fact"| RECONFIRM["reconfirm_fact<br/>(contested → active again)"]
+    VERIFY -->|"same-polarity match<br/>vs. an existing live fact"| RECONFIRM["reconfirm_fact<br/>(contested → active again;<br/>provisional promotes only via<br/>promote_if_eligible's same bar<br/>over ACCUMULATED evidence,<br/>AUD-F-35/D-150)"]
     VERIFY -->|"opposite-polarity vs.<br/>an active/provisional fact"| DEMOTE["demote_to_contested<br/>(1st contradiction only)"]
     VERIFY -->|"opposite-polarity vs. an<br/>already-contested fact"| SUPERSEDE["new fact + supersede_fact<br/>(2nd consecutive contradiction)"]
 
