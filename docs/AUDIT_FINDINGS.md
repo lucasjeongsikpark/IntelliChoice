@@ -3826,7 +3826,7 @@ closed, keeps the promise honest, does not consolidate). **Whatever the fix, the
 being silent** — a run where every call failed should exit non-zero so D-105 §3's rule fires. That
 part is one line and is the half that generalises.
 
-### AUD-F-35 — `promote_if_eligible` applies no evidence bar, so plan §9's stability rule is enforced at creation and bypassed on the next reconfirmation (**P2** — found 2026-07-31 while fixing AUD-F-34, D-141 §4; not fixed, guarded against amplification)
+### AUD-F-35 — `promote_if_eligible` applies no evidence bar, so plan §9's stability rule is enforced at creation and bypassed on the next reconfirmation (**P2** — found 2026-07-31 while fixing AUD-F-34, D-141 §4; ✅ FIXED 2026-08-01, D-150 — the bar over accumulated evidence, failing test written first)
 
 Found by reading the merge path in order to batch it safely, not by a failing test — there is no
 test covering it, which is part of the finding.
@@ -3879,6 +3879,19 @@ behaving exactly as single-batch ones do today. The bug is neither fixed nor mad
 **When it is fixed**, the test to write first is the one that does not exist: create a fact with
 one supporting event, reconfirm it with one more, and assert it is still `provisional`. Run the
 inverted control — the current code passes an `active` assertion, which is how this survived.
+
+**Fixed 2026-08-01 (D-150), in exactly that order.** The consolidation-level test above was
+written first and watched fail on the pre-fix code (the fact went `active` at 2 events).
+`promote_if_eligible` now takes `min_events`/`min_sessions` as required caller policy
+(consolidation passes its `MIN_EVIDENCE_*` constants) and applies the bar to the fact's
+**accumulated** `evidence_event_ids`, resolved to real events via `get_events_by_ids` and
+filtered to the fact's own student — evidence that doesn't resolve counts for nothing, the same
+fail-closed reading `_verify_evidence` applies at write time. Non-`provisional` statuses are
+untouched (a `contested` fact meeting the bar is not resurrected by promotion; only
+`reconfirm_fact` does that). The `created_this_run` amplification guard is removed: with a real
+bar, a fact created and legitimately re-evidenced inside one run should promote exactly as if the
+evidence had arrived a week apart. Six new tests, and the inverted control (bar disabled) fails
+exactly the two guard tests and nothing else.
 
 ### AUD-F-36 — the parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription (**P2** — found 2026-07-31, D-141 §9; ✅ FIXED 2026-08-01, D-145 — deployed, and criterion 3 re-met behind it, D-147)
 
@@ -4027,7 +4040,7 @@ public document and asserts the eval refuses to score, and a predicate test wher
 differs by exactly one field. Inverted control watched: sabotaging the public-set query turns the main
 eval red. 645 → 654 tests; `adversarial` back to **100% (6/6)** against the unchanged 1.0 threshold.
 
-### AUD-X-16 — the three-times-failed checklist step lives in a gitignored file (**P2** — found 2026-08-01, D-143)
+### AUD-X-16 — the three-times-failed checklist step lives in a gitignored file (**P2** — found 2026-08-01, D-143; ✅ FIXED 2026-08-01, D-150 — `make tfvars-floor-check`)
 
 `.gitignore:40` matches `*.tfvars`, so `terraform/environments/staging/terraform.tfvars` — the file
 holding `learning_api_image_tag` and the comment block that now records three separate near-misses —
@@ -4044,7 +4057,19 @@ the durable form is a script or a `make` target that compares the floor against 
 exits non-zero on a mismatch — the same shape as `make scheduler-evidence`. Filed rather than done;
 it is one small script and it belongs with whoever next touches the deploy path.
 
-### AUD-C-18 — four of the six newly-effective public documents are unretrievable on staging, while the same corpus answers them locally (**P2** — found 2026-08-01, during the scheduled 08-01 re-probe)
+**Fixed 2026-08-01 (D-150): `scripts/check_tfvars_floor.py` / `make tfvars-floor-check`.** The
+invariant is one sentence — every place a task image tag is recorded must agree: the two tfvars
+floor tags, the image each ECS service is *running* (primary deployment), and each family's
+*latest* task-definition revision **including ops-task**, because the EventBridge schedules
+resolve that family un-pinned (D-137's exact incident). Any disagreement exits 1 with the full
+table; a read failure exits 2 (INVALID) rather than pretending to a verdict; a missing tfvars —
+the fresh-checkout case that motivated the finding — FAILs with instructions instead of being
+unable to run. Verified live (OK on `gha-75a966d31810` across all seven sources) **and both
+failure arms exercised**: a doctored stale floor produced FAIL naming the offending source, and a
+missing file produced the fresh-checkout message, exit 1. `terraform.tfvars.example` now points
+at the target so a fresh checkout finds it.
+
+### AUD-C-18 — four of the six newly-effective public documents are unretrievable on staging, while the same corpus answers them locally (**P2** — found 2026-08-01, during the scheduled 08-01 re-probe; ✅ DIAGNOSED and FIXED IN CODE 2026-08-01, D-150 — deploy pending, live verification owed after it)
 
 Found by verifying every candidate question against live staging *before* widening
 `chat_qa_staging.js`'s list, which is the only reason the list didn't get six unverified questions
@@ -4081,3 +4106,29 @@ embedded? provenance current (AUD-C-16's exact shape)? — via the runbook's rea
 Volunteer-guide working while its same-dated, same-manifest neighbours fail suggests a partial
 ingest or a partial re-embed rather than a filter bug, but that is a hypothesis and is labelled as
 one.
+
+**Diagnosed 2026-08-01 (D-150), and both hypotheses above were wrong — the corpus is exonerated
+and so is retrieval.** The read-only look found all five documents present, `approved`, effective,
+5 chunks each, embeddings 159/159 real-Titan-stamped, `source_sha256` byte-identical to the local
+content files. A stage-by-stage replay of the whole pipeline inside the VPC (embed → keyword/
+semantic → RRF → rerank → synthesis, staging's exact models and parameters) showed retrieval and
+rerank ranking the right chunks first for every failing question (0.8–0.95), the answer model
+answering at confidence 0.95 with correct citations — **and every citation dropped by
+`_verify_citations`' raw substring check.**
+
+**Root cause: the six new documents are hard-wrapped at ~84 columns; the four old ones are not
+(max line 608 chars).** `chunk_text` preserves the source newlines, so any quote long enough to
+cross a wrapped line break contains a space where the chunk has `\n`, fails
+`quote.lower() in chunk_text.lower()`, and the deterministic gate refuses with the no-source
+message. Volunteer-guide "working" was luck — that answer's quotes happened to fit on single
+lines — and probe 1's contact-guide answer surviving on a `public-branch-directory` citation
+alone (an *unwrapped* document) is the same mechanism seen from the other side. Invisible
+locally because `MockBedrockProvider` derives quotes as exact substrings of the chunk, newlines
+included — AUD-C-02's mock-vs-real lesson on yet another surface.
+
+**Fix (chat-api, `qa.py`): whitespace-insensitive, word-exact containment** — both sides collapse
+`\s+` to a single space before the substring check; the words must still match exactly and in
+order, so AUD-C-13's open concern (a too-short quote verifying trivially) is unchanged in either
+direction. Failing-first test reproduces the staging refusal with a wrapped chunk; a control pins
+that a reordered/paraphrased quote still fails. **Live verification and widening
+`chat_qa_staging.js` with the four parked questions are owed after the fix deploys.**

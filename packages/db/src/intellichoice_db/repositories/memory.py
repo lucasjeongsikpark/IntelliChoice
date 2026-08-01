@@ -166,11 +166,27 @@ class MemoryRepository:
         await self._session.flush()
         return fact
 
-    async def promote_if_eligible(self, semantic_memory_id: str) -> SemanticMemory | None:
+    async def promote_if_eligible(
+        self, semantic_memory_id: str, *, min_events: int, min_sessions: int
+    ) -> SemanticMemory | None:
+        """AUD-F-35: the evidence bar this method's name (and `reconfirm_fact`'s
+        docstring) always promised, applied to the fact's ACCUMULATED
+        `evidence_event_ids` - `reconfirm_fact` unions each window's verified ids in,
+        so the union is what plan §9's stability rule must hold over. The thresholds
+        are the caller's policy (`intellichoice_memory.consolidation` passes its
+        MIN_EVIDENCE_* constants), not this layer's. Evidence that no longer resolves
+        to this student's own events counts for nothing - same fail-closed reading as
+        `_verify_evidence` at write time.
+        """
         fact = await self.get_fact(semantic_memory_id)
         if fact is None:
             return None
-        if fact.status == "provisional":
+        if fact.status != "provisional":
+            return fact
+        events = await self.get_events_by_ids(list(fact.evidence_event_ids))
+        matched = [e for e in events if e.student_external_id == fact.student_external_id]
+        unique_sessions = {event.session_id for event in matched}
+        if len(matched) >= min_events and len(unique_sessions) >= min_sessions:
             fact.status = "active"
             await self._session.flush()
         return fact

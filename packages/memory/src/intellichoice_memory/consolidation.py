@@ -164,27 +164,22 @@ class _RunningTotals:
         )
 
 
-async def _maybe_promote(
-    memory_repo: MemoryRepository, semantic_memory_id: str, created_this_run: set[str]
-) -> None:
-    """Promote a reconfirmed fact, unless this run is the thing that created it.
+async def _maybe_promote(memory_repo: MemoryRepository, semantic_memory_id: str) -> None:
+    """Promote a reconfirmed fact once its ACCUMULATED evidence meets plan §9's bar.
 
-    **This guard exists to avoid amplifying AUD-F-35, not to fix it.** `promote_if_eligible`
-    promotes any `provisional` fact unconditionally, despite its name and despite
-    `reconfirm_fact`'s docstring stating that "promotion has its own evidence-bar check" - so
-    plan §9's ">=3 supporting events across >=2 sessions" bar is applied when a fact is created
-    and bypassed the next time it is reconfirmed. That is a pre-existing defect and fixing it
-    changes what the tutor reads, which is a product decision (filed, not taken).
-
-    What batching would otherwise add is a *new* path into it: before this change one student
-    got one call per run, so a fact could not be created and reconfirmed inside the same run.
-    Now it can, several times over. Excluding this run's own creations keeps multi-batch
-    students behaving exactly as single-batch ones do today - the bug is neither fixed nor
-    made worse, which is the most a fix for a different finding should do.
+    AUD-F-35's fix: `promote_if_eligible` now enforces ">=3 supporting events across
+    >=2 sessions" over the union `reconfirm_fact` maintains, so promotion is the same
+    decision whether the evidence arrived in one window, across windows, or across
+    batches inside one run. The created-this-run exclusion that used to live here was
+    a stopgap against amplifying the unconditional promotion - with a real bar, a fact
+    created and legitimately re-evidenced within one run *should* promote, exactly as
+    it would have if the same evidence had arrived a week apart.
     """
-    if semantic_memory_id in created_this_run:
-        return
-    await memory_repo.promote_if_eligible(semantic_memory_id)
+    await memory_repo.promote_if_eligible(
+        semantic_memory_id,
+        min_events=MIN_EVIDENCE_EVENTS,
+        min_sessions=MIN_EVIDENCE_SESSIONS,
+    )
 
 
 def _summary_chars(summary: MemoryEventSummary) -> int:
@@ -407,9 +402,6 @@ async def _consolidate_events(
 
     totals = _RunningTotals(events_dropped=events_dropped)
     spend_so_far = session_spend_cents
-    # Facts created earlier in *this* run. They are excluded from promotion below - see
-    # `_apply_update`'s note on AUD-F-35.
-    created_this_run: set[str] = set()
 
     for batch in batches:
         batch_events_by_id = {
@@ -425,7 +417,6 @@ async def _consolidate_events(
             events_by_id=batch_events_by_id,
             session_spend_cents=spend_so_far,
             totals=totals,
-            created_this_run=created_this_run,
         )
         spend_so_far = session_spend_cents + totals.cost_cents
         if stopped:
@@ -443,7 +434,6 @@ async def _consolidate_one_batch(
     events_by_id: dict[str, LearningEvent],
     session_spend_cents: float,
     totals: "_RunningTotals",
-    created_this_run: set[str],
 ) -> bool:
     """One model call over one batch, applied. Returns True when the run should stop.
 
@@ -540,7 +530,7 @@ async def _consolidate_one_batch(
         )
 
         if existing_live is None:
-            created = await memory_repo.add_fact(
+            await memory_repo.add_fact(
                 SemanticMemory(
                     student_external_id=student_external_id,
                     fact_type=candidate.fact_type,
@@ -553,7 +543,6 @@ async def _consolidate_one_batch(
                     status=status,
                 )
             )
-            created_this_run.add(created.semantic_memory_id)
             added += 1
             continue
 
@@ -566,9 +555,7 @@ async def _consolidate_one_batch(
                 confidence=candidate.confidence,
                 evidence_event_ids=verified_ids,
             )
-            await _maybe_promote(
-                memory_repo, existing_live.semantic_memory_id, created_this_run
-            )
+            await _maybe_promote(memory_repo, existing_live.semantic_memory_id)
             updated += 1
             continue
 
@@ -616,7 +603,7 @@ async def _consolidate_one_batch(
             confidence=fact_update.confidence,
             evidence_event_ids=verified_ids,
         )
-        await _maybe_promote(memory_repo, fact_update.semantic_memory_id, created_this_run)
+        await _maybe_promote(memory_repo, fact_update.semantic_memory_id)
         updated += 1
 
     for fact_id in update.facts_to_expire:

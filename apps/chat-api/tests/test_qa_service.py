@@ -214,6 +214,106 @@ def test_answer_question_drops_a_citation_whose_quote_is_fabricated() -> None:
     asyncio.run(run())
 
 
+def test_a_quote_spanning_a_hard_wrapped_line_break_still_verifies() -> None:
+    """AUD-C-18: the six documents added for 2026-08-01 are hard-wrapped at ~84
+    columns, so their chunk_text carries newlines mid-sentence. A model told to quote
+    "verbatim" renders that line break as a space, and the raw substring check dropped
+    every such citation - staging refused four of the six documents while the retrieval
+    and rerank stages ranked them first. Whitespace differences must not fail a quote.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(
+                session,
+                chunk_text=(
+                    "When you arrive, your tutor checks you in for attendance. You then "
+                    "take a short\npre-exam on the week's topic, work through a "
+                    "personalized study set, and finish with\na post-exam covering the "
+                    "same material."
+                ),
+            )
+            gateway = _FakeGateway(
+                _result(
+                    RagAnswerResponse(
+                        answer="Sessions start with check-in, then a pre-exam.",
+                        citations=[
+                            LlmCitation(
+                                context_index=0,
+                                quote=(
+                                    "You then take a short pre-exam on the week's topic, "
+                                    "work through a personalized study set, and finish "
+                                    "with a post-exam covering the same material."
+                                ),
+                            )
+                        ],
+                        confidence=0.9,
+                    )
+                )
+            )
+
+            answer, _cost = await qa.answer_question(
+                repo,
+                gateway,
+                query="What does a session look like?",
+                user_role="parent",
+                chunks=[chunk],
+                session_spend_cents=0.0,
+                confidence_threshold=0.4,
+            )
+
+            assert len(answer.citations) == 1
+            assert answer.citations[0].source_reference == chunk.document_id
+            assert answer.escalation_recommended is False
+
+    asyncio.run(run())
+
+
+def test_whitespace_tolerance_does_not_admit_a_reordered_or_paraphrased_quote() -> None:
+    """The AUD-C-18 fix is whitespace-insensitivity ONLY - a quote whose *words*
+    differ from the chunk (paraphrase, reordering, substitution) must still be dropped,
+    or the verification stops being a verification.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(
+                session,
+                chunk_text="Attendance is required for every\non-site session.",
+            )
+            gateway = _FakeGateway(
+                _result(
+                    RagAnswerResponse(
+                        answer="Attendance is needed.",
+                        citations=[
+                            LlmCitation(
+                                context_index=0,
+                                quote="Every on-site session requires attendance.",
+                            )
+                        ],
+                        confidence=0.9,
+                    )
+                )
+            )
+
+            answer, _cost = await qa.answer_question(
+                repo,
+                gateway,
+                query="Is attendance required?",
+                user_role="parent",
+                chunks=[chunk],
+                session_spend_cents=0.0,
+                confidence_threshold=0.4,
+            )
+
+            assert answer.citations == []
+            assert answer.escalation_recommended is True
+
+    asyncio.run(run())
+
+
 def test_answer_question_refuses_below_confidence_threshold() -> None:
     async def run() -> None:
         async with rollback_session() as session:

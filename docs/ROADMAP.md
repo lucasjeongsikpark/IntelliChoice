@@ -712,7 +712,17 @@ plus one demonstrated auto-rollback; scheduled jobs running unattended ≥1 week
 meeting the S34-calibrated thresholds with ≥2 tasks; every alarm induced once and reaching a
 monitored inbox; zero PII in live staging logs/traces/metrics/payloads.
 
-**⛔ Criterion 4 (green full test runs) is BROKEN as of 2026-08-01T00:21Z, and criterion 2 gains a P1
+**✅ THE GATE IS CLOSED (2026-08-01, D-148, on the conditions recorded there).** D-144 fixed
+AUD-C-17 and criterion 4; D-147 re-met criterion 3 (two clean whole-suite staging runs, first
+attempt); D-148 closed criterion 6 early by user decision on a real one-off Scheduler firing, with
+the 08-02/08-03/08-05/08-09 scheduled firings as reopening-capable confirmation reads; D-149
+proved the weekly cron path with a throwaway clone, leaving only the `SUN` enum value to 08-02.
+Next scope is **S42 discovery**, gated on the org replying to Message A (unsent). Post-gate
+session D-150 closed the remaining pointer P2s (AUD-C-18 root-caused + fixed in code, AUD-X-16's
+`make tfvars-floor-check`, AUD-F-35's evidence bar) — deploy pending, none reopen a criterion.
+
+*(Superseded, 2026-08-01 first half — fixed by D-144 the same day:)* **⛔ Criterion 4 (green full
+test runs) is BROKEN as of 2026-08-01T00:21Z, and criterion 2 gains a P1
 (D-143).** `make test` went red **at a date boundary with no code change**: eleven `rag_documents` carry
 `effective_from = 2026-08-01T00:00Z`, the effective corpus went from 3 documents to 14, and
 `adversarial` fell 100% → **66.7%** against a **1.0** threshold. **AUD-C-17 (P1)** — the containment
