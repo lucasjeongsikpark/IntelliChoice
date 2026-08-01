@@ -8456,3 +8456,133 @@ rather than a comment in an invisible file.
 fixed — the fix is chat-api behaviour and criterion 3 is already blocked by AUD-F-36. **No "done"
 claim is made on a red suite** (this is the close-out step's own rule). The next session's first
 decision is the order of AUD-C-17, AUD-F-36 and the 08-02 criterion-6 read.
+
+## D-144 — AUD-C-17 fixed: the containment verdict now derives its public allowlist from the corpus, and the eval refuses to run over an empty one (accepted, 2026-08-01)
+
+**Context.** D-143 left the suite red on `adversarial` 66.7% vs 1.0 (AUD-C-17, P1) with the fix
+deliberately deferred. The user chose the dynamic-audience fix shape over patching the fixture's id
+lists, and chose to take AUD-F-36 in the same session so both fixes ride one deploy.
+
+### 1. The per-case dump came first, and it exonerated the defenses
+
+The pointer's prescribed diagnosis (out-of-allowlist citation vs forbidden substring) ran before any
+edit: both failing cases cited a **newly-effective public document** (`public-privacy-notice`,
+`public-contact-guide`) that the fixture's pinned allowlist predates; **no forbidden substring leaked
+in any of the six cases** and every seeded gated chunk stayed contained. So the pre-retrieval filter,
+citation verifier and access-hint machinery were all doing their jobs — **no chat-api code changed in
+this fix, because none was wrong.** The corpus-dependent thing was the fixture's *encoding* of the
+category's semantics: "the four currently-effective PUBLIC documents", true on S37's calendar date,
+false at the next `effective_from` boundary.
+
+### 2. The fix makes the verdict equal the semantics by construction
+
+The category's own comment already defined containment as "answered from a public document the caller
+could have read anyway". Now the runner computes that set at run time —
+`effective_public_document_ids()`: public audience, `approved`, inside the effective window, the same
+predicate `ChunkFilters` applies at chunk level — and `_adversarial_passed` treats it as contained
+alongside the case's explicit allowlist (kept for the day a case legitimately allows a non-public
+citation; nothing needs it today). A gated, draft or future-dated citation still fails, which the
+manifest itself motivates: `public-enrollment-faq` is public-audience but `draft`, and citing it must
+stay a failure. The 1.0 threshold is untouched.
+
+### 3. The vacuity guard is honest about what it can and cannot catch
+
+Both runners (`run_all` and the paid real-Bedrock loop, which duplicates it for budget accounting and
+therefore owes the same precondition) now **refuse to score over an empty effective public corpus** —
+`scan_xray_pii.py`'s zero-traces rule applied to the evals, closing the fourth instance of the
+project's most-repeated failure mode. Stated plainly in the docstring: this catches the **empty**
+corpus (fresh database, un-ingested content, all-future dates), **not the sparse one** — AUD-C-17
+itself happened over 3 effective documents these queries simply never retrieved from. The sparse case
+is covered by §2's corpus-independence, not by the precondition; claiming otherwise would be D-143's
+error re-worded.
+
+### 4. Controls, because D-141 §2 is two days old
+
+Every "passes" unit test has a paired "fails" control (7 tests,
+`packages/evals/tests/test_qa_coverage.py`); an end-to-end control demotes every public document
+inside a rolled-back transaction and asserts the eval **refuses to run**; the predicate test's
+excluded rows each differ from the included row by exactly one field, so a wrong `WHERE` clause fails
+a named case. The inverted control was watched failing: sabotaging the public-set query to a
+nonexistent audience turned the main eval red before the fix was trusted. One process note: restoring
+that sabotage with `git checkout` also reverted the session's own runner edits — caught by the next
+test run; re-applied. A reminder that the file-restore tool for "undo my one-line experiment" is an
+edit, not a checkout.
+
+### 5. Verification
+
+`make lint` clean, `pyright` 0 errors, **654 passed / 2 skipped** (645 + 7 scorer units + 2 corpus
+controls), `adversarial` **100% (6/6)**. Composites unchanged from the red reading (55.0% / 73.8%),
+which is the expected shape: this fix claimed to move one category and moved one. `grounded` now reads
+88.9% (8/9, `grounded-overview-3`) against its 0.85 bar — a post-boundary corpus effect, above
+threshold, recorded here so the next reader does not rediscover it as a regression.
+
+## D-145 — AUD-F-36 was the server losing the event, not the client trusting it: the stream now subscribes before it reads, in both apps (accepted, 2026-08-01)
+
+**Context.** D-141 §9 filed AUD-F-36 (P2) with a client-side hypothesis: a resume processed before
+the SSE subscription exists publishes to nobody, "and the client waits forever because it trusts the
+stream instead of re-reading." The user chose to fix it in the same session as AUD-C-17 so both ride
+one deploy.
+
+### 1. Reading the code re-attributed the defect before any edit
+
+The client does not trust the stream after a resume — `useLearningSession.respond()` already sets the
+snapshot from the POST response, which is an authoritative re-read. The hole is in
+`learning_api.routers.stream.stream_session`: it built the initial snapshot **before** calling
+`events.subscribe()`, so an action completing during that read fell into a window where its publish
+had no subscriber *and* the initial frame predated it. The stale initial frame then arrived after the
+client's fresh POST snapshot and overwrote it, and the connection had nothing left to say. That
+explains every observation in the failing record — the same-millisecond stamps, every call 200, no
+error anywhere, permanence — deterministically, which "possibly missed event" did not. The
+`SessionEventBus` docstring even asserted the wrong invariant ("reads it fresh … before replaying
+published events"), which only covers events from before the connect, not during it. AUD-F-26 made
+this window seconds wide by putting a real Bedrock call inside the read; its fix re-read at the end
+of the window but still subscribed after it.
+
+### 2. The fix is ordering plus the leak the ordering creates
+
+Subscribe first, then build the initial frame, and unsubscribe on any failure inside it — otherwise
+every rejected connect (401/403/404 now happen with a live subscription) leaks a queue the bus keeps
+publishing into. A queued event older than the initial frame is harmless: events are full snapshots,
+and whatever made the read newer also queued its own later event. Applied to **chat-api too**
+(`chat_api.routers.stream` had the identical subscribe-after-read shape, smaller window), on D-144's
+same-class-same-day logic.
+
+### 3. Verification, with the timing faked at the seam
+
+The defect is an ordering one at ~1-in-3 whole-suite staging reproduction, so the test publishes
+*inside* `aget_state` — the exact seam — and asserts the event reaches the stream within 2 s. Watched
+fail against the pre-fix ordering (restored by edit, not `git checkout`, per D-144 §4's process note)
+and pass against the fix; a second test per app pins the no-leak property on rejected connects.
+`make lint` clean, `pyright` 0 errors, **657 passed / 2 skipped** (654 + 3), and the local whole e2e
+suite **57/57** against the running dev stack.
+
+### 4. What is deliberately not claimed
+
+**Criterion 3 is not met by this.** The failing arm lives on staging timing; the criterion is owed
+two consecutive clean whole-suite staging runs against the deployed image, and D-141 §9's rule
+stands — no re-running until two land clean by selection. The deploy that carries this fix and
+AUD-C-17's is the user's call, per the standing commit/deploy rule.
+
+## D-146 — the 08-01 date-bound checks ran on schedule: the enrollment refusal is now editorial, and the probe found a staging corpus gap (accepted, 2026-08-01)
+
+### 1. "How do I enroll a student?" refuses 3/3 — consistently, and for a documented reason
+
+Same intent (`document_qa`), same no-source refusal, same escalation offer on three consecutive
+calls — the pre-AUD-F-19 three-different-products instability is gone, which was the thing the
+re-probe was scheduled to check. The refusal itself is **correct fail-closed behaviour**: the only
+public document covering enrollment (`public-enrollment-faq`) is status `draft` by design, and
+`student-participation-guide` mentions enrollment zero times. **The launch journey's canonical guest
+question therefore stays unanswerable until the org approves the Enrollment FAQ — an editorial
+action, not code, and it belongs on the launch checklist.**
+
+### 2. The question-list widening was verified per question, and that verification found AUD-C-18
+
+The standing note expected six new questions; **one** was added ("How do I become a volunteer
+tutor?", verified answering with the right citation). The other four targets — participation-guide,
+privacy-notice, ai-use-notice, contact-guide — refuse on staging even for near-verbatim wording
+while the same documents retrieve locally. Filed as **AUD-C-18 (P2)** with the discriminating next
+step named (one read-only look at staging's `rag_documents`/`rag_chunks` for those four ids);
+deliberately not diagnosed further under the session scope rule. Unverified questions were kept out
+of the k6 list because a refusal turn is a different, faster unit of work than the grounded turn
+criterion 7 measures — a widened-but-unverified list would have quietly improved the p95 while
+measuring less.

@@ -1,11 +1,13 @@
 """In-process per-session pub/sub backing the SPEC §5.14.1 SSE stream.
 
 A single in-memory dict is enough - this app runs as one Uvicorn worker in dev, and the
-`AsyncPostgresSaver` checkpoint is the actual source of truth: a subscriber that misses an
-event (or was never connected) still gets the current snapshot on (re)connect, since
-`routers/stream.py` reads it fresh from the graph before replaying published events. This
-bus only carries the "something changed, here's the new snapshot" push - it is not
-durable and does not need to be.
+`AsyncPostgresSaver` checkpoint is the actual source of truth: a subscriber that was never
+connected still gets the current snapshot on (re)connect, since `routers/stream.py` reads
+it fresh from the graph. Crucially it subscribes *before* that read (AUD-F-36): an event
+published during the read used to fall between the initial frame and the queue and be lost
+to that connection forever - "reads fresh on connect" only covers events from before the
+connect, not during it. This bus only carries the "something changed, here's the new
+snapshot" push - it is not durable and does not need to be.
 """
 
 import asyncio

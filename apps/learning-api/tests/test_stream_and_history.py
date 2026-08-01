@@ -3,6 +3,8 @@ parent-dashboard history endpoint (SPEC §5.14.3).
 """
 
 import asyncio
+from collections.abc import AsyncGenerator
+from typing import cast
 
 import pytest
 from fastapi import HTTPException
@@ -583,3 +585,116 @@ def test_stream_connect_rereads_state_after_the_narrative_call(
     )
     # The fallback narrative still rides along; re-reading must not discard it.
     assert snapshot.stage_narrative == "Welcome to math practice!"
+
+
+class _StaleSnapshotFake:
+    """`aget_state` result whose values already carry a narrative, so `_initial_snapshot`
+    takes its single-read path - these two tests are about what happens *around* the read,
+    not AUD-F-26's re-read inside it.
+    """
+
+    def __init__(self, values: dict) -> None:
+        self.values = values
+        self.tasks = ()
+
+
+def test_stream_delivers_an_event_published_during_the_initial_read() -> None:
+    """AUD-F-36: an action that completes while `/stream` is still reading its initial
+    snapshot must still reach that stream.
+
+    The failing staging record: a parent's child-selection `/respond` and the SSE connect
+    stamped at the same millisecond; `/respond`'s publish found no subscriber (the old code
+    subscribed only *after* the read), the initial frame was built from the pre-resume
+    checkpoint, and the stream then had nothing left to say - the client sat on "who's
+    learning today" through 123 polls of a 60s timeout with every request returning 200.
+    ~1 in 3 whole-suite e2e runs, 0 of 3 in isolation, which is why the deterministic fake
+    publishes at the exact seam instead of racing real requests.
+
+    Against the pre-fix code this times out waiting for the second frame: the published
+    event was lost, and the next thing the stream would say is a keep-alive at 15s.
+    """
+    from learning_api.routers import stream as stream_module
+
+    token = _student_token(STUDENT_UNLINKED)
+    session_id = "sess-aud-f-36"
+    bus = SessionEventBus()
+
+    values = {
+        "phase": "student_selected",
+        "user_external_id": STUDENT_UNLINKED,
+        "stage_narrative": "already have one",
+        "stage_narrative_evidence": [],
+    }
+
+    class _PublishingGraph:
+        async def aget_state(self, _config: dict) -> _StaleSnapshotFake:
+            # The seam: a `/respond` resume completes and publishes while this connect
+            # is mid-read - before the old code's subscribe ever ran.
+            bus.publish(session_id, {"phase": "pre_exam", "pending_interrupt": None})
+            return _StaleSnapshotFake(values)
+
+    async def _run() -> list[str]:
+        response = await stream_module.stream_session(
+            session_id,
+            token,
+            profile_adapter=None,  # type: ignore[arg-type] - unreachable: no student resolved
+            events=bus,
+            graph=_PublishingGraph(),  # type: ignore[arg-type]
+            db=None,  # type: ignore[arg-type] - unreachable on this path
+            bedrock_gateway=None,  # type: ignore[arg-type] - narrative already present
+        )
+        frames = []
+        # `body_iterator` is typed as the broad `AsyncContentStream`; this endpoint's is
+        # always the async generator `event_stream()`.
+        iterator = cast(AsyncGenerator[str, None], response.body_iterator)
+        try:
+            frames.append(await asyncio.wait_for(anext(iterator), timeout=2.0))
+            frames.append(await asyncio.wait_for(anext(iterator), timeout=2.0))
+        finally:
+            await iterator.aclose()
+        return [str(frame) for frame in frames]
+
+    frames = asyncio.run(_run())
+    assert '"phase":"student_selected"' in frames[0].replace(" ", ""), (
+        "first frame should be the initial snapshot"
+    )
+    assert '"phase":"pre_exam"' in frames[1].replace(" ", ""), (
+        "the event published during the initial read never reached the stream - the "
+        "subscription must be registered before the read, or a client whose action "
+        "completes in that window waits forever on a state change that already "
+        "happened (AUD-F-36)"
+    )
+    assert not bus._subscribers, "closing the stream must unsubscribe its queue"
+
+
+def test_stream_unsubscribes_when_the_initial_read_fails() -> None:
+    """The hazard the AUD-F-36 ordering introduces: subscribing first means the auth/404
+    failures inside `_initial_snapshot` now happen with a live subscription, which must
+    not leak.
+    """
+    from learning_api.routers import stream as stream_module
+
+    bus = SessionEventBus()
+
+    class _NeverReached:
+        async def aget_state(self, _config: dict) -> _StaleSnapshotFake:
+            raise AssertionError("token verification fails before any read")
+
+    async def _run() -> None:
+        await stream_module.stream_session(
+            "sess-aud-f-36-leak",
+            "not-a-valid-token",
+            profile_adapter=None,  # type: ignore[arg-type]
+            events=bus,
+            graph=_NeverReached(),  # type: ignore[arg-type]
+            db=None,  # type: ignore[arg-type]
+            bedrock_gateway=None,  # type: ignore[arg-type]
+        )
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(_run())
+    assert exc_info.value.status_code == 401
+    assert not bus._subscribers, (
+        "a rejected connect left its queue subscribed - every failed auth attempt "
+        "would accumulate an unbounded queue the bus keeps publishing into"
+    )

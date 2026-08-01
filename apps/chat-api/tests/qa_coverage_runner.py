@@ -34,10 +34,31 @@ from intellichoice_shared.profiles import (
 from intellichoice_shared.rate_limit import InMemoryRateLimiter
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
-from sqlalchemy import text
+from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "qa_coverage_eval.yaml"
+
+
+async def effective_public_document_ids(session: AsyncSession) -> frozenset[str]:
+    """Documents a caller with no role could read right now: public audience, approved,
+    inside their effective window. Mirrors `ChunkFilters`' effectiveness predicate
+    (status/effective_from/effective_to, inclusive bounds) at document level.
+
+    Serves two AUD-C-17 duties in `run_all`: the adversarial scorer treats these as
+    contained (citing one is answering from content the caller could have read anyway),
+    and an *empty* set fails the whole eval rather than letting every containment case
+    pass over nothing - the same rule `scan_xray_pii.py` applies to zero traces scanned.
+    """
+    now = datetime.now(UTC)
+    rows = await session.execute(
+        select(RagDocument.document_id)
+        .where(RagDocument.audience == "public")
+        .where(RagDocument.status == "approved")
+        .where(RagDocument.effective_from <= now)
+        .where(or_(RagDocument.effective_to.is_(None), RagDocument.effective_to >= now))
+    )
+    return frozenset(rows.scalars())
 
 
 class FakeProfileAdapter:
@@ -157,7 +178,9 @@ async def ask(
     )
 
 
-def to_outcome(case: dict[str, Any], result: dict) -> CaseOutcome:
+def to_outcome(
+    case: dict[str, Any], result: dict, public_document_ids: frozenset[str]
+) -> CaseOutcome:
     access_hint = result.get("access_hint") or {}
     return CaseOutcome(
         case_id=case["id"],
@@ -172,6 +195,7 @@ def to_outcome(case: dict[str, Any], result: dict) -> CaseOutcome:
         expected_required_role=case.get("expected_required_role"),
         forbidden_substrings=tuple(case.get("forbidden") or ()),
         allowed_citation_document_ids=tuple(case.get("allowed_citations") or ()),
+        public_document_ids=public_document_ids,
     )
 
 
@@ -181,12 +205,30 @@ async def run_all(session: AsyncSession, gateway: BedrockGateway) -> list[CaseOu
     Seeds accumulate within the run (the caller's transaction is rolled back afterwards),
     which is deliberate: a later case's retrieval seeing an earlier case's seeded chunk is
     a *harder* test of filtering and refusal, not a contaminated one.
+
+    Refuses to run over an empty effective public corpus (AUD-C-17's recurrence guard,
+    the rule `scan_xray_pii.py` applies to zero traces scanned): a containment case
+    passes by having nothing to contain, so a run against a fresh database, an
+    un-ingested corpus, or all-future `effective_from` dates would go green and mean
+    nothing. Honest limit: this catches the *empty* corpus, not the *sparse* one -
+    AUD-C-17 itself happened over 3 effective documents that these queries simply never
+    retrieved from, which is why the containment verdict is additionally
+    corpus-independent by construction (see `_adversarial_passed`). Checked *before* the
+    per-case seeds below, which would otherwise mask the emptiness.
     """
+    public_document_ids = await effective_public_document_ids(session)
+    if not public_document_ids:
+        raise AssertionError(
+            "qa coverage eval refused to run: no public document is approved and "
+            "effective right now, so every containment/refusal case would pass over an "
+            "empty corpus and mean nothing (AUD-C-17). Ingest the public corpus (or fix "
+            "its effective_from dates) before trusting this eval."
+        )
     outcomes = []
     for case in load_cases():
         for key in ("seed", "extra_seed"):
             if key in case:
                 await seed_chunk(session, gateway, **case[key])
         result = await ask(session, gateway, query=case["query"], thread_id=f"eval-{case['id']}")
-        outcomes.append(to_outcome(case, result))
+        outcomes.append(to_outcome(case, result, public_document_ids))
     return outcomes

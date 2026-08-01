@@ -3880,7 +3880,7 @@ behaving exactly as single-batch ones do today. The bug is neither fixed nor mad
 one supporting event, reconfirm it with one more, and assert it is still `provisional`. Run the
 inverted control — the current code passes an `active` assertion, which is how this survived.
 
-### AUD-F-36 — the parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription (**P2** — found 2026-07-31, D-141 §9; blocks gate criterion 3)
+### AUD-F-36 — the parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription (**P2** — found 2026-07-31, D-141 §9; ✅ FIXED in code 2026-08-01, D-145 — criterion 3's staging verification still owed, post-deploy)
 
 Found by criterion 3's own re-run, not by looking for it. Run 1 of 2 was clean (53 passed / 4
 skipped, matching D-134); **run 2 failed** on `journey-parent.spec.ts:17` — "parent with two
@@ -3933,7 +3933,24 @@ which is the same trade-off D-140 §5 recorded, now with a second instance.
 whole-suite runs and check whether every failure has `respond <= stream_open`. The harness already
 records both timestamps in `e2e/artifacts/journeys.jsonl`, so this needs runs, not code.
 
-### AUD-C-17 — the adversarial containment cases were passing over an empty-in-practice corpus, and broke the moment 11 documents became effective (**P1** — found 2026-08-01T00:21Z, D-143; suite is red)
+**✅ FIXED in code (2026-08-01, D-145) — and reading the server closed the case the hypothesis left
+open.** The mechanism is server-side and deterministic, not a client-trust problem:
+`routers/stream.py` read the initial snapshot **before** subscribing to the event bus, so an action
+completing during that read (which dwells — the S26 pre-intro is a real Bedrock call) published to
+nobody *and* was too early for the queue. The event wasn't "possibly missed" by the client; the
+server provably lost it. The client's own `/respond` handler already re-reads (it sets the snapshot
+from the POST response) — what stuck the UI was the **stale initial SSE frame** built from the
+pre-resume checkpoint arriving after that and overwriting it, with the corrective publish already
+gone. Fix: subscribe first, read second, unsubscribe on failed connects (the new leak the ordering
+would otherwise introduce) — in **both apps**, since `chat_api.routers.stream` had the identical
+pattern. Guards: a deterministic seam test per app publishes inside `aget_state` and asserts the
+event reaches the stream (pre-fix ordering: watched fail on a 2 s timeout; post-fix: passes), plus a
+leaked-subscription test on rejected connects. 657 passed / 2 skipped; local whole e2e suite 57/57.
+**Criterion 3 is deliberately not claimed:** the failing arm is a staging timing (~1 in 3 whole-suite
+runs), so the criterion is owed two consecutive clean whole-suite staging runs against the deployed
+fix, per D-141 §9's no-selection rule.
+
+### AUD-C-17 — the adversarial containment cases were passing over an empty-in-practice corpus, and broke the moment 11 documents became effective (**P1** — found 2026-08-01T00:21Z, D-143; ✅ FIXED 2026-08-01, D-144)
 
 Found by the end-of-session verification run, which went red **while nothing but the clock had
 changed** — `make test` was green (645 passed) twenty minutes earlier and the only edits between were
@@ -3986,6 +4003,26 @@ question list to be widened) — but **nobody anticipated that the local test su
 were calibrated against the pre-08-01 corpus.** A date-dependent fixture makes the suite's green a
 function of the wall clock, which is a property no test suite should have.
 
+**✅ FIXED (2026-08-01, D-144) — and the per-case dump exonerated the defenses before anything was
+changed.** Both failing cases failed on **out-of-allowlist citation of a newly-effective PUBLIC
+document** (`public-privacy-notice`, `public-contact-guide`); **zero forbidden substrings leaked in
+any of the six cases**, and the seeded gated chunks stayed contained. So no chat-api behaviour
+changed, because none was wrong — the P1's "architectural defense" concern was the right alarm about
+the wrong layer. What was corpus-dependent was the *fixture*: it pinned "the four currently-effective
+public documents" by id, which is the category's own stated semantics ("a hostile query answered from
+a public document the caller could have read anyway has contained fine") frozen at S37's calendar
+date. The fix makes the verdict match the semantics by construction: the runner derives the
+approved-effective-public set from the corpus at run time (same effectiveness predicate as
+`ChunkFilters`) and `_adversarial_passed` treats that set as contained — anything gated, draft, or
+future-dated still fails. The vacuity half: `run_all` and the real-Bedrock runner now **refuse to run
+over an empty effective public corpus** (`scan_xray_pii.py`'s zero-traces rule, applied to the evals),
+with the stated honest limit that this catches the *empty* corpus and not the *sparse* one — the
+corpus-independent containment is what covers the sparse case. Guards: 7 scorer unit tests with paired
+fail controls (`packages/evals/tests/test_qa_coverage.py`), an end-to-end control that demotes every
+public document and asserts the eval refuses to score, and a predicate test where each excluded row
+differs by exactly one field. Inverted control watched: sabotaging the public-set query turns the main
+eval red. 645 → 654 tests; `adversarial` back to **100% (6/6)** against the unchanged 1.0 threshold.
+
 ### AUD-X-16 — the three-times-failed checklist step lives in a gitignored file (**P2** — found 2026-08-01, D-143)
 
 `.gitignore:40` matches `*.tfvars`, so `terraform/environments/staging/terraform.tfvars` — the file
@@ -4002,3 +4039,41 @@ tracked and preferably executable: a `terraform.tfvars.example` comment is still
 the durable form is a script or a `make` target that compares the floor against the running image and
 exits non-zero on a mismatch — the same shape as `make scheduler-evidence`. Filed rather than done;
 it is one small script and it belongs with whoever next touches the deploy path.
+
+### AUD-C-18 — four of the six newly-effective public documents are unretrievable on staging, while the same corpus answers them locally (**P2** — found 2026-08-01, during the scheduled 08-01 re-probe)
+
+Found by verifying every candidate question against live staging *before* widening
+`chat_qa_staging.js`'s list, which is the only reason the list didn't get six unverified questions
+that would have poisoned criterion 7's p95 with refusal-speed turns.
+
+**What was measured, all against live staging (CloudFront → ECS → real Bedrock):**
+
+| target document | question | result |
+|---|---|---|
+| `public-volunteer-guide` | "How do I become a volunteer tutor?" | ✅ answered, correct citation |
+| `public-student-participation-guide` | "What does a tutoring session look like…" | ⛔ no-source refusal |
+| `public-privacy-notice` | "How is my child's personal information protected?" | ⛔ no-source refusal |
+| `public-ai-use-notice` | "How does IntelliChoice use AI with students?" | ⛔ no-source refusal |
+| `public-contact-guide` | "How do I contact IntelliChoice with a question?" | ⛔ no-source refusal |
+
+**Wording is ruled out:** near-verbatim probes — "Where do student records live?" (a privacy-notice
+section heading) and "What does the AI Use Notice say about model limitations?" (names the document) —
+also refuse. **The corpus content is ruled out locally:** the same four documents retrieve fine
+against the local corpus (the AUD-C-17 per-case dump cited `public-privacy-notice` and
+`public-contact-guide` the same day). Every refusal is the *slow* shape (`in_scope`/`document_qa`,
+"No verifiable, non-conflicting source supports an answer") — retrieval runs and finds nothing, so
+this is not the scope guard.
+
+**And the enrollment answer is a different, third thing:** "How do I enroll a student?" (the AUD-F-19
+launch-journey question, re-probed 3/3 on schedule) still refuses **correctly** — the only document
+covering enrollment (`public-enrollment-faq`, 3 mentions) is status `draft` by design, and
+`student-participation-guide` mentions enrollment zero times. That is the fail-closed filter working;
+**the fix is editorial (org approval of the Enrollment FAQ), not code**, and the question stays
+unanswerable until it lands.
+
+**Not diagnosed further this session (scope rule).** The discriminating next step is one read-only
+look at staging's `rag_documents`/`rag_chunks` for the four document ids — present at all? chunks
+embedded? provenance current (AUD-C-16's exact shape)? — via the runbook's read-only DB access.
+Volunteer-guide working while its same-dated, same-manifest neighbours fail suggests a partial
+ingest or a partial re-embed rather than a filter bug, but that is a hypothesis and is labelled as
+one.

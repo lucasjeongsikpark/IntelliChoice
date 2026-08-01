@@ -5,7 +5,44 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **⛔ THE SUITE IS RED. `adversarial` 100% → 66.7% at the 2026-08-01T00:00Z date boundary, and the
+- **✅ The suite is GREEN again — AUD-C-17 and AUD-F-36 are both fixed in code, and the 08-01 probe
+  found a staging corpus gap (2026-08-01, D-144/D-145/D-146).** `make lint` clean, `pyright` 0
+  errors, **657 passed / 2 skipped** (645 + 12 new tests), local whole e2e suite **57/57**.
+  **AUD-C-17 (P1, was the red suite):** the per-case dump ran first and **exonerated the defenses** —
+  both failing cases cited a newly-effective *public* document; zero forbidden substrings leaked in
+  all six cases. No chat-api behaviour changed: the fixture had pinned "the four currently-effective
+  public documents" by id, frozen at S37's date. The containment verdict now derives the
+  approved-effective-public set from the corpus at run time (gated/draft/future still fails,
+  threshold still 1.0), and **both eval runners refuse to run over an empty effective public corpus**
+  — the `scan_xray_pii.py` zero-traces rule, applied to the evals, with its honest limit stated:
+  it catches the *empty* corpus, and the *sparse* one (AUD-C-17's actual shape: 3 effective documents
+  these queries never retrieved from) is covered by the corpus-independence, not the precondition.
+  7 scorer unit tests with paired fail controls; the inverted control was watched turning the eval red.
+  **AUD-F-36 (P2, blocks criterion 3):** reading the code re-attributed it — **the server was losing
+  the event, not the client trusting the stream**. `/stream` subscribed to the event bus only *after*
+  building its initial snapshot (a read AUD-F-26 made seconds wide with a real Bedrock call inside),
+  so an action completing in that window published to nobody and the stale initial frame overwrote
+  the client's own fresh `/respond` snapshot. Fixed by subscribing first + unsubscribing on rejected
+  connects, **in both apps** (chat-api had the identical pattern). The seam test publishes inside
+  `aget_state`; watched fail on pre-fix ordering, passes on the fix.
+  **⛔ Criterion 3 is NOT claimed:** the fix is verified locally only; the criterion is owed two
+  consecutive clean whole-suite staging runs against the *deployed* image (D-141 §9's no-selection
+  rule). The deploy carrying both fixes is the user's call.
+  **The 08-01 date-bound checks ran on schedule (D-146):** "How do I enroll a student?" refuses
+  **3/3 consistently** — correct fail-closed behaviour, since `public-enrollment-faq` is `draft` by
+  design and nothing else covers enrollment. **The launch journey's canonical question stays
+  unanswerable until the org approves the Enrollment FAQ — editorial, on the launch checklist.**
+  **⚠️ AUD-C-18 (P2) filed:** four of the six newly-effective public documents
+  (participation-guide, privacy-notice, ai-use-notice, contact-guide) are **unretrievable on staging
+  even near-verbatim** while the same corpus answers them locally; volunteer-guide works. Found by
+  verifying each candidate question before widening `chat_qa_staging.js` — the list gained **one**
+  verified question, not six unverified ones. Next step named in the finding: one read-only look at
+  staging's `rag_documents`/`rag_chunks` for the four ids.
+  **PR #77's CI red is explained and now fixable:** `lint-typecheck-test` failed on exactly AUD-C-17
+  (confirmed in the job log); the same run's `learning-api-container-scan` failure is a build-runner
+  segfault in `uv sync` (exit 139) — the same commit passed the same scan six minutes earlier, so
+  re-run before treating it as real.
+- **⛔ (superseded 2026-08-01 — the suite was red from D-143 §1's date boundary; fixed above) THE SUITE WAS RED. `adversarial` 100% → 66.7% at the 2026-08-01T00:00Z date boundary, and the
   assertion had been passing over an empty corpus (D-143, AUD-C-17 P1).** `make test` was green
   (645 passed) twenty minutes earlier; **the only thing that changed was the clock.** Eleven
   `rag_documents` carry `effective_from = 2026-08-01T00:00Z`, so the effective corpus went from **3
@@ -1207,8 +1244,37 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   checkpoint connection); watch `DatabaseConnections` on the next multi-task load run before
   raising `max_capacity` anywhere.
 
-- **Next session, in order (2026-07-31 fourth close, post-D-141). AUD-F-34 is fixed and deployed; what
-  is left is one date, two decisions and the messages:**
+- **Next session, in order (2026-08-01 close, post-D-144/D-145/D-146). The suite is green, both
+  fixes are code-complete and undeployed:**
+  1. **Deploy the AUD-C-17 + AUD-F-36 fixes (user's call), then criterion 3: two consecutive clean
+     whole-suite staging runs, no deploy between.** Check the tfvars floor against the running image
+     first (D-142's step), and bump it with the deploy. PR #77 carries the work; re-run its flaked
+     `learning-api-container-scan` (uv segfault, exit 139 — passed 6 min earlier on the same commit)
+     rather than debugging it, unless it segfaults twice.
+  2. **2026-08-02 18:30Z: read criterion 6 with `make scheduler-evidence`** — `memory-consolidate`'s
+     first-ever scheduled firing, now against a job with a clean manual run. The criterion's own date
+     stays **08-09** (two-firing reading). ⚠️ If the deploy in item 1 lands before 08-02, the
+     schedule runs the new image (un-pinned family) — it contains the AUD-F-34 fix either way, but
+     note which image fired when reading the evidence.
+  3. **AUD-C-18 (P2): one read-only look at staging's `rag_documents`/`rag_chunks`** for
+     student-participation-guide / privacy-notice / ai-use-notice / contact-guide — present? chunks
+     embedded? provenance current (AUD-C-16's shape)? Then widen `chat_qa_staging.js` with the four
+     parked questions once they verify.
+  4. **The Enrollment FAQ needs org approval** (editorial, launch checklist) — the launch journey's
+     canonical guest question refuses correctly until it lands. Belongs in Message A's channel or
+     alongside it.
+  5. **Send Message A** (thirteenth session carrying it) **and Message D**, separately.
+  6. **AUD-F-35 (P2):** `promote_if_eligible`'s missing evidence bar — failing test first, inverted
+     control (the current code passes an `active` assertion).
+  7. **AUD-X-16 (P2):** the tfvars floor check as an executable `make` target, not a comment in a
+     gitignored file.
+  8. **Decisions still parked:** `bedrock_run_budget_cents` before the pilot (D-141 §8);
+     `learning_events` retention (D-141 §5, a SPEC question); the Billing-console credit look
+     (D-139 §3); r = 5 capacity at ~$43/month + AUD-F-33's apply.
+
+- **Superseded — pointer as of the 07-31 fourth close (post-D-141). Items 1-2 are done (D-144/D-145:
+  both fixed in code, deploy + staging re-run owed) and item 3's 08-01 half ran on schedule (D-146,
+  AUD-C-18 filed); the rest carried into the pointer above:**
   1. **⛔ FIRST: the suite is red — AUD-C-17 (P1).** `adversarial` 66.7% against a 1.0 threshold, from
      the 08-01 corpus widening. Fix the eval's vacuity **as well as** the two cases: assert a non-empty
      effective corpus as a precondition of the whole eval, or the next empty-corpus green means nothing

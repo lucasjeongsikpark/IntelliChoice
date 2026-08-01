@@ -76,18 +76,26 @@ export const options = {
   noConnectionReuse: (__ENV.NO_CONNECTION_REUSE || "false") === "true",
 };
 
-// Questions the deployed corpus can actually answer *today*. Only four public documents
-// are `effective_from` on or before 2026-07-29 - organization-overview, branch-directory,
-// our-team and academic-calendar - and the date filter fails closed on the rest by design
-// (D-112). Asking about a not-yet-effective document would measure a refusal path, which
-// is a different (and much faster) code path than the one criterion 7 is about.
-// The remaining six open on 2026-08-01; widen this list then.
+// Questions the deployed corpus can actually answer *today*. Widened 2026-08-01 per this
+// file's own standing note - but by ONE question, not the six the note expected, because
+// every candidate was verified against live staging first and only one grounds:
+//   - "How do I become a volunteer tutor?" answers with a public-volunteer-guide citation.
+//   - Four other newly-effective public documents (student-participation-guide,
+//     privacy-notice, ai-use-notice, contact-guide) return the no-source refusal even for
+//     near-verbatim wording ("Where do student records live?"), while the same corpus
+//     answers them locally - a staging corpus gap, filed as a finding on 2026-08-01, not a
+//     question-wording problem. Add their questions when it is fixed.
+//   - Anything enrollment-shaped stays out: public-enrollment-faq is the only document
+//     covering it and it is status `draft`, so the filter refuses it by design (D-112).
+// A refusal is a different, much faster code path than the grounded turn criterion 7
+// measures, so unverified questions would poison the p95 this file exists to read.
 const QUESTIONS = [
   "What are the Saturday hours?",
   "Where are your branches located?",
   "Who is on the leadership team?",
   "What is IntelliChoice?",
   "When does the fall term start?",
+  "How do I become a volunteer tutor?",
 ];
 
 export default function () {

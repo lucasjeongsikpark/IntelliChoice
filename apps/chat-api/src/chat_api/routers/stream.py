@@ -102,8 +102,17 @@ async def stream_session(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     token: Annotated[str | None, Query()] = None,
 ) -> StreamingResponse:
-    initial = await _initial_snapshot(chat_session_id, graph, token, db)
+    # AUD-F-36 (found on learning-api's identical endpoint): subscribe BEFORE the
+    # initial-snapshot read, so an action completing during the read lands in the queue
+    # and corrects the initial frame instead of publishing to nobody and leaving this
+    # stream permanently stale. The window here is smaller than learning-api's (no
+    # Bedrock call on connect) but `_suggested_followups` does real DB work inside it.
     queue = events.subscribe(chat_session_id)
+    try:
+        initial = await _initial_snapshot(chat_session_id, graph, token, db)
+    except BaseException:
+        events.unsubscribe(chat_session_id, queue)
+        raise
 
     async def event_stream():
         try:

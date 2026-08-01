@@ -12,6 +12,8 @@ hangs against it.
 """
 
 import asyncio
+from collections.abc import AsyncGenerator
+from typing import cast
 
 import pytest
 from chat_api.main import app
@@ -209,6 +211,66 @@ def test_stream_404s_for_an_unknown_session() -> None:
             asyncio.run(_snapshot("does-not-exist", None))
 
     assert exc_info.value.status_code == 404
+
+
+def test_stream_delivers_an_event_published_during_the_initial_read() -> None:
+    """AUD-F-36 (found on learning-api's identical endpoint, fixed on both): an event
+    published while `/stream` is still building its initial snapshot must reach that
+    stream. Pre-fix, the subscription was registered only after the read, so such an
+    event went to nobody and the connection served a stale initial frame it would never
+    correct. The fake publishes at the exact seam - inside `aget_state` - because the
+    defect is an ordering one and ~1-in-3 whole-suite reproduction is not a test.
+    """
+    from chat_api.routers import stream as stream_module
+    from chat_api.services.session_events import ChatSessionEventBus
+
+    session_id = "chat-aud-f-36"
+    bus = ChatSessionEventBus()
+
+    class _FakeSnapshot:
+        # An anonymous session (no `user_external_id`) so `token=None` authorizes, with
+        # a real-shaped answered state so `_suggested_followups` has what it reads.
+        values = {"scope": "in_scope", "intent": "document_qa", "answer": "old answer"}
+        tasks = ()
+
+    class _PublishingGraph:
+        async def aget_state(self, _config: dict) -> _FakeSnapshot:
+            bus.publish(session_id, {"answer": "new answer", "pending_interrupt": None})
+            return _FakeSnapshot()
+
+    async def _run() -> list[str]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_factory() as session:
+                response = await stream_module.stream_session(
+                    session_id,
+                    events=bus,
+                    graph=_PublishingGraph(),  # type: ignore[arg-type]
+                    db=session,
+                    token=None,
+                )
+                frames = []
+                # `body_iterator` is typed as the broad `AsyncContentStream`; this
+                # endpoint's is always the async generator `event_stream()`.
+                iterator = cast(AsyncGenerator[str, None], response.body_iterator)
+                try:
+                    frames.append(await asyncio.wait_for(anext(iterator), timeout=2.0))
+                    frames.append(await asyncio.wait_for(anext(iterator), timeout=2.0))
+                finally:
+                    await iterator.aclose()
+                return [str(frame) for frame in frames]
+        finally:
+            await engine.dispose()
+
+    with TestClient(app):
+        frames = asyncio.run(_run())
+    # Pydantic's model_dump_json is compact (no space after ':'); json.dumps is not.
+    assert '"answer":"old answer"' in frames[0]
+    assert '"answer": "new answer"' in frames[1], (
+        "the event published during the initial read was lost to this stream (AUD-F-36)"
+    )
+    assert not bus._subscribers, "closing the stream must unsubscribe its queue"
 
 
 def test_branch_locator_consent_then_zip_round_trip_over_http() -> None:
