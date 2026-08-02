@@ -15,9 +15,8 @@ from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.mastery import MasteryRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_shared.bedrock import TutorContext
+from intellichoice_shared.mastery_policy import WEAK_SKILL_THRESHOLD
 from intellichoice_shared.profiles import ProfileAdapter
-
-from learning_api.services.mastery_bootstrap import WEAK_SKILL_THRESHOLD
 
 _OPTION_LABELS = ("a", "b", "c", "d")
 

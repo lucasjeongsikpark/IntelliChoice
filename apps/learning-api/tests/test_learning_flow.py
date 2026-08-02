@@ -23,7 +23,7 @@ from intellichoice_curriculum.loader import load_curriculum_and_templates
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.models.assessment import BlockedSession
 from intellichoice_db.models.interrupts import InterruptApproval
-from intellichoice_db.models.mastery import StudyAttempt, StudyItem
+from intellichoice_db.models.mastery import Mastery, StudyAttempt, StudyItem
 from intellichoice_db.models.memory import LearningEvent, SemanticMemory
 from intellichoice_db.models.stage_transition import StageTransition
 from intellichoice_db.repositories.assessment import AssessmentRepository
@@ -292,6 +292,25 @@ def _semantic_memory_facts(student_id: str) -> list[SemanticMemory]:
                 stmt = select(SemanticMemory).where(
                     SemanticMemory.student_external_id == student_id
                 )
+                result = await session.execute(stmt)
+                return list(result.scalars().all())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _mastery_rows(student_id: str) -> list[Mastery]:
+    """AUD-L-15 (D-156): mastery now includes the post-exam, so a test has to be able to
+    read the rows the post-exam wrote.
+    """
+
+    async def fetch() -> list[Mastery]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                stmt = select(Mastery).where(Mastery.student_external_id == student_id)
                 result = await session.execute(stmt)
                 return list(result.scalars().all())
         finally:
@@ -726,10 +745,19 @@ def test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite() -> N
     assert all(not a.tutor_review_flagged for a in line_attempts if a not in unresolved)
 
 
-def _drive_full_flow(student_id: str, pre_wrong_indices: set[int]) -> tuple[list, dict]:
-    """Run one full pre -> study (all correct) -> post (all correct) flow and return the
-    base study routing and the learning-gain scores, for the Phase 10 determinism check.
+def _drive_full_flow(
+    student_id: str,
+    pre_wrong_indices: set[int],
+    post_wrong_indices: set[int] | None = None,
+) -> tuple[list, dict]:
+    """Run one full pre -> study (all correct) -> post flow and return the base study
+    routing and the learning-gain scores, for the Phase 10 determinism check.
+
+    `post_wrong_indices` (AUD-L-15/D-156) makes the post-exam answerable incorrectly, which
+    is what lets a test tell whether mastery counts the post-exam at all: with pre and study
+    both correct, every skill reads 1.0 unless the post-exam is in the computation.
     """
+    post_wrong_indices = post_wrong_indices or set()
     headers = _auth_header(_student_token(student_id))
     with TestClient(app) as client:
         session_id = client.post("/learning/sessions", headers=headers).json()[
@@ -782,12 +810,13 @@ def _drive_full_flow(student_id: str, pre_wrong_indices: set[int]) -> tuple[list
         for index, item in enumerate(body["items"]):
             variant_id = item["question_variant_id"]
             correct = _correct_options([variant_id])[variant_id]
+            selected = _other_option(correct) if index in post_wrong_indices else correct
             body = client.post(
                 f"/learning/sessions/{session_id}/answers",
                 headers={**headers, "Idempotency-Key": f"det-post-{index}"},
                 json={
                     "question_variant_id": variant_id,
-                    "selected_option": correct,
+                    "selected_option": selected,
                     "response_time_ms": 2000,
                 },
             ).json()
@@ -800,6 +829,31 @@ def _drive_full_flow(student_id: str, pre_wrong_indices: set[int]) -> tuple[list
     items = _study_items(study_session_id)
     routing = [(i.target_skill_id, i.difficulty, i.is_remediation) for i in items]
     return routing, gain
+
+
+def test_mastery_counts_the_post_exam() -> None:
+    """AUD-L-15 (D-156). `_recompute_all_skill_mastery` used to accept only a pre-exam and
+    a study session, so the post-exam - the most recent and most comprehensive measurement
+    of the cycle - never reached `mastery.weighted_score`. That is what let S36's
+    `aud-student-premax` report mastery 1.000 for a skill it had just missed on the
+    post-exam, and it also meant `topic_resolver` chose the *next* cycle's target skills
+    without ever seeing how the last one ended.
+
+    Pre and study are answered entirely correctly here, so every touched skill would read
+    1.0 on the old behaviour. Every post-exam item is answered wrong, so on the new
+    behaviour mastery must come down - which is only possible if the post-exam counts.
+    """
+    _routing, gain = _drive_full_flow(
+        STUDENT_UNLINKED, pre_wrong_indices=set(), post_wrong_indices=set(range(10))
+    )
+    assert gain["post_raw_score"] == 0.0
+
+    rows = _mastery_rows(STUDENT_UNLINKED)
+    assert rows, "the cycle should have written mastery rows"
+    assert any(row.weighted_score < 1.0 for row in rows), (
+        "every skill still reads a perfect score after a post-exam that got everything "
+        "wrong - the post-exam is not reaching mastery"
+    )
 
 
 def test_identical_inputs_reproduce_identical_routing_and_scores() -> None:

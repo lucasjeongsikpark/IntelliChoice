@@ -216,6 +216,10 @@ export interface DashboardData {
   usage: UsageBreakdown;
   attempts_count: number;
   time_spent_minutes: number;
+  // AUD-L-15: the date-range picker on this screen does not apply to every chart.
+  // The server sends each caption so the wording cannot drift from the computation.
+  mastery_window_label: string;
+  pre_post_window_label: string;
 }
 
 export interface StudentReport {

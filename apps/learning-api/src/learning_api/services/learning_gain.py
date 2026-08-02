@@ -12,10 +12,10 @@ from dataclasses import dataclass
 from intellichoice_db.models.assessment import AssessmentAttempt
 from intellichoice_db.models.mastery import StudyAttempt
 from intellichoice_db.repositories.questions import QuestionRepository
+from intellichoice_shared.mastery_policy import WEAK_SKILL_THRESHOLD
 
 from learning_api.services import study_outcomes
 from learning_api.services.mastery_bootstrap import (
-    WEAK_SKILL_THRESHOLD,
     highest_consistent_difficulty,
     raw_accuracy,
     resolve_graded_attempts,

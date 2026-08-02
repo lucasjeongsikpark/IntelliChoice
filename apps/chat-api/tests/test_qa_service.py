@@ -390,7 +390,14 @@ def test_answer_question_surfaces_conflict_instead_of_picking_a_side() -> None:
     asyncio.run(run())
 
 
-def test_answer_question_falls_back_to_no_answer_on_gateway_error() -> None:
+def test_answer_question_reports_a_synthesis_outage_as_an_outage() -> None:
+    """AUD-C-19 (D-156): the chunk below was retrieved and *does* answer the question -
+    only the model that would have quoted it was unavailable. Saying "no approved source"
+    here is a false statement about the corpus, which is AUD-C-08's defect at the one call
+    site D-155 left alone. This test asserted the old wording until now; it was rewritten
+    to assert the fix and watched failing against the unfixed code first.
+    """
+
     async def run() -> None:
         async with rollback_session() as session:
             repo = RagRepository(session)
@@ -409,7 +416,19 @@ def test_answer_question_falls_back_to_no_answer_on_gateway_error() -> None:
                 confidence_threshold=0.4,
             )
 
-            assert answer.escalation_recommended is True
+            assert answer.answer == qa.SERVICE_UNAVAILABLE_MESSAGE
+            assert answer.answer != qa.NO_SOURCE_MESSAGE
+            # D-156: retry, not hand-off. Escalation during an outage sends the user into
+            # a second Bedrock-and-MCP failure and bills a branch manager for a question
+            # the corpus can already answer.
+            assert answer.escalation_recommended is False
+            # Nothing is *missing*; the lookup failed. `service_unavailable` says None for
+            # the same reason.
+            assert answer.missing_information is None
+            assert answer.citations == []
+            # Fail-closed is unchanged: an outage never yields a confident answer, and the
+            # cost of the failed call is still accounted for.
+            assert answer.confidence == 0.0
             assert cost == 0.2
 
     asyncio.run(run())
@@ -584,11 +603,15 @@ def test_a_citation_resolves_to_the_passage_at_its_own_position() -> None:
     asyncio.run(run())
 
 
-def test_a_synthesis_failure_says_why_it_became_a_no_source_refusal(
+def test_a_synthesis_failure_says_why_it_became_an_outage_message(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The refusal text is identical whether the sources were bad or the model's response
-    was; only a log line can tell an operator which happened (D-115).
+    """D-115's point, narrowed by D-156. The *user-visible* half is now distinguishable -
+    a synthesis failure says "temporarily unavailable" rather than borrowing the
+    no-source refusal (AUD-C-19). What the message still cannot say is *which* failure it
+    was, and it should not: truncation, timeout and throttling are all "try again" to a
+    student. So the log line remains the only thing carrying the reason and the cost, and
+    that is exactly the ambiguity D-115 spent a week paying for.
     """
 
     async def run() -> None:
@@ -612,7 +635,7 @@ def test_a_synthesis_failure_says_why_it_became_a_no_source_refusal(
                     confidence_threshold=0.4,
                 )
 
-            assert answer.answer == qa.NO_SOURCE_MESSAGE
+            assert answer.answer == qa.SERVICE_UNAVAILABLE_MESSAGE
             records = [r for r in caplog.records if r.message == "rag_answer_unavailable"]
             assert len(records) == 1
             assert records[0].context_chunk_count == 1  # type: ignore[attr-defined]

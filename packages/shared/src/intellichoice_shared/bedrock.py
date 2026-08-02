@@ -868,7 +868,16 @@ class ReportInterpretationPayload(BaseModel):
 
     audience: Literal["student", "parent", "tutor", "branch_manager"]
     grade: str
+    # AUD-L-15 (D-156): `date_range_label` describes the *range-filtered* aggregates only
+    # - attempts, usage, accuracy, gain. It never described `mastery_by_skill` (no date
+    # filter at all, and the post-exam is structurally excluded) or `weak_skill_names`
+    # (post-exam derived), yet all three arrived under it, which is how one report showed
+    # a skill at mastery 1.000 *and* "needs work" under a single "all time" heading. The
+    # two labels below carry each figure's own window. Empty when the figure they describe
+    # is gated away for this audience - a window with no number is noise.
     date_range_label: str
+    mastery_window_label: str = ""
+    weak_skill_window_label: str = ""
     pre_raw_score: float | None = None
     post_raw_score: float | None = None
     raw_gain: float | None = None

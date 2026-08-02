@@ -31,7 +31,12 @@ from learning_api.dependencies import (
     get_db_session,
     get_profile_adapter,
 )
-from learning_api.services.dashboard import DashboardData, build_dashboard
+from learning_api.services.dashboard import (
+    MASTERY_WINDOW_LABEL,
+    PRE_POST_WINDOW_LABEL,
+    DashboardData,
+    build_dashboard,
+)
 from learning_api.services.history import StudentHistory, build_student_history
 from learning_api.services.report import build_report_facts, generate_student_report
 
@@ -200,6 +205,14 @@ class DashboardResponse(BaseModel):
     student_external_id: str
     mastery_by_skill: list[MasterySkillResponse]
     pre_post_by_skill: list[PrePostSkillResponse]
+    # AUD-L-15 (D-156): this endpoint takes `start`/`end`, and four of its five charts
+    # honour them. `mastery_by_skill` does not - it is current standing across all
+    # practice, and the post-exam is excluded from it besides - so the client rendered a
+    # range-labelled screen with one chart silently answering a different question. The
+    # server sends the wording rather than the client hardcoding it, so the description
+    # cannot drift from how the number is actually computed.
+    mastery_window_label: str
+    pre_post_window_label: str
     gains_over_time: list[GainPointResponse]
     accuracy_trend: list[AccuracyPointResponse]
     difficulty_progression: list[DifficultyPointResponse]
@@ -254,6 +267,8 @@ class DashboardResponse(BaseModel):
             ),
             attempts_count=data.attempts_count,
             time_spent_minutes=data.time_spent_minutes,
+            mastery_window_label=MASTERY_WINDOW_LABEL,
+            pre_post_window_label=PRE_POST_WINDOW_LABEL,
         )
 
 

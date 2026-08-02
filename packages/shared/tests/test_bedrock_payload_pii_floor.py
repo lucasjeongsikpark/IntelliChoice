@@ -76,6 +76,13 @@ _REPORT_INTERPRETATION_ALLOWED_FIELDS = {
     "audience",
     "grade",
     "date_range_label",
+    # AUD-L-15 (D-156). Both are fixed English strings built from module constants in
+    # `services/report.py` - no student data reaches them, and neither is interpolated
+    # from anything but `_REPORT_WEAK_SKILL_POST_ACCURACY`. They say which window a figure
+    # came from, which the single `date_range_label` above used to misstate for two of
+    # them.
+    "mastery_window_label",
+    "weak_skill_window_label",
     "pre_raw_score",
     "post_raw_score",
     "raw_gain",

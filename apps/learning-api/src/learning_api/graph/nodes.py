@@ -662,6 +662,11 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
         assert ctx.tutor_chat_repo is not None
         consolidation = await consolidate_student_session(
             memory_repo=ctx.memory_repo,
+            # AUD-L-13 (D-156): consolidation screens each proposed ability fact against
+            # the measured mastery score for the same skill. Reading it here is correct
+            # *because* this call sits after the cycle's mastery recompute above - the
+            # floor compares against this cycle's numbers, not last week's.
+            mastery_repo=ctx.mastery_repo,
             tutor_chat_repo=ctx.tutor_chat_repo,
             gateway=ctx.bedrock_gateway,
             student_external_id=state.student_external_id,

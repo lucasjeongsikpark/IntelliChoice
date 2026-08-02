@@ -9313,3 +9313,131 @@ answer, so a retry may beat an escalation — but the user has already waited th
 attempt), and deciding it quietly inside an unrelated cluster is how scope creeps. P3 rather than
 P2 because the operator half is already covered: the branch logs `rag_answer_unavailable` with
 reason and cost, added for AUD-X-12/D-115 whose lesson was this exact ambiguity costing a week.
+
+## D-156 — three parent-visible correctness fixes: an outage message, a memory floor, and one definition of "weak" (accepted, 2026-08-02)
+
+Three Phase 0B findings taken as a cluster — **AUD-C-19**, **AUD-L-13**, **AUD-L-15**. They are
+not one defect the way D-155's three were. What they share is a shape: **a number or a sentence
+shown to a family that the system could already have checked against something it knew.** In each
+case the contradicting fact was in the same database, in the same transaction, and nothing read it.
+
+### 1. AUD-C-19 — the synthesis-failure path (the half D-155 deliberately left)
+
+`qa.answer_question`'s `except BedrockGatewayError` returned `NO_SOURCE_MESSAGE` when the chunks
+had been retrieved and a source demonstrably existed. Now returns `SERVICE_UNAVAILABLE_MESSAGE`.
+
+**The product call D-155 refused to make quietly: `escalation_recommended = False`.** Three
+reasons, in order of weight.
+
+1. **Escalation is itself a Bedrock-and-MCP path.** Recommending a human hand-off during an outage
+   walks the user into a second failure. This is the same reasoning `graph.nodes
+   .service_unavailable` already used, and matching it means the two outage paths are
+   indistinguishable to the client — which they should be, because to the user they *are* the same
+   event.
+2. **It books a branch manager's time for a question the corpus can already answer.** The org is
+   the scarce resource. A false-positive escalation costs a person; a retry costs a second.
+3. **The message already carries the human path, in the right order** — "try again in a few
+   minutes", then "if it keeps happening, contact your branch manager". Conditional escalation
+   after a retry, rather than an unconditional banner reading "I couldn't fully answer that",
+   which is a false statement about the question during an outage.
+
+`missing_information` is `None` for the same reason: nothing is missing. Fail-closed is unchanged.
+`SERVICE_UNAVAILABLE_MESSAGE` moved from `graph/nodes.py` down to `services/qa.py` — the dependency
+runs graph → services and the constant was needed at the lower layer; `graph.nodes` re-exports it,
+so `main.py`'s 503 handler is untouched.
+
+### 2. AUD-L-13 — memory facts are now checked against measured mastery
+
+Consolidation verified a candidate fact's evidence provenance and its cross-session repetition, and
+never compared the *claim* to `mastery.weighted_score` for the same skill. `aud-student-regressing`
+held an accepted `strength` fact for a skill measured at 0.000; across four journeys all 20 facts
+were `strength` and zero `weak_skill` facts existed, including for the student who went 8→4.
+
+**Repetition is not consistency.** The bound that kept those facts out of parent-visible payloads
+was that they were all `provisional` — and the promotion criterion is repetition, so a second
+session would have promoted them.
+
+`_contradicts_measured_mastery` screens `strength` and `weak_skill` candidates against
+`WEAK_SKILL_THRESHOLD`. Three deliberate boundaries:
+
+- **Only those two fact types.** `misconception`, `hint_dependence`, `guessing_pattern` and the
+  rest describe *how* a student works, which a score cannot contradict. Screening them on mastery
+  would silence the fact types carrying the most teaching value for exactly the struggling student
+  the floor protects.
+- **It abstains when there is no mastery row.** A never-assessed skill has no measurement for the
+  claim to be wrong about. This is the deliberate hole, and it is a different situation from the
+  reproduction, where a contradicting number existed and went unread.
+- **It runs on the reconfirm path too, and that is the branch that matters.** Reconfirmation is the
+  promotion path; screening only new candidates would have left the one route to a parent open.
+
+Refusals are counted (`ConsolidationResult.mastery_conflicts`), logged
+(`memory_fact_contradicts_mastery`, no student id and no fact text — SPEC §5.30), and printed
+per-student and in the CLI run summary. A rising rate means the prompt drifted or mastery went
+stale, and neither is visible from `added` alone.
+
+**`WEAK_SKILL_THRESHOLD` moved to `intellichoice_shared.mastery_policy`.** `intellichoice_memory`
+is a package and cannot import an app; the alternative was a second copy of the number, which is
+how one subsystem calls a skill weak while another calls it proficient.
+
+### 3. AUD-L-15 — two windows under one label, and two definitions of "weak"
+
+The report showed `mastery_by_skill` (pre+study only, and not date-filtered at all) beside
+`weak_skill_names` (post-exam derived, date-filtered) under a single `date_range_label`. S36's
+`aud-student-premax` came out reading mastery **1.000** for `linear_distribute` next to *"Skills to
+strengthen: … distribution"*, labelled **"all time"**, both inside `verified_facts`.
+
+Three changes, and **the first two are behaviour, decided by the user this session**:
+
+**(a) Mastery now includes the post-exam.** `_recompute_all_skill_mastery` took only a pre-exam and
+a study session, and was never called after the post-exam at all. Two consequences, not one: the
+report contradiction above, and — the larger one — `topic_resolver` chose the *next* cycle's target
+skills from a score that had never seen how the last cycle ended. The gain stays a clean
+measurement: `compute_learning_gain` reads raw pre/post attempts and never consults mastery, so
+nothing became circular. The recompute is placed after the gain is recorded and before
+`finalize_exam`'s consolidation, which is what AUD-L-13's floor needs — it screens against scores
+that now include the cycle that produced the facts.
+
+**(b) One definition of "weak".** The report filtered `pre_post_by_skill` at a hardcoded `0.8` on
+raw post-exam accuracy while `topic_resolver` used `WEAK_SKILL_THRESHOLD` (0.7) on the
+difficulty-weighted mastery score. Two cuts, two quantities, two windows, both called "weak", and
+nothing reconciled them — so a parent could be told to strengthen a skill the study plan was not
+targeting. Both now read `mastery.weighted_score < WEAK_SKILL_THRESHOLD`. This only became the
+right source *because of (a)*: mastery now carries the post-exam signal the 0.8 cut existed to
+capture. **The report is the document that tells a family what to work on next, so the one thing it
+must not do is disagree with what the system will actually work on next.**
+
+`learning_gain.unresolved_skills` deliberately keeps its own post-exam-only computation. It is not
+a statement about current standing — it is a frozen record of how one cycle ended, stored on the
+`LearningGain` row, and re-pointing it at live mastery would make a historical row change meaning
+after the fact.
+
+**(c) Every figure states its window.** `MASTERY_WINDOW_LABEL` and `PRE_POST_WINDOW_LABEL` live in
+`services/dashboard.py`, next to the data they describe, because two consumers need identical
+words. The report payload carries `mastery_window_label`/`weak_skill_window_label` (gated with
+their figures — a window describing a number that is not in the payload is a new way for the model
+to invent a sentence), and `_SYSTEM_PROMPT` now tells the model never to merge or reconcile figures
+from different windows. `GET /dashboard` carries the same labels and the client renders them as
+chart captions: that screen has a date-range picker, four charts that honour it, and one that never
+did and said nothing about it.
+
+**What is *not* fixed by (a) and (b): mastery is still not date-filtered.** `build_dashboard` reads
+`mastery_repo.list_for_student`, which takes no range, so under a report headed "2026-07-01 to
+2026-07-31" the mastery numbers are still all-time. That is now stated rather than implied — the
+label is the fix, because "current standing" is the right thing for a mastery chart to show.
+
+### 4. Verification
+
+- **Everything was watched failing first.** AUD-C-19's test was **rewritten, not added** — it
+  asserted the old wording and was watched failing on `AttributeError: module 'chat_api.services
+  .qa' has no attribute 'SERVICE_UNAVAILABLE_MESSAGE'`. AUD-L-13's five tests failed on
+  `TypeError: consolidate_student_window() got an unexpected keyword argument 'mastery_repo'`.
+  AUD-L-15's post-exam test failed on the assertion that a student who got **every post-exam item
+  wrong** still read a perfect mastery score — which is the defect stated as an assertion.
+- **The golden-set eval was diffed before and after** the AUD-C-19 change (`correct_refusal_rate`,
+  `grounded_citation_rate`): byte-identical, so the message swap moved no eval outcome.
+- **The PII floor guard did its job unprompted:** adding two fields to
+  `ReportInterpretationPayload` failed `test_report_interpretation_payload_field_set_matches_
+  allowlist_exactly` until they were explicitly allowlisted.
+- `make lint` clean, `pyright` 0 errors, **684 passed / 2 skipped** (671 + 13). Learning e2e
+  **18/18**, chat e2e **35/35**, e2e typecheck clean, both frontends build clean.
+- **No deploy, no `terraform apply`, no staging access of any kind.**

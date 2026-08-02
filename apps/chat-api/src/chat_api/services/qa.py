@@ -34,6 +34,22 @@ CONFLICT_MESSAGE = (
     "I can pass this on to a branch manager to confirm."
 )
 
+# SPEC §5.29's "user-safe error message", for the case the other messages here cannot
+# honestly cover: the turn failed for a reason that has nothing to do with what was
+# asked. AUD-C-07/AUD-C-08 - a Bedrock outage used to either 500 (unguarded
+# `create_embedding` on the retrieval path) or answer with the *out-of-scope* refusal
+# (`scope_guard`'s fail-closed branch), telling a user their in-scope question was
+# off-topic. Failing closed is right and is unchanged; saying something false about the
+# user's question is not. Says "try again", because unlike a refusal this one passes.
+#
+# Lives here rather than in `graph/nodes.py` (D-156): AUD-C-19 needed it at the synthesis
+# call site below, and the dependency runs graph -> services. `graph.nodes` re-exports it.
+SERVICE_UNAVAILABLE_MESSAGE = (
+    "I can't look that up right now - the assistant is temporarily unavailable.\n\n"
+    "This is a problem on our side, not with your question. Please try again in a few "
+    "minutes. If it keeps happening, contact your branch manager."
+)
+
 
 def _normalized_for_containment(text: str) -> str:
     """AUD-C-18: source documents may be hard-wrapped, so chunk_text carries newlines
@@ -51,6 +67,36 @@ def _no_answer(reason: str, citations: list[Citation]) -> GroundedAnswer:
         confidence=0.0,
         missing_information="No verifiable, non-conflicting source supports an answer.",
         escalation_recommended=True,
+    )
+
+
+def _service_unavailable() -> GroundedAnswer:
+    """AUD-C-19 (D-156): the synthesis call failed. Distinct from `_no_answer` in both of
+    the ways that matter to the user.
+
+    `missing_information` is None because nothing is missing - retrieval succeeded and a
+    source exists; the model that would have quoted it was down. Claiming "no verifiable
+    source supports an answer" here is the same false statement about the corpus that
+    AUD-C-08 made about the question.
+
+    `escalation_recommended` is False, and that is the deliberate half of this fix. The
+    other three D-155 sites are mechanical; this one is a product call, because unlike
+    them it is a single call away from a real answer. Retry beats hand-off here for two
+    reasons: escalation is itself a Bedrock-and-MCP path, so recommending it during an
+    outage walks the user into a second failure; and it books a branch manager's time for
+    a question the corpus can already answer. `SERVICE_UNAVAILABLE_MESSAGE` still offers
+    the human path, conditionally and in the right order - retry first, "if it keeps
+    happening, contact your branch manager" second. Matches `graph.nodes
+    .service_unavailable`, so the two outage paths are indistinguishable to the client.
+
+    Fail-closed is unchanged: no answer, no citations, zero confidence.
+    """
+    return GroundedAnswer(
+        answer=SERVICE_UNAVAILABLE_MESSAGE,
+        citations=[],
+        confidence=0.0,
+        missing_information=None,
+        escalation_recommended=False,
     )
 
 
@@ -130,10 +176,12 @@ async def answer_question(
             session_spend_cents=session_spend_cents,
         )
     except BedrockGatewayError as exc:
-        # This is the fail-closed path for a *synthesis* failure, and it is
-        # indistinguishable from "no source supports an answer" to the student, so the
-        # log line matters: AUD-X-12 spent a week telling students there was no approved
-        # source when the real cause was a truncated response (D-115).
+        # The fail-closed path for a *synthesis* failure. It used to be indistinguishable
+        # from "no source supports an answer" to the student, which is why the log line
+        # was load-bearing: AUD-X-12 spent a week telling students there was no approved
+        # source when the real cause was a truncated response (D-115). AUD-C-19/D-156
+        # fixed the user-visible half too - the log stays because it carries the reason
+        # and the cost, which the message deliberately does not.
         logger.warning(
             "rag_answer_unavailable",
             extra={
@@ -143,7 +191,7 @@ async def answer_question(
                 "cost_cents": exc.cost_cents,
             },
         )
-        return _no_answer(NO_SOURCE_MESSAGE, []), exc.cost_cents
+        return _service_unavailable(), exc.cost_cents
 
     raw = result.value
     verified = await _verify_citations(repo, raw, chunks_by_index)

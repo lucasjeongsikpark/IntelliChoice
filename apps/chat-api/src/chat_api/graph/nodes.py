@@ -64,18 +64,11 @@ OUT_OF_SCOPE_MESSAGE = (
     "I cannot answer unrelated general-purpose questions."
 )
 
-# SPEC §5.29's "user-safe error message", for the case the other messages in this module
-# cannot honestly cover: the turn failed for a reason that has nothing to do with what
-# was asked. AUD-C-07/AUD-C-08 - a Bedrock outage used to either 500 (unguarded
-# `create_embedding` on the retrieval path) or answer with the *out-of-scope* refusal
-# (`scope_guard`'s fail-closed branch), telling a user their in-scope question was
-# off-topic. Failing closed is right and is unchanged; saying something false about the
-# user's question is not. Says "try again", because unlike a refusal this one passes.
-SERVICE_UNAVAILABLE_MESSAGE = (
-    "I can't look that up right now - the assistant is temporarily unavailable.\n\n"
-    "This is a problem on our side, not with your question. Please try again in a few "
-    "minutes. If it keeps happening, contact your branch manager."
-)
+# SPEC §5.29's "user-safe error message", re-exported from `services.qa` - it moved down
+# a layer in D-156 when AUD-C-19 needed it at the synthesis call site, and this module
+# already imports `services.qa` (the dependency runs graph -> services, never back).
+# `main.py`'s 503 handler still imports it from here.
+SERVICE_UNAVAILABLE_MESSAGE = qa.SERVICE_UNAVAILABLE_MESSAGE
 
 UNAVAILABLE_INTENT_MESSAGES = {
     "clarification": (

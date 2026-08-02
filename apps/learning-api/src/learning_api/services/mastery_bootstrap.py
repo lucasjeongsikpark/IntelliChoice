@@ -21,8 +21,10 @@ DIFFICULTY_WEIGHTS = {1: 1.0, 2: 1.4, 3: 1.9, 4: 2.5, 5: 3.2}
 MIN_DIFFICULTY = 1
 MAX_DIFFICULTY = 5
 
-# D-017: bootstrap weak-skill cut, superseded once the enterprise model lands.
-WEAK_SKILL_THRESHOLD = 0.7
+# D-017's weak-skill cut used to live here. It moved to
+# `intellichoice_shared.mastery_policy` in D-156 (AUD-L-13): `intellichoice_memory
+# .consolidation` needs the same number to check a proposed memory fact against measured
+# mastery, and a package cannot import an app. Import it from there.
 
 # Difficulty-routing thresholds (§5.11.2 rules 2-3, §5.10): step up a level when the
 # student is clearly on top of the current one, hold steady when they're passing, step

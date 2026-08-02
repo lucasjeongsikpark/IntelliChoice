@@ -19,6 +19,7 @@ from intellichoice_adapters.bedrock.bedrock_runtime_provider import AnthropicBed
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
+from intellichoice_db.repositories.mastery import MasteryRepository
 from intellichoice_db.repositories.memory import MemoryRepository
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_shared.bedrock import BedrockTask
@@ -69,12 +70,18 @@ async def main() -> int:
         session_factory = create_session_factory(engine)
         async with session_scope(session_factory) as session:
             memory_repo = MemoryRepository(session)
+            mastery_repo = MasteryRepository(session)
             tutor_chat_repo = TutorChatMessageRepository(session)
             student_ids = await memory_repo.list_students_with_events_in_window(
                 window_start, window_end
             )
             spend = 0.0
             total_added = total_updated = total_contested = total_expired = 0
+            # AUD-L-13 (D-156): ability facts refused for contradicting the measured
+            # mastery score. Surfaced per-student and in the run summary because the rate
+            # is the signal - a spike means the prompt drifted or mastery went stale, and
+            # neither is visible from `added` alone.
+            total_mastery_conflicts = 0
             total_attempted = total_failed = total_dropped = 0
             students_processed = 0
             students_skipped = 0
@@ -96,6 +103,7 @@ async def main() -> int:
                 students_processed += 1
                 result = await consolidate_student_window(
                     memory_repo=memory_repo,
+                    mastery_repo=mastery_repo,
                     tutor_chat_repo=tutor_chat_repo,
                     gateway=gateway,
                     student_external_id=student_id,
@@ -111,6 +119,7 @@ async def main() -> int:
                 total_attempted += result.calls_attempted
                 total_failed += result.calls_failed
                 total_dropped += result.events_dropped
+                total_mastery_conflicts += result.mastery_conflicts
                 detail = (
                     f" [{result.calls_failed}/{result.calls_attempted} call(s) FAILED]"
                     if result.calls_failed
@@ -118,6 +127,11 @@ async def main() -> int:
                 )
                 if result.events_dropped:
                     detail += f" [{result.events_dropped} event(s) dropped over the call cap]"
+                if result.mastery_conflicts:
+                    detail += (
+                        f" [{result.mastery_conflicts} fact(s) refused: contradicted "
+                        "measured mastery]"
+                    )
                 print(
                     f"  {student_id}: +{result.added} facts, {result.updated} "
                     f"reconfirmed, {result.contested} contested, {result.expired} "
@@ -134,7 +148,8 @@ async def main() -> int:
             f"{total_added} added, {total_updated} reconfirmed, {total_contested} "
             f"contested, {total_expired} expired, {spend:.2f} cents spent; "
             f"{total_attempted} model call(s), {total_failed} failed, "
-            f"{total_dropped} event(s) dropped."
+            f"{total_dropped} event(s) dropped, "
+            f"{total_mastery_conflicts} refused (contradicted mastery)."
         )
         if total_attempted and total_failed == total_attempted:
             print(
