@@ -30,25 +30,33 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **accumulated** evidence, resolved to the fact's own student's real events; `contested` is not
   resurrected; the `created_this_run` stopgap is removed as superseded. Inverted control fails
   exactly the two guard tests.
-  **⚠️ Both app-code fixes are local-only; the deploy is the user's call.** Recommended: deploy
-  **after** the 08-02 18:30Z `make scheduler-evidence` read, so criterion 6's first unattended
-  weekly firing runs on the image it was closed against (D-148 §2 reads cleanest with nothing
-  swapped underneath). After the deploy: verify the four AUD-C-18 questions live, widen
-  `chat_qa_staging.js`, re-run `make tfvars-floor-check`.
+  **✅ And the deploy happened the same day, by user decision, de-risked (D-150 §5).** PR #82
+  9/9 green first attempt → squash-merged `812db34` → deploy run **30713006010** pinned to it,
+  succeeded → both services on `gha-812db34916a6` (rev 50 at 2/2, rev 49 at 1/1), no fault
+  alarms. **Floor bumped at deploy time and read back executable**: `make tfvars-floor-check` OK,
+  seven sources agreeing — AUD-X-16's check exercised in anger the day it landed. **De-risking
+  run on ops-task rev 43** (the schedule's exact command, the taskdef's own wiring): 8/8 calls,
+  0 failed, exit 0, 24.73¢, 0 added/0 reconfirmed — the D-148/D-149 stable state, now proven on
+  the code the 08-02 firing will run. **AUD-C-18 live-verified 15/15**: all four questions answer
+  3/3 with citations to their own documents (7.5–11.7 s grounded turns); `chat_qa_staging.js`
+  widened 6 → 10. **⚠️ Tomorrow's firing runs the NEW image** (user decision; the de-risk run is
+  what keeps a failure attributable to the schedule path), and the ops-task log window now holds
+  **three** manual `Consolidation run complete` lines today (D-148's 03:47Z, D-149's 04:39Z, and
+  this de-risk run) — none are Scheduler firings.
 
-- **Next session, in order (2026-08-01 second close, post-D-150):**
+- **Next session, in order (2026-08-01 second close, post-D-150 incl. §5's deploy):**
   1. **2026-08-02, after 18:30Z: `make scheduler-evidence`** — criterion 6's confirmation read
-     (D-148 §2: a failure reopens it). Expect two unattributed firings (03:47Z and 04:39Z,
-     D-148/D-149's clones), a ~38h-shifted rolling window, and `0 added, 0 reconfirmed` at full
-     spend (the stable state, seen twice).
-  2. **Deploy the AUD-C-18 + AUD-F-35 fixes** (recommended after item 1) — `make
-     tfvars-floor-check` before any apply is now the executable step. Then verify the four
-     parked questions live (3/3 each) and widen `chat_qa_staging.js` with the ones that pass.
-  3. **Send Message A** (fourteenth session carrying it) **and Message D**, separately — A gates
+     (D-148 §2: a failure reopens it). Expect two unattributed *firings* (03:47Z and 04:39Z
+     clones) plus a **third manual `Consolidation` log line** from D-150 §5's de-risk run
+     (~05:5xZ, `run-task`, no firing); a ~38h-shifted rolling window; and `0 added,
+     0 reconfirmed` at full spend (the stable state, now seen three times). The firing runs
+     `gha-812db34916a6` — already proven by the de-risk run, so a failure indicts the schedule
+     path.
+  2. **Send Message A** (fourteenth session carrying it) **and Message D**, separately — A gates
      S42/S43 discovery, which is otherwise the next roadmap scope.
-  4. **The Enrollment FAQ needs org approval** (editorial, launch checklist) — the launch
+  3. **The Enrollment FAQ needs org approval** (editorial, launch checklist) — the launch
      journey's canonical guest question refuses correctly until it lands.
-  5. **Decisions still parked:** `bedrock_run_budget_cents` before the pilot (D-141 §8);
+  4. **Decisions still parked:** `bedrock_run_budget_cents` before the pilot (D-141 §8);
      `learning_events` retention (D-141 §5, a SPEC question); the Billing-console credit look
      (D-139 §3); r = 5 capacity at ~$43/month + AUD-F-33's apply.
 

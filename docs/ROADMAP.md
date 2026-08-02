@@ -718,8 +718,10 @@ attempt); D-148 closed criterion 6 early by user decision on a real one-off Sche
 the 08-02/08-03/08-05/08-09 scheduled firings as reopening-capable confirmation reads; D-149
 proved the weekly cron path with a throwaway clone, leaving only the `SUN` enum value to 08-02.
 Next scope is **S42 discovery**, gated on the org replying to Message A (unsent). Post-gate
-session D-150 closed the remaining pointer P2s (AUD-C-18 root-caused + fixed in code, AUD-X-16's
-`make tfvars-floor-check`, AUD-F-35's evidence bar) — deploy pending, none reopen a criterion.
+session D-150 closed the remaining pointer P2s (AUD-C-18 root-caused, fixed and live-verified
+15/15, AUD-X-16's `make tfvars-floor-check`, AUD-F-35's evidence bar) — deployed same day as
+`gha-812db34916a6` by user decision, de-risked with a clean manual consolidate run on the new
+image (D-150 §5); none reopen a criterion.
 
 *(Superseded, 2026-08-01 first half — fixed by D-144 the same day:)* **⛔ Criterion 4 (green full
 test runs) is BROKEN as of 2026-08-01T00:21Z, and criterion 2 gains a P1

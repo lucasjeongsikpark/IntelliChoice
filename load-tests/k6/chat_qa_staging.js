@@ -77,16 +77,14 @@ export const options = {
 };
 
 // Questions the deployed corpus can actually answer *today*. Widened 2026-08-01 per this
-// file's own standing note - but by ONE question, not the six the note expected, because
-// every candidate was verified against live staging first and only one grounds:
-//   - "How do I become a volunteer tutor?" answers with a public-volunteer-guide citation.
-//   - Four other newly-effective public documents (student-participation-guide,
-//     privacy-notice, ai-use-notice, contact-guide) return the no-source refusal even for
-//     near-verbatim wording ("Where do student records live?"), while the same corpus
-//     answers them locally - a staging corpus gap, filed as a finding on 2026-08-01, not a
-//     question-wording problem. Add their questions when it is fixed.
-//   - Anything enrollment-shaped stays out: public-enrollment-faq is the only document
-//     covering it and it is status `draft`, so the filter refuses it by design (D-112).
+// file's own standing note - first by ONE question (only volunteer-guide grounded; the
+// other four newly-effective documents refused even near-verbatim wording and were filed
+// as AUD-C-18), then by the remaining FOUR later the same day once AUD-C-18's fix
+// (D-150: the citation verbatim check was newline-sensitive and the new documents are
+// hard-wrapped) was deployed as gha-812db34916a6 and each question verified live 3/3
+// with citations to its own document. Still out, by design:
+//   - Anything enrollment-shaped: public-enrollment-faq is the only document covering it
+//     and it is status `draft`, so the filter refuses it correctly (D-112).
 // A refusal is a different, much faster code path than the grounded turn criterion 7
 // measures, so unverified questions would poison the p95 this file exists to read.
 const QUESTIONS = [
@@ -96,6 +94,10 @@ const QUESTIONS = [
   "What is IntelliChoice?",
   "When does the fall term start?",
   "How do I become a volunteer tutor?",
+  "What does a tutoring session look like for a student?",
+  "How is my child's personal information protected?",
+  "How does IntelliChoice use AI with students?",
+  "How do I contact IntelliChoice with a question?",
 ];
 
 export default function () {
