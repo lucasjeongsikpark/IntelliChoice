@@ -9160,3 +9160,41 @@ elevated privileges from a field another system validates on our behalf** — th
 rule 3, and it holds regardless of how well the other system behaves. The rationale shifts from
 "production is knowingly permissive" to the stronger and simpler "authorization is ours to
 decide", and the allowlist for `Tutor`/`Manager` stands either way.
+
+## D-154 — the UNKNOWN attendance block gets its own message: not-yet-marked, not recorded-absence (accepted, 2026-08-02)
+
+**Context.** S43 carry-over item 3 was "make the UNKNOWN attendance path first-class (D-152 §2)."
+The seed (`STUDENT_SECOND_CHILD`, no attendance row) and the e2e that walks it
+(`journey-attendance.spec.ts:78`) already existed. What was left was the wording review, and it
+found a real product defect once D-152 §2's fact is applied.
+
+**The defect.** The gate produced **one** `BLOCKED_MESSAGE` for both ABSENT and UNKNOWN, matching
+SPEC §5.6.3 verbatim: *"To prevent the student from being assessed on material they did not
+receive…"*. That framing presumes a real absence. But D-152 §2 established that `signups.attended =
+null` ("manager hasn't marked it yet") is the **routine** production state, not a rare error — and
+for the common case (a student who **did** attend but is not yet marked), the recorded-absence
+wording is false, and worse, it makes **"Confirm I did not attend"** — which permanently ends the
+week with no score (`ACKNOWLEDGED_MESSAGE`) — look like the safe default. The SPEC text predates
+that production fact.
+
+**The change (small, words only).** `check_attendance_gate` now selects
+`UNKNOWN_MESSAGE` when `status == AttendanceStatus.UNKNOWN`, keeping `BLOCKED_MESSAGE`
+(SPEC-verbatim) for genuine ABSENT. The unknown message reframes the block as *not yet marked*
+("This is normal — the Branch Manager may simply not have recorded this week's session yet"),
+steers an attended student to the verify path, and warns that confirming non-attendance ends the
+week. **Nothing else changes:** fail-closed is identical (§5.4.4), both options still exist, the
+`BlockedSession` row is still written, and late-marking recovery already works (the gate re-reads
+attendance fresh on every `/topics`, so once the manager marks present the next attempt continues —
+`EMAIL_SENT_MESSAGE` already tells the user to retry).
+
+**Why this deviates from SPEC-verbatim, on purpose.** SPEC §5.6.3 gives one message for
+"Absent or Unknown". That is a pre-D-152 assumption that unknown is rare. The spec wins on detail,
+but D-152 §2 is newer evidence about production reality; the deviation is confined to the
+student-facing explanation and is recorded here so it is a decision, not drift.
+
+**Verified.** Test-first at two layers: `test_unknown_attendance_block_reads_as_not_yet_marked_not_
+as_absence` asserts the routed message equals `UNKNOWN_MESSAGE` and contains neither the absence
+phrasing nor `BLOCKED_MESSAGE`; `test_blocked_attendance_branch` now pins the ABSENT student to
+`BLOCKED_MESSAGE`; the e2e unknown journey asserts the on-screen block says "not been marked yet"
+and not "did not receive". Both discriminate against the old single-message code. `make lint`
+clean, `pyright` 0 errors, **666 passed / 2 skipped**, the attendance e2e spec 2/2.

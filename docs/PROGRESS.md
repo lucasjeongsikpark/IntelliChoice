@@ -5,6 +5,35 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ S43 close: criterion 6's weekly firing is confirmed, the three org/product carry-overs are
+  handled, and the UNKNOWN attendance block is now first-class (2026-08-02, D-154).** `make lint`
+  clean, `pyright` 0 errors, **666 passed / 2 skipped** (665 + 1 new); attendance e2e spec 2/2;
+  e2e typecheck clean. **No deploy, no apply** — the only staging touch was one read-only
+  `make scheduler-evidence` run.
+  **Criterion 6's 08-02 18:30Z weekly firing fired and ran clean.** `memory-consolidate`
+  fired at 18:30:00Z, `startedBy: chronos-schedule`, work line at 18:34:43Z, `2 student(s),
+  0 added, 0 reconfirmed, 24.73¢, 8 calls, 0 failed` — the D-148/D-149 stable state, now on the
+  `gha-812db34916a6` image the de-risk run proved. **So D-148 §2's reopening condition did NOT
+  fire.** (The `scheduler-evidence` verdict still prints ❌ NOT YET, but that is the ≥7-day
+  unattended clock, not a failure: retention-purge is 4d of 7, so the gate-relevant question —
+  "did the weekly firing succeed?" — is yes. The 18 historical FAILURE lines are the known
+  AUD-F-34 silent-exit-0 lines, last 07-31, none from today.)
+  **Production security findings are drafted send-ready** →
+  **[S42_SECURITY_REPORT.md](S42_SECURITY_REPORT.md)**, bilingual, §6.1/§6.2/§6.3/§6.4, one
+  message, JWT/HMAC literals named-not-quoted. Nothing for us to do on §6.6/§6.7 (they shape our
+  client, not the org's system).
+  **The UNKNOWN attendance block is now its own message (D-154).** The seed + e2e already existed;
+  the review found the gate used one absent-framed message for both ABSENT and UNKNOWN, which is
+  wrong for D-152 §2's *routine* not-yet-marked case and made "Confirm I did not attend" (ends the
+  week, no score) the wrong default. Fixed words-only: `UNKNOWN_MESSAGE` for unknown, SPEC-verbatim
+  `BLOCKED_MESSAGE` kept for real absence; fail-closed, options, and late-marking recovery
+  unchanged. Test-first at API + e2e layers.
+  **Enrollment FAQ approval request drafted** →
+  **[ENROLLMENT_FAQ_APPROVAL.md](ENROLLMENT_FAQ_APPROVAL.md)**, bilingual — four synthetic claims
+  for the content owner to confirm/correct, then flip `status: draft → approved`. Editorial, no
+  code; the guest journey's canonical "How do I enroll?" stays a correct refusal until it lands.
+  **Still parked, unchanged:** Billing-console credit look (D-139 §3) and AUD-F-33's apply.
+
 - **✅ S42 discovery is answered from the production system's own source, and O1b is feasible
   (2026-08-01, D-151).** The user made `../IntelliChoice-web` available (icrest Express/Sequelize
   backend + icweb React frontend + a 15-part prior analysis) and designated it the source of truth
@@ -139,27 +168,21 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-01 third close, post-D-151/D-152):**
-  1. **2026-08-02, after 18:30Z: `make scheduler-evidence`** — criterion 6's confirmation read
-     (D-148 §2: a failure reopens it). Expect two unattributed *firings* (03:47Z and 04:39Z
-     clones) plus a **third manual `Consolidation` log line** from D-150 §5's de-risk run
-     (~05:5xZ, `run-task`, no firing); a ~38h-shifted rolling window; and `0 added,
-     0 reconfirmed` at full spend (the stable state, now seen three times). The firing runs
-     `gha-812db34916a6` — already proven by the de-risk run, so a failure indicts the schedule
-     path.
-  2. **Report the production security findings** (S42_DISCOVERY.md §6.1/§6.3/§6.4) to whoever
-     maintains the existing system — the only org item that survives D-152's deferral. DNS is
-     answered (available; added at integration), timezone is closed by evidence, and Messages C/D
-     wait for integration.
-  3. **Make the UNKNOWN attendance path first-class (D-152 §2)** — it is the *routine* production
-     path, not a rare one. Seed a student whose session is unmarked so e2e exercises it; review
-     the blocked screen's wording and the late-marking recovery story.
-  4. **The Enrollment FAQ needs org approval** (editorial, launch checklist) — the launch
-     journey's canonical guest question refuses correctly until it lands.
-  5. **Still parked:** the Billing-console credit look (D-139 §3, "fine for now") and AUD-F-33's
-     apply. `bedrock_run_budget_cents`, `learning_events` retention, and the r = 5 capacity
-     question are **all answered in D-153** and no longer parked.
-  6. **Not on this list on purpose:** everything integration-shaped (S43–S47, auth, reachability,
+- **Next session, in order (2026-08-02 S43 close, post-D-154):**
+  1. **Send the two drafted messages** (they are written and send-ready; the remaining step is the
+     user actually sending them to the right people): the production security findings
+     ([S42_SECURITY_REPORT.md](S42_SECURITY_REPORT.md), to the system operator) and the Enrollment
+     FAQ approval ([ENROLLMENT_FAQ_APPROVAL.md](ENROLLMENT_FAQ_APPROVAL.md), to the content owner).
+     Different audiences — do not merge. On FAQ approval: correct the four facts, flip
+     `status: draft → approved`, re-run `make knowledge-load`.
+  2. **Optional criterion-6 confirmation reads remain free** on 08-03/08-05/08-09 (the daily-purge
+     ≥7-day clock, not a gate blocker after D-148). `make scheduler-evidence` will keep printing
+     ❌ NOT YET until retention-purge reaches 7 unattended days (~08-05); the weekly firing itself
+     is already confirmed (08-02, above). D-148 §2's reopening condition still applies if any
+     future firing fails.
+  3. **Still parked:** the Billing-console credit look (D-139 §3, "fine for now") and AUD-F-33's
+     apply.
+  4. **Not on this list on purpose:** everything integration-shaped (S43–S47, auth, reachability,
      the dev-fake rewrite). Frozen by D-152 until the user says integration is starting.
 
 - **✅ THE §2.6 GATE IS CLOSED (2026-08-01, D-148) — criterion 6 closed early by user decision, on
@@ -3706,6 +3729,32 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S43 — the post-D-151/D-152 carry-overs: criterion-6 weekly firing confirmed, two org drafts, UNKNOWN block made first-class (2026-08-02) ✅
+- **Scope: PROGRESS's own next-session list** (items 1–4), all handled. No integration-shaped work
+  (frozen by D-152). No deploy, no apply; one read-only staging call (`make scheduler-evidence`).
+- **✅ Criterion 6's 08-02 18:30Z weekly firing fired clean.** `memory-consolidate`,
+  `startedBy: chronos-schedule`, work line 18:34:43Z, `2 students, 0 added, 0 reconfirmed, 24.73¢,
+  8 calls, 0 failed` on `gha-812db34916a6`. D-148 §2's reopening condition did **not** fire. The
+  script's ❌ NOT YET is the ≥7-day unattended clock (retention-purge 4d of 7), not a firing
+  failure; the 18 FAILURE lines are the known AUD-F-34 silent-exit-0 set, last 07-31, none today.
+- **✅ Production security findings drafted send-ready** → [S42_SECURITY_REPORT.md](S42_SECURITY_REPORT.md),
+  bilingual, §6.1–§6.4 as one message, JWT/HMAC literals named-not-quoted. §6.6/§6.7 shape our
+  client, not the org's system, so nothing to send there.
+- **✅ UNKNOWN attendance block made first-class (D-154) — the session's one code change.** Seed +
+  e2e already existed; the wording review found the gate used one absent-framed message for both
+  ABSENT and UNKNOWN. Wrong for D-152 §2's routine not-yet-marked case, and it made "Confirm I did
+  not attend" (ends the week, no score) the wrong default. Fixed words-only: `UNKNOWN_MESSAGE`
+  distinct from SPEC-verbatim `BLOCKED_MESSAGE`; fail-closed, options, late-marking recovery all
+  unchanged. Test-first at API (`test_unknown_attendance_block_reads_as_not_yet_marked_not_as_absence`,
+  `test_blocked_attendance_branch` now pins ABSENT) and e2e (asserts "not been marked yet").
+- **✅ Enrollment FAQ approval request drafted** → [ENROLLMENT_FAQ_APPROVAL.md](ENROLLMENT_FAQ_APPROVAL.md),
+  bilingual — four synthetic claims for the content owner, then flip `status: draft → approved`.
+  Editorial, no code; the guest journey's "How do I enroll?" stays a correct refusal until it lands.
+- **Verification:** `make lint` clean, `pyright` 0 errors, **666 passed / 2 skipped** (665 + 1),
+  e2e typecheck clean, attendance e2e spec **2/2**.
+- **Carry-over:** the two drafts still need the user to *send* them (different audiences); optional
+  criterion-6 confirmation reads on 08-03/08-05/08-09; parked items unchanged (D-139 §3, AUD-F-33).
 
 ### Off-roadmap — the red suite fixed, AUD-F-36 re-attributed and fixed, deployed, and the §2.6 gate closed (2026-08-01) ✅
 - **Scope: PROGRESS.md's own pointer (post-D-144 close), then user-directed three times** — the user
