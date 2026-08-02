@@ -101,6 +101,17 @@ test("unknown attendance is gated too, and the branch-manager email is shown bef
     return;
   }
 
+  // D-152 §2: unknown ("not marked yet") is the routine production state, so the block a
+  // student reads must say exactly that and must not imply a recorded absence - otherwise
+  // "did not attend" looks like the safe choice for a student who actually attended.
+  const gateMessage = await page.locator(".message").innerText();
+  audit.note(`unknown-attendance gate message: ${JSON.stringify(gateMessage.slice(0, 200))}`);
+  expect(
+    gateMessage,
+    "the unknown-attendance block should read as not-yet-marked, not as a recorded absence",
+  ).toContain("not been marked yet");
+  expect(gateMessage).not.toContain("did not receive");
+
   await stableClick(page.getByRole("button", { name: /ask the branch manager to verify/i }));
 
   // SPEC §5.1.4: the draft is shown and approval is explicit. An approval gate with no

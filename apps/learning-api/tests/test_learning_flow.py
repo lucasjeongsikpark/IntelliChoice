@@ -31,6 +31,7 @@ from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_shared.auth import Audience, Role
 from learning_api.main import app
 from learning_api.services import video_catalog
+from learning_api.services.attendance import BLOCKED_MESSAGE, UNKNOWN_MESSAGE
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -894,9 +895,48 @@ def test_blocked_attendance_branch() -> None:
     body = topics_resp.json()
     assert body["phase"] == "blocked"
     assert body["items"] is None
-    assert body["message"]
+    # STUDENT_FIRST_CHILD is marked *absent*, so the recorded-absence framing is correct.
+    assert body["message"] == BLOCKED_MESSAGE
 
     assert _blocked_session_count(STUDENT_FIRST_CHILD, current_week_key()) >= 1
+
+
+def test_unknown_attendance_block_reads_as_not_yet_marked_not_as_absence() -> None:
+    """D-152 §2: `attended = null` is the *routine* production state, so the block a
+    student sees must say attendance is not yet marked and steer an attended student to the
+    verify path - not the recorded-absence framing, which makes "did not attend" (which
+    permanently ends the week) the wrong default. Fail-closed itself is unchanged; only the
+    message differs. STUDENT_SECOND_CHILD has no attendance row -> UNKNOWN.
+    """
+    token = _student_token(STUDENT_SECOND_CHILD)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        create_resp = client.post("/learning/sessions", headers=headers)
+        session_id = create_resp.json()["learning_session_id"]
+
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_SECOND_CHILD},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+
+    assert topics_resp.status_code == 200
+    body = topics_resp.json()
+    assert body["phase"] == "blocked"
+    assert body["items"] is None
+    assert body["message"] == UNKNOWN_MESSAGE
+    # The two blocks must not read the same, and the unknown one must not imply absence.
+    assert UNKNOWN_MESSAGE != BLOCKED_MESSAGE
+    assert "not been marked yet" in body["message"]
+    assert "did not receive" not in body["message"]
+
+    assert _blocked_session_count(STUDENT_SECOND_CHILD, current_week_key()) >= 1
 
 
 def test_restart_and_resume_continues_from_same_question() -> None:

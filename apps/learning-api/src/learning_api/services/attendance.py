@@ -13,7 +13,8 @@ from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.mcp import McpToolError, McpToolRegistry
 from intellichoice_shared.profiles import AttendanceStatus, ProfileAdapter
 
-# SPEC §5.6.3 - shown as soon as the gate blocks, before the user has chosen a resolution.
+# SPEC §5.6.3 - shown when attendance is explicitly marked *absent*. The "material they
+# did not receive" framing is accurate here because the manager recorded a real absence.
 BLOCKED_MESSAGE = (
     "Attendance has not been confirmed for this week.\n\n"
     "This learning sequence is connected to the material taught during the student's "
@@ -21,6 +22,24 @@ BLOCKED_MESSAGE = (
     "not receive, the session cannot continue until attendance is confirmed.\n\n"
     "You may ask the Branch Manager to verify the attendance record, or confirm that "
     "the student did not attend this week."
+)
+
+# SPEC §5.6.3, unknown branch - shown when attendance simply has not been *marked* yet
+# (`signups.attended = null`), which D-152 §2 established is the *routine* production
+# state, not a rare error: managers often confirm attendance after the session. The
+# absent-framing above is wrong for the common case (a student who attended but is not yet
+# marked), and it makes "confirm the student did not attend" - which permanently ends the
+# week with no score - the wrong default. So this message reframes the block as
+# not-yet-recorded and steers an attended student to the verify path (D-153-adjacent; the
+# gate and options are unchanged, only the words a student reads).
+UNKNOWN_MESSAGE = (
+    "Attendance for this week has not been marked yet.\n\n"
+    "This is normal - the Branch Manager may simply not have recorded this week's "
+    "session yet. Because the learning activity is based on the material taught on-site, "
+    "it cannot begin until attendance is confirmed.\n\n"
+    "If the student attended, ask the Branch Manager to verify the record, then try "
+    "again once it is updated. Only confirm that the student did not attend if that is "
+    "truly the case - doing so ends this week's activity."
 )
 
 # SPEC §5.6.5 - shown once the user acknowledges the absence.
@@ -89,12 +108,16 @@ async def check_attendance_gate(
             blocked_reason=status.value,
         )
     )
+    # Fail-closed is identical for both (§5.4.4); only the explanation differs. UNKNOWN is
+    # the routine "not marked yet" case (D-152 §2), so it must not read as a recorded
+    # absence. Any non-present status other than UNKNOWN is a real absence.
+    message = UNKNOWN_MESSAGE if status == AttendanceStatus.UNKNOWN else BLOCKED_MESSAGE
     return AttendanceGateResult(
         status=status,
         blocked=True,
         week_id=week_id,
         blocked_session_id=blocked.blocked_session_id,
-        message=BLOCKED_MESSAGE,
+        message=message,
     )
 
 
