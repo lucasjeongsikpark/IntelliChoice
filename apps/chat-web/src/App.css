@@ -239,6 +239,21 @@ button.link {
   padding: 8px 14px;
 }
 
+/* AUD-C-10: the failed-turn bubble. Styled as an assistant bubble rather than as the
+   page-level `.error` text, because it has to occupy the same slot the stuck `Thinking…`
+   bubble used to - the point of the fix is that the turn visibly resolves. */
+.message-row.assistant .bubble.turn-error {
+  border-color: var(--error);
+  color: var(--text);
+}
+
+.retry {
+  margin-top: 8px;
+  display: inline-block;
+  width: auto;
+  padding: 6px 12px;
+}
+
 .welcome-card {
   background: var(--panel-bg);
   border: 1px solid var(--border);

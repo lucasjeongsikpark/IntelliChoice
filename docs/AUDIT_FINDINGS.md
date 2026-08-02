@@ -46,11 +46,12 @@ ones.
 | AUD-C-04 | Correctness / UX | P2 | **Fixed in S40** (D-107) | Last turn's result is cleared in `resolve_role`, the one node every turn passes through first — reset on entry rather than in each pausing node, because there are several and the next one added would have to remember. `ics_content` included. **The regression test needed a genuinely paused turn:** a first version using two ordinary turns passed with the fix removed, because an ordinary turn overwrites every field on its way through. Original: A turn that pauses on `interrupt()` returns the *previous* turn's answer, citations and access hint (pausing nodes never return, so nothing resets them); `ics_content` is never cleared by anything and sticks to every later turn. The leak vehicle in AUD-C-01 |
 | AUD-C-05 | Test integrity | P2 | **Partly addressed in S37** | The golden Q&A eval measures `MockBedrockProvider`, not retrieval: a real model rejects 10 of its 14 gating cases before retrieval runs, and `no_answer` scores 0/8 under the mock vs 8/8 real. Fixture extended and re-scored this session; the mock's quality categories are now measured, not gated |
 | AUD-C-06 | SPEC conformance | P2 | Open — Phase 0B | SPEC §18-C3's access-aware refusal fired **0 times in 8** under a real model: its precondition is zero-row retrieval, which real hybrid search essentially never produces. A parent gets "no approved source" instead of "log in to see the parent handbook" |
-| AUD-C-07 | Robustness | P2 | Open — Phase 0B | An embedding-provider failure or an exhausted budget on the retrieval path is an unhandled **500** — `retrieve()`'s `create_embedding` is the one uncaught gateway call, and chat-api has no exception handler. Violates §5.29's Bedrock-timeout row |
-| AUD-C-08 | UX / diagnosability | P2 | Open — Phase 0B | A total Bedrock outage, or an exhausted cost ceiling, answers every in-scope question with the *out-of-scope* refusal — fail-closed but user-misleading, and indistinguishable from a genuine refusal in logs |
+| **AUD-C-07** | **Robustness** | **P2** | **Fixed 2026-08-02 (D-155)** — `answer_document_qa` and `calendar_extract` (both `retrieve()` call sites, both reproductions) catch `BedrockGatewayError` and route to a new `service_unavailable` node; a narrow `BedrockGatewayError` handler on `app` makes any future gateway call a **503**, not a 500. Watched failing first: the raw exception escaped the node. | An embedding-provider failure or an exhausted budget on the retrieval path is an unhandled **500** — `retrieve()`'s `create_embedding` is the one uncaught gateway call, and chat-api has no exception handler. Violates §5.29's Bedrock-timeout row |
+| **AUD-C-08** | **UX / diagnosability** | **P2** | **Fixed 2026-08-02 (D-155)** — `scope_guard`'s fail-closed branch is unchanged in *behaviour* and changed in *words*: it now yields the temporarily-unavailable message with `scope: null` (no classification happened) instead of the out-of-scope refusal, plus a `qa_service_degraded` warning log and a `stage`-labelled counter, so an outage no longer reads as a surge of off-topic questions. | A total Bedrock outage, or an exhausted cost ceiling, answers every in-scope question with the *out-of-scope* refusal — fail-closed but user-misleading, and indistinguishable from a genuine refusal in logs |
 | AUD-C-09 | SPEC conformance | P2 | Open — Phase 0B | §5.21.3's sixth predicate (`academic_year = requested_year`) is never applied at query time; a 2019-2020 chunk was retrievable by every audience. Fully masked while the corpus holds one academic year |
-| AUD-C-10 | Frontend contract | P2 | Open — Phase 0B | Any API error leaves chat-web's turn stuck on `Thinking…` permanently — the transcript entry keeps `response: null` and nothing clears it. A §2.6 criterion-3 blank/stuck state, reachable from AUD-C-07 |
+| **AUD-C-10** | **Frontend contract** | **P2** | **Fixed 2026-08-02 (D-155)** — `ChatTurn` gained an `error` field, so a turn has three states instead of two; a failed turn renders a retryable error bubble and `Thinking…` is gated on *not* having failed. The e2e documented-defect test was inverted into a regression test exactly as it said it should be, and watched failing against the pre-fix render gate. | Any API error leaves chat-web's turn stuck on `Thinking…` permanently — the transcript entry keeps `response: null` and nothing clears it. A §2.6 criterion-3 blank/stuck state, reachable from AUD-C-07 |
 | AUD-C-11 | Correctness / UX | P2 | Open — Phase 0B | The low-confidence branch returns the "I don't have an approved source" message *with* verified citations attached, so the UI shows a source beside a sentence denying one exists. Observed live |
+| AUD-C-19 | UX / diagnosability | P3 | Open — found 2026-08-02 (D-155) | The *synthesis*-failure path still answers a Bedrock outage with `NO_SOURCE_MESSAGE` — AUD-C-08's defect at the one call site D-155 deliberately left alone, because it carries a second decision (whether to still recommend escalation). Operator-visible half already covered by the `rag_answer_unavailable` log |
 | AUD-C-12 | SPEC conformance | P3 | Open — Phase 0B | §5.21.8's "retrieval score is below threshold" do-not-answer trigger has no implementation: the only filter is `rerank > 0.0`, and the 0.4 threshold gates the model's self-reported confidence, not retrieval |
 | AUD-C-13 | Grounding | P3 | Open — Phase 0B | The citation verbatim check accepts any non-empty substring, so a one-character quote verifies against nearly any chunk; only the quote's hash is stored, so it cannot be re-examined |
 | AUD-C-14 | Contracts | P3 | Open — Phase 0B | `RespondResponse` omits `scope`/`intent`, so every SSE snapshot published after a `/respond` nulls them for connected clients — D-058's class, in the direction that decision did not name |
@@ -4135,3 +4136,30 @@ deploy (user decision, D-150 §5): all four questions answer 3/3 as fresh guest 
 citations to their own documents (15/15 including the volunteer control), at grounded-turn
 latencies of 7.5–11.7 s — the slow healthy shape, not refusal speed. `chat_qa_staging.js`
 widened from 6 to 10 questions, each verified before being added.**
+
+### AUD-C-19 — the *synthesis*-failure path still answers a Bedrock outage with "no approved source" (**P3** — found 2026-08-02 while fixing AUD-C-07/AUD-C-08, D-155; open)
+
+**The same defect as AUD-C-08, at the one call site that cluster deliberately did not change.**
+`qa.answer_question`'s `except BedrockGatewayError` returns `NO_SOURCE_MESSAGE` — *"I don't have an
+approved source for that yet"* — when the RAG_ANSWER call itself fails. The chunks were retrieved;
+a source demonstrably exists; the model that would have quoted it was unavailable. The user is told
+something false about the corpus, exactly as `scope_guard` used to say something false about their
+question.
+
+**Why it was left out of D-155 rather than swept in.** It is not a mechanical repeat — it carries a
+second decision the other three sites don't. This path currently sets `escalation_recommended =
+True`, and `service_unavailable` deliberately sets it `False` (recommending a human hand-off during
+an outage sends the user into a second Bedrock-and-MCP failure). Which of those is right *here* is
+a product call: unlike the other sites, this failure is one call away from a real answer, so a
+retry is more likely to succeed than an escalation — but the user has already waited through a
+synthesis attempt. Deciding that quietly inside an unrelated cluster is how a scope creeps.
+
+**Already half-mitigated, which is why it is P3 not P2:** the path logs `rag_answer_unavailable`
+with the reason and cost (added for AUD-X-12/D-115, whose lesson was this exact ambiguity costing a
+week), so the operator-visible half of AUD-C-08 does not apply. Only the user-visible message is
+wrong.
+
+**Fix shape when it is taken:** return `SERVICE_UNAVAILABLE_MESSAGE` from that branch, decide
+`escalation_recommended` explicitly with a written reason, and update
+`test_answer_question_falls_back_to_no_answer_on_gateway_error` — which asserts today's behaviour
+and will fail, correctly.

@@ -62,7 +62,10 @@ export function useChatSession(token: string | null) {
         setTranscript((prev) => {
           if (prev.length === 0) return prev;
           const last = prev[prev.length - 1];
-          const updated: ChatTurn = { ...last, response: snapshot };
+          // Clearing `error` matters: a turn that failed at the HTTP layer but whose
+          // graph run actually completed gets its real answer over SSE, and leaving the
+          // error bubble beside it would show a failure next to its own result.
+          const updated: ChatTurn = { ...last, response: snapshot, error: null };
           return [...prev.slice(0, -1), updated];
         });
       },
@@ -96,22 +99,62 @@ export function useChatSession(token: string | null) {
     return created.chat_session_id;
   }, [token]);
 
+  // AUD-C-10: `run`'s catch sets the page-level error banner but knows nothing about
+  // which turn failed, so the failed turn kept `response: null` and rendered `Thinking…`
+  // forever. Marking the turn itself is what resolves it - the banner is a page-level
+  // signal and cannot clear a per-turn bubble.
+  const postTurn = useCallback(
+    async (sid: string, turnId: string, query: string): Promise<TurnSnapshot> => {
+      try {
+        const response: TurnSnapshot = await api.postMessage(token, sid, query);
+        setTranscript((prev) =>
+          prev.map((t) => (t.id === turnId ? { ...t, response, error: null } : t)),
+        );
+        setStreamReady(true);
+        return response;
+      } catch (err) {
+        const message = err instanceof api.ApiError ? String(err.detail) : String(err);
+        setTranscript((prev) =>
+          prev.map((t) => (t.id === turnId ? { ...t, response: null, error: message } : t)),
+        );
+        // Rethrown on purpose: `run` still owns the banner and the busy flag, so the
+        // page-level behaviour is unchanged and only the per-turn state is added.
+        throw err;
+      }
+    },
+    [token],
+  );
+
   const sendMessage = useCallback(
     async (query: string) => {
       return run(async () => {
         const sid = await ensureSession();
         if (!sid) return null;
         const turnId = crypto.randomUUID();
-        setTranscript((prev) => [...prev, { id: turnId, query, response: null }]);
-        const response: TurnSnapshot = await api.postMessage(token, sid, query);
-        setTranscript((prev) =>
-          prev.map((t) => (t.id === turnId ? { ...t, response } : t)),
-        );
-        setStreamReady(true);
-        return response;
+        setTranscript((prev) => [...prev, { id: turnId, query, response: null, error: null }]);
+        return await postTurn(sid, turnId, query);
       });
     },
-    [token, run, ensureSession],
+    [run, ensureSession, postTurn],
+  );
+
+  // AUD-C-10's other half: a stuck turn that can only be abandoned is still a dead end.
+  // Retrying in place (same turn id) rather than appending a new turn keeps the
+  // transcript honest - the user asked once.
+  const retryTurn = useCallback(
+    async (turnId: string) => {
+      const turn = transcript.find((t) => t.id === turnId);
+      if (!turn) return null;
+      return run(async () => {
+        const sid = await ensureSession();
+        if (!sid) return null;
+        setTranscript((prev) =>
+          prev.map((t) => (t.id === turnId ? { ...t, response: null, error: null } : t)),
+        );
+        return await postTurn(sid, turnId, turn.query);
+      });
+    },
+    [run, ensureSession, postTurn, transcript],
   );
 
   const respond = useCallback(
@@ -150,6 +193,7 @@ export function useChatSession(token: string | null) {
     error,
     busy,
     sendMessage,
+    retryTurn,
     respond,
     endSession,
   };

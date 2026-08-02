@@ -652,6 +652,16 @@ which stop the line.
   post-finalize 409 burst (35 in 96 ms) is fixed.
 
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
+
+> **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
+> cheap P2s" (below); the rest were never dispositioned. **21 findings remain *Open — Phase 0B***
+> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) and **none are integration-blocked** — they are exactly
+> what D-152's "finish and test this codebase against the dev fakes first" points at. With S43–S47
+> frozen, post-gate sessions run out of this backlog under PROGRESS.md's "Next session" pointer
+> rather than under a numbered block. **Take clusters, not findings:** D-155 (AUD-C-07 + AUD-C-08 +
+> AUD-C-10) was coherent because the three shared one missing concept, and fixing any one alone
+> would have swapped a crash for a lie or a lie for a hang. PROGRESS.md names the next three
+> candidate clusters.
 All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog: S22.5
 `access_hint` blank turn, S11 parent auto-select, chat-web CI, the unseeded-RNG flake,
 `question_variants` accumulation, the ~249k-row `checkpoints` sweep, ~~EventBridge schedules for

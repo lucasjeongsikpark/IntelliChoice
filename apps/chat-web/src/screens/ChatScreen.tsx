@@ -22,6 +22,7 @@ interface Props {
   streamState: "connecting" | "open" | "error";
   error: string | null;
   onSend: (query: string) => void;
+  onRetry: (turnId: string) => void;
   onLogout: () => void;
   onNewSession: () => void;
 }
@@ -34,6 +35,7 @@ export function ChatScreen({
   streamState,
   error,
   onSend,
+  onRetry,
   onLogout,
   onNewSession,
 }: Props) {
@@ -140,9 +142,29 @@ export function ChatScreen({
                 </div>
               </div>
             )}
-            {!turn.response && (
+            {/* AUD-C-10: `Thinking…` is now gated on the turn *not* having failed.
+                Before, `!turn.response` covered both in-flight and failed, so any 500,
+                409, 401 or dropped connection left this bubble on screen permanently -
+                a §2.6 criterion-3 stuck state reachable from the most ordinary failure
+                there is. */}
+            {!turn.response && !turn.error && (
               <div className="message-row assistant">
                 <div className="bubble dim">Thinking…</div>
+              </div>
+            )}
+            {!turn.response && turn.error && (
+              <div className="message-row assistant">
+                <div className="bubble turn-error" role="alert">
+                  That message couldn't be sent. {turn.error}
+                  <button
+                    className="secondary retry"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onRetry(turn.id)}
+                  >
+                    Try again
+                  </button>
+                </div>
               </div>
             )}
           </div>

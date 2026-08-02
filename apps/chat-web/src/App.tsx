@@ -31,6 +31,7 @@ function App() {
     error,
     busy,
     sendMessage,
+    retryTurn,
     respond,
     endSession,
   } = session;
@@ -114,6 +115,7 @@ function App() {
         streamState={streamState}
         error={error}
         onSend={(query) => void sendMessage(query)}
+        onRetry={(turnId) => void retryTurn(turnId)}
         onLogout={handleLogout}
         onNewSession={() => endSession()}
       />

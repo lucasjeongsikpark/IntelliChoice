@@ -111,6 +111,18 @@ to rot, because nothing fails when it does.)*
   selection, and question validation are code, never an LLM (non-negotiable #2). The S9 AI
   pipeline only proposes *shape keys from an allowlist*; every output is re-validated
   deterministically before persistence (D-026).
+- **Failing closed is not a licence to invent a reason** (D-155). Every fail-closed branch in the
+  Q&A graph carries a *message*, and a message is a claim: `refuse` claims the question was
+  off-topic, the empty-retrieval path claims nothing in the corpus matches, `calendar_no_event`
+  claims no dated event exists. When the failure is a `BedrockGatewayError` none of those were
+  established — the classifier never ran, the corpus was never searched, the calendar was never
+  read — so a degraded turn routes to `service_unavailable` instead of borrowing whichever
+  neighbouring branch happens to be next. The rule generalises past these three sites: **a
+  fail-closed path may refuse to answer, but it may not assert a fact it did not establish**, and
+  the observable half matters too (a degraded turn used to increment `qa_out_of_scope_total`, so
+  an outage read on a dashboard as a surge of off-topic questions). `service_degraded` is per-turn
+  and cleared in `resolve_role`, because a sticky one makes an outage outlive itself on every
+  thread it touched.
 - **Authorization distinguishes reading a student's data from changing it** — every learning
   route passes a required `access: "read" | "write"` to `resolve_target_student` (S40, D-107).
   Required rather than defaulted because the recurring defect in this codebase is a route
@@ -580,6 +592,12 @@ One HTTP request per turn, one `ainvoke` call. Three intents now pause via `inte
 via `POST .../respond` + `Command(resume=...)`, mirroring `learning-api`'s S7 pattern.
 Anonymous callers are a first-class case (`claims` may be `None`), unlike `learning-api`.
 
+**D-155 added a fourth terminal shape, `service_unavailable`.** A `BedrockGatewayError` with no
+SPEC §5.29 fallback used to be absorbed by whichever branch happened to be next — `refuse`,
+`explain_access`, `calendar_no_event` — each of which asserts something the turn never actually
+established. It is a sibling of `refuse`, not an escape from it: still fail-closed, still no
+answer, but it makes no claim about the user's question, the corpus, or the calendar.
+
 ```mermaid
 flowchart TB
     START([HTTP request → AskInput]) --> RR["resolve_role (S13)<br/>claims → user_role/branch<br/>(anonymous → \"public\")"]
@@ -591,9 +609,12 @@ flowchart TB
     SG -->|"in_scope,<br/>intent=admin_contact"| PREP["prepare_admin_escalation (S14)<br/>rate limit + deterministic<br/>draft (no LLM call)"]
     SG -->|"in_scope,<br/>intent=calendar"| CEXT["calendar_extract (S14)<br/>retrieve() + BedrockTask.<br/>CALENDAR_EXTRACTION"]
     SG -->|"in_scope,<br/>intent=branch_locator"| BLC{{"branch_locator_consent<br/>interrupt() (S15)<br/>§5.1.3 notice, no location<br/>read yet"}}
+    SG -->|"BedrockGatewayError<br/>(D-155, AUD-C-08)"| SVCDOWN["service_unavailable (D-155)<br/>§5.29 user-safe message<br/>— fail-closed like refuse,<br/>but claims nothing about<br/>the question/corpus/calendar"]
 
     DOCQA["answer_document_qa (S13)<br/>retrieval only (S19 split)"] --> FILTER["role_access_filter (S13)<br/>audiences=[public,role]<br/>+ branch + as_of<br/>— applied BEFORE search"]
-    FILTER --> HYBRID["RagRepository.hybrid_search<br/>FTS + pgvector + RRF (S13)"]
+    FILTER --> EMBED["create_embedding (S13)<br/>query vector"]
+    EMBED -->|"BedrockGatewayError<br/>(D-155, AUD-C-07)"| SVCDOWN
+    EMBED --> HYBRID["RagRepository.hybrid_search<br/>FTS + pgvector + RRF (S13)"]
     HYBRID --> RERANK["BedrockTask.RERANK (S13)<br/>top-30 → top 5-8,<br/>score=0 dropped (D-052)"]
     RERANK -->|"chunks empty"| ACCESS["explain_access (S19)<br/>count_matching_by_audience<br/>probe, no LLM, no chunk<br/>content — role-gated only<br/>(D-056)"]
     RERANK -->|"chunks non-empty"| SYNTH["synthesize_answer (S13/S19)<br/>BedrockTask.RAG_ANSWER,<br/>untrusted context, never<br/>a system instruction (§5.30.4)"]
@@ -608,6 +629,7 @@ flowchart TB
     AESC -->|"Command(resume:<br/>approved)"| ESEND["McpToolRegistry.call<br/>gmail.send_email<br/>+ interrupt_approvals row"]
     ESEND -->|"McpToolError"| EFAIL["EMAIL_FAILED_MESSAGE<br/>(§5.29 preserve draft)"]
 
+    CEXT -->|"BedrockGatewayError<br/>on its retrieve() call<br/>(D-155, AUD-C-07)"| SVCDOWN
     CEXT -->|"D-038: re-derive<br/>source_document_id/page<br/>from the real chunk row"| CROUTE{"event found +<br/>validate_event ok?"}
     CROUTE -->|"no"| NOEVENT["calendar_no_event (S14)<br/>§5.29 do not guess"]
     CROUTE -->|"yes"| CACT{{"calendar_action<br/>interrupt() (S14)"}}
@@ -624,6 +646,7 @@ flowchart TB
     LOCFIND -->|"ok"| LSORTED["branches sorted<br/>nearest-first"]
 
     REFUSE --> END([response])
+    SVCDOWN --> END
     UNAVAIL --> END
     NOANS --> END
     HINT --> END
@@ -646,7 +669,7 @@ flowchart TB
     classDef reject fill:#fee,stroke:#c44
     classDef interrupt fill:#ffe,stroke:#cc0
     class SG,RERANK,SYNTH,CEXT llm
-    class REFUSE,NOANS reject
+    class REFUSE,NOANS,SVCDOWN reject
     class AESC,CACT,BLC interrupt
 ```
 

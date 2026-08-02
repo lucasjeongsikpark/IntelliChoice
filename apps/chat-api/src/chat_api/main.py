@@ -27,7 +27,7 @@ from intellichoice_observability.tracing import (
     instrument_sqlalchemy_engines,
 )
 from intellichoice_shared.auth import Audience, Role, TokenClaims, staging_secret_matches
-from intellichoice_shared.bedrock import BedrockTask
+from intellichoice_shared.bedrock import BedrockGatewayError, BedrockTask
 from intellichoice_shared.build_identity import build_identity
 from intellichoice_shared.calendar import CalendarEvent
 from intellichoice_shared.db_ready import ping_engine
@@ -46,6 +46,7 @@ from pydantic import BaseModel
 from chat_api.config import get_settings
 from chat_api.dependencies import get_current_claims
 from chat_api.graph.build import build_graph
+from chat_api.graph.nodes import SERVICE_UNAVAILABLE_MESSAGE
 from chat_api.routers.events import router as events_router
 from chat_api.routers.meta import router as meta_router
 from chat_api.routers.sessions import router as sessions_router
@@ -213,6 +214,35 @@ install_global_rate_limit_middleware(
 # needs the per-lifespan `engine`s).
 install_request_logging_middleware(app)
 install_http_metrics_middleware(app, service_name=get_settings().otel_service_name)
+
+
+@app.exception_handler(BedrockGatewayError)
+async def _bedrock_gateway_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """AUD-C-07's backstop, deliberately narrow.
+
+    The finding's actual fix is in the graph: `scope_guard` and both `retrieve()` call
+    sites now degrade into `service_unavailable` with a user-safe message (SPEC §5.29).
+    This exists because the *reason* that 500 was reachable was structural - chat-api had
+    no exception handler at all, so any gateway call anyone adds later inherits the same
+    defect, and it surfaces to the browser as an opaque `net::ERR_FAILED` rather than a
+    status (the CORS half of AUD-F-16: error responses are raised outside
+    `CORSMiddleware`).
+
+    Scoped to `BedrockGatewayError` on purpose. A catch-all would also swallow real bugs
+    and report them to the client as a transient outage, which is how a crash becomes
+    invisible. 503 (not 500) because the condition is genuinely retryable, and it tells
+    a load balancer and a client the same true thing.
+    """
+    del request
+    logger.warning(
+        "bedrock_gateway_error_unhandled",
+        extra={"reason": type(exc).__name__, "detail": str(exc)},
+    )
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": SERVICE_UNAVAILABLE_MESSAGE},
+    )
+
 
 app.include_router(sessions_router)
 app.include_router(stream_router)

@@ -81,6 +81,14 @@ QA_CALENDAR_CALLS = Counter(
     "qa_calendar_calls_total", "Calendar intent lookups", labelnames=("result",)
 )
 QA_OUT_OF_SCOPE = Counter("qa_out_of_scope_total", "Queries refused as out of scope")
+# AUD-C-08: the operator-visible half. A degraded turn used to be indistinguishable from
+# a genuine out-of-scope refusal - same message, same counter - so a Bedrock outage read
+# on a dashboard as a sudden surge of off-topic questions. `stage` says which call failed.
+QA_SERVICE_DEGRADED = Counter(
+    "qa_service_degraded_total",
+    "Turns answered with the temporarily-unavailable message after a provider failure",
+    labelnames=("stage",),  # "scope_guard" | "document_qa_retrieval" | "calendar_retrieval"
+)
 QA_CONVERSATION_COST_CENTS = Histogram(
     "qa_conversation_cost_cents", "Bedrock spend per Q&A conversation, in cents"
 )

@@ -32,6 +32,10 @@ QAGraph = CompiledStateGraph[QAState, nodes.TurnContext, AskInput, QAState]
 
 
 def _route_after_scope_guard(state: QAState) -> str:
+    # AUD-C-08: checked before the scope decision, because when the classifier itself
+    # failed there *is* no scope decision - `refuse` would be making one up.
+    if state.service_degraded:
+        return "service_unavailable"
     if state.scope != "in_scope":
         return "refuse"
     if state.intent == "document_qa":
@@ -49,7 +53,13 @@ def _route_after_answer_document_qa(state: QAState) -> str:
     """SPEC §18-C3: an empty role-filtered retrieval routes to `explain_access` (the
     metadata-only access probe) instead of paying for an LLM synthesis call that has no
     chunks to work with anyway.
+
+    AUD-C-07: "retrieval failed" and "retrieval found nothing" are both empty and must
+    not share a branch - the second is a fact about the corpus, the first is a fact
+    about us.
     """
+    if state.service_degraded:
+        return "service_unavailable"
     return "explain_access" if not state.retrieved_chunk_ids else "synthesize_answer"
 
 
@@ -58,6 +68,11 @@ def _route_after_prepare_admin_escalation(state: QAState) -> str:
 
 
 def _route_after_calendar_extract(state: QAState) -> str:
+    # AUD-C-07's second call site. Without this the degraded turn would fall through to
+    # `calendar_no_event` ("I couldn't find a specific dated event") - again a claim
+    # about the calendar, made without having read it.
+    if state.service_degraded:
+        return "service_unavailable"
     if state.calendar_event is not None:
         return "calendar_action"
     if state.event_listing:
@@ -75,6 +90,10 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> QAGraph:
     graph.add_node("resolve_role", traced_node("langgraph.resolve_role")(nodes.resolve_role))
     graph.add_node("scope_guard", traced_node("langgraph.scope_guard")(nodes.scope_guard))
     graph.add_node("refuse", traced_node("langgraph.refuse")(nodes.refuse))
+    graph.add_node(
+        "service_unavailable",
+        traced_node("langgraph.service_unavailable")(nodes.service_unavailable),
+    )
     graph.add_node(
         "unavailable_intent", traced_node("langgraph.unavailable_intent")(nodes.unavailable_intent)
     )
@@ -122,6 +141,7 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> QAGraph:
         _route_after_scope_guard,
         {
             "refuse": "refuse",
+            "service_unavailable": "service_unavailable",
             "unavailable_intent": "unavailable_intent",
             "answer_document_qa": "answer_document_qa",
             "prepare_admin_escalation": "prepare_admin_escalation",
@@ -135,6 +155,7 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> QAGraph:
         {
             "synthesize_answer": "synthesize_answer",
             "explain_access": "explain_access",
+            "service_unavailable": "service_unavailable",
         },
     )
     graph.add_conditional_edges(
@@ -152,9 +173,11 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> QAGraph:
             "calendar_action": "calendar_action",
             "calendar_event_listing": "calendar_event_listing",
             "calendar_no_event": "calendar_no_event",
+            "service_unavailable": "service_unavailable",
         },
     )
     graph.add_edge("refuse", END)
+    graph.add_edge("service_unavailable", END)
     graph.add_edge("unavailable_intent", END)
     graph.add_edge("synthesize_answer", END)
     graph.add_edge("explain_access", END)

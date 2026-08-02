@@ -7,6 +7,7 @@ for every `ainvoke` call), rather than the checkpointed `QAState`, mirroring
 connections (SPEC §5.19.3/§5.5.3).
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
@@ -24,6 +25,7 @@ from intellichoice_observability.metrics import (
     QA_CONVERSATION_COST_CENTS,
     QA_EMAIL_ESCALATIONS,
     QA_OUT_OF_SCOPE,
+    QA_SERVICE_DEGRADED,
 )
 from intellichoice_observability.tracing import traced_span
 from intellichoice_shared.auth import TokenClaims
@@ -53,11 +55,26 @@ from chat_api.services.branch_locator import BranchLocatorResult, BranchLocatorS
 
 from .state import QAState
 
+logger = logging.getLogger(__name__)
+
 # SPEC §5.19.4 verbatim.
 OUT_OF_SCOPE_MESSAGE = (
     "I can help with IntelliChoice programs, branches, schedules, volunteering,\n"
     "student learning, parent information and tutor or branch procedures.\n"
     "I cannot answer unrelated general-purpose questions."
+)
+
+# SPEC §5.29's "user-safe error message", for the case the other messages in this module
+# cannot honestly cover: the turn failed for a reason that has nothing to do with what
+# was asked. AUD-C-07/AUD-C-08 - a Bedrock outage used to either 500 (unguarded
+# `create_embedding` on the retrieval path) or answer with the *out-of-scope* refusal
+# (`scope_guard`'s fail-closed branch), telling a user their in-scope question was
+# off-topic. Failing closed is right and is unchanged; saying something false about the
+# user's question is not. Says "try again", because unlike a refusal this one passes.
+SERVICE_UNAVAILABLE_MESSAGE = (
+    "I can't look that up right now - the assistant is temporarily unavailable.\n\n"
+    "This is a problem on our side, not with your question. Please try again in a few "
+    "minutes. If it keeps happening, contact your branch manager."
 )
 
 UNAVAILABLE_INTENT_MESSAGES = {
@@ -177,6 +194,31 @@ class TurnContext:
     client_ip: str | None = None
 
 
+def _degraded(stage: str, exc: BedrockGatewayError, state: QAState) -> dict:
+    """The state update every AUD-C-07/AUD-C-08 fallback returns: mark the turn degraded
+    so its router sends it to `service_unavailable`, count it under its own metric, and
+    still settle whatever the failed call cost (a call that failed after being billed is
+    exactly the kind of spend a budget must not lose track of).
+
+    One helper rather than three copies, because the failure is the same event at three
+    call sites and an operator correlating a spike wants one log name to grep for.
+    """
+    QA_SERVICE_DEGRADED.labels(stage=stage).inc()
+    logger.warning(
+        "qa_service_degraded",
+        extra={
+            "stage": stage,
+            "reason": type(exc).__name__,
+            "detail": str(exc),
+            "cost_cents": exc.cost_cents,
+        },
+    )
+    return {
+        "service_degraded": True,
+        "bedrock_spend_cents": state.bedrock_spend_cents + exc.cost_cents,
+    }
+
+
 def _ctx(runtime: Runtime[TurnContext]) -> TurnContext:
     assert isinstance(runtime.context, TurnContext)
     return runtime.context
@@ -227,6 +269,10 @@ async def resolve_role(state: QAState, runtime: Runtime[TurnContext]) -> dict:
         "ics_content": None,
         "retrieved_chunk_ids": None,
         "event_listing": None,
+        # AUD-C-07/AUD-C-08: same reasoning, one turn later. A `service_degraded` left
+        # set by a failed turn would answer "temporarily unavailable" on this thread
+        # forever, long after Bedrock recovered.
+        "service_degraded": False,
     }
 
 
@@ -248,11 +294,18 @@ async def scope_guard(state: QAState, runtime: Runtime[TurnContext]) -> dict:
             max_output_tokens=512,
             session_spend_cents=state.bedrock_spend_cents,
         )
-    except BedrockGatewayError:
-        # No SPEC §5.29-named fallback for this call - failing into a refusal (not into
-        # "in scope, answer anything") keeps the fail-closed default (CLAUDE.md #5)
-        # even when Bedrock itself is unavailable.
-        return {"scope": "out_of_scope", "intent": None}
+    except BedrockGatewayError as exc:
+        # No SPEC §5.29-named fallback for this call, so the turn still fails closed
+        # (CLAUDE.md #5): nothing is answered, and no intent runs. What changed in
+        # Phase 0B is only what the user is told. This used to return
+        # `scope="out_of_scope"`, which routed to `refuse` and told a user asking a
+        # perfectly in-scope question that it was an unrelated general-purpose one
+        # (AUD-C-08) - and did so identically to a genuine refusal, so neither the user
+        # nor an operator could tell an outage from a policy decision.
+        #
+        # `scope` stays `None` on purpose: no classification happened, so claiming one
+        # would be the same false statement moved into a different field.
+        return {"scope": None, "intent": None, **_degraded("scope_guard", exc, state)}
 
     return {
         "scope": "in_scope" if result.value.in_scope else "out_of_scope",
@@ -269,6 +322,30 @@ async def refuse(state: QAState, runtime: Runtime[TurnContext]) -> dict:
         "citations": [],
         "confidence": None,
         "missing_information": None,
+        "escalation_recommended": False,
+        "access_hint": None,
+    }
+
+
+async def service_unavailable(state: QAState, runtime: Runtime[TurnContext]) -> dict:
+    """AUD-C-07/AUD-C-08: the turn could not be completed for a reason that has nothing
+    to do with what was asked. Reached only when an upstream node set `service_degraded`
+    after a `BedrockGatewayError` it could not fall back from.
+
+    This is still fail-closed - no answer, no citations, no intent side effects - so it
+    is a sibling of `refuse`, not an escape from it. The difference is honesty: `refuse`
+    makes a claim about the user's *question*, and nothing is known about the question
+    here.
+    """
+    del state, runtime
+    return {
+        "answer": SERVICE_UNAVAILABLE_MESSAGE,
+        "citations": [],
+        "confidence": None,
+        "missing_information": None,
+        # Escalating to a human is the *right* advice when we cannot answer, but the
+        # escalation path is itself a Bedrock-and-MCP path, so recommending it during an
+        # outage sends the user into a second failure. The message says what to do.
         "escalation_recommended": False,
         "access_hint": None,
     }
@@ -304,15 +381,29 @@ async def answer_document_qa(state: QAState, runtime: Runtime[TurnContext]) -> d
     ctx = _ctx(runtime)
     assert state.standalone_query is not None
     filters = role_access.role_access_filter(state.user_role, state.branch_external_id)
-    retrieval = await retrieve(
-        ctx.rag_repo,
-        ctx.bedrock_gateway,
-        query=state.standalone_query,
-        filters=filters,
-        session_spend_cents=state.bedrock_spend_cents,
-        candidate_limit=ctx.candidate_limit,
-        top_k=ctx.top_k,
-    )
+    try:
+        retrieval = await retrieve(
+            ctx.rag_repo,
+            ctx.bedrock_gateway,
+            query=state.standalone_query,
+            filters=filters,
+            session_spend_cents=state.bedrock_spend_cents,
+            candidate_limit=ctx.candidate_limit,
+            top_k=ctx.top_k,
+        )
+    except BedrockGatewayError as exc:
+        # AUD-C-07. `retrieve()` already degrades gracefully when the *reranker* fails
+        # (it keeps the RRF order), but the query embedding has no such fallback - with
+        # no query vector there is no hybrid search to run - and this was the one
+        # uncaught gateway call in chat-api, so it surfaced as an unhandled 500.
+        #
+        # Routing to `service_unavailable` instead of to the empty-retrieval path
+        # matters: an empty retrieval means "nothing in the corpus matches you", which
+        # would send this to `explain_access` and answer with a no-source refusal or an
+        # access hint. Both are statements about the corpus, and the corpus was never
+        # searched.
+        return _degraded("document_qa_retrieval", exc, state)
+
     return {
         "retrieved_chunk_ids": [chunk.chunk_id for chunk in retrieval.chunks],
         "bedrock_spend_cents": state.bedrock_spend_cents + retrieval.cost_cents,
@@ -527,15 +618,23 @@ async def calendar_extract(state: QAState, runtime: Runtime[TurnContext]) -> dic
         event = calendar_events_service.to_calendar_event(match)
         return {"calendar_event": event.model_dump(mode="json"), "event_listing": None}
 
-    retrieval = await retrieve(
-        ctx.rag_repo,
-        ctx.bedrock_gateway,
-        query=state.standalone_query,
-        filters=filters,
-        session_spend_cents=state.bedrock_spend_cents,
-        candidate_limit=ctx.candidate_limit,
-        top_k=ctx.top_k,
-    )
+    try:
+        retrieval = await retrieve(
+            ctx.rag_repo,
+            ctx.bedrock_gateway,
+            query=state.standalone_query,
+            filters=filters,
+            session_spend_cents=state.bedrock_spend_cents,
+            candidate_limit=ctx.candidate_limit,
+            top_k=ctx.top_k,
+        )
+    except BedrockGatewayError as exc:
+        # AUD-C-07's second call site, reached only when the deterministic `org_events`
+        # lookup above found nothing - the RAG fallback for calendar content not yet
+        # migrated into the structured table. Guarding only `answer_document_qa` would
+        # have left the same unhandled 500 one calendar question away.
+        return _degraded("calendar_retrieval", exc, state)
+
     spend = state.bedrock_spend_cents + retrieval.cost_cents
 
     event, extraction_cost = await calendar_service.extract_calendar_event(

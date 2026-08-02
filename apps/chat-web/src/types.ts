@@ -74,4 +74,9 @@ export interface ChatTurn {
   id: string;
   query: string;
   response: TurnSnapshot | null;
+  // AUD-C-10: a turn has three states, not two. `response === null` alone meant "in
+  // flight", so a failed request left the turn indistinguishable from a pending one and
+  // `ChatScreen` rendered `Thinking…` forever. `error` is what makes the third state
+  // representable; it is cleared whenever a real response arrives for this turn.
+  error?: string | null;
 }
