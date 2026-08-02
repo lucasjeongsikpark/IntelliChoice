@@ -5,6 +5,45 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ The chat error-path cluster is closed — AUD-C-07, AUD-C-08 and AUD-C-10 fixed in one pass
+  (2026-08-02, D-155).** `make lint` clean, `pyright` 0 errors, **671 passed / 2 skipped**
+  (666 + 5 new); chat e2e **35/35**. **No deploy, no apply, no staging access at all.**
+  **Scope note: there was no numbered session to start.** Everything through S41 is ✅, S42's
+  source half is done, and S43–S47 are frozen by D-152 — so this session took the first coherent
+  cluster from the **24 findings still marked "Open — Phase 0B"**, which is what D-152's "finish
+  and test this codebase against the dev fakes" actually points at. S40–S41 took "all P1s + cheap
+  P2s"; the rest were never dispositioned.
+  **The three findings were one defect:** the product had no way to say *"this failed for a reason
+  that has nothing to do with what you asked"*, so each layer improvised — an unhandled **500**
+  (`retrieve()`'s `create_embedding`, chat-api's one uncaught gateway call, and no exception
+  handler anywhere), the **out-of-scope refusal** during a total outage (a student asking about
+  Saturday hours told "I cannot answer unrelated general-purpose questions"), and a **permanent
+  `Thinking…` bubble** downstream of both. Fixing one alone swaps a crash for a lie, or a lie for
+  a hang.
+  **The fix is one concept at three layers:** `service_degraded` → a new `service_unavailable`
+  node, a sibling of `refuse` (fail-closed unchanged; only the words change). Three routers check
+  it first, and each had been a distinct false statement — about the *question* (`scope_guard`),
+  about the *corpus* (`answer_document_qa`), about the *calendar* (`calendar_extract`). Both
+  `retrieve()` call sites are guarded, matching the finding's two reproductions. `scope` stays
+  `None`: no classification happened. Plus a narrow `BedrockGatewayError` → **503** handler as the
+  structural backstop, a `qa_service_degraded` log and a `stage`-labelled counter (a degraded turn
+  used to increment `qa_out_of_scope_total`, so an outage read as a surge of off-topic questions),
+  and `ChatTurn.error` giving a turn three states instead of two, with retry in place under the
+  same turn id.
+  **Everything was watched failing first, twice with the fix inverted.** The e2e test was
+  **inverted, not added** — `response-shapes.spec.ts` already held an AUD-C-10 test written to
+  pass *while* the defect existed, with a comment saying the fix failing it was the signal to
+  rewrite it. The 503 handler got its own inverted control (500 → 503).
+  **⚠️ One finding filed rather than swept in — AUD-C-19 (P3):** `qa.answer_question`'s
+  synthesis-failure branch still says "no approved source" when a source demonstrably exists. Same
+  defect, one site, but it carries a second decision (`escalation_recommended` — this path says
+  True, `service_unavailable` says False on purpose) that is a product call, not a mechanical
+  repeat.
+  **Also landed: S43's close-out, which was sitting uncommitted** — branch `s43-close-d154`,
+  **PR #85**. ⚠️ `docs/SECURITY_REPORT_TO_ORG.md` is an orphan earlier draft overlapping
+  `S42_SECURITY_REPORT.md` (the one PROGRESS.md points at); worth merging or removing before
+  either is sent.
+
 - **✅ S43 close: criterion 6's weekly firing is confirmed, the three org/product carry-overs are
   handled, and the UNKNOWN attendance block is now first-class (2026-08-02, D-154).** `make lint`
   clean, `pyright` 0 errors, **666 passed / 2 skipped** (665 + 1 new); attendance e2e spec 2/2;
@@ -168,21 +207,44 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-02 S43 close, post-D-154):**
-  1. **Send the two drafted messages** (they are written and send-ready; the remaining step is the
-     user actually sending them to the right people): the production security findings
+- **Next session, in order (2026-08-02, post-D-155):**
+  0. **Two commits are uncommitted-or-unmerged.** PR **#85** (`s43-close-d154`) is open and needs a
+     merge; **D-155's cluster is uncommitted in the working tree** (16 files) and needs its own
+     branch + PR. Neither has been deployed.
+  1. **Keep going down the Phase 0B backlog — this is the work D-152 points at.** **21** findings
+     remain tagged *Open — Phase 0B* (24 − D-155's three), and **23 open in total** counting
+     AUD-C-19 (new this session) and AUD-F-16. They cluster, and taking a
+     cluster rather than a finding is what made D-155 coherent. The next three worth taking as a
+     unit, in rough order of what a user would notice:
+     - **parent-visible correctness** — AUD-L-14 (`time_spent_minutes: 0.0` beside
+       `attempts_count: 26`, inside `verified_facts`), AUD-L-15 (one skill reading mastery 1.000
+       *and* "needs work" under one `"all time"` label), AUD-L-13 (memory facts never checked
+       against the measured mastery score in the same database);
+     - **idempotency/replay** — AUD-X-03 (a replayed `POST /sessions/{id}/topics` builds a second
+       exam and orphans the first), AUD-X-04 (no idempotency key on report generation: two clicks,
+       two paid Bedrock calls);
+     - **the masked-by-uniform-data pair** — AUD-C-09 (`academic_year` predicate never applied)
+       and AUD-L-12 (`recommended_difficulty` routes nothing), both correct code that was never
+       wired and is invisible until the data stops being uniform.
+     **AUD-C-19 (P3)** is the cheapest single item and is the direct follow-on to this session —
+     it needs the `escalation_recommended` product call written down, not just a message swap.
+  2. **Send the two drafted messages** (written and send-ready; the remaining step is you sending
+     them to the right people): the production security findings
      ([S42_SECURITY_REPORT.md](S42_SECURITY_REPORT.md), to the system operator) and the Enrollment
      FAQ approval ([ENROLLMENT_FAQ_APPROVAL.md](ENROLLMENT_FAQ_APPROVAL.md), to the content owner).
      Different audiences — do not merge. On FAQ approval: correct the four facts, flip
      `status: draft → approved`, re-run `make knowledge-load`.
-  2. **Optional criterion-6 confirmation reads remain free** on 08-03/08-05/08-09 (the daily-purge
+     ⚠️ **First:** `docs/SECURITY_REPORT_TO_ORG.md` is an orphan earlier English-only draft of the
+     same findings, referenced by nothing, overlapping the doc above. Merge or delete it so the
+     wrong one cannot go out.
+  3. **Optional criterion-6 confirmation reads remain free** on 08-03/08-05/08-09 (the daily-purge
      ≥7-day clock, not a gate blocker after D-148). `make scheduler-evidence` will keep printing
      ❌ NOT YET until retention-purge reaches 7 unattended days (~08-05); the weekly firing itself
-     is already confirmed (08-02, above). D-148 §2's reopening condition still applies if any
-     future firing fails.
-  3. **Still parked:** the Billing-console credit look (D-139 §3, "fine for now") and AUD-F-33's
+     is already confirmed (08-02). D-148 §2's reopening condition still applies if any future
+     firing fails.
+  4. **Still parked:** the Billing-console credit look (D-139 §3, "fine for now") and AUD-F-33's
      apply.
-  4. **Not on this list on purpose:** everything integration-shaped (S43–S47, auth, reachability,
+  5. **Not on this list on purpose:** everything integration-shaped (S43–S47, auth, reachability,
      the dev-fake rewrite). Frozen by D-152 until the user says integration is starting.
 
 - **✅ THE §2.6 GATE IS CLOSED (2026-08-01, D-148) — criterion 6 closed early by user decision, on
@@ -3729,6 +3791,54 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S44 (unnumbered) — Phase 0B: the chat error-path cluster, AUD-C-07 + AUD-C-08 + AUD-C-10 (2026-08-02) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer, not a numbered roadmap block.** There was no
+  numbered session available — everything through S41 is ✅, S42's source half is done, and S43–S47
+  are frozen by D-152 — so the session took the first coherent cluster from the 24 findings still
+  marked *Open — Phase 0B*, which is what D-152's "finish and test this codebase against the dev
+  fakes first" actually points at. No integration-shaped work. **No deploy, no apply, and no
+  staging access of any kind.**
+- **First, landed S43's close-out, which was sitting uncommitted** on the working tree from the
+  previous session: branch `s43-close-d154` → **PR #85** (D-154's attendance message, its API + e2e
+  tests, the two drafted org messages, the D-153/D-154 doc updates). Content unchanged.
+- **Built (D-155): one concept — a *degraded* turn — added at three layers.** `QAState.
+  service_degraded` → a new `service_unavailable` graph node, a sibling of `refuse` (fail-closed
+  unchanged; only the words change). Three routers check it before their own branch, and each had
+  been landing on a distinct false statement: about the *question* (`scope_guard` → `refuse`),
+  about the *corpus* (`answer_document_qa` → `explain_access`), about the *calendar*
+  (`calendar_extract` → `calendar_no_event`). Both `retrieve()` call sites guarded, matching the
+  finding's two reproductions. `scope` stays `None` — no classification happened. Plus a narrow
+  `BedrockGatewayError` → **503** handler on `app` as the structural backstop (chat-api had no
+  exception handler at all), a `qa_service_degraded` warning log, and a `stage`-labelled
+  `QA_SERVICE_DEGRADED` counter. Client side: `ChatTurn.error` gives a turn three states instead of
+  two, a failed turn renders a retryable bubble, and retry re-sends **under the same turn id** so
+  the transcript does not duplicate a question asked once.
+- **Deliberately not done:** no new field on the API response (the e2e drift control pins the field
+  set; operator visibility is the log + counter, which is the half of AUD-C-08 that mattered).
+- **Verification.** `make lint` clean, `pyright` 0 errors, **671 passed / 2 skipped** (666 + 5 new).
+  Chat e2e **35/35**. Everything watched failing first; two fixes also watched failing with the fix
+  inverted:
+  - four graph tests failed on behaviour pre-fix — three with the raw `BedrockGatewayError` escaping
+    the node (AUD-C-07), one on `'I can help with IntelliChoice programs…' == "I can't look that up
+    right now…"` (AUD-C-08 reproduced verbatim);
+  - the 503 handler: inverted control, **500 without → 503 with**;
+  - the e2e test was **inverted, not added** — `response-shapes.spec.ts` already carried an AUD-C-10
+    test written to *pass while the defect existed*, with a comment saying the fix failing it was
+    the signal to rewrite it. The rewritten regression test was then watched failing against the
+    pre-fix render gate, on its own named assertion.
+- **Carry-over:** **AUD-C-19 (P3)**, filed rather than swept in — `qa.answer_question`'s
+  synthesis-failure branch still returns `NO_SOURCE_MESSAGE` when a source demonstrably exists. Left
+  open because it is not a mechanical repeat: it carries a second decision
+  (`escalation_recommended` — that path says `True`, `service_unavailable` says `False` on purpose),
+  which is a product call, and its operator half is already covered by the existing
+  `rag_answer_unavailable` log. Also: `docs/SECURITY_REPORT_TO_ORG.md` is an orphan draft
+  overlapping `S42_SECURITY_REPORT.md` — resolve before either is sent.
+- **Docs:** D-155; AUD-C-07/08/10 marked fixed and AUD-C-19 filed in AUDIT_FINDINGS.md;
+  ARCHITECTURE.md §5 diagram gained the node and a new cross-cutting invariant ("failing closed is
+  not a licence to invent a reason").
+- **Decisions:** D-155.
 
 ### S43 — the post-D-151/D-152 carry-overs: criterion-6 weekly firing confirmed, two org drafts, UNKNOWN block made first-class (2026-08-02) ✅
 - **Scope: PROGRESS's own next-session list** (items 1–4), all handled. No integration-shaped work

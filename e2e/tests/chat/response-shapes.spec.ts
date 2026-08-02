@@ -108,13 +108,14 @@ test("AUD-C-11 rendered: the no-source refusal shows a citation beside a sentenc
   await expect(bubble.locator(".citation-chip")).toContainText("Branch Handbook");
 });
 
-test("AUD-C-10 rendered: an API error leaves the turn on Thinking… permanently", async ({
+test("AUD-C-10 regression: an API error resolves the turn into a retryable error bubble", async ({
   page,
   audit,
 }) => {
-  // Written to PASS while the defect exists, so the assertion states the *current*
-  // behavior. Phase 0B's fix will fail this test, which is the intent: the failure is
-  // the signal to invert it into a regression test.
+  // Inverted in Phase 0B, exactly as the original version of this test said it should
+  // be: it was written to PASS while the defect existed ("Thinking… persists 3s after a
+  // 500"), so the fix failing it was the signal to rewrite it as a regression test.
+  //
   // The 500 is the subject of the test, and Chromium logs its own console error for any
   // failed fetch ("Failed to load resource: ... 500"), which is the browser reporting
   // the stub rather than a defect. Both are allowed here and nowhere else.
@@ -127,16 +128,33 @@ test("AUD-C-10 rendered: an API error leaves the turn on Thinking… permanently
   await page.goto(CHAT_WEB);
   await ask(page, "this turn will 500");
 
-  await expect(page.getByText(THINKING)).toBeVisible();
-  // The error text renders too - but below the transcript, while the bubble itself
-  // never resolves. Both being true at once is the finding.
+  // The turn resolves: the stuck bubble is gone and the failure is stated in its place.
+  const failedBubble = page.locator(".message-row.assistant .bubble.turn-error");
+  await expect(failedBubble).toBeVisible();
+  await expect(failedBubble).toContainText("couldn't be sent");
+  // The page-level banner still renders - it was never the problem, it just could not
+  // clear a per-turn bubble.
   await expect(page.locator("p.error")).toBeVisible();
+
+  // The wait is the whole point of the original finding: "no timeout" meant the stuck
+  // state never resolved on its own. Held here to prove the fix is not merely a slower
+  // version of the same bug.
   await page.waitForTimeout(3000);
   await expect(
     page.getByText(THINKING),
-    "the stuck bubble cleared on its own - AUD-C-10 may be fixed; re-check the finding",
-  ).toBeVisible();
-  audit.note("AUD-C-10 reproduced in a browser: Thinking… persists 3s after a 500, error text also shown");
+    "AUD-C-10 has regressed: a failed turn is rendering as permanently in-flight again",
+  ).toHaveCount(0);
+
+  // And the dead end is a dead end no longer: retry re-sends the same turn, and when
+  // the API is healthy again the turn completes in place rather than being abandoned.
+  await stubChat(page, { message: SHAPES["grounded answer"] });
+  await page.getByRole("button", { name: /try again/i }).click();
+  const bubble = page.locator(".message-row.assistant .bubble").last();
+  await expect(bubble).toContainText("open 9am to 1pm on Saturdays");
+  await expect(page.locator(".bubble.turn-error")).toHaveCount(0);
+  // One question asked, one question shown - retrying in place must not duplicate it.
+  await expect(page.locator(".message-row.user .bubble")).toHaveCount(1);
+  audit.note("AUD-C-10 fixed: the 500 renders a retryable error bubble, and retry completes the same turn");
 });
 
 test("AUD-C-04 rendered: a paused turn shows the previous turn's answer and citations", async ({

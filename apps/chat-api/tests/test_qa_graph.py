@@ -12,8 +12,12 @@ import asyncio
 from datetime import UTC, datetime
 
 import pytest
-from chat_api.graph.build import AskInput, build_graph
-from chat_api.graph.nodes import OUT_OF_SCOPE_MESSAGE, TurnContext
+from chat_api.graph.build import AskInput, QAGraph, build_graph
+from chat_api.graph.nodes import (
+    OUT_OF_SCOPE_MESSAGE,
+    SERVICE_UNAVAILABLE_MESSAGE,
+    TurnContext,
+)
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_adapters.fake_auth import FakeTokenIssuer, JwtTokenVerifier
@@ -23,7 +27,7 @@ from intellichoice_db.repositories.mcp import McpToolCallRepository
 from intellichoice_db.repositories.org import OrgEventRepository
 from intellichoice_db.repositories.rag import RagRepository
 from intellichoice_shared.auth import Audience, Role, TokenClaims
-from intellichoice_shared.bedrock import BedrockTask
+from intellichoice_shared.bedrock import BedrockGateway, BedrockGatewayError, BedrockTask
 from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.profiles import (
     AttendanceStatus,
@@ -147,13 +151,15 @@ async def _ask(
     query: str,
     thread_id: str,
     profile_adapter=None,
+    gateway: BedrockGateway | None = None,
+    graph: QAGraph | None = None,
 ) -> dict:
-    graph = build_graph(InMemorySaver())
+    graph = graph or build_graph(InMemorySaver())
     ctx = TurnContext(
         claims=claims,
         profile_adapter=profile_adapter or FakeProfileAdapter(),
         rag_repo=RagRepository(session),
-        bedrock_gateway=_gateway(),
+        bedrock_gateway=gateway or _gateway(),
         interrupt_repo=InterruptApprovalRepository(session),
         mcp_registry=McpToolRegistry(),
         mcp_call_repo=McpToolCallRepository(session),
@@ -399,5 +405,168 @@ def test_prompt_injection_in_a_chunk_does_not_change_scope_or_intent() -> None:
             assert result["scope"] == "in_scope"
             assert result["intent"] == "document_qa"
             assert len(result["citations"]) >= 1
+
+    asyncio.run(run())
+
+
+# --- AUD-C-07 / AUD-C-08: a degraded turn is not a refusal ----------------------------
+#
+# Both findings are the same defect wearing two faces: when Bedrock is unavailable the
+# product either crashes (AUD-C-07, an unguarded `create_embedding`) or lies (AUD-C-08,
+# `scope_guard`'s fail-closed branch answering "your question was off-topic"). Failing
+# closed is correct and unchanged; what these pin is that the *user-visible outcome*
+# says the system is temporarily unavailable, and that it stays a 200 rather than a 500.
+
+
+class _DegradedGateway:
+    """A `BedrockGateway` whose embedding call, generation call, or both raise. Real
+    outages are asymmetric - generation and embeddings are different models from
+    different families with separate quotas and separate model-access enablement
+    (AUD-C-07), so "Titan is out while Claude is fine" is the *expected* shape, not an
+    exotic one. The default reproduces exactly that.
+    """
+
+    def __init__(self, *, fail_embedding: bool = True, fail_generation: bool = False) -> None:
+        self._fail_embedding = fail_embedding
+        self._fail_generation = fail_generation
+        self._healthy = _gateway()
+
+    async def generate_structured(self, **kwargs):
+        if self._fail_generation:
+            raise BedrockGatewayError("generation unavailable", cost_cents=0.0)
+        return await self._healthy.generate_structured(**kwargs)
+
+    async def create_embedding(self, **kwargs):
+        if self._fail_embedding:
+            raise BedrockGatewayError("embedding provider unavailable", cost_cents=0.0)
+        return await self._healthy.create_embedding(**kwargs)
+
+
+def test_embedding_failure_on_document_qa_is_a_service_message_not_a_500() -> None:
+    """AUD-C-07. `retrieve()` guards its *rerank* call and `scope_guard` guards its own,
+    but `retrieve()`'s `create_embedding` was unguarded and chat-api has no exception
+    handler - so a Titan outage, a tripped circuit or a budget exhausted at exactly that
+    point took the whole turn out with an unhandled 500.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            await _seed_chunk(
+                session, audience="public", chunk_text="Branches are open 9am to 1pm on Saturdays."
+            )
+
+            result = await _ask(
+                session,
+                claims=None,
+                query="What are the Saturday hours?",
+                thread_id="t-degraded-embedding",
+                gateway=_DegradedGateway(),
+            )
+
+            # Classification still worked (generation is healthy), so the turn was
+            # correctly recognised as in scope - it just could not be looked up.
+            assert result["scope"] == "in_scope"
+            assert result["intent"] == "document_qa"
+            assert result["answer"] == SERVICE_UNAVAILABLE_MESSAGE
+            assert result["citations"] == []
+            # Not a refusal and not a no-source answer: those tell the user something
+            # about their question, and nothing is known about their question here.
+            assert result["answer"] != OUT_OF_SCOPE_MESSAGE
+            assert result["escalation_recommended"] is False
+
+    asyncio.run(run())
+
+
+def test_embedding_failure_on_the_calendar_path_is_also_handled() -> None:
+    """AUD-C-07's second reproduction. `calendar_extract` calls the same unguarded
+    `retrieve()` when the deterministic `org_events` lookup misses, so the finding is
+    two call sites, not one - fixing only `answer_document_qa` would leave the 500
+    reachable by asking to add something to a calendar.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            result = await _ask(
+                session,
+                claims=None,
+                query="Please add the zqxv fundraiser to my calendar",
+                thread_id="t-degraded-calendar",
+                gateway=_DegradedGateway(),
+            )
+
+            assert result["answer"] == SERVICE_UNAVAILABLE_MESSAGE
+            # And it did not fall through to `calendar_no_event`'s "I couldn't find a
+            # specific dated event", which is a claim about the calendar made without
+            # having read it. `.get` because a node that never ran writes no key.
+            assert result.get("calendar_event") is None
+            assert result.get("event_listing") is None
+
+    asyncio.run(run())
+
+
+def test_total_outage_says_unavailable_rather_than_out_of_scope() -> None:
+    """AUD-C-08. With every provider call failing, `scope_guard` fell into its
+    fail-closed branch and the user was told *"I cannot answer unrelated general-purpose
+    questions."* about a perfectly in-scope question. §5.29 asks for a user-safe error
+    message; that is a user-*misleading* one, and it is indistinguishable from a genuine
+    refusal. The fail-closed behaviour is unchanged - only what it says.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            result = await _ask(
+                session,
+                claims=None,
+                query="What are the Saturday hours?",
+                thread_id="t-degraded-total",
+                gateway=_DegradedGateway(fail_embedding=True, fail_generation=True),
+            )
+
+            assert result["answer"] == SERVICE_UNAVAILABLE_MESSAGE
+            assert result["answer"] != OUT_OF_SCOPE_MESSAGE
+            # No scope decision was ever made, so claiming one would be the same lie in
+            # a different field - a client or an operator reading `scope` must not see
+            # "we classified this and it was off-topic".
+            assert result["scope"] is None
+            assert result["citations"] == []
+
+    asyncio.run(run())
+
+
+def test_a_degraded_turn_does_not_poison_the_next_turn_on_the_same_thread() -> None:
+    """The failure mode a per-turn flag invites: `QAState` is checkpointed per thread, so
+    a `service_degraded` left set by a failed turn would make every later turn on that
+    session answer "temporarily unavailable" forever, long after Bedrock recovered. The
+    reset belongs with the other per-turn fields in `resolve_role`, and this is what
+    fails if someone adds a field there and forgets this one.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            await _seed_chunk(
+                session, audience="public", chunk_text="Branches are open 9am to 1pm on Saturdays."
+            )
+            graph = build_graph(InMemorySaver())
+
+            degraded = await _ask(
+                session,
+                claims=None,
+                query="What are the Saturday hours?",
+                thread_id="t-degraded-recovery",
+                gateway=_DegradedGateway(),
+                graph=graph,
+            )
+            assert degraded["answer"] == SERVICE_UNAVAILABLE_MESSAGE
+
+            # Same thread, same checkpoint, healthy gateway - i.e. Bedrock came back.
+            recovered = await _ask(
+                session,
+                claims=None,
+                query="What are the Saturday hours?",
+                thread_id="t-degraded-recovery",
+                graph=graph,
+            )
+            assert recovered["answer"] != SERVICE_UNAVAILABLE_MESSAGE
+            assert len(recovered["citations"]) >= 1
 
     asyncio.run(run())

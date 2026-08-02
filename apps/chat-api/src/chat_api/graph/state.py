@@ -37,6 +37,15 @@ class QAState(BaseModel):
     scope: str | None = None
     intent: str | None = None
 
+    # AUD-C-07/AUD-C-08: set by any node that hit a `BedrockGatewayError` it had no
+    # fallback for, and read only by that node's own router, which sends the turn to
+    # `service_unavailable`. Per-turn, not sticky - `resolve_role` clears it alongside
+    # the other last-turn fields, or an outage would outlive itself on every thread it
+    # touched. Deliberately NOT surfaced on the API response: the user-visible signal is
+    # the message text, and widening the response shape would break the e2e drift
+    # control for a field no client needs to branch on.
+    service_degraded: bool = False
+
     # External chunk ids only, not full chunk bodies - the citations below already carry
     # every field a caller needs to display (SPEC §5.21.8's `Citation` schema).
     retrieved_chunk_ids: list[str] | None = None

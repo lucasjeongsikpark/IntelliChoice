@@ -9198,3 +9198,118 @@ phrasing nor `BLOCKED_MESSAGE`; `test_blocked_attendance_branch` now pins the AB
 `BLOCKED_MESSAGE`; the e2e unknown journey asserts the on-screen block says "not been marked yet"
 and not "did not receive". Both discriminate against the old single-message code. `make lint`
 clean, `pyright` 0 errors, **666 passed / 2 skipped**, the attendance e2e spec 2/2.
+
+---
+
+## D-155 — the chat error-path cluster: a Bedrock outage is now its own answer, not a crash and not a refusal (accepted, 2026-08-02)
+
+**Context.** With the §2.6 gate closed and integration deferred by D-152 ("finish and test this
+codebase against the dev fakes first"), the remaining engineering is the Phase 0B backlog:
+24 findings in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) still marked *Open — Phase 0B*, none of them
+integration-blocked. S40–S41 took "all P1s + cheap P2s" and the rest were never dispositioned.
+This session took the first coherent cluster: **AUD-C-07, AUD-C-08 and AUD-C-10.**
+
+### 1. They are one defect, which is why they were taken together
+
+Three findings, three symptoms, one missing concept: **the system had no way to say "this failed
+for a reason that has nothing to do with what you asked."** So each layer improvised.
+
+- **AUD-C-07** — `retrieve()`'s `create_embedding` was chat-api's one uncaught gateway call, and
+  chat-api had no exception handler at all, so a Titan outage / tripped circuit / budget exhausted
+  at that instant was an unhandled **500**.
+- **AUD-C-08** — `scope_guard` *did* catch its own failure and failed closed correctly, but
+  answered with SPEC §5.19.4's refusal: during an outage a student asking about Saturday hours was
+  told *"I cannot answer unrelated general-purpose questions."* Identical to a genuine refusal, in
+  the response and in the metrics.
+- **AUD-C-10** — chat-web's `ChatTurn` had two states (`response: null` = in flight, else done), so
+  the 500 above left a `Thinking…` bubble on screen **permanently**. A §2.6 criterion-3 stuck
+  state, reachable from the most ordinary failure there is.
+
+Fixing any one alone leaves the story broken: fixing the 500 without the message swaps a crash for
+a lie; fixing the message without the client swaps a lie for a hang.
+
+### 2. The shape of the fix — one concept added at three layers
+
+`QAState.service_degraded`, a per-turn flag set by any node that hit a `BedrockGatewayError` it had
+no fallback for, read only by that node's own router, which sends the turn to a new
+`service_unavailable` node. It is a **sibling of `refuse`, not an escape from it**: no answer, no
+citations, no intent side effects. Fail-closed (CLAUDE.md #5) is unchanged throughout. What changed
+is only what the product *says*.
+
+**Three routers check it first, and each was a distinct wrong branch:**
+
+| site | where it used to land | why that was a false statement |
+|---|---|---|
+| `scope_guard` | `refuse` | claims the user's question was off-topic; no classification ever ran |
+| `answer_document_qa` | `explain_access` (empty retrieval) | claims nothing in the corpus matches; the corpus was never searched |
+| `calendar_extract` | `calendar_no_event` | claims no dated event exists; the calendar was never read |
+
+**`scope` stays `None` on a degraded turn.** Setting `"out_of_scope"` was the original lie; moving
+it into a field the client can read would be the same lie relocated.
+
+**Both `retrieve()` call sites are guarded, not one.** AUD-C-07's reproduction names a `document_qa`
+query *and* a `calendar` query; `calendar_extract` calls the same `retrieve()` on its RAG fallback,
+so guarding only the obvious one leaves the 500 a single calendar question away.
+
+**The flag resets in `resolve_role`**, beside AUD-C-04's existing per-turn resets. A sticky
+`service_degraded` would make a thread answer "temporarily unavailable" forever, long after Bedrock
+recovered — an outage outliving itself on every session it touched. There is a test whose only job
+is that reset.
+
+### 3. What the API surface deliberately did *not* gain
+
+No new response field. Operator visibility comes from a `qa_service_degraded` warning log and a
+new `QA_SERVICE_DEGRADED` counter labelled by `stage` — which is the half of AUD-C-08 that mattered
+most, since a degraded turn previously incremented `qa_out_of_scope_total` and an outage read on a
+dashboard as a sudden surge of off-topic questions. Widening `MessageResponse` would have broken
+the e2e drift control for a field no client needs to branch on.
+
+### 4. The 503 handler is a backstop, and narrow on purpose
+
+`@app.exception_handler(BedrockGatewayError)` → **503** with the same user-safe message. The graph
+fix is the real fix; this exists because the *structural* reason a 500 was reachable is that
+chat-api registered no handler at all, so the next gateway call anyone adds inherits the defect —
+and an unhandled error is raised outside `CORSMiddleware`, so the browser sees an opaque
+`net::ERR_FAILED` rather than a status (AUD-F-16's dev-only CORS half). **Scoped to one exception
+type:** a catch-all would report real bugs to the client as a transient outage, which is how a
+crash becomes invisible. 503 rather than 500 because the condition is genuinely retryable.
+
+### 5. The client: a turn has three states now
+
+`ChatTurn.error` makes "failed" representable. `sendMessage` marks its own turn on throw and
+rethrows (so `run` still owns the page-level banner and busy flag — the banner was never the
+problem, it just cannot clear a per-turn bubble), `Thinking…` is gated on *not* having failed, and
+the failed turn renders a retryable bubble. **Retry re-sends under the same turn id**, so the
+transcript does not grow a duplicate question the user only asked once. An SSE snapshot clears
+`error`, for the case where the HTTP call failed but the graph run actually completed.
+
+### 6. Verification
+
+Every fix was watched failing first, and two were watched failing *again* with the fix inverted.
+
+- Four new graph tests failed on behaviour before the fix — three with the raw `BedrockGatewayError`
+  escaping the node (AUD-C-07 reproduced), one on the assertion `'I can help with IntelliChoice
+  programs…' == "I can't look that up right now…"` (AUD-C-08 reproduced verbatim).
+- The 503 test: **inverted control run — 500 without the handler, 503 with.**
+- The e2e test was **inverted, not added**. `response-shapes.spec.ts` already carried an AUD-C-10
+  test written to *pass while the defect existed*, with a comment saying the fix failing it was the
+  signal to rewrite it. That is what happened. The rewritten regression test was then watched
+  failing against the pre-fix render gate, on the exact assertion `"AUD-C-10 has regressed: a
+  failed turn is rendering as permanently in-flight again"`.
+- `make lint` clean, `pyright` 0 errors, **671 passed / 2 skipped** (666 + 5). Chat e2e **35/35**.
+- **No deploy, no `terraform apply`, no staging access of any kind.**
+
+### 7. One finding filed rather than swept in — AUD-C-19 (P3)
+
+`qa.answer_question`'s synthesis-failure branch still returns `NO_SOURCE_MESSAGE`: the chunks were
+retrieved, a source demonstrably exists, and the user is told there isn't one. Same defect as
+AUD-C-08 at the one site this cluster did not touch.
+
+It was left open **because it is not a mechanical repeat.** That path sets
+`escalation_recommended = True` and `service_unavailable` sets it `False` — deliberately, since
+recommending a human hand-off during an outage sends the user into a second Bedrock-and-MCP
+failure. Which is right *there* is a real product call (that failure is one call away from a real
+answer, so a retry may beat an escalation — but the user has already waited through a synthesis
+attempt), and deciding it quietly inside an unrelated cluster is how scope creeps. P3 rather than
+P2 because the operator half is already covered: the branch logs `rag_answer_unavailable` with
+reason and cost, added for AUD-X-12/D-115 whose lesson was this exact ambiguity costing a week.
