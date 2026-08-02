@@ -1193,20 +1193,59 @@ learning-app alarm inductions on their real condition, and an authenticated-traf
 all now reachable. **1** is unassessed since S37.
 
 ### Sessions 42–47 — Integration readiness and implementation *(INTEGRATION_PLAN §3, §5)*
-- **S42 — discovery, Tier 1 org asks, and the auth decision gate. ⚠️ NOT STARTED.** The session
-  numbered S42 (2026-07-27, D-110) spent itself on Phase 0B P1s instead — the spine puts the gate
-  *before* discovery, criterion 2 needed the P1s, and everything below is blocked on the org
-  replying rather than on code. **This scope is fully outstanding and its asks have external lead
-  time, so send them before the next session rather than at the start of it.** Exercise
-  `POST /api/accounts/login`, `GET /api/accounts`, `GET /api/accounts/signups` server-side from
-  AWS; icrest availability history; DB topology/network path/read-only account; DNS additions;
-  live role-string survey, timezone convention, schema snapshot. **Selects the §3.1 auth option
-  (O1 login-API delegation is the provisional recommendation) and the I11 data-path rung**,
-  recorded with §7 residual-risk acceptance in DECISIONS.md before S44 implements.
+
+> **⛔ DEFERRED BY USER DECISION (D-152).** The existing system stays as-is and **integration
+> happens much later**: the plan is to finish and test this codebase against the dev fakes first.
+> **S43–S47 are frozen by choice, not blocked** — do not start them, do not measure AWS→icrest
+> reachability, do not finalize the auth option, and do not rewrite the dev fake (the
+> `ProfileAdapter` Protocol is SPEC-derived, so the schema mismatches stay behind the seam).
+> S42's *source* half is done (D-151); the rest waits for the user to say integration is starting.
+- **S42 — discovery, Tier 1 org asks, and the auth decision gate. ⏸ SOURCE HALF DONE
+  (2026-08-01, D-151).** The user made the production system's source available at
+  `../IntelliChoice-web`, so discovery was answered from source rather than org recollection:
+  **[S42_DISCOVERY.md](S42_DISCOVERY.md)** (8 readers → synthesis → adversarial verify; 8/10
+  claims confirmed, 2 refuted-with-correction). **`GET /api/accounts/signups` carries per-child
+  `attended`, so O1b is feasible and the DB path leaves the critical path** (I11 rung 1). Login
+  and profile contracts, the full schema, the role vocabulary, and the timezone facts are all
+  captured; INTEGRATION_PLAN §1's four schema claims verified.
+  **Answered 2026-08-02 by the user (D-153), so the outstanding list shrank:** DNS is available
+  (added at integration); the **timezone question is closed by evidence** — the published schedule
+  is Mon–Fri 10:00–12:00 / 18:00–20:00, and the two conventions diverge only for Sunday evenings
+  and 00:00–01:00 starts, so they produce identical dates and weeks; peak concurrency is
+  unmeasured but the planning assumption is **~1,000 students across a week**.
+  **Still genuinely org- or runtime-only, and all deferred with the integration (D-152):**
+  TLS/proxy topology + outage history + where stdout goes (Message C), the from-AWS reachability
+  measurement, and three live-DB reads (`SELECT DISTINCT role`, `SHOW CREATE TABLE` for drift and
+  password collation, deployed-build confirmation). **The §3.1 auth selection and I11 rung are
+  recommended (O1b, O2 as fallback) but NOT decided** — they need §7 residual-risk acceptance in
+  DECISIONS.md before S44 implements, and that decision waits for the reachability measurement.
 - **S43 — `IcProfileAdapter`** (I3–I7, I15) behind the existing `ProfileAdapter` Protocol: id
   namespacing (`acct-<id>`/`child-<id>`), attendance derivation from `signups.attended`,
   fail-closed role mapping, branch enrichment; contract tests against captured fixtures + a
   deploy-time schema smoke probe (I12).
+  **⚠️ Scope known from D-151, to be handled *when S43 runs* (not before — D-152):** the MySQL dev
+  fake models a system that does not exist — six structural mismatches (branch metadata columns
+  production lacks; a role ENUM that cannot hold Tutor/Manager and is the wrong case; week-keyed
+  attendance vs per-session tri-state; opaque external ids vs integer PKs; a parent-child join
+  table vs an FK; grade `VARCHAR`/`str` vs INTEGER 0=K). Build `IcProfileAdapter` against
+  production-shaped fixtures rather than extending the fake — S42_DISCOVERY.md §9. **Do not
+  rewrite the fake in the meantime:** the mismatches stay behind the Protocol seam, and the live
+  schema can still move under `sync({alter:true})`.
+  **Design fact to plan for (D-152 §3): `IcProfileAdapter` merges TWO sources.** `BranchInfo`
+  requires non-nullable `manager_email`/`address`/`latitude`/`longitude`; production `locations`
+  has none of them — address and coordinates come from the new stack's own `org_branches`, and
+  manager email from an `accounts` join on `locationId` where `role = 'Manager'`.
+  **⛔ Security constraint (D-153 §5, rationale updated in §7): production `role` must never by
+  itself grant an elevated role here.** The org's policy is that Student/Parent/Tutor are
+  self-selected and `Manager` is admin-only — the frontend implements that, the API does not
+  (`req.body.role` is persisted verbatim), and a fix has been requested. **The constraint stands
+  regardless of that fix**: pre-fix rows may already carry a self-assigned `Manager`, production
+  is frozen and schema-drifting, and authorization is not delegated to another system's input
+  validation (CLAUDE.md rule 3). Map Student/Parent from production; gate `Tutor`/`Manager`
+  behind an allowlist the new stack controls.
+  **Also at S43 (D-153 §4): assert no ingested session starts 00:00–01:00 local or on a Sunday
+  evening**, and log loudly if one ever does — that is the only window where the timezone
+  convention could change which week a session belongs to.
 - **S44 — independent auth** (I1, I14): the selected option, token issuer with SPEC claims +
   per-app secrets, login UI replacing `DevLoginScreen`, per-account+per-IP login rate limiting,
   refresh/revocation, logout semantics.

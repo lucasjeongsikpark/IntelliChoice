@@ -22,6 +22,38 @@ deployed apps sharing auth from the existing `go.intellichoice.org` system:
 - [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md) — the practical runbook for a real
   incident (leaked credential, auth bypass, cost anomaly, etc.), grounded in this project's own
   real incidents (S32/D-084, S33/D-085).
+- [docs/S42_DISCOVERY.md](docs/S42_DISCOVERY.md) — what the **existing** `go.intellichoice.org`
+  system actually does, read from its own source (D-151). Read this before assuming anything about
+  production's schema, roles, attendance, or login contract.
+
+## The existing production system
+
+Its source is checked out at `../IntelliChoice-web` (`icrest/` Express+Sequelize backend,
+`icweb/` React frontend) and is **the source of truth for the existing system** — read it rather
+than guessing or waiting on the org. Two hard rules: **never read `icrest/app/config/db.config.js`
+or `intellichoice-sendmail-*.json`** (committed credentials), and never quote the source-visible
+JWT secret or password-HMAC key values anywhere. Production is **frozen** — findings about it get
+reported to the user, never fixed here.
+
+### ⛔ Integration is deliberately deferred (D-152) — do not "unblock" it
+
+The user's sequencing decision: **finish and test this codebase against the dev fakes first, then
+integrate.** So in any session, unless the user explicitly says integration is starting:
+
+- **Do not** measure AWS→icrest reachability, request the production API URL or a test account, or
+  finalize the §3.1 auth option. Those results go stale before they are used; O1b stays a
+  *recommendation* until measured, right before S44.
+- **Do not** treat S44+ items or [S42_OPEN_QUESTIONS.md](docs/S42_OPEN_QUESTIONS.md) groups A/B/C/D
+  as blockers. They are frozen by choice, not stuck.
+- **Do not** rewrite the MySQL dev fake to match production's schema. Its shape is wrong on purpose
+  and that is safe: the `ProfileAdapter` Protocol (`StudentProfile`/`BranchInfo`/`AttendanceStatus`)
+  is SPEC-derived, not fake-derived, so the mismatches stay behind the adapter seam until S43.
+- **Do** keep the seam honest. Anything that would make an app-level decision depend on the fake's
+  *schema* rather than on the Protocol is a real defect — say so.
+
+The one production fact that must inform product work **now**: `signups.attended = null` ("manager
+hasn't marked it yet") is common, so `AttendanceStatus.UNKNOWN` → blocked is a **routine** path in
+production, not a rare one (D-152 §2).
 
 ## Session workflow
 

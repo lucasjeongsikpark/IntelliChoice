@@ -5,6 +5,40 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ S42 discovery is answered from the production system's own source, and O1b is feasible
+  (2026-08-01, D-151).** The user made `../IntelliChoice-web` available (icrest Express/Sequelize
+  backend + icweb React frontend + a 15-part prior analysis) and designated it the source of truth
+  for the existing system — collapsing most of the Message A/C asks that had blocked S42 for
+  thirteen sessions. Full evidence: **[S42_DISCOVERY.md](S42_DISCOVERY.md)**.
+  **Method, because the conclusions are load-bearing:** 8 parallel source readers → synthesis →
+  **10 load-bearing claims re-read by adversarial verifiers told to refute them** = 8 CONFIRMED,
+  2 REFUTED-with-correction, 0 unclear; the decisive claim was then re-verified by hand before
+  being written down. Credentials excluded by construction (db.config.js and the Gmail key never
+  read; secret values never quoted).
+  **The decider: `GET /api/accounts/signups` carries per-child, per-session `attended`** — full
+  Sequelize instances, no `attributes` restriction, `attended: BOOLEAN allowNull:true`. So the
+  attendance gate needs **no direct-MySQL path**: I11 rung 1 (API-only) is viable and **O1b is the
+  recommendation**, O2 kept as the fallback if AWS→icrest measurement disappoints. **Still the
+  user's decision** (§7 residual-risk acceptance owed before S44).
+  **INTEGRATION_PLAN §1 verified four for four** (accounts 23 model attrs / 28 physical columns,
+  `children.deleted`, `locations` really has only name/online/active, `signups.attended` nullable
+  tri-state). `sync({alter:true})` on every boot confirmed — with `drop-indexes.sh` as collateral
+  proof it does real damage, so **I12's drift defense is justified**.
+  **Timezone: facts settled, decision not.** Storage is UTC instants; production's reports use a
+  DST-unaware hard-coded −6 at three sites while its UI renders DST-aware local — it implements
+  **both**, so source cannot decide. US Central confirmed; **`ORG_TIME_CONFIRMED` stays false**
+  until Message A is answered.
+  **⚠️ Two refutations that got worse, not better:** the login handler's missing error path
+  **terminates the process** on Node ≥ 15 (async handler, no try/catch, no type guard, no
+  process-level handler, unpinned Node) rather than hanging a socket; and **`Manager` is
+  self-assignable** — register persists `req.body.role` verbatim, the Parent/Student/Tutor limit is
+  frontend-only. Production role strings are unvalidated user input, which is exactly why I7 must
+  fail closed. These and four more are catalogued as **the org's decisions, not this roadmap's
+  work** (production is frozen; reporting to the owner is the disposition).
+  **⚠️ S43's scope grew: the MySQL dev fake models a system that does not exist** — six structural
+  must-fix mismatches (branch metadata, role ENUM, attendance shape, ids, parent-child linkage,
+  grade type). **A green contract test against today's fake is evidence about a fiction.**
+
 - **✅ The pointer's three P2s are closed in one post-gate session — AUD-C-18 diagnosed to a
   one-line root cause and fixed, AUD-X-16's floor check is executable, AUD-F-35's evidence bar is
   enforced (2026-08-01, second close, D-150).** `make lint` clean, `pyright` 0 errors,
@@ -44,7 +78,68 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **three** manual `Consolidation run complete` lines today (D-148's 03:47Z, D-149's 04:39Z, and
   this de-risk run) — none are Scheduler firings.
 
-- **Next session, in order (2026-08-01 second close, post-D-150 incl. §5's deploy):**
+- **✅ The parked decisions are all answered and two of them are now code (2026-08-02, D-153).**
+  `make lint` clean, `pyright` 0 errors, **665 passed / 2 skipped** (663 + 2 new) — re-run at
+  session close, same result. **No deploy and no apply this session** (the 08-01 deploy of
+  `gha-812db34916a6` stands); every staging touch was read-only.
+  **⚠️ Criterion 6's confirmation read could NOT run: it is 05:49Z and the weekly slot is
+  18:30Z.** `make scheduler-evidence` is the first item of the next session, unchanged, and D-148
+  §2's reopening condition still applies to it.
+  **`bedrock_run_budget_cents` 200 → 3,000**, sized from the user's planning cohort (~1,000
+  students across a week × the measured 2-3 cents each), i.e. ~$30/run and ~$130/month — a
+  *ceiling*, not a spend, and still finite enough to stop a pathological run (per-student cost is
+  capped at 20k tokens × ≤4 calls ⇒ ~12,000 cents worst case). **The silent half mattered more:**
+  the summary said `len(student_ids)`, so a run stopping at 700 of 1,000 announced "1000
+  student(s)" and the 300 skipped were invisible. Now `N of M student(s), K SKIPPED (over budget)`
+  plus a stop line saying they are **not queued anywhere**. Named-not-fixed: no `ORDER BY`, so a
+  persistently over-budget run would starve the same tail — rotation, not a bigger number, is the
+  fix if the cap ever binds.
+  **`learning_events` gets a retention promise: 365 days**, the same window as `student_reports`
+  ("a school year of learning history"), purged by the existing daily job. Closes D-141 §5, the
+  one unbounded table. **The floor is executable, not a comment:** events are what
+  `evidence_event_ids` point at and `promote_if_eligible` resolves, so the window must be ≥
+  semantic_memory (90) + the consolidation window (7) = 97 days; the guard test was **watched
+  failing at 60 days**. Safe because the read surface was checked, not assumed — only the
+  consolidation window query and `get_events_by_ids` touch the table.
+  **Capacity: nothing shrinks; the parked r = 5 purchase is withdrawn.** chat-api already runs one
+  task, and learning-api 2 → 1 would save ~$14/month while costing parity with criterion 7's
+  ≥2-task evidence and AUD-F-29's survivability — not a trade worth making. r = 5 was never
+  applied, so cancelling it is bookkeeping; revisit at integration when concurrency is measured.
+  **⚠️ Timezone is closed by evidence (D-153 §4):** the public schedule is Mon–Fri 10:00–12:00 and
+  18:00–20:00 — **no Sunday sessions, nothing 00:00–01:00**, which are the only two windows where
+  the conventions disagree about date or week. So both produce identical results and **Message A
+  is no longer a blocker of any kind.** Limit stated: that is the marketing site, not the
+  operational `calendars` table, so S43 asserts the property instead of trusting it.
+  **⚠️ Role policy, corrected the same day (D-153 §7): `Manager` is meant to be admin-only, and
+  the API does not enforce it.** The org's rule is Student/Parent/Tutor self-selected, `Manager`
+  by an administrator — **the frontend implements exactly that** (three radios) **and the backend
+  does not** (`req.body.role` persisted verbatim, no allowlist; no role-changing endpoint exists,
+  so `Manager` is a direct DB edit today). **A second path found while verifying:** re-registering
+  an existing *unverified* email overwrites that account's password **and role**. Both go on the
+  fix-request list with §6.1/§6.3/§6.4. **Our constraint does not relax when the fix lands** —
+  pre-fix rows may already carry a self-assigned `Manager`, production is frozen and
+  schema-drifting, and authorization is not delegated to another system's validation (rule 3).
+  **S43/S44: map Student/Parent from production; gate `Tutor`/`Manager` behind our own allowlist.**
+
+- **⛔ INTEGRATION IS DEFERRED BY USER DECISION (D-152) — read this before planning anything.**
+  The existing system stays as-is; **this codebase gets finished and tested against the dev fakes
+  first**, and integration happens much later. So **S43–S47 are frozen by choice, not blocked**:
+  no reachability measurement, no production API URL or test account, no auth finalization
+  (O1b stays a *recommendation*), and **no rewriting the MySQL dev fake** — the `ProfileAdapter`
+  Protocol is SPEC-derived, so D-151's six mismatches stay behind the seam. This is verified, not
+  assumed: `grade` reaches only prompt payloads (curriculum matches on `grade_band`), and role/id/
+  linkage/attendance-derivation all live inside the future adapter. **D-151's "fix the fake"
+  urgency is withdrawn.**
+  **Two things survive the deferral:** the production security findings (S42_DISCOVERY.md §6 —
+  independent of our schedule, §6.1 is live today) and Message B (DNS — durable answer, one
+  message).
+  **One product consequence applies now (D-152 §2):** `signups.attended = null` ("not yet marked")
+  is the *common* production state, so **UNKNOWN → blocked is a routine path, not a rare one**.
+  Fail-closed is already correct; what needs work is that the path is often taken — blocked-screen
+  wording, what the student does next, late-marking recovery, and seeding an unmarked student so
+  e2e exercises it.
+
+- **Next session, in order (2026-08-01 third close, post-D-151/D-152):**
   1. **2026-08-02, after 18:30Z: `make scheduler-evidence`** — criterion 6's confirmation read
      (D-148 §2: a failure reopens it). Expect two unattributed *firings* (03:47Z and 04:39Z
      clones) plus a **third manual `Consolidation` log line** from D-150 §5's de-risk run
@@ -52,13 +147,20 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      0 reconfirmed` at full spend (the stable state, now seen three times). The firing runs
      `gha-812db34916a6` — already proven by the de-risk run, so a failure indicts the schedule
      path.
-  2. **Send Message A** (fourteenth session carrying it) **and Message D**, separately — A gates
-     S42/S43 discovery, which is otherwise the next roadmap scope.
-  3. **The Enrollment FAQ needs org approval** (editorial, launch checklist) — the launch
+  2. **Report the production security findings** (S42_DISCOVERY.md §6.1/§6.3/§6.4) to whoever
+     maintains the existing system — the only org item that survives D-152's deferral. DNS is
+     answered (available; added at integration), timezone is closed by evidence, and Messages C/D
+     wait for integration.
+  3. **Make the UNKNOWN attendance path first-class (D-152 §2)** — it is the *routine* production
+     path, not a rare one. Seed a student whose session is unmarked so e2e exercises it; review
+     the blocked screen's wording and the late-marking recovery story.
+  4. **The Enrollment FAQ needs org approval** (editorial, launch checklist) — the launch
      journey's canonical guest question refuses correctly until it lands.
-  4. **Decisions still parked:** `bedrock_run_budget_cents` before the pilot (D-141 §8);
-     `learning_events` retention (D-141 §5, a SPEC question); the Billing-console credit look
-     (D-139 §3); r = 5 capacity at ~$43/month + AUD-F-33's apply.
+  5. **Still parked:** the Billing-console credit look (D-139 §3, "fine for now") and AUD-F-33's
+     apply. `bedrock_run_budget_cents`, `learning_events` retention, and the r = 5 capacity
+     question are **all answered in D-153** and no longer parked.
+  6. **Not on this list on purpose:** everything integration-shaped (S43–S47, auth, reachability,
+     the dev-fake rewrite). Frozen by D-152 until the user says integration is starting.
 
 - **✅ THE §2.6 GATE IS CLOSED (2026-08-01, D-148) — criterion 6 closed early by user decision, on
   manufactured-but-real evidence.** The user directed the calendar blocker be bypassed; the

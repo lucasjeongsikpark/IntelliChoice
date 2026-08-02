@@ -76,13 +76,24 @@ async def main() -> int:
             spend = 0.0
             total_added = total_updated = total_contested = total_expired = 0
             total_attempted = total_failed = total_dropped = 0
-            for student_id in student_ids:
+            students_processed = 0
+            students_skipped = 0
+            for index, student_id in enumerate(student_ids):
                 if spend >= settings.bedrock_run_budget_cents:
+                    # D-153: name the students who were NOT consolidated. The summary line
+                    # below used to report `len(student_ids)`, so a run that stopped at 700
+                    # of 1,000 announced "1000 student(s)" and the 300 who were skipped were
+                    # invisible - `0 added` for a student who was never attempted reads
+                    # exactly like `0 added` for a student with nothing to consolidate.
+                    students_skipped = len(student_ids) - index
                     print(
-                        f"run budget of {settings.bedrock_run_budget_cents} cents "
-                        "reached - stopping early"
+                        f"run budget of {settings.bedrock_run_budget_cents} cents reached - "
+                        f"stopping early. {students_skipped} student(s) NOT consolidated this "
+                        "run; they are not queued anywhere and the next run re-derives its own "
+                        "list, so a persistently over-budget run silently starves the tail."
                     )
                     break
+                students_processed += 1
                 result = await consolidate_student_window(
                     memory_repo=memory_repo,
                     tutor_chat_repo=tutor_chat_repo,
@@ -116,8 +127,10 @@ async def main() -> int:
         # The counts go in the summary line unconditionally, including the zeros. The old line
         # said "complete" and nothing else, so a run in which nothing worked read exactly like a
         # run with nothing to do - and `0 added` is the correct output for both.
+        skipped_note = f", {students_skipped} SKIPPED (over budget)" if students_skipped else ""
         print(
-            f"Consolidation run complete: {len(student_ids)} student(s), "
+            f"Consolidation run complete: {students_processed} of {len(student_ids)} "
+            f"student(s){skipped_note}, "
             f"{total_added} added, {total_updated} reconfirmed, {total_contested} "
             f"contested, {total_expired} expired, {spend:.2f} cents spent; "
             f"{total_attempted} model call(s), {total_failed} failed, "

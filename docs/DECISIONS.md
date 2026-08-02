@@ -8850,3 +8850,313 @@ ops-task log window now also carries **today's third `Consolidation run complete
 (~05:5xZ, this de-risking run) on top of D-148/D-149's two clones; like them it is a `run-task`,
 not a Scheduler firing, so `InvocationAttemptCount` attribution is unaffected — but anyone
 counting *log lines* tomorrow should expect three manual ones today, not two.
+
+## D-151 — S42 discovery answered from the production system's own source: O1b is feasible, the dev fake models a system that does not exist (accepted, 2026-08-01)
+
+**Context.** The user made the existing system's source available locally at
+`../IntelliChoice-web` (`icrest` Express/Sequelize backend, `icweb` CRA frontend, plus a
+pre-existing 15-part analysis) and designated it **the source of truth for the existing system**.
+S42 discovery had been blocked for thirteen sessions on an unsent Message A; source access
+collapses most of it. Full findings with evidence: **[S42_DISCOVERY.md](S42_DISCOVERY.md)**.
+No new-stack code changed in this decision — this is discovery, and the auth decision it
+recommends is still the user's.
+
+### 1. Method, because the conclusions are load-bearing
+
+Eight parallel source readers → synthesis → **ten load-bearing claims re-read by independent
+adversarial verifiers instructed to refute them**: **8 CONFIRMED, 2 REFUTED-with-correction, 0
+unclear**. Both corrections made their finding *more* severe. The single decisive claim (§2) was
+then verified by hand before being written down — the standing rule that a new measurement gets a
+control before its first reading is quoted. Credentials were excluded by construction: the
+committed `db.config.js` and Gmail service-account key were never read, and where a secret's
+existence matters the doc names its file and role, never its value.
+
+### 2. The decisive fact: `GET /api/accounts/signups` carries `attended`, so O1b is feasible
+
+`getSignups` returns full Sequelize `Calendar` instances with nested `Signup` rows and **no
+`attributes` restriction**, and `signup.model.js` defines `attended: BOOLEAN, allowNull: true`.
+So a caller-scoped response carries per-child, per-session attendance plus `calendars.startTime`.
+**This removes the direct-MySQL path from the critical path entirely** — the integration can sit
+on I11 rung 1 (API-only), coupled to a public HTTP contract rather than to production internals.
+Recommendation: **O1b**, with O2 (HMAC re-verification) kept as the documented fallback if
+measurement shows the login endpoint is unreachable from AWS. Decision remains the user's, to be
+recorded with §7 residual-risk acceptance before S44.
+
+Three derivation hazards, all fail-closed-able and all named in the doc: `attended = null` is
+*never marked*, not absent; the children include has no `deleted: false` filter; and "attended
+this week" depends on the timezone question below.
+
+### 3. INTEGRATION_PLAN §1 verified — four for four, with one wording nit
+
+`accounts` 23 **model attributes** (28 physical columns once Sequelize adds id/timestamps/FKs);
+`children.deleted` soft-flag; `locations` genuinely has only name/online/active; `signups.attended`
+nullable tri-state. The plan's facts hold. `sequelize.sync({alter: true})` on every boot is
+confirmed, and `scripts/drop-indexes.sh` — which exists solely to delete the duplicate indexes
+that sync recreates, via `sudo mariadb ic` — is collateral proof it does real damage. **I12's
+drift defense is justified rather than defensive over-engineering.**
+
+### 4. Timezone: the facts are settled, the decision is not
+
+Storage is unambiguously **UTC instants** (Sequelize default `+00:00`, no `timezone` option).
+Production's own reports convert with a hard-coded DST-unaware `CONVERT_TZ(…, '-6:00')` at three
+sites while its UI renders DST-aware local. Source **confirms US Central** (all branches but Leupp
+AZ; seed sessions named "…Central") but **cannot** decide the convention, because production
+implements both. `ORG_TIMEZONE=America/Chicago` is confirmed; **`ORG_TIME_CONFIRMED` stays false**
+until Message A is answered. The two conventions disagree only for 00:00–01:00 starts (date) and
+Sunday evenings (week) — the only windows where the weekly gate could wrongly turn away a student
+who attended.
+
+### 5. Two refutations worth keeping
+
+- **KC2:** the login handler's missing error path is worse than "a hung socket". It is `async` with
+  no try/catch and no type guard, so a non-string `email` throws into a promise Express 4 never
+  sees; with no process-level handler and an unpinned Node version, **Node ≥ 15 terminates the
+  process**. A production availability finding, reported to the owner, not our code to fix.
+- **KC3:** `Manager` is **not** server-assigned. Register persists `req.body.role` verbatim with no
+  allowlist — the Parent/Student/Tutor limit is frontend-only. **Production role strings are
+  unvalidated user input**, which is precisely why I7 must fail closed, and why
+  `SELECT DISTINCT role` against live data is owed before S43 trusts any mapping.
+
+Further production findings (credentials in logs, one non-CSPRNG never-expiring 6-digit code
+shared between email verification and password reset, `?token=` transport with no revocation) are
+catalogued in S42_DISCOVERY.md §6 as **the org's decisions, not this roadmap's work** — production
+is frozen by constraint, and reporting them to the owner is the correct disposition.
+
+### 6. The consequence that changes S43: the dev fake models a system that does not exist
+
+Six structural mismatches, every one must-fix: branch metadata (the fake has address/coords/manager
+email as columns; production's `locations` has none of them), role vocabulary and case (`ENUM
+('student','parent')` cannot even hold Tutor/Manager), attendance shape (the fake is pre-reduced to
+week-keyed rows; production is per-session tri-state), id convention, parent→child linkage (FK, not
+a join table), and grade type (INTEGER 0=K vs `VARCHAR`/`str`). **A green contract test against
+today's fake is evidence about a fiction.** S43 should build against production-shaped fixtures
+captured from source, not an incrementally extended fake — the fake's job was to let the app boot
+without the org, and it did that faithfully against the wrong schema.
+
+### 7. What still needs the org, now much smaller
+
+Message A (the timezone *decision* + Central confirmation + whether Sunday-evening/00:00–01:00
+sessions exist), Message B (DNS), Message C (DB reachability — now only needed for the O2 fallback;
+TLS/proxy topology; outage history; where stdout goes), Message D (peak users). Newly owed and
+answerable only against the live system: `SELECT DISTINCT role`, `SHOW CREATE TABLE` for drift and
+the `accounts.password` collation, and confirmation that the deployed build matches this checkout.
+
+## D-152 — sequencing: finish and test this codebase against the fakes first, integrate later (accepted, 2026-08-01)
+
+**Decision (user).** The existing system is already deployed and will stay untouched, but **real
+integration happens much later**. Until then the plan is: keep assuming the existing system via
+the dev fakes, finish and test this codebase, and only then join the two. This supersedes the
+"unblock S44 as soon as possible" posture that D-151's recommendations were written under.
+
+### 1. Why this is safe, checked rather than assumed
+
+The `ProfileAdapter` Protocol is doing real work. The app consumes `StudentProfile`, `BranchInfo`
+and `AttendanceStatus` — **types derived from the SPEC, not from the fake** — so the six schema
+mismatches catalogued in [S42_DISCOVERY.md](S42_DISCOVERY.md) §9 stay behind the adapter seam and
+do **not** contaminate app code or tests written now. Verified case by case:
+
+- **grade** (production INTEGER 0=K vs Protocol `str`): flows only into LLM prompt payloads;
+  curriculum matching uses `grade_band` from the content definitions, never `profile.grade`. Safe.
+- **role vocabulary/case, id convention, parent↔child linkage**: entirely inside the future
+  adapter. Safe.
+- **attendance derivation** (per-session tri-state → week): future adapter code; "untested" is
+  trivially true of code that does not exist yet. Safe.
+
+**Consequence: D-151's "fix the dev fake" urgency is withdrawn.** Rewriting the fake to match
+production now would be work performed months before its first use, against a live schema that
+`sync({alter:true})` can still move. The fake's job is to let the app boot without the org, and it
+does that. S43 builds the real thing against production-shaped fixtures.
+
+### 2. The one correction that does apply now: UNKNOWN is the common case
+
+`MysqlProfileAdapter.get_current_week_attendance` returns `UNKNOWN` only when **no row exists**,
+because the fake's `attendance` table is `status ENUM('present','absent')`. In production the
+corresponding state is `signups.attended = null`, meaning *a manager has not marked it yet* — and
+that is an ordinary, frequent state, not an exception.
+
+So **"blocked because attendance is unconfirmed" is a routine path in production, not a rare one.**
+Fail-closed is already implemented correctly (SPEC §5.4.4); what needs attention is that the path
+is *often taken*: the blocked screen's wording, what the student does next, and how a late manager
+marking recovers. Cheap, high-value: seed a student whose session is unmarked so the UNKNOWN path
+is exercised by the e2e suite rather than only by unit tests.
+
+### 3. The one S43 design fact worth recording now
+
+`BranchInfo` requires `manager_email`, `address`, `latitude`, `longitude` — **all non-nullable**,
+and `branch_locator` computes routes from the coordinates. Production `locations` has **none of
+them** (only `name`/`online`/`active`). The new stack's own `org_branches` table can supply
+address/coordinates, and `manager_email` must be derived by joining `accounts` on `locationId`
+where `role = 'Manager'` (an unvalidated string, D-151 §5). **So `IcProfileAdapter` merges two
+sources; it is not a single-source read.** Recorded now so S43 plans for it, not to be acted on now.
+
+### 4. What stays live despite the deferral
+
+- **The production security findings** ([S42_DISCOVERY.md](S42_DISCOVERY.md) §6) are independent of
+  this project's schedule — they affect a system serving real users today. Reporting them to the
+  owner remains the disposition; §6.1 (one unauthenticated request can terminate the API process)
+  is the one worth mentioning first.
+- **DNS (Message B)** stays worth sending: the answer is durable and costs one message, even though
+  it no longer gates anything soon.
+- **Timezone** stays on its provisional default. Reversal was confirmed free —
+  `org_time.py`'s three env vars, no code change — and the only derived value persisted anywhere is
+  `blocked_sessions.week_id`, an audit record nothing recomputes from.
+
+### 5. Standing instruction
+
+Recorded in [CLAUDE.md](../CLAUDE.md): no session measures reachability, requests the production API
+URL or a test account, finalizes the auth option, or rewrites the dev fake **unless the user says
+integration is starting**. [S42_OPEN_QUESTIONS.md](S42_OPEN_QUESTIONS.md) groups A–D are frozen by
+choice, not stuck — the distinction matters, because a future session finding them open should not
+read them as blockers to clear.
+
+## D-153 — the parked decisions are answered: budget raised to the real cohort, `learning_events` gets a retention promise, capacity stays put, and the timezone question is closed by evidence (accepted, 2026-08-02)
+
+**Context.** The user answered every item on the D-152 backlog. Several were "you decide", so the
+reasoning is recorded here rather than in a chat scrollback. Planning assumption fixed by the user
+and used throughout below: **~1,000 students spread across a week** (peak concurrency still
+unmeasured).
+
+### 1. `bedrock_run_budget_cents` 200 → 3,000 (user: raise it)
+
+Sized from the cohort rather than rounded: ~1,000 students/run × the D-141 §8 measured 2-3
+cents each = 2,000-3,000 cents. 3,000 is the top of that band — ~$30/run, ~$130/month, the figure
+the cost was accepted at. **This is a ceiling, not a spend**: today's 2-student staging run still
+costs ~25 cents, and raising a ceiling costs nothing until the work exists to reach it. It stays
+finite deliberately — per-student cost is itself capped (20k input tokens × ≤4 calls), so a
+pathological 1,000-student run tops out near 12,000 cents and this ceiling still stops it.
+
+**The silent half is fixed in the same change, and it mattered more than the number.** The summary
+line reported `len(student_ids)`, so a run that stopped at 700 of 1,000 announced "1000
+student(s)" and the 300 skipped were invisible — `0 added` for a student never attempted reads
+exactly like `0 added` for a student with nothing to do. That is this project's most-repeated
+failure shape (AUD-C-17, AUD-F-34, AUD-F-12). Now: `N of M student(s), K SKIPPED (over budget)`,
+plus a stop line saying plainly that skipped students are **not queued anywhere** and the next run
+re-derives its own list. **Not fixed, and named so it is not mistaken for fixed:**
+`list_students_with_events_in_window` has no `ORDER BY`, so a persistently over-budget run would
+starve roughly the same tail every week. At 3,000 cents the cap should not bind; if it ever does,
+the fix is rotation (least-recently-consolidated first), not a bigger number.
+
+### 2. `learning_events` retention: 365 days (user: you decide)
+
+**Decision: 365 days on `occurred_at`, purged by the existing daily `retention-purge` job** — the
+same window as `student_reports`, so the product makes one promise a parent or manager can hold in
+their head: *a school year of learning history*. This closes D-141 §5, the one table that grew
+without bound.
+
+**The floor is not taste, and it is now executable.** Events are the evidence base
+`semantic_memory.evidence_event_ids` points at, and `promote_if_eligible` (D-150) resolves that
+list back to real rows to apply plan §9's bar. So the event window must be **≥ the fact window +
+one consolidation window** (90 + 7 = 97 days). Below that, live facts routinely cite rows that no
+longer exist and silently stop being promotable. `test_learning_event_retention_clears_the_
+semantic_memory_floor` asserts the relation between the three constants and was **watched failing**
+at 60 days before the value was restored — lowering any of them now fails the suite.
+
+Safe to purge because the read surface is narrow, and this was checked rather than assumed: the
+only readers of `learning_events` are the consolidation window query (7 days) and
+`get_events_by_ids`. Nothing else in either app queries the table. Sizing at the planning cohort
+(~60 events/student/week) is ~3M rows and a few hundred MB at steady state — unremarkable for this
+RDS instance. **The window exists for the promise, not for the disk.**
+
+### 3. Capacity: nothing shrinks, the parked purchase is cancelled (user: only 1 needed, record to raise at integration)
+
+Read before acting: **chat-api already runs a single task** (`autoscaling_min_capacity` defaults to
+1), so there was no second task to remove there. The only reduction available is learning-api
+2 → 1, and the recommendation is **don't**: it saves ~$14.42/month of credit burn, and it costs
+(a) parity with criterion 7's standing evidence, which was measured at ≥2 tasks, and (b) AUD-F-29's
+survivability property — at one task, losing it loses all capacity for that app.
+**$14/month is not worth spending gate-evidence integrity on**, and this project has been strict
+about not letting deployed config drift from what a criterion was measured against.
+
+What *is* cancelled is the thing that actually was an increase: **the parked r = 5 capacity
+purchase (+3 tasks, ~$43/month, D-139 §2) is withdrawn, not deferred.** It was priced for a
+concurrency figure that was self-authored, never applied (`autoscaling_max_capacity` is still its
+default 3), and integration is deferred — so there is nothing to undo and nothing to buy.
+**Revisit at integration**, when peak concurrency is a measurement instead of an assumption.
+
+### 4. Timezone: closed by evidence, not by asking (user: check the homepage — it probably doesn't matter)
+
+The user's instinct was right. The public site publishes the session schedule: **Monday–Friday
+10:00–12:00 and 18:00–20:00**, no Sunday sessions, nothing between midnight and 01:00. The two
+candidate conventions (DST-aware Central vs. the legacy fixed UTC−6) diverge **only** for sessions
+starting 00:00–01:00 local (which date) and Sunday evenings (which week). **The org runs neither
+window, so the conventions produce identical dates and identical weeks for every published
+session** — the difference collapses to a one-hour display discrepancy that never touches the
+attendance gate.
+
+**So Message A stops being a blocker of any kind** and becomes a courtesy question. The provisional
+default (`America/Chicago`, `local_dst_aware`) stands and `ORG_TIME_CONFIRMED` stays false, which
+is honest: the *convention* is now known not to matter operationally, but the *zone* is still
+inferred from someone else's hard-coded −6.
+
+**Stated limits, because this is marketing-site evidence:** it is not the operational `calendars`
+table, published schedules change, and branch-specific or one-off sessions need not appear there.
+The durable form is a guard, not a fact — **at S43, assert that no ingested session starts
+00:00–01:00 local or on a Sunday evening, and log loudly if one ever does.** That converts the
+assumption into something that announces itself, which is the pattern `org_time.py` already uses.
+
+### 5. Production findings: dispositions recorded (user)
+
+Three of the four will be sent to whoever maintains the existing system — **the process-terminating
+login path (§6.1), the credential logging (§6.3), and the shared/never-expiring 6-digit code
+(§6.4)**. Nothing for us to do; tracked so they are not re-discovered as new.
+
+**The fourth (§6.2, client-supplied roles) was first recorded here as "left as-is". ⚠️ CORRECTED
+the same day — see §7, which supersedes that reading.** The intent was that Student/Parent/Tutor
+are self-selected; it was never that `Manager` is.
+
+**Constraint for S43/S44, recorded now so it is designed in rather than patched later: production
+role must never by itself grant an elevated role in the new stack.** Student/parent mapping from
+production is fine; `Tutor`/`Manager` must additionally be confirmed against an allowlist the new
+stack controls. This is the practical reading of CLAUDE.md rule 3 (authorization in the backend,
+never from untrusted input). **This constraint survives §7's correction** — see §7 for why a
+production-side fix does not retire it.
+
+### 6. Unchanged by these answers
+
+DNS is available but the org will add records **at integration time** (so Message B is answered,
+not pending). Message C (topology, TLS, outage history, log destination) and Message D (peak
+concurrency) wait for integration, per D-152. AWS credit: fine for now; every price in
+D-133/D-136/D-139 remains credit burn rather than cash.
+
+### 7. ⚠️ Correction to §5, same day: `Manager` is meant to be admin-only, and the API does not enforce that
+
+**User's policy, stated after §5 was written:** Student, Parent and Tutor are self-selected;
+**`Manager` may only be granted by an administrator.** That supersedes §5's "leaving
+client-supplied roles as-is" — the intent was never that `Manager` is self-assignable.
+
+**The intent is real and half-implemented. The half that is missing is the enforcing half.**
+Read directly from source rather than inferred:
+
+- **The frontend already implements the policy.** `icweb/src/components/register.component.js`
+  offers exactly three radio options — `Parent`, `Student`, `Tutor` — and its own copy says
+  *"roles cannot be changed after signup"*.
+- **The API does not.** `icrest/app/controllers/account.controller.js:26,33` takes
+  `const role = req.body.role` and persists it verbatim; there is no allowlist, enum, or
+  validator anywhere in the path. So the restriction exists only in the form, and the endpoint
+  is public.
+- **There is no role-changing endpoint at all.** `role` appears in the backend only at create,
+  in the duplicate-email branch below, and at two read sites. So `Manager` is granted by direct
+  database edit today — which is exactly "administrator only" as an *operational practice*, with
+  nothing in code holding it up.
+
+**A second path, found while verifying this one and not previously recorded:**
+`account.controller.js:56` — when a registration hits `ER_DUP_ENTRY` and the existing account has
+`verifiedAt === null`, the handler **overwrites that account's `password`, `role` and `code`**. So
+an unverified account's role can be rewritten by anyone who knows its email address, without ever
+proving control of it. Filed as an addition to [S42_DISCOVERY.md](S42_DISCOVERY.md) §6.2.
+
+**Disposition change:** §6.2 moves from *accepted* to *to be fixed by the org*, joining §6.1,
+§6.3 and §6.4 on the list the user will send. The fix is small and entirely inside the existing
+system: allowlist `Parent`/`Student`/`Tutor` at create, reject anything else with the 400 the
+handler already returns for missing fields, and do not accept a role at all in the duplicate-
+unverified branch. `Manager` stays a database/admin operation, unchanged.
+
+**But the S43/S44 constraint in §5 does NOT retire when that fix lands, and the reason is worth
+keeping.** Three independent grounds: (a) rows written before the fix may already carry a
+self-assigned `Manager`, and nobody can say otherwise without a `SELECT DISTINCT role` plus an
+audit; (b) production is frozen and schema-drifting (`sync({alter:true})` on every boot), so we
+cannot assert the fix stays in place; and (c) more fundamentally, **this stack must not take
+elevated privileges from a field another system validates on our behalf** — that is CLAUDE.md
+rule 3, and it holds regardless of how well the other system behaves. The rationale shifts from
+"production is knowingly permissive" to the stronger and simpler "authorization is ours to
+decide", and the allowlist for `Tutor`/`Manager` stands either way.
