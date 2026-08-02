@@ -922,6 +922,70 @@ def test_semantic_memory_purge_keys_on_last_confirmed_not_first_observed() -> No
     asyncio.run(run())
 
 
+def test_learning_event_purge_boundary() -> None:
+    """D-153: `learning_events` was the one table with no retention promise (D-141 §5).
+    Events older than the cutoff go; events inside it stay, regardless of student.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            chain = await _seed_question_chain(session)
+            memory = MemoryRepository(session)
+
+            stale = await memory.record_event(
+                LearningEvent(
+                    student_external_id="retention-probe-student",
+                    session_id="s-old",
+                    event_type="question_attempted",
+                    skill_id=chain.skill_id,
+                    occurred_at=datetime(2020, 1, 1, tzinfo=UTC),
+                )
+            )
+            fresh = await memory.record_event(
+                LearningEvent(
+                    student_external_id="retention-probe-student",
+                    session_id="s-new",
+                    event_type="question_attempted",
+                    skill_id=chain.skill_id,
+                    occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
+                )
+            )
+
+            purged = await memory.purge_events_older_than(datetime(2024, 1, 1, tzinfo=UTC))
+
+            assert purged >= 1
+            surviving = await memory.get_events_by_ids([stale.event_id, fresh.event_id])
+            surviving_ids = {event.event_id for event in surviving}
+            assert stale.event_id not in surviving_ids
+            assert fresh.event_id in surviving_ids
+
+    asyncio.run(run())
+
+
+def test_learning_event_retention_clears_the_semantic_memory_floor() -> None:
+    """D-153's floor, made executable rather than left in a comment.
+
+    A fact's `evidence_event_ids` point at `learning_events`, and `promote_if_eligible`
+    resolves them back to real rows. So the event window must outlive the fact window plus
+    one consolidation window — otherwise a live fact routinely cites rows that no longer
+    exist and silently stops being promotable. Lowering either constant fails here.
+    """
+    from intellichoice_memory.settings import MemoryConsolidationSettings
+    from learning_api.services.retention_purge_cli import (
+        LEARNING_EVENT_RETENTION_DAYS,
+        SEMANTIC_MEMORY_RETENTION_DAYS,
+    )
+
+    consolidation_window_days = MemoryConsolidationSettings().window_days
+    floor = SEMANTIC_MEMORY_RETENTION_DAYS + consolidation_window_days
+
+    assert LEARNING_EVENT_RETENTION_DAYS >= floor, (
+        f"learning_events retention ({LEARNING_EVENT_RETENTION_DAYS}d) must be at least "
+        f"semantic_memory ({SEMANTIC_MEMORY_RETENTION_DAYS}d) + the consolidation window "
+        f"({consolidation_window_days}d) = {floor}d, or live facts cite purged evidence."
+    )
+
+
 def test_stage_transition_purge_boundary() -> None:
     """AUD-L-04 item 2 (D-114): narrative text derived from tutoring data gets the same
     90-day boundary as its source.

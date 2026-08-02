@@ -31,8 +31,23 @@ class MemoryConsolidationSettings(BaseSettings):
     bedrock_max_retries: int = 2
     bedrock_circuit_failure_threshold: int = 5
     bedrock_circuit_cooldown_s: float = 30.0
-    # One consolidation call per active student per run - a small cohort pre-launch.
-    bedrock_run_budget_cents: float = 200.0
+    # The per-RUN spend ceiling (D-153). Sized from the cohort, not from a round number:
+    # the planning assumption is ~1,000 students spread across a week (user, 2026-08-02), so
+    # a weekly run consolidates ~1,000 students at the D-141 §8 measured rate of ~2-3 cents
+    # each => 2,000-3,000 cents. 3,000 is the top of that band, i.e. ~$30 per run and
+    # ~$130/month, which is the figure the cost was accepted at.
+    #
+    # 200 was right for a 2-student staging cohort and became the wrong number the moment a
+    # real cohort was in view: it stops the run after ~70-90 students, and the students past
+    # the stop are simply not consolidated. Note this is a CEILING, not a spend - today's
+    # 2-student staging run still costs ~25 cents, and raising a ceiling costs nothing until
+    # the work exists to hit it.
+    #
+    # It is still a real bound, which is the point of keeping it finite: per-student cost is
+    # itself capped (20k input tokens x at most 4 calls), so a pathological run of 1,000
+    # students tops out around 12,000 cents - four times this ceiling, so the ceiling still
+    # stops it. Raise this and the per-student caps together, never this one alone.
+    bedrock_run_budget_cents: float = 3000.0
     # SPEC §5.15.4's "previous week's structured events" - the CLI computes
     # [now - window_days, now) each run rather than snapping to a calendar week, so a
     # manual trigger on any day still covers a full rolling week (D-051's "manual

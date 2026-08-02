@@ -249,3 +249,24 @@ class MemoryRepository:
             ),
         )
         return result.rowcount or 0
+
+    async def purge_events_older_than(self, cutoff: datetime) -> int:
+        """D-153's retention boundary for `learning_events` - the one table that grew
+        without bound (D-141 §5 filed the gap; this closes it). Deletes every event whose
+        `occurred_at` is older than `cutoff`. Returns the number of rows removed.
+
+        **`cutoff` must never be more recent than `semantic_memory`'s own window plus one
+        consolidation window** (90 + 7 = 97 days today). Events are the evidence base a
+        fact's `evidence_event_ids` point at, and `promote_if_eligible` resolves that list
+        back to real rows to apply plan §9's stability bar - so purging events a live fact
+        still cites makes that fact unpromotable. That direction is fail-closed and
+        therefore acceptable, but it should happen because the evidence genuinely aged out,
+        never because this window was set below the one that governs the facts.
+        """
+        result = cast(
+            CursorResult,
+            await self._session.execute(
+                delete(LearningEvent).where(LearningEvent.occurred_at < cutoff)
+            ),
+        )
+        return result.rowcount or 0
