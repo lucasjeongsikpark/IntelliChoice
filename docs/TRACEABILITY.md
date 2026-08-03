@@ -362,6 +362,12 @@ in the token, which is the distinction that matters, since a token is a snapshot
 revoked. Tests: `test_auth_and_attendance.py`, `test_dashboard_report_endpoints.py`,
 `e2e/tests/learning/journey-parent.spec.ts`.
 
+**Report generation is now replay-safe (D-159/AUD-X-04):** `POST /students/{id}/report` requires
+`Idempotency-Key`, uniqueness is scoped to `(student, audience, key)` with the constraint as the
+enforcement, and a key reused across date ranges is a 409 rather than a 200 carrying the stored
+report. §5.14.3's requirement is *what a parent may see*, which was already traced; what this adds is
+that the same request twice cannot produce two documents or two paid calls.
+
 **Sections swept: 7 of 37.**
 
 ---
@@ -445,6 +451,15 @@ computes §5.13.3's metrics from pre/post attempts plus study support levels.
 `record_assessment_attempt_idempotent` (grading.py:30) is where AUD-L-10's fix lives — uniqueness on
 `(session, variant)` as a **database invariant**, after the check-only version let four concurrent
 answers all return 200.
+
+**§5.9.2's "one attempt per item" needed a second half nobody had asked for (D-159/AUD-L-17).** The
+constraint above makes an item unanswerable twice, but nothing checked that the answered variant is
+an item of *this* exam at all — so a real variant from another exam was graded and inserted here,
+past a constraint it does not duplicate, moving the attempt-counted denominator §5.13.3 divides by.
+`flow.ensure_item_is_served` is that check; `test_exam_backend.py` covers it, with the pre-fix
+behaviour (200 + an attempt row) recorded in the finding. **The traceability lesson is AUD-F-31's
+from §5.9.1, again:** this section was marked traced on the invariant someone thought to state, and
+the adjacent one it depends on had no test at all.
 
 **Exam *composition* (§5.9.1) gained its falsifying test in D-131, and did not have one before.**
 `test_select_topic_sql_shape.py` covers the fixed set's structure (two items per difficulty, ordered,

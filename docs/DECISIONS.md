@@ -9552,3 +9552,134 @@ The gate proves the **control plane** is configured with, and has rolled out, th
 It does not read a version out of the running process. Those differ if an image tag is ever moved to
 point at different content — `gha-<sha>` tags are immutable by convention here, not by an ECR tag
 immutability policy. Making that a guarantee is a separate, cheap change if it ever matters.
+
+## D-159 — the replayed-write cluster: `/topics`, `/answers` and `/report` each get one deterministic answer (accepted, 2026-08-03)
+
+Closes **AUD-X-03** (P2), **AUD-L-11** (P2) and **AUD-X-04** (P3), plus **AUD-L-17**, a P2 found
+while fixing AUD-L-11. No numbered session — PROGRESS.md's own "Next session" pointer, item 2: the
+Phase 0B backlog D-152 points at.
+
+`make lint` clean, `pyright` 0 errors, **693 passed / 2 skipped** (684 + 9 new); learning e2e
+**18/18**, chat e2e **35/35**, e2e typecheck clean, learning-web `tsc -b && vite build` clean.
+**One Alembic migration. No deploy, no apply, no staging access at all.**
+
+### 1. Why these three are one cluster
+
+D-156's shape, not D-155's: *three defects of one shape*, taken together for a shared fix
+vocabulary. The shape is **a repeated or stale write arriving at a learning-app route that had no
+deterministic answer for it**, so each layer improvised, differently and wrongly:
+
+| route | what a replay did |
+|---|---|
+| `POST /sessions/{id}/topics` | built a **second exam** and orphaned the first (200, invisible except in row counts) |
+| `POST /sessions/{id}/answers` | **500** for an unknown or no-longer-served variant — and worse, a silent 200 for a foreign one (AUD-L-17) |
+| `POST /students/{id}/report` | **paid Bedrock twice** and wrote two rows |
+
+The vocabulary already existed one file away, in the answer path AUD-L-10 hardened: *the server
+decides what a replay means and answers it deterministically — serve the stored result, or 4xx —
+never by improvising.* All three fixes are that pattern applied where it was missing, and all three
+follow its two-layer structure: a **pre-flight** in the route (so a refused request runs no graph
+turn — a rejected turn measurably leaves +2 `checkpoints` / +4 `checkpoint_writes`) plus the
+**invariant** in the service or the database (so it does not depend on the route remembering).
+
+### 2. AUD-X-03 — and the mistake worth recording
+
+`flow.is_topic_selection_replay` is pure and I/O-free, which is what lets the route pre-flight it off
+checkpointed state and the graph node re-check it inside the turn. Same topic, still `pre_exam` →
+the existing exam's items, item for item. Different topic, or a phase that has advanced → **409**.
+
+Two deliberate choices:
+
+- **The guard is "a pre-exam exists", not "the phase is still `pre_exam`."** The damage is *worse*
+  after finalize: the rebuild repointed `pre_assessment_session_id` while a study session was
+  already live off the old exam, so the learning-gain comparison would have been computed against an
+  exam the student never sat.
+- **The blocked-attendance path stays fully replayable**, because it builds nothing and so leaves
+  `pre_assessment_session_id` at `None`. That is load-bearing, not incidental: `AttendanceStatus.
+  UNKNOWN` → blocked is a *routine* production state (D-152 §2), and re-selecting the topic after a
+  manager marks attendance is exactly how a student recovers (D-154). The replay check also sits
+  **ahead** of the gate, so a mid-exam replay cannot record a `blocked_session` or blank the phase of
+  a student who is already taking the exam.
+
+**The first draft guarded dead code.** It went into `flow.select_topic` — which has **no callers**.
+`graph/nodes.py:select_topic` reimplements the same gate-then-build sequence against `LearningState`,
+and that node is the only path the route takes. The row-count test still measured a second exam being
+built, which is how the duplicate was found. `flow.select_topic` and `TopicSelectionResult` are now
+deleted (three imports fell unused with them, which is collateral proof nothing else used them).
+
+This is D-158's lesson from the other direction. There it was *check whether something is absent on
+purpose before adding it back*; here it is **read the path that actually runs before believing the
+fix is in it.** Both are cheap if the test measures the effect (rows, not status codes) rather than
+the change.
+
+### 3. AUD-L-11, and AUD-L-17 found underneath it
+
+`UnknownQuestionVariantError` gains a **required** `reason`: `"unknown"` → **400** (no such variant
+in the bank), `"not_served"` → **409** (a real variant this session is not serving — the stale tab
+and the retry that lands after the phase advanced). Required rather than defaulted, on
+`record_assessment_attempt_idempotent`'s stated reasoning; `pyright` immediately named six call
+sites, which is the convention doing its job.
+
+**AUD-L-17 is the finding that was hiding under the status code.** For a pre/post-exam answer, `flow`
+checked only that the variant *exists*. A real variant from another exam was therefore graded and
+inserted into `assessment_attempts` **for this session**, with a 200, while `_mark_item_answered`
+silently no-opped for want of a matching item. That is an 11th attempt on a 10-item exam — the same
+attempt-counted denominator AUD-L-10 was fixed to protect, and `uq_assessment_attempts_session_
+variant` cannot catch it, because a foreign variant is not a duplicate of anything. The study path
+already checked membership; only the exam paths did not. Fixed as `flow.ensure_item_is_served`.
+
+Watched failing first, all three: an uncaught exception for the unknown id, an uncaught exception for
+the stale study submission, and a **200 with an attempt row** for the foreign variant.
+
+### 4. AUD-X-04 — a paid write, and why the key's *lifetime* was the real decision
+
+`Idempotency-Key` is now **required** on `POST /students/{id}/report`, matching `POST /answers`.
+Optional would have left the defect reachable by omission, which is how it was reachable at all.
+Three layers: the replay lookup runs **ahead of the cost reservation** (a replay spends nothing and
+returns the stored row byte-identically, `created_at` included); `uq_student_reports_student_
+audience_key` covers the concurrent arm, since the lookup is read-then-act; and a key reused for a
+**different date range** is a 409 rather than a 200 carrying the stored report — the key cannot
+encode the range, and handing a parent last month's numbers under this month's heading is precisely
+the AUD-L-15/AUD-C-19 failure mode.
+
+**`StudentReport`'s docstring had to be argued with, not ignored.** It said the table was
+deliberately *not* idempotency-keyed, because report generation is on-demand and `list_for_student`
+is history a parent re-opens. That is right about deliberate re-generation and wrong about a replay,
+so the fix scopes uniqueness to `(student, audience, key)` and **never to a time window**: a
+deliberate second report an hour later still writes a row.
+
+**Where the key comes from mattered as much as the check, and this is the part that would have been
+easy to get wrong.** `submitAnswer` mints a fresh `crypto.randomUUID()` per call — copying that here
+would have changed nothing, because two clicks would send two keys and pay twice. So
+`StudentDashboardScreen` holds one nonce per mount and keys on `(studentId, rangePreset, nonce)`:
+stable for the view the parent is looking at, fresh on remount. A double click costs one call;
+changing the range or returning to the dashboard later generates a real new report.
+
+**Named, not fixed:** two *truly concurrent* calls under one key both reach Bedrock before either
+inserts. The duplicate row is prevented; the duplicate spend is not, and AUD-L-02's per-day ceiling
+plus AUD-X-08's ledger are what bound it. Closing it properly means claiming the key before the model
+call, which would put a report row with no text into a parent's visible history — a worse defect than
+the one it fixes.
+
+### 5. The migration, and the test-harness trap it exposed
+
+Three-step shape — add nullable, backfill `legacy-<student_report_id>`, `SET NOT NULL`, then the
+unique constraint — because staging already holds real report rows and a bare `NOT NULL` add would
+fail on them. `NOT NULL` rather than nullable-for-legacy so the column states one rule for every row.
+Exercised **down and up against a dev database holding 245 existing rows**, not only from empty (CI
+covers the from-empty replay).
+
+**The trap:** `conftest.py`'s sweep does not cover `student_reports` (they are parent-visible history
+with a year's retention, D-114), so the first version of the replay test *failed on its first call* —
+it was replaying a row its own previous run had left behind. A key-based test in a shared dev database
+must clean its own keys, and this one now does. Worth recording because the failure looked like the
+fix not working rather than the test not isolating.
+
+### 6. Verification shape
+
+Nine new tests, each watched failing before its fix. Two inverted controls beyond that: the
+constraint-name string in `create_if_first` (renamed → the `IntegrityError` escapes, as it would under
+concurrency), and AUD-X-03's guard, which visibly failed to bite while it sat in the dead
+`flow.select_topic`. The assertions are **row counts, spend-ledger rows and checkpoint counts** rather
+than status codes, deliberately: every one of these three defects returned a 200 or looked like a
+plain server error, which is how three audits walked past them.

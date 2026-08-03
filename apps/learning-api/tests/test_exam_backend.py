@@ -187,6 +187,89 @@ def _checkpoint_row_counts(thread_id: str) -> tuple[int, int]:
     return asyncio.run(fetch())
 
 
+def _variant_outside_exam(assessment_session_id: str) -> str:
+    """A real `question_variants` row that is *not* an item of this exam - AUD-L-11's "stale
+    tab" shape, as distinct from a variant id that never existed at all. Chosen by query
+    rather than by drawing a second exam, so the test does not depend on two seeded draws
+    happening to differ.
+    """
+
+    async def fetch() -> str:
+        engine = create_engine()
+        try:
+            async with engine.connect() as conn:
+                result = await conn.execute(
+                    text(
+                        "SELECT question_variant_id FROM question_variants "
+                        "WHERE question_variant_id NOT IN ("
+                        "  SELECT question_variant_id FROM assessment_items "
+                        "  WHERE assessment_session_id = :sid) "
+                        "ORDER BY question_variant_id LIMIT 1"
+                    ),
+                    {"sid": assessment_session_id},
+                )
+                variant_id = result.scalar_one_or_none()
+                assert variant_id is not None, "no variant outside this exam exists to test with"
+                return str(variant_id)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _exam_row_counts(student_external_id: str) -> tuple[int, int]:
+    """(`assessment_sessions`, `assessment_items`) for one student - AUD-X-03's measurement.
+    The finding was invisible in response codes and only showed up in row counts.
+    """
+
+    async def fetch() -> tuple[int, int]:
+        engine = create_engine()
+        try:
+            async with engine.connect() as conn:
+                sessions = await conn.execute(
+                    text(
+                        "SELECT count(*) FROM assessment_sessions "
+                        "WHERE student_external_id = :sid"
+                    ),
+                    {"sid": student_external_id},
+                )
+                items = await conn.execute(
+                    text(
+                        "SELECT count(*) FROM assessment_items WHERE assessment_session_id IN "
+                        "(SELECT assessment_session_id FROM assessment_sessions "
+                        " WHERE student_external_id = :sid)"
+                    ),
+                    {"sid": student_external_id},
+                )
+                return int(sessions.scalar_one()), int(items.scalar_one())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _study_attempt_count(learning_session_id: str) -> int:
+    """Study-phase attempts for this session. Must be called inside a `TestClient` block."""
+
+    async def fetch() -> int:
+        graph = app.state.learning_graph
+        snapshot = await graph.aget_state({"configurable": {"thread_id": learning_session_id}})
+        study_session_id = snapshot.values["study_session_id"]
+        assert study_session_id is not None
+        engine = create_engine()
+        try:
+            async with engine.connect() as conn:
+                result = await conn.execute(
+                    text("SELECT count(*) FROM study_attempts WHERE study_session_id = :sid"),
+                    {"sid": study_session_id},
+                )
+                return int(result.scalar_one())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
 def _expire_exam(assessment_session_id: str) -> None:
     """Simulates the exam timer having run out - sets `time_limit_seconds=0` so
     `flow.is_exam_expired` is true the instant any time at all has elapsed since
@@ -627,6 +710,216 @@ def test_expired_exam_rejects_new_answers_and_finalizes_without_confirmation() -
         assert finalize_resp.status_code == 200
         assert finalize_resp.json()["phase"] == "study"
         assert _attempt_count(pre_assessment_session_id) == 10
+
+
+def test_replaying_topic_selection_serves_the_same_exam_and_builds_nothing() -> None:
+    """AUD-X-03. `POST /topics` replayed on a session that already had a pre-exam returned
+    **200** and built a whole second one: +1 `assessment_sessions`, +10 `assessment_items`, a
+    different variant draw, and the first exam left `in_progress` and unreachable with any
+    attempts already recorded against it stranded.
+
+    Measured in row counts rather than status codes, which is why three audits walked past
+    it - the response looked exactly like a successful first selection.
+
+    The replay must be genuinely idempotent (the same exam, item for item), not merely
+    harmless: a retrying proxy or a second tab has to end up looking at the exam the student
+    is already taking.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, pre_items = _start_pre_exam(client, headers)
+        pre_assessment_session_id = _pre_assessment_session_id(session_id)
+        rows_before = _exam_row_counts(STUDENT_UNLINKED)
+        assert rows_before == (1, 10)
+
+        replay = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        assert replay.status_code == 200
+        body = replay.json()
+        assert body["phase"] == "pre_exam"
+        assert [i["question_variant_id"] for i in body["items"]] == [
+            i["question_variant_id"] for i in pre_items
+        ]
+        assert _exam_row_counts(STUDENT_UNLINKED) == rows_before
+        assert _pre_assessment_session_id(session_id) == pre_assessment_session_id
+
+
+def test_selecting_a_different_topic_after_an_exam_exists_is_refused() -> None:
+    """The other half of AUD-X-03: a *different* topic is not a replay, and silently
+    abandoning the exam in progress is the defect. 409 rather than rebuilding, because the
+    student is mid-exam and the server cannot tell a stray click from a deliberate change -
+    and no UI flow reaches this, since the topic list is gone once the phase is `pre_exam`.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, _pre_items = _start_pre_exam(client, headers)
+        rows_before = _exam_row_counts(STUDENT_UNLINKED)
+
+        resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "fraction_operations"},
+        )
+        assert resp.status_code == 409
+        assert "linear_equations" in resp.json()["detail"]
+        assert _exam_row_counts(STUDENT_UNLINKED) == rows_before
+
+
+def test_replaying_topic_selection_after_the_phase_advanced_is_refused() -> None:
+    """AUD-X-03's worst case, and the reason the guard is "an exam exists" rather than "the
+    phase is still pre_exam": replayed after finalize, the rebuild overwrote
+    `pre_assessment_session_id` while a study session was already live off the old one, so
+    the learning-gain comparison would have been computed against an exam the student never
+    sat.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, pre_items = _start_pre_exam(client, headers)
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        pre_assessment_session_id = _pre_assessment_session_id(session_id)
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"topic-replay-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+        finalize_resp = client.post(
+            f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
+        )
+        assert finalize_resp.json()["phase"] == "study"
+        rows_before = _exam_row_counts(STUDENT_UNLINKED)
+        checkpoints_before = _checkpoint_row_counts(session_id)
+
+        resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        assert resp.status_code == 409
+        assert _exam_row_counts(STUDENT_UNLINKED) == rows_before
+        assert _pre_assessment_session_id(session_id) == pre_assessment_session_id
+        # Refused before the graph ran, like the answer pre-flights.
+        assert _checkpoint_row_counts(session_id) == checkpoints_before
+
+
+def test_an_unknown_variant_id_is_a_400_not_an_unhandled_500() -> None:
+    """AUD-L-11. `UnknownQuestionVariantError` was raised at four sites in `flow` and caught
+    nowhere, so a variant id that does not exist returned **500**. The correct pattern already
+    existed one route away (`POST /sessions/{id}/chat` validates the same thing and 400s).
+
+    A 500 is not merely the wrong number here: error-rate is what the S34 CloudWatch alarms
+    watch, so an ordinary bad request from a stale client was indistinguishable from the
+    service breaking.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, _pre_items = _start_pre_exam(client, headers)
+        pre_assessment_session_id = _pre_assessment_session_id(session_id)
+        checkpoints_before = _checkpoint_row_counts(session_id)
+
+        resp = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "unknown-variant-1"},
+            json={
+                "question_variant_id": "does-not-exist",
+                "selected_option": "a",
+                "response_time_ms": 2000,
+            },
+        )
+        assert resp.status_code == 400
+        assert "does-not-exist" in resp.json()["detail"]
+        # Refused before the graph ran, like AUD-L-10's duplicate answer: a malformed request
+        # must not leave checkpoint rows behind, and must not record an attempt.
+        assert _checkpoint_row_counts(session_id) == checkpoints_before
+        assert _attempt_count(pre_assessment_session_id) == 0
+
+
+def test_a_variant_from_outside_this_exam_is_refused_and_records_no_attempt() -> None:
+    """The second half of AUD-L-11, and a defect found while fixing it (AUD-L-17): a *real*
+    variant that is not one of this exam's items was neither refused nor a 500 - it was
+    **graded and persisted as an attempt against this exam**. `assessment_attempts` had no
+    membership check at all (`flow._submit_pre_exam_answer` checked only that the variant
+    exists, and `_mark_item_answered` silently no-ops when the item is not found), so a stale
+    tab could add an 11th attempt to a 10-item exam and move the scoring denominator that
+    AUD-L-10 was fixed to protect.
+
+    409 rather than 400, because the id is well-formed and real - what is wrong is the
+    session's state, which is the same thing `ItemAlreadyAnsweredError` reports.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, _pre_items = _start_pre_exam(client, headers)
+        pre_assessment_session_id = _pre_assessment_session_id(session_id)
+        foreign_variant = _variant_outside_exam(pre_assessment_session_id)
+        checkpoints_before = _checkpoint_row_counts(session_id)
+
+        resp = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "foreign-variant-1"},
+            json={
+                "question_variant_id": foreign_variant,
+                "selected_option": "a",
+                "response_time_ms": 2000,
+            },
+        )
+        assert resp.status_code == 409
+        assert foreign_variant in resp.json()["detail"]
+        assert _attempt_count(pre_assessment_session_id) == 0
+        assert _checkpoint_row_counts(session_id) == checkpoints_before
+
+
+def test_a_stale_exam_variant_answered_during_study_is_refused() -> None:
+    """AUD-L-11's own stated reproduction: "a retry landing after the phase advanced". The
+    study phase already checked study-item membership (`flow._record_study_attempt`), so this
+    one really was only a status-code defect - it raised the uncaught exception and 500'd.
+
+    The stale id here is a pre-exam variant, which is exactly what a tab left open on the
+    exam screen would resubmit after finalize moved the session to `study`.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, pre_items = _start_pre_exam(client, headers)
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"stale-study-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+            assert resp.status_code == 200
+        finalize_resp = client.post(
+            f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
+        )
+        assert finalize_resp.status_code == 200
+        assert finalize_resp.json()["phase"] == "study"
+
+        stale_variant = pre_items[0]["question_variant_id"]
+        checkpoints_before = _checkpoint_row_counts(session_id)
+        stale_resp = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "stale-study-resubmit"},
+            json={
+                "question_variant_id": stale_variant,
+                "selected_option": pre_correct[stale_variant],
+                "response_time_ms": 2000,
+            },
+        )
+        assert stale_resp.status_code == 409
+        assert _study_attempt_count(session_id) == 0
+        assert _checkpoint_row_counts(session_id) == checkpoints_before
 
 
 def test_resume_and_overview_restore_item_statuses_after_restart() -> None:

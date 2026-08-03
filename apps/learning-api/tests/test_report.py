@@ -326,6 +326,7 @@ def test_gateway_failure_falls_back_to_facts_only_template() -> None:
                 cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
+                idempotency_key="report-gateway-failure",
                 session_spend_cents=0.0,
             )
 
@@ -361,6 +362,7 @@ def test_ungrounded_response_falls_back_to_facts_only_template() -> None:
                 cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
+                idempotency_key="report-ungrounded-output",
                 session_spend_cents=0.0,
             )
 
@@ -390,6 +392,7 @@ def test_grounded_response_is_trusted_as_is() -> None:
                 cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
+                idempotency_key="report-grounded-output",
                 session_spend_cents=0.0,
             )
 
@@ -476,6 +479,7 @@ def test_report_generation_stops_calling_bedrock_at_the_daily_cost_ceiling() -> 
                 cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
+                idempotency_key="report-ceiling-reached",
                 session_spend_cents=DAILY_REPORT_COST_CEILING_CENTS,
             )
 
@@ -512,6 +516,7 @@ def test_report_generation_still_runs_just_below_the_daily_cost_ceiling() -> Non
                 cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
+                idempotency_key="report-under-ceiling",
                 session_spend_cents=DAILY_REPORT_COST_CEILING_CENTS - 0.5,
             )
 
@@ -553,6 +558,7 @@ def test_the_ceiling_is_scoped_to_this_student() -> None:
                 cost_ledger=ledger,
                 student_external_id=STUDENT_ID,
                 payload=_payload("parent"),
+                idempotency_key="report-other-student-spend",
                 session_spend_cents=0.0,
             )
             assert result.generated is True

@@ -248,6 +248,20 @@ to rot, because nothing fails when it does.)*
   than only in `flow` because a status check in Python is read-then-act: two concurrent answers would
   both pass it. `learning_gain`'s `max_score` is the attempt count and is the *item* count **only
   because of this constraint** — the dependency is documented at that line.
+  **And an attempt must belong to this exam at all, which the constraint cannot say (D-159,
+  AUD-L-17).** A variant from a *different* exam duplicates nothing, so it walked past the unique
+  index and was graded into this session — an 11th attempt on ten items, moving the same
+  denominator. `flow.ensure_item_is_served` is the membership half; the invariant is "one attempt
+  per item **of this exam**", and it takes both halves to hold.
+- **A replayed write gets one deterministic answer, decided by the server** (D-159) — every
+  retryable write on the learning app says what a second identical request means, rather than
+  improvising: `POST /topics` serves the exam that already exists (or 409s once the phase moved on),
+  `POST /answers` 400s an unknown variant and 409s one this session is not serving, and
+  `POST /students/{id}/report` requires an `Idempotency-Key` and serves the stored report without a
+  second paid call. Each is **pre-flighted in the route** — a refused request must not start a graph
+  turn, since a rejected turn still leaves `checkpoints`/`checkpoint_writes` rows behind — and
+  **re-checked in the service or the database**, so the guarantee does not depend on the route
+  remembering to ask.
 - **The checkpoint can be ahead of the database, and a session must heal rather than dead-end** —
   the LangGraph saver commits at the end of each superstep on its own psycopg pool; domain rows
   commit at dependency teardown. Anything failing in between keeps the checkpoint and discards the
@@ -859,9 +873,20 @@ fallback follow the same pattern S26 established: `numeric_grounding.is_grounded
 both `interpretation_text` and `recommendations_text` against the payload, and a
 deterministic facts-only template (built from the identical payload) stands in on either a
 gateway failure or a failed check - `student_reports.generated=False` marks the fallback
-case. Unlike `stage_transitions`, `student_reports` is not idempotency-keyed - report
-generation is an explicit on-demand action, so every call persists a fresh row (history,
-newest first).
+case.
+
+**`student_reports` is idempotency-keyed as of D-159 (AUD-X-04), and the scope is the whole
+point.** This section used to say it deliberately was not, because generation is an explicit
+on-demand action so every call persists a fresh row - right about deliberate re-generation,
+wrong about a replay: two clicks were two paid Bedrock calls and two rows. Uniqueness is
+`(student_external_id, audience, idempotency_key)` and **never a time window**, so a replay is
+absorbed while a genuinely new request still writes history (`list_for_student`, newest first).
+The lookup runs *ahead of* the cost reservation, so a replay spends nothing;
+`uq_student_reports_student_audience_key` covers the concurrent arm the read-then-act lookup
+cannot; and one key sent with a *different* date range is a **409**, because the key cannot
+encode the range and serving the stored row would put last month's numbers under this month's
+heading. Two truly concurrent calls under one key still both reach Bedrock - the row is
+deduplicated, the spend is bounded by the per-day ceiling instead.
 
 **Not every figure covers the same window, and each one now says which (AUD-L-15, D-156).**
 `mastery_by_skill` comes from `mastery_repo.list_for_student`, which takes **no date range
@@ -923,4 +948,4 @@ flowchart LR
 | Contextual chat turns | **PostgreSQL 16** | `tutor_chat_messages` (S24) - one row per chat turn (`student_external_id`, `learning_session_id`, nullable `question_variant_id` FK, `intent`, `redacted_student_message`, `reply_text`, `cost_cents`, `flagged_for_review`); `redacted_student_message` is always post-`pii_redaction.redact_free_text` (D-072), never the raw message. 90-day retention via `TutorChatMessageRepository.purge_older_than`/`make chat-purge` (no scheduler yet, same "manual trigger" posture as `youtube-sync`/`webcontent-sync`) |
 | Personalized stage narratives | **PostgreSQL 16** | `stage_transitions` (S26) - one row per (session, stage[, skill]) (`student_external_id`, `learning_session_id`, `stage`, nullable `related_skill_id` (`study_step` only), `narrative_text`, `evidence` JSON, `generated` bool, `cost_cents`); doubles as the idempotency key (`StageTransitionRepository.get_for_session_stage`) so a reconnect/retry never re-calls Bedrock. **90-day retention** via the daily `retention-purge` job (D-114) - narrative text derived from tutoring data gets the same window as its source |
 | Episodic learning events + durable semantic facts | **PostgreSQL 16** | `learning_events` (S25) - one row per emission point (`answer_submitted`/`intervention_chosen`/`study_outcome`/`chat_turn`/`exam_finalized`/`learning_gain_computed`), external ids + a code-owned `structured_payload` only (a `chat_turn` row holds `tutor_chat_message_id`, never the message text - D-074 #5). `semantic_memory` (S25) - `status` one of `provisional`/`active`/`contested`/`superseded`, `evidence_event_ids` always a subset of real `learning_events.event_id`s belonging to the same student (D-074 #2), `superseded_by_id` self-FK (`ON DELETE SET NULL`) + `contradicts_event_count` back the two-stage contradiction model (D-074 #4). No PII in either table. **Retention, both via the daily `retention-purge` job: `semantic_memory` 90 days on `last_confirmed_at` (D-114); `learning_events` 365 days on `occurred_at` (D-153), matching `student_reports` so the product makes one "a school year of learning history" promise.** The event window must stay ≥ the fact window + one consolidation window (90 + 7 = 97 days) or a live fact cites purged evidence and silently stops being promotable — asserted by `test_learning_event_retention_clears_the_semantic_memory_floor` |
-| Generated progress reports | **PostgreSQL 16** | `student_reports` (S28) - one row per report generation (`student_external_id`, `audience`, `verified_facts` JSON = the exact payload sent to Bedrock, `interpretation_text`, `recommendations_text`, `generated` bool, `cost_cents`); not idempotency-keyed (unlike `stage_transitions`) - each on-demand generation is a fresh row, `list_for_student` returns history newest-first. `audience` always server-resolved from the caller's role, never a request field (D-077 #1). No PII - `verified_facts` is entirely already-resolved names/numbers/counts |
+| Generated progress reports | **PostgreSQL 16** | `student_reports` (S28) - one row per report generation (`student_external_id`, `audience`, `verified_facts` JSON = the exact payload sent to Bedrock, `interpretation_text`, `recommendations_text`, `generated` bool, `cost_cents`, `idempotency_key`); **unique on `(student_external_id, audience, idempotency_key)` since D-159/AUD-X-04** - a replay is absorbed (no second row, no second paid call) while a new key still writes history, so `list_for_student` remains newest-first history rather than a cache. Scoped to the key, never to a time window; the migration backfilled pre-existing rows as `legacy-<student_report_id>`, unique by construction. `audience` always server-resolved from the caller's role, never a request field (D-077 #1). No PII - `verified_facts` is entirely already-resolved names/numbers/counts, and the key our frontend sends is `<student external id>:<range preset>:<per-mount UUID>`, i.e. an external id and two opaque tokens |

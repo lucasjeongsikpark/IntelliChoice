@@ -6,7 +6,7 @@ accumulated history/aggregates across sessions, not one session's turn-by-turn f
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from intellichoice_db.models.cost_reservation import SCOPE_STUDENT_REPORT
 from intellichoice_db.repositories.assessment import AssessmentRepository
 from intellichoice_db.repositories.cost_reservation import CostReservationRepository
@@ -38,7 +38,11 @@ from learning_api.services.dashboard import (
     build_dashboard,
 )
 from learning_api.services.history import StudentHistory, build_student_history
-from learning_api.services.report import build_report_facts, generate_student_report
+from learning_api.services.report import (
+    IdempotencyKeyReusedError,
+    build_report_facts,
+    generate_student_report,
+)
 
 router = APIRouter(prefix="/learning/students", tags=["learning-students"])
 
@@ -329,6 +333,9 @@ async def create_student_report(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    # AUD-X-04: required, exactly as on `POST /sessions/{id}/answers`. Optional would leave the
+    # defect reachable by omission, which is how it was reachable in the first place.
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
     start: Annotated[datetime | None, Query()] = None,
     end: Annotated[datetime | None, Query()] = None,
 ) -> StudentReportResponse:
@@ -365,25 +372,29 @@ async def create_student_report(
         relevant_learning_facts=relevant_learning_facts,
     )
     report_repo = StudentReportRepository(db)
-    result = await generate_student_report(
-        gateway=gateway,
-        repo=report_repo,
-        cost_ledger=cost_ledger,
-        student_external_id=target_student_id,
-        payload=payload,
-        # S36/AUD-L-02: this endpoint has no session, so "spend so far" is this student's
-        # report spend over the last 24h - the same window the service's own per-day
-        # ceiling uses. Passing a real number is what makes the gateway's budget check
-        # meaningful here at all; it previously received the 0.0 default on every call.
-        #
-        # S42/AUD-X-08: read from the reservation ledger rather than `student_reports`, so
-        # calls that are still in flight are counted. The old read saw only rows committed
-        # at a previous request's teardown, which is precisely the stale value that let ten
-        # concurrent reports each believe they were the first.
-        session_spend_cents=await cost_ledger.spend_cents_since(
-            scope=SCOPE_STUDENT_REPORT, subject_external_id=target_student_id
-        ),
-    )
+    try:
+        result = await generate_student_report(
+            gateway=gateway,
+            repo=report_repo,
+            cost_ledger=cost_ledger,
+            student_external_id=target_student_id,
+            payload=payload,
+            idempotency_key=idempotency_key,
+            # S36/AUD-L-02: this endpoint has no session, so "spend so far" is this student's
+            # report spend over the last 24h - the same window the service's own per-day
+            # ceiling uses. Passing a real number is what makes the gateway's budget check
+            # meaningful here at all; it previously received the 0.0 default on every call.
+            #
+            # S42/AUD-X-08: read from the reservation ledger rather than `student_reports`, so
+            # calls that are still in flight are counted. The old read saw only rows committed
+            # at a previous request's teardown, which is precisely the stale value that let ten
+            # concurrent reports each believe they were the first.
+            session_spend_cents=await cost_ledger.spend_cents_since(
+                scope=SCOPE_STUDENT_REPORT, subject_external_id=target_student_id
+            ),
+        )
+    except IdempotencyKeyReusedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     return StudentReportResponse(
         audience=audience,
         interpretation_text=result.interpretation_text,

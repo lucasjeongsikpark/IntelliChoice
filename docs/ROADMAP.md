@@ -654,9 +654,10 @@ which stop the line.
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 
 > **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
-> cheap P2s" (below); the rest were never dispositioned. **19 findings remain *Open — Phase 0B***
-> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**20 open in total**, counting AUD-F-16; AUD-F-37 was
-> filed and closed the same day, D-158) and **none are integration-blocked** — they are exactly what D-152's "finish and test this codebase against the
+> cheap P2s" (below); the rest were never dispositioned. **16 findings remain *Open — Phase 0B***
+> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**17 open in total**, counting AUD-F-16; AUD-F-37 and
+> AUD-L-17 were each filed and closed the same day, D-158 and D-159) and **none are
+> integration-blocked** — they are exactly what D-152's "finish and test this codebase against the
 > dev fakes first" points at. With S43–S47 frozen, post-gate sessions run out of this backlog under
 > PROGRESS.md's "Next session" pointer rather than under a numbered block.
 >
@@ -682,6 +683,17 @@ which stop the line.
 > one-line Terraform fix that turned out to reverse a deliberate, documented exposure decision; the
 > real fix was two gates in the deploy workflow and touched no infrastructure (D-158). Check whether
 > something is absent *on purpose* before adding it back.
+>
+> **And a fix is a hypothesis until the test measures the effect.** D-159's AUD-X-03 guard was
+> written into `flow.select_topic`, a function with **no callers** — the live path is
+> `graph/nodes.py:select_topic`, which reimplemented it. Only a test asserting *row counts* caught
+> that; a status-code assertion would have passed. Two corollaries worth carrying: read the path
+> that actually runs, and prefer assertions on rows, spend and checkpoint counts over response
+> codes, since every finding in this cluster returned a 200 or a plain 500.
+>
+> **A finding's write-up can go stale between filing and fixing.** AUD-X-03 blamed a hardcoded
+> `busy={false}` that AUD-F-27 had already fixed. Correct the record in place (D-158's convention)
+> rather than quietly re-scoping.
 All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog: S22.5
 `access_hint` blank turn, S11 parent auto-select, chat-web CI, the unseeded-RNG flake,
 `question_variants` accumulation, the ~249k-row `checkpoints` sweep, ~~EventBridge schedules for
