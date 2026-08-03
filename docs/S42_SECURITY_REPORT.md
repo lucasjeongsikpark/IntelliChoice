@@ -69,6 +69,9 @@ Parent/Tutor 만 본인 선택, `Manager` 는 관리자만** 인 것으로 보�
 비밀번호를 바꿀 수 있습니다.
 → **수정:** 가입 시 `Parent`/`Student`/`Tutor` 만 허용하고 그 외 값은 기존의 400 응답으로 거절,
 미인증-중복 분기에서는 `role` 을 아예 받지 않기. `Manager` 는 지금처럼 DB/관리자 작업으로만.
+→ **한 번 확인해 보시길 권합니다:** 코드를 고쳐도 **수정 전에 만들어진 행은 그대로 남습니다.**
+`SELECT DISTINCT role FROM accounts;` 로 예상 밖의 role 값이 있는지, 그리고 생성 경위가 기억나지 않는
+`Manager` 계정이 있는지 한 번 보시면 좋겠습니다.
 
 **3. (중간) 로그에 자격 증명이 남습니다.**
 로그인 핸들러가 매 시도마다 이메일과 **저장된 비밀번호 해시**를 `console.log` 로 남기고, 프론트엔드는
@@ -128,6 +131,9 @@ registering an existing but **unverified** (`verifiedAt === null`) email **overw
 role and password without proving control of it.
 → **Fix:** allowlist `Parent`/`Student`/`Tutor` at create (reject others with the existing 400);
 don't accept a role at all in the duplicate-unverified branch. `Manager` stays a DB/admin operation.
+→ **Worth checking once:** fixing the endpoint **does not clean up rows created before the fix.**
+`SELECT DISTINCT role FROM accounts;` will show whether any unexpected role values exist, and it's
+worth a look at any `Manager` rows nobody remembers creating.
 
 **3. (Medium) Credentials in logs.**
 The login handler `console.log`s the email and the stored password hash on every attempt; the
