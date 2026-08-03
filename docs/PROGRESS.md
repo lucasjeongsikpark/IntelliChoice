@@ -5,6 +5,46 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ Three parent-visible correctness findings closed, and both unlanded sessions landed
+  (2026-08-02, D-156).** `make lint` clean, `pyright` 0 errors, **684 passed / 2 skipped** (671 +
+  13); learning e2e **18/18**, chat e2e **35/35**, e2e typecheck clean, both frontends build clean.
+  **No deploy, no apply, no staging access at all.**
+  **Scope: again no numbered session — PROGRESS.md's own "Next session" pointer.** Item 0 (land the
+  two stacked sessions) then item 1's parent-visible cluster.
+  **Item 0 is done and the two sessions are separated.** `s43-close-d154` had D-154 committed *and*
+  D-155's 18 uncommitted files sitting on top of it, so merging PR #85 would have silently dragged
+  D-155 in. Split: **#85 merged** (D-154), then D-155 committed to its own branch as **#86** with
+  its own PR and merged. Both on `main`, neither deployed.
+  **The three findings are not one defect the way D-155's three were.** What they share is a shape:
+  *a number or a sentence shown to a family that the system could already have checked against
+  something it knew* — and in each case the contradicting fact was in the same database, in the same
+  transaction, unread.
+  **AUD-C-19** — the synthesis-failure path now says "temporarily unavailable" instead of "no
+  approved source". The `escalation_recommended` product call D-155 deferred is decided **False**:
+  escalation is itself a Bedrock-and-MCP path, it books a branch manager for a question the corpus
+  can answer, and the message already offers the human path *after* a retry.
+  **AUD-L-13** — memory facts are now screened against `mastery.weighted_score`. The screen runs on
+  the **reconfirm** path as well as the add path, which is the branch that matters: reconfirmation
+  *is* the promotion path, and the finding's point was that promotion tests repetition, not
+  consistency. `WEAK_SKILL_THRESHOLD` moved to `intellichoice_shared.mastery_policy` so a package
+  and an app share one number.
+  **AUD-L-15 — two behaviour changes, both the user's call this session.** (a) **Mastery now
+  includes the post-exam**; it previously reached mastery through no path at all, so `topic_resolver`
+  was choosing the *next* cycle's targets from a score that had never seen how the last one ended —
+  the larger consequence, and not the one the finding led with. (b) **One definition of "weak"**: the
+  report's hardcoded 0.8 on post-exam accuracy is gone, and "skills to strengthen" now uses the study
+  plan's own cut, so a report cannot recommend work the system will not do. (c) Every figure states
+  its window — payload, prompt, and `GET /dashboard` chart captions.
+  **Everything was watched failing first**, including the mastery test asserting that a student who
+  got *every* post-exam item wrong still read a perfect score. Two guards fired unprompted and were
+  worth having: the **PII floor allowlist** blocked two new payload fields until they were named, and
+  the **golden-set eval was diffed before/after** the AUD-C-19 message swap (byte-identical).
+  **⚠️ Still true, now stated rather than implied:** mastery is not date-filtered, so a report headed
+  with a July range still shows all-time mastery. The label says so; that is the fix, because
+  "current standing" is the right thing for a mastery chart to show.
+  **⚠️ Untouched and still flagged:** `docs/SECURITY_REPORT_TO_ORG.md` is an orphan English-only
+  draft overlapping `S42_SECURITY_REPORT.md`. Merge or delete it before either goes out.
+
 - **✅ The chat error-path cluster is closed — AUD-C-07, AUD-C-08 and AUD-C-10 fixed in one pass
   (2026-08-02, D-155).** `make lint` clean, `pyright` 0 errors, **671 passed / 2 skipped**
   (666 + 5 new); chat e2e **35/35**. **No deploy, no apply, no staging access at all.**
@@ -207,45 +247,51 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-02, post-D-155):**
-  0. **Two commits are uncommitted-or-unmerged.** PR **#85** (`s43-close-d154`) is open and needs a
-     merge; **D-155's cluster is uncommitted in the working tree** (16 files) and needs its own
-     branch + PR. Neither has been deployed.
-  1. **Keep going down the Phase 0B backlog — this is the work D-152 points at.** **21** findings
-     remain tagged *Open — Phase 0B* (24 − D-155's three), and **23 open in total** counting
-     AUD-C-19 (new this session) and AUD-F-16. They cluster, and taking a
-     cluster rather than a finding is what made D-155 coherent. The next three worth taking as a
-     unit, in rough order of what a user would notice:
-     - **parent-visible correctness** — AUD-L-14 (`time_spent_minutes: 0.0` beside
-       `attempts_count: 26`, inside `verified_facts`), AUD-L-15 (one skill reading mastery 1.000
-       *and* "needs work" under one `"all time"` label), AUD-L-13 (memory facts never checked
-       against the measured mastery score in the same database);
+- **Next session, in order (2026-08-02, post-D-156):**
+  0. **Nothing is unlanded.** `main` carries D-154 (#85), D-155 (#86) and D-156. Still **no deploy** —
+     three sessions of changes are now on `main` un-deployed, which is worth a conscious decision
+     rather than drift.
+  1. **Keep going down the Phase 0B backlog — still the work D-152 points at.** **19** findings remain
+     tagged *Open — Phase 0B* (21 − D-156's L-13/L-15; AUD-C-19 was never in that tag — it was filed
+     and closed inside 24 hours), and **20 open in total** counting AUD-F-16. Taking a cluster rather than a finding is what has made
+     the last two sessions coherent. In rough order of what a user would notice:
+     - **AUD-L-14, and it needs a measurement before a fix.** The last of the parent-visible three,
+       and deliberately left this session: [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) records that
+       D-107's browser run measured client telemetry reporting **15,591 ms for a 15,000 ms dwell**,
+       so the headline "140 item-state rows summing to 0 ms" is most likely an artifact of S36
+       driving those journeys through the API with no browser. The underlying point stands — the
+       report ignores the always-`NOT NULL` `assessment_attempts.response_time_ms` — but re-measure
+       with a browser first. **Note the constraint:** that is Playwright, which cannot run alongside
+       `make test` (shared dev Postgres).
      - **idempotency/replay** — AUD-X-03 (a replayed `POST /sessions/{id}/topics` builds a second
        exam and orphans the first), AUD-X-04 (no idempotency key on report generation: two clicks,
-       two paid Bedrock calls);
-     - **the masked-by-uniform-data pair** — AUD-C-09 (`academic_year` predicate never applied)
-       and AUD-L-12 (`recommended_difficulty` routes nothing), both correct code that was never
-       wired and is invisible until the data stops being uniform.
-     **AUD-C-19 (P3)** is the cheapest single item and is the direct follow-on to this session —
-     it needs the `escalation_recommended` product call written down, not just a message swap.
-  2. **Send the two drafted messages** (written and send-ready; the remaining step is you sending
-     them to the right people): the production security findings
-     ([S42_SECURITY_REPORT.md](S42_SECURITY_REPORT.md), to the system operator) and the Enrollment
-     FAQ approval ([ENROLLMENT_FAQ_APPROVAL.md](ENROLLMENT_FAQ_APPROVAL.md), to the content owner).
+       two paid Bedrock calls).
+     - **the masked-by-uniform-data pair** — AUD-C-09 (`academic_year` predicate never applied) and
+       AUD-L-12 (`recommended_difficulty` routes nothing), both correct code that was never wired and
+       is invisible until the data stops being uniform.
+  2. **One thing D-156 opened and did not close: mastery is still not date-filtered.**
+     `build_dashboard` reads `mastery_repo.list_for_student`, which takes no range, so a report headed
+     "2026-07-01 to 2026-07-31" still shows all-time mastery. This is now *labelled* rather than
+     silent, and "current standing" is arguably the right thing for a mastery chart to show — so this
+     is a product question ("should the range apply to mastery at all?"), not a bug to fix on sight.
+  3. **Send the two drafted messages** (written and send-ready; the remaining step is you sending them
+     to the right people): the production security findings
+     ([S42_SECURITY_REPORT.md](S42_SECURITY_REPORT.md), to the system operator) and the Enrollment FAQ
+     approval ([ENROLLMENT_FAQ_APPROVAL.md](ENROLLMENT_FAQ_APPROVAL.md), to the content owner).
      Different audiences — do not merge. On FAQ approval: correct the four facts, flip
      `status: draft → approved`, re-run `make knowledge-load`.
-     ⚠️ **First:** `docs/SECURITY_REPORT_TO_ORG.md` is an orphan earlier English-only draft of the
-     same findings, referenced by nothing, overlapping the doc above. Merge or delete it so the
-     wrong one cannot go out.
-  3. **Optional criterion-6 confirmation reads remain free** on 08-03/08-05/08-09 (the daily-purge
+     ⚠️ **First, and still not done:** `docs/SECURITY_REPORT_TO_ORG.md` is an orphan earlier
+     English-only draft of the same findings, referenced by nothing, overlapping the doc above. Merge
+     or delete it so the wrong one cannot go out.
+  4. **Optional criterion-6 confirmation reads remain free** on 08-03/08-05/08-09 (the daily-purge
      ≥7-day clock, not a gate blocker after D-148). `make scheduler-evidence` will keep printing
-     ❌ NOT YET until retention-purge reaches 7 unattended days (~08-05); the weekly firing itself
-     is already confirmed (08-02). D-148 §2's reopening condition still applies if any future
-     firing fails.
-  4. **Still parked:** the Billing-console credit look (D-139 §3, "fine for now") and AUD-F-33's
+     ❌ NOT YET until retention-purge reaches 7 unattended days (~08-05); the weekly firing itself is
+     already confirmed (08-02). D-148 §2's reopening condition still applies if any future firing
+     fails.
+  5. **Still parked:** the Billing-console credit look (D-139 §3, "fine for now") and AUD-F-33's
      apply.
-  5. **Not on this list on purpose:** everything integration-shaped (S43–S47, auth, reachability,
-     the dev-fake rewrite). Frozen by D-152 until the user says integration is starting.
+  6. **Not on this list on purpose:** everything integration-shaped (S43–S47, auth, reachability, the
+     dev-fake rewrite). Frozen by D-152 until the user says integration is starting.
 
 - **✅ THE §2.6 GATE IS CLOSED (2026-08-01, D-148) — criterion 6 closed early by user decision, on
   manufactured-but-real evidence.** The user directed the calendar blocker be bypassed; the
@@ -3791,6 +3837,73 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S45 (unnumbered) — Phase 0B: parent-visible correctness, AUD-C-19 + AUD-L-13 + AUD-L-15 (2026-08-02) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer, not a numbered roadmap block** — same reason
+  as S44 (everything through S41 ✅, S42's source half done, S43–S47 frozen by D-152). Item 0
+  (land the stacked sessions) plus item 1's parent-visible cluster. No integration-shaped work.
+  **No deploy, no apply, and no staging access of any kind.**
+- **First, item 0: the two stacked sessions were separated.** `s43-close-d154` carried D-154 as a
+  commit *and* D-155's 18 files uncommitted on top of it, so merging PR #85 would have silently
+  dragged D-155 in. Split: **#85 merged** (D-154), D-155 committed to its own branch as **#86**
+  and merged. Content unchanged in both.
+- **Built (D-156): three findings that are not one defect, but share a shape** — a number or a
+  sentence shown to a family that the system could already have checked against something it knew,
+  where the contradicting fact sat in the same database, in the same transaction, unread.
+- **AUD-C-19** — `qa.answer_question`'s `except BedrockGatewayError` now returns
+  `SERVICE_UNAVAILABLE_MESSAGE` instead of `NO_SOURCE_MESSAGE`, with `missing_information = None`.
+  The product call S44 deferred is **decided: `escalation_recommended = False`** — escalation is
+  itself a Bedrock-and-MCP path so recommending it during an outage walks the user into a second
+  failure; it books a branch manager for a question the corpus can answer; and the message already
+  offers the human path *conditionally*, after a retry. `SERVICE_UNAVAILABLE_MESSAGE` moved from
+  `graph/nodes.py` down to `services/qa.py` (graph → services, never back); `graph.nodes`
+  re-exports it so `main.py`'s 503 handler is untouched.
+- **AUD-L-13** — `_contradicts_measured_mastery` screens `strength`/`weak_skill` candidates against
+  `mastery.weighted_score` at `WEAK_SKILL_THRESHOLD`, **on the reconfirm path as well as the add
+  path** — the branch that matters, since reconfirmation *is* the promotion path and the finding's
+  point was that promotion tests repetition, not consistency. Narrow on purpose (the other ten fact
+  types describe *how* a student works, which a score cannot contradict) and it abstains with no
+  mastery row. Refusals counted (`mastery_conflicts`), logged without student id or fact text
+  (SPEC §5.30), printed per-student and in the CLI run summary.
+  `WEAK_SKILL_THRESHOLD` moved to `intellichoice_shared.mastery_policy` — a package cannot import
+  an app, and the alternative was a second copy of a classification threshold.
+- **AUD-L-15 — two behaviour changes, both put to the user and decided by them.** (a) **Mastery now
+  includes the post-exam**: `_recompute_all_skill_mastery` gained `post_assessment_session_id` and
+  `_finalize_post_exam` now calls it — *it never did*, so the post-exam reached mastery through no
+  path at all. The larger consequence, and not the one the finding led with: `topic_resolver` chose
+  the **next** cycle's target skills from a score that had never seen how the last one ended.
+  (b) **One definition of "weak"**: the report's hardcoded `0.8` on post-exam accuracy is gone and
+  `weak_skill_names` reads `mastery.weighted_score < WEAK_SKILL_THRESHOLD`, the study plan's own
+  cut — only correct *because of* (a). (c) Every figure states its window: report payload
+  (audience-gated with its figure), `_SYSTEM_PROMPT`, and `GET /dashboard` chart captions rendered
+  by the client. `learning_gain.unresolved_skills` deliberately keeps its post-exam-only
+  computation — it is a frozen record of one cycle, not current standing.
+- **Deliberately not done:** **AUD-L-14**, the third parent-visible finding. AUDIT_FINDINGS.md
+  records that D-107's browser run measured client telemetry reporting 15,591 ms for a 15,000 ms
+  dwell, so its headline "140 rows summing to 0 ms" is most likely an artifact of S36 driving those
+  journeys with no browser. The underlying point stands; the evidence needs re-measuring first.
+- **Verification.** `make lint` clean, `pyright` 0 errors, **684 passed / 2 skipped** (671 + 13).
+  Learning e2e **18/18**, chat e2e **35/35**, e2e typecheck clean, both frontends build clean.
+  Everything watched failing first:
+  - AUD-C-19's test was **rewritten, not added** — it asserted the old wording and failed on
+    `AttributeError: module 'chat_api.services.qa' has no attribute 'SERVICE_UNAVAILABLE_MESSAGE'`;
+  - AUD-L-13's five tests failed on `TypeError: consolidate_student_window() got an unexpected
+    keyword argument 'mastery_repo'`;
+  - AUD-L-15's flow test failed on the assertion that a student who got **every post-exam item
+    wrong** still read a perfect mastery score — the defect stated as an assertion.
+  - Two existing guards fired unprompted and were worth having: the **PII floor allowlist** blocked
+    two new `ReportInterpretationPayload` fields until they were explicitly named, and the
+    **golden-set eval was diffed before/after** the AUD-C-19 swap (byte-identical, so no eval
+    outcome moved on a message change).
+- **Carry-over:** **mastery is still not date-filtered** — `build_dashboard` reads
+  `mastery_repo.list_for_student`, which takes no range, so a July-headed report shows all-time
+  mastery. Now *labelled* rather than silent, and "current standing" is arguably right for a mastery
+  chart, so this is a product question rather than a bug. Also unchanged from S44:
+  `docs/SECURITY_REPORT_TO_ORG.md` is an orphan draft overlapping `S42_SECURITY_REPORT.md`.
+- **Docs:** D-156; AUD-C-19/AUD-L-13/AUD-L-15 marked fixed in AUDIT_FINDINGS.md; ARCHITECTURE.md
+  §8 and §10 updated plus one new cross-cutting invariant.
+- **Decisions:** D-156.
 
 ### S44 (unnumbered) — Phase 0B: the chat error-path cluster, AUD-C-07 + AUD-C-08 + AUD-C-10 (2026-08-02) ✅
 

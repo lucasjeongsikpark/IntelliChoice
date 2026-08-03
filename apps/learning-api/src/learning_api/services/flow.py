@@ -245,25 +245,45 @@ async def _recompute_all_skill_mastery(
     student_external_id: str,
     pre_assessment_session_id: str | None,
     study_session_id: str | None,
+    post_assessment_session_id: str | None,
     assessment_repo: AssessmentRepository,
     study_repo: StudyRepository,
     mastery_repo: MasteryRepository,
     question_repo: QuestionRepository,
 ) -> None:
-    """Recompute bootstrap mastery for every skill touched by the pre-exam or study phase,
-    combining both sources (outcome-aware for study attempts - only `independent_correct`
-    counts, SPEC §5.10.3/§5.11.5).
+    """Recompute bootstrap mastery for every skill touched by the pre-exam, the study phase
+    or the post-exam, combining all three (outcome-aware for study attempts - only
+    `independent_correct` counts, SPEC §5.10.3/§5.11.5).
+
+    **The post-exam was structurally excluded until D-156 (AUD-L-15).** Mastery is "what
+    this student currently knows", and it was computed without the most recent and most
+    comprehensive measurement of the cycle. Two things followed. A report could show a skill
+    at mastery 1.000 beside "skills to strengthen: that skill", because the pre-exam had it
+    right and the post-exam had it wrong and only one of them counted - S36's
+    `aud-student-premax`, exactly. And `topic_resolver`, which picks the *next* cycle's
+    target skills from `mastery.weighted_score`, chose them without ever seeing how the last
+    cycle ended.
+
+    Including it is not free of judgement: the post-exam is also the instrument the learning
+    gain is measured with. It stays a clean instrument, because `compute_learning_gain` reads
+    the raw pre and post attempts directly and never consults mastery - so nothing about the
+    gain calculation becomes circular. What changes is that the number driving *future*
+    routing now reflects the whole cycle.
     """
     pre_attempts: list[AssessmentAttempt] = []
     if pre_assessment_session_id is not None:
         pre_attempts = await assessment_repo.get_attempts(pre_assessment_session_id)
+    post_attempts: list[AssessmentAttempt] = []
+    if post_assessment_session_id is not None:
+        post_attempts = await assessment_repo.get_attempts(post_assessment_session_id)
     study_attempts: list[StudyAttempt] = []
     if study_session_id is not None:
         study_attempts = await study_repo.get_attempts(study_session_id)
 
     pre_graded = await mastery_bootstrap.resolve_graded_attempts(question_repo, pre_attempts)
+    post_graded = await mastery_bootstrap.resolve_graded_attempts(question_repo, post_attempts)
     study_graded = await mastery_bootstrap.resolve_graded_attempts(question_repo, study_attempts)
-    all_graded = pre_graded + study_graded
+    all_graded = pre_graded + study_graded + post_graded
     for skill_id in {a.skill_id for a in all_graded}:
         await _upsert_skill_mastery(
             mastery_repo=mastery_repo,
@@ -619,6 +639,10 @@ async def advance_study(
         student_external_id=learning_session.student_external_id or "",
         pre_assessment_session_id=learning_session.pre_assessment_session_id,
         study_session_id=ss_id,
+        # Always None here - the post-exam does not exist yet during study. Passed
+        # explicitly rather than defaulted so that a future caller has to say what it
+        # means, which is how the post-exam went missing in the first place.
+        post_assessment_session_id=learning_session.post_assessment_session_id,
         assessment_repo=assessment_repo,
         study_repo=study_repo,
         mastery_repo=mastery_repo,
@@ -810,6 +834,27 @@ async def _complete_post_exam(
             response_time_change_ms=gain.response_time_change_ms,
         )
     )
+
+    # AUD-L-15 (D-156): fold the post-exam into mastery. Deliberately *after* the learning
+    # gain is computed and recorded above - the gain reads raw attempts, not mastery, so the
+    # order does not change it, but keeping mastery downstream of the gain makes it obvious
+    # at a glance that the instrument was read before the thing it measures was updated.
+    #
+    # This is also the last write before `finalize_exam`'s memory consolidation runs, which
+    # is what AUD-L-13's consistency floor needs: it screens proposed ability facts against
+    # `mastery.weighted_score`, and those scores now include the cycle that just produced
+    # the facts.
+    await _recompute_all_skill_mastery(
+        student_external_id=student_id,
+        pre_assessment_session_id=learning_session.pre_assessment_session_id,
+        study_session_id=learning_session.study_session_id,
+        post_assessment_session_id=learning_session.post_assessment_session_id,
+        assessment_repo=assessment_repo,
+        study_repo=study_repo,
+        mastery_repo=mastery_repo,
+        question_repo=question_repo,
+    )
+
     learning_session.phase = "completed"
 
     return FinalizeResult(

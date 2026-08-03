@@ -31,9 +31,10 @@ from intellichoice_shared.bedrock import (
     ReportInterpretationPayload,
     ReportInterpretationResponse,
 )
+from intellichoice_shared.mastery_policy import WEAK_SKILL_THRESHOLD
 from intellichoice_shared.numeric_grounding import is_grounded
 
-from learning_api.services.dashboard import DashboardData
+from learning_api.services.dashboard import MASTERY_WINDOW_LABEL, DashboardData
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,43 @@ _SYSTEM_PROMPT = (
     "§5.10.3: 'skills to strengthen', 'almost there', never discouraging language); use "
     "plain, factual language for parent/tutor/branch_manager audiences. Only reference "
     "numbers and skill names that appear in the data you were given - never invent a "
-    "score, a gain, a count, or a skill name that isn't already there."
+    "score, a gain, a count, or a skill name that isn't already there. "
+    # AUD-L-15: the labels are only worth carrying if the thing writing the prose is told
+    # they mean something. Mastery and "skills to strengthen" now share one window, but
+    # they still sit beside range-filtered figures (attempts, usage, accuracy, gain) - so
+    # left to itself the model reads an all-time score against a 30-day attempt count and
+    # reconciles them, picking one or averaging or calling the data inconsistent. All three
+    # are wrong: each is a correct measurement of its own window.
+    "The figures come from different windows, described by date_range_label, "
+    "mastery_window_label and weak_skill_window_label. Never merge or reconcile figures "
+    "from different windows, and never treat a disagreement between them as an error: a "
+    "skill can be mastered in one window and still need work in another. When you cite a "
+    "mastery score or a skill needing work, say which window it comes from, in plain "
+    "words the audience would use."
+)
+
+# AUD-L-15 (D-156): "skills to strengthen" is now the same question as "which skills are
+# weak", asked of the same number.
+#
+# It used to be its own thing - `pre_post_by_skill` filtered at a hardcoded 0.8 on raw
+# post-exam accuracy - while `topic_resolver` decided what to *study* with
+# `WEAK_SKILL_THRESHOLD` (0.7) on the difficulty-weighted mastery score. Two cuts on two
+# quantities over two windows, both called "weak", and nothing reconciled them: a parent
+# could be told to strengthen a skill the study plan was not targeting, or not told about
+# one it was. The report is the document that tells a family what to work on next, so the
+# one thing it must not do is disagree with what the system will actually work on next.
+#
+# Both now read `mastery.weighted_score < WEAK_SKILL_THRESHOLD`. That became the right
+# source in this same change: mastery now includes the post-exam, so it carries the
+# post-exam signal the old 0.8 cut existed to capture.
+#
+# `learning_gain.unresolved_skills` deliberately keeps its own post-exam-only computation.
+# It is not a statement about current standing - it is a frozen record of how one cycle
+# ended, stored on the `LearningGain` row, and re-pointing it at live mastery would make a
+# historical row change meaning after the fact.
+_WEAK_SKILL_WINDOW_LABEL = (
+    f"{MASTERY_WINDOW_LABEL[:-1]}, listing only skills below {{threshold:.0%}} - the same "
+    "cut the study plan uses to choose what to work on next."
 )
 
 # SPEC §5.14.2/§5.14.3/§5.14.4 - which verified_facts fields each audience may see.
@@ -186,7 +223,9 @@ def build_report_facts(
         "overall_accuracy": _overall_accuracy(dashboard),
         "mastery_by_skill": {p.skill_name: p.weighted_score for p in dashboard.mastery_by_skill},
         "weak_skill_names": [
-            p.skill_name for p in dashboard.pre_post_by_skill if p.post_accuracy < 0.8
+            p.skill_name
+            for p in dashboard.mastery_by_skill
+            if p.weighted_score < WEAK_SKILL_THRESHOLD
         ],
         "hint_count": dashboard.usage.hint_count,
         "solution_count": dashboard.usage.solution_count,
@@ -206,6 +245,16 @@ def build_report_facts(
         audience=audience,  # type: ignore[arg-type]
         grade=grade,
         date_range_label=date_range_label,
+        # AUD-L-15: a window label rides with its figure through the same audience gate.
+        # A tutor payload carries no `mastery_by_skill`, so a mastery window label there
+        # would describe a number that is not in the payload - and an unexplained window
+        # in the prompt is a new way for the model to invent a sentence.
+        mastery_window_label=(MASTERY_WINDOW_LABEL if "mastery_by_skill" in allowed else ""),
+        weak_skill_window_label=(
+            _WEAK_SKILL_WINDOW_LABEL.format(threshold=WEAK_SKILL_THRESHOLD)
+            if "weak_skill_names" in allowed
+            else ""
+        ),
         **gated,
     )
 

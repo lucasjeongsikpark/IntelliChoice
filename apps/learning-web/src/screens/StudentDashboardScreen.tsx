@@ -182,6 +182,12 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
 
           <section className="chart-section" aria-label="Mastery by skill">
             <h2>Mastery by skill</h2>
+            {/* AUD-L-15: this is the one chart on the screen the date-range picker above
+                does not apply to, and it excludes the post-exam besides - so a skill can
+                read 100% here while "Pre vs. post accuracy" shows it missed. Both are
+                correct measurements of different windows; without the caption the pair
+                reads as a contradiction. Server-supplied so it cannot drift. */}
+            <p className="chart-caption">{dashboard.mastery_window_label}</p>
             {dashboard.mastery_by_skill.length === 0 ? (
               <p className="chart-empty">No mastery data yet.</p>
             ) : (
@@ -217,6 +223,7 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
 
           <section className="chart-section" aria-label="Pre and post exam accuracy by skill">
             <h2>Pre vs. post accuracy by skill</h2>
+            <p className="chart-caption">{dashboard.pre_post_window_label}</p>
             {dashboard.pre_post_by_skill.length === 0 ? (
               <p className="chart-empty">No completed pre/post cycle in this range yet.</p>
             ) : (

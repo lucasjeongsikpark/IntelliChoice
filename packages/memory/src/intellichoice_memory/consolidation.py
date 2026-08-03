@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from intellichoice_db.models.memory import LearningEvent, SemanticMemory
+from intellichoice_db.repositories.mastery import MasteryRepository
 from intellichoice_db.repositories.memory import LIVE_STATUSES, MemoryRepository
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_shared.bedrock import (
@@ -32,6 +33,7 @@ from intellichoice_shared.bedrock import (
     MemoryExistingFact,
     MemoryUpdateResponse,
 )
+from intellichoice_shared.mastery_policy import WEAK_SKILL_THRESHOLD
 from intellichoice_shared.pii_redaction import contains_pii_pattern
 
 from intellichoice_memory.events import CHAT_TURN, render_event_summary
@@ -129,6 +131,11 @@ class ConsolidationResult:
     # True when the run budget stopped this student early. Distinct from `calls_failed` because
     # it is designed behaviour, not a fault, and must not make the process exit non-zero.
     budget_stopped: bool = False
+    # AUD-L-13: candidates refused because they contradicted the measured mastery score for
+    # the same skill. Reported rather than inferred from `added` for the same reason
+    # `events_dropped` is - a screen whose cost is invisible is a screen nobody tunes. Not a
+    # fault and must not affect exit code: refusing an inconsistent claim is the job.
+    mastery_conflicts: int = 0
 
 
 @dataclass
@@ -149,6 +156,7 @@ class _RunningTotals:
     calls_failed: int = 0
     events_dropped: int = 0
     budget_stopped: bool = False
+    mastery_conflicts: int = 0
 
     def as_result(self) -> ConsolidationResult:
         return ConsolidationResult(
@@ -161,6 +169,7 @@ class _RunningTotals:
             calls_failed=self.calls_failed,
             events_dropped=self.events_dropped,
             budget_stopped=self.budget_stopped,
+            mastery_conflicts=self.mastery_conflicts,
         )
 
 
@@ -264,6 +273,47 @@ def _batch_summaries(
     return batches, dropped
 
 
+# AUD-L-13: the two fact types that make a claim a mastery score can flatly contradict.
+# Deliberately not the whole enum - `misconception`, `hint_dependence`, `guessing_pattern`
+# and the rest describe *how* a student works, which a `weighted_score` says nothing about.
+# Screening those on mastery would silence the fact types that carry the most teaching
+# value for exactly the struggling student this floor exists to protect.
+_ABILITY_FACT_TYPES = {"strength": "positive", "weak_skill": "negative"}
+
+
+def _contradicts_measured_mastery(
+    fact_type: str, skill_id: str | None, mastery_scores: dict[str, float]
+) -> bool:
+    """AUD-L-13's deterministic consistency floor: a claim about a skill must agree with
+    the mastery score for that skill in the same database, in the same transaction.
+
+    Consolidation already verified that a candidate's cited events are real and that the
+    claim repeated across sessions. Neither is consistency. `aud-student-regressing` held
+    an accepted `strength` fact for a skill measured at 0.000, citing real events - and
+    across four journeys all 20 facts were `strength` with zero `weak_skill` facts,
+    including for the student who went 8->4 and whose own `learning_gain.unresolved_skills`
+    named the skill. Repetition promotes such a fact rather than catching it, so the bound
+    that keeps it out of parent-visible payloads today (`provisional` is never read) is one
+    more session from lapsing.
+
+    Cheap, and independent of model quality - which is the point. It does not depend on the
+    model getting better; it depends on a number this transaction already has.
+
+    Abstains when there is no mastery row: a never-assessed skill has no measurement for
+    the claim to be wrong *about*, unlike the reproduction above where a contradicting
+    number existed and went unread.
+    """
+    expected_polarity = _ABILITY_FACT_TYPES.get(fact_type)
+    if expected_polarity is None or skill_id is None:
+        return False
+    measured = mastery_scores.get(skill_id)
+    if measured is None:
+        return False
+    measured_is_weak = measured < WEAK_SKILL_THRESHOLD
+    claims_weak = expected_polarity == "negative"
+    return measured_is_weak != claims_weak
+
+
 def _meets_stability_bar(event_ids: list[str], events_by_id: dict[str, LearningEvent]) -> bool:
     matched = [events_by_id[eid] for eid in event_ids if eid in events_by_id]
     unique_sessions = {e.session_id for e in matched}
@@ -294,6 +344,7 @@ def _verify_evidence(
 async def consolidate_student_window(
     *,
     memory_repo: MemoryRepository,
+    mastery_repo: MasteryRepository,
     tutor_chat_repo: TutorChatMessageRepository,
     gateway: BedrockGateway,
     student_external_id: str,
@@ -307,6 +358,7 @@ async def consolidate_student_window(
     events = await memory_repo.list_events_in_window(student_external_id, window_start, window_end)
     return await _consolidate_events(
         memory_repo=memory_repo,
+        mastery_repo=mastery_repo,
         tutor_chat_repo=tutor_chat_repo,
         gateway=gateway,
         student_external_id=student_external_id,
@@ -320,6 +372,7 @@ async def consolidate_student_window(
 async def consolidate_student_session(
     *,
     memory_repo: MemoryRepository,
+    mastery_repo: MasteryRepository,
     tutor_chat_repo: TutorChatMessageRepository,
     gateway: BedrockGateway,
     student_external_id: str,
@@ -336,6 +389,7 @@ async def consolidate_student_session(
     occurred_ats = [event.occurred_at for event in events]
     return await _consolidate_events(
         memory_repo=memory_repo,
+        mastery_repo=mastery_repo,
         tutor_chat_repo=tutor_chat_repo,
         gateway=gateway,
         student_external_id=student_external_id,
@@ -349,6 +403,7 @@ async def consolidate_student_session(
 async def _consolidate_events(
     *,
     memory_repo: MemoryRepository,
+    mastery_repo: MasteryRepository,
     tutor_chat_repo: TutorChatMessageRepository,
     gateway: BedrockGateway,
     student_external_id: str,
@@ -400,6 +455,13 @@ async def _consolidate_events(
             },
         )
 
+    # AUD-L-13: read once per student, not once per candidate. Mastery is not mutated
+    # anywhere in this run, and every batch screens against the same measurement.
+    mastery_scores = {
+        row.skill_id: row.weighted_score
+        for row in await mastery_repo.list_for_student(student_external_id)
+    }
+
     totals = _RunningTotals(events_dropped=events_dropped)
     spend_so_far = session_spend_cents
 
@@ -411,6 +473,7 @@ async def _consolidate_events(
         }
         stopped = await _consolidate_one_batch(
             memory_repo=memory_repo,
+            mastery_scores=mastery_scores,
             gateway=gateway,
             student_external_id=student_external_id,
             batch=batch,
@@ -428,6 +491,7 @@ async def _consolidate_events(
 async def _consolidate_one_batch(
     *,
     memory_repo: MemoryRepository,
+    mastery_scores: dict[str, float],
     gateway: BedrockGateway,
     student_external_id: str,
     batch: list[MemoryEventSummary],
@@ -511,12 +575,32 @@ async def _consolidate_one_batch(
 
     update = result.value
     totals.cost_cents += result.cost_cents
-    added = updated = contested = expired = 0
+    added = updated = contested = expired = mastery_conflicts = 0
 
     for candidate in update.facts_to_add:
         if candidate.fact_type not in FACT_TYPES:
             continue
         if contains_pii_pattern(candidate.fact_text):
+            continue
+        if _contradicts_measured_mastery(candidate.fact_type, candidate.skill_id, mastery_scores):
+            # Counted and logged, not silently dropped. The other two screens above can
+            # afford silence - an out-of-enum type and a PII hit are unambiguous model
+            # faults. This one is a *disagreement* between the model's read of the events
+            # and the measurement, and which of the two is wrong is worth knowing: a rising
+            # conflict rate means either the prompt is drifting or mastery is stale. A
+            # failure mode that logs nothing is a failure mode nobody finds (AUD-F-34).
+            logger.warning(
+                "memory_fact_contradicts_mastery",
+                extra={
+                    # No student id and no fact text - the fact text is a claim about a
+                    # minor's ability, and SPEC §5.30 keeps that out of logs. The fact type
+                    # and the score are what a rate question needs.
+                    "fact_type": candidate.fact_type,
+                    "measured_weighted_score": mastery_scores.get(candidate.skill_id or ""),
+                    "weak_skill_threshold": WEAK_SKILL_THRESHOLD,
+                },
+            )
+            mastery_conflicts += 1
             continue
         verified_ids = _verify_evidence(
             candidate.supporting_event_ids, events_by_id, student_external_id=student_external_id
@@ -592,6 +676,26 @@ async def _consolidate_one_batch(
             continue
         if contains_pii_pattern(fact_update.fact_text):
             continue
+        if _contradicts_measured_mastery(
+            existing_fact.fact_type, existing_fact.skill_id, mastery_scores
+        ):
+            # The floor has to be here too, and this is the branch AUD-L-13 actually turns
+            # on. Reconfirmation is the *promotion* path (`_maybe_promote` below), and the
+            # finding's point is that the promotion criterion is repetition, not
+            # consistency - so a `strength` fact for a now-measured-weak skill would ride a
+            # second session from `provisional` into `active`, where tutoring payloads and
+            # parent reports finally read it. Screening only new candidates would leave the
+            # one route to a parent open.
+            logger.warning(
+                "memory_fact_contradicts_mastery",
+                extra={
+                    "fact_type": existing_fact.fact_type,
+                    "measured_weighted_score": mastery_scores.get(existing_fact.skill_id or ""),
+                    "weak_skill_threshold": WEAK_SKILL_THRESHOLD,
+                },
+            )
+            mastery_conflicts += 1
+            continue
         verified_ids = _verify_evidence(
             fact_update.supporting_event_ids, events_by_id, student_external_id=student_external_id
         )
@@ -617,4 +721,5 @@ async def _consolidate_one_batch(
     totals.updated += updated
     totals.contested += contested
     totals.expired += expired
+    totals.mastery_conflicts += mastery_conflicts
     return False

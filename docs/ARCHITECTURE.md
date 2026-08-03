@@ -122,7 +122,29 @@ to rot, because nothing fails when it does.)*
   the observable half matters too (a degraded turn used to increment `qa_out_of_scope_total`, so
   an outage read on a dashboard as a surge of off-topic questions). `service_degraded` is per-turn
   and cleared in `resolve_role`, because a sticky one makes an outage outlive itself on every
-  thread it touched.
+  thread it touched. **The rule reaches past the graph into the service layer** (D-156):
+  `qa.answer_question`'s synthesis-failure branch was the fourth site, and the one D-155 left —
+  it returned "I don't have an approved source for that yet" after retrieval had *succeeded* and
+  a source demonstrably existed. It now returns the same outage message, with
+  `escalation_recommended = False`, because escalation is itself a Bedrock-and-MCP path and
+  recommending a hand-off during an outage walks the user into a second failure.
+- **A number shown to a family states its window, and is checked against what the system
+  already measured** (D-156). Two failures with one root: nothing reconciled a figure against
+  the data sitting beside it. A memory fact asserting a `strength` for a skill the same
+  transaction measured at 0.000 was accepted because consolidation verified *provenance and
+  repetition* and never the claim itself — and repetition is what promotion tests, so the fact
+  was one session from reaching a parent. A report showed mastery 1.000 for a skill listed under
+  "skills to strengthen", because the two came from different phases, different windows and
+  different thresholds under one `date_range_label` that described neither. The rule has three
+  parts, in order of strength: **prefer one source and one cut** (mastery now includes the
+  post-exam, and "skills to strengthen" uses the study plan's own `WEAK_SKILL_THRESHOLD`, so the
+  report cannot recommend work the system will not do); **screen deterministically against the
+  measurement** where a model proposes a claim (`_contradicts_measured_mastery`, on the reconfirm
+  path as well as the add path); and **label the window** where two genuinely different windows
+  must coexist — mastery is not date-filtered and that is now stated rather than implied. A
+  threshold that crosses a package boundary lives in one module
+  (`intellichoice_shared.mastery_policy`); two copies is how one subsystem calls a skill weak
+  while another calls it proficient.
 - **Authorization distinguishes reading a student's data from changing it** — every learning
   route passes a required `access: "read" | "write"` to `resolve_target_student` (S40, D-107).
   Required rather than defaulted because the recurring defect in this codebase is a route
@@ -740,12 +762,24 @@ renders each `learning_events` row into a citable one-line summary *before* the 
 ever sees it; the model only ever proposes candidate facts citing `event_id`s it was
 shown, and code re-verifies every citation before trusting it (D-038-style).
 
+**A candidate now has to survive a third screen (AUD-L-13, D-156): agreement with the
+measured mastery score for the same skill.** Provenance and repetition were both verified
+and neither is consistency - a `strength` fact for a skill measured at 0.000 cited real
+events and repeated across sessions, which is precisely what promotion tests for. The
+screen applies to `strength`/`weak_skill` only (the other ten fact types describe *how* a
+student works, which a score cannot contradict), abstains when the skill has no mastery
+row, and runs on the **reconfirm** path as well as the add path - reconfirmation is the
+promotion path, so screening only new candidates would leave the one route to a parent
+open. `WEAK_SKILL_THRESHOLD` lives in `intellichoice_shared.mastery_policy` so this floor
+and learning-api's own weak-skill classification cannot drift apart.
+
 ```mermaid
 flowchart LR
     EVENTS["learning_events rows<br/>(session-scoped or<br/>window-scoped)"] --> RENDER["render_event_summary<br/>(code-owned, deterministic;<br/>chat_turn also joins in<br/>tutor_chat_messages' redacted<br/>text, D-074 #5)"]
     RENDER --> CALL["BedrockTask.MEMORY_CONSOLIDATION<br/>events + existing_facts →<br/>MemoryUpdateResponse"]
     CALL --> VERIFY["verify every cited event_id<br/>resolves + belongs to student<br/>(D-038-style)"]
     VERIFY -->|"fails enum/PII/evidence"| DROP["candidate dropped"]
+    VERIFY -->|"strength/weak_skill that<br/>contradicts mastery.weighted_score<br/>(AUD-L-13/D-156; add AND<br/>reconfirm paths)"| CONFLICT["candidate refused<br/>+ mastery_conflicts counter<br/>+ memory_fact_contradicts_mastery"]
     VERIFY -->|"ok, <3 events or <2 sessions"| PROV["status=provisional<br/>(never read by tutor payload)"]
     VERIFY -->|"ok, >=3 events, >=2 sessions"| ACTIVE["status=active"]
     VERIFY -->|"same-polarity match<br/>vs. an existing live fact"| RECONFIRM["reconfirm_fact<br/>(contested → active again;<br/>provisional promotes only via<br/>promote_if_eligible's same bar<br/>over ACCUMULATED evidence,<br/>AUD-F-35/D-150)"]
@@ -755,7 +789,7 @@ flowchart LR
     classDef terminal fill:#efe,stroke:#4a4
     classDef reject fill:#fee,stroke:#c44
     class ACTIVE,RECONFIRM terminal
-    class DROP reject
+    class DROP,CONFLICT reject
 ```
 
 ## 9. Personalized stage narratives (S26, inline + SSE connect)
@@ -796,7 +830,7 @@ flowchart LR
 
 ## 10. Progress dashboard and student report (S28, pure aggregation + inline Bedrock call)
 
-Two independent paths sharing one date-range-filtered aggregation layer
+Two independent paths sharing one *mostly* date-range-filtered aggregation layer
 (`DashboardRepository` in `packages/db`, pushed-into-SQL `[start, end)` filters, no LLM):
 `services/dashboard.py::build_dashboard` shapes the filtered rows into chart DTOs
 (mastery by skill, pre/post accuracy by skill, gains over time, accuracy trend, difficulty
@@ -813,11 +847,34 @@ case. Unlike `stage_transitions`, `student_reports` is not idempotency-keyed - r
 generation is an explicit on-demand action, so every call persists a fresh row (history,
 newest first).
 
+**Not every figure covers the same window, and each one now says which (AUD-L-15, D-156).**
+`mastery_by_skill` comes from `mastery_repo.list_for_student`, which takes **no date range
+at all** - so under a report or chart headed "2026-07-01 to 2026-07-31" it is still
+current standing across all practice. It sat beside range-filtered aggregates under a
+single `date_range_label` that described neither, which is how one report showed a skill at
+mastery 1.000 next to "skills to strengthen: that skill". `MASTERY_WINDOW_LABEL` and
+`PRE_POST_WINDOW_LABEL` live in `services/dashboard.py` next to the data they describe,
+travel into the report payload (audience-gated with their figures), into the system prompt
+("never merge or reconcile figures from different windows"), and into `GET /dashboard` as
+captions the client renders - the server owns the wording so it cannot drift from the
+computation.
+
+**Two upstream changes closed the contradiction at its source rather than only labelling
+it.** Mastery now includes the post-exam (§2 - `_recompute_all_skill_mastery` was never
+called after a post-exam at all, so `topic_resolver` also chose the *next* cycle's targets
+from a score that had never seen how the last one ended), and "skills to strengthen" now
+uses the study plan's own cut, `mastery.weighted_score < WEAK_SKILL_THRESHOLD`, instead of
+a separate hardcoded threshold on post-exam accuracy. The report is the document telling a
+family what to work on next, so it must not disagree with what the system will work on
+next.
+
 ```mermaid
 flowchart LR
     REQ["GET .../dashboard<br/>POST .../report<br/>(start, end query params)"] --> RANGE["DashboardRepository<br/>(SQL WHERE start/end)"]
-    RANGE --> DATA["DashboardData<br/>(mastery, pre/post, gains,<br/>accuracy, usage, difficulty)"]
-    DATA -->|"dashboard route"| DTO["DashboardResponse<br/>(charts)"]
+    REQ --> NORANGE["MasteryRepository.list_for_student<br/>(no date range — AUD-L-15/D-156;<br/>current standing, all practice)"]
+    RANGE --> DATA["DashboardData<br/>(pre/post, gains, accuracy,<br/>usage, difficulty ... range-filtered)"]
+    NORANGE --> DATA
+    DATA -->|"dashboard route"| DTO["DashboardResponse<br/>(charts + per-figure<br/>window captions)"]
     DATA -->|"report route"| GATE["audience gate<br/>(role -> allowed fields,<br/>server-side only)"]
     GATE --> PAYLOAD["ReportInterpretationPayload"]
     PAYLOAD --> CALL["BedrockTask.PARENT_REPORT"]

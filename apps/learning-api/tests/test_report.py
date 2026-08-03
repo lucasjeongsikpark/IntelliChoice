@@ -8,6 +8,7 @@ Postgres is unreachable (D-008).
 import asyncio
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 
 import pytest
 from intellichoice_db.engine import create_engine, create_session_factory
@@ -21,6 +22,7 @@ from intellichoice_shared.bedrock import (
     ReportInterpretationPayload,
     ReportInterpretationResponse,
 )
+from intellichoice_shared.mastery_policy import WEAK_SKILL_THRESHOLD
 from learning_api.services.dashboard import (
     DashboardData,
     MasterySkillPoint,
@@ -28,6 +30,7 @@ from learning_api.services.dashboard import (
     UsageBreakdown,
 )
 from learning_api.services.report import (
+    _SYSTEM_PROMPT,
     DAILY_REPORT_COST_CEILING_CENTS,
     build_report_facts,
     generate_student_report,
@@ -158,6 +161,156 @@ def test_branch_manager_facts_match_tutor_field_set() -> None:
     assert tutor_payload.model_dump(exclude={"audience"}) == branch_manager_payload.model_dump(
         exclude={"audience"}
     )
+
+
+# --- AUD-L-15 (D-156): windows, and one definition of "weak" -------------------------
+#
+# Two defects under one finding. `mastery_by_skill` and `weak_skill_names` arrived under a
+# single `date_range_label` that described neither, and they were computed from different
+# sources with different cuts - mastery from pre+study at `WEAK_SKILL_THRESHOLD` (0.7,
+# difficulty-weighted), "skills to strengthen" from post-exam accuracy at a hardcoded 0.8.
+# S36's `aud-student-premax` came out reading mastery 1.000 for `linear_distribute` beside
+# "Skills to strengthen: ... distribution", labelled "all time", both marked verified.
+#
+# Both halves are closed here. Mastery now includes the post-exam (see
+# `test_learning_flow.py::test_mastery_counts_the_post_exam`), and "skills to strengthen"
+# is now the same number under the same cut the study plan uses - so the report cannot
+# recommend working on something different from what the system will actually work on.
+# What remains genuinely two windows is mastery (all-time) versus the range-filtered
+# aggregates, and each now says so.
+
+
+def _premax_dashboard() -> DashboardData:
+    """The shape S36's `aud-student-premax` used to produce: mastery reading a perfect
+    1.000 for a skill whose post-exam accuracy was 0.0, because only one of the two fed
+    mastery. Kept as a fixture precisely because the report can no longer be made to
+    contradict itself from it.
+    """
+    data = _dashboard()
+    return replace(
+        data,
+        mastery_by_skill=[MasterySkillPoint(skill_name="Distribution", weighted_score=1.0)],
+        pre_post_by_skill=[
+            PrePostSkillPoint(skill_name="Distribution", pre_accuracy=1.0, post_accuracy=0.0)
+        ],
+    )
+
+
+def _weak_dashboard() -> DashboardData:
+    """One skill under the shared cut, one over it."""
+    data = _dashboard()
+    return replace(
+        data,
+        mastery_by_skill=[
+            MasterySkillPoint(skill_name="Distribution", weighted_score=0.35),
+            MasterySkillPoint(skill_name="One-Step Equations", weighted_score=0.92),
+        ],
+    )
+
+
+def test_skills_to_strengthen_use_the_study_plans_own_cut() -> None:
+    """The reconciliation. A parent being told to work on X while `topic_resolver` targets
+    Y is the failure this closes, so both now read `mastery.weighted_score` against
+    `WEAK_SKILL_THRESHOLD`.
+    """
+    payload = build_report_facts(
+        audience="parent",
+        grade="7th grade",
+        date_range_label="all time",
+        dashboard=_weak_dashboard(),
+        relevant_learning_facts=[],
+    )
+    assert payload.weak_skill_names == ["Distribution"]
+    assert payload.mastery_by_skill == {"Distribution": 0.35, "One-Step Equations": 0.92}
+    # Stated in the label, so a reader can check the claim rather than trust it.
+    assert f"{WEAK_SKILL_THRESHOLD:.0%}" in payload.weak_skill_window_label
+
+
+def test_the_threshold_itself_is_not_weak() -> None:
+    """Pins the boundary. "Weak" is strictly below the cut in `topic_resolver` and in the
+    AUD-L-13 memory floor; a report that disagreed at the boundary would reintroduce the
+    exact split this change removed, one skill wide.
+    """
+    data = replace(
+        _dashboard(),
+        mastery_by_skill=[
+            MasterySkillPoint(skill_name="Distribution", weighted_score=WEAK_SKILL_THRESHOLD)
+        ],
+    )
+    payload = build_report_facts(
+        audience="parent",
+        grade="7th grade",
+        date_range_label="all time",
+        dashboard=data,
+        relevant_learning_facts=[],
+    )
+    assert payload.weak_skill_names == []
+
+
+def test_the_premax_contradiction_can_no_longer_be_built() -> None:
+    """The finding's own reproduction, run against the fixed code. Feeding the exact shape
+    that produced "mastery 1.000 and needs work" now yields no weak skill at all: the two
+    figures cannot disagree because they are the same number. The stale `pre_post_by_skill`
+    row is still in the dashboard and is deliberately ignored - a report that fell back to
+    it would recreate the split.
+    """
+    payload = build_report_facts(
+        audience="parent",
+        grade="7th grade",
+        date_range_label="all time",
+        dashboard=_premax_dashboard(),
+        relevant_learning_facts=[],
+    )
+    assert payload.mastery_by_skill == {"Distribution": 1.0}
+    assert payload.weak_skill_names == []
+
+
+def test_mastery_states_a_window_the_date_range_label_does_not_cover() -> None:
+    """The half of AUD-L-15 that survives the reconciliation: mastery is not date-filtered
+    at all (`build_dashboard` reads `mastery_repo.list_for_student`, which takes no range),
+    so under any range label it is still all-time. "all time" was the label in the
+    reproduction and is the most misleading case - it reads as "everything we know", which
+    is what the range-filtered figures beside it are not.
+    """
+    payload = build_report_facts(
+        audience="parent",
+        grade="7th grade",
+        date_range_label="2026-07-01 to 2026-07-31",
+        dashboard=_weak_dashboard(),
+        relevant_learning_facts=[],
+    )
+    assert payload.date_range_label == "2026-07-01 to 2026-07-31"
+    assert payload.mastery_window_label != payload.date_range_label
+    # Says which phases feed it, and that the requested range does not apply to it.
+    assert "post-exam" in payload.mastery_window_label.lower()
+    assert "date range" in payload.mastery_window_label.lower()
+
+
+def test_a_window_label_is_absent_when_its_figure_is_gated_away() -> None:
+    """Audience gating governs the labels too. A tutor payload carries no
+    `mastery_by_skill`, so a mastery window label would describe a number that is not
+    there. `weak_skill_names` *is* in the tutor field set - and is still derived from
+    mastery, which SPEC §5.14.4 withholds - so its own label must stay.
+    """
+    payload = build_report_facts(
+        audience="tutor",
+        grade="7th grade",
+        date_range_label="last 30 days",
+        dashboard=_weak_dashboard(),
+        relevant_learning_facts=[],
+    )
+    assert payload.mastery_by_skill == {}
+    assert payload.mastery_window_label == ""
+    assert payload.weak_skill_names == ["Distribution"]
+    assert payload.weak_skill_window_label
+
+
+def test_the_model_is_told_not_to_merge_the_windows() -> None:
+    """The labels only help if the thing writing the prose is told they mean something.
+    Without this the model reads an all-time figure beside a 30-day one and reconciles
+    them itself.
+    """
+    assert "different windows" in _SYSTEM_PROMPT
 
 
 def test_gateway_failure_falls_back_to_facts_only_template() -> None:

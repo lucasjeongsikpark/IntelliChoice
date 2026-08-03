@@ -16,8 +16,10 @@ from datetime import datetime, timedelta
 import pytest
 from intellichoice_db.engine import create_engine
 from intellichoice_db.models.curriculum import Skill, Topic
+from intellichoice_db.models.mastery import Mastery
 from intellichoice_db.models.memory import LearningEvent
 from intellichoice_db.repositories.curriculum import CurriculumRepository
+from intellichoice_db.repositories.mastery import MasteryRepository
 from intellichoice_db.repositories.memory import MemoryRepository
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_memory.consolidation import (
@@ -40,6 +42,7 @@ from intellichoice_shared.bedrock import (
     MemoryFactUpdate,
     MemoryUpdateResponse,
 )
+from intellichoice_shared.mastery_policy import WEAK_SKILL_THRESHOLD
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -194,6 +197,7 @@ def test_candidate_dropped_when_no_evidence_ids_resolve() -> None:
             )
             result = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -234,6 +238,7 @@ def test_reconfirmation_does_not_promote_below_the_accumulated_evidence_bar() ->
                 gateway = _FakeGateway([_weak_skill_response(seed.skill_id, [event.event_id])])
                 await consolidate_student_window(
                     memory_repo=memory_repo,
+                    mastery_repo=MasteryRepository(session),
                     tutor_chat_repo=tutor_chat_repo,
                     gateway=gateway,
                     student_external_id=STUDENT_ID,
@@ -279,6 +284,7 @@ def test_reconfirmation_promotes_once_accumulated_evidence_meets_the_bar() -> No
             for _ in range(2):
                 await consolidate_student_window(
                     memory_repo=memory_repo,
+                    mastery_repo=MasteryRepository(session),
                     tutor_chat_repo=tutor_chat_repo,
                     gateway=gateway,
                     student_external_id=STUDENT_ID,
@@ -313,6 +319,7 @@ def test_new_fact_below_minimum_evidence_is_provisional() -> None:
             )
             result = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -355,6 +362,7 @@ def test_new_fact_active_with_enough_events_across_enough_sessions() -> None:
             )
             result = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -383,6 +391,7 @@ def test_out_of_enum_fact_type_is_dropped() -> None:
             gateway = _FakeGateway([MemoryUpdateResponse(facts_to_add=[candidate])])
             result = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -408,6 +417,7 @@ def test_fact_text_containing_pii_pattern_is_dropped() -> None:
             gateway = _FakeGateway([MemoryUpdateResponse(facts_to_add=[candidate])])
             result = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -416,6 +426,220 @@ def test_fact_text_containing_pii_pattern_is_dropped() -> None:
                 session_spend_cents=0.0,
             )
             assert result.added == 0
+
+    asyncio.run(run())
+
+
+# --- AUD-L-13 (D-156): a fact must agree with the mastery score in the same database ---
+#
+# Consolidation verified a candidate's evidence provenance and its cross-session
+# repetition, and never once compared the *claim* to `mastery.weighted_score` for the same
+# skill - which is one query away, in the same transaction. S36's audit found
+# `aud-student-regressing` holding an accepted `strength` fact for a skill measured at
+# 0.000, and all 20 facts across four journeys were `strength` with zero `weak_skill`
+# facts, including for the student who went 8->4. Repetition is not consistency: the
+# promotion bar would have let that fact reach a parent after a second session.
+
+
+def _strength_candidate(skill_id: str, event_ids: list[str]) -> MemoryFactCandidate:
+    return MemoryFactCandidate(
+        fact_type="strength",
+        skill_id=skill_id,
+        fact_text="Shows independent strength in this skill.",
+        polarity="positive",
+        confidence=0.8,
+        supporting_event_ids=event_ids,
+    )
+
+
+async def _set_mastery(session: AsyncSession, skill_id: str, weighted_score: float) -> None:
+    await MasteryRepository(session).upsert_mastery(
+        Mastery(
+            student_external_id=STUDENT_ID,
+            skill_id=skill_id,
+            raw_accuracy=weighted_score,
+            weighted_score=weighted_score,
+        )
+    )
+
+
+async def _consolidate_one(
+    session: AsyncSession, candidate: MemoryFactCandidate, events: list[LearningEvent]
+):
+    return await consolidate_student_window(
+        memory_repo=MemoryRepository(session),
+        mastery_repo=MasteryRepository(session),
+        tutor_chat_repo=TutorChatMessageRepository(session),
+        gateway=_FakeGateway([MemoryUpdateResponse(facts_to_add=[candidate])]),
+        student_external_id=STUDENT_ID,
+        window_start=events[0].occurred_at - timedelta(minutes=1),
+        window_end=events[-1].occurred_at + timedelta(minutes=1),
+        session_spend_cents=0.0,
+    )
+
+
+def test_strength_fact_is_refused_when_measured_mastery_says_weak() -> None:
+    """The AUD-L-13 reproduction, exactly: a well-evidenced, repetition-passing `strength`
+    candidate for a skill the same database measures at 0.0.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            events = [
+                await _add_event(memory_repo, skill_id=seed.skill_id, session_id=f"s{i % 2}")
+                for i in range(3)
+            ]
+            await _set_mastery(session, seed.skill_id, 0.0)
+
+            result = await _consolidate_one(
+                session, _strength_candidate(seed.skill_id, [e.event_id for e in events]), events
+            )
+
+            assert result.added == 0
+            assert result.mastery_conflicts == 1
+            # Not stored at any status - `provisional` is a real bound today but the
+            # promotion criterion is repetition, so a second session would promote it.
+            assert await memory_repo.list_facts_for_student(STUDENT_ID) == []
+
+    asyncio.run(run())
+
+
+def test_weak_skill_fact_is_refused_when_measured_mastery_says_proficient() -> None:
+    """The other direction. Same defect: a claim about a child's ability contradicting the
+    measurement sitting beside it.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            events = [
+                await _add_event(memory_repo, skill_id=seed.skill_id, session_id=f"s{i % 2}")
+                for i in range(3)
+            ]
+            await _set_mastery(session, seed.skill_id, 1.0)
+
+            result = await _consolidate_one(
+                session, _weak_skill_candidate(seed.skill_id, [e.event_id for e in events]), events
+            )
+
+            assert result.added == 0
+            assert result.mastery_conflicts == 1
+
+    asyncio.run(run())
+
+
+def test_a_consistent_fact_is_still_accepted() -> None:
+    """The floor must not become "no ability facts at all" - the positive control."""
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            events = [
+                await _add_event(memory_repo, skill_id=seed.skill_id, session_id=f"s{i % 2}")
+                for i in range(3)
+            ]
+            await _set_mastery(session, seed.skill_id, 0.95)
+
+            result = await _consolidate_one(
+                session, _strength_candidate(seed.skill_id, [e.event_id for e in events]), events
+            )
+
+            assert result.added == 1
+            assert result.mastery_conflicts == 0
+            assert (await _sole_active_fact(memory_repo)).fact_type == "strength"
+
+    asyncio.run(run())
+
+
+def test_a_skill_with_no_mastery_row_is_not_blocked() -> None:
+    """No measurement means nothing to contradict, so the floor abstains rather than
+    refusing. This is the deliberate hole in it: a never-assessed skill is exactly the
+    case where the model's read of the events is the only evidence there is. It is safe
+    because a skill with no mastery row has never been examined or studied, so there is
+    no measurement for the fact to be wrong *about* - unlike AUD-L-13's reproduction,
+    where a contradicting number existed and went unread.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            events = [
+                await _add_event(memory_repo, skill_id=seed.skill_id, session_id=f"s{i % 2}")
+                for i in range(3)
+            ]
+
+            result = await _consolidate_one(
+                session, _strength_candidate(seed.skill_id, [e.event_id for e in events]), events
+            )
+
+            assert result.added == 1
+            assert result.mastery_conflicts == 0
+
+    asyncio.run(run())
+
+
+def test_the_floor_only_screens_ability_claims() -> None:
+    """`misconception`, `hint_dependence` and the rest are claims about *how* a student
+    works, not about a measured score, so mastery cannot contradict them. Screening them
+    on `weighted_score` would silence the fact types that carry the most teaching value
+    for a struggling student - the opposite of what AUD-L-13 asks for.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            events = [
+                await _add_event(memory_repo, skill_id=seed.skill_id, session_id=f"s{i % 2}")
+                for i in range(3)
+            ]
+            await _set_mastery(session, seed.skill_id, 0.0)
+
+            candidate = _strength_candidate(seed.skill_id, [e.event_id for e in events])
+            candidate.fact_type = "hint_dependence"
+            candidate.fact_text = "Reaches for a hint before attempting the first step."
+
+            result = await _consolidate_one(session, candidate, events)
+
+            assert result.added == 1
+            assert result.mastery_conflicts == 0
+
+    asyncio.run(run())
+
+
+def test_the_floor_treats_the_threshold_itself_as_proficient() -> None:
+    """Pins the boundary rather than leaving it to whichever comparison operator got
+    typed. "Weak" is strictly below the cut everywhere else in the codebase
+    (`topic_resolver`, `learning_gain`), and this floor reads the same shared constant so
+    the three cannot drift - a second copy of the number is how one subsystem calls a
+    skill weak while another calls it proficient, which is AUD-L-13's defect class one
+    layer over.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            seed = await _seed_topic_skill(session)
+            memory_repo = MemoryRepository(session)
+            events = [
+                await _add_event(memory_repo, skill_id=seed.skill_id, session_id=f"s{i % 2}")
+                for i in range(3)
+            ]
+            # Exactly at the cut: "weak" is strictly below it, so this is proficient and a
+            # `strength` fact is consistent. Pins the boundary rather than leaving it to
+            # whichever comparison operator got typed.
+            await _set_mastery(session, seed.skill_id, WEAK_SKILL_THRESHOLD)
+
+            result = await _consolidate_one(
+                session, _strength_candidate(seed.skill_id, [e.event_id for e in events]), events
+            )
+
+            assert result.added == 1
+            assert result.mastery_conflicts == 0
 
     asyncio.run(run())
 
@@ -442,6 +666,7 @@ def test_contradiction_demotes_then_supersedes_on_second_contradiction() -> None
             gateway = _FakeGateway([_weak_skill_response(seed.skill_id, event_ids)])
             await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -466,6 +691,7 @@ def test_contradiction_demotes_then_supersedes_on_second_contradiction() -> None
             gateway = _FakeGateway([MemoryUpdateResponse(facts_to_add=[strength_candidate])])
             result_2 = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -484,6 +710,7 @@ def test_contradiction_demotes_then_supersedes_on_second_contradiction() -> None
             gateway = _FakeGateway([MemoryUpdateResponse(facts_to_add=[strength_candidate])])
             result_3 = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -524,6 +751,7 @@ def test_rerun_with_same_candidate_reconfirms_instead_of_duplicating() -> None:
                 )
                 await consolidate_student_window(
                     memory_repo=memory_repo,
+                    mastery_repo=MasteryRepository(session),
                     tutor_chat_repo=tutor_chat_repo,
                     gateway=gateway,
                     student_external_id=STUDENT_ID,
@@ -555,6 +783,7 @@ def test_facts_to_update_reconfirms_named_existing_fact() -> None:
             gateway = _FakeGateway([_weak_skill_response(seed.skill_id, event_ids)])
             await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -574,6 +803,7 @@ def test_facts_to_update_reconfirms_named_existing_fact() -> None:
             gateway = _FakeGateway([MemoryUpdateResponse(facts_to_update=[update])])
             result = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -607,6 +837,7 @@ def test_consolidate_student_session_only_considers_that_session_id() -> None:
             gateway = _FakeGateway([_weak_skill_response(seed.skill_id, event_ids)])
             result = await consolidate_student_session(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -629,6 +860,7 @@ def test_gateway_failure_changes_no_facts() -> None:
             gateway = _FakeGateway([BedrockGatewayError("simulated failure")])
             result = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -697,6 +929,7 @@ def test_consolidation_sends_a_fact_count_derived_budget() -> None:
             gateway = _FakeGateway([_weak_skill_response(seed.skill_id, event_ids)])
             await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -711,6 +944,7 @@ def test_consolidation_sends_a_fact_count_derived_budget() -> None:
             gateway2 = _FakeGateway([MemoryUpdateResponse()])
             await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway2,
                 student_external_id=STUDENT_ID,
@@ -843,6 +1077,7 @@ def test_every_call_failing_is_reported_rather_than_swallowed() -> None:
             gateway = _FakeGateway([BedrockGatewayError("prompt is too long")])
             result = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -874,6 +1109,7 @@ def test_a_successful_call_reports_no_failures() -> None:
             gateway = _FakeGateway([_weak_skill_response(seed.skill_id, [event.event_id])])
             result = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,
@@ -903,6 +1139,7 @@ def test_budget_exhaustion_is_not_counted_as_a_failed_call() -> None:
             gateway = _FakeGateway([CostBudgetExceededError("budget would be exceeded")])
             result = await consolidate_student_window(
                 memory_repo=memory_repo,
+                mastery_repo=MasteryRepository(session),
                 tutor_chat_repo=tutor_chat_repo,
                 gateway=gateway,
                 student_external_id=STUDENT_ID,

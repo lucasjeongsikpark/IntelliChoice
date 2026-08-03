@@ -33,9 +33,9 @@ ones.
 | **AUD-L-10** | **Data integrity / scoring** | **P1** | **Fixed in S42** (D-110 §1) | Uniqueness on `assessment_attempts` tightened from `(session, variant, idempotency_key)` to `(session, variant)`, so one attempt per item is a database invariant rather than a check — the check alone is the same read-then-act shape this cluster exists to remove, and the concurrent arm proves it: with the constraint dropped, four simultaneous answers all return 200 while the sequential test still passes. A `flow` pre-flight turns the ordinary duplicate into a 409 before a graph turn starts, kept because a refused duplicate that reaches `ainvoke` measurably left **+2 `checkpoints` / +4 `checkpoint_writes`** behind. Original: The server marks an exam item `answered` and then accepts more answers for it; exam scores are computed over the *attempt* count, so one changed answer rescores a 10-item exam as 10/11 and silently removes the `not_applicable_pre_max` flag. Enforced client-side only |
 | AUD-L-11 | Robustness / contracts | P2 | Open — Phase 0B | `UnknownQuestionVariantError` is raised at four sites and caught nowhere, so an answer POST with an unknown or not-currently-served variant returns an unhandled **500** instead of a 4xx |
 | AUD-L-12 | SPEC conformance | P2 | Open — Phase 0B | `recommended_difficulty` is computed, stored and displayed but routes nothing; two docstrings claim it seeds `starting_difficulty` and it does not. Masked only by the 1:1 skill↔difficulty bank |
-| AUD-L-13 | Minors / correctness | P2 | Open — Phase 0B | Memory consolidation verifies a fact's evidence provenance and cross-session repetition, never the claim against the measured mastery score in the same database — a `strength` fact coexists with `weighted_score = 0.0` for that skill |
+| **AUD-L-13** | **Minors / correctness** | **P2** | **Fixed in D-156** | `_contradicts_measured_mastery` screens `strength`/`weak_skill` candidates against `mastery.weighted_score` at `WEAK_SKILL_THRESHOLD`, on the add path **and the reconfirm path** — the latter is the one that matters, since reconfirmation is the promotion path and repetition was the promotion criterion. Abstains when no mastery row exists (nothing to contradict); the other ten fact types are deliberately unscreened (they describe *how* a student works, which a score cannot contradict). Refusals counted (`mastery_conflicts`), logged, and printed in the CLI summary. `WEAK_SKILL_THRESHOLD` moved to `intellichoice_shared.mastery_policy` so the floor and the study plan cannot drift. Original: consolidation verified provenance and repetition, never the claim against the measured score in the same database — a `strength` fact coexisted with `weighted_score = 0.0` |
 | AUD-L-14 | Correctness / parent-visible | P2 | Open — Phase 0B | `time_spent_minutes` sums a client-populated telemetry column and ignores the always-populated `assessment_attempts.response_time_ms`, so a report shows `0.0` minutes beside `attempts_count: 26` — inside `verified_facts` |
-| AUD-L-15 | Correctness / parent-visible | P2 | Open — Phase 0B | Mastery excludes the post-exam by construction while "skills to strengthen" is post-exam-derived, and both are shown together labeled `date_range_label: "all time"` — one skill reads mastery 1.000 *and* "needs work" |
+| **AUD-L-15** | **Correctness / parent-visible** | **P2** | **Fixed in D-156** | Three parts, two of them behaviour changes the user decided: **(a)** mastery now includes the post-exam (`_recompute_all_skill_mastery` gained `post_assessment_session_id` and is now called on post-exam finalize, where it never was) — this also fixes `topic_resolver` choosing the next cycle's targets from a score that had never seen how the last one ended; **(b)** "skills to strengthen" now uses the study plan's own cut (`mastery.weighted_score < WEAK_SKILL_THRESHOLD`) instead of a hardcoded 0.8 on post-exam accuracy, so a report cannot recommend work the system will not do; **(c)** every figure states its window, in the report payload, the prompt, and as `GET /dashboard` chart captions. **Still true and now stated rather than implied:** mastery is not date-filtered. Original: mastery excluded the post-exam while "skills to strengthen" was post-exam-derived, both shown under `date_range_label: "all time"` — one skill reading mastery 1.000 *and* "needs work" |
 | AUD-L-08 | Correctness | P3 | Open — Phase 0B | `normalized_gain` has no bound in either direction and derives its denominator from the pre *attempt count*. **Reachability corrected in the S36 continuation:** −200% reached on an ordinary journey, and >1 reachable via AUD-L-10's duplicate attempts |
 | AUD-L-16 | Design integrity | P3 | Open — Phase 0B | Both policy snapshots (`assessment_sessions.policy`, `study_sessions.intervention_policy`) are written at creation and never read back; only `time_limit_seconds` governs behavior, via a separate column |
 | AUD-L-17 | Test integrity | P3 | **Fixed in S36 continuation** | The default mock's own hint boilerplate (`Level 1`) tripped the runtime answer-leak check whenever the served answer was `"1"`, making a hint test fail 8 times in 60 runs; `hint_events.was_personalized` still records no reason code, so the real rate is unmeasurable |
@@ -51,7 +51,7 @@ ones.
 | AUD-C-09 | SPEC conformance | P2 | Open — Phase 0B | §5.21.3's sixth predicate (`academic_year = requested_year`) is never applied at query time; a 2019-2020 chunk was retrievable by every audience. Fully masked while the corpus holds one academic year |
 | **AUD-C-10** | **Frontend contract** | **P2** | **Fixed 2026-08-02 (D-155)** — `ChatTurn` gained an `error` field, so a turn has three states instead of two; a failed turn renders a retryable error bubble and `Thinking…` is gated on *not* having failed. The e2e documented-defect test was inverted into a regression test exactly as it said it should be, and watched failing against the pre-fix render gate. | Any API error leaves chat-web's turn stuck on `Thinking…` permanently — the transcript entry keeps `response: null` and nothing clears it. A §2.6 criterion-3 blank/stuck state, reachable from AUD-C-07 |
 | AUD-C-11 | Correctness / UX | P2 | Open — Phase 0B | The low-confidence branch returns the "I don't have an approved source" message *with* verified citations attached, so the UI shows a source beside a sentence denying one exists. Observed live |
-| AUD-C-19 | UX / diagnosability | P3 | Open — found 2026-08-02 (D-155) | The *synthesis*-failure path still answers a Bedrock outage with `NO_SOURCE_MESSAGE` — AUD-C-08's defect at the one call site D-155 deliberately left alone, because it carries a second decision (whether to still recommend escalation). Operator-visible half already covered by the `rag_answer_unavailable` log |
+| **AUD-C-19** | **UX / diagnosability** | **P3** | **Fixed in D-156** | Returns `SERVICE_UNAVAILABLE_MESSAGE` with `escalation_recommended = False` and `missing_information = None`. The deferred product call, decided: escalation is itself a Bedrock-and-MCP path, so recommending it during an outage walks the user into a second failure and books a branch manager for a question the corpus can answer — and the message already offers the human path *conditionally*, after a retry. Matches `graph.nodes.service_unavailable`, so the two outage paths are indistinguishable to the client. Original: the synthesis-failure path answered a Bedrock outage with `NO_SOURCE_MESSAGE` when a source demonstrably existed |
 | AUD-C-12 | SPEC conformance | P3 | Open — Phase 0B | §5.21.8's "retrieval score is below threshold" do-not-answer trigger has no implementation: the only filter is `rerank > 0.0`, and the 0.4 threshold gates the model's self-reported confidence, not retrieval |
 | AUD-C-13 | Grounding | P3 | Open — Phase 0B | The citation verbatim check accepts any non-empty substring, so a one-character quote verifies against nearly any chunk; only the quote's hash is stored, so it cannot be re-examined |
 | AUD-C-14 | Contracts | P3 | Open — Phase 0B | `RespondResponse` omits `scope`/`intent`, so every SSE snapshot published after a `/respond` nulls them for connected clients — D-058's class, in the direction that decision did not name |
@@ -648,7 +648,24 @@ stored, displayed number that influences nothing is worse than an absent one.
 
 ### AUD-L-13 — Memory consolidation verifies provenance and repetition, never the claim against measured mastery (P2)
 
-- **Severity:** P2 · **Area:** minors / correctness · **Status:** open, Phase 0B
+- **Severity:** P2 · **Area:** minors / correctness · **Status:** ✅ **fixed in D-156 (2026-08-02)**
+
+**Fix.** `_contradicts_measured_mastery` in `consolidation.py` refuses a `strength` candidate for a
+skill whose `mastery.weighted_score` is below `WEAK_SKILL_THRESHOLD`, and a `weak_skill` candidate
+for one at or above it. Applied on the add path **and on the reconfirm path** — the latter is the
+branch this finding actually turns on, because reconfirmation is the promotion path and the
+finding's own point is that the promotion criterion is repetition rather than consistency.
+
+Three deliberate boundaries, each with a test: only the two fact types a score can contradict; it
+abstains when there is no mastery row (a never-assessed skill has no measurement to be wrong
+about); and the cut is strictly-below, matching `topic_resolver` and `learning_gain` exactly —
+`WEAK_SKILL_THRESHOLD` moved to `intellichoice_shared.mastery_policy` so a package and an app share
+one definition instead of two copies. Refusals are counted on `ConsolidationResult
+.mastery_conflicts`, logged as `memory_fact_contradicts_mastery` (fact type and score, no student id
+and no fact text — the text is a claim about a minor's ability, SPEC §5.30), and printed per-student
+and in the run summary, because a screen whose cost is invisible is a screen nobody tunes.
+
+**Original finding below.**
 
 `consolidation.py` verifies that a candidate fact's cited `evidence_event_ids` exist, demotes an
 opposite-polarity fact to `contested` rather than replacing it, and requires ≥2 sessions of
@@ -698,7 +715,30 @@ refresh, a closed tab, a failed overview fetch, or any non-browser client yields
 
 ### AUD-L-15 — Mastery and "skills to strengthen" use different windows and are shown together as "all time" (P2)
 
-- **Severity:** P2 · **Area:** correctness / reporting · **Status:** open, Phase 0B
+- **Severity:** P2 · **Area:** correctness / reporting · **Status:** ✅ **fixed in D-156 (2026-08-02)**
+
+**Fix, in three parts — and the finding's "decide deliberately whether mastery should include the
+post-exam" was put to the user and answered yes.**
+
+1. **Mastery includes the post-exam.** `_recompute_all_skill_mastery` gained
+   `post_assessment_session_id`, and `_finalize_post_exam` now calls it — it never did, so the
+   post-exam reached mastery through no path at all. The second consequence was the bigger one:
+   `topic_resolver` picks the *next* cycle's target skills from `mastery.weighted_score`, so it was
+   choosing them without ever seeing how the last cycle ended. The gain stays a clean instrument —
+   `compute_learning_gain` reads raw attempts and never consults mastery.
+2. **One definition of "weak".** The report's hardcoded `0.8` on post-exam accuracy is gone;
+   `weak_skill_names` now reads `mastery.weighted_score < WEAK_SKILL_THRESHOLD`, the same cut the
+   study plan uses. Only correct *because of* part 1. `learning_gain.unresolved_skills` keeps its
+   post-exam-only computation on purpose: it is a frozen record of one cycle, not current standing.
+3. **Every figure states its window** — `MASTERY_WINDOW_LABEL`/`PRE_POST_WINDOW_LABEL` in
+   `services/dashboard.py`, carried into the report payload (audience-gated with their figures),
+   into `_SYSTEM_PROMPT`, and into `GET /dashboard` as chart captions the client renders.
+
+**Deliberately still true:** mastery is not date-filtered (`mastery_repo.list_for_student` takes no
+range). That is now stated in the label rather than implied by silence — "current standing" is the
+right thing for a mastery chart to show.
+
+**Original finding below.**
 
 `_recompute_all_skill_mastery` accepts only `pre_assessment_session_id` and `study_session_id`;
 the post-exam is **structurally excluded**, and its docstring says so ("every skill touched by the
@@ -4137,7 +4177,21 @@ citations to their own documents (15/15 including the volunteer control), at gro
 latencies of 7.5–11.7 s — the slow healthy shape, not refusal speed. `chat_qa_staging.js`
 widened from 6 to 10 questions, each verified before being added.**
 
-### AUD-C-19 — the *synthesis*-failure path still answers a Bedrock outage with "no approved source" (**P3** — found 2026-08-02 while fixing AUD-C-07/AUD-C-08, D-155; open)
+### AUD-C-19 — the *synthesis*-failure path still answers a Bedrock outage with "no approved source" (**P3** — found 2026-08-02 while fixing AUD-C-07/AUD-C-08, D-155; ✅ **fixed in D-156**, same day)
+
+**Fix.** `_service_unavailable()` returns `SERVICE_UNAVAILABLE_MESSAGE`, `escalation_recommended =
+False`, `missing_information = None`, no citations, zero confidence. The test that asserted the old
+behaviour was rewritten and watched failing first, as the fix shape below predicted.
+
+**The `escalation_recommended` call, which is why this was not swept into D-155.** `False`, for
+three reasons: escalation is itself a Bedrock-and-MCP path, so recommending it during an outage
+walks the user into a second failure; it books a branch manager's time for a question the corpus can
+already answer, and the org is the scarce resource; and the message already offers the human path in
+the right order — retry first, "if it keeps happening, contact your branch manager" second. Matching
+`graph.nodes.service_unavailable` also means the two outage paths are indistinguishable to the
+client, which is correct because to the user they are the same event.
+
+**Original finding below.**
 
 **The same defect as AUD-C-08, at the one call site that cluster deliberately did not change.**
 `qa.answer_question`'s `except BedrockGatewayError` returns `NO_SOURCE_MESSAGE` — *"I don't have an

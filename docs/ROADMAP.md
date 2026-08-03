@@ -654,14 +654,29 @@ which stop the line.
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 
 > **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
-> cheap P2s" (below); the rest were never dispositioned. **21 findings remain *Open — Phase 0B***
-> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) and **none are integration-blocked** — they are exactly
-> what D-152's "finish and test this codebase against the dev fakes first" points at. With S43–S47
-> frozen, post-gate sessions run out of this backlog under PROGRESS.md's "Next session" pointer
-> rather than under a numbered block. **Take clusters, not findings:** D-155 (AUD-C-07 + AUD-C-08 +
-> AUD-C-10) was coherent because the three shared one missing concept, and fixing any one alone
-> would have swapped a crash for a lie or a lie for a hang. PROGRESS.md names the next three
-> candidate clusters.
+> cheap P2s" (below); the rest were never dispositioned. **19 findings remain *Open — Phase 0B***
+> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (20 open in total, counting AUD-F-16) and **none are
+> integration-blocked** — they are exactly what D-152's "finish and test this codebase against the
+> dev fakes first" points at. With S43–S47 frozen, post-gate sessions run out of this backlog under
+> PROGRESS.md's "Next session" pointer rather than under a numbered block.
+>
+> **Take clusters, not findings — but the two clusters taken so far cohered differently, and the
+> difference is worth carrying forward.** D-155 (AUD-C-07 + AUD-C-08 + AUD-C-10) was *one defect at
+> three layers*: the three shared a missing concept, and fixing any one alone would have swapped a
+> crash for a lie or a lie for a hang. D-156 (AUD-C-19 + AUD-L-13 + AUD-L-15) was *three defects of
+> one shape* — a number or sentence shown to a family that the system could already have checked
+> against something it knew — and they were taken together for the shared fix vocabulary, not
+> because one was load-bearing for another. Both worked; the second is the more available pattern,
+> since a backlog rarely offers a second three-layer defect.
+>
+> **A cluster can carry a product decision, and that decision belongs to the user, not the
+> session.** D-156 surfaced two (should mastery include the post-exam; should two subsystems keep
+> two definitions of "weak") and both were answered toward the larger behaviour change. Naming them
+> before implementing is what kept them from being settled by a code comment.
+>
+> PROGRESS.md names the remaining candidate clusters. **One is not fix-ready: AUD-L-14 needs its
+> evidence re-measured in a browser first** (D-107's run contradicts its headline number), and that
+> is Playwright, which cannot run alongside `make test` on the shared dev Postgres.
 All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog: S22.5
 `access_hint` blank turn, S11 parent auto-select, chat-web CI, the unseeded-RNG flake,
 `question_variants` accumulation, the ~249k-row `checkpoints` sweep, ~~EventBridge schedules for

@@ -598,6 +598,17 @@ ul {
   margin-bottom: 8px;
 }
 
+/* AUD-L-15: the window a chart's numbers actually cover. Secondary to the heading, but
+   deliberately not `.dim`-faint - it is the difference between two charts disagreeing
+   and two charts measuring different things, which a parent has to be able to read. */
+.chart-caption {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: -2px 0 10px;
+  max-width: 68ch;
+}
+
 .chart-empty {
   color: var(--text);
   font-size: 14px;

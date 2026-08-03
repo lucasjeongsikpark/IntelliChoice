@@ -19,6 +19,30 @@ from intellichoice_db.repositories.mastery import MasteryRepository
 # target (curriculum-authored, not yet built) exists.
 _MASTERY_TARGET_BAND = 0.8
 
+# AUD-L-15 (D-156). Not every field on `DashboardData` covers the same window, and two of
+# them cover neither the caller's date range nor each other's phases. They live here, next
+# to the data they describe, because both consumers need the same words: the report payload
+# (`services/report.py`, where a mismatched label put mastery 1.000 beside "needs work"
+# under one "all time" heading) and `GET /dashboard` (where the mastery chart sits under a
+# date-range picker it silently ignores, beside four charts that honour it).
+#
+# `mastery_by_skill` covers every graded attempt to date - D-156 folded the post-exam in,
+# so the phase gap AUD-L-15 opened with is gone. What remains true, and is the easy half to
+# miss, is that it is not date-filtered at all: `build_dashboard` reads
+# `mastery_repo.list_for_student`, which takes no range. Under a report headed
+# "2026-07-01 to 2026-07-31" these are still all-time numbers.
+MASTERY_WINDOW_LABEL = (
+    "Current standing per skill, from every graded attempt to date - pre-exam, study "
+    "practice and post-exam - not just the selected date range."
+)
+# `pre_post_by_skill` is the other half of the pair, and it *does* honour the date range:
+# it averages the `skill_level_gain` of every `LearningGain` row in range. It is post-exam
+# accuracy, not a mastery score, which is why it can disagree with the line above without
+# either being wrong.
+PRE_POST_WINDOW_LABEL = (
+    "Post-exam accuracy, averaged across the cycles completed in the selected date range."
+)
+
 
 @dataclass(frozen=True)
 class MasterySkillPoint:
