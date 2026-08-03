@@ -9483,3 +9483,72 @@ a statement about CI. Two related habits already in this file for the same reaso
 run by head SHA rather than "the latest run" (the workflow's own comment records a watcher matching
 the previous run), and treat a 200 from an unrouted path as meaningless, since the edge answers
 unmatched paths with the SPA.
+
+## D-158 — the deploy verifies what is running, and `/healthz` stays off the public edge (accepted, 2026-08-03)
+
+Closes AUD-F-37. Recorded mainly because **the first proposed fix was wrong**, and the reason it was
+wrong is the reusable part.
+
+### 1. The rejected fix: exposing `/healthz` through CloudFront
+
+AUD-F-37 was filed as *"`/healthz` is not routed on the public edge — add it to
+`api_path_patterns`, one line per app."* Reading the Terraform before editing it found this, three
+lines above the list:
+
+> `/healthz` and `/metrics` deliberately stay excluded (internal-only, never meant to be publicly
+> reachable through CloudFront).
+
+So the absence was a **deliberate exposure decision with a written reason**, not an oversight, and
+`/metrics` rides the same reasoning. `build_identity`'s own docstring argues the opposite way — that
+`build_sha` and `started_at` are neither PII nor secret — and both authors were right within their
+own scope; neither knew about the other. **That disagreement is not resolved by whichever file the
+next person happens to open.** The convenience of a deploy check does not outweigh a standing
+posture, especially when the same need can be met without touching exposure at all.
+
+The general rule: *when a thing looks missing, check whether it was removed on purpose before adding
+it back.* A one-line diff that reverses a documented decision is the most expensive kind of small
+change.
+
+### 2. What was built instead
+
+Both halves live in `deploy-staging.yml`, need no new IAM, no `terraform apply`, and change no
+exposure.
+
+**A deployed-version gate.** After `wait services-stable`, each service must have exactly one
+deployment, `PRIMARY`/`COMPLETED`, `runningCount == desiredCount >= 1`, and its task definition's
+app-container image tag must equal this run's `gha-<sha>`.
+
+Two constraints shaped the implementation, and both were checked before writing rather than
+discovered live:
+
+- **`ecs:ListTasks` is not granted** to the deploy role (`ecs:DescribeServices`,
+  `DescribeTaskDefinition` and `DescribeTasks` are). The obvious implementation — list the running
+  tasks, describe them — would have failed with `AccessDenied` on first run, which is exactly how
+  the S34 `ecs:RunTask` and S35 `cloudfront:ListDistributions` attempts failed. Reading the IAM
+  policy first cost a minute.
+- **Assert *exactly one* deployment, never `deployments[0]`.** That list carries historical entries,
+  and reading the first one is how a `rolloutState: COMPLETED` timestamped two days earlier gets
+  mistaken for this deploy's — a mistake made and caught while verifying the D-156 deploy by hand.
+
+**An edge-routing assertion.** `GET /me` through the chat CloudFront domain must return **401**.
+CloudFront serves any path outside `api_path_patterns` from S3, so an unrouted API path returns the
+SPA's `index.html` with a **200** — the most misleading success this system produces, and the cause
+of a real production incident found by a user report rather than review. Asserting 401 rather than
+"not 200" proves the request reached chat-api and its auth ran; a CloudFront 403 or an origin 502
+would not.
+
+### 3. Verification
+
+Both gates were exercised against the live deployed system before shipping, with a negative control:
+`GET /me` → `401 {"detail":"Missing bearer token"}` (passes), `GET /healthz` → **200 with the SPA
+document** (the trap, still deliberately unrouted). The version gate's Python was run against
+synthetic `describe-services` payloads covering all four failure modes — two deployments, running <
+desired, `desiredCount` 0, and the happy path — because a gate whose failure branch has never
+executed is a gate nobody should trust.
+
+### 4. What is still not covered
+
+The gate proves the **control plane** is configured with, and has rolled out, this commit's image.
+It does not read a version out of the running process. Those differ if an image tag is ever moved to
+point at different content — `gha-<sha>` tags are immutable by convention here, not by an ECR tag
+immutability policy. Making that a guarantee is a separate, cheap change if it ever matters.

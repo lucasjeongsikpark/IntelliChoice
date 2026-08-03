@@ -329,6 +329,66 @@ jobs:
             --task-definition "$NEW_ARN" --force-new-deployment
           aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services intellichoice-staging-chat-api
 
+      # AUD-F-37 (D-158): assert the code that is *running* is the code this run built.
+      #
+      # Until now nothing checked it. The step below proved a security property and the
+      # smoke test at the end proved the S3 origin serves something, but "the deploy went
+      # green" and "the new image is serving" were different claims and only the first was
+      # ever established. That is AUD-F-16's question one layer out: two `uvicorn`
+      # processes once served pre-fix code for weeks with nothing looking stale.
+      #
+      # `build_identity` puts `build_sha` on `/healthz` for exactly this, and it is
+      # deliberately NOT reachable here - `/healthz` and `/metrics` are excluded from both
+      # CloudFront `api_path_patterns` lists on purpose (internal-only), and the ALB
+      # listener does not route them either, so there is no network path from this runner
+      # to that endpoint. Exposing it publicly to satisfy a deploy check would trade a
+      # standing exposure decision for a convenience. The control plane answers the same
+      # question with no exposure change at all.
+      #
+      # Built on `describe-services` because that is what the deploy role actually has:
+      # `ecs:DescribeServices`/`DescribeTaskDefinition` are granted, `ecs:ListTasks` is
+      # NOT - and a gate that dies on AccessDenied is how the S34 `ecs:RunTask` and S35
+      # `cloudfront:ListDistributions` failures went. After `wait services-stable` a
+      # service has exactly one deployment; asserting that (rather than reading
+      # `deployments[0]`) is deliberate, because a stale entry in that list is precisely
+      # what makes a rollout look finished when it is not.
+      - name: Verify the running image is this commit (deployed-version gate)
+        run: |
+          set -euo pipefail
+          EXPECTED='${{ steps.vars.outputs.tag }}'
+          for APP in learning-api chat-api; do
+            SERVICE="intellichoice-staging-$APP"
+            aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$SERVICE" \
+              --query 'services[0].deployments' --output json > /tmp/deployments.json
+            TD=$(python3 -c "
+          import json, sys
+          d = json.load(open('/tmp/deployments.json'))
+          if len(d) != 1:
+              sys.exit(f'$SERVICE: expected exactly 1 deployment after services-stable, found {len(d)}: '
+                       + ', '.join(f\"{x['status']}/{x.get('rolloutState')}\" for x in d))
+          dep = d[0]
+          if dep['status'] != 'PRIMARY' or dep.get('rolloutState') != 'COMPLETED':
+              sys.exit(f\"$SERVICE: deployment is {dep['status']}/{dep.get('rolloutState')}, not PRIMARY/COMPLETED\")
+          if dep['desiredCount'] < 1:
+              sys.exit(f\"$SERVICE: desiredCount is {dep['desiredCount']} - nothing is running to verify\")
+          if dep['runningCount'] != dep['desiredCount']:
+              sys.exit(f\"$SERVICE: runningCount {dep['runningCount']} != desiredCount {dep['desiredCount']}\")
+          print(dep['taskDefinition'])
+          ")
+            IMAGE=$(aws ecs describe-task-definition --task-definition "$TD" \
+              --query "taskDefinition.containerDefinitions[?name=='$APP'].image" --output text)
+            TAG="${IMAGE##*:}"
+            if [ "$TAG" != "$EXPECTED" ]; then
+              echo "Deployed-version gate FAILED for $SERVICE."
+              echo "  running task definition: $TD"
+              echo "  serving image tag:       $TAG"
+              echo "  this run built:          $EXPECTED"
+              exit 1
+            fi
+            echo "$SERVICE: $TD serving $TAG (matches this commit)."
+          done
+          echo "Both services are running this commit's image."
+
       # S35: a live assertion that the dev-only auth stand-in is really unreachable from
       # the public internet, checked against what is actually deployed rather than against
       # what the config says should be deployed.
@@ -484,8 +544,38 @@ jobs:
           aws s3 sync apps/chat-web/dist/ s3://intellichoice-staging-chat-web-320503430250/ --delete
           aws cloudfront create-invalidation --distribution-id E3EP2M0Q2XRXWZ --paths "/*"
 
+      # The first two curls only prove the S3 origin serves the SPA - they would pass
+      # against a completely stale deployment, and they never touch the API.
+      #
+      # The third check is the one with teeth (AUD-F-37, D-158). CloudFront routes an
+      # explicit prefix allowlist to the ALB and answers everything else from S3, so a
+      # path missing from that list does not 404 - it returns the SPA's index.html with a
+      # **200**. That exact failure already happened once and was found by a real user
+      # report, not in review: `/students/{id}/attendance` was absent from
+      # `api_path_patterns`, so the frontend got an S3 XML body where it expected JSON and
+      # its error handler crashed on it. A "200 OK" from an unrouted API path is the most
+      # misleading success this system can produce, and nothing tested for it.
+      #
+      # `/me` is the probe because it is unauthenticated-reachable, cheap, and returns 401
+      # from the app. Asserting **401** rather than "not 200" is deliberate: it proves the
+      # request reached chat-api and its auth ran, which a 403 from CloudFront or a 502
+      # from a broken origin would not.
       - name: Smoke test (through the public CloudFront URLs, not curl-to-ALB)
         run: |
+          set -euo pipefail
           curl -sf -o /dev/null "https://$LEARNING_CF_DOMAIN/"
           curl -sf -o /dev/null "https://$CHAT_CF_DOMAIN/"
           echo "Both frontends responding."
+
+          CODE=$(curl -s -o /tmp/me-probe.txt -w '%{http_code}' --max-time 30 \
+            "https://$CHAT_CF_DOMAIN/me")
+          if [ "$CODE" != "401" ]; then
+            echo "Edge-routing check FAILED: GET /me returned $CODE, expected 401."
+            if grep -qi "<!doctype html" /tmp/me-probe.txt; then
+              echo "The response body is the SPA document, so /me is being served by the S3"
+              echo "origin - it is missing from CloudFront's api_path_patterns."
+            fi
+            head -c 300 /tmp/me-probe.txt
+            exit 1
+          fi
+          echo "API paths reach the ALB (GET /me -> 401, not the SPA)."

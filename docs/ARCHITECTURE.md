@@ -132,13 +132,18 @@ to rot, because nothing fails when it does.)*
   SPA.** CloudFront's `api_path_patterns` are `/learning/*`, `/students/*`, `/dev/token` for
   learning and `/chat/*`, `/me`, `/dev/token` for chat (`terraform/environments/staging/main.tf`).
   A path outside the list does not 404 — it falls through to the S3 origin and returns
-  `index.html` with a **200**, which is the trap: an unrouted API path looks alive. **`/healthz` is
-  currently outside the list (AUD-F-37, found 2026-08-03),** so `build_identity`'s `build_sha` —
-  the endpoint AUD-F-16 put on an unauthenticated, dependency-free path precisely so the deployed
-  version could always be read — cannot be read without AWS credentials. A deploy's API version is
-  therefore inferred from the workflow run rather than confirmed from the running process, and the
-  built-in smoke test (`curl /` on both domains) exercises only the SPA origin. Adding a path to
-  the edge is a Terraform change plus an apply, not an application change.
+  `index.html` with a **200**, which is the trap: an unrouted API path looks alive rather than
+  missing. That is not hypothetical — `/students/{id}/attendance` was once absent from the list, the
+  frontend received S3 XML where it expected JSON, and its error handler crashed; it was found by a
+  user report, not in review. **`deploy-staging.yml` now asserts against it** (AUD-F-37/D-158):
+  `GET /me` through the edge must return 401, which proves the request reached the app and its auth
+  ran rather than merely "not 200".
+  **`/healthz` and `/metrics` are outside the list deliberately** — internal-only, with the reason
+  written at the list itself. So `build_identity`'s `build_sha` is unreadable from outside the VPC,
+  and the deploy answers "is this commit actually serving?" from the ECS control plane instead
+  (exactly one `PRIMARY`/`COMPLETED` deployment whose image tag is this run's). Adding a path to the
+  edge is a Terraform change plus an apply **and an exposure decision** — check whether something is
+  absent on purpose before adding it back.
 - **A number shown to a family states its window, and is checked against what the system
   already measured** (D-156). Two failures with one root: nothing reconciled a figure against
   the data sitting beside it. A memory fact asserting a `strength` for a skill the same

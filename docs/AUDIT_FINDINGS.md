@@ -4218,33 +4218,51 @@ wrong.
 `test_answer_question_falls_back_to_no_answer_on_gateway_error` — which asserts today's behaviour
 and will fail, correctly.
 
-### AUD-F-37 — `/healthz` is not routed on the public edge, so the endpoint built to report the deployed version cannot be read (**P2** — found 2026-08-03 while verifying D-156's deploy; open)
+### AUD-F-37 — nothing verified that the deployed code is the code that was built (**P2** — found 2026-08-03 while verifying D-156's deploy; ✅ **FIXED same day, D-158**)
 
-**The endpoint exists, works, and is unreachable from where you need it.** `build_identity`
-(AUD-F-16, S43) puts `build_sha` and `started_at` on `/healthz`, and its own docstring gives the
-reason: *"an identity you need a token or a database to read is not available at the moment you most
-need it."* It is dependency-free and unauthenticated for exactly that purpose.
+**Corrected on the way to the fix, and the correction is the interesting part.** This was first
+written up as *"`/healthz` is not routed on the public edge — add it to `api_path_patterns`."* That
+framing was wrong, and reading the Terraform before editing it is what caught it:
 
-But CloudFront only forwards a fixed list of prefixes to the ALB —
-`terraform/environments/staging/main.tf` sets `api_path_patterns = ["/learning/*", "/dev/token",
-"/students/*"]` for learning and `["/chat/*", "/dev/token", "/me"]` for chat. `/healthz` matches
-none of them, so it falls through to the S3/SPA origin and returns `index.html` with a 200.
+```
+# /healthz and /metrics deliberately stay excluded (internal-only, never meant to be
+# publicly reachable through CloudFront).
+```
 
-**Measured 2026-08-03**, immediately after run 30774650665 deployed `0fd2cb8046ff`:
-`curl https://d35dfnjzmgrm01.cloudfront.net/healthz` and the chat equivalent both return the SPA
-document, not JSON. Reading the real endpoint needs AWS credentials to reach the ALB directly.
+The exclusion is a deliberate, documented exposure decision — not an oversight — and `/metrics`
+rides the same reasoning. The proposed one-line fix would have quietly traded a standing security
+posture for the convenience of a deploy check. **The endpoint's absence was never the defect.**
 
-**Why it is P2 rather than cosmetic.** The question AUD-F-16 was filed to make cheap — *"is the code
-I think is deployed actually the code answering?"* — is once again answerable only by inference. This
-deploy's API version is inferred from the workflow run (image `gha-0fd2cb8046ff` built from that SHA,
-`aws ecs wait services-stable` returned) rather than confirmed from the running process. That is the
-same shape as the original finding: two `uvicorn` processes served stale code for weeks while nothing
-looked stale. The *frontend* half was confirmable here only by chance, because Vite content-hashes
-its bundles and the deployed CSS could be fetched and grepped for `.chart-caption`.
+**The real defect:** no step in `deploy-staging.yml` asserted that the code now serving is the code
+this run built. That is AUD-F-16's question one layer out — two `uvicorn` processes once served
+pre-fix code for weeks with nothing looking stale — and it was unanswered for the *deployed* system.
+Verifying D-156's deploy, the API version could only be *inferred* (image tag built from that SHA,
+`wait services-stable` returned). The frontend half was confirmable only by luck, because Vite
+content-hashes its bundles, so the deployed CSS could be fetched and grepped for `.chart-caption`.
 
-It also makes the built-in smoke test weaker than it appears: it curls `/` on both CloudFront
-domains, which exercises the SPA origin and never touches the API at all.
+**A second, sharper half surfaced with it.** CloudFront answers any path outside the allowlist from
+the S3 origin, so an unrouted API path returns the SPA's `index.html` with a **200** — the most
+misleading success this system can produce. The same Terraform comment records that exact failure
+happening in production and being found *by a real user report, not in review*
+(`/students/{id}/attendance` was missing, the frontend got S3 XML where it expected JSON, and its
+error handler crashed). Nothing tested for it.
 
-**Fix:** add `"/healthz"` to both `api_path_patterns` lists (one line each) and apply. Worth pairing
-with a smoke-test step that asserts the returned `build_sha` equals `GITHUB_SHA` — the check the
-endpoint was built to enable, which nothing currently performs.
+**Fix (D-158), both halves inside the deploy workflow, no exposure change and no `terraform apply`:**
+
+1. **Deployed-version gate** — after `wait services-stable`, assert each service has exactly one
+   deployment, that it is `PRIMARY`/`COMPLETED` with `runningCount == desiredCount >= 1`, and that
+   its task definition's app-container image tag equals this run's `gha-<sha>`. Built on
+   `ecs:DescribeServices`/`DescribeTaskDefinition` because those are what the deploy role actually
+   holds — **`ecs:ListTasks` is not granted**, and a gate that dies on `AccessDenied` is how the S34
+   `ecs:RunTask` and S35 `cloudfront:ListDistributions` attempts failed. Asserting *exactly one*
+   deployment rather than reading `deployments[0]` is deliberate: a stale entry in that list is
+   precisely what makes a finished-looking rollout unfinished, and it is the same trap that made a
+   `rolloutState: COMPLETED` dated two days earlier look like this deploy's.
+2. **Edge-routing assertion in the smoke test** — `GET /me` through the chat CloudFront domain must
+   return **401**, not 200. Asserting 401 rather than "not 200" proves the request reached chat-api
+   and its auth ran, which a CloudFront 403 or an origin 502 would not.
+
+**Verified with a live positive and negative control before shipping:** against the deployed system,
+`GET /me` returned `401 {"detail":"Missing bearer token"}` (the gate passes) and `GET /healthz`
+returned **200 with the SPA document** (the trap the gate now catches, still deliberately unrouted).
+
