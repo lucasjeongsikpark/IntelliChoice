@@ -4217,3 +4217,34 @@ wrong.
 `escalation_recommended` explicitly with a written reason, and update
 `test_answer_question_falls_back_to_no_answer_on_gateway_error` — which asserts today's behaviour
 and will fail, correctly.
+
+### AUD-F-37 — `/healthz` is not routed on the public edge, so the endpoint built to report the deployed version cannot be read (**P2** — found 2026-08-03 while verifying D-156's deploy; open)
+
+**The endpoint exists, works, and is unreachable from where you need it.** `build_identity`
+(AUD-F-16, S43) puts `build_sha` and `started_at` on `/healthz`, and its own docstring gives the
+reason: *"an identity you need a token or a database to read is not available at the moment you most
+need it."* It is dependency-free and unauthenticated for exactly that purpose.
+
+But CloudFront only forwards a fixed list of prefixes to the ALB —
+`terraform/environments/staging/main.tf` sets `api_path_patterns = ["/learning/*", "/dev/token",
+"/students/*"]` for learning and `["/chat/*", "/dev/token", "/me"]` for chat. `/healthz` matches
+none of them, so it falls through to the S3/SPA origin and returns `index.html` with a 200.
+
+**Measured 2026-08-03**, immediately after run 30774650665 deployed `0fd2cb8046ff`:
+`curl https://d35dfnjzmgrm01.cloudfront.net/healthz` and the chat equivalent both return the SPA
+document, not JSON. Reading the real endpoint needs AWS credentials to reach the ALB directly.
+
+**Why it is P2 rather than cosmetic.** The question AUD-F-16 was filed to make cheap — *"is the code
+I think is deployed actually the code answering?"* — is once again answerable only by inference. This
+deploy's API version is inferred from the workflow run (image `gha-0fd2cb8046ff` built from that SHA,
+`aws ecs wait services-stable` returned) rather than confirmed from the running process. That is the
+same shape as the original finding: two `uvicorn` processes served stale code for weeks while nothing
+looked stale. The *frontend* half was confirmable here only by chance, because Vite content-hashes
+its bundles and the deployed CSS could be fetched and grepped for `.chart-caption`.
+
+It also makes the built-in smoke test weaker than it appears: it curls `/` on both CloudFront
+domains, which exercises the SPA origin and never touches the API at all.
+
+**Fix:** add `"/healthz"` to both `api_path_patterns` lists (one line each) and apply. Worth pairing
+with a smoke-test step that asserts the returned `build_sha` equals `GITHUB_SHA` — the check the
+endpoint was built to enable, which nothing currently performs.

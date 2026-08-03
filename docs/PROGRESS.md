@@ -5,6 +5,39 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ Deployed to staging (2026-08-03 00:31–00:48Z, run
+  [30774650665](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30774650665), on
+  user instruction).** Three sessions' worth of changes — D-154, D-155, D-156 — plus the orphan-doc
+  cleanup, all in one deploy from `main` at **`0fd2cb8046ff87ecc0b25b2d183c8ca9ca061d6f`**.
+  **Run pinned by head SHA, not by "the latest run is green"** — the deploy workflow's own comment
+  records that a watcher once matched the *previous* run, so the dispatch's returned run id was
+  verified against `git rev-parse HEAD` before anything was read from it.
+  **No migrations:** `git diff 408374e..HEAD` shows zero new Alembic revisions across all three
+  sessions, so `alembic upgrade head` was a no-op and this was a code-and-frontend deploy only.
+  Checked *before* dispatching, because it is what set the risk level.
+  **Every gate ran and the rollback did not fire:** ops-task patched → migrations → MySQL re-seed →
+  RAG re-embed → chat-suggestions upsert → pre-deploy task-definition ARNs captured → both ECS
+  services deployed and waited stable → `/dev/token` closed on the public edge → canary bake clean →
+  **"Roll back both services" `skipped`** → both frontends synced + CloudFront invalidated → smoke
+  test passed.
+  **Verified the change is live, not just that the pipeline was green.** The built-in smoke test only
+  curls `/` on the two CloudFront domains, which says nothing about the deployed code, so the
+  D-156 frontend was confirmed directly: the deployed stylesheet contains
+  `.chart-caption{color:var(--text);max-width:68ch;...}` and the deployed JS bundle references both
+  `mastery_window_label` and `pre_post_window_label`. Both APIs answer on the edge with auth
+  enforced (`/learning/sessions` → 405 on a POST-only route, `/me` → 401).
+  **⚠️ What could NOT be verified, and it is a real gap — `/healthz` is unreachable on the public
+  edge.** `build_identity` exists precisely to answer "what version is actually answering" (AUD-F-16,
+  S43), and it is deliberately on `/healthz` because "an identity you need a token or a database to
+  read is not available at the moment you most need it". But CloudFront routes only `/learning/*`,
+  `/students/*`, `/dev/token` (learning) and `/chat/*`, `/me`, `/dev/token` (chat) to the ALB —
+  `/healthz` falls through to the SPA and returns `index.html`. So the deployed **API** `build_sha`
+  cannot be read without AWS credentials, which is the one thing AUD-F-16 was built to make cheap.
+  The API version here is inferred from the run (image `gha-0fd2cb8046ff` built from this SHA,
+  services waited stable), not independently confirmed. **Filed as a carry-over:** add `/healthz` to
+  both `api_path_patterns` lists in `terraform/environments/staging/main.tf` — one line each, and it
+  needs an apply.
+
 - **✅ Three parent-visible correctness findings closed, and both unlanded sessions landed
   (2026-08-02, D-156).** `make lint` clean, `pyright` 0 errors, **684 passed / 2 skipped** (671 +
   13); learning e2e **18/18**, chat e2e **35/35**, e2e typecheck clean, both frontends build clean.
@@ -253,9 +286,14 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   e2e exercises it.
 
 - **Next session, in order (2026-08-02, post-D-156):**
-  0. **Nothing is unlanded.** `main` carries D-154 (#85), D-155 (#86) and D-156. Still **no deploy** —
-     three sessions of changes are now on `main` un-deployed, which is worth a conscious decision
-     rather than drift.
+  0. **Nothing is unlanded, and everything is deployed.** `main` carries D-154 (#85), D-155 (#86),
+     D-156 (#87) and the orphan-doc deletion (#88), and all of it went to staging on 2026-08-03 at
+     `0fd2cb8046ff` (run 30774650665, all gates green, rollback skipped).
+     **⚠️ New, found while verifying that deploy — AUD-F-37 (P2): `/healthz` is not routed on the
+     public edge**, so the endpoint built to answer "what version is answering" (AUD-F-16) cannot be
+     read without AWS credentials. One line in each of the two `api_path_patterns` lists in
+     `terraform/environments/staging/main.tf`, plus an apply. Cheap, and it makes every future
+     deploy verifiable instead of inferred.
   1. **Keep going down the Phase 0B backlog — still the work D-152 points at.** **19** findings remain
      tagged *Open — Phase 0B* (21 − D-156's L-13/L-15; AUD-C-19 was never in that tag — it was filed
      and closed inside 24 hours), and **20 open in total** counting AUD-F-16. Taking a cluster rather than a finding is what has made
