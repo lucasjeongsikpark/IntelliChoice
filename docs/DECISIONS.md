@@ -9683,3 +9683,43 @@ concurrency), and AUD-X-03's guard, which visibly failed to bite while it sat in
 `flow.select_topic`. The assertions are **row counts, spend-ledger rows and checkpoint counts** rather
 than status codes, deliberately: every one of these three defects returned a 200 or looked like a
 plain server error, which is how three audits walked past them.
+
+## D-160 — a `NOT NULL` column shipped in one revision, and expand/contract becomes the standing rule (accepted, 2026-08-03)
+
+Recorded because it was noticed *while the deploy was in flight* rather than while the migration was
+being written, and the reasoning is reusable.
+
+D-159's migration `f2c7d91a4e63` adds `student_reports.idempotency_key`, backfills it, sets it
+`NOT NULL`, and adds a unique constraint — all in one revision. `deploy-staging.yml` runs migrations
+at step 11 and rolls the services out at steps 16–17, so **for the ~10 minutes between them the
+previous learning-api revision served against a schema its own code cannot satisfy**: old code
+inserts a `StudentReport` without the key, and `NOT NULL` rejects it. A `POST /students/{id}/report`
+in that window would have returned 500.
+
+**The sharper edge was the rollback path, not the window.** `Roll back both services to their
+pre-deploy revisions` restores task definitions and does not touch the schema, so a breached canary
+bake would have left report generation broken until someone fixed forward or ran
+`alembic downgrade -1`. The deploy's own safety mechanism would have produced a broken state rather
+than a safe one. The bake did not breach (run 30785821075), and nothing called the route during the
+window, so no request actually failed — but that is luck plus a quiet staging environment, not a
+property of the change.
+
+**Accepted this once**, on narrow grounds that are worth stating so they are not silently reused:
+staging has no real users, the only caller of that route is our own frontend, and the recovery
+(`alembic downgrade -1`) had already been exercised locally against a database holding 245 real rows.
+
+**The standing rule from here: expand/contract for any new `NOT NULL` column or tightened
+constraint.** One revision adds the column *nullable* along with the index/constraint (Postgres
+treats NULLs as distinct, so old code inserting NULL neither fails nor collides), the code deploys,
+and a *second* revision takes `SET NOT NULL` once nothing can write without it. Two revisions, one
+deploy each — the cost is one extra file, and what it buys is that every intermediate state, including
+every rollback target, is one both the old and the new code can serve.
+
+**Why not simply reorder the workflow to deploy code before migrating?** Because that has the same
+defect mirrored: new code would then run against the old schema, which for an *added* column means
+the new code's writes fail instead. Ordering cannot fix an incompatible schema change; only making
+the change compatible can. The workflow's migrate-then-deploy order is right and stays as it is.
+
+Co-requisite: this rule only holds if migrations stay independent of the code that reads them, which
+is already the convention here (every migration is plain SQL/`op.*`, never an import from `apps/`).
+

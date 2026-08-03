@@ -5,6 +5,57 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-159 is merged and deployed — the first deploy since S32 that carried a schema change
+  (2026-08-03 05:00–05:16Z, on user instruction).** PR **#93**, CI **9/9 first attempt**,
+  squash-merged to `main` at **`e1c152bc1bb8`**, deploy run
+  [30785821075](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30785821075),
+  **success**, rollback **skipped**.
+  **The pre-deploy check is what set the risk level, and it was run before dispatching** (D-157's
+  rule): `git diff 5572e136e26c..HEAD -- packages/db/alembic/versions/` returned exactly one file,
+  so this was known to be a schema deploy rather than the code-and-frontend deploy 08-03's earlier
+  run was. Run pinned by head SHA, never by "the latest run is green".
+  **Every gate ran and printed its evidence.** Migration task `605da9ab6a21`, **exit code 0** (the
+  step asserts it) → MySQL re-seed → RAG re-embed → chat-suggestions upsert → pre-deploy ARNs
+  captured → both services deployed and waited stable → **deployed-version gate: learning-api
+  `:53`, chat-api `:52`, both `serving gha-e1c152bc1bb8 (matches this commit)`** → `/dev/token`
+  **404** on both edges on both credential arms → canary bake clean → **rollback `skipped`** →
+  both frontends synced + invalidated → `API paths reach the ALB (GET /me -> 401, not the SPA)`.
+  **D-158's two new gates are now proven on a migrating deploy**, not only a code-only one.
+  **The change is verified live, not just the pipeline** (D-157 again): `Idempotency-Key` occurs
+  **once** in `client.ts` at the previously deployed SHA and **twice** at this one, and the deployed
+  learning-web bundle (`/assets/index-BRhYK8z7.js`) contains **2** — so the client half of AUD-X-04
+  is really serving, by a check that would fail if it were not.
+  **✅ And the schema was then read rather than inferred** (two read-only ops-task runs, exit 0 each,
+  no Bedrock — so **two manual `run-task` entries** sit in the ops-task log window today and are
+  *not* Scheduler firings). `alembic_version = f2c7d91a4e63`; `information_schema` says
+  `idempotency_key` is `is_nullable = NO`; `uq_student_reports_student_audience_key` exists in
+  `pg_constraint`; **0 NULL keys, 0 duplicate `(student, audience, key)` triples, and 0 rows whose
+  key differs from `'legacy-' || student_report_id`** — so the migration comment's "unique by
+  construction" is measured, not asserted.
+  **⚠️ Correction to the risk framing above: staging held exactly *one* `student_reports` row.** So
+  the staging run exercised the DDL path and barely exercised the backfill; the **local down-and-up
+  against 245 real rows was the stronger evidence** for the backfill, which is the reverse of how a
+  "verified on staging" claim usually reads. Worth stating because the next `NOT NULL` + backfill
+  migration will be tempted to treat a green staging run as the harder test.
+  **⚠️ Still NOT verified live — the new *behaviour*.** The 409s, the replay-serves-the-stored-row
+  path and the required header are proven locally and in CI only. Anonymous probes cannot show it:
+  `POST /learning/students/{id}/report` returns `401 {"detail":"Missing bearer token"}` with *and*
+  without an `Idempotency-Key`, because the auth dependency short-circuits ahead of header
+  validation (`/healthz` → 200 SPA is the control proving the probe really reached the API and not
+  S3). A real check needs an out-of-band token, since `/dev/token` is closed on the edge — that is
+  `make e2e-staging`'s harness, and it is the one remaining item.
+  **⚠️ And the migration was not backward-compatible for the deploy window, by design of the
+  workflow's ordering.** Migrations run at step 11 and the services roll out at 16–17, so for ~10
+  minutes the previous learning-api revision served against a schema where
+  `student_reports.idempotency_key` was already `NOT NULL` — old code inserts without it, so a
+  `POST /students/{id}/report` in that window would have 500'd. Nothing called it. The sharper edge
+  was the rollback path: `Roll back both services` restores task definitions but not the schema, so
+  a breached bake would have left report generation broken until a fix-forward or
+  `alembic downgrade -1`. The bake did not breach. **Standing rule going forward, since this shape
+  recurs for every future `NOT NULL` column: expand/contract — add nullable + constraint in one
+  revision, `SET NOT NULL` in a second one after the code is live.** Acceptable this once because
+  staging has no real users and the only caller of that route is our own frontend.
+
 - **✅ The replayed-write cluster is closed — AUD-X-03, AUD-L-11, AUD-X-04, plus AUD-L-17 found
   underneath them (2026-08-03, D-159).** `make lint` clean, `pyright` 0 errors, **693 passed /
   2 skipped** (684 + 9 new); learning e2e **18/18**, chat e2e **35/35**, e2e typecheck clean,
@@ -349,14 +400,19 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-03, post-D-159):**
-  0. **⚠️ There is an unlanded, undeployed migration.** D-159's work is committed nowhere yet and
-     carries **Alembic revision `f2c7d91a4e63`** (`student_reports.idempotency_key` + its unique
-     constraint). So the next deploy is **not** a code-only deploy like 2026-08-03's was — the
-     migration step does real work, and `git diff` against the deployed SHA will show one new
-     revision. Check that before dispatching, the way D-157 did.
-     Everything before D-159 is on `main` and deployed: D-154 (#85), D-155 (#86), D-156 (#87), the
-     orphan-doc deletion (#88), and D-158's deploy gates (#91/#92).
+- **Next session, in order (2026-08-03, post-D-159 deploy):**
+  0. **Everything is landed and deployed, and the schema is read. One item remains owed.** `main` is
+     `e1c152bc1bb8` (PR #93); staging runs it (learning-api `:53`, chat-api `:52`) and the database
+     is at `f2c7d91a4e63`, confirmed by reading `information_schema`/`pg_constraint`, not by
+     inferring it from a green step.
+     **Owed: one live exercise of AUD-X-04 against the deployed API** — the same key twice returning
+     the identical report with no second `cost_reservations` row, and a key reused across date ranges
+     409ing. It needs an out-of-band token (`/dev/token` is closed on the edge; `make e2e-staging`'s
+     harness mints them), which is why it was not done during the deploy. Not a gate blocker — the
+     "verify the artifact, not the pipeline" habit from D-157.
+     **Note on `aws`:** credentials are per-profile, not ambient. `export AWS_PROFILE=intellichoice-
+     staging AWS_REGION=us-east-1` — without it every call fails `NoCredentials`/`NoRegion` even
+     right after a successful `aws login`, which cost a few minutes to work out this session.
   1. ✅ **The replayed-write cluster is done (D-159)** — AUD-X-03, AUD-L-11, AUD-X-04, and AUD-L-17
      found underneath them. See the top entry; the two carry-overs it *opened* are item 2's last
      bullet and the concurrent-report-spend note in that entry.
@@ -3997,6 +4053,12 @@ unambiguous, not to imply entries exist for them._
   gate-then-build sequence and is the only path `POST /topics` takes. That function,
   `TopicSelectionResult`, and three then-unused imports are deleted. D-158's lesson from the other
   side: read the path that actually runs before believing the fix is in it.
+- **Landed and deployed the same day:** PR **#93**, CI **9/9** first attempt, squash-merged to
+  `main` at `e1c152bc1bb8`, deploy run 30785821075 **success** with rollback **skipped** — the first
+  schema-carrying deploy since S32. Migration exit 0; schema then *read* via two read-only ops-task
+  runs (`f2c7d91a4e63`, `is_nullable=NO`, constraint present, 0 NULL keys, 0 duplicate triples, 0
+  keys differing from `'legacy-' || student_report_id`). See the top entry, including **D-160** on
+  the deploy-window incompatibility this exposed.
 - **Verification:** `make lint` clean, `pyright` **0 errors**, **693 passed / 2 skipped** (684 + 9
   new, re-run at close); learning e2e **18/18**, chat e2e **35/35**, `make e2e-typecheck` clean,
   learning-web `tsc -b && vite build` clean. Migration `f2c7d91a4e63` exercised **down and up against
@@ -4005,10 +4067,12 @@ unambiguous, not to imply entries exist for them._
   → the `IntegrityError` escapes) and the AUD-X-03 guard visibly not biting while it sat in dead code.
   Assertions are row counts, spend-ledger rows and checkpoint counts, deliberately — every one of
   these defects returned a 200 or a plain 500.
-- **Carry-over:** (i) ⚠️ **the migration needs an apply** — the next deploy is not code-only, unlike
-  2026-08-03's; (ii) two concurrent report calls under one key still both reach Bedrock (row
-  deduplicated, spend bounded by AUD-L-02's ceiling — D-159 §4); (iii) nothing is committed yet.
-- **New decisions:** D-159. Docs touched: AUDIT_FINDINGS.md (four findings, incl. correcting
+- **Carry-over:** (i) one live exercise of AUD-X-04 against the deployed API, which needs an
+  out-of-band token; (ii) two concurrent report calls under one key still both reach Bedrock (row
+  deduplicated, spend bounded by AUD-L-02's ceiling — D-159 §4); (iii) **expand/contract is now the
+  standing rule for any `NOT NULL` column or tightened constraint (D-160)**, prompted by this
+  session's own migration being incompatible with the previous revision for the deploy window.
+- **New decisions:** D-159, and **D-160** (written after the deploy). Docs touched: AUDIT_FINDINGS.md (four findings, incl. correcting
   AUD-X-03's stale `busy={false}` claim **in place** — AUD-F-27 had already fixed it), ROADMAP.md
   (Phase 0B counts + two method notes), TRACEABILITY.md (§5.9/§5.13 and §5.14.3), ARCHITECTURE.md
   (a new cross-cutting invariant, §10, and the storage-split row — three statements had gone stale).
