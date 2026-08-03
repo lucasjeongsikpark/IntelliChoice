@@ -10130,3 +10130,44 @@ confidence 0.85, i.e. a public document genuinely answers it. Not deployed. Spen
 runs. So a *full* real-model run currently cannot pass that assertion, independently of this
 change. Either the assertion or those five fixtures need to go; the marker design exists to
 defeat the mock's keyword matcher and has no meaning under a real model.
+
+### D-165 addendum — deployed 2026-08-03, and the live verification found the threshold is too tight
+
+Deployed with D-164 in run
+[30831190163](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30831190163), head SHA
+`c245c8a4`, **success**, rollback **skipped**. Pre-deploy check found no migration, so this was
+known to be a code-and-frontend deploy before dispatch (D-157) and D-160's expand/contract rule did
+not apply. Revisions **read, not inferred**: `learning-api:55`, `chat-api:54`, both
+`gha-c245c8a4350c`. CI 9/9 first attempt.
+
+**Verified live:** AUD-C-11 (a no-source refusal returns `citations: []` and `access_hint: null`),
+D-164's escalate flag (`intent=admin_contact`, `scope=null`, `pending_interrupt=email_approval`, the
+draft carrying the user's own question plus `role: public` and no identity), the approval resolving
+via `/respond` — **declined, not approved**, so no real email was sent to the admin address — and
+the button present in the serving bundle `index-Vn8uObx3.js`.
+
+**⚠️ Not verified live, and the measurement says why: `access_probe_max_distance = 0.40` is too
+tight for human phrasing.** Two questions targeting real parent-audience content returned no hint.
+The cause is not a wiring failure — CloudWatch shows **two `bedrock_embedding_call` entries per
+trace** (retrieval's, then the probe's) and zero `access_probe_embedding_unavailable`, so the
+semantic arm ran with a real query vector — and it is not missing content: a read-only ops-task
+(exit 0, one more manual `run-task` entry in today's window) confirmed staging holds **55 approved
+gated chunks, all embedded, all effective**. Measured distances:
+
+| question | nearest gated | verdict at 0.40 |
+|---|---|---|
+| `probe_eval.yaml`'s own "What happens if my child's attendance hasn't been recorded yet?" | **0.418** | miss (the right chunk, parent "If Attendance Is Unknown", is 0.499) |
+| "What happens if the system has no record of whether my kid showed up?" | ~0.60 | miss |
+
+**The fixture has its own bias, and this is the same lesson one level deeper.** A question
+*generated from* a chunk sits closer to that chunk than a person's phrasing does, so 25/43 at ≤0.40
+was true of the fixture and optimistic about users. The corpus-derived fixture was still a large
+improvement over hand-written cases — it is what overturned the keyword rule — but it is not yet a
+model of real phrasing.
+
+**Deliberately not tuned here.** Raising the ceiling is a one-line config change and the wrong thing
+to do on a hunch at the end of a deploy: the same sweep showed ≤0.55 already produces false hints on
+questions nothing answers, i.e. telling a user to log in for an answer that does not exist. The
+threshold should move only against a validation set that models human phrasing — filed as AUD-C-21.
+What ships today is a strict improvement (`role_gated_question` 0/3 → 2/3, no regression, every
+safety property intact), with a named limit rather than a claim.

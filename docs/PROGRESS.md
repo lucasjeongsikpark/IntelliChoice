@@ -5,6 +5,46 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-164 + D-165 are deployed and verified live, and the verification found a real limit
+  (2026-08-03, on user instruction).** PR **#96**, CI **9/9 first attempt**, squash-merged to `main`
+  at **`c245c8a4350c6e783e383ab0ce6b91ee358eac39`**, deploy run
+  [30831190163](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30831190163),
+  **success**, rollback **skipped**.
+  **The pre-deploy check set the risk level before dispatching** (D-157): `git diff
+  e91658b6..HEAD -- packages/db/alembic/versions/` returned **nothing**, so this was known to be a
+  **code-and-frontend** deploy and D-160's expand/contract rule did not apply. Migrations then
+  exited 0, as predicted. Every gate ran: MySQL re-seed → RAG re-embed → chat-suggestions upsert →
+  pre-deploy ARNs captured → both services deployed and waited stable → deployed-version gate →
+  `/dev/token` **404** on both public edges → canary bake clean → rollback **skipped** → both
+  frontends synced + invalidated → smoke test through CloudFront.
+  **✅ Revisions read, not inferred:** `learning-api:55` and `chat-api:54`, both
+  `image=gha-c245c8a4350c`.
+  **✅ AUD-C-11 verified live:** the no-source refusal returns `citations: []` and
+  `access_hint: null`. **✅ D-164's escalate flag verified live:** `intent=admin_contact`,
+  `scope=null`, `pending_interrupt=email_approval`, the draft carrying the user's own question with
+  `role: public` and **no identity**; `/respond` resolved it — **declined, not approved**, so no
+  real email was sent to the admin address. **✅ The button is in the serving bundle**
+  `index-Vn8uObx3.js` (D-159's bundle-grep technique).
+  **⚠️ D-165's probe did NOT fire live, and the cause is measured, not guessed:
+  `access_probe_max_distance = 0.40` is too tight for human phrasing.** Ruled out first: it is not a
+  wiring failure (CloudWatch shows **two `bedrock_embedding_call` entries per trace** — retrieval's
+  then the probe's — and zero `access_probe_embedding_unavailable`), and it is not missing content (a
+  read-only ops-task, **exit 0**, confirmed staging holds **55 approved gated chunks, all embedded,
+  all effective**). The distances: `probe_eval.yaml`'s **own** parent-attendance question sits at
+  **0.418** — a miss — with the correct chunk at 0.499, and a human wording of the same question at
+  **~0.60**.
+  **The instrument has its own bias, which is this session's lesson one level deeper:** a question
+  *generated from* a chunk sits closer to it than a person's phrasing does, so 25/43 at ≤0.40 was
+  true of the fixture and optimistic about users. The corpus-derived fixture was still the thing that
+  overturned the keyword rule — it just is not yet a model of real phrasing. **Filed as AUD-C-21 and
+  deliberately not tuned at the end of a deploy:** ≤0.55 already produces false hints on questions
+  nothing answers, so widening is a real trade. What shipped is a strict improvement
+  (`role_gated_question` 0/3 → 2/3, no regression, every safety property intact) with a named limit
+  rather than a claim.
+  **⚠️ Not read this time: the cost ledger.** The probe adds one Titan embedding per refusal
+  (~0.00003¢ each, visible in the logs above); no reservation path changed, so no ops-task read was
+  taken for spend.
+
 - **✅ D-165: AUD-C-20 fixed — the access probe gets a semantic arm, and the fixture is what
   decided it. AUD-C-06 is now closed too (2026-08-03).** `make lint` clean, `pyright` 0 errors,
   **720 passed / 2 skipped** (+3). **Live: `role_gated_question` 0/3 → 2/3** against the real
@@ -596,7 +636,14 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   e2e exercises it.
 
 - **Next session, in order (2026-08-03, post-D-164):**
-  0. **Owed: D-164 is not deployed.** AUD-C-11, AUD-C-06's routing widening and the escalate
+  0. ~~**Owed: D-164 is not deployed.**~~ **(✅ deployed 2026-08-03 with D-165 — run 30831190163,
+     `chat-api:54`/`learning-api:55` at `gha-c245c8a4350c`, verified live: AUD-C-11, the escalate
+     flag and the approval decline all confirmed against the deployed edge. See the top entry.)**
+     **New and owed instead: AUD-C-21 — the access probe's 0.40 ceiling is too tight for human
+     phrasing** (the fixture's own case misses at 0.418; the right chunk is at 0.499). Needs a
+     human-phrased validation set before the threshold moves, because ≤0.55 already produces false
+     hints on unanswerable questions. Superseded item text below.
+  0b. **Superseded:** AUD-C-11, AUD-C-06's routing widening and the escalate
      button are all merged-ready but unshipped. A code-and-frontend deploy (no migration — check
      with `git diff <last-deployed>..HEAD -- packages/db/alembic/versions/` per D-157 before
      dispatching). The escalate button is the first user-visible *action* added in a while, so
