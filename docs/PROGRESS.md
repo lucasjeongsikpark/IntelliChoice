@@ -5,6 +5,32 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ AUD-F-37 closed and the new gates proven on a real run (2026-08-03, D-158).** Deploy run
+  [30776438238](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30776438238) from
+  `main` at `5572e136e26c`, **success**, rollback `skipped`.
+  **The filed fix was wrong and reading the code caught it.** AUD-F-37 said "add `/healthz` to both
+  `api_path_patterns`". The Terraform says three lines above that list that `/healthz` and `/metrics`
+  are excluded **deliberately** (internal-only). That one-liner would have reversed a documented
+  exposure decision to make a deploy check convenient. The finding's write-up is corrected in place
+  rather than quietly re-scoped.
+  **What shipped instead — two gates in `deploy-staging.yml`, no exposure change, no apply, no new
+  IAM.** A **deployed-version gate** (exactly one `PRIMARY`/`COMPLETED` deployment,
+  `runningCount == desiredCount >= 1`, image tag == this run's `gha-<sha>`), built on
+  `DescribeServices` because **`ecs:ListTasks` is not granted** — the obvious implementation would
+  have died on `AccessDenied` like S34's and S35's did. And an **edge-routing assertion**
+  (`GET /me` → 401), because CloudFront answers unrouted paths from S3 with a **200 SPA document**,
+  which once crashed the frontend in production and was found by a user report.
+  **Both gates ran green on this deploy and printed what they checked:**
+  `intellichoice-staging-learning-api: ...:52 serving gha-5572e136e26c (matches this commit)`,
+  the same for chat-api at `:51`, and `API paths reach the ALB (GET /me -> 401, not the SPA)`.
+  **So the previous entry's caveat is retired: the deployed API version is now read, not inferred.**
+  Verified with live controls before shipping (`/me` → 401 JSON; `/healthz` → 200 SPA, still
+  deliberately unrouted) and the version gate's failure branches exercised against synthetic
+  payloads.
+  **Still not covered (D-158 §4):** the gate proves the control plane rolled out this commit's image
+  tag; it does not read a version out of the running process. Those differ only if a tag is moved,
+  and `gha-<sha>` immutability is convention here, not an ECR policy.
+
 - **✅ Deployed to staging (2026-08-03 00:31–00:48Z, run
   [30774650665](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30774650665), on
   user instruction).** Three sessions' worth of changes — D-154, D-155, D-156 — plus the orphan-doc
