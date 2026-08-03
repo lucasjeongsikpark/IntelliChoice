@@ -42,8 +42,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **⚠️ Still true, now stated rather than implied:** mastery is not date-filtered, so a report headed
   with a July range still shows all-time mastery. The label says so; that is the fix, because
   "current standing" is the right thing for a mastery chart to show.
-  **⚠️ Untouched and still flagged:** `docs/SECURITY_REPORT_TO_ORG.md` is an orphan English-only
-  draft overlapping `S42_SECURITY_REPORT.md`. Merge or delete it before either goes out.
+  **✅ Resolved after the session close, on the user's instruction:** the orphan
+  `docs/SECURITY_REPORT_TO_ORG.md` is deleted. It was an abandoned partial (truncated mid-word) that
+  `S42_SECURITY_REPORT.md` supersedes on all four findings and beats bilingually — but it held one
+  recommendation the newer doc did not, so that was **ported before deleting**: fixing the register
+  endpoint does not clean up rows created before the fix, so the org should also run
+  `SELECT DISTINCT role FROM accounts;` and look at any `Manager` rows nobody remembers creating.
+  Now in §2 of both language versions.
 
 - **✅ The chat error-path cluster is closed — AUD-C-07, AUD-C-08 and AUD-C-10 fixed in one pass
   (2026-08-02, D-155).** `make lint` clean, `pyright` 0 errors, **671 passed / 2 skipped**
@@ -280,9 +285,10 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      approval ([ENROLLMENT_FAQ_APPROVAL.md](ENROLLMENT_FAQ_APPROVAL.md), to the content owner).
      Different audiences — do not merge. On FAQ approval: correct the four facts, flip
      `status: draft → approved`, re-run `make knowledge-load`.
-     ⚠️ **First, and still not done:** `docs/SECURITY_REPORT_TO_ORG.md` is an orphan earlier
-     English-only draft of the same findings, referenced by nothing, overlapping the doc above. Merge
-     or delete it so the wrong one cannot go out.
+     ✅ The orphan `docs/SECURITY_REPORT_TO_ORG.md` is **gone** — deleted after this session closed,
+     with its one unique recommendation (audit `accounts.role` for pre-fix rows) ported into
+     `S42_SECURITY_REPORT.md` §2 first. There is now exactly one security document, and it is the
+     right one.
   4. **Optional criterion-6 confirmation reads remain free** on 08-03/08-05/08-09 (the daily-purge
      ≥7-day clock, not a gate blocker after D-148). `make scheduler-evidence` will keep printing
      ❌ NOT YET until retention-purge reaches 7 unattended days (~08-05); the weekly firing itself is
@@ -3899,8 +3905,10 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
 - **Carry-over:** **mastery is still not date-filtered** — `build_dashboard` reads
   `mastery_repo.list_for_student`, which takes no range, so a July-headed report shows all-time
   mastery. Now *labelled* rather than silent, and "current standing" is arguably right for a mastery
-  chart, so this is a product question rather than a bug. Also unchanged from S44:
-  `docs/SECURITY_REPORT_TO_ORG.md` is an orphan draft overlapping `S42_SECURITY_REPORT.md`.
+  chart, so this is a product question rather than a bug. ~~Also unchanged from S44:
+  `docs/SECURITY_REPORT_TO_ORG.md` is an orphan draft overlapping `S42_SECURITY_REPORT.md`.~~
+  **(Resolved immediately after close, on the user's instruction — deleted, with its one unique
+  recommendation ported into `S42_SECURITY_REPORT.md` §2 first. See the Current status block.)**
 - **Docs:** D-156; AUD-C-19/AUD-L-13/AUD-L-15 marked fixed in AUDIT_FINDINGS.md; ARCHITECTURE.md
   §8 and §10 updated plus one new cross-cutting invariant.
 - **Decisions:** D-156.
