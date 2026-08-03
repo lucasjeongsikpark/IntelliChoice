@@ -189,6 +189,25 @@ _AUDIENCE_FIELDS: dict[str, set[str]] = {
 _AUDIENCE_FIELDS["branch_manager"] = _AUDIENCE_FIELDS["tutor"]
 
 
+class IdempotencyKeyReusedError(Exception):
+    """AUD-X-04: this `Idempotency-Key` already produced a report for a *different* request.
+
+    Only the (student, audience, key) triple is stored, so the key cannot carry the date range
+    - which means serving a stored row for a key sent with a different range would hand a
+    parent last month's numbers under this month's heading, with a 200. A wrong number in front
+    of a family is the failure mode this codebase keeps producing (AUD-L-15, AUD-C-19); a 409 a
+    client can retry under a fresh key is recoverable.
+    """
+
+    def __init__(self, stored_range_label: str, requested_range_label: str) -> None:
+        self.stored_range_label = stored_range_label
+        self.requested_range_label = requested_range_label
+        super().__init__(
+            "this Idempotency-Key already generated a report for "
+            f"{stored_range_label!r}, not {requested_range_label!r} - use a new key"
+        )
+
+
 @dataclass(frozen=True)
 class StudentReportResult:
     interpretation_text: str
@@ -278,6 +297,37 @@ def _fallback_texts(payload: ReportInterpretationPayload) -> tuple[str, str]:
     return interpretation, recommendations
 
 
+async def _persist_or_serve_winner(
+    *, repo: StudentReportRepository, report: StudentReport
+) -> StudentReportResult:
+    """AUD-X-04's concurrent arm: if another request under the same key inserted while this one
+    was calling Bedrock, serve *its* row rather than raising. Both callers then see the same
+    report, which is what an idempotency key promises; the spend is what could not be recovered
+    (see `generate_student_report`'s docstring).
+    """
+    row = await repo.create_if_first(report)
+    if row is not None:
+        return _result_from_row(row)
+    winner = await repo.get_by_idempotency_key(
+        report.student_external_id,
+        audience=report.audience,
+        idempotency_key=report.idempotency_key,
+    )
+    assert winner is not None, "the unique constraint fired, so the winning row must exist"
+    return _result_from_row(winner)
+
+
+def _result_from_row(row: StudentReport) -> StudentReportResult:
+    return StudentReportResult(
+        interpretation_text=row.interpretation_text,
+        recommendations_text=row.recommendations_text,
+        verified_facts=row.verified_facts,
+        generated=row.generated,
+        cost_cents=row.cost_cents,
+        created_at=row.created_at,
+    )
+
+
 async def generate_student_report(
     *,
     gateway: BedrockGateway,
@@ -286,8 +336,27 @@ async def generate_student_report(
     student_external_id: str,
     payload: ReportInterpretationPayload,
     session_spend_cents: float,
+    idempotency_key: str,
 ) -> StudentReportResult:
-    """`session_spend_cents` is deliberately required, with no default. It used to default
+    """`idempotency_key` closes AUD-X-04 and is required, with no default, for the same reason
+    the two parameters below are: this route's defect was that a retryable, *paid* write had no
+    replay story at all, and a key that a caller can forget is not one.
+
+    Three layers, matching the answer path (AUD-L-10/SPEC §5.9.2):
+
+    1. The lookup below serves a stored report without a model call - the ordinary replay
+       (double click, retrying proxy, a refresh that resubmits).
+    2. `create_if_first` + `uq_student_reports_student_audience_key` catch the concurrent
+       arm, where both requests read no row.
+    3. The date-range check turns a reused key into a 409 instead of the wrong month's numbers.
+
+    **What this does not fix, stated because the row count alone looks clean:** two *truly
+    concurrent* calls under one key both reach Bedrock before either inserts, so the duplicate
+    row is prevented but the duplicate spend is not. AUD-L-02's per-day ceiling and AUD-X-08's
+    reservation ledger are what bound that; closing it properly means claiming the key before
+    the model call, which would put a report row with no text in a parent's history.
+
+    `session_spend_cents` is deliberately required, with no default. It used to default
     to 0.0, and the only caller relied on that default - which silently disabled the
     gateway's cost ceiling for this path entirely (AUD-L-02). A cost parameter with a
     permissive default is a fail-open default, the bug class this project has now produced
@@ -301,6 +370,17 @@ async def generate_student_report(
     is visible to every other caller.
     """
     evidence = payload.model_dump()
+
+    # Ahead of the reservation deliberately: a replay must not consume the per-day budget it
+    # already paid for once.
+    replay = await repo.get_by_idempotency_key(
+        student_external_id, audience=payload.audience, idempotency_key=idempotency_key
+    )
+    if replay is not None:
+        stored_range_label = str(replay.verified_facts.get("date_range_label", ""))
+        if stored_range_label != payload.date_range_label:
+            raise IdempotencyKeyReusedError(stored_range_label, payload.date_range_label)
+        return _result_from_row(replay)
 
     try:
         reservation = await cost_ledger.reserve(
@@ -316,8 +396,9 @@ async def generate_student_report(
         # SPEC §5.25.3/§5.27's "deterministic fallback" rule, reused rather than reinvented.
         logger.warning("report generation hit the per-day cost ceiling: %s", exc)
         interpretation_text, recommendations_text = _fallback_texts(payload)
-        row = await repo.create(
-            StudentReport(
+        return await _persist_or_serve_winner(
+            repo=repo,
+            report=StudentReport(
                 student_external_id=student_external_id,
                 audience=payload.audience,
                 verified_facts=evidence,
@@ -325,15 +406,8 @@ async def generate_student_report(
                 recommendations_text=recommendations_text,
                 generated=False,
                 cost_cents=0.0,
-            )
-        )
-        return StudentReportResult(
-            interpretation_text=interpretation_text,
-            recommendations_text=recommendations_text,
-            generated=False,
-            verified_facts=evidence,
-            cost_cents=0.0,
-            created_at=row.created_at,
+                idempotency_key=idempotency_key,
+            ),
         )
 
     try:
@@ -366,8 +440,9 @@ async def generate_student_report(
     # of the try/except above - an unsettled reservation stays charged at its estimate.
     await cost_ledger.settle(reservation.reservation_id, cost_cents)
 
-    row = await repo.create(
-        StudentReport(
+    return await _persist_or_serve_winner(
+        repo=repo,
+        report=StudentReport(
             student_external_id=student_external_id,
             audience=payload.audience,
             verified_facts=evidence,
@@ -375,13 +450,6 @@ async def generate_student_report(
             recommendations_text=recommendations_text,
             generated=generated,
             cost_cents=cost_cents,
-        )
-    )
-    return StudentReportResult(
-        interpretation_text=row.interpretation_text,
-        recommendations_text=row.recommendations_text,
-        verified_facts=row.verified_facts,
-        generated=row.generated,
-        cost_cents=row.cost_cents,
-        created_at=row.created_at,
+            idempotency_key=idempotency_key,
+        ),
     )

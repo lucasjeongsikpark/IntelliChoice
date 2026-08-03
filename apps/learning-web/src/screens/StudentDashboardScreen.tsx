@@ -90,6 +90,18 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
 
   const start = useMemo(() => rangeStart(rangePreset), [rangePreset]);
 
+  // AUD-X-04: the idempotency key for report generation, and the reason it is built this way
+  // rather than minted per click. A fresh key per call (what `submitAnswer` does) would leave
+  // the defect exactly as it was - two clicks, two paid Bedrock calls. A key derived only from
+  // (student, range) would go the other way and make a report un-regeneratable forever.
+  //
+  // So: stable for this mounted view of this student at this range, fresh on remount. A double
+  // click returns the report the student is already looking at without paying again; changing
+  // the range, or coming back to the dashboard later, generates a real new one. Two tabs still
+  // get two keys and therefore two reports - bounded by AUD-L-02's per-day ceiling, not by this.
+  const [reportNonce] = useState(() => crypto.randomUUID());
+  const reportKey = `${studentId}:${rangePreset}:${reportNonce}`;
+
   useEffect(() => {
     let cancelled = false;
     api
@@ -117,7 +129,7 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
     setReportBusy(true);
     setReportError(null);
     try {
-      const result = await api.generateStudentReport(token, studentId, start, null);
+      const result = await api.generateStudentReport(token, studentId, start, null, reportKey);
       setReport(result);
     } catch (err) {
       setReportError(String(err));

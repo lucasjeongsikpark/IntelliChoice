@@ -609,6 +609,21 @@ async def select_topic(
             status_code=status.HTTP_400_BAD_REQUEST, detail=f"unknown topic {body.topic_id!r}"
         )
 
+    # AUD-X-03: this route creates an exam, so a replay of it must not create a second one.
+    # Pre-flighted off the checkpointed state (the check is I/O-free) so a refused request
+    # never starts a graph turn; `graph.nodes.select_topic` asks the same question inside the
+    # turn, which is what makes it an invariant rather than a courtesy. A replay that *is*
+    # servable falls through and is answered from the existing exam by that node.
+    try:
+        flow.is_topic_selection_replay(
+            requested_topic_id=body.topic_id,
+            selected_topic_id=state.get("topic_id"),
+            pre_assessment_session_id=state.get("pre_assessment_session_id"),
+            phase=state["phase"],
+        )
+    except flow.TopicAlreadySelectedError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
     ctx = _turn_context(
         cost_ledger=cost_ledger,
         claims=claims,
@@ -628,6 +643,10 @@ async def select_topic(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
         ) from exc
+    except flow.TopicAlreadySelectedError as exc:
+        # The pre-flight above catches the ordinary case; this is the one that raced it, and it
+        # must still be a 409 rather than the 500 an uncaught service exception would produce.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     if result["phase"] == "error":
         raise HTTPException(
@@ -709,6 +728,40 @@ async def resolve_attendance_choice(
     return response
 
 
+async def _unservable_variant_error(
+    question_repo: QuestionRepository, question_variant_id: str
+) -> HTTPException:
+    """AUD-L-11's two answers for a variant this session cannot serve: **400** when no such
+    variant exists in the bank (a malformed request), **409** when it is real but is not one
+    of this session's items (a stale tab, or a retry that landed after the phase advanced).
+    Previously both were an uncaught `UnknownQuestionVariantError` and therefore a **500**,
+    which is the error rate the S34 CloudWatch alarms watch.
+
+    The existence read happens here rather than up front so the happy path never pays for it:
+    membership already implies existence, so only a request that is failing anyway needs to
+    know which failure it is.
+    """
+    if await question_repo.get_variant(question_variant_id) is None:
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"unknown question variant {question_variant_id}",
+        )
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"question variant {question_variant_id} is not an item of this session",
+    )
+
+
+def _variant_error_from(exc: flow.UnknownQuestionVariantError) -> HTTPException:
+    """The backstop for the same two cases when the service raises them from inside a graph
+    turn - a race between the pre-flight above and the turn, or a caller that reaches `flow`
+    another way. `exc.reason` carries the distinction so this never re-queries.
+    """
+    if exc.reason == "unknown":
+        return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+
 @router.post("/{learning_session_id}/answers", response_model=AnswerResponse)
 async def submit_answer(
     learning_session_id: str,
@@ -737,6 +790,11 @@ async def submit_answer(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"session is not accepting answers in phase {state.get('phase')}",
         )
+    # AUD-L-11/AUD-L-17: which variants this session is actually serving right now. Both
+    # phases are pre-flighted here for the same reason AUD-L-10's duplicate check is - a
+    # stale tab that keeps resubmitting must not run a graph turn per attempt, since a
+    # refused turn still leaves checkpoint rows behind (measured at +2/+4 in
+    # `test_changing_an_answer_is_refused_...`).
     if submitted_phase in EXAM_PHASES:
         exam_session_id = _active_exam_session_id(state)
         assert exam_session_id is not None
@@ -748,6 +806,20 @@ async def submit_answer(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="exam time limit exceeded - finalize to submit",
             )
+        served_variant_ids = {
+            item.question_variant_id for item in await assessment_repo.get_items(exam_session_id)
+        }
+    else:
+        study_session_id = state.get("study_session_id")
+        assert study_session_id is not None
+        served_variant_ids = {
+            item.question_variant_id
+            for item in await StudyRepository(db).get_items(study_session_id)
+        }
+    if body.question_variant_id not in served_variant_ids:
+        raise await _unservable_variant_error(QuestionRepository(db), body.question_variant_id)
+
+    if submitted_phase in EXAM_PHASES:
         # AUD-L-10, pre-flighted here so a duplicate answer never starts a graph turn.
         # `flow` re-checks and the unique constraint enforces; this only shapes the error.
         try:
@@ -785,6 +857,8 @@ async def submit_answer(
         # The pre-flight above catches the ordinary case; this is the concurrent one, where
         # the unique constraint rejected the insert after both requests read no attempt.
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except flow.UnknownQuestionVariantError as exc:
+        raise _variant_error_from(exc) from exc
 
     pending = _result_interrupt(result)
     if pending is not None:

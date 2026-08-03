@@ -323,6 +323,31 @@ async def select_topic(state: LearningState, runtime: Runtime[TurnContext]) -> d
     assert state.student_external_id is not None
     assert ctx.topic_id is not None
 
+    # AUD-X-03: this node creates an exam, so a replayed turn must not create a second one.
+    # `flow.is_topic_selection_replay` raises `TopicAlreadySelectedError` for the cases the
+    # route answers 409; reaching that here means the route's pre-flight was bypassed or lost a
+    # race, and the exception propagating out of the turn is correct - the router maps it to the
+    # same 409 rather than letting the build proceed.
+    if flow.is_topic_selection_replay(
+        requested_topic_id=ctx.topic_id,
+        selected_topic_id=state.topic_id,
+        pre_assessment_session_id=state.pre_assessment_session_id,
+        phase=state.phase,
+    ):
+        # Serve the exam that already exists, item for item. Deliberately ahead of the
+        # attendance gate: re-running it costs a MySQL round-trip and, if the week's mark had
+        # changed in between, could record a `blocked_session` and blank the phase of a student
+        # who is mid-exam.
+        assert state.pre_assessment_session_id is not None
+        replay_items = await ctx.assessment_repo.get_items(state.pre_assessment_session_id)
+        return {
+            "phase": "pre_exam",
+            "topic_id": ctx.topic_id,
+            "pre_assessment_session_id": state.pre_assessment_session_id,
+            "last_message": None,
+            "last_items": _items_payload(await flow.items_view(ctx.question_repo, replay_items)),
+        }
+
     try:
         gate = await check_attendance_gate(
             profile_adapter=ctx.profile_adapter,

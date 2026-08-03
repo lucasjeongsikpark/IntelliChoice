@@ -31,7 +31,8 @@ ones.
 | **AUD-L-07** | **Authorization** | **P1** | **Accepted residual risk 2026-07-30 (D-123) — §7-R8**; still open as a finding, closes at S43/S46; **write half closed in S40** (D-107) | **The read half is now an accepted, written, expiring risk rather than an undecided open P1** — the product call the gate had been carrying for several sessions. Fixing it needs the tutor-assignment model `ProfileAdapter` gains at S43, which is after the gate; failing closed now was rejected because S40 showed it ends tutor report generation outright until S46. Acceptance is scoped to the no-real-users pilot window. Original: S40 closed the mutating surface via AUD-X-05's `access="write"` refusal, so what remains is the original read-scope gap: a tutor token can still read any student's dashboard/history and generate reports about them. Unchanged disposition — it needs the assignment/branch-roster model `ProfileAdapter` gains in S43, with the formal disposition at S46. The stale "lands with Q&A authorization (Session 13)" comment is fixed. Original: D-086's known tutor/branch_manager scope gap now reaches further than when it was written: it covers the S28 dashboard and report surface, so a tutor token can read any student's data and generate reports about them |
 | AUD-L-09 | Correctness | P2 | **Decided** — Phase 0B | Numeric grounding verifies a number's *provenance*, not its *attribution*, so a report can invert a real result ("fell from 6 to 4") and still pass |
 | **AUD-L-10** | **Data integrity / scoring** | **P1** | **Fixed in S42** (D-110 §1) | Uniqueness on `assessment_attempts` tightened from `(session, variant, idempotency_key)` to `(session, variant)`, so one attempt per item is a database invariant rather than a check — the check alone is the same read-then-act shape this cluster exists to remove, and the concurrent arm proves it: with the constraint dropped, four simultaneous answers all return 200 while the sequential test still passes. A `flow` pre-flight turns the ordinary duplicate into a 409 before a graph turn starts, kept because a refused duplicate that reaches `ainvoke` measurably left **+2 `checkpoints` / +4 `checkpoint_writes`** behind. Original: The server marks an exam item `answered` and then accepts more answers for it; exam scores are computed over the *attempt* count, so one changed answer rescores a 10-item exam as 10/11 and silently removes the `not_applicable_pre_max` flag. Enforced client-side only |
-| AUD-L-11 | Robustness / contracts | P2 | Open — Phase 0B | `UnknownQuestionVariantError` is raised at four sites and caught nowhere, so an answer POST with an unknown or not-currently-served variant returns an unhandled **500** instead of a 4xx |
+| **AUD-L-11** | **Robustness / contracts** | **P2** | **Fixed in D-159** | `UnknownQuestionVariantError` carries a required `reason`, and `POST /answers` answers each case deterministically: **400** for an id not in the bank, **409** for a real variant this session is not serving. Both are pre-flighted off session state before `graph.ainvoke`, so a stale tab that keeps resubmitting no longer leaves checkpoint rows per attempt (asserted). Original: raised at four sites, caught nowhere — an unhandled **500** on the error rate the S34 alarms watch |
+| **AUD-L-17** | **Data integrity / scoring** | **P2** | **Found and fixed in D-159** | Found while fixing AUD-L-11: the exam answer paths checked that a variant *exists* but never that it belongs to this exam, so a real variant from another exam was **graded and inserted into `assessment_attempts` for this one** (200, and `_mark_item_answered` silently no-ops) — an 11th attempt on a 10-item exam, moving the attempt-counted scoring denominator AUD-L-10 was fixed to protect. The study path already checked membership; the exam paths did not. Now `flow.ensure_item_is_served`, pre-flighted in the route and re-checked in the service |
 | AUD-L-12 | SPEC conformance | P2 | Open — Phase 0B | `recommended_difficulty` is computed, stored and displayed but routes nothing; two docstrings claim it seeds `starting_difficulty` and it does not. Masked only by the 1:1 skill↔difficulty bank |
 | **AUD-L-13** | **Minors / correctness** | **P2** | **Fixed in D-156** | `_contradicts_measured_mastery` screens `strength`/`weak_skill` candidates against `mastery.weighted_score` at `WEAK_SKILL_THRESHOLD`, on the add path **and the reconfirm path** — the latter is the one that matters, since reconfirmation is the promotion path and repetition was the promotion criterion. Abstains when no mastery row exists (nothing to contradict); the other ten fact types are deliberately unscreened (they describe *how* a student works, which a score cannot contradict). Refusals counted (`mastery_conflicts`), logged, and printed in the CLI summary. `WEAK_SKILL_THRESHOLD` moved to `intellichoice_shared.mastery_policy` so the floor and the study plan cannot drift. Original: consolidation verified provenance and repetition, never the claim against the measured score in the same database — a `strength` fact coexisted with `weighted_score = 0.0` |
 | AUD-L-14 | Correctness / parent-visible | P2 | Open — Phase 0B | `time_spent_minutes` sums a client-populated telemetry column and ignores the always-populated `assessment_attempts.response_time_ms`, so a report shows `0.0` minutes beside `attempts_count: 26` — inside `verified_facts` |
@@ -59,8 +60,8 @@ ones.
 | **AUD-C-16** | **Launch journey / data integrity** | **P3 → P1** | **Fixed and live-verified 2026-07-28 (D-112)**: provenance columns stamped at ingest (NULL = unknown = mismatch), idempotent `make knowledge-reembed`, a deploy-step re-embed, and the load-bearing part — chat-api `/readyz` (the ALB health check) **fails closed** on corpus/runtime provenance mismatch, so this class can never again run silently. Staging re-embedded: **159/159 real Titan, 0/159 mock-like by S38's own discriminator** (max cos 0.078, was 159/159 at 1.0), 0.0224¢; the next deploy's re-embed was a 0-chunk/0-cent no-op. Paraphrase probes went from no-source refusals to **9/9 grounded answers with citations** | Stored embeddings are provider-specific with no provenance column and no re-embed path. **Settled by S38: staging's corpus is 159/159 `MockBedrockProvider` hash vectors** while both deployed services query with real Titan v2, so staging's semantic channel returns noise (peak cosine +0.074 vs +0.41 with real vectors) and hybrid search there has always been lexical-only. Live paraphrase citation rate **1/7** |
 | **AUD-X-01** | **Authorization** | **P1** | **Fixed in S40** (D-107) | Fixed in `graph/nodes.py: resolve_student`, which now refuses to move a session to a different student — applied before the role split, so it covers the tutor branch that took `requested_student_id` unvalidated. The legitimate parent rebind is untouched: it pauses at `await_child_selection`, which re-checks the live link on resume. Re-verified live on staging with a before/after pair. Original: `POST /sessions/{id}/student` never checks who already owns the session: a different student claimed an in-progress exam session, the owner was **locked out with 403**, and their `in_progress` assessment row was orphaned. Same structure as AUD-C-01 — the one route that *writes* the identity field all 17 others read is the one that does not check it |
 | **AUD-X-02** | **Minors / child safety** | **P1** | **Fixed in S40** (D-107) | Fixed via `intellichoice_shared.auth.account_refusal_reason`, consumed by both apps' `get_current_claims` **and both SSE routes** — the streams verify `?token=` directly and never pass through the dependency, so the gate had to be repeated rather than inherited (AUD-F-13's split-path shape). 403, not 401. The age-band exempt set is deliberately **empty** until S42 measures the real vocabulary, so every student needs verified parental consent today: stricter than §5.1.2's literal "under 13" wording, and the right way round to be wrong. AUD-X-02's warning that this sits in the S44/S45 seam is addressed by landing the *consuming* side first, so neither session can ship without something already reading its output. Original: SPEC §5.1.2's *"should verify `parental_consent_verified=true`"* has no implementation: that claim plus `account_status` and `consent_status` are carried in every token and read by **nothing**. A `suspended`/`revoked`/unverified/`under_13` token behaved identically to a consented one on all 18 learning routes |
-| AUD-X-03 | Data integrity | P2 | Open — Phase 0B | `POST /sessions/{id}/topics` replayed builds a **second exam** (+1 session, +10 items, different variants) and orphans the first. Guarded only by a per-hook-instance `busyRef` in one client, with `busy={false}` hardcoded at the call site — AUD-L-10's pattern again |
-| AUD-X-04 | Money / correctness | P3 | Open — Phase 0B | `POST /students/{id}/report` has no idempotency key: two clicks, two paid Bedrock calls, two rows. P3 only because AUD-L-02's daily ceiling now bounds the spend |
+| **AUD-X-03** | **Data integrity** | **P2** | **Fixed in D-159** | `flow.is_topic_selection_replay` decides what a second `/topics` means from session state alone: a replay of the same topic while still in `pre_exam` is served **from the existing exam, item for item**; a different topic, or a phase that has advanced, is **409**. Pre-flighted in the route (no graph turn, no checkpoint rows) and re-checked in the node. The guard is "a pre-exam exists", not "the phase is pre_exam" — the damage was worse after finalize, where the rebuild repointed `pre_assessment_session_id` while a study session was live off the old exam. The **blocked** path builds nothing and stays fully replayable, which is what keeps D-152 §2's routine UNKNOWN attendance recoverable. Original: a replay built a whole second exam (+1 session, +10 items, different variants) and orphaned the first |
+| **AUD-X-04** | **Money / correctness** | **P3** | **Fixed in D-159** | `POST /students/{id}/report` requires `Idempotency-Key`, as `POST /answers` already did. Three layers: a replay lookup ahead of the cost reservation (so a replay spends nothing), `uq_student_reports_student_audience_key` for the concurrent arm, and a **409** when one key is reused for a different date range (serving the stored row would put last month's numbers under this month's heading). Scoped to (student, audience, key), never to a time window — this table is history a parent re-opens. **Not fixed:** two *truly concurrent* calls under one key both reach Bedrock before either inserts, so the duplicate row is prevented and the duplicate spend is not; AUD-L-02's ceiling bounds it. Original: two clicks, two paid calls, two rows |
 | **AUD-X-05** | **Authorization** | **P1** | **Write half fixed in S40** (D-107); read half stays with AUD-L-07/D-086 → S43/S46 | `resolve_target_student` now takes a **required** `access: Literal["read","write"]` and refuses `write` for these two roles; all 14 call sites are classified, 9 write / 5 read. Required rather than defaulted because the recurring defect in this codebase is a route quietly getting the permissive branch (AUD-C-01, AUD-X-01, AUD-X-05 are each "the one route nobody classified"). **`POST /students/{id}/report` is classified `read` despite being a POST** — the existing suite caught the "write" version, which would have ended tutor report generation outright; AUD-L-07 files report generation under the read-scope gap S43/S46 own, so that stays their decision, not a side effect of this fix. Original: AUD-L-07's tutor/branch_manager fall-through extends to **writes**: a tutor token answered and **finalized another student's exam** (200), and can bind any session to any student id. Fabricated attempts are indistinguishable from the student's own and feed scoring, mastery and learning-gain |
 | **AUD-X-07** | **Data integrity / launch journey** | **P1** | **Partially fixed in S42** (D-110 §3); remaining halves **accepted as residual risk 2026-07-30 (D-123) — §7-R9**, void if `learning_checkpoint_repairs_total` moves | Fix shape (2) landed for **seam (a) only**: `services/checkpoint_reconcile.py` detects a checkpointed row id whose row does not exist and rolls the checkpoint *backwards* to what the database supports, wired into `_get_state_values` and `/resume` and counted by `learning_checkpoint_repairs_total`. S38's mid-finalize reproduction is now a test asserting recovery, and fails `'study' == 'pre_exam'` with the fix disabled. **Seam (b) (mid-interrupt) is not fixed and no detection code for it shipped** — the session is paused on a LangGraph task and recovery means completing that node, not editing channel values. **Fix shape (1), the commit ordering itself, is untouched.** Original: The checkpoint commits inside `ainvoke` while domain rows commit at FastAPI dependency teardown, so any failure between them keeps the graph's state and discards the database's. Reproduced at both seams: mid-finalize leaves a scored exam `in_progress` with a dangling `study_session_id` (a reloading client is served a study question, then **500s forever**), and mid-interrupt leaves a pending `intervention_choice` for an attempt row that does not exist (`/respond` **500s** and the interrupt never clears). A task stop during any deploy enters this window with no bug required |
 | **AUD-X-08** | **Money** | **P1** | **Fixed in S42** (D-110 §2) | `cost_reservations` + `pg_advisory_xact_lock`: the worst-case cost is reserved in its own immediately-committed transaction before the model call and settled with the real cost after, so an in-flight call is visible to concurrent callers. Both ceilings (report, tutor chat) converted; the two spend readers that were the defect are deleted. **Re-measured with a concurrent arm as D-102 required: 10/10 generated at 10.0× the ceiling → 1/10 at 1.0×.** Note the reproduction itself needed fixing first — with `MockBedrockProvider`'s ~0 ms call the race window nearly vanishes and the *unfixed* code measured 1/10, i.e. it looked already fixed. **Still open:** the per-session gateway budget, stateless by design (D-072). Original: Every per-day cost ceiling is read-then-act with the cost row committed at teardown. **10 concurrent reports produced 8 generated reports and 8.0× the ceiling**, while the sequential control correctly degraded — a correct check with no serialization. Weakens AUD-L-02's P0 fix; a single caller can drive it since AUD-X-04 leaves the route non-idempotent |
@@ -620,6 +621,38 @@ probing AUD-L-10).
 The correct pattern already exists one file away: `POST /sessions/{id}/chat` validates the same
 thing and returns 400. 500s inflate error-rate metrics and can trip the CloudWatch alarms S34
 added, so this is noise in exactly the signal S39 will rely on.
+
+**✅ Fixed 2026-08-03 (D-159).** The exception carries a required `reason` — `"unknown"` → **400**,
+`"not_served"` → **409** — required rather than defaulted on
+`record_assessment_attempt_idempotent`'s reasoning, so a new raise site fails typecheck instead of
+picking a status code by accident. `pyright` caught six call sites the moment it became required,
+which is the convention working.
+
+Both cases are **pre-flighted off session state** before `graph.ainvoke`, for exam *and* study
+phases, so the stale tab this finding describes no longer leaves checkpoint rows per resubmission
+(asserted, using AUD-L-10's `_checkpoint_row_counts` probe). The existence read that separates 400
+from 409 runs only on the failing path — membership already implies existence, so the happy path
+pays nothing for the distinction.
+
+### AUD-L-17 — the exam answer paths never checked that a variant belongs to this exam (P2, found in D-159)
+
+- **Severity:** P2 · **Area:** data integrity / scoring · **Status:** ✅ **found and fixed in D-159**
+
+Found while writing AUD-L-11's tests, and the reason its 409 case needed a test of its own: for a
+pre/post-exam answer, `flow` checked only that the variant *exists*. A real variant belonging to
+some other exam was therefore **graded and inserted into `assessment_attempts` for this session** —
+`200 OK`, and `_mark_item_answered` silently no-ops because there is no matching item to mark.
+
+Measured before the fix: a variant selected by `SELECT ... FROM question_variants WHERE
+question_variant_id NOT IN (this exam's items)` returned 200 and left an attempt row behind. That is
+an 11th attempt on a 10-item exam, i.e. the same attempt-counted scoring denominator
+(`learning_gain.compute_learning_gain`'s `max_score`) that **AUD-L-10 was fixed to protect** — its
+unique constraint is per `(session, variant)`, so a foreign variant slips straight past it.
+
+The study path had this check already (`_record_study_attempt` looks the item up in
+`study_items`); only the two exam paths lacked it. Now `flow.ensure_item_is_served`, pre-flighted in
+the route and re-checked in the service, raising `UnknownQuestionVariantError(..., "not_served")`
+→ 409.
 
 ### AUD-L-12 — `recommended_difficulty` is computed, stored and displayed, but routes nothing (P2)
 
@@ -1527,8 +1560,26 @@ hash vectors? **Mock, all of them.**
   at all. `TopicSelectScreen` is passed `busy={false}` hardcoded at its `App.tsx` call site, so the
   button is not even visually disabled — **the same hardcoded-`busy` pattern AUD-L-10 found at
   ExamScreen's six call sites**.
+  - ⚠️ **This bullet's second half went stale before the fix landed** (noted D-159): AUD-F-27
+    wired `session.busy` into every screen including `TopicSelectScreen`, so the hardcoded
+    `busy={false}` is gone. Recorded rather than edited away, because it is why the fix is
+    server-side only.
 - Contributes to the standing `question_variants` accumulation carry-over: every abandoned exam
   is a fresh variant draw.
+
+**✅ Fixed 2026-08-03 (D-159).** `flow.is_topic_selection_replay` — pure, I/O-free, shared by the
+route (pre-flight, so a refused replay runs no graph turn) and `graph.nodes.select_topic` (the
+invariant). Same topic + still `pre_exam` → the existing exam's items, item for item; different
+topic or advanced phase → 409; blocked (nothing built) → fully replayable, which D-152 §2's routine
+UNKNOWN attendance and D-154's late-marking recovery both depend on.
+
+**The first draft of this fix was wrong in an instructive way.** The guard went into
+`flow.select_topic` — which has **no callers**. `graph/nodes.py:select_topic` reimplements the same
+gate-then-build sequence against `LearningState`, and that node is the only path `POST /topics`
+takes. The row-count test still measured a second exam being built, which is how the dead copy was
+found; it and `TopicSelectionResult` are now deleted (three imports fell unused with them). Same
+lesson as AUD-F-37/D-158 from the other direction: **read the path that actually runs before
+believing the fix is in it.**
 
 ### AUD-X-04 — `POST /students/{id}/report` remains non-idempotent: one click, one paid call, one row (P3)
 
@@ -1537,6 +1588,35 @@ hash vectors? **Mock, all of them.**
 - **P3, not higher, and only because AUD-L-02's fix landed.** Before S36 this was the unbounded
   spend path; the `DAILY_REPORT_COST_CEILING_CENTS = 50.0` window now caps the damage at a day's
   ceiling, so what remains is duplicated work and duplicated rows rather than uncontrolled cost.
+
+**✅ Fixed 2026-08-03 (D-159).** `Idempotency-Key` is now **required** on the route, matching
+`POST /sessions/{id}/answers`; optional would have left the defect reachable by omission, which is
+how it was reachable in the first place. Three layers, and each earns its place:
+
+1. **The replay lookup runs ahead of the cost reservation**, so a replay spends no budget and
+   returns the stored row byte-identically (`created_at` included — asserted, so "one row" cannot
+   be satisfied by a second report that merely reads the same).
+2. **`uq_student_reports_student_audience_key`** is the enforcement, because the lookup is
+   read-then-act. Its recognition in `create_if_first` matches the constraint *name*, so a
+   `packages/db` test pins that string — inverted once (wrong name → the `IntegrityError` escapes).
+3. **A reused key with a different date range is a 409**, not a 200 carrying the stored report: the
+   key cannot encode the range, and handing a parent last month's numbers under this month's
+   heading is the AUD-L-15/AUD-C-19 failure mode.
+
+**Where the key comes from matters as much as the check.** `submitAnswer` mints a fresh
+`crypto.randomUUID()` per call; copying that here would have changed nothing, since two clicks
+would send two keys. `StudentDashboardScreen` instead holds one nonce per mount and keys on
+`(studentId, rangePreset, nonce)` — stable for the view the parent is looking at, fresh on remount,
+so a double click costs one call while deliberate re-generation still writes history.
+
+**Named, not fixed:** two truly concurrent calls under one key both reach Bedrock before either
+inserts. The row is deduplicated, the spend is not; AUD-L-02's per-day ceiling and AUD-X-08's
+ledger bound it. Closing it properly means claiming the key before the model call, which would put
+a report row with no text into a parent's visible history.
+
+**The migration is the three-step shape** (add nullable → backfill `legacy-<student_report_id>` →
+`SET NOT NULL` → unique constraint), because staging already holds real report rows. Exercised
+down-and-up against a dev database with 245 existing rows, not only from empty.
 
 ### AUD-X-05 — AUD-L-07 extends to *writes*: a tutor token can answer and finalize another student's exam (P1, extends AUD-L-07)
 

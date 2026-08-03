@@ -231,9 +231,15 @@ export function generateStudentReport(
   studentId: string,
   start: string | null,
   end: string | null,
+  // AUD-X-04: required on the wire, so it is required here. Unlike `submitAnswer`'s
+  // per-call `crypto.randomUUID()`, this key must be stable for as long as the request
+  // *means* the same thing - a fresh key per call would let two clicks pay twice, which is
+  // the defect. The caller owns that lifetime; see `StudentDashboardScreen`.
+  idempotencyKey: string,
 ): Promise<StudentReport> {
   return request(`/learning/students/${studentId}/report${rangeQuery(start, end)}`, token, {
     method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
   });
 }
 

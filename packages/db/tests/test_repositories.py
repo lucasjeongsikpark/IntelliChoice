@@ -1044,6 +1044,7 @@ def test_student_report_purge_boundary() -> None:
                     audience="parent",
                     interpretation_text="An old report",
                     recommendations_text="Old recommendations",
+                    idempotency_key="retention-old",
                 )
             )
             old.created_at = datetime(2020, 1, 1, tzinfo=UTC)
@@ -1054,6 +1055,7 @@ def test_student_report_purge_boundary() -> None:
                     audience="parent",
                     interpretation_text="A recent report",
                     recommendations_text="Recent recommendations",
+                    idempotency_key="retention-recent",
                 )
             )
 
@@ -1067,6 +1069,65 @@ def test_student_report_purge_boundary() -> None:
             )
             remaining_ids = {r.student_report_id for r in remaining.scalars().all()}
             assert remaining_ids == {recent.student_report_id}
+
+    asyncio.run(run())
+
+
+def test_student_report_create_if_first_refuses_a_duplicate_key() -> None:
+    """AUD-X-04's enforcement layer, tested where it is deterministic. The service's replay
+    lookup is read-then-act, so `uq_student_reports_student_audience_key` is what actually
+    makes one key mean one report - and `create_if_first` recognises that violation by matching
+    the constraint *name*, which is a string that a rename would silently break. This is the
+    test that fails if it ever stops matching (the alternative would be the exception escaping
+    as a 500 under concurrency, where it is hard to see).
+
+    Also asserts the scope: the same key under a different audience is a different report, since
+    a parent and a tutor view of one student are two documents.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            reports = StudentReportRepository(session)
+
+            first = await reports.create_if_first(
+                StudentReport(
+                    student_external_id="idem-probe-student",
+                    audience="parent",
+                    interpretation_text="First",
+                    recommendations_text="First recs",
+                    idempotency_key="same-key",
+                )
+            )
+            assert first is not None
+
+            duplicate = await reports.create_if_first(
+                StudentReport(
+                    student_external_id="idem-probe-student",
+                    audience="parent",
+                    interpretation_text="Second",
+                    recommendations_text="Second recs",
+                    idempotency_key="same-key",
+                )
+            )
+            assert duplicate is None
+
+            # The surrounding transaction is still usable - the point of the SAVEPOINT.
+            winner = await reports.get_by_idempotency_key(
+                "idem-probe-student", audience="parent", idempotency_key="same-key"
+            )
+            assert winner is not None
+            assert winner.interpretation_text == "First"
+
+            other_audience = await reports.create_if_first(
+                StudentReport(
+                    student_external_id="idem-probe-student",
+                    audience="tutor",
+                    interpretation_text="Tutor view",
+                    recommendations_text="Tutor recs",
+                    idempotency_key="same-key",
+                )
+            )
+            assert other_audience is not None
 
     asyncio.run(run())
 

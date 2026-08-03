@@ -19,7 +19,7 @@ post-exam) - called on both the immediate-correct path and, after the hint/solut
 import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Literal, Protocol
 
 from intellichoice_curriculum.content import load_curriculum
 from intellichoice_db.models.assessment import AssessmentAttempt, AssessmentSession
@@ -30,11 +30,9 @@ from intellichoice_db.repositories.memory import MemoryRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_db.repositories.study import StudyRepository
 from intellichoice_observability.metrics import RETRIES, TUTOR_REVIEW_FLAGGED
-from intellichoice_shared.profiles import ProfileAdapter
 
 from learning_api.services import mastery_bootstrap, study_outcomes
-from learning_api.services.assessment_builder import build_post_exam, build_pre_exam
-from learning_api.services.attendance import check_attendance_gate
+from learning_api.services.assessment_builder import build_post_exam
 from learning_api.services.grading import (
     ItemAlreadyAnsweredError,
     grade,
@@ -49,11 +47,49 @@ class InvalidPhaseError(Exception):
 
 
 class UnknownQuestionVariantError(Exception):
-    """The submitted question_variant_id doesn't exist (or isn't this session's item)."""
+    """AUD-L-11: the submitted `question_variant_id` cannot be answered in this session.
+
+    `reason` separates the two client situations, because the router answers them with
+    different status codes and a caller can only act on one of them:
+
+    - `"unknown"` - no such variant exists in the bank. A malformed request: **400**.
+    - `"not_served"` - a real variant that is not an item of the session's *current*
+      assessment or study session. The session's state is what's wrong, not the id, so this
+      is **409**, the same answer `ItemAlreadyAnsweredError` gets. This is the case a stale
+      tab and a retry landing after the phase advanced actually produce.
+
+    Required rather than defaulted, on `record_assessment_attempt_idempotent`'s reasoning: a
+    new raise site should fail typecheck rather than silently pick one of the two.
+    """
+
+    def __init__(
+        self, question_variant_id: str, reason: Literal["unknown", "not_served"]
+    ) -> None:
+        self.question_variant_id = question_variant_id
+        self.reason = reason
+        super().__init__(
+            f"unknown question variant {question_variant_id}"
+            if reason == "unknown"
+            else f"question variant {question_variant_id} is not an item of this session"
+        )
 
 
 class UnknownExamItemError(Exception):
     """The submitted assessment_item_id doesn't exist (or isn't this session's item)."""
+
+
+class TopicAlreadySelectedError(Exception):
+    """AUD-X-03: this session already built a pre-exam, and the request is not a replay of the
+    selection that built it - so serving it would abandon a real exam.
+    """
+
+    def __init__(self, selected_topic_id: str | None, phase: str) -> None:
+        self.selected_topic_id = selected_topic_id
+        self.phase = phase
+        super().__init__(
+            f"this session already built a pre-exam for topic {selected_topic_id} "
+            f"(phase {phase}); use /resume to return to it"
+        )
 
 
 class ExamNotReadyToFinalizeError(Exception):
@@ -86,13 +122,6 @@ class QuestionItemView:
     option_b: str
     option_c: str
     option_d: str
-
-
-@dataclass(frozen=True)
-class TopicSelectionResult:
-    phase: str
-    message: str | None
-    items: list[QuestionItemView] | None
 
 
 @dataclass(frozen=True)
@@ -178,44 +207,50 @@ async def _used_template_ids(question_repo: QuestionRepository, items: list) -> 
     return {variant.question_template_id for variant in variants.values()}
 
 
-async def select_topic(
+def is_topic_selection_replay(
     *,
-    learning_session: SessionLike,
-    topic_id: str,
-    profile_adapter: ProfileAdapter,
-    assessment_repo: AssessmentRepository,
-    question_repo: QuestionRepository,
-    rng: random.Random,
-) -> TopicSelectionResult:
-    assert learning_session.student_external_id is not None
-    learning_session.topic_id = topic_id
+    requested_topic_id: str,
+    selected_topic_id: str | None,
+    pre_assessment_session_id: str | None,
+    phase: str,
+) -> bool:
+    """AUD-X-03: decide what a second `POST /topics` means, from session state alone.
 
-    gate = await check_attendance_gate(
-        profile_adapter=profile_adapter,
-        assessment_repo=assessment_repo,
-        student_external_id=learning_session.student_external_id,
-    )
-    learning_session.week_id = gate.week_id
+    Returns True for a replay to be served from the exam that already exists, False for a
+    first selection to build, and raises `TopicAlreadySelectedError` when it is neither.
 
-    if gate.blocked:
-        learning_session.phase = "blocked"
-        learning_session.blocked_session_id = gate.blocked_session_id
-        return TopicSelectionResult(phase="blocked", message=gate.message, items=None)
+    Pure and I/O-free, which is what lets both callers share it: the route pre-flights it off
+    the checkpointed state so a refused request never runs a graph turn (the same reason
+    AUD-L-10's duplicate-answer check is pre-flighted - a rejected turn still leaves checkpoint
+    rows behind), and `graph.nodes.select_topic` calls it again inside the turn, so the
+    invariant does not depend on the route remembering to ask.
 
-    pre_exam = await build_pre_exam(
-        question_repo=question_repo,
-        assessment_repo=assessment_repo,
-        student_external_id=learning_session.student_external_id,
-        topic_id=topic_id,
-        rng=rng,
-    )
-    learning_session.pre_assessment_session_id = pre_exam.assessment_session_id
-    learning_session.phase = "pre_exam"
+    The guard is "a pre-exam exists", not "the phase is still pre_exam", deliberately: the
+    damage is worse *after* the phase advances, because the rebuild would repoint
+    `pre_assessment_session_id` while a study session is already live off the old exam and the
+    learning-gain comparison reads both.
 
-    items = await assessment_repo.get_items(pre_exam.assessment_session_id)
-    return TopicSelectionResult(
-        phase="pre_exam", message=None, items=await items_view(question_repo, items)
-    )
+    A **blocked** attendance gate builds nothing, so it leaves `pre_assessment_session_id`
+    None and a replay re-runs the gate in full. That is load-bearing rather than incidental:
+    `AttendanceStatus.UNKNOWN` -> blocked is a routine production state (D-152 §2), and
+    re-selecting the topic after a manager marks attendance is how a student recovers (D-154).
+    """
+    if pre_assessment_session_id is None:
+        return False
+    if selected_topic_id != requested_topic_id or phase != "pre_exam":
+        raise TopicAlreadySelectedError(selected_topic_id, phase)
+    return True
+
+
+# `flow.select_topic` used to live here, with `TopicSelectionResult`, and both were **deleted
+# while fixing AUD-X-03** (D-159): they had no callers. `graph/nodes.py:select_topic`
+# reimplements the same gate-then-build sequence against `LearningState` and returns a plain
+# dict, and that node is the only path `POST /topics` takes. The first draft of this fix
+# guarded the dead copy, and the test still measured a second exam being built - which is the
+# argument for deleting it rather than leaving a second definition of the phase rules for the
+# next reader to fix by mistake. Three imports (`ProfileAdapter`, `build_pre_exam`,
+# `check_attendance_gate`) fell unused with it; nothing else in this module used them.
+# `is_topic_selection_replay` above stays here, shared by the node and the route.
 
 
 async def _upsert_skill_mastery(
@@ -317,8 +352,11 @@ async def _submit_pre_exam_answer(
 
     variant = await question_repo.get_variant(question_variant_id)
     if variant is None:
-        raise UnknownQuestionVariantError(question_variant_id)
+        raise UnknownQuestionVariantError(question_variant_id, "unknown")
 
+    await ensure_item_is_served(
+        assessment_repo, learning_session.pre_assessment_session_id, question_variant_id
+    )
     await ensure_item_unanswered(
         assessment_repo,
         learning_session.pre_assessment_session_id,
@@ -343,6 +381,30 @@ async def _submit_pre_exam_answer(
     return AnswerResult(
         is_correct=attempt.is_correct, phase="pre_exam", items=None, learning_gain=None
     )
+
+
+async def ensure_item_is_served(
+    assessment_repo: AssessmentRepository,
+    assessment_session_id: str,
+    question_variant_id: str,
+) -> None:
+    """AUD-L-17 (found while fixing AUD-L-11): refuse an answer to a variant that is not one
+    of this exam's items.
+
+    The exam paths checked only that the variant *exists*, so a real variant belonging to
+    some other exam was graded and inserted into `assessment_attempts` for this one -
+    `_mark_item_answered` then silently no-ops, since there is no item to mark. That is an
+    11th attempt on a 10-item exam, moving the same attempt-counted scoring denominator
+    AUD-L-10 was fixed to protect. The study path already had this check
+    (`_record_study_attempt`); the exam paths did not.
+
+    Public for the same reason as `ensure_item_unanswered`: the route pre-flights it so a
+    stale client gets a clean 409 without a graph turn, and `flow` re-checks so the invariant
+    does not depend on which caller reaches the service.
+    """
+    items = await assessment_repo.get_items(assessment_session_id)
+    if not any(item.question_variant_id == question_variant_id for item in items):
+        raise UnknownQuestionVariantError(question_variant_id, "not_served")
 
 
 async def ensure_item_unanswered(
@@ -474,13 +536,13 @@ async def _record_study_attempt(
 
     variant = await question_repo.get_variant(question_variant_id)
     if variant is None:
-        raise UnknownQuestionVariantError(question_variant_id)
+        raise UnknownQuestionVariantError(question_variant_id, "unknown")
 
     items = await study_repo.get_items(learning_session.study_session_id)
     item_by_variant = {item.question_variant_id: item for item in items}
     this_item = item_by_variant.get(question_variant_id)
     if this_item is None:
-        raise UnknownQuestionVariantError(question_variant_id)
+        raise UnknownQuestionVariantError(question_variant_id, "not_served")
 
     prior_attempts = await study_repo.get_attempts(learning_session.study_session_id)
     prior_line = [
@@ -759,8 +821,11 @@ async def _submit_post_exam_answer(
 
     variant = await question_repo.get_variant(question_variant_id)
     if variant is None:
-        raise UnknownQuestionVariantError(question_variant_id)
+        raise UnknownQuestionVariantError(question_variant_id, "unknown")
 
+    await ensure_item_is_served(
+        assessment_repo, learning_session.post_assessment_session_id, question_variant_id
+    )
     await ensure_item_unanswered(
         assessment_repo,
         learning_session.post_assessment_session_id,

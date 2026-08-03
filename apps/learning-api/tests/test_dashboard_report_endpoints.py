@@ -132,10 +132,12 @@ def test_report_endpoint_gates_verified_facts_by_caller_role() -> None:
 
     with TestClient(app) as client:
         student_resp = client.post(
-            f"/learning/students/{STUDENT_UNLINKED}/report", headers=_auth_header(student_token)
+            f"/learning/students/{STUDENT_UNLINKED}/report",
+            headers={**_auth_header(student_token), "Idempotency-Key": "audience-gate-student"},
         )
         tutor_resp = client.post(
-            f"/learning/students/{STUDENT_UNLINKED}/report", headers=_auth_header(tutor_token)
+            f"/learning/students/{STUDENT_UNLINKED}/report",
+            headers={**_auth_header(tutor_token), "Idempotency-Key": "audience-gate-tutor"},
         )
 
     assert student_resp.status_code == 200
@@ -213,11 +215,17 @@ def test_the_report_route_consults_this_students_spend_ledger() -> None:
         finally:
             await engine.dispose()
 
-    def request_report() -> dict:
+    def request_report(key: str) -> dict:
         with TestClient(app) as client:
             resp = client.post(
                 f"/learning/students/{subject}/report",
-                headers=_auth_header(_token(subject, Role.STUDENT)),
+                headers={
+                    **_auth_header(_token(subject, Role.STUDENT)),
+                    # A fresh key per arm, which this test genuinely needs: under one key the
+                    # second call would be an AUD-X-04 replay and return the first arm's stored
+                    # `generated: True` row without consulting the ledger at all.
+                    "Idempotency-Key": key,
+                },
             )
         # Always 200 - the ceiling degrades to the facts-only template rather than
         # erroring (SPEC §5.25.3), so `generated` is the signal, not the status code.
@@ -228,19 +236,184 @@ def test_the_report_route_consults_this_students_spend_ledger() -> None:
     try:
         # Another student's spend must not deny this one a report.
         asyncio.run(seed(unrelated, DAILY_REPORT_COST_CEILING_CENTS))
-        assert request_report()["generated"] is True
+        assert request_report("ledger-unrelated-spend")["generated"] is True
 
         # This student's own spend must.
         asyncio.run(seed(subject, DAILY_REPORT_COST_CEILING_CENTS))
-        assert request_report()["generated"] is False
+        assert request_report("ledger-own-spend")["generated"] is False
     finally:
         asyncio.run(clear())
+
+
+def _report_row_count(student_id: str) -> int:
+    async def fetch() -> int:
+        engine = create_engine()
+        try:
+            async with engine.connect() as conn:
+                result = await conn.execute(
+                    text("SELECT count(*) FROM student_reports WHERE student_external_id = :sid"),
+                    {"sid": student_id},
+                )
+                return int(result.scalar_one())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _report_reservation_count(student_id: str) -> int:
+    """Reservations in the AUD-X-08 ledger for this student's reports - i.e. how many times a
+    paid call was *committed to*, which is the money question AUD-X-04 asks. Counting rows in
+    `student_reports` alone cannot distinguish "one call, one row" from "two calls, one row".
+    """
+
+    async def fetch() -> int:
+        engine = create_engine()
+        try:
+            async with engine.connect() as conn:
+                result = await conn.execute(
+                    text(
+                        "SELECT count(*) FROM cost_reservations "
+                        "WHERE scope = :scope AND subject_external_id = :sid"
+                    ),
+                    {"scope": SCOPE_STUDENT_REPORT, "sid": student_id},
+                )
+                return int(result.scalar_one())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _clear_report_reservations(student_id: str) -> None:
+    async def run() -> None:
+        engine = create_engine()
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text("DELETE FROM cost_reservations WHERE subject_external_id = :sid"),
+                    {"sid": student_id},
+                )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
+
+
+def _clear_reports_with_key_prefix(student_id: str, prefix: str) -> None:
+    """`conftest.py`'s sweep does not cover `student_reports` (they are the parent-visible
+    history, and D-114 gives them a year's retention), so rows from previous runs are still
+    there - which means an idempotency-key test would replay *last run's* row and see its first
+    call create nothing. Found exactly that way.
+    """
+
+    async def run() -> None:
+        engine = create_engine()
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text(
+                        "DELETE FROM student_reports WHERE student_external_id = :sid "
+                        "AND idempotency_key LIKE :prefix"
+                    ),
+                    {"sid": student_id, "prefix": f"{prefix}%"},
+                )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
+
+
+def test_a_replayed_report_request_pays_once_and_serves_the_stored_report() -> None:
+    """AUD-X-04. `POST /students/{id}/report` had no idempotency key: two identical calls each
+    generated a report and each paid Bedrock. Now the same `Idempotency-Key` serves the stored
+    row without a second model call, and a *different* key still writes a new report - which is
+    the property that has to survive, because `StudentReport`'s docstring records that this
+    table is history a parent re-opens (`list_for_student`), not a cache. The fix had to
+    deduplicate a replay without capping deliberate re-generation.
+    """
+    subject = STUDENT_ONLY_CHILD
+    token = _token(subject, Role.STUDENT)
+    _clear_report_reservations(subject)
+    _clear_reports_with_key_prefix(subject, "report-key-")
+    try:
+        rows_before = _report_row_count(subject)
+        reservations_before = _report_reservation_count(subject)
+
+        with TestClient(app) as client:
+
+            def generate(key: str) -> dict:
+                resp = client.post(
+                    f"/learning/students/{subject}/report",
+                    headers={**_auth_header(token), "Idempotency-Key": key},
+                )
+                assert resp.status_code == 200, resp.text
+                return resp.json()
+
+            first = generate("report-key-1")
+            assert _report_row_count(subject) == rows_before + 1
+            assert _report_reservation_count(subject) == reservations_before + 1
+
+            replay = generate("report-key-1")
+            # Byte-identical, including `created_at`: the stored row is served, not a second
+            # report that happens to read the same.
+            assert replay == first
+            assert _report_row_count(subject) == rows_before + 1
+            # The money assertion. Without it "one row" could still mean two paid calls.
+            assert _report_reservation_count(subject) == reservations_before + 1
+
+            # A new key is a new request, not a replay - history still works.
+            second = generate("report-key-2")
+            assert second["created_at"] != first["created_at"]
+            assert _report_row_count(subject) == rows_before + 2
+            assert _report_reservation_count(subject) == reservations_before + 2
+    finally:
+        _clear_report_reservations(subject)
+        _clear_reports_with_key_prefix(subject, "report-key-")
+
+
+def test_reusing_a_report_key_for_a_different_date_range_is_refused() -> None:
+    """The trap in serving a replay from a stored row: the key does not carry the date range,
+    so a client that reuses one key across two ranges would be handed the wrong month's report
+    with a 200. Refused instead - a wrong number in front of a parent is the failure mode this
+    codebase keeps producing (AUD-L-15, AUD-C-19), and a 409 is recoverable.
+    """
+    subject = STUDENT_ONLY_CHILD
+    token = _token(subject, Role.STUDENT)
+    _clear_report_reservations(subject)
+    _clear_reports_with_key_prefix(subject, "range-key-")
+    try:
+        with TestClient(app) as client:
+            first = client.post(
+                f"/learning/students/{subject}/report",
+                headers={**_auth_header(token), "Idempotency-Key": "range-key-1"},
+            )
+            assert first.status_code == 200
+            rows_after_first = _report_row_count(subject)
+
+            reused = client.post(
+                f"/learning/students/{subject}/report?start=2026-07-01T00:00:00Z",
+                headers={**_auth_header(token), "Idempotency-Key": "range-key-1"},
+            )
+            assert reused.status_code == 409
+            assert "Idempotency-Key" in reused.json()["detail"]
+            assert _report_row_count(subject) == rows_after_first
+    finally:
+        _clear_report_reservations(subject)
+        _clear_reports_with_key_prefix(subject, "range-key-")
 
 
 def test_reports_history_endpoint_returns_generated_reports() -> None:
     token = _token(STUDENT_UNLINKED, Role.STUDENT)
     with TestClient(app) as client:
-        client.post(f"/learning/students/{STUDENT_UNLINKED}/report", headers=_auth_header(token))
+        # Asserted rather than fire-and-forget: this POST used to be unchecked, so once
+        # `Idempotency-Key` became required it would have 422'd silently and the assertions
+        # below would still have passed on rows an earlier test left behind.
+        created = client.post(
+            f"/learning/students/{STUDENT_UNLINKED}/report",
+            headers={**_auth_header(token), "Idempotency-Key": "history-endpoint-1"},
+        )
+        assert created.status_code == 200, created.text
         resp = client.get(
             f"/learning/students/{STUDENT_UNLINKED}/reports", headers=_auth_header(token)
         )

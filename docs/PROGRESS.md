@@ -5,6 +5,44 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ The replayed-write cluster is closed — AUD-X-03, AUD-L-11, AUD-X-04, plus AUD-L-17 found
+  underneath them (2026-08-03, D-159).** `make lint` clean, `pyright` 0 errors, **693 passed /
+  2 skipped** (684 + 9 new); learning e2e **18/18**, chat e2e **35/35**, e2e typecheck clean,
+  learning-web build clean. **One Alembic migration. No deploy, no apply, no staging access.**
+  **Scope: no numbered session — PROGRESS.md's own pointer, item 2** (the Phase 0B backlog D-152
+  points at). Three findings of *one shape*, D-156's pattern: **a repeated or stale write on a
+  learning-app route that had no deterministic answer**, so each layer improvised — `/topics`
+  built a **second exam** and orphaned the first (200, visible only in row counts), `/answers`
+  **500**'d on an unknown or no-longer-served variant, and `/report` **paid Bedrock twice**. The fix
+  vocabulary already existed one file away, in the answer path AUD-L-10 hardened: pre-flight in the
+  route so a refused request runs no graph turn, invariant in the service or the database so it does
+  not depend on the route.
+  **AUD-X-03's first draft guarded dead code, and the test caught it.** `flow.select_topic` has **no
+  callers** — `graph/nodes.py:select_topic` reimplements the same gate-then-build sequence and is the
+  only path the route takes. The row-count test still measured a second exam being built; the dead
+  function, `TopicSelectionResult`, and three now-unused imports are deleted. **D-158's lesson from
+  the other direction:** there, check whether something is absent on purpose before adding it back;
+  here, read the path that actually runs before believing the fix is in it.
+  **AUD-L-17 was hiding under a status code (P2, new).** The exam answer paths checked that a variant
+  *exists*, never that it belongs to *this* exam — so a real variant from another exam was **graded
+  and inserted into `assessment_attempts` for this session**, with a 200. An 11th attempt on a
+  10-item exam, i.e. the same attempt-counted scoring denominator AUD-L-10 was fixed to protect,
+  which its `(session, variant)` constraint cannot catch because a foreign variant duplicates
+  nothing. The study path already had the check.
+  **AUD-X-04's real decision was the key's lifetime, not the column.** `submitAnswer` mints a fresh
+  UUID per call; copying that would have changed nothing, since two clicks would send two keys and
+  pay twice. `StudentDashboardScreen` holds one nonce per mount and keys on
+  `(studentId, rangePreset, nonce)` — stable for the view a parent is looking at, fresh on remount.
+  Uniqueness is scoped to `(student, audience, key)` and **never to a time window**, because
+  `StudentReport`'s own docstring is right that this table is history a parent re-opens.
+  **⚠️ Named, not fixed (D-159 §4):** two *truly concurrent* report calls under one key both reach
+  Bedrock before either inserts — the duplicate row is prevented, the duplicate spend is not
+  (AUD-L-02's ceiling bounds it). Closing it means claiming the key before the model call, which
+  would put a text-less report row into a parent's history.
+  **⚠️ The migration needs an apply at the next deploy** (`f2c7d91a4e63`, three-step: add nullable →
+  backfill `legacy-<id>` → `SET NOT NULL` → unique constraint). Exercised down-and-up against a dev
+  database holding 245 real rows, which is the staging case, not only from empty.
+
 - **✅ AUD-F-37 closed and the new gates proven on a real run (2026-08-03, D-158).** Deploy run
   [30776438238](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30776438238) from
   `main` at `5572e136e26c`, **success**, rollback `skipped`.
@@ -311,36 +349,40 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-02, post-D-156):**
-  0. **Nothing is unlanded, and everything is deployed.** `main` carries D-154 (#85), D-155 (#86),
-     D-156 (#87) and the orphan-doc deletion (#88), and all of it went to staging on 2026-08-03 at
-     `0fd2cb8046ff` (run 30774650665, all gates green, rollback skipped).
-     **AUD-F-37, found while verifying that deploy, is now ✅ closed (D-158)** — see item 1.
-  1. ✅ **AUD-F-37 is done (D-158) — but not the way this list originally said.** The proposed fix
-     (add `/healthz` to both `api_path_patterns`) was **wrong**: the Terraform says three lines above
-     the list that `/healthz` and `/metrics` are excluded *deliberately*, internal-only. Reading it
-     before editing caught that. The real defect was that nothing asserted the running code is the
-     built code, so `deploy-staging.yml` gained two gates instead — a deployed-version check off the
-     ECS control plane, and an edge-routing assertion (`GET /me` → 401, not the SPA's 200). No
-     exposure change, no apply, no new IAM.
-  2. **Then keep going down the Phase 0B backlog — still the work D-152 points at.** **19** findings remain
-     tagged *Open — Phase 0B* (21 − D-156's L-13/L-15; AUD-C-19 was never in that tag — it was filed
-     and closed inside 24 hours), and **20 open in total** counting AUD-F-16. Taking a cluster rather than a finding is what has made
-     the last two sessions coherent. In rough order of what a user would notice:
-     - **AUD-L-14, and it needs a measurement before a fix.** The last of the parent-visible three,
-       and deliberately left this session: [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) records that
-       D-107's browser run measured client telemetry reporting **15,591 ms for a 15,000 ms dwell**,
-       so the headline "140 item-state rows summing to 0 ms" is most likely an artifact of S36
-       driving those journeys through the API with no browser. The underlying point stands — the
-       report ignores the always-`NOT NULL` `assessment_attempts.response_time_ms` — but re-measure
-       with a browser first. **Note the constraint:** that is Playwright, which cannot run alongside
-       `make test` (shared dev Postgres).
-     - **idempotency/replay** — AUD-X-03 (a replayed `POST /sessions/{id}/topics` builds a second
-       exam and orphans the first), AUD-X-04 (no idempotency key on report generation: two clicks,
-       two paid Bedrock calls).
+- **Next session, in order (2026-08-03, post-D-159):**
+  0. **⚠️ There is an unlanded, undeployed migration.** D-159's work is committed nowhere yet and
+     carries **Alembic revision `f2c7d91a4e63`** (`student_reports.idempotency_key` + its unique
+     constraint). So the next deploy is **not** a code-only deploy like 2026-08-03's was — the
+     migration step does real work, and `git diff` against the deployed SHA will show one new
+     revision. Check that before dispatching, the way D-157 did.
+     Everything before D-159 is on `main` and deployed: D-154 (#85), D-155 (#86), D-156 (#87), the
+     orphan-doc deletion (#88), and D-158's deploy gates (#91/#92).
+  1. ✅ **The replayed-write cluster is done (D-159)** — AUD-X-03, AUD-L-11, AUD-X-04, and AUD-L-17
+     found underneath them. See the top entry; the two carry-overs it *opened* are item 2's last
+     bullet and the concurrent-report-spend note in that entry.
+  2. **Then keep going down the Phase 0B backlog — still the work D-152 points at.** **16** findings
+     remain tagged *Open — Phase 0B* (19 − D-159's L-11/X-03/X-04; AUD-L-17 was filed and closed
+     inside the same session, like AUD-C-19 and AUD-F-37 before it), and **17 open in total**
+     counting AUD-F-16. Taking a cluster rather than a finding is what has made the last three
+     sessions coherent. In rough order of what a user would notice:
+     - **AUD-L-14, and it needs a measurement before a fix.** The last of the parent-visible three:
+       [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) records that D-107's browser run measured client
+       telemetry reporting **15,591 ms for a 15,000 ms dwell**, so the headline "140 item-state rows
+       summing to 0 ms" is most likely an artifact of S36 driving those journeys through the API with
+       no browser. The underlying point stands — the report ignores the always-`NOT NULL`
+       `assessment_attempts.response_time_ms` — but re-measure with a browser first. **Note the
+       constraint:** that is Playwright, which cannot run alongside `make test` (shared dev Postgres).
      - **the masked-by-uniform-data pair** — AUD-C-09 (`academic_year` predicate never applied) and
        AUD-L-12 (`recommended_difficulty` routes nothing), both correct code that was never wired and
-       is invisible until the data stops being uniform.
+       is invisible until the data stops being uniform. **AUD-L-12 now has a precedent to follow:**
+       D-159 deleted `flow.select_topic` for being a second, unused definition of live behaviour, and
+       AUD-L-12's own filing says "either wire it up or delete it and correct both docstrings".
+     - **the chat "message contradicts what the system knows" remainder** — **AUD-C-11** (the
+       low-confidence branch returns "I don't have an approved source" *with* verified citations
+       attached, observed live) and **AUD-C-06** (§18-C3's access-aware refusal fired **0 times in
+       8** under a real model, because its precondition is zero-row retrieval, so a parent gets "no
+       approved source" instead of "log in to see the parent handbook"). Same shape as D-155/D-156's
+       cluster, and both are single-site fixes.
   3. **One thing D-156 opened and did not close: mastery is still not date-filtered.**
      `build_dashboard` reads `mastery_repo.list_for_student`, which takes no range, so a report headed
      "2026-07-01 to 2026-07-31" still shows all-time mastery. This is now *labelled* rather than
@@ -3910,6 +3952,66 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S48 (unnumbered) — Phase 0B: the replayed-write cluster, AUD-X-03 + AUD-L-11 + AUD-X-04 (2026-08-03) ✅
+
+_The two sessions between this and S45 are **not** logged here: S46 (the 2026-08-03 deploy of three
+sessions, D-157) and S47 (AUD-F-37's deploy gates, D-158) recorded themselves in "Current status"
+only — the same drift this section's preamble already notes. Numbered here so the sequence is
+unambiguous, not to imply entries exist for them._
+
+- **Scope: PROGRESS.md's own "Next session" pointer, item 2 — no numbered roadmap block** (everything
+  through S41 ✅, S42's source half done, S43–S47 frozen by D-152). Nothing integration-shaped.
+  **No deploy, no apply, no staging access of any kind.**
+- **Built (D-159): three findings of one shape** — *a repeated or stale write on a learning-app route
+  that had no deterministic answer*, so each layer improvised differently. `/topics` built a **second
+  exam** and orphaned the first (200, visible only in row counts); `/answers` returned an unhandled
+  **500** for an unknown or no-longer-served variant; `/report` **paid Bedrock twice**. The fix
+  vocabulary already existed in the answer path AUD-L-10 hardened: pre-flight in the route (so a
+  refused request runs no graph turn — a rejected turn measurably leaves +2 `checkpoints` / +4
+  `checkpoint_writes`), invariant in the service or the database.
+- **AUD-X-03** — `flow.is_topic_selection_replay`, pure and I/O-free so the route and the graph node
+  share it. Same topic + still `pre_exam` → the existing exam item for item; different topic or an
+  advanced phase → 409; **blocked stays fully replayable**, which D-152 §2's routine UNKNOWN
+  attendance and D-154's late-marking recovery both depend on. The guard is "a pre-exam exists", not
+  "the phase is `pre_exam`", because the damage is worse after finalize — the rebuild repointed
+  `pre_assessment_session_id` while a study session was live off the old exam.
+- **AUD-L-11** — `UnknownQuestionVariantError` gains a **required** `reason`: `"unknown"` → 400,
+  `"not_served"` → 409. `pyright` named six call sites the moment it became required. Pre-flighted for
+  exam *and* study phases; the existence read that separates 400 from 409 runs only on the failing
+  path, since membership already implies existence.
+- **AUD-L-17 (new, P2, filed and closed same session)** — found writing AUD-L-11's tests: the exam
+  paths checked a variant *exists*, never that it is an item of **this** exam, so a real variant from
+  another exam was graded into `assessment_attempts` here with a 200 (`_mark_item_answered` silently
+  no-ops). An 11th attempt on ten items — the attempt-counted denominator AUD-L-10 protects, which
+  its `(session, variant)` constraint cannot catch because a foreign variant duplicates nothing.
+- **AUD-X-04** — `Idempotency-Key` required on `POST /students/{id}/report`; replay lookup **ahead of
+  the cost reservation**, `uq_student_reports_student_audience_key` for the concurrent arm, 409 when
+  one key is reused across date ranges. Uniqueness scoped to `(student, audience, key)` and never to a
+  time window, because `StudentReport`'s own docstring is right that this table is history a parent
+  re-opens. **The real decision was the key's lifetime:** `submitAnswer` mints a fresh UUID per call,
+  and copying that would have fixed nothing — `StudentDashboardScreen` holds one nonce per mount and
+  keys on `(studentId, rangePreset, nonce)`.
+- **The AUD-X-03 fix went into dead code first, and only a row-count test caught it.**
+  `flow.select_topic` has **no callers** — `graph/nodes.py:select_topic` reimplements the same
+  gate-then-build sequence and is the only path `POST /topics` takes. That function,
+  `TopicSelectionResult`, and three then-unused imports are deleted. D-158's lesson from the other
+  side: read the path that actually runs before believing the fix is in it.
+- **Verification:** `make lint` clean, `pyright` **0 errors**, **693 passed / 2 skipped** (684 + 9
+  new, re-run at close); learning e2e **18/18**, chat e2e **35/35**, `make e2e-typecheck` clean,
+  learning-web `tsc -b && vite build` clean. Migration `f2c7d91a4e63` exercised **down and up against
+  a dev database holding 245 real report rows**, not only from empty. All nine new tests watched
+  failing first, plus two inverted controls: the constraint-name string in `create_if_first` (renamed
+  → the `IntegrityError` escapes) and the AUD-X-03 guard visibly not biting while it sat in dead code.
+  Assertions are row counts, spend-ledger rows and checkpoint counts, deliberately — every one of
+  these defects returned a 200 or a plain 500.
+- **Carry-over:** (i) ⚠️ **the migration needs an apply** — the next deploy is not code-only, unlike
+  2026-08-03's; (ii) two concurrent report calls under one key still both reach Bedrock (row
+  deduplicated, spend bounded by AUD-L-02's ceiling — D-159 §4); (iii) nothing is committed yet.
+- **New decisions:** D-159. Docs touched: AUDIT_FINDINGS.md (four findings, incl. correcting
+  AUD-X-03's stale `busy={false}` claim **in place** — AUD-F-27 had already fixed it), ROADMAP.md
+  (Phase 0B counts + two method notes), TRACEABILITY.md (§5.9/§5.13 and §5.14.3), ARCHITECTURE.md
+  (a new cross-cutting invariant, §10, and the storage-split row — three statements had gone stale).
 
 ### S45 (unnumbered) — Phase 0B: parent-visible correctness, AUD-C-19 + AUD-L-13 + AUD-L-15 (2026-08-02) ✅
 
