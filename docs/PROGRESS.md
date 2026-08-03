@@ -4341,7 +4341,7 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
-### S53 (unnumbered) — the chat refusal a user sees: AUD-C-11, half of AUD-C-06, AUD-C-20 found, and escalation made real (2026-08-03) ✅
+### S53 (unnumbered) — the chat refusal a user sees: AUD-C-11, AUD-C-06, AUD-C-20, escalation made real, deployed, and AUD-C-21 found live (2026-08-03) ✅
 
 - **Scope: PROGRESS.md's own "Next session" pointer, item 1's chat-remainder bullet** — no
   numbered roadmap block. Taken as a cluster because AUD-C-11's fix is the precondition
@@ -4365,15 +4365,52 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   wrong conclusion I had already reported: transaction-scoped `now()` hiding seeded fixture chunks,
   and scoring a hint without checking which *role* it named. Both are recorded in D-164 and
   AUD-C-20 because they are the kind of mistake that recurs.
-- **Verification:** `make lint` clean, `pyright` 0 errors, **717 passed / 2 skipped** (10 new, 5
-  watched failing pre-fix), chat e2e **37/37** on fresh servers including a new
-  `escalate-from-refusal.spec.ts`, e2e typecheck clean, chat-web builds. **Not deployed.**
-  Measurement spend ~11¢.
-- **Carry-over opened:** (a) the deploy; (b) build the corpus-derived fixture *before* implementing
-  AUD-C-20's rule; (c) the escalation email has no reply path to the person who asked — deliberate
-  PII posture, but a product question; (d) `InMemoryRateLimiter` is per-process, so the escalation
-  ceiling is N× across N tasks; (e) the real-Bedrock eval's documented `AWS_PROFILE=` invocation
-  does not work from the project venv (`login_session` needs `botocore[crt]`).
+- **Verification (final):** `make lint` clean, `pyright` 0 errors, **720 passed / 2 skipped** (13
+  new, **5 watched failing pre-fix**), chat e2e **37/37** on freshly-booted servers including a new
+  `escalate-from-refusal.spec.ts` that asserts on the outgoing request, e2e typecheck clean,
+  chat-web builds. **Deployed** (see below). Measurement spend **~22¢** across the session.
+- **Then AUD-C-20 fixed too (D-165), and the fixture is what decided the rule.** On the user's
+  instruction the test set was rebuilt *from the documentation* before implementing anything — and
+  that reversed the recommendation. Keyword coverage ≥2/3 scored 8/8 against the hand-written cases
+  and **10 of 43** against the corpus-derived fixture, because those hand-written questions were
+  written beside the chunk they target (5/6, 5/7, 4/6 shared content words). Semantic ≤0.40 got
+  **25 of 43 with zero false hits** on either negative class. Shipped as a **union** of a keyword
+  arm and a semantic arm; the keyword arm is kept because `MockBedrockProvider`'s vectors are
+  hash-seeded noise, so a semantic-only probe would be structurally unobservable in the whole
+  mock-backed suite. Two committed instruments:
+  `scripts/generate_probe_eval_fixture.py` (writes the **measured `lexical_overlap`** into every
+  case as the control against a fixture measuring its own paraphrase) and
+  `scripts/measure_access_probe_rules.py`.
+- **✅ Deployed on user instruction, and verified live.** PR #96, CI 9/9 first attempt, merged
+  `c245c8a4`, run 30831190163 success, rollback skipped. Pre-deploy check found no migration →
+  code-and-frontend deploy (D-157), and migrations then exited 0 as predicted. Revisions read, not
+  inferred: `learning-api:55`, `chat-api:54`, both `gha-c245c8a4350c`. Confirmed against the
+  deployed edge: AUD-C-11's citation-free refusal; the escalate flag's `intent=admin_contact` /
+  `scope=null` / `pending=email_approval` with the user's own question and no identity in the draft;
+  `/respond` resolving it **declined, not approved**, so no real email was sent; and the button in
+  the serving bundle `index-Vn8uObx3.js`.
+- **⚠️ AUD-C-21 found by that live verification, and it is the session's most useful result:
+  `access_probe_max_distance = 0.40` is too tight for human phrasing.** Not a wiring failure (two
+  `bedrock_embedding_call` entries per trace, zero `access_probe_embedding_unavailable`) and not
+  missing content (read-only ops-task, exit 0: 55 approved gated chunks on staging, all embedded and
+  effective). The fixture's **own** parent-attendance question sits at **0.418** — a miss — with the
+  correct chunk at 0.499; a human wording of the same question is at ~0.60. **The instrument has its
+  own bias:** a question generated from a chunk sits closer to it than a person's phrasing does, so
+  25/43 was true of the fixture and optimistic about users. Deliberately **not tuned** at the end of
+  a deploy, because ≤0.55 already produces false hints on questions nothing answers.
+- **Three of my own method errors were caught and corrected during the session**, each after it had
+  already produced a conclusion I had reported: transaction-scoped `now()` hiding seeded fixture
+  chunks; scoring a hint without checking which *role* it named; and `ceil(0.67·n)` rejecting
+  4-of-6, which *is* two thirds. All three are recorded in D-164/D-165/AUD-C-20 rather than quietly
+  fixed, because they are the kind of mistake that recurs.
+- **Carry-over opened:** (a) **AUD-C-21** — the probe's ceiling, needing a human-phrased validation
+  set before it moves; (b) the escalation email has no reply path to the person who asked —
+  deliberate PII posture, but a product question; (c) `InMemoryRateLimiter` is per-process, so the
+  escalation ceiling is N× across N tasks; (d) the real-Bedrock eval's `role_gated >= 0.95`
+  assertion cannot pass a full real-model run (that category is 0/5 — nonsense markers refused as
+  out-of-scope before retrieval); (e) the eval's documented `AWS_PROFILE=` invocation does not work
+  from the project venv (`login_session` needs `botocore[crt]`) — docstring corrected to the
+  `export-credentials` form.
 
 ### S52 (unnumbered) — AUD-L-18: the parent narrative had never shipped under a real model, then deployed (2026-08-03) ✅
 

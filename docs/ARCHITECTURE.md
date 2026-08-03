@@ -685,6 +685,15 @@ instruction not to reuse its wording and records the measured lexical overlap pe
 `scripts/measure_access_probe_rules.py` is what picked 0.40. Re-run both after any change to the
 probe, the corpus, or the threshold.
 
+⚠️ **And 0.40 is known to be too tight for real phrasing (AUD-C-21).** Verified against the deployed
+edge: the probe runs (two embedding calls per trace, no degrade log) over 55 effective gated chunks
+and still returns no hint, because the fixture's own parent-attendance question sits at **0.418** —
+the correct chunk at 0.499 — and a human wording of it at ~0.60. The cause is the fixture's bias, not
+the code: a question generated from a chunk sits closer to it than a person's phrasing does. The
+ceiling is a config value (`access_probe_max_distance`) and moving it is one line, but ≤0.55 already
+produces false hints on questions nothing answers, so it must move against a validation set that
+models human phrasing — not on a hunch.
+
 **D-155 added a fourth terminal shape, `service_unavailable`.** A `BedrockGatewayError` with no
 SPEC §5.29 fallback used to be absorbed by whichever branch happened to be next — `refuse`,
 `explain_access`, `calendar_no_event` — each of which asserts something the turn never actually
