@@ -5,6 +5,27 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-161: the regression D-159 opened is closed — a degraded report is no longer pinned by its
+  idempotency key (2026-08-03).** Found by the post-deploy risk review, not by a test: the replay
+  lookup serves the stored row regardless of `generated`, and both server fallbacks persist their
+  facts-only row *under the key* — so after a transient outage, "Regenerate report" (the button
+  label promises a retry) silently replayed the degraded row for the lifetime of the view. Before
+  D-159 a second click was a real retry; the fix had traded that away without saying so.
+  **Client-only repair:** `StudentDashboardScreen`'s per-view nonce rotates on a received
+  `generated: false` — and only then. Errors keep the key (a lost response may have committed;
+  paying twice is the exact AUD-X-04 defect), and `generated: true` keeps the key (D-159's replay
+  property; the dashboard data behind a "fresh" report is itself per-mount, so regenerating from
+  the same aggregates buys nothing a remount doesn't). Server untouched, deliberately: replay
+  semantics that depend on `generated` would re-reach Bedrock on proxy retries exactly during an
+  outage — only the client knows whether a click is deliberate.
+  **Verification:** new 3-arm Playwright spec `report-degraded-retry.spec.ts`, asserting on the
+  `Idempotency-Key` header via network interception (no DB seeding, no mock-gateway dependency):
+  degraded → rotates (**watched failing pre-fix**), generated → stable, error → stable. Learning
+  e2e **21/21** (18 + 3), e2e typecheck clean, build clean; `make lint` / `pyright` / pytest
+  re-run untouched-but-green (**693 passed / 2 skipped**).
+  **⚠️ Not deployed** — rides the next deploy (frontend-only; staging has no real users to hit the
+  pinning in the meantime).
+
 - **✅ D-159 is merged and deployed — the first deploy since S32 that carried a schema change
   (2026-08-03 05:00–05:16Z, on user instruction).** PR **#93**, CI **9/9 first attempt**,
   squash-merged to `main` at **`e1c152bc1bb8`**, deploy run
@@ -83,7 +104,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **AUD-X-04's real decision was the key's lifetime, not the column.** `submitAnswer` mints a fresh
   UUID per call; copying that would have changed nothing, since two clicks would send two keys and
   pay twice. `StudentDashboardScreen` holds one nonce per mount and keys on
-  `(studentId, rangePreset, nonce)` — stable for the view a parent is looking at, fresh on remount.
+  `(studentId, rangePreset, nonce)` — stable for the view a parent is looking at, fresh on remount
+  *(refined same-day by D-161: the nonce rotates on a received `generated: false`, see the top
+  entry — a stable nonce pinned a degraded report for the lifetime of the view)*.
   Uniqueness is scoped to `(student, audience, key)` and **never to a time window**, because
   `StudentReport`'s own docstring is right that this table is history a parent re-opens.
   **⚠️ Named, not fixed (D-159 §4):** two *truly concurrent* report calls under one key both reach
@@ -4076,6 +4099,12 @@ unambiguous, not to imply entries exist for them._
   AUD-X-03's stale `busy={false}` claim **in place** — AUD-F-27 had already fixed it), ROADMAP.md
   (Phase 0B counts + two method notes), TRACEABILITY.md (§5.9/§5.13 and §5.14.3), ARCHITECTURE.md
   (a new cross-cutting invariant, §10, and the storage-split row — three statements had gone stale).
+- **✅ Resolved after the session close, from the post-deploy risk review (D-161):** the fix's own
+  regression — a degraded (`generated: false`) report pinned under its idempotency key, so
+  "Regenerate report" silently replayed it where a second click used to be a real retry. Client
+  nonce now rotates on a received degraded result (errors and successes keep the key, each for a
+  stated reason); 3-arm interception spec `report-degraded-retry.spec.ts`, degraded arm watched
+  failing pre-fix; learning e2e 21/21.
 
 ### S45 (unnumbered) — Phase 0B: parent-visible correctness, AUD-C-19 + AUD-L-13 + AUD-L-15 (2026-08-02) ✅
 

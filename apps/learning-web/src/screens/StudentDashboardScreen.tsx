@@ -99,7 +99,15 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
   // click returns the report the student is already looking at without paying again; changing
   // the range, or coming back to the dashboard later, generates a real new one. Two tabs still
   // get two keys and therefore two reports - bounded by AUD-L-02's per-day ceiling, not by this.
-  const [reportNonce] = useState(() => crypto.randomUUID());
+  //
+  // D-161: the nonce ROTATES when a response arrives with `generated: false`. Both server
+  // fallbacks (cost ceiling, gateway failure) persist their facts-only row under the key, so a
+  // stable nonce would pin the degraded report for the lifetime of this view - "Regenerate
+  // report" would silently replay it, where before D-159 a second click was a real retry.
+  // Rotation happens only on a *received* degraded result: a network error keeps the key,
+  // because the outcome is unknown and, if the server committed before the response was lost,
+  // the retry must replay rather than pay twice - the exact defect AUD-X-04 closed.
+  const [reportNonce, setReportNonce] = useState(() => crypto.randomUUID());
   const reportKey = `${studentId}:${rangePreset}:${reportNonce}`;
 
   useEffect(() => {
@@ -131,6 +139,11 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
     try {
       const result = await api.generateStudentReport(token, studentId, start, null, reportKey);
       setReport(result);
+      if (!result.generated) {
+        // D-161: this key now names a stored facts-only row; the next explicit click must be
+        // a fresh request, not a replay of the degraded report.
+        setReportNonce(crypto.randomUUID());
+      }
     } catch (err) {
       setReportError(String(err));
     } finally {

@@ -9723,3 +9723,43 @@ the change compatible can. The workflow's migrate-then-deploy order is right and
 Co-requisite: this rule only holds if migrations stay independent of the code that reads them, which
 is already the convention here (every migration is plain SQL/`op.*`, never an import from `apps/`).
 
+
+## D-161 — a degraded report must not be pinned by its idempotency key: the client nonce rotates on `generated: false` (accepted, 2026-08-03)
+
+Found by the post-deploy risk review of D-159, not by a test: D-159's replay lookup serves the
+stored row **regardless of `generated`**, and both server fallbacks (cost ceiling, gateway failure)
+persist their facts-only row *under the key*. So after a transient Bedrock outage, the
+"Regenerate report" button — whose label promises a retry — silently replayed the degraded row for
+the lifetime of the view. Before D-159, a second click was a real retry; the fix had traded that
+away without saying so.
+
+**Fix: client-side only.** `StudentDashboardScreen` rotates its per-mount nonce when a response
+arrives with `generated: false`, so the next explicit click is a fresh request. Two boundaries
+drawn deliberately:
+
+- **A network error does NOT rotate.** The outcome is unknown: if the server committed before the
+  response was lost, the retry must replay the stored row rather than pay again — the exact defect
+  AUD-X-04 closed. Rotation happens only on a *received* degraded result, where the outcome is
+  known and known-bad.
+- **A `generated: true` response does NOT rotate.** Within one view, a repeat click replays the
+  stored row at zero cost (D-159's documented property). The button label reads "Regenerate", and a
+  case can be made that an explicit click after success is also a deliberate re-generation — not
+  taken, because the dashboard data behind the report is itself fetched once per mount, so a
+  "fresh" report would be regenerated from the same stale-by-the-same-amount aggregates; remounting
+  refreshes both together.
+
+**Why not server-side** (serve a replay only when the stored row has `generated: true`): that would
+make replays non-idempotent exactly during an outage — a retrying proxy would re-reach Bedrock on
+every retry at the worst possible time, and "same key, same response" is the cleaner contract. The
+client is the only party who knows whether a click is a *deliberate* retry, so the client decides.
+
+**Verification.** New Playwright spec `report-degraded-retry.spec.ts`, three arms, all asserting on
+the `Idempotency-Key` header captured by network interception (no Postgres seeding, no dependency
+on the mock gateway): degraded → key rotates (**watched failing pre-fix**); generated → key stable
+(fails if someone "fixes" this by rotating on every response); error → key stable (the
+lost-response protection). Learning e2e **21/21** (18 + 3), e2e typecheck clean, `tsc -b && vite
+build` clean; `make lint`/`pyright`/pytest re-run untouched-but-green (693 passed / 2 skipped).
+
+**Scope note:** the degraded row itself still exists in `student_reports` history under the old
+key — correct, it is a real generation event with real (zero) cost. Nothing server-side changed;
+this rides the next deploy like any frontend change.
