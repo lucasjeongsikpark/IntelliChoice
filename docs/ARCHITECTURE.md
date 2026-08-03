@@ -668,31 +668,53 @@ visible in the diagram below as edges that did not exist:
 sufficient: `count_matching_by_audience` matched with `websearch_to_tsquery`, which ANDs every
 content word of the question, so one word the document happens not to use voided the whole probe
 (AUD-C-20). It now **unions a keyword arm and a semantic arm** — cosine distance over the same
-`embedding` column, ceiling `access_probe_max_distance` (0.40), with `explain_access` embedding the
+`embedding` column, ceiling `access_probe_max_distance`, with `explain_access` embedding the
 question itself and degrading to keyword-only if that call fails, since it runs *because* the turn
 already failed. Live: `role_gated_question` **0/3 → 2/3**.
 
 The keyword arm is kept rather than replaced for a reason that is not about recall:
 `MockBedrockProvider`'s embeddings are hash-seeded random vectors with no semantic content, so a
 semantic-only probe would be **structurally unobservable** in the entire mock-backed suite. One arm
-the mock can exercise is what keeps these tests able to fail.
+the mock can exercise is what keeps these tests able to fail. On realistic phrasing it contributes
+nothing else — D-166 measured the union as *identical* to the semantic arm at every ceiling.
 
-**The threshold is measured, and the measurement overturned the obvious answer.** A keyword
-coverage rule scored 8/8 against hand-written cases and 10/43 against a corpus-derived fixture,
-because hand-written questions share vocabulary with the chunk their author was looking at.
-`scripts/generate_probe_eval_fixture.py` builds questions from the corpus under an
-instruction not to reuse its wording and records the measured lexical overlap per case;
-`scripts/measure_access_probe_rules.py` is what picked 0.40. Re-run both after any change to the
-probe, the corpus, or the threshold.
+**The threshold is measured, and the measurement has overturned the obvious answer twice.** First a
+keyword coverage rule scored 8/8 against hand-written cases and 10/43 against a corpus-derived
+fixture, because hand-written questions share vocabulary with the chunk their author was looking at.
+Then 0.40, chosen against that corpus-derived fixture, turned out too tight live (AUD-C-21) — because
+a question *generated from* a chunk sits closer to it than a person's phrasing does, however firmly
+the generator is told not to copy wording.
 
-⚠️ **And 0.40 is known to be too tight for real phrasing (AUD-C-21).** Verified against the deployed
-edge: the probe runs (two embedding calls per trace, no degrade log) over 55 effective gated chunks
-and still returns no hint, because the fixture's own parent-attendance question sits at **0.418** —
-the correct chunk at 0.499 — and a human wording of it at ~0.60. The cause is the fixture's bias, not
-the code: a question generated from a chunk sits closer to it than a person's phrasing does. The
-ceiling is a config value (`access_probe_max_distance`) and moving it is one line, but ≤0.55 already
-produces false hints on questions nothing answers, so it must move against a validation set that
-models human phrasing — not on a hunch.
+**D-166's fix was structural: stop asking the generator not to copy, and stop showing it the
+passage.** `scripts/generate_probe_eval_fixture.py --from-fixture` rewrites each question in a pass
+whose only input is the question, then checks the rewrite against its source passage for
+answerability and drops it if it drifted (a drifted case belongs to the "nothing answers it" class
+and would flatter a wider ceiling). Measured over the same 38 gated cases, a human phrasing sits
+**+0.054 (p50)** farther from the chunk that answers it than the chunk-derived phrasing does — real,
+and a third of the ~0.18 gap D-165's single anecdote suggested.
+
+`scripts/measure_access_probe_rules.py --query-field human_query` then picked **0.45**:
+
+| ceiling | right role | wrong role | false hint: public | false hint: unanswerable |
+|---|---|---|---|---|
+| 0.40 | 17/38 | 0 | 0 | 0 |
+| **0.45** | **23/38** | 1 | **0** | **0** |
+| 0.50 | 26/38 | 3 | 0 | **2** |
+
+0.45 is the last ceiling with a clean record on both negative classes, and the last column is the
+one that does damage — a hint on a question nothing answers sends someone to log in for an answer
+that does not exist. Verified live at 0.45: `no_answer` **8/8 with zero false hints**, and the same
+run at a deliberately loosened 0.95 produces **8 of 8** false hints, so that check can fail.
+
+**A relative-margin rule was measured and rejected**, worth recording so it is not re-proposed: "the
+nearest gated chunk must also be measurably closer than the nearest chunk the caller can already
+read" suppresses wrong-tier hints (5→3) but not false ones, because on an unanswerable question
+nearest-gated (0.623) and nearest-readable (0.667) sit only 0.044 apart — "distinctly closer" is
+noise at that separation. Its best variant trades 5 more correct hints for 4 false ones.
+
+The number now lives once, in `intellichoice_shared.access_probe_policy`, because it had been
+written into `Settings`, `TurnContext` and the repository's own default and has already moved once.
+Re-run both scripts after any change to the probe, the corpus, or the threshold.
 
 **D-155 added a fourth terminal shape, `service_unavailable`.** A `BedrockGatewayError` with no
 SPEC §5.29 fallback used to be absorbed by whichever branch happened to be next — `refuse`,

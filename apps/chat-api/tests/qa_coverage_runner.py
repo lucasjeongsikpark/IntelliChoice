@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from chat_api.config import get_settings
 from chat_api.graph.build import AskInput, build_graph
 from chat_api.graph.nodes import TurnContext
 from intellichoice_db.models.rag import RagChunk, RagDocument
@@ -89,8 +90,16 @@ class FakeProfileAdapter:
         raise NotImplementedError
 
 
-def load_cases() -> list[dict[str, Any]]:
-    return yaml.safe_load(FIXTURE_PATH.read_text())["cases"]
+def load_cases(*, include_mock_only: bool = True) -> list[dict[str, Any]]:
+    """AUD-C-21/D-166: `include_mock_only=False` drops cases whose queries only mean something
+    to `MockBedrockProvider` - today the five nonsense-marker `role_gated` cases, which a real
+    scope guard refuses as out_of_scope before retrieval, so under a real model they measure
+    the marker design rather than the feature. The fixture explains each one.
+    """
+    cases: list[dict[str, Any]] = yaml.safe_load(FIXTURE_PATH.read_text())["cases"]
+    if include_mock_only:
+        return cases
+    return [case for case in cases if not case.get("mock_only")]
 
 
 async def seed_chunk(
@@ -158,6 +167,15 @@ async def reembed_corpus(session: AsyncSession, gateway: BedrockGateway) -> int:
 async def ask(
     session: AsyncSession, gateway: BedrockGateway, *, query: str, thread_id: str
 ) -> dict:
+    """AUD-C-21/D-166: `access_probe_max_distance` is read from `Settings`, the way the real
+    route does (`routers/sessions.py`), not left to `TurnContext`'s own default.
+
+    This was a hole in the instrument, found while trying to make the new wrong-role-hint
+    assertion fail on purpose: with the default in play, `CHAT_ACCESS_PROBE_MAX_DISTANCE=0.95`
+    changed nothing and the run passed, which looked like the assertion being inert. The two
+    values agree today (both come from `access_probe_policy`), so no past measurement was
+    wrong - but an eval that cannot see a tuned config cannot be used to tune one.
+    """
     graph = build_graph(InMemorySaver())
     ctx = TurnContext(
         claims=None,
@@ -170,6 +188,7 @@ async def ask(
         org_event_repo=OrgEventRepository(session),
         rate_limiter=InMemoryRateLimiter(max_per_window=1000, window_s=3600.0),
         admin_escalation_email="admin@example.test",
+        access_probe_max_distance=get_settings().access_probe_max_distance,
         query=query,
     )
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}

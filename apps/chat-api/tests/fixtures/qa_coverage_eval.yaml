@@ -80,8 +80,20 @@ cases:
   # matching unrelated REAL public content (confirmed empirically this session - see
   # this file's own module docstring), which would route to a real answer instead of
   # the access-hint path this case is meant to test.
+  #
+  # `mock_only: true` on all five (AUD-C-21/D-166). The marker design exists to defeat
+  # `MockBedrockProvider`'s keyword matcher and it does that job well - under the mock these
+  # are the only `role_gated` coverage there is, and MOCK_THRESHOLDS gates them at 0.95.
+  # Under a REAL model they are meaningless: a real scope guard classifies "zqxveval2
+  # handbook" as out_of_scope and refuses before retrieval ever runs, so all five fail and
+  # `test_qa_coverage_eval_real_bedrock.py`'s `role_gated >= 0.95` assertion could not pass a
+  # full run no matter what the code did (found in D-165, fixed here). The real runner skips
+  # them and asserts on `role_gated_question` below, which is the same feature asked the way
+  # a person asks it. Deleting them instead would leave the mock gate asserting over zero
+  # cases - the AUD-C-17 vacuity trap - so they stay, scoped.
   - id: role-gated-tutor
     category: role_gated
+    mock_only: true
     query: "zqxveval1 handbook"
     expected_required_role: tutor
     seed:
@@ -89,6 +101,7 @@ cases:
       chunk_text: "zqxveval1 handbook."
   - id: role-gated-parent
     category: role_gated
+    mock_only: true
     query: "zqxveval2 handbook"
     expected_required_role: parent
     seed:
@@ -96,6 +109,7 @@ cases:
       chunk_text: "zqxveval2 handbook."
   - id: role-gated-student
     category: role_gated
+    mock_only: true
     query: "zqxveval3 handbook"
     expected_required_role: student
     seed:
@@ -103,6 +117,7 @@ cases:
       chunk_text: "zqxveval3 handbook."
   - id: role-gated-branch-manager
     category: role_gated
+    mock_only: true
     query: "zqxveval4 handbook"
     expected_required_role: branch_manager
     seed:
@@ -110,6 +125,7 @@ cases:
       chunk_text: "zqxveval4 handbook."
   - id: role-gated-priority
     category: role_gated
+    mock_only: true
     query: "zqxveval5 handbook"
     expected_required_role: branch_manager
     seed:

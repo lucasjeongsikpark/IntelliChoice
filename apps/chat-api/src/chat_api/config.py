@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from intellichoice_adapters.fake_auth import DEV_JWT_SECRET
+from intellichoice_shared.access_probe_policy import ACCESS_PROBE_MAX_DISTANCE
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
@@ -89,8 +90,9 @@ class Settings(BaseSettings):
     # SPEC §5.24.1 "Q&A escalation: Recipient: configured Admin recipient" - a hardcoded
     # dev default (D-006's pattern), not a real secret/credential.
     admin_escalation_email: str = "admin@intellichoice.example"
-    # AUD-C-20/D-165. Measured, not guessed - see `TurnContext.access_probe_max_distance`.
-    access_probe_max_distance: float = 0.40
+    # AUD-C-20/D-165, raised by AUD-C-21/D-166. Measured, not guessed, and defined once in
+    # `intellichoice_shared.access_probe_policy` - that module carries the sweep that chose it.
+    access_probe_max_distance: float = ACCESS_PROBE_MAX_DISTANCE
     # SPEC §5.24.2 anonymous-email rate limiting - keyed by caller (external id or IP),
     # applies only to the admin-escalation send, not every chat message.
     email_rate_limit_max_per_window: int = 5

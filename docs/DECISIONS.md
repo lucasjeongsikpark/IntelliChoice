@@ -10171,3 +10171,101 @@ questions nothing answers, i.e. telling a user to log in for an answer that does
 threshold should move only against a validation set that models human phrasing — filed as AUD-C-21.
 What ships today is a strict improvement (`role_gated_question` 0/3 → 2/3, no regression, every
 safety property intact), with a named limit rather than a claim.
+
+## D-166 — AUD-C-21: the access-probe ceiling, chosen against phrasing the corpus did not write (accepted, 2026-08-03)
+
+Closes AUD-C-21 and retires the real-model `role_gated >= 0.95` assertion that D-165 found
+unpassable. **The lesson is one level below D-165's, and it is the third time this cluster has
+taught a version of it: a fixture flatters whatever it was built beside.** D-164's hand-written
+questions flattered a keyword rule. D-165 fixed that with corpus-derived questions and an
+instruction not to copy the passage's wording — and those questions still sat closer to their own
+source than a person's phrasing does, because the generator was *looking at the passage while it
+wrote*. An instruction cannot remove that; not showing it the passage can.
+
+**The instrument.** `scripts/generate_probe_eval_fixture.py --from-fixture` adds a `human_query`
+per case, written by a pass whose only input is the question — never the passage. It edits in place
+and leaves `query` alone, so both phrasings are scored over the same cases and the same chunks and
+the delta is phrasing, not regeneration noise. Two controls:
+
+- **An answerability judge** (passage + rewrite → does this still answer it?). 5 of 55 cases drifted
+  and were **dropped**, because a drifted case is not a harder case — it belongs to the "nothing
+  answers it" class, and keeping it would flatter every wider ceiling. Distinguished from
+  `unrewritten` (a call failed), which keeps the case and scores it nowhere: infrastructure is not
+  evidence about a case, and the pass is incremental so a re-run fills those in.
+- **`human_lexical_overlap`**, measured and recorded per case as before.
+
+**The measurement** (`--query-field human_query`, 38 gated / 12 public / 8 unanswerable):
+
+| ceiling | right role | wrong role | silent | FP public | FP unanswerable |
+|---|---|---|---|---|---|
+| 0.40 (D-165) | 17 | 0 | 21 | 0 | 0 |
+| **0.45** | **23** | 1 | 14 | **0** | **0** |
+| 0.50 | 26 | 3 | 9 | 0 | **2** |
+| 0.55 | 27 | 5 | 6 | 1 | 3 |
+
+**0.45, because it is the last ceiling with a clean record on both negative classes.** The last
+column is the one that does harm: a hint on a question nothing answers tells a person to go log in
+for an answer that does not exist. 0.50 buys three correct hints and starts doing exactly that.
+
+**The bias is real and smaller than the anecdote said.** Question-to-its-own-source distance:
+chunk-derived p50 **0.379**, human-phrased p50 **0.433** — **+0.054**, against the ~0.18 implied by
+D-165's single hand-typed example. That is why this is one notch, not a jump to 0.55: a finding
+filed from one observation deserves a distribution before it sets a number.
+
+**Two negative results, recorded so they are not re-proposed.** A **relative-margin** rule ("the
+nearest gated chunk must also be measurably closer than the nearest chunk the caller can already
+read") was the elegant way to widen without buying false hints, and it fails here: on unanswerable
+questions nearest-gated (0.623) and nearest-readable (0.667) are **0.044** apart, so the margin is
+noise; its best variant trades 5 more correct hints for 4 false ones. And the **union** of both arms
+— the rule production actually applies, measured directly this time rather than inferred from the
+arms separately (D-159's rule) — is *identical* to the semantic arm at every ceiling. The keyword
+arm's only surviving justification is D-165's: without it the probe is unobservable under
+`MockBedrockProvider`.
+
+**One definition, because there were three.** The number had been written into `Settings`,
+`TurnContext` and `count_matching_by_audience`'s own default, and it has now moved once, so it will
+move again. It lives in `intellichoice_shared.access_probe_policy` (D-156's `mastery_policy`
+precedent), which required `packages/db` to depend on `intellichoice-shared` — one-directional,
+since `shared` depends on nothing but pydantic. A test asserts the four sites agree and nothing
+about the value, watched failing with one site reverted.
+
+**The `role_gated` assertion is corrected, not relaxed.** Its five cases are nonsense markers
+(`"zqxveval1 handbook"`) that a real scope guard refuses as out_of_scope before retrieval, so no
+full real-model run could ever have passed `>= 0.95`. They are now `mock_only: true` — kept, because
+under the mock they are the *only* role-gated coverage and deleting them would leave
+`MOCK_THRESHOLDS["role_gated"] = 0.95` asserting over zero cases (the AUD-C-17 vacuity trap) — and
+`load_cases(include_mock_only=False)` drops them from the real run. In their place, a new
+`wrong_role_hints` predicate asserts the property a rate cannot express: **no hint, on any category,
+ever names a role the case did not expect.** A rate counts a silent probe (safe, and the pre-D-165
+behaviour) as identical to one naming the wrong tier. It is asserted *before* the partial-run return,
+because unlike every other check there it means the same thing on a subset and cannot pass vacuously
+— which makes `CHAT_EVAL_CATEGORIES=no_answer` a real safety check on the ceiling for ~10 cents.
+
+**⚠️ Two things found by trying to make that assertion fail, both real.**
+1. **The eval never read the configured ceiling.** `qa_coverage_runner.ask` built `TurnContext`
+   without `access_probe_max_distance` while the real route passes `Settings`', so
+   `CHAT_ACCESS_PROBE_MAX_DISTANCE=0.95` changed nothing and the run passed — which looked exactly
+   like an inert assertion. No past measurement was wrong (the two values agreed), but an eval that
+   cannot see a tuned config cannot be used to tune one. Fixed, and that fix is what let the
+   loosened run produce **8 of 8** false hints and fail.
+2. **A schema bound the model could not obey cost a whole run.** `_Answerability.reason` was
+   `Field(max_length=300)`; a model cannot count characters, so 19 of 55 cases died as
+   `StructuredOutputError` after the repair retry and were recorded as *dropped* — reading as
+   evidence about the cases when it was evidence about the schema. Length bounds on free-text LLM
+   fields belong in the consumer.
+
+**And one defect in my own prompt, worth keeping because it nearly biased the fixture.** The first
+rewrite prompt said "rewrite it as a parent, student or tutor would ask it", which invited the model
+to *choose* a speaker; it chose parent almost every time, turning a tutor's question about
+contacting families into a parent's question about contacting teachers. 17 of 55 cases drifted and
+the answerability judge caught all of them — but the survivors would have been the parent-audience
+ones, i.e. a fixture silently reweighted toward one audience. `asked_by` now pins the asker.
+
+**Verification:** `make lint` clean, `pyright` 0 errors, **725 passed / 2 skipped** (+5: the
+four-site agreement guard and four `wrong_role_hints` cases). Mock gate unchanged
+(`role_gated` 5/5). Live against the real model: `no_answer` **8/8, zero false hints** at 0.45 and
+**8/8 false hints** at 0.95; `role_gated_question` **2/3**, unchanged — and its third case was
+*verified* rather than assumed to be legitimate: `role-gated-question-tutor` is answered from
+`public-contact-guide` at confidence 0.85 with a real citation, so it never reaches the probe. That
+makes the case mis-classed rather than the feature broken, and rewording it is carry-over. **Not
+deployed.** Spend this session **~75 cents**, of which ~26 was wasted on the two defects above.

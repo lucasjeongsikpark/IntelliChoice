@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
 
+from intellichoice_shared.access_probe_policy import ACCESS_PROBE_MAX_DISTANCE
 from pydantic import BaseModel
 from sqlalchemy import Select, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -237,7 +238,7 @@ class RagRepository:
         query: str,
         query_embedding: list[float] | None = None,
         *,
-        max_distance: float = 0.40,
+        max_distance: float = ACCESS_PROBE_MAX_DISTANCE,
     ) -> dict[str, int]:
         """SPEC §5.19.1/plan §18-C3's access-aware-refusal probe: counts of
         query-matching chunks grouped by `audience`, applying every filter *except* the
@@ -250,23 +251,26 @@ class RagRepository:
 
         **Two signals, unioned (AUD-C-20/D-165).** The keyword arm alone could not do this
         job: `websearch_to_tsquery` ANDs every content word of the question, so one word the
-        chunk happens not to use voids the whole probe - measured against a corpus-derived
-        fixture it named the right audience for **3 of 43** questions. A caller does not
-        phrase a question in the document's vocabulary. The semantic arm, at a cosine
-        distance ceiling, gets **25 of 43** with zero false positives on either negative
-        class (questions a public document answers, and questions nothing answers).
+        chunk happens not to use voids the whole probe - against questions phrased the way a
+        person asks them it names the right audience for **1 of 38**. A caller does not phrase
+        a question in the document's vocabulary. The semantic arm, at a cosine distance
+        ceiling, gets **23 of 38** with zero false positives on either negative class
+        (questions a public document answers, and questions nothing answers).
 
-        The keyword arm is kept rather than replaced, for two reasons that are not about
-        recall: an exact-wording match is free and needs no model, and `MockBedrockProvider`'s
-        embeddings are hash-seeded random vectors with no semantic content, so a
-        semantic-only probe would be **structurally unobservable** in the entire mock-backed
-        test suite. That is D-163's trap wearing different clothes, and one arm the mock can
-        exercise is what keeps these tests able to fail.
+        The keyword arm is kept rather than replaced, and on realistic phrasing recall is not
+        the reason: it contributes nothing the semantic arm does not already find (AUD-C-21
+        measured the union as **identical** to the semantic arm at every ceiling). It stays
+        because an exact-wording match is free and needs no model, and because
+        `MockBedrockProvider`'s embeddings are hash-seeded random vectors with no semantic
+        content - a semantic-only probe would be **structurally unobservable** in the entire
+        mock-backed test suite. That is D-163's trap wearing different clothes, and one arm the
+        mock can exercise is what keeps these tests able to fail.
 
         `query_embedding` is optional and the caller may legitimately not have one: an
         embedding failure on a path that runs *because* something already failed must degrade
-        to keyword-only, not raise. `max_distance` is a measured threshold, not a guess - see
-        `scripts/measure_access_probe_rules.py`, which is the instrument that chose it.
+        to keyword-only, not raise. `max_distance` is a measured threshold, not a guess -
+        `intellichoice_shared.access_probe_policy` holds the number and the sweep behind it,
+        and `scripts/measure_access_probe_rules.py` is the instrument that produced it.
         """
         probe_filters = filters.model_copy(update={"audience": None, "audiences": None})
         tsquery = func.websearch_to_tsquery("english", query)

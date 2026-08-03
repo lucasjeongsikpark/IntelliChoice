@@ -688,6 +688,37 @@ def test_the_access_probe_degrades_to_keyword_only_when_its_embedding_fails() ->
     asyncio.run(run())
 
 
+def test_every_layer_applies_the_same_access_probe_ceiling() -> None:
+    """AUD-C-21/D-166: the ceiling had been written into three files at once — `Settings`,
+    `TurnContext` and `count_matching_by_audience`'s own default — and it has now moved once
+    on measurement (0.40 -> 0.45), so it will move again.
+
+    Three copies of a threshold fail in the quietest possible way: production reads one value
+    from config while a test asserts against a different default, and the probe silently
+    behaves unlike anything anyone measured. Nothing about a *value* is asserted here, only
+    that the four places agree, so the sweep stays the only thing that can change the number.
+    """
+    import dataclasses
+    import inspect
+
+    from chat_api.config import Settings
+    from intellichoice_db.repositories.rag import RagRepository as _Repo
+    from intellichoice_shared.access_probe_policy import ACCESS_PROBE_MAX_DISTANCE
+
+    repo_default = (
+        inspect.signature(_Repo.count_matching_by_audience).parameters["max_distance"].default
+    )
+    turn_context_default = next(
+        f.default
+        for f in dataclasses.fields(TurnContext)
+        if f.name == "access_probe_max_distance"
+    )
+
+    assert Settings().access_probe_max_distance == ACCESS_PROBE_MAX_DISTANCE
+    assert turn_context_default == ACCESS_PROBE_MAX_DISTANCE
+    assert repo_default == ACCESS_PROBE_MAX_DISTANCE
+
+
 def test_escalate_forwards_the_original_question_and_pauses_for_approval() -> None:
     """D-164: the refusal's own offer ("I can pass this on to a branch manager if you'd
     like") made real. `escalate=True` skips `scope_guard` entirely and lands on the SPEC
