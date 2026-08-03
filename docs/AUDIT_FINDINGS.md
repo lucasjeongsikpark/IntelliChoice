@@ -33,9 +33,10 @@ ones.
 | **AUD-L-10** | **Data integrity / scoring** | **P1** | **Fixed in S42** (D-110 §1) | Uniqueness on `assessment_attempts` tightened from `(session, variant, idempotency_key)` to `(session, variant)`, so one attempt per item is a database invariant rather than a check — the check alone is the same read-then-act shape this cluster exists to remove, and the concurrent arm proves it: with the constraint dropped, four simultaneous answers all return 200 while the sequential test still passes. A `flow` pre-flight turns the ordinary duplicate into a 409 before a graph turn starts, kept because a refused duplicate that reaches `ainvoke` measurably left **+2 `checkpoints` / +4 `checkpoint_writes`** behind. Original: The server marks an exam item `answered` and then accepts more answers for it; exam scores are computed over the *attempt* count, so one changed answer rescores a 10-item exam as 10/11 and silently removes the `not_applicable_pre_max` flag. Enforced client-side only |
 | **AUD-L-11** | **Robustness / contracts** | **P2** | **Fixed in D-159** | `UnknownQuestionVariantError` carries a required `reason`, and `POST /answers` answers each case deterministically: **400** for an id not in the bank, **409** for a real variant this session is not serving. Both are pre-flighted off session state before `graph.ainvoke`, so a stale tab that keeps resubmitting no longer leaves checkpoint rows per attempt (asserted). Original: raised at four sites, caught nowhere — an unhandled **500** on the error rate the S34 alarms watch |
 | **AUD-L-17** | **Data integrity / scoring** | **P2** | **Found and fixed in D-159** | Found while fixing AUD-L-11: the exam answer paths checked that a variant *exists* but never that it belongs to this exam, so a real variant from another exam was **graded and inserted into `assessment_attempts` for this one** (200, and `_mark_item_answered` silently no-ops) — an 11th attempt on a 10-item exam, moving the attempt-counted scoring denominator AUD-L-10 was fixed to protect. The study path already checked membership; the exam paths did not. Now `flow.ensure_item_is_served`, pre-flighted in the route and re-checked in the service |
+| **AUD-L-18** | **Correctness / parent-visible** | **P1** | **Found and fixed in D-163** | **The parent-report narrative had never once shipped under a real model.** `is_grounded` rejected **15 of 15** real generations across three payload shapes, so every parent got the facts-only fallback while the Bedrock call was made and paid for. None of the 94 rejected numbers was an invention: **85** were percent renderings of proportions the evidence carries as decimals (`0.8333` → "83%"), 8 were thousands-separated counts the tokenizer split (`"1,284"` → `1` and `284`), and the rest were numbers living inside evidence *strings* the collector never walked (`date_range_label`, and the "70%" the prompt tells the model to cite). Fixed in the checker (percent rule bounded to evidence proportions in [0,1], grouped-number parsing, strings walked) plus a prompt that forbids derived numbers and advice quantities. Re-measured **15/15 grounded**. Found only because D-162 §4 saw `generated: false` twice on staging; no test could have, since `MockBedrockProvider` is grounded by construction |
 | AUD-L-12 | SPEC conformance | P2 | Open — Phase 0B | `recommended_difficulty` is computed, stored and displayed but routes nothing; two docstrings claim it seeds `starting_difficulty` and it does not. Masked only by the 1:1 skill↔difficulty bank |
 | **AUD-L-13** | **Minors / correctness** | **P2** | **Fixed in D-156** | `_contradicts_measured_mastery` screens `strength`/`weak_skill` candidates against `mastery.weighted_score` at `WEAK_SKILL_THRESHOLD`, on the add path **and the reconfirm path** — the latter is the one that matters, since reconfirmation is the promotion path and repetition was the promotion criterion. Abstains when no mastery row exists (nothing to contradict); the other ten fact types are deliberately unscreened (they describe *how* a student works, which a score cannot contradict). Refusals counted (`mastery_conflicts`), logged, and printed in the CLI summary. `WEAK_SKILL_THRESHOLD` moved to `intellichoice_shared.mastery_policy` so the floor and the study plan cannot drift. Original: consolidation verified provenance and repetition, never the claim against the measured score in the same database — a `strength` fact coexisted with `weighted_score = 0.0` |
-| AUD-L-14 | Correctness / parent-visible | P2 | Open — Phase 0B | `time_spent_minutes` sums a client-populated telemetry column and ignores the always-populated `assessment_attempts.response_time_ms`, so a report shows `0.0` minutes beside `attempts_count: 26` — inside `verified_facts` |
+| **AUD-L-14** | **Correctness / parent-visible** | **P2** | **Fixed in D-162** | Measured before fixing, as the filing demanded: a browser-driven journey populates **both** sources within ~7% of each other (1,453 ms summed `response_time_ms` vs 1,354 ms summed item-state for one full pre-exam), so S36's "140 rows summing to 0 ms" was an artifact of driving the journeys through the API with no browser — the client half was never broken (AUD-F-01/D-107). The reliability asymmetry is what stands: item-state is a fire-and-forget tick a hard refresh or non-browser client silently drops; `response_time_ms` is **required** by `SubmitAnswerRequest` on every accepted answer. `build_dashboard` now sums `response_time_ms` from the attempt rows it already fetched (same rows as `attempts_count`, so the two figures can no longer disagree about which attempts exist); the repo's telemetry-summing query and its half-true docstring are deleted. Telemetry itself stays, as the autosave/resume signal, guarded by AUD-F-01's regression spec. Original: `time_spent_minutes` summed the telemetry column and ignored the always-populated server-required one — `0.0` minutes beside `attempts_count: 26`, inside `verified_facts` |
 | **AUD-L-15** | **Correctness / parent-visible** | **P2** | **Fixed in D-156** | Three parts, two of them behaviour changes the user decided: **(a)** mastery now includes the post-exam (`_recompute_all_skill_mastery` gained `post_assessment_session_id` and is now called on post-exam finalize, where it never was) — this also fixes `topic_resolver` choosing the next cycle's targets from a score that had never seen how the last one ended; **(b)** "skills to strengthen" now uses the study plan's own cut (`mastery.weighted_score < WEAK_SKILL_THRESHOLD`) instead of a hardcoded 0.8 on post-exam accuracy, so a report cannot recommend work the system will not do; **(c)** every figure states its window, in the report payload, the prompt, and as `GET /dashboard` chart captions. **Still true and now stated rather than implied:** mastery is not date-filtered. Original: mastery excluded the post-exam while "skills to strengthen" was post-exam-derived, both shown under `date_range_label: "all time"` — one skill reading mastery 1.000 *and* "needs work" |
 | AUD-L-08 | Correctness | P3 | Open — Phase 0B | `normalized_gain` has no bound in either direction and derives its denominator from the pre *attempt count*. **Reachability corrected in the S36 continuation:** −200% reached on an ordinary journey, and >1 reachable via AUD-L-10's duplicate attempts |
 | AUD-L-16 | Design integrity | P3 | Open — Phase 0B | Both policy snapshots (`assessment_sessions.policy`, `study_sessions.intervention_policy`) are written at creation and never read back; only `time_limit_seconds` governs behavior, via a separate column |
@@ -724,7 +725,29 @@ A deterministic floor — refuse a `strength` fact for a skill whose measured ma
 ### AUD-L-14 — `time_spent_minutes` reads best-effort client telemetry and ignores the always-populated server column (P2)
 
 - **Severity:** P2 — a wrong parent-visible number, presented as a *verified fact*. Fails low.
-- **Area:** correctness / reporting · **Status:** open, Phase 0B
+- **Area:** correctness / reporting · **Status:** ✅ **fixed in D-162 (2026-08-03)**
+
+**Measurement first (the filing's own condition), then the fix.** A browser-driven full journey
+(`journey-student.spec.ts` against the local stack, rows isolated by run timestamp) populated both
+sources within ~7%: **1,453 ms** summed `response_time_ms` across 10 attempts vs **1,354 ms**
+summed item-state across 10 rows for the same pre-exam. So the zero was S36's API-driven journeys
+never running the browser telemetry — consistent with D-107's 15,591 ms for a 15,000 ms dwell —
+and the finding reduces to the reliability asymmetry: the telemetry tick is fire-and-forget
+(`.catch(() => {})`, dropped by hard refresh, closed tab, or any non-browser client) while
+`response_time_ms` is a **required field of `SubmitAnswerRequest`** — an attempt row cannot exist
+without it, by construction. Both are client-reported (same `viewStartRef`); only one is load-bearing.
+
+**Fix.** `build_dashboard` sums `response_time_ms` over the attempt rows it already fetches for
+`attempts_count` — one query fewer, and the two figures now derive from the same rows so they
+cannot disagree about which attempts exist. `total_assessment_time_ms_in_range` and its half-true
+docstring ("the only populated per-question timing source") are deleted with it, per the
+delete-the-second-definition precedent D-159 set. The dashboard tests now seed item-state rows at
+`time_spent_ms = 0` — AUD-L-14's live shape — and assert a non-zero `time_spent_minutes` from the
+attempts. Telemetry itself is untouched: it remains the exam screen's autosave/resume signal, and
+AUD-F-01's regression spec still guards its volume and honesty. Study time remains genuinely
+unavailable (`study_attempts` has no response-time column), now stated on the `DashboardData` field.
+
+**Original finding below.**
 
 `build_dashboard` computes `time_spent_minutes = total_time_ms / 60000`, where
 `total_assessment_time_ms_in_range` sums `AssessmentItemState.time_spent_ms` — populated only by
@@ -745,6 +768,71 @@ Frontend fragility compounds it: `ExamScreen` records time in a `useEffect` **cl
 item/phase change or unmount), gated on `currentOverviewItem?.assessment_item_id` being present,
 and `useLearningSession.recordItemTime` swallows every failure with `.catch(() => {})`. A hard
 refresh, a closed tab, a failed overview fetch, or any non-browser client yields 0.0.
+
+### AUD-L-18 — numeric grounding rejected every real generation, so the parent narrative never shipped (P1, found and fixed in D-163)
+
+- **Severity:** P1 — a paid-for feature that has never worked in production, silently. Fails
+  closed, which is why it went unnoticed: every parent got a correct, verified, un-personalized
+  report and no error was ever raised.
+- **Area:** correctness / parent-visible · **Status:** ✅ **fixed in D-163 (2026-08-03)**
+
+**How it was found.** D-162 §3's live AUD-X-04 exercise saw `generated: false` on both of its
+Bedrock-backed generations — the model call succeeded (`repaired: false`, real spend settled) and
+then `is_grounded` refused the output. D-162 §4 named it, suspected staging's load-test-polluted
+aggregates (`attempts_count: 7371` inviting "7,371"), and required a local reproduction before any
+fix.
+
+**The measurement refuted that suspicion.** `scripts/measure_report_grounding.py` ran the deployed
+model (Haiku 4.5) five times each over three payload shapes — staging's polluted aggregates, an
+ordinary 26-attempt month, and a variant with every repeating decimal replaced by a clean one:
+
+| arm | ungrounded | causes |
+|---|---|---|
+| staging (`attempts_count: 7371`) | **5/5** | percent 27, thousands-separator 8, evidence-string 1 |
+| control (`attempts_count: 26`) | **5/5** | percent 30 |
+| integers (clean decimals) | **5/5** | percent 28, evidence-string 1 |
+
+The control arm contains no number a thousands separator could reach and still failed every time.
+So the polluted data was a red herring and the real finding is larger than D-162 §4 supposed: the
+feature had **never** worked, on any data, since S28 shipped it.
+
+**Three causes, none of them the model inventing anything.**
+
+1. **Percent rendering (85 of 94).** Evidence carries `mastery_by_skill: 0.8333`; a parent-facing
+   writer renders that "83%". Nothing in the checker understood scale, so the single most natural
+   phrasing of a proportion read as fabrication.
+2. **Thousands separators (8).** `-?\d+(?:\.\d+)?` tokenized `"1,284"` as `1` and `284`. A
+   tokenizer bug, not a policy question.
+3. **Numbers inside evidence strings (2, but structural).** `_collect_evidence_numbers` walked
+   only `int`/`float` values, so `date_range_label` ("2026-07-01 to 2026-07-31") and the "70%"
+   interpolated into `weak_skill_window_label` were invisible — while the prompt (AUD-L-15/D-156)
+   *instructs* the model to name the window each figure comes from. Two fixes were fighting.
+
+**The fix, and where it is deliberately not loose.** The percent rule applies only when the
+evidence value is itself a proportion in `[0, 1]`, so `raw_gain: 3.0` still does not ground
+"improved 300%" — without that bound the rule would be a 100× fail-open. The tolerance is an
+absolute half percentage point rather than `round()`, because Python rounds halves to even
+(`round(62.5) == 62`) and would have rejected the equally correct "63%" for `0.625`. Strings are
+walked as evidence on the reasoning that a number the model was shown *is* evidence; that is a
+false-negative fix, not a loosening.
+
+**What still fails, verified in the same harness.** The re-measurement caught the real model
+summing `6` hints and `2` solutions into "accessed hints or solutions **8** times", and dividing
+18.5 minutes by 26 attempts into "about **40** seconds per problem" (which is also simply wrong —
+it is 42.7). Both were correctly rejected. The prompt now forbids deriving numbers, and separately
+forbids advice quantities ("even 5–10 minutes a few times per week") — those are not claims about
+the student, but the check cannot safely exempt `recommendations_text`, where "improve by 20
+points" would also live. **Final re-measurement: 15/15 grounded.**
+
+**Why no test could have caught this.** `MockBedrockProvider._report_interpretation_json` builds
+its output from the payload's own fields, so it round-trips `is_grounded` by construction. The
+local suite is structurally incapable of observing a grounding failure, and always was. The
+harness is committed for that reason.
+
+**Bearing on AUD-L-09**, which stays open and gets slightly more load-bearing: grounding verifies a
+number's *provenance*, not its *attribution*, so "fell from 6 to 4" still passes when the real
+movement was 4 → 6. Widening provenance does not widen attribution, but it does mean more model
+prose now reaches parents, so the attribution gap is worth more than it was.
 
 ### AUD-L-15 — Mastery and "skills to strengthen" use different windows and are shown together as "all time" (P2)
 
