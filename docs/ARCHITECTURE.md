@@ -888,6 +888,15 @@ encode the range and serving the stored row would put last month's numbers under
 heading. Two truly concurrent calls under one key still both reach Bedrock - the row is
 deduplicated, the spend is bounded by the per-day ceiling instead.
 
+The replay serves the stored row **regardless of `generated`** - which is correct at this
+layer ("same key, same response"; anything else re-reaches Bedrock on proxy retries exactly
+during an outage) but means the *client* decides when a click is a deliberate retry: the
+frontend's per-view nonce rotates when a response arrives with `generated: false`, so an
+explicit "Regenerate" after a degraded report is a fresh request rather than a replay of the
+facts-only row, while a network error keeps the key because a lost response may have committed
+(D-161; `report-degraded-retry.spec.ts` asserts all three arms of the contract by intercepting
+the `Idempotency-Key` header).
+
 **Not every figure covers the same window, and each one now says which (AUD-L-15, D-156).**
 `mastery_by_skill` comes from `mastery_repo.list_for_student`, which takes **no date range
 at all** - so under a report or chart headed "2026-07-01 to 2026-07-31" it is still

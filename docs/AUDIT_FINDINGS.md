@@ -1614,6 +1614,14 @@ inserts. The row is deduplicated, the spend is not; AUD-L-02's per-day ceiling a
 ledger bound it. Closing it properly means claiming the key before the model call, which would put
 a report row with no text into a parent's visible history.
 
+**⚠️ The fix opened a regression, closed same-day as D-161:** the replay lookup serves the stored
+row regardless of `generated`, and both server fallbacks persist their facts-only row under the
+key — so a transient outage *pinned* the degraded report for the lifetime of the view, where
+before this fix a second click was a real retry. Client-side repair: the per-mount nonce rotates
+on a received `generated: false` (and only then — errors keep the key, because a lost response may
+have committed). Three-arm Playwright spec `report-degraded-retry.spec.ts` asserts the key
+contract by interception; the degraded arm was watched failing pre-fix.
+
 **The migration is the three-step shape** (add nullable → backfill `legacy-<student_report_id>` →
 `SET NOT NULL` → unique constraint), because staging already holds real report rows. Exercised
 down-and-up against a dev database with 245 existing rows, not only from empty.
