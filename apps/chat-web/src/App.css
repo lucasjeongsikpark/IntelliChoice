@@ -230,6 +230,18 @@ button.link {
   border-radius: var(--radius-control);
   padding: 8px 12px;
   margin-top: 6px;
+  /* D-164: text plus an action button. Wraps rather than shrinking the button, so the
+     affordance survives a narrow phone viewport. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.escalation-banner .escalate {
+  width: auto;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .ics-download {

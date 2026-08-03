@@ -86,10 +86,14 @@ export function postMessage(
   token: string | null,
   chatSessionId: string,
   query: string,
+  // D-164: forward an already-asked question to an administrator instead of asking a new
+  // one. The server skips scope classification and goes to the escalation path, which
+  // still rate-limits and still pauses for approval before anything is sent.
+  escalate = false,
 ): Promise<TurnSnapshot> {
   return request(`/chat/sessions/${chatSessionId}/messages`, token, {
     method: "POST",
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, escalate }),
   });
 }
 

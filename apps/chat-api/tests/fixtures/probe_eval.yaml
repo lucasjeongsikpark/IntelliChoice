@@ -1,0 +1,392 @@
+generated_by: scripts/generate_probe_eval_fixture.py
+model: us.anthropic.claude-haiku-4-5-20251001-v1:0
+note: Corpus-derived (AUD-C-20). Each question was generated FROM the chunk named in source_chunk_id,
+  under an instruction not to reuse its distinctive vocabulary; lexical_overlap is the measured fraction
+  of the question's content words that also appear in that chunk. A high mean overlap means this fixture
+  is measuring its own paraphrase - read it before trusting any keyword-coverage result.
+cases:
+- id: probe-branch_manager-000
+  category: gated
+  query: Who handles new student signups and location transfers?
+  expected_required_role: branch_manager
+  source_document_title: Branch Operations Manual
+  source_chunk_id: 00f1a3b9-c8f8-4bde-aa79-565e2b3ac466
+  lexical_overlap: 0.333
+- id: probe-branch_manager-001
+  category: gated
+  query: Who should I contact about Main Branch schedule issues?
+  expected_required_role: branch_manager
+  source_document_title: Branch Calendar
+  source_chunk_id: 2b32c98d-d617-4f09-a17e-e64f8a4d5e94
+  lexical_overlap: 0.5
+- id: probe-branch_manager-002
+  category: gated
+  query: How quickly should attendance mistakes be fixed after a parent reports them?
+  expected_required_role: branch_manager
+  source_document_title: Attendance Procedure
+  source_chunk_id: 43cffc24-ddf9-420a-8e37-db3b6672b547
+  lexical_overlap: 0.429
+- id: probe-branch_manager-003
+  category: gated
+  query: What are the available time slots for classes throughout the week?
+  expected_required_role: branch_manager
+  source_document_title: Branch Calendar
+  source_chunk_id: 53852923-e953-4cec-9c2a-dc50fa0c685d
+  lexical_overlap: 0.0
+- id: probe-branch_manager-004
+  category: gated
+  query: What should I do if a tutor can't work their scheduled shift?
+  expected_required_role: branch_manager
+  source_document_title: Branch Operations Manual
+  source_chunk_id: 70958c5a-3dc3-4a67-b1e6-b253d65a62d7
+  lexical_overlap: 0.5
+- id: probe-branch_manager-005
+  category: gated
+  query: How many tutors should I assign to Saturday Block 2?
+  expected_required_role: branch_manager
+  source_document_title: Branch Calendar
+  source_chunk_id: 880ed30b-a125-42bb-a246-6f176d99b2dc
+  lexical_overlap: 0.6
+- id: probe-branch_manager-006
+  category: gated
+  query: How should I record attendance when students check in for their session block?
+  expected_required_role: branch_manager
+  source_document_title: Attendance Procedure
+  source_chunk_id: 9af0ef97-499f-4d5c-8b57-8ec2f9060cd5
+  lexical_overlap: 1.0
+- id: probe-branch_manager-007
+  category: gated
+  query: When does the Main Branch close for maintenance?
+  expected_required_role: branch_manager
+  source_document_title: Branch Calendar
+  source_chunk_id: a349536a-6ce1-4ceb-a369-0c49c1cd589b
+  lexical_overlap: 1.0
+- id: probe-branch_manager-008
+  category: gated
+  query: What should I include in my monthly report to leadership?
+  expected_required_role: branch_manager
+  source_document_title: Branch Operations Manual
+  source_chunk_id: ab72df57-6471-447f-959d-c54eb9099233
+  lexical_overlap: 0.25
+- id: probe-branch_manager-009
+  category: gated
+  query: What do I need to prepare before students arrive for tutoring?
+  expected_required_role: branch_manager
+  source_document_title: Branch Operations Manual
+  source_chunk_id: baac8b91-e15a-408d-9f98-5a1c6a86f12f
+  lexical_overlap: 0.167
+- id: probe-branch_manager-010
+  category: gated
+  query: What can a student do if their week shows an absence on their record?
+  expected_required_role: branch_manager
+  source_document_title: Attendance Procedure
+  source_chunk_id: be9582dc-c2bf-451c-aabf-a7b044fc4dca
+  lexical_overlap: 0.6
+- id: probe-branch_manager-011
+  category: gated
+  query: What should I do if a student is absent for over two weeks?
+  expected_required_role: branch_manager
+  source_document_title: Attendance Procedure
+  source_chunk_id: d4f623da-c594-48c4-a24c-ea4bdbd9029d
+  lexical_overlap: 0.8
+- id: probe-parent-012
+  category: gated
+  query: Why does my child need to attend class before starting the weekly practice exam?
+  expected_required_role: parent
+  source_document_title: Attendance Policy
+  source_chunk_id: 29167616-5106-40ce-832c-9f9504ada8e4
+  lexical_overlap: 0.111
+- id: probe-parent-013
+  category: gated
+  query: How do I fix an attendance error for my child?
+  expected_required_role: parent
+  source_document_title: Attendance Policy
+  source_chunk_id: 9f1ab49d-673c-4793-90c5-ad2fcb5c3504
+  lexical_overlap: 0.25
+- id: probe-parent-014
+  category: gated
+  query: How do I reach a tutor if I need to contact them between appointments?
+  expected_required_role: parent
+  source_document_title: Parent Handbook
+  source_chunk_id: a2f10a96-d850-48a9-b01d-fe45e9f9739a
+  lexical_overlap: 0.333
+- id: probe-parent-015
+  category: gated
+  query: Do I need to specify which child each appointment is for if I have multiple kids enrolled?
+  expected_required_role: parent
+  source_document_title: Parent Handbook
+  source_chunk_id: a382ea1b-19a5-43dd-abd4-19467d192ffe
+  lexical_overlap: 0.5
+- id: probe-parent-016
+  category: gated
+  query: When can I see my child's learning progress report after exams?
+  expected_required_role: parent
+  source_document_title: Parent Handbook
+  source_chunk_id: d3f6483e-ec14-4147-995b-1b4c775a48b3
+  lexical_overlap: 0.714
+- id: probe-parent-017
+  category: gated
+  query: What am I responsible for as a parent in my child's tutoring program?
+  expected_required_role: parent
+  source_document_title: Parent Handbook
+  source_chunk_id: df3faf94-192a-474b-a594-b39b72cc249d
+  lexical_overlap: 0.6
+- id: probe-parent-018
+  category: gated
+  query: What happens if my child's attendance hasn't been recorded yet?
+  expected_required_role: parent
+  source_document_title: Attendance Policy
+  source_chunk_id: e9b4b29f-cf17-482d-b6f8-2b82c5846e79
+  lexical_overlap: 0.286
+- id: probe-parent-019
+  category: gated
+  query: What happens when my child is marked absent for a week?
+  expected_required_role: parent
+  source_document_title: Attendance Policy
+  source_chunk_id: fab96b81-b494-41d7-8607-b521fe682efc
+  lexical_overlap: 0.6
+- id: probe-public-020
+  category: public
+  query: What is Ovidio Rodriguez Lopez's professional background and current research focus?
+  expected_required_role: null
+  source_document_title: Our Team
+  source_chunk_id: 06d8ee3b-191d-43f1-94ac-7d21f5599b48
+  lexical_overlap: 0.5
+- id: probe-public-021
+  category: public
+  query: Who works at the Guinn Center and what is their major?
+  expected_required_role: null
+  source_document_title: Our Team
+  source_chunk_id: 0b7003d6-1ee9-4c07-bf0d-5fcf87e09554
+  lexical_overlap: 0.5
+- id: probe-public-022
+  category: public
+  query: What is Hyun-Joo Nam's educational background and work history?
+  expected_required_role: null
+  source_document_title: Our Team
+  source_chunk_id: 1a0d7283-05e2-42a1-ae78-2717ac889bdc
+  lexical_overlap: 0.429
+- id: probe-public-023
+  category: public
+  query: Where do you have tutoring locations available?
+  expected_required_role: null
+  source_document_title: About IntelliChoice
+  source_chunk_id: 1a705715-09a1-4031-b7c4-2d818abf6a05
+  lexical_overlap: 0.25
+- id: probe-public-024
+  category: public
+  query: What does Dave Dale do to support math learning in the community?
+  expected_required_role: null
+  source_document_title: Our Team
+  source_chunk_id: 1ca42995-da35-4ac2-b95a-c68b87f90992
+  lexical_overlap: 1.0
+- id: probe-public-025
+  category: public
+  query: How do I get a copy of my child's records or ask for them to be deleted?
+  expected_required_role: null
+  source_document_title: Privacy Notice
+  source_chunk_id: 1cf0445e-89a1-4acf-9612-ef540a5d3181
+  lexical_overlap: 0.6
+- id: probe-public-026
+  category: public
+  query: What is Dr. Jungsoon Lee's background and role at Intellichoice?
+  expected_required_role: null
+  source_document_title: Our Team
+  source_chunk_id: 1d29044f-046f-4899-b9f0-2e3ab0e30719
+  lexical_overlap: 0.6
+- id: probe-public-027
+  category: public
+  query: What are Dan Heitjan's current academic positions and educational background?
+  expected_required_role: null
+  source_document_title: Our Team
+  source_chunk_id: 1e8495f1-c582-4649-a1e6-236f7993ab58
+  lexical_overlap: 0.286
+- id: probe-public-028
+  category: public
+  query: What is Juhyun Lee's current position and what is his research focused on?
+  expected_required_role: null
+  source_document_title: Our Team
+  source_chunk_id: 20d6153f-22b6-4889-a79d-03d3bc919bab
+  lexical_overlap: 0.571
+- id: probe-public-029
+  category: public
+  query: Who is the president of the Hebron High School chapter?
+  expected_required_role: null
+  source_document_title: Our Team
+  source_chunk_id: 22a9a1c5-d176-4a48-a121-638b23498a2b
+  lexical_overlap: 1.0
+- id: probe-public-030
+  category: public
+  query: Does the AI tutor keep my personal information when I ask questions?
+  expected_required_role: null
+  source_document_title: Privacy Notice
+  source_chunk_id: 2686ade0-49f7-4472-88f1-dd2a6d2ef093
+  lexical_overlap: 0.5
+- id: probe-public-031
+  category: public
+  query: What types of student data does your system collect during learning sessions?
+  expected_required_role: null
+  source_document_title: Privacy Notice
+  source_chunk_id: 2853fa33-68fa-4bf3-8204-21f37a0d90a2
+  lexical_overlap: 0.375
+- id: probe-student-032
+  category: gated
+  query: What should I do first when starting a tutoring session?
+  expected_required_role: student
+  source_document_title: Learning Platform Guide
+  source_chunk_id: 1cd11c7e-ab8d-4c01-98ed-19a3233b1338
+  lexical_overlap: 0.5
+- id: probe-student-033
+  category: gated
+  query: What happens each week with the study sets based on my performance?
+  expected_required_role: student
+  source_document_title: Student Handbook
+  source_chunk_id: 2b2fc2e6-3e4d-4758-ad72-3a5c5cbb4bf0
+  lexical_overlap: 0.5
+- id: probe-student-034
+  category: gated
+  query: What happens if a student keeps acting out during class?
+  expected_required_role: student
+  source_document_title: Code of Conduct
+  source_chunk_id: 440308cb-7bad-44a6-99ec-7f2c304574ba
+  lexical_overlap: 0.167
+- id: probe-student-035
+  category: gated
+  query: Is it okay to ask for help or answers when I'm studying?
+  expected_required_role: student
+  source_document_title: Student Handbook
+  source_chunk_id: 548ebeaa-6904-46f3-b868-e559447285d0
+  lexical_overlap: 0.4
+- id: probe-student-036
+  category: gated
+  query: Should I try to solve problems myself before asking for help?
+  expected_required_role: student
+  source_document_title: Code of Conduct
+  source_chunk_id: 67e6d97c-e439-4641-a4d3-b3e1bdd012f6
+  lexical_overlap: 0.429
+- id: probe-student-037
+  category: gated
+  query: Will I see my sibling's classes if we both have accounts on the platform?
+  expected_required_role: student
+  source_document_title: Learning Platform Guide
+  source_chunk_id: 71076f78-f055-4346-9f4c-eb667b9e1bc1
+  lexical_overlap: 0.667
+- id: probe-student-038
+  category: gated
+  query: What happens if I answer a study question incorrectly?
+  expected_required_role: student
+  source_document_title: Learning Platform Guide
+  source_chunk_id: 7490de36-e617-4891-a69a-ffe9c341074d
+  lexical_overlap: 0.6
+- id: probe-student-039
+  category: gated
+  query: What should I do if something bothers me during a lesson?
+  expected_required_role: student
+  source_document_title: Code of Conduct
+  source_chunk_id: 8e4b54b9-b834-4f39-b155-e04b8543bf2b
+  lexical_overlap: 0.5
+- id: probe-student-040
+  category: gated
+  query: What does this handbook explain about a typical week at IntelliChoice?
+  expected_required_role: student
+  source_document_title: Student Handbook
+  source_chunk_id: b505ed27-45ab-4d88-80f8-3fe3e3d18e73
+  lexical_overlap: 0.667
+- id: probe-student-041
+  category: gated
+  query: How should I behave toward my tutor and classmates during sessions?
+  expected_required_role: student
+  source_document_title: Code of Conduct
+  source_chunk_id: cc55119d-6775-4c3d-bf08-b17fe4b7cf9e
+  lexical_overlap: 0.333
+- id: probe-student-042
+  category: gated
+  query: What happens to my answers if I accidentally close the browser or lose connection?
+  expected_required_role: student
+  source_document_title: Learning Platform Guide
+  source_chunk_id: d45bb808-c7a5-4a9e-9925-785a30b73f58
+  lexical_overlap: 0.429
+- id: probe-tutor-043
+  category: gated
+  query: Can students leave early if they finish their weekly skills before the session ends?
+  expected_required_role: tutor
+  source_document_title: Instructional Procedures
+  source_chunk_id: 01327041-5241-45a0-bc61-59a6e7a99877
+  lexical_overlap: 0.333
+- id: probe-tutor-044
+  category: gated
+  query: When should I notify my branch manager about a student's progress?
+  expected_required_role: tutor
+  source_document_title: Instructional Procedures
+  source_chunk_id: 107e93c0-b19b-4b5b-ad41-c44166f7a783
+  lexical_overlap: 0.5
+- id: probe-tutor-045
+  category: gated
+  query: What should I do when a student's problem gets flagged by the system for review?
+  expected_required_role: tutor
+  source_document_title: Tutor Handbook
+  source_chunk_id: 56cafb1c-01d0-47a9-89f0-923e5b5d1e5d
+  lexical_overlap: 0.5
+- id: probe-tutor-046
+  category: gated
+  query: How should I discuss a student's performance concerns with their parent?
+  expected_required_role: tutor
+  source_document_title: Student Support Guide
+  source_chunk_id: 6c404479-5625-4365-a2ec-e3ffe825a11c
+  lexical_overlap: 0.6
+- id: probe-tutor-047
+  category: gated
+  query: What signs show a student needs more support than the automated system provides?
+  expected_required_role: tutor
+  source_document_title: Student Support Guide
+  source_chunk_id: 6f3b7bf1-bbf9-40e5-8ce4-201e387a24b8
+  lexical_overlap: 0.667
+- id: probe-tutor-048
+  category: gated
+  query: Should I let students choose between videos, written hints, and solutions?
+  expected_required_role: tutor
+  source_document_title: Student Support Guide
+  source_chunk_id: 7a443034-854a-48f2-b6dc-c4db05f7a9bc
+  lexical_overlap: 0.5
+- id: probe-tutor-049
+  category: gated
+  query: What should I do if a student says a test question is unclear or wrong?
+  expected_required_role: tutor
+  source_document_title: Instructional Procedures
+  source_chunk_id: 7db17345-976d-4ec6-aabb-da25f39e0bc7
+  lexical_overlap: 0.5
+- id: probe-tutor-050
+  category: gated
+  query: Who should I report student safety or wellbeing issues to right away?
+  expected_required_role: tutor
+  source_document_title: Student Support Guide
+  source_chunk_id: b23a617b-a570-4809-899d-1ce189d8f0cf
+  lexical_overlap: 0.429
+- id: probe-tutor-051
+  category: gated
+  query: What are my main responsibilities as a tutor at a branch?
+  expected_required_role: tutor
+  source_document_title: Tutor Handbook
+  source_chunk_id: b76f629a-eca1-4720-aea5-4fcea0a9dfbe
+  lexical_overlap: 0.5
+- id: probe-tutor-052
+  category: gated
+  query: Do I need to manually grade student responses on the platform?
+  expected_required_role: tutor
+  source_document_title: Instructional Procedures
+  source_chunk_id: c1b8731d-14eb-4c91-9dfc-f2fbae9844b8
+  lexical_overlap: 0.5
+- id: probe-tutor-053
+  category: gated
+  query: When a student asks me for help, what should I tell them to do first?
+  expected_required_role: tutor
+  source_document_title: Tutor Handbook
+  source_chunk_id: ed0d75c3-2d2a-4294-adae-ab25bbc516a9
+  lexical_overlap: 0.6
+- id: probe-tutor-054
+  category: gated
+  query: How do I prevent a student from being blocked from their pre-exam?
+  expected_required_role: tutor
+  source_document_title: Tutor Handbook
+  source_chunk_id: f53c1b87-535a-43ed-953c-40766c59af02
+  lexical_overlap: 0.5

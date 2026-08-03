@@ -23,6 +23,7 @@ interface Props {
   error: string | null;
   onSend: (query: string) => void;
   onRetry: (turnId: string) => void;
+  onEscalate: (query: string) => void;
   onLogout: () => void;
   onNewSession: () => void;
 }
@@ -36,6 +37,7 @@ export function ChatScreen({
   error,
   onSend,
   onRetry,
+  onEscalate,
   onLogout,
   onNewSession,
 }: Props) {
@@ -104,10 +106,24 @@ export function ChatScreen({
                       ))}
                     </div>
                   )}
+                  {/* D-164: this used to read "try asking to contact an administrator",
+                      which put the work back on the user and depended on the scope guard
+                      classifying whatever they typed next as `admin_contact`. The answer
+                      text already promises "I can pass this on to a branch manager if
+                      you'd like"; the button is what makes that promise true. Gated on
+                      `escalation_recommended`, which the backend sets False whenever it
+                      returned an access hint instead - so "log in to see it" never comes
+                      with an offer to email a human about content that already exists. */}
                   {turn.response.escalation_recommended && (
                     <div className="escalation-banner">
-                      I couldn't fully answer that - try asking to contact an
-                      administrator for more help.
+                      <span>I couldn't answer that from an approved source.</span>
+                      <button
+                        className="secondary escalate"
+                        disabled={busy}
+                        onClick={() => onEscalate(turn.query)}
+                      >
+                        Ask an administrator
+                      </button>
                     </div>
                   )}
                   {turn.response.access_hint && (

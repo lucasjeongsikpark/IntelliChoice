@@ -234,6 +234,78 @@ def test_count_matching_by_audience_excludes_non_matching_query_text() -> None:
     asyncio.run(run())
 
 
+def test_count_matching_by_audience_finds_a_paraphrase_the_keyword_arm_misses() -> None:
+    """AUD-C-20/D-165: the probe's semantic arm.
+
+    The keyword arm ANDs every content word of the question, so a caller who does not use
+    the document's vocabulary gets nothing — measured against a corpus-derived fixture it
+    named the right audience for 3 of 43 questions, where the semantic arm got 25 with no
+    false hints. This isolates that arm the only way a provider-independent test can: the
+    chunk's stored vector and the "query embedding" are the *same axis vector*, so the
+    distance is 0 by construction while the two texts share no word at all.
+
+    Both halves are asserted, and the `None` half is the one that would have caught a
+    regression where the semantic arm quietly became the only arm.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            document = await _seed_document(session, audience="parent")
+            await _seed_chunk(
+                session,
+                document,
+                chunk_text="Zorblex attendance places are held for four fluminate sessions.",
+                audience="parent",
+                access_level="parent",
+                embedding=_axis_vector(7),
+            )
+            filters = ChunkFilters(audiences=["public"])
+            paraphrase = "quibblewort dringle absence policy"
+
+            keyword_only = await repo.count_matching_by_audience(filters, paraphrase)
+            assert keyword_only.get("parent", 0) == 0
+
+            with_semantic = await repo.count_matching_by_audience(
+                filters, paraphrase, _axis_vector(7), max_distance=0.1
+            )
+            assert with_semantic.get("parent") == 1
+
+    asyncio.run(run())
+
+
+def test_count_matching_by_audience_semantic_arm_respects_its_distance_ceiling() -> None:
+    """The ceiling is the whole filter. Semantic search always returns *something* (there is
+    no relevance floor in `semantic_search_chunk_ids`, and this probe has no reranker by
+    design — no LLM in an authorization-adjacent decision, CLAUDE.md #3), so without a
+    ceiling every refusal would produce a hint. Two orthogonal axis vectors sit at cosine
+    distance 1.0, comfortably outside any threshold worth using.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            document = await _seed_document(session, audience="tutor")
+            await _seed_chunk(
+                session,
+                document,
+                chunk_text="Zorblex tutor register entries close each fluminate week.",
+                audience="tutor",
+                access_level="tutor",
+                embedding=_axis_vector(3),
+            )
+
+            counts = await repo.count_matching_by_audience(
+                ChunkFilters(audiences=["public"]),
+                "quibblewort dringle register",
+                _axis_vector(11),
+                max_distance=0.40,
+            )
+            assert counts.get("tutor", 0) == 0
+
+    asyncio.run(run())
+
+
 def test_hybrid_search_restrict_to_branch_hides_other_branches() -> None:
     async def run() -> None:
         async with rollback_session() as session:

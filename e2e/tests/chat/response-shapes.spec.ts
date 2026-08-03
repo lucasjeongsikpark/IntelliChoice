@@ -98,6 +98,18 @@ test("AUD-C-11 rendered: the no-source refusal shows a citation beside a sentenc
 }) => {
   // Not a harness artifact - S37 observed this shape live. The finding is that the two
   // render *together*, which only a rendered page can show.
+  //
+  // ⚠️ D-164 fixed AUD-C-11 in the BACKEND (`qa._no_answer` now gets `[]` on the
+  // low-confidence branch), and this test cannot see that: the shape below is a hardcoded
+  // stub, so it passes whether the bug exists or not. It did NOT flip from
+  // documented-defect to regression the way this file's docstring describes for AUD-C-04
+  // and AUD-C-10 - it can't, and keeping it without saying so would be D-163's mistake
+  // (a fixture that can only pass, read as evidence).
+  //
+  // What it is still good for: this shape is now UNREACHABLE from the API, so this is the
+  // record of what a user would see if it ever came back. The actual regression guard is
+  // `apps/chat-api/tests/test_qa_service.py::test_the_no_source_refusal_carries_no_citations`,
+  // which was watched failing before the fix.
   await stubChat(page, { message: SHAPES["no-source refusal with citations (AUD-C-11)"] });
   await page.goto(CHAT_WEB);
   await ask(page, "something no document covers");

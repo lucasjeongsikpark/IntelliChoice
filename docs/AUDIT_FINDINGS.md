@@ -47,18 +47,19 @@ ones.
 | **AUD-C-03** | **Minors / PII** | **P1** | **Fixed 2026-07-28 (D-113), verified live on staging 2026-07-29**: `purge_resume_writes` deletes the thread's `__resume__` rows immediately after a `location_consent` resume completes — the finding's own targeted delete, keeping crash-safety for exactly the window it covers. Regression test drives the real endpoints + real `AsyncPostgresSaver` and decodes blobs with LangGraph's own serializer (msgpack-aware, honoring the finding's method note); watched failing pre-fix with the audit's exact two `__resume__` rows. **Post-deploy staging probe (deploy `9467c78`): a real-coordinates locator turn answered with distances, then an ops-task query found 0 `__resume__` rows and the coordinates' raw float64 bytes absent from every surviving blob** | Original: A caller's precise coordinates persist indefinitely in `checkpoint_writes.__resume__`, contradicting the consent notice's verbatim promise not to store them. D-045 called this "briefly"; nothing purges it, and D-045's "not eliminable" is wrong — a targeted delete works |
 | AUD-C-04 | Correctness / UX | P2 | **Fixed in S40** (D-107) | Last turn's result is cleared in `resolve_role`, the one node every turn passes through first — reset on entry rather than in each pausing node, because there are several and the next one added would have to remember. `ics_content` included. **The regression test needed a genuinely paused turn:** a first version using two ordinary turns passed with the fix removed, because an ordinary turn overwrites every field on its way through. Original: A turn that pauses on `interrupt()` returns the *previous* turn's answer, citations and access hint (pausing nodes never return, so nothing resets them); `ics_content` is never cleared by anything and sticks to every later turn. The leak vehicle in AUD-C-01 |
 | AUD-C-05 | Test integrity | P2 | **Partly addressed in S37** | The golden Q&A eval measures `MockBedrockProvider`, not retrieval: a real model rejects 10 of its 14 gating cases before retrieval runs, and `no_answer` scores 0/8 under the mock vs 8/8 real. Fixture extended and re-scored this session; the mock's quality categories are now measured, not gated |
-| AUD-C-06 | SPEC conformance | P2 | Open — Phase 0B | SPEC §18-C3's access-aware refusal fired **0 times in 8** under a real model: its precondition is zero-row retrieval, which real hybrid search essentially never produces. A parent gets "no approved source" instead of "log in to see the parent handbook" |
+| AUD-C-06 | SPEC conformance | P2 | ✅ **fixed across D-164 + D-165 (2026-08-03)** — routing widened *and* the probe can match; **2/3** live, the third case is answered by a public doc so it never reaches the probe | SPEC §18-C3's access-aware refusal fired **0 times in 8** under a real model: its precondition is zero-row retrieval, which real hybrid search essentially never produces. A parent gets "no approved source" instead of "log in to see the parent handbook" |
 | **AUD-C-07** | **Robustness** | **P2** | **Fixed 2026-08-02 (D-155)** — `answer_document_qa` and `calendar_extract` (both `retrieve()` call sites, both reproductions) catch `BedrockGatewayError` and route to a new `service_unavailable` node; a narrow `BedrockGatewayError` handler on `app` makes any future gateway call a **503**, not a 500. Watched failing first: the raw exception escaped the node. | An embedding-provider failure or an exhausted budget on the retrieval path is an unhandled **500** — `retrieve()`'s `create_embedding` is the one uncaught gateway call, and chat-api has no exception handler. Violates §5.29's Bedrock-timeout row |
 | **AUD-C-08** | **UX / diagnosability** | **P2** | **Fixed 2026-08-02 (D-155)** — `scope_guard`'s fail-closed branch is unchanged in *behaviour* and changed in *words*: it now yields the temporarily-unavailable message with `scope: null` (no classification happened) instead of the out-of-scope refusal, plus a `qa_service_degraded` warning log and a `stage`-labelled counter, so an outage no longer reads as a surge of off-topic questions. | A total Bedrock outage, or an exhausted cost ceiling, answers every in-scope question with the *out-of-scope* refusal — fail-closed but user-misleading, and indistinguishable from a genuine refusal in logs |
 | AUD-C-09 | SPEC conformance | P2 | Open — Phase 0B | §5.21.3's sixth predicate (`academic_year = requested_year`) is never applied at query time; a 2019-2020 chunk was retrievable by every audience. Fully masked while the corpus holds one academic year |
 | **AUD-C-10** | **Frontend contract** | **P2** | **Fixed 2026-08-02 (D-155)** — `ChatTurn` gained an `error` field, so a turn has three states instead of two; a failed turn renders a retryable error bubble and `Thinking…` is gated on *not* having failed. The e2e documented-defect test was inverted into a regression test exactly as it said it should be, and watched failing against the pre-fix render gate. | Any API error leaves chat-web's turn stuck on `Thinking…` permanently — the transcript entry keeps `response: null` and nothing clears it. A §2.6 criterion-3 blank/stuck state, reachable from AUD-C-07 |
-| AUD-C-11 | Correctness / UX | P2 | Open — Phase 0B | The low-confidence branch returns the "I don't have an approved source" message *with* verified citations attached, so the UI shows a source beside a sentence denying one exists. Observed live |
+| AUD-C-11 | Correctness / UX | P2 | ✅ **fixed in D-164 (2026-08-03)** | The low-confidence branch returns the "I don't have an approved source" message *with* verified citations attached, so the UI shows a source beside a sentence denying one exists. Observed live |
 | **AUD-C-19** | **UX / diagnosability** | **P3** | **Fixed in D-156** | Returns `SERVICE_UNAVAILABLE_MESSAGE` with `escalation_recommended = False` and `missing_information = None`. The deferred product call, decided: escalation is itself a Bedrock-and-MCP path, so recommending it during an outage walks the user into a second failure and books a branch manager for a question the corpus can answer — and the message already offers the human path *conditionally*, after a retry. Matches `graph.nodes.service_unavailable`, so the two outage paths are indistinguishable to the client. Original: the synthesis-failure path answered a Bedrock outage with `NO_SOURCE_MESSAGE` when a source demonstrably existed |
 | AUD-C-12 | SPEC conformance | P3 | Open — Phase 0B | §5.21.8's "retrieval score is below threshold" do-not-answer trigger has no implementation: the only filter is `rerank > 0.0`, and the 0.4 threshold gates the model's self-reported confidence, not retrieval |
 | AUD-C-13 | Grounding | P3 | Open — Phase 0B | The citation verbatim check accepts any non-empty substring, so a one-character quote verifies against nearly any chunk; only the quote's hash is stored, so it cannot be re-examined |
 | AUD-C-14 | Contracts | P3 | Open — Phase 0B | `RespondResponse` omits `scope`/`intent`, so every SSE snapshot published after a `/respond` nulls them for connected clients — D-058's class, in the direction that decision did not name |
 | AUD-C-15 | Audit trail | P3 | Open — Phase 0B | `McpToolRegistry.call` raises on an unknown tool *before* any audit write, so the one call shape a wiring bug or injection would produce is the one that leaves no `mcp_tool_calls` row |
 | **AUD-C-16** | **Launch journey / data integrity** | **P3 → P1** | **Fixed and live-verified 2026-07-28 (D-112)**: provenance columns stamped at ingest (NULL = unknown = mismatch), idempotent `make knowledge-reembed`, a deploy-step re-embed, and the load-bearing part — chat-api `/readyz` (the ALB health check) **fails closed** on corpus/runtime provenance mismatch, so this class can never again run silently. Staging re-embedded: **159/159 real Titan, 0/159 mock-like by S38's own discriminator** (max cos 0.078, was 159/159 at 1.0), 0.0224¢; the next deploy's re-embed was a 0-chunk/0-cent no-op. Paraphrase probes went from no-source refusals to **9/9 grounded answers with citations** | Stored embeddings are provider-specific with no provenance column and no re-embed path. **Settled by S38: staging's corpus is 159/159 `MockBedrockProvider` hash vectors** while both deployed services query with real Titan v2, so staging's semantic channel returns noise (peak cosine +0.074 vs +0.41 with real vectors) and hybrid search there has always been lexical-only. Live paraphrase citation rate **1/7** |
+| **AUD-C-20** | SPEC conformance | P2 | ✅ **fixed in D-165 (2026-08-03)** — semantic arm added; `role_gated_question` 0/3 → **2/3** live | The §18-C3 access probe matches with `websearch_to_tsquery`, which **ANDs every content word** of the question, so one absent word voids it — the parent chunk says "student" not "child", the branch-manager chunk has neither "escalation" nor "path". This is why the feature still scores **0/3** after AUD-C-06's routing fix: §18-C3 has never fired for a realistically-worded question on *either* entry path |
 | **AUD-X-01** | **Authorization** | **P1** | **Fixed in S40** (D-107) | Fixed in `graph/nodes.py: resolve_student`, which now refuses to move a session to a different student — applied before the role split, so it covers the tutor branch that took `requested_student_id` unvalidated. The legitimate parent rebind is untouched: it pauses at `await_child_selection`, which re-checks the live link on resume. Re-verified live on staging with a before/after pair. Original: `POST /sessions/{id}/student` never checks who already owns the session: a different student claimed an in-progress exam session, the owner was **locked out with 403**, and their `in_progress` assessment row was orphaned. Same structure as AUD-C-01 — the one route that *writes* the identity field all 17 others read is the one that does not check it |
 | **AUD-X-02** | **Minors / child safety** | **P1** | **Fixed in S40** (D-107) | Fixed via `intellichoice_shared.auth.account_refusal_reason`, consumed by both apps' `get_current_claims` **and both SSE routes** — the streams verify `?token=` directly and never pass through the dependency, so the gate had to be repeated rather than inherited (AUD-F-13's split-path shape). 403, not 401. The age-band exempt set is deliberately **empty** until S42 measures the real vocabulary, so every student needs verified parental consent today: stricter than §5.1.2's literal "under 13" wording, and the right way round to be wrong. AUD-X-02's warning that this sits in the S44/S45 seam is addressed by landing the *consuming* side first, so neither session can ship without something already reading its output. Original: SPEC §5.1.2's *"should verify `parental_consent_verified=true`"* has no implementation: that claim plus `account_status` and `consent_status` are carried in every token and read by **nothing**. A `suspended`/`revoked`/unverified/`under_13` token behaved identically to a consented one on all 18 learning routes |
 | **AUD-X-03** | **Data integrity** | **P2** | **Fixed in D-159** | `flow.is_topic_selection_replay` decides what a second `/topics` means from session state alone: a replay of the same topic while still in `pre_exam` is served **from the existing exam, item for item**; a different topic, or a phase that has advanced, is **409**. Pre-flighted in the route (no graph turn, no checkpoint rows) and re-checked in the node. The guard is "a pre-exam exists", not "the phase is pre_exam" — the damage was worse after finalize, where the rebuild repointed `pre_assessment_session_id` while a study session was live off the old exam. The **blocked** path builds nothing and stays fully replayable, which is what keeps D-152 §2's routine UNKNOWN attendance recoverable. Original: a replay built a whole second exam (+1 session, +10 items, different variants) and orphaned the first |
@@ -1294,6 +1295,24 @@ is what made AUD-C-05 and AUD-C-06 visible at all.
 
 ### AUD-C-06 — SPEC §18-C3's access-aware refusal never fires under a real model (P2)
 
+- **Status: ✅ fixed across D-164 (routing) + D-165 (matching). 2 of 3 live; the third is answered by a public document, so it never reaches the probe.**
+
+**What was fixed.** The precondition is no longer `retrieved_chunk_ids == []` but the
+*outcome*: a synthesis that ended in the no-source refusal now also routes to
+`explain_access` (`QAState.no_source_refusal`, set by `synthesize_answer`). This finding's
+own "fix shape" line called for exactly that, and it works — verified deterministically
+(tests watched failing pre-fix) and observed live: a turn retrieved **3** chunks, refused,
+and reached the probe, which pre-fix it could not do.
+
+**Why the score is still 0/3.** A *third* cause, filed as **AUD-C-20**: the probe matches
+with `websearch_to_tsquery`, which ANDs every content word of the question. Both entry paths
+reach a probe that then finds nothing. Re-measured against the real deployed model with
+`CHAT_EVAL_CATEGORIES=role_gated_question`, the three realistic cases score 0/3 unchanged —
+so the user-visible symptom in this entry is **not yet gone**, and this stays open until
+AUD-C-20 lands.
+
+**Original finding below.**
+
 - **Measured 0 for 8.** Five marker-based `role_gated` cases and three newly written as real
   questions against seeded gated content ("How many sessions can my child miss before losing their
   place?", with a parent-audience chunk that answers exactly that). Under real Bedrock **not one**
@@ -1366,6 +1385,29 @@ is what made AUD-C-05 and AUD-C-06 visible at all.
 
 ### AUD-C-11 — The no-source refusal is returned *with* citations attached (P2)
 
+- **Status: ✅ fixed in D-164 (2026-08-03).**
+
+**Fix.** `qa.answer_question`'s low-confidence branch passes `[]` to `_no_answer` instead of
+`verified`. The **conflict** branch still passes `verified`, and `_no_answer`'s docstring now
+records that asymmetry as deliberate with the reason for each side, because the obvious
+future "cleanup" is to make them the same: "the documents I found disagree with each other"
+is a claim about specific documents and naming them is the point, while "no approved source
+exists" is contradicted by attaching one. Both arms are asserted, the conflict one as the
+negative control, and the low-confidence test was watched failing pre-fix.
+
+**It also had a second, load-bearing effect.** Passing `[]` is what makes the refusal
+*detectable* one layer up, which is the precondition AUD-C-06's routing fix needed — the two
+findings were fixed as one cluster for that reason.
+
+**⚠️ The e2e test named for this finding could not verify the fix and never will:**
+`response-shapes.spec.ts` renders a hardcoded stub shape, so it passes whether the bug exists
+or not. It did not flip from documented-defect to regression the way AUD-C-04 and AUD-C-10
+did. Both the test and the fixture now say so and point at
+`test_qa_service.py::test_the_no_source_refusal_carries_no_citations`, which is the real
+guard. Same class of trap as D-163's `MockBedrockProvider`.
+
+**Original finding below.**
+
 - **Observed live:** turn 1 of the staging session returned
   `answer: "I don't have an approved source for that yet…"` together with
   `citations: ["public-organization-overview"]` and `confidence: 0.4`.
@@ -1374,6 +1416,98 @@ is what made AUD-C-05 and AUD-C-06 visible at all.
   text with a citation chip under it. A reader is being shown a source next to a sentence saying no
   source exists. (The conflict branch does this deliberately and correctly; the low-confidence branch
   appears to have inherited it.)
+
+### AUD-C-20 — The access probe ANDs every content word, so it never matches a real question (P2)
+
+- **Severity:** P2 · **Area:** SPEC conformance (§18-C3) · **Status:** ✅ **fixed in D-165 (2026-08-03)**
+
+**Fix: a semantic arm, unioned with the keyword arm, at a measured cosine ceiling of 0.40.**
+`count_matching_by_audience` takes an optional `query_embedding`; `explain_access` embeds the
+question and degrades to keyword-only if that call fails (it runs *because* the turn already
+failed, so it must never raise). The keyword arm is **kept, not replaced** — an exact-wording
+match is free, and `MockBedrockProvider`'s hash-seeded vectors carry no semantic content, so a
+semantic-only probe would be structurally unobservable in the whole mock-backed suite (D-163's
+trap in new clothes). Re-measured against the real deployed model: **`role_gated_question`
+0/3 → 2/3.** The third case never reaches the probe at all — the model answers it from
+`public-contact-guide` at confidence 0.85, which is a public document genuinely answering it,
+not a probe failure.
+
+**⚠️ The recommendation in the table below is the one that lost, and the reason it lost is the
+most useful thing in this entry.** Keyword coverage ≥2/3 measured 8/8 against the *hand-written*
+cases and **10 of 43** against a corpus-derived fixture, because the three hand-written
+questions were written beside the chunk they target and shared 5/6, 5/7 and 4/6 content words
+with it. A question written by whoever wrote the answer flatters any keyword rule. The
+corpus-derived fixture (mean lexical overlap **0.486**) put semantic ≤0.40 at **25 of 43 with
+zero false hints on either negative class**, against keyword ≥2/3's 10. **The fixture was the
+fix; the rule followed from it.**
+
+- **Found while fixing AUD-C-06 (D-164, 2026-08-03).** It is the reason that fix did not move
+  the score, and the two together are why §18-C3 has **never** fired for a realistically
+  worded question on either entry path.
+
+**What.** `RagRepository.count_matching_by_audience` matches with
+`websearch_to_tsquery('english', query)`, which **ANDs** the query's lexemes. A
+natural-language question carries 6–7 content words, and the chunk that answers it almost
+never contains all of them, so the probe returns `{}` and `build_access_hint` has nothing to
+work with. Retrieval's keyword arm has the same semantics, but there it is harmless: hybrid
+search compensates with the semantic channel, and the probe has no semantic channel by design
+(text-only, no embedding call on a refusal path).
+
+**Evidence — the tsquery, and the one word that voids each (free, pure Postgres):**
+
+| case | `websearch_to_tsquery` output | absent from the chunk that answers it |
+|---|---|---|
+| parent | `mani & session & child & miss & lose & place & program` | `child` (the chunk says "student"), `mani` |
+| branch_manager | `escal & path & session & cancel & short & notic` | `escal`, `path` |
+| tutor | `procedur & tutor & report & safeguard & concern & student` | `procedur` only — 5 of 6 matched |
+
+**Measured candidate fixes**, scoring the 8 gated cases on the *role* `build_access_hint`
+names (not merely "some gated audience matched") and splitting negatives, because 18 of them
+are nonsense markers (`"zqxveval6 handbook"`) that collide with seeded marker chunks at cosine
+0.14 and would measure the fixture rather than the rule:
+
+| rule | right role | wrong role | FP on 42 real-prose | FP on 18 marker |
+|---|---|---|---|---|
+| AND (today) | 5 | 0 | 0 | 0 |
+| keyword coverage ≥ 3/4 | 6 | 0 | 0 | 0 |
+| **keyword coverage ≥ 2/3** | **8** | **0** | **1** | **0** |
+| keyword coverage ≥ 1/2 | 5 | 3 | 8 | 16 |
+| semantic ≤ 0.40 | 5 | 3 | 1 | 16 |
+| semantic ≤ 0.65 | 5 | 3 | 13 | 18 |
+
+**Recommendation: keyword coverage ≥ 2/3, as an exact rational ratio.** `ceil(0.67·n)` rejects
+4-of-6, which *is* two thirds, and that arithmetic alone is the difference between 7/8 and 8/8.
+`≥3/5` gives identical numbers, so 2/3 is not on a knife edge; the cliff is at 1/2. Its single
+false hint is real and should be stated rather than tuned away: *"Are tutoring sessions
+available in Spanish for parents who prefer it?"* matches 4/6 lexemes of a student Code of
+Conduct chunk about reporting concerns → "log in as a student".
+
+**Why not the semantic probe**, which is the more elegant design and was the first choice: it
+needs an embedding call on the refusal path (a new failure mode on a path that runs *because*
+something already failed), it cannot be tested with `MockBedrockProvider` at all (hash-seeded
+random vectors carry no semantic content, so no mock test could ever observe a positive —
+D-163's trap in reverse), and on this corpus it names the wrong tier 3 times in 8. Worth
+recording that it is **not** hopeless on prose: it found the three seeded chunks at 0.101 /
+0.293 / 0.344 and named the right role each time. Its failures are nonsense tokens.
+
+**A better instrument is the real next step (user's point, this session).** The negative set
+conflates "a public doc answers it" with "nothing answers it", and the one false hint above
+comes from the second class — a question no document addresses, where the probe is being
+scored on a question that was never well-posed. A fixture derived *from* the corpus (for each
+gated chunk, a question it genuinely answers → expect a hint naming that audience; for public
+chunks → expect a grounded answer and no hint) makes the measurement well-posed and much
+larger than 8 cases. **The discipline it needs:** questions must be answerable from the chunk
+while lexically *diverging* from it, or keyword coverage is trivially high and the fixture is
+measuring its own paraphrase — ROADMAP.md's S30 correction, again. Keep a small
+honestly-unanswerable set, because real users ask things the corpus does not cover.
+
+**Method corrections that nearly produced a wrong decision here**, both worth remembering:
+Postgres `now()` is *transaction*-scoped while production filters on a per-request Python
+`ChunkFilters.as_of`, so sweep SQL using `now()` silently excluded every fixture chunk seeded
+after the transaction began — two of three gated chunks were invisible, which is what made the
+semantic probe first appear unusable. And scoring "some gated audience matched" as a hit
+flatters every rule, since `build_access_hint` picks by priority and naming the wrong tier is a
+failure.
 
 ### AUD-C-12 — §5.21.8's "retrieval score below threshold" has no implementation (P3)
 

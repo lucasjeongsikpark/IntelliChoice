@@ -232,26 +232,69 @@ class RagRepository:
         return {chunk.chunk_id: chunk for chunk in result.scalars().all()}
 
     async def count_matching_by_audience(
-        self, filters: ChunkFilters, query: str
+        self,
+        filters: ChunkFilters,
+        query: str,
+        query_embedding: list[float] | None = None,
+        *,
+        max_distance: float = 0.40,
     ) -> dict[str, int]:
         """SPEC §5.19.1/plan §18-C3's access-aware-refusal probe: counts of
         query-matching chunks grouped by `audience`, applying every filter *except* the
         caller's own audience allowlist - so a chunk the caller cannot retrieve still
         contributes to a count, never to content. Returns `{audience: count}` only
-        (never chunk ids or text); called only after role-filtered retrieval already
-        came back empty. Matching uses the same `websearch_to_tsquery` keyword signal
-        as `keyword_search_chunk_ids` rather than semantic search, since the probe must
-        stay text-only (no embedding call) to run unconditionally on every empty
-        retrieval without adding Bedrock cost/latency to a refusal path.
+        (never chunk ids or text); called only once the turn has already decided it has
+        no approved source to answer from - either retrieval came back empty, or
+        synthesis refused on what it retrieved (AUD-C-06/D-164, which widened the
+        second case in).
+
+        **Two signals, unioned (AUD-C-20/D-165).** The keyword arm alone could not do this
+        job: `websearch_to_tsquery` ANDs every content word of the question, so one word the
+        chunk happens not to use voids the whole probe - measured against a corpus-derived
+        fixture it named the right audience for **3 of 43** questions. A caller does not
+        phrase a question in the document's vocabulary. The semantic arm, at a cosine
+        distance ceiling, gets **25 of 43** with zero false positives on either negative
+        class (questions a public document answers, and questions nothing answers).
+
+        The keyword arm is kept rather than replaced, for two reasons that are not about
+        recall: an exact-wording match is free and needs no model, and `MockBedrockProvider`'s
+        embeddings are hash-seeded random vectors with no semantic content, so a
+        semantic-only probe would be **structurally unobservable** in the entire mock-backed
+        test suite. That is D-163's trap wearing different clothes, and one arm the mock can
+        exercise is what keeps these tests able to fail.
+
+        `query_embedding` is optional and the caller may legitimately not have one: an
+        embedding failure on a path that runs *because* something already failed must degrade
+        to keyword-only, not raise. `max_distance` is a measured threshold, not a guess - see
+        `scripts/measure_access_probe_rules.py`, which is the instrument that chose it.
         """
         probe_filters = filters.model_copy(update={"audience": None, "audiences": None})
         tsquery = func.websearch_to_tsquery("english", query)
-        stmt = _apply_filters(select(RagChunk.audience, func.count()), probe_filters).where(
-            RagChunk.search_vector.op("@@")(tsquery)
+        keyword_stmt = _apply_filters(
+            select(RagChunk.audience, func.count()), probe_filters
+        ).where(RagChunk.search_vector.op("@@")(tsquery))
+        counts = {
+            audience: count
+            for audience, count in (
+                await self._session.execute(keyword_stmt.group_by(RagChunk.audience))
+            ).all()
+        }
+        if query_embedding is None:
+            return counts
+
+        # Counted per audience rather than "nearest overall": `build_access_hint` picks the
+        # highest-priority *audience* that matched, so collapsing to a single nearest chunk
+        # would let one close public-adjacent tier mask a more specific one.
+        distance = RagChunk.embedding.cosine_distance(query_embedding)
+        semantic_stmt = (
+            _apply_filters(select(RagChunk.audience, func.count()), probe_filters)
+            .where(RagChunk.embedding.is_not(None))
+            .where(distance <= max_distance)
+            .group_by(RagChunk.audience)
         )
-        stmt = stmt.group_by(RagChunk.audience)
-        result = await self._session.execute(stmt)
-        return {audience: count for audience, count in result.all()}
+        for audience, count in (await self._session.execute(semantic_stmt)).all():
+            counts[audience] = counts.get(audience, 0) + count
+        return counts
 
     async def hybrid_search(
         self,

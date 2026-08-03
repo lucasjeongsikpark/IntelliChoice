@@ -31,6 +31,7 @@ function App() {
     error,
     busy,
     sendMessage,
+    escalateTurn,
     retryTurn,
     respond,
     endSession,
@@ -116,6 +117,7 @@ function App() {
         error={error}
         onSend={(query) => void sendMessage(query)}
         onRetry={(turnId) => void retryTurn(turnId)}
+        onEscalate={(query) => void escalateTurn(query)}
         onLogout={handleLogout}
         onNewSession={() => endSession()}
       />

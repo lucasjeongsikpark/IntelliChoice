@@ -644,6 +644,47 @@ One HTTP request per turn, one `ainvoke` call. Three intents now pause via `inte
 via `POST .../respond` + `Command(resume=...)`, mirroring `learning-api`'s S7 pattern.
 Anonymous callers are a first-class case (`claims` may be `None`), unlike `learning-api`.
 
+**D-164 reworked the moment this graph tells a user it cannot answer.** Three changes, all
+visible in the diagram below as edges that did not exist:
+
+- **The no-source refusal no longer carries citations** (AUD-C-11 — chat-web was rendering a
+  citation chip under "I don't have an approved source"). That also makes the refusal a state a
+  router can read, which is what the next point needed.
+- **`explain_access` has a second entry path.** SPEC §18-C3's probe ran only on *empty*
+  retrieval, a condition real hybrid search essentially never produces (measured: the feature
+  fired 0 times in 8 under a real model). It now also runs when synthesis refused on chunks it
+  did retrieve. Both `synthesize_answer` and `explain_access` count the `no_answer` outcome, so
+  the counter is now incremented by whichever node ends the turn — otherwise every widened
+  refusal would be double-counted.
+- **`resolve_role` can route straight to `prepare_admin_escalation`** when the request carries
+  `escalate=true`, skipping `scope_guard`: the caller is forwarding a question to a human, not
+  asking one. chat-web's "Ask an administrator" button on a refusal is what sets it, replacing
+  text that told the user to try rephrasing. The rate limit, the `interrupt()` approval, the
+  audit row and the deterministic draft are all untouched — nothing here sends an email without
+  a human seeing it first. An access hint suppresses the offer (`escalation_recommended` stays
+  False), because emailing a human about content that already exists helps nobody.
+
+**D-165 then made the probe itself able to match.** The routing fix above was necessary and not
+sufficient: `count_matching_by_audience` matched with `websearch_to_tsquery`, which ANDs every
+content word of the question, so one word the document happens not to use voided the whole probe
+(AUD-C-20). It now **unions a keyword arm and a semantic arm** — cosine distance over the same
+`embedding` column, ceiling `access_probe_max_distance` (0.40), with `explain_access` embedding the
+question itself and degrading to keyword-only if that call fails, since it runs *because* the turn
+already failed. Live: `role_gated_question` **0/3 → 2/3**.
+
+The keyword arm is kept rather than replaced for a reason that is not about recall:
+`MockBedrockProvider`'s embeddings are hash-seeded random vectors with no semantic content, so a
+semantic-only probe would be **structurally unobservable** in the entire mock-backed suite. One arm
+the mock can exercise is what keeps these tests able to fail.
+
+**The threshold is measured, and the measurement overturned the obvious answer.** A keyword
+coverage rule scored 8/8 against hand-written cases and 10/43 against a corpus-derived fixture,
+because hand-written questions share vocabulary with the chunk their author was looking at.
+`scripts/generate_probe_eval_fixture.py` builds questions from the corpus under an
+instruction not to reuse its wording and records the measured lexical overlap per case;
+`scripts/measure_access_probe_rules.py` is what picked 0.40. Re-run both after any change to the
+probe, the corpus, or the threshold.
+
 **D-155 added a fourth terminal shape, `service_unavailable`.** A `BedrockGatewayError` with no
 SPEC §5.29 fallback used to be absorbed by whichever branch happened to be next — `refuse`,
 `explain_access`, `calendar_no_event` — each of which asserts something the turn never actually
@@ -653,7 +694,8 @@ answer, but it makes no claim about the user's question, the corpus, or the cale
 ```mermaid
 flowchart TB
     START([HTTP request → AskInput]) --> RR["resolve_role (S13)<br/>claims → user_role/branch<br/>(anonymous → \"public\")"]
-    RR --> SG["scope_guard (S13)<br/>one combined Bedrock call:<br/>BedrockTask.SCOPE_AND_INTENT"]
+    RR -->|"escalate=true<br/>(D-164)"| PREP
+    RR -->|"else"| SG["scope_guard (S13)<br/>one combined Bedrock call:<br/>BedrockTask.SCOPE_AND_INTENT"]
 
     SG -->|"out_of_scope"| REFUSE["refuse (S13)<br/>§5.19.4 verbatim message"]
     SG -->|"in_scope,<br/>intent=clarification"| UNAVAIL["unavailable_intent (S13)<br/>generic rephrase message"]
@@ -669,12 +711,14 @@ flowchart TB
     EMBED --> HYBRID["RagRepository.hybrid_search<br/>FTS + pgvector + RRF (S13)"]
     HYBRID --> RERANK["BedrockTask.RERANK (S13)<br/>top-30 → top 5-8,<br/>score=0 dropped (D-052)"]
     RERANK -->|"chunks empty"| ACCESS["explain_access (S19)<br/>count_matching_by_audience<br/>probe, no LLM, no chunk<br/>content — role-gated only<br/>(D-056)"]
+    NOANS -->|"no_source_refusal<br/>(D-164, AUD-C-06)"| ACCESS
     RERANK -->|"chunks non-empty"| SYNTH["synthesize_answer (S13/S19)<br/>BedrockTask.RAG_ANSWER,<br/>untrusted context, never<br/>a system instruction (§5.30.4)"]
     SYNTH --> VERIFY{"qa.answer_question (S13)<br/>quote a real substring?<br/>confidence ≥ threshold?<br/>sources_conflict?"}
     VERIFY -->|"no citation survives /<br/>low confidence / conflict"| NOANS["no-answer + escalation<br/>(§5.21.8, §5.29)"]
     VERIFY -->|"yes"| GROUNDED["GroundedAnswer<br/>+ verified Citations"]
     ACCESS -->|"higher-tier<br/>audience match"| HINT["access_hint<br/>(§18-C3, fixed message,<br/>never chunk content)"]
     ACCESS -->|"no match anywhere"| NOANS
+    NOANS -->|"escalation_recommended<br/>→ chat-web button<br/>(D-164)"| PREP
 
     PREP -->|"rate limited"| BLOCKED["admin_escalation_blocked (S14)"]
     PREP -->|"allowed"| AESC{{"admin_escalation<br/>interrupt() (S14)"}}
@@ -837,7 +881,10 @@ in the model's output against that same evidence after the call, and a determini
 Python template (built from the identical evidence) stands in on either a gateway
 failure or a failed grounding check - so a fallback narrative is grounded by
 construction. Idempotent per (session, stage[, skill]) via `StageTransitionRepository.
-get_for_session_stage`, checked before ever calling Bedrock.
+get_for_session_stage`, checked before ever calling Bedrock. **D-163 widened what `is_grounded`
+accepts** (percent renderings of proportions, thousands separators, numbers inside evidence
+strings) — this surface shares the module, so it inherits the change; see the report section below
+for why the old rules rejected faithful prose and where the new ones stay bounded.
 
 ```mermaid
 flowchart LR
@@ -895,7 +942,37 @@ frontend's per-view nonce rotates when a response arrives with `generated: false
 explicit "Regenerate" after a degraded report is a fresh request rather than a replay of the
 facts-only row, while a network error keeps the key because a lost response may have committed
 (D-161; `report-degraded-retry.spec.ts` asserts all three arms of the contract by intercepting
-the `Idempotency-Key` header).
+the `Idempotency-Key` header). **As of D-163 that rotation is near-unreachable in ordinary use**,
+since `generated: false` stopped being the normal outcome — it is now the outage path only, and its
+Playwright spec is the only thing exercising it.
+
+**What `is_grounded` accepts was wrong for this payload until D-163 (AUD-L-18), and the whole
+narrative feature was dark because of it.** Measured against the real deployed model, the check
+rejected **15 of 15** generations across three payload shapes — so from S28 until 2026-08-03 every
+parent report paid for a Bedrock call and then served the facts-only template. It fails closed, so
+nothing ever errored. None of the 94 rejected numbers was an invention: the evidence carries
+proportions as decimals (`mastery_by_skill: 0.8333`) while any parent-facing writer renders them as
+percentages ("83%"), counts were written with thousands separators the tokenizer split (`"1,284"` →
+`1` and `284`), and numbers that existed only inside evidence *strings* were never collected — which
+included the `70%` that D-156's own window-label prompt **instructs** the model to cite, so two
+fixes had been quietly fighting since D-156.
+
+The check is now scale-aware, and bounded so it stays fail-closed where it matters: a percent
+reading applies only when the evidence value is itself a proportion in `[0, 1]` (so `raw_gain: 3.0`
+does not ground "improved 300%"), the tolerance is an absolute half percentage point rather than
+`round()` (Python rounds halves to even, so `round(62.5) == 62` would reject the equally correct
+"63%" for `0.625`), and grouped-number parsing needs a lookbehind or `"In 2026, 317 solutions"`
+matches `026,317` and invents 26317. The prompt separately forbids the model deriving numbers of
+its own or quoting advice quantities, because the re-measurement caught it summing 6 hints and 2
+solutions into "8 times" and computing "about 40 seconds per problem" (wrong; 42.7) — evidence that
+the deterministic check must stay strict rather than trust the instruction. Post-fix: 15/15
+grounded locally, and `generated: true` 3/3 against the deployed API.
+
+**No test can observe this seam, and none ever will:** `MockBedrockProvider`'s report stand-in
+builds its text out of the payload's own fields, so it round-trips `is_grounded` by construction.
+`scripts/measure_report_grounding.py` (committed, real Bedrock, ~0.3¢ per generation, bounded by
+`--runs` and the gateway's `session_budget_cents`) is the only instrument that answers "does the
+narrative actually ship?" — run it after any change to the prompt, the payload, or the checker.
 
 **Not every figure covers the same window, and each one now says which (AUD-L-15, D-156).**
 `mastery_by_skill` comes from `mastery_repo.list_for_student`, which takes **no date range

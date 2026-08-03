@@ -5,6 +5,86 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-165: AUD-C-20 fixed — the access probe gets a semantic arm, and the fixture is what
+  decided it. AUD-C-06 is now closed too (2026-08-03).** `make lint` clean, `pyright` 0 errors,
+  **720 passed / 2 skipped** (+3). **Live: `role_gated_question` 0/3 → 2/3** against the real
+  deployed model. **Not deployed.** Spend this step ~11¢ (6.3 generating the fixture, 4.7 the
+  re-measurement).
+  **The substance is that D-164's recommendation was wrong for a measurable reason.** Keyword
+  coverage ≥2/3 scored 8/8 against the hand-written cases and **10 of 43** against a
+  corpus-derived one — because the three hand-written questions were written *beside* the chunk
+  they target and shared 5/6, 5/7 and 4/6 content words with it. A question written by whoever
+  wrote the answer flatters any keyword rule. **The user's instruction to build the test set from
+  the documentation is what exposed it.**
+  **The instrument, committed:** `scripts/generate_probe_eval_fixture.py` generates one question
+  per chunk under an instruction not to reuse its vocabulary and writes the **measured**
+  `lexical_overlap` into each case — the control against a fixture that measures its own
+  paraphrase. 43 gated + 12 public, mean overlap **0.486** (vs 0.67–0.83 hand-written).
+  `scripts/measure_access_probe_rules.py` scores rules against three classes: a gated doc answers
+  it → hint; a public doc answers it → silent; nothing answers it → silent.
+  **Result: semantic ≤0.40 gets 25/43 correct roles with 1 wrong and zero false hits on either
+  negative class**, against keyword ≥2/3's 10/43 with 3 wrong and 2 false. 2.5× the recall at no
+  false-positive cost. 0.45 buys one more correct hint for three wrong-tier ones, so 0.40.
+  **The two arms are unioned, and keeping the keyword arm is deliberate:** exact wording is free,
+  and `MockBedrockProvider`'s hash-seeded vectors carry no semantic content — a semantic-only
+  probe would be **structurally unobservable** in the whole mock-backed suite (D-163's lesson in
+  new clothes). `explain_access` embeds the question itself (checkpointing 1024 floats per turn to
+  save a fraction of a cent is the wrong trade) and **degrades to keyword-only rather than
+  raising**, because it runs *because* the turn already failed.
+  **⚠️ Carry-over found, not fixed:** the real-Bedrock eval asserts `role_gated >= 0.95`, but under
+  a real model that category is **0/5** — its cases are nonsense markers a real scope guard refuses
+  as out-of-scope before retrieval. A *full* real-model run cannot pass that assertion, independent
+  of this change. Either the assertion or those five fixtures should go.
+
+- **✅ D-164: the chat refusal a user actually sees — AUD-C-11 fixed, AUD-C-06 half fixed with
+  the other half found and measured, and the escalation offer is now a button (2026-08-03).**
+  `make lint` clean, `pyright` 0 errors, **717 passed / 2 skipped** (707 + 10 new, **5 watched
+  failing pre-fix**); chat e2e **37/37** on freshly-booted servers; e2e typecheck clean;
+  chat-web builds. **Not deployed.** Measurement spend **~11 cents**.
+  **AUD-C-11 (done):** the low-confidence branch passed `verified` into `_no_answer`, so the UI
+  showed a citation chip under "I don't have an approved source". Now `[]`. The conflict branch
+  still keeps its citations, deliberately, and the docstring says why so nobody "unifies" them.
+  **AUD-C-06 (half done, and the half that remains is the interesting part):** the probe's
+  precondition moved from "retrieval returned zero rows" (which real hybrid search essentially
+  never produces) to "the answer is a no-source refusal". Verified working — live, a turn
+  retrieved 3 chunks, refused, and reached the probe, which pre-fix it could not. **But the
+  re-measured score is still 0/3**, because of a third cause found this session and filed as
+  **AUD-C-20**: `count_matching_by_audience` matches with `websearch_to_tsquery`, which **ANDs
+  every content word** of the question. One absent word voids it — the parent chunk says
+  "student" not "child"; the branch-manager chunk has neither "escalation" nor "path"; the tutor
+  chunk lacks "procedure" (5 of 6 matched). **SPEC §18-C3 has never fired for a realistically
+  worded question, on either path.**
+  **AUD-C-20's replacement rule is measured, not guessed:** keyword coverage **≥2/3 as an exact
+  rational ratio** scores **8/8 with the correct role and 1 false hint in 42** real-prose
+  negatives; `ceil(0.67·n)` rejects 4-of-6 (which *is* two thirds) and that arithmetic alone is
+  7/8 vs 8/8; `≥3/5` is identical, so 2/3 is not a knife edge — the cliff is at 1/2. A semantic
+  probe was the first choice and lost: 3 wrong-tier hints in 8, an embedding call on a path that
+  runs *because* something failed, and it cannot be tested with `MockBedrockProvider` at all
+  (hash-seeded vectors carry no semantic content — D-163's trap in reverse). It is not hopeless
+  on prose, though: it found the seeded chunks at 0.101/0.293/0.344 and named the right role
+  every time. Its failures are nonsense tokens.
+  **The escalation offer is now an action (user decision):** a new `escalate` flag routes
+  `resolve_role → prepare_admin_escalation`, skipping `scope_guard`, and chat-web's dead "try
+  asking to contact an administrator" text is a real **"Ask an administrator"** button. Nothing
+  safety-relevant is skipped — the §5.24.2 rate limit, the `interrupt()` approval, the audit row
+  and the deterministic template all still run. Recipient stays the **configured admin address,
+  not the assigned branch manager** (user's call; `get_branch_manager_email` stays unused, and
+  a branch is unresolvable for anonymous *and* parent callers anyway). Anonymous callers keep
+  the ability to escalate. An access hint suppresses the offer.
+  **⚠️ Two method corrections that each nearly produced a wrong decision, both worth keeping:**
+  Postgres `now()` is *transaction*-scoped while production filters on a per-request Python
+  `ChunkFilters.as_of` — sweep SQL using `now()` silently excluded every fixture chunk seeded
+  after the transaction began, hiding 2 of 3 gated chunks and making the semantic probe look far
+  worse than it is. And scoring "some gated audience matched" as a hit flatters every rule,
+  because `build_access_hint` picks by *priority* and naming the wrong tier is a failure.
+  **⚠️ One honesty fix in the suite itself:** `response-shapes.spec.ts`'s AUD-C-11 test renders a
+  hardcoded stub, so it passes whether the bug exists or not — it did **not** flip to a
+  regression the way AUD-C-04/AUD-C-10 did, and it cannot. Test and fixture now say so and point
+  at the pytest case that is the real guard.
+  **Harness:** `CHAT_EVAL_CATEGORIES` narrows the real-Bedrock eval to named categories (cents
+  instead of a 61-case run); a narrowed run prints a loud PARTIAL banner and skips the invariants
+  it did not exercise.
+
 - **✅ D-161 + D-162 + D-163 are merged and deployed, and AUD-L-18 is verified live — the parent
   narrative ships for the first time (2026-08-03, on user instruction).** PR **#95**, CI **9/9
   first attempt**, squash-merged to `main` at **`e91658b624901aea026113c1e40577714cfed9b4`**, deploy
@@ -515,7 +595,97 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-03, post-D-159 deploy):**
+- **Next session, in order (2026-08-03, post-D-164):**
+  0. **Owed: D-164 is not deployed.** AUD-C-11, AUD-C-06's routing widening and the escalate
+     button are all merged-ready but unshipped. A code-and-frontend deploy (no migration — check
+     with `git diff <last-deployed>..HEAD -- packages/db/alembic/versions/` per D-157 before
+     dispatching). The escalate button is the first user-visible *action* added in a while, so
+     verify it live rather than trusting a green pipeline: a real refusal → button → approval
+     modal → decline, and confirm no email was sent.
+  1. ~~**Finish AUD-C-06 by way of AUD-C-20, and build the fixture first.**~~ **(✅ done
+     2026-08-03, D-165 — and the fixture reversed the rule: semantic ≤0.40 beat keyword
+     coverage 25/43 to 10/43, because the hand-written cases echoed their own answers.
+     `role_gated_question` 0/3 → 2/3 live. Two committed instruments:
+     `scripts/generate_probe_eval_fixture.py` and `scripts/measure_access_probe_rules.py`.)**
+     **New carry-over from it:** the real-Bedrock eval's `role_gated >= 0.95` assertion cannot
+     pass a full real-model run — that category is 0/5 because its five cases are nonsense
+     markers refused as out-of-scope before retrieval. Retire the assertion or the fixtures.
+  1b. **Superseded detail of the above, kept for the method note:** The rule to implement is
+     measured (keyword coverage ≥2/3, exact rational ratio — 8/8 correct roles, 1 false hint in
+     42), but the **better instrument comes first** (user's point, D-164): a corpus-derived
+     fixture, since the current negative set conflates "a public doc answers it" with "nothing
+     answers it", and the one false hint comes from the second class — a question that was never
+     well-posed. For each gated chunk, a question it genuinely answers → expect a hint naming that
+     audience; for public chunks → expect a grounded answer and no hint. **The discipline that
+     keeps it honest:** questions must be answerable from the chunk while lexically *diverging*
+     from it, or coverage is trivially high and the fixture measures its own paraphrase
+     (ROADMAP.md's S30 correction). Keep a small honestly-unanswerable set. Then re-measure with
+     `CHAT_EVAL_CATEGORIES` for cents.
+  2. **The escalation work D-164 scoped but did not do.** The email carries the question, the role
+     and the session id and nothing else — so an administrator has **no way to reply to the
+     person who asked**. That is a deliberate PII posture, not an oversight, but it makes the
+     handoff one-way and is worth a product decision. Also unaddressed: `InMemoryRateLimiter` is
+     per-process, so the effective escalation ceiling is N× the configured one across N tasks.
+  3. **Continue the Phase 0B backlog.** **15** findings *Open — Phase 0B* (AUD-C-11 closed,
+     AUD-C-20 opened, AUD-C-06 still open pending AUD-C-20), **16** counting AUD-F-16:
+     - **the masked-by-uniform-data pair** — AUD-C-09 (`academic_year` predicate never applied)
+       and AUD-L-12 (`recommended_difficulty` routes nothing). AUD-L-12 has a precedent to
+       follow: D-159 deleted `flow.select_topic` as a second unused definition of live behaviour.
+     - **AUD-L-09** (provenance vs attribution), more load-bearing since D-163 shipped the
+       narrative.
+  4. **Everything from the post-D-163 pointer that is still live** (mastery date-filtering as a
+     product question, the two drafted messages, the criterion-6 confirmation reads, the parked
+     Billing-console look and AUD-F-33's apply, integration frozen by D-152) — listed in full in
+     the superseded pointer below.
+     **Note on `aws`:** credentials are per-profile. Also, the project venv's botocore **cannot
+     resolve either profile** (both use `login_session`, which needs `botocore[crt]`), so the
+     documented `AWS_PROFILE=... pytest` invocation in
+     `test_qa_coverage_eval_real_bedrock.py`'s docstring does not work. Use
+     `eval "$(aws configure export-credentials --profile <p> --format env)"` instead — that is
+     how this session ran the real-model evals.
+
+- **Superseded — pointer as of the post-D-163 deploy (2026-08-03). Item 1's chat cluster is
+  partly done (D-164: AUD-C-11 closed, AUD-C-06 half done + AUD-C-20 opened); the rest carries
+  into the pointer above:**
+  0. **Nothing is owed.** The deploy is done and all three decisions are verified live (see the top
+     entry) — no undeployed work, no unverified behaviour, no open staging read. This is the first
+     pointer in several sessions that opens with a clean slate rather than a debt.
+     **Note on `aws`:** credentials are per-profile, not ambient. The reads this session used
+     `--profile jeongsik-staging-admin` explicitly; `export AWS_PROFILE=... AWS_REGION=us-east-1`
+     is the alternative. Without one, every call fails `NoCredentials`/`NoRegion`.
+  1. **Continue the Phase 0B backlog — still the work D-152 points at.** **15** findings remain
+     *Open — Phase 0B*, **16** counting AUD-F-16. AUD-L-18 did not change the count (found and fixed
+     in one session). In rough order of what a user would notice:
+     - **the masked-by-uniform-data pair** — AUD-C-09 (`academic_year` predicate never applied) and
+       AUD-L-12 (`recommended_difficulty` routes nothing). AUD-L-12 has a precedent to follow:
+       D-159 deleted `flow.select_topic` as a second unused definition of live behaviour, and
+       AUD-L-12's filing says "either wire it up or delete it and correct both docstrings".
+     - **the chat "message contradicts what the system knows" remainder** — **AUD-C-11** (the
+       low-confidence branch returns "I don't have an approved source" *with* verified citations
+       attached, observed live) and **AUD-C-06** (§18-C3's access-aware refusal fired **0 times in
+       8** under a real model, because its precondition is zero-row retrieval). Same shape as
+       D-155/D-156's cluster; both single-site fixes.
+     - **AUD-L-09, now slightly more load-bearing** (D-163's scope note): grounding verifies a
+       number's *provenance*, not its *attribution*, so "fell from 6 to 4" passes when the real
+       movement was 4 → 6. It was cheap to leave open while the narrative never shipped. It ships
+       now, so this is the gap between "every number is real" and "every claim is true".
+  2. **Two things D-163 opened, both small and both worth doing before they rot:**
+     - **D-161's nonce rotation is now near-unreachable in ordinary use.** `generated: false` was
+       the normal outcome and is now the outage path only. The behaviour is still correct to keep,
+       but `report-degraded-retry.spec.ts` is the only thing exercising it — worth knowing before
+       someone reads the rotation as dead code and deletes it.
+     - **Re-read S30's other expansion evals against D-163's lesson** (recorded in ROADMAP.md's S30
+       block): an evaluator whose fixture is produced by the same deterministic stand-in it
+       validates measures nothing. Hint-leak detection has a real golden fixture and is fine; the
+       memory ground-truth cases are worth a second look.
+  3. **The old pointer's remaining items, unchanged and still live** (mastery date-filtering as a
+     product question, the two drafted messages, the criterion-6 confirmation reads, the parked
+     Billing-console look and AUD-F-33's apply, and everything integration-shaped staying frozen by
+     D-152). They are listed in full in the superseded pointer immediately below.
+
+- **Superseded — pointer as of the post-D-159 deploy (2026-08-03). Item 0 and item 2's first bullet
+  are done (D-162, D-163); the deploy those items were waiting on has happened. The rest is carried
+  into the pointer above:**
   0. ~~**Owed: one live exercise of AUD-X-04 against the deployed API**~~ **(✅ done 2026-08-03,
      D-162 §3 — all four arms plus the ledger read; D-159's "not verified live" caveat is retired.
      It surfaced D-162 §4: the live report degrades on numeric grounding 2/2, see item 2's new
@@ -4124,7 +4294,41 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
-### S52 (unnumbered) — AUD-L-18: the parent narrative had never shipped under a real model (2026-08-03) ✅
+### S53 (unnumbered) — the chat refusal a user sees: AUD-C-11, half of AUD-C-06, AUD-C-20 found, and escalation made real (2026-08-03) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer, item 1's chat-remainder bullet** — no
+  numbered roadmap block. Taken as a cluster because AUD-C-11's fix is the precondition
+  AUD-C-06's needed. Baseline verified green first (707 passed / 2 skipped).
+- **AUD-C-11 fixed:** `qa._no_answer` gets `[]` on the low-confidence branch; the conflict branch
+  keeps `verified`, with the asymmetry documented against a future "cleanup".
+- **AUD-C-06 half fixed:** the §18-C3 probe's precondition is now the *outcome* (a no-source
+  refusal) rather than empty retrieval, via `QAState.no_source_refusal`. Verified deterministically
+  and observed engaging live. Fixed a real bug it introduced in the same change: the `no_answer`
+  counter would have double-counted every widened refusal.
+- **AUD-C-20 opened, and it is why the score did not move:** the probe ANDs every content word of
+  the question (`websearch_to_tsquery`), so one absent word voids it. Re-measured 0/3 unchanged.
+  Replacement rule measured (keyword coverage ≥2/3 exact ratio: 8/8 correct roles, 1 false hint in
+  42); a semantic probe measured worse *and* is untestable under the mock provider.
+- **Escalation made real (user decision):** an `escalate` flag routes `resolve_role →
+  prepare_admin_escalation`, skipping only `scope_guard`; chat-web's dead advisory text became an
+  "Ask an administrator" button. Recipient stays the configured admin address, not the branch
+  manager (user's call, recorded in D-164 with the reasons that make it the cheaper correct one).
+  Anonymous callers keep the ability; an access hint suppresses the offer.
+- **Two of my own method bugs caught and corrected mid-session**, each of which had produced a
+  wrong conclusion I had already reported: transaction-scoped `now()` hiding seeded fixture chunks,
+  and scoring a hint without checking which *role* it named. Both are recorded in D-164 and
+  AUD-C-20 because they are the kind of mistake that recurs.
+- **Verification:** `make lint` clean, `pyright` 0 errors, **717 passed / 2 skipped** (10 new, 5
+  watched failing pre-fix), chat e2e **37/37** on fresh servers including a new
+  `escalate-from-refusal.spec.ts`, e2e typecheck clean, chat-web builds. **Not deployed.**
+  Measurement spend ~11¢.
+- **Carry-over opened:** (a) the deploy; (b) build the corpus-derived fixture *before* implementing
+  AUD-C-20's rule; (c) the escalation email has no reply path to the person who asked — deliberate
+  PII posture, but a product question; (d) `InMemoryRateLimiter` is per-process, so the escalation
+  ceiling is N× across N tasks; (e) the real-Bedrock eval's documented `AWS_PROFILE=` invocation
+  does not work from the project venv (`login_session` needs `botocore[crt]`).
+
+### S52 (unnumbered) — AUD-L-18: the parent narrative had never shipped under a real model, then deployed (2026-08-03) ✅
 
 - **Scope: PROGRESS.md's own "Next session" pointer, item 2's first bullet** — no numbered roadmap
   block. D-162 §4's carry-over, taken under its own rule (reproduce before fixing).
@@ -4152,9 +4356,28 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   can answer "does the narrative actually ship?" ~0.3¢ per generation, ~16¢ spent this session.
 - **Verification:** 14 new unit tests (8 watched failing pre-fix, every negative control green in
   both directions), `make lint` clean, `pyright` 0 errors, **707 passed / 2 skipped**, e2e
-  typecheck clean. **Not deployed** — rides the next deploy with D-161 and D-162.
-- **Carry-over opened:** none new. AUD-L-09 (provenance vs attribution) is noted as slightly more
-  load-bearing now that model prose actually reaches parents.
+  typecheck clean.
+- **✅ Then deployed, on user instruction, clearing three decisions at once (D-161, D-162, D-163).**
+  PR #95, CI 9/9 first attempt, merged at `e91658b6`, deploy run 30814450173 success, rollback
+  skipped. Pre-deploy check found no migrations → code-and-frontend deploy, so D-160's
+  expand/contract rule did not apply. Revisions read rather than inferred: `learning-api:54`,
+  `chat-api:53`, both `gha-e91658b62490`.
+- **✅ And verified live, which for this finding is the only evidence that counts:** three fresh
+  idempotency keys against the deployed API each returned **`generated: true`** (3/3), where every
+  real generation staging had ever produced was `false` (2/2, D-162 §4). The narrative quotes
+  "50% mastery" and "stands at 0%" — percent renderings of `0.5` and `0.0`, the exact class that had
+  been rejecting everything. AUD-L-14 landed in the same response (`time_spent_minutes: 178.5961`
+  beside `attempts_count: 5547`); D-159's replay held (byte-identical body, 1.0 s vs 6.1 s, no
+  Bedrock); D-161 confirmed by bundle grep (`n.generated||S(crypto.randomUUID())` in the serving
+  `index-B9DFsw8n.js`).
+- **⚠️ Deliberately not read: the cost ledger.** Three real Bedrock calls were made, but no decision
+  in this deploy touches the reservation path, so the settlement evidence for this route remains
+  D-162 §3's rather than this deploy's.
+- **Carry-over opened, two small ones:** (a) **D-161's nonce rotation is now near-unreachable** —
+  `generated: false` was the normal outcome and is now the outage path only, so its Playwright spec
+  is the only thing exercising it; (b) **S30's other expansion evals deserve a re-read** against
+  this session's lesson, recorded in ROADMAP.md's S30 block. AUD-L-09 (provenance vs attribution) is
+  noted as more load-bearing now that model prose actually reaches parents.
 
 ### S51 (unnumbered) — the owed AUD-X-04 live exercise, and AUD-L-14 measured-then-fixed (2026-08-03) ✅
 

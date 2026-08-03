@@ -52,6 +52,13 @@ class CreateSessionResponse(BaseModel):
 
 class AskMessageRequest(BaseModel):
     query: str = Field(min_length=1, max_length=2000)
+    # D-164: the caller is forwarding a question it already asked to a human, not asking a
+    # new one. Set by chat-web's "Ask an administrator" button on a no-source refusal,
+    # carrying that refusal's own question text back. The turn then skips `scope_guard`
+    # and goes straight to the SPEC §5.24 escalation path - see
+    # `chat_api.graph.build._route_after_resolve_role` for why bypassing the scope guard
+    # is safe here and what it deliberately does not bypass.
+    escalate: bool = False
 
 
 class CitationResponse(BaseModel):
@@ -298,6 +305,7 @@ def _turn_context(
         candidate_limit=settings.retrieval_candidate_limit,
         top_k=settings.retrieval_top_k,
         confidence_threshold=settings.groundedness_confidence_threshold,
+        access_probe_max_distance=settings.access_probe_max_distance,
         client_ip=client_ip,
     )
 
@@ -336,7 +344,7 @@ async def post_message(
         client_ip=request.client.host if request.client else None,
     )
     result = await graph.ainvoke(
-        AskInput(session_id=chat_session_id, query=body.query),
+        AskInput(session_id=chat_session_id, query=body.query, escalate=body.escalate),
         config=_graph_config(chat_session_id),
         context=ctx,
     )

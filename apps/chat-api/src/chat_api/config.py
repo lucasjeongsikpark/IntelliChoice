@@ -89,6 +89,8 @@ class Settings(BaseSettings):
     # SPEC §5.24.1 "Q&A escalation: Recipient: configured Admin recipient" - a hardcoded
     # dev default (D-006's pattern), not a real secret/credential.
     admin_escalation_email: str = "admin@intellichoice.example"
+    # AUD-C-20/D-165. Measured, not guessed - see `TurnContext.access_probe_max_distance`.
+    access_probe_max_distance: float = 0.40
     # SPEC §5.24.2 anonymous-email rate limiting - keyed by caller (external id or IP),
     # applies only to the admin-escalation send, not every chat message.
     email_rate_limit_max_per_window: int = 5
