@@ -88,3 +88,24 @@ class QAState(BaseModel):
     # from another field) so the rate-limit decision is unambiguous regardless of what
     # a prior turn on this same thread last set.
     rate_limited: bool = False
+
+    # D-164: the caller is forwarding an already-asked question to a human rather than
+    # asking a new one (chat-web's "Ask an administrator" button on a no-source refusal).
+    # Comes in on `AskInput` every turn rather than being written by a node, which is what
+    # makes it safe against staleness: `resolve_role` deliberately does NOT clear it,
+    # because the router that reads it runs immediately after and would see the cleared
+    # value instead of this turn's.
+    escalate: bool = False
+
+    # AUD-C-06 (D-164): set by `synthesize_answer` when synthesis ended in the no-source
+    # refusal, and read only by that node's own router, which then runs the SPEC §18-C3
+    # access probe (`explain_access`). Same shape and same reasons as `service_degraded`
+    # above: per-turn (cleared by `resolve_role`, or a refusal would keep re-probing on
+    # every later turn of the thread), a stored flag rather than something the router
+    # re-derives from `answer` (the router must tell this refusal apart from the
+    # *conflict* and *service-unavailable* ones, and that comparison belongs to
+    # `services.qa.is_no_source_refusal`, which owns the message it compares against),
+    # and deliberately absent from the API response - no client needs to branch on it,
+    # and the e2e drift control exists to keep the response shape from growing fields
+    # nobody reads.
+    no_source_refusal: bool = False

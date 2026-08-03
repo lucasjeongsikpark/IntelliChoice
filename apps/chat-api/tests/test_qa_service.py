@@ -386,6 +386,62 @@ def test_answer_question_surfaces_conflict_instead_of_picking_a_side() -> None:
 
             assert answer.escalation_recommended is True
             assert answer.answer == qa.CONFLICT_MESSAGE
+            # The negative control for AUD-C-11 below: this refusal *does* keep its
+            # citations, deliberately. "The documents I found disagree with each other"
+            # is a claim about specific documents and naming them is the point.
+            assert [citation.source_reference for citation in answer.citations] == [
+                chunk.document_id
+            ]
+
+    asyncio.run(run())
+
+
+def test_the_no_source_refusal_carries_no_citations() -> None:
+    """AUD-C-11 (D-164). Observed live: this branch returned "I don't have an approved
+    source for that yet" together with `citations: ["public-organization-overview"]`, and
+    chat-web rendered a citation chip under a sentence denying a source existed.
+
+    The low-confidence arm is the one that was wrong. The `not verified` arm reaches the
+    same `_no_answer` call with an empty list already, so the defect was invisible there -
+    which is why the citation below verifies cleanly and only `confidence` is under the
+    threshold. Pairs with the conflict test above, which is the arm that keeps them.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(
+                session, chunk_text="Attendance is required for every on-site session."
+            )
+            gateway = _FakeGateway(
+                _result(
+                    RagAnswerResponse(
+                        answer="Probably attendance is required, not fully sure.",
+                        citations=[
+                            LlmCitation(
+                                context_index=0,
+                                quote="Attendance is required for every on-site session.",
+                            )
+                        ],
+                        confidence=0.1,
+                    )
+                )
+            )
+
+            answer, _cost = await qa.answer_question(
+                repo,
+                gateway,
+                query="Is attendance required?",
+                user_role="parent",
+                chunks=[chunk],
+                session_spend_cents=0.0,
+                confidence_threshold=0.4,
+            )
+
+            assert answer.answer == qa.NO_SOURCE_MESSAGE
+            assert answer.citations == []
+            assert answer.confidence == 0.0
+            assert answer.escalation_recommended is True
 
     asyncio.run(run())
 

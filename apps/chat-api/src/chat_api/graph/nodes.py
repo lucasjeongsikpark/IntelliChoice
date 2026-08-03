@@ -184,6 +184,11 @@ class TurnContext:
     candidate_limit: int = 30
     top_k: int = 8
     confidence_threshold: float = 0.4
+    # AUD-C-20/D-165: cosine-distance ceiling for the §18-C3 access probe's semantic arm.
+    # Chosen by `scripts/measure_access_probe_rules.py` against a corpus-derived fixture:
+    # 0.40 named the right audience for 25 of 43 questions with zero false hints on either
+    # negative class; 0.45 buys one more correct hint for three wrong-tier ones.
+    access_probe_max_distance: float = 0.40
     client_ip: str | None = None
 
 
@@ -233,7 +238,7 @@ async def resolve_role(state: QAState, runtime: Runtime[TurnContext]) -> dict:
     # ownerless for good. The route now refuses that request, and the state never drops an
     # owner it already has, so neither half depends on the other being correct.
     owner = ctx.claims.sub if ctx.claims is not None else state.user_external_id
-    return {
+    cleared: dict = {
         "user_external_id": owner,
         "authenticated": ctx.claims is not None,
         "user_role": user_role,
@@ -266,7 +271,22 @@ async def resolve_role(state: QAState, runtime: Runtime[TurnContext]) -> dict:
         # set by a failed turn would answer "temporarily unavailable" on this thread
         # forever, long after Bedrock recovered.
         "service_degraded": False,
+        # AUD-C-06/D-164: and again for the access-probe flag. Left set, it would send
+        # every later turn on this thread through the probe after synthesis, including
+        # turns that answered perfectly well.
+        "no_source_refusal": False,
     }
+    if state.escalate:
+        # D-164. `scope_guard` is the only node that writes `scope`/`intent`, and the
+        # escalate path skips it - so without these two lines the response would carry the
+        # *previous* turn's classification, which is exactly the stale-state-in-a-response
+        # shape AUD-C-04 was. `intent` is the truth (the caller declared it and the server
+        # acted on it); `scope` stays None because no classification happened, matching
+        # `scope_guard`'s own degraded branch rather than asserting "in_scope" on no
+        # evidence.
+        cleared["scope"] = None
+        cleared["intent"] = "admin_contact"
+    return cleared
 
 
 async def scope_guard(state: QAState, runtime: Runtime[TurnContext]) -> dict:
@@ -425,7 +445,16 @@ async def synthesize_answer(state: QAState, runtime: Runtime[TurnContext]) -> di
         confidence_threshold=ctx.confidence_threshold,
     )
 
-    QA_ANSWERS.labels(result="grounded" if grounded.citations else "no_answer").inc()
+    no_source_refusal = qa.is_no_source_refusal(grounded)
+
+    # AUD-C-06/D-164: `explain_access` counts the `no_answer` outcome itself, so counting
+    # it here too would double every refusal that routes onward - the one real bug this
+    # widening introduces. The turn is counted exactly once, by whichever node ends it.
+    # `QA_CITATIONS_PER_ANSWER` and `QA_CONVERSATION_COST_CENTS` stay unconditional: the
+    # synthesis call happened and cost money whatever the router does next, and
+    # `explain_access` observes neither.
+    if not no_source_refusal:
+        QA_ANSWERS.labels(result="grounded" if grounded.citations else "no_answer").inc()
     QA_CITATIONS_PER_ANSWER.observe(len(grounded.citations))
     total_spend_cents = state.bedrock_spend_cents + answer_cost
     QA_CONVERSATION_COST_CENTS.observe(total_spend_cents)
@@ -437,12 +466,33 @@ async def synthesize_answer(state: QAState, runtime: Runtime[TurnContext]) -> di
         "escalation_recommended": grounded.escalation_recommended,
         "access_hint": None,
         "bedrock_spend_cents": total_spend_cents,
+        "no_source_refusal": no_source_refusal,
     }
 
 
 async def explain_access(state: QAState, runtime: Runtime[TurnContext]) -> dict:
-    """SPEC §18-C3's access-aware refusal. Reached only when role-filtered retrieval
-    (`answer_document_qa`) came back completely empty. Runs one metadata-only probe
+    """SPEC §18-C3's access-aware refusal.
+
+    Reached whenever this turn is about to tell the user there is no approved source -
+    either because role-filtered retrieval came back completely empty
+    (`answer_document_qa`), or because retrieval found chunks and synthesis still refused
+    on them (`synthesize_answer`, via `QAState.no_source_refusal`).
+
+    **The second entry path is AUD-C-06's fix, and it is the one that made the feature
+    reachable at all (D-164).** Zero-row retrieval was the only precondition until then,
+    and real hybrid search over a non-trivial corpus essentially never returns zero rows:
+    measured against a real model the feature fired **0 times in 8**, including for a
+    parent asking a question the seeded parent handbook answers verbatim. Retrieval handed
+    synthesis 8 chunks - all public, because the pre-retrieval filter had correctly
+    withheld the gated ones - so retrieval was non-empty, routing went straight to
+    `synthesize_answer`, and the parent was told "I don't have an approved source" about a
+    document that exists. The precondition is now the *outcome* (a no-source refusal)
+    rather than a lexical property of retrieval (an empty list).
+
+    Only that one refusal routes here; see `qa.is_no_source_refusal` for why a conflict
+    refusal and a service-unavailable result must not.
+
+    Runs one metadata-only probe
     (`RagRepository.count_matching_by_audience` - counts + audiences, chunk content never
     leaves the repository layer) with the branch restriction lifted, so a role- or
     branch-gated match anywhere still surfaces as a count; `role_access.build_access_hint`
@@ -457,13 +507,48 @@ async def explain_access(state: QAState, runtime: Runtime[TurnContext]) -> dict:
     probe_filters = base_filters.model_copy(
         update={"restrict_to_branch": False, "branch_external_id": None}
     )
+
+    # AUD-C-20/D-165: the probe needs a semantic signal, because keyword matching ANDs every
+    # content word of the question and a caller does not use the document's vocabulary
+    # (measured: 3 of 43 vs 25 of 43). The embedding is taken here rather than threaded down
+    # from `answer_document_qa` deliberately - `QAState` is checkpointed, and 1024 floats per
+    # turn in every checkpoint is a real cost to avoid a call that costs a fraction of a cent.
+    #
+    # **It must not raise.** This node runs *because* the turn already failed to answer; a
+    # gateway error here would turn a working refusal into a 500. Degrading to keyword-only
+    # returns the pre-D-165 behaviour, which is worse but honest, and the spend is still
+    # accounted for either way.
+    probe_embedding: list[float] | None = None
+    probe_cost = 0.0
+    try:
+        embedding_result = await ctx.bedrock_gateway.create_embedding(
+            texts=[state.standalone_query], session_spend_cents=state.bedrock_spend_cents
+        )
+        probe_embedding = embedding_result.vectors[0]
+        probe_cost = embedding_result.cost_cents
+    except BedrockGatewayError as exc:
+        logger.warning(
+            "access_probe_embedding_unavailable",
+            extra={"reason": type(exc).__name__, "detail": str(exc), "cost_cents": exc.cost_cents},
+        )
+        probe_cost = exc.cost_cents
+
     audience_counts = await ctx.rag_repo.count_matching_by_audience(
-        probe_filters, state.standalone_query
+        probe_filters,
+        state.standalone_query,
+        probe_embedding,
+        max_distance=ctx.access_probe_max_distance,
     )
     hint = role_access.build_access_hint(state.user_role, audience_counts)
     QA_ANSWERS.labels(result="no_answer").inc()
+    spend = state.bedrock_spend_cents + probe_cost
 
     if hint is None:
+        # Reached from `synthesize_answer` this is an idempotent rewrite of what that node
+        # already wrote (AUD-C-11 leaves a no-source refusal with no citations, so the
+        # empty list below overwrites an empty list) - stated explicitly because the
+        # alternative reading is that the probe *erases* citations, and it must not: the
+        # branch that could have had them does not route here.
         return {
             "answer": qa.NO_SOURCE_MESSAGE,
             "citations": [],
@@ -471,6 +556,7 @@ async def explain_access(state: QAState, runtime: Runtime[TurnContext]) -> dict:
             "missing_information": "No verifiable, non-conflicting source supports an answer.",
             "escalation_recommended": True,
             "access_hint": None,
+            "bedrock_spend_cents": spend,
         }
 
     return {
@@ -480,6 +566,7 @@ async def explain_access(state: QAState, runtime: Runtime[TurnContext]) -> dict:
         "missing_information": None,
         "escalation_recommended": False,
         "access_hint": hint.model_dump(),
+        "bedrock_spend_cents": spend,
     }
 
 

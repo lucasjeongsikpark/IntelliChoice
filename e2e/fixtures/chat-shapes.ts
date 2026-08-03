@@ -86,7 +86,10 @@ export const SHAPES: Record<string, Shape> = {
     escalation_recommended: true,
   },
 
-  // AUD-C-11: the same refusal the API actually returns *with* citations attached.
+  // AUD-C-11: the refusal the API used to return *with* citations attached. Fixed in the
+  // backend by D-164, so this shape is no longer reachable from a real turn - kept as the
+  // record of how it rendered, not as evidence about current behaviour. See the comment on
+  // its test in `response-shapes.spec.ts` for why that distinction is load-bearing.
   "no-source refusal with citations (AUD-C-11)": {
     ...base,
     answer: "I don't have an approved source that answers that, so I'd rather not guess.",

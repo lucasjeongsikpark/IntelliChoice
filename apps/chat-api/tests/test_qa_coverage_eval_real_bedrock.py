@@ -1,10 +1,19 @@
 """The same Q&A coverage eval as `test_qa_coverage_eval.py`, run against **real Bedrock**.
 
 Opt-in and never part of `make test` or CI: it costs money and needs live AWS
-credentials. Run it deliberately, e.g.
+credentials. Run it deliberately:
 
-    AWS_PROFILE=intellichoice-staging CHAT_EVAL_REAL_BEDROCK=1 \
+    eval "$(aws configure export-credentials --profile <profile> --format env)"
+    AWS_REGION=us-east-1 CHAT_EVAL_REAL_BEDROCK=1 \
       .venv/bin/python -m pytest apps/chat-api/tests/test_qa_coverage_eval_real_bedrock.py -s
+
+**`AWS_PROFILE=...` does not work here** (D-164), which cost this file's first real user some
+time: both of this project's profiles use a `login_session`, and resolving one requires
+`botocore[crt]`, which the project venv does not install - so every call fails
+`MissingDependencyException` even with a valid `aws` CLI session. The `export-credentials`
+form above hands boto3 plain session credentials it can always resolve. Add
+`CHAT_EVAL_CATEGORIES=<category>[,<category>]` to narrow the run to named categories when
+re-measuring one finding (see `_CATEGORIES` below).
 
 Why it exists (S37/AUD-C). The mock-backed run cannot measure retrieval quality, because
 the thing it would be measuring is `MockBedrockProvider`: its reranker scores literal
@@ -46,6 +55,22 @@ PER_CASE_BUDGET_CENTS = 15.0
 RUN_BUDGET_CENTS = 400.0
 
 _ENABLED = os.getenv("CHAT_EVAL_REAL_BEDROCK") == "1"
+
+# AUD-C-06/D-164: a change to one routing decision needs the three `role_gated_question`
+# cases re-measured, not all 61 - so a run can be narrowed to named categories:
+#
+#     CHAT_EVAL_CATEGORIES=role_gated_question CHAT_EVAL_REAL_BEDROCK=1 \
+#       AWS_PROFILE=... .venv/bin/python -m pytest <this file> -s
+#
+# A narrowed run is a **partial measurement** and says so loudly, because the exact
+# failure this file's own docstring warns about is a partial run scored as if it were
+# complete. The category-presence check and both invariant assertions at the bottom cover
+# categories a filtered run may not have executed, so they are skipped rather than
+# evaluated against absent data. Unset (the default) is the full run with every assertion
+# live - narrowing is for iterating on a known finding, never for reporting coverage.
+_CATEGORIES = tuple(
+    c.strip() for c in os.getenv("CHAT_EVAL_CATEGORIES", "").split(",") if c.strip()
+)
 
 pytestmark = [
     pytest.mark.skipif(not _ENABLED, reason="set CHAT_EVAL_REAL_BEDROCK=1 (costs money)"),
@@ -97,7 +122,15 @@ def test_qa_coverage_eval_against_real_bedrock(capsys: pytest.CaptureFixture[str
                 "no public document is approved and effective right now - the eval "
                 "would pass over an empty corpus and mean nothing (AUD-C-17)"
             )
-            for case in load_cases():
+            cases = [
+                case
+                for case in load_cases()
+                if not _CATEGORIES or case["category"] in _CATEGORIES
+            ]
+            # Same vacuity rule as the public-corpus guard above (AUD-C-17): a filter that
+            # matches nothing would otherwise produce a green run over zero cases.
+            assert cases, f"no case matches CHAT_EVAL_CATEGORIES={_CATEGORIES}"
+            for case in cases:
                 for key in ("seed", "extra_seed"):
                     if key in case:
                         await seed_chunk(session, gateway, **case[key])
@@ -119,6 +152,15 @@ def test_qa_coverage_eval_against_real_bedrock(capsys: pytest.CaptureFixture[str
     with capsys.disabled():
         print(f"\n--- qa coverage eval (REAL Bedrock, {spent:.1f} cents) ---")
         print(format_report(scores))
+        if _CATEGORIES:
+            print(
+                f"\n*** PARTIAL RUN - filtered to {', '.join(_CATEGORIES)}. This is not a "
+                "coverage measurement, and the containment/role-gated invariants below "
+                "were NOT asserted. Re-run without CHAT_EVAL_CATEGORIES for those. ***"
+            )
+
+    if _CATEGORIES:
+        return
 
     assert_categories_present(
         scores, ["grounded", "paraphrase", "role_gated", "out_of_scope", "no_source",

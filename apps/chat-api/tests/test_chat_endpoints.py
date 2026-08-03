@@ -99,6 +99,36 @@ def test_post_message_in_scope_with_no_source_offers_escalation() -> None:
     assert body["intent"] == "document_qa"
     assert body["escalation_recommended"] is True
     assert body["citations"] == []
+    # D-164/AUD-C-11: the refusal must not ship a citation chip under a sentence saying no
+    # source exists. Asserted at the HTTP boundary too, because that is where chat-web
+    # reads it.
+    assert body["access_hint"] is None
+
+
+def test_post_message_with_escalate_pauses_for_email_approval() -> None:
+    """D-164: the `escalate` flag's pass-through, end to end over HTTP. The button on a
+    no-source refusal posts that refusal's own question back with `escalate: true`, and the
+    turn must come back paused on the email approval rather than answered.
+
+    `intent` is `admin_contact` and `scope` is null: no classification ran (the escalate
+    path skips `scope_guard`), and claiming one would be a statement nothing made.
+    """
+    with TestClient(app) as client:
+        session_id = client.post("/chat/sessions").json()["chat_session_id"]
+        question = "Do you offer transport from the middle school to the Dallas branch?"
+        response = client.post(
+            f"/chat/sessions/{session_id}/messages",
+            json={"query": question, "escalate": True},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["intent"] == "admin_contact"
+    assert body["scope"] is None
+    assert body["pending_interrupt"]["interrupt_type"] == "email_approval"
+    # The draft a human is about to approve carries the user's question and no identity.
+    assert question in body["pending_interrupt"]["email_body"]
+    assert body["pending_interrupt"]["email_subject"].startswith("IntelliChoice Q&A escalation")
 
 
 def test_post_message_includes_deterministic_followups() -> None:

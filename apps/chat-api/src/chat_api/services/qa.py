@@ -61,6 +61,23 @@ def _normalized_for_containment(text: str) -> str:
 
 
 def _no_answer(reason: str, citations: list[Citation]) -> GroundedAnswer:
+    """`citations` is a real parameter, not a formality, and the two call sites below pass
+    different values on purpose (AUD-C-11, D-164). Do not "unify" them:
+
+    - `CONFLICT_MESSAGE` passes `verified`. "The documents I found disagree with each
+      other" is a claim *about specific documents*, and naming them is the whole point -
+      a reader can go look at the disagreement.
+    - `NO_SOURCE_MESSAGE` passes `[]`. "I don't have an approved source for that yet" is
+      a claim that no source exists, so attaching one contradicts the sentence it sits
+      under. That is exactly what shipped: observed live, the low-confidence branch
+      returned this message with `citations: ["public-organization-overview"]` and
+      chat-web rendered a citation chip beneath a refusal denying there was a source.
+      The branch appears to have inherited the argument from the conflict branch above.
+
+    Passing `[]` here is also what makes the refusal *detectable* one layer up: with no
+    citations, "no source supported an answer" is a state a router can read, which is
+    what `graph.nodes.synthesize_answer` uses to reach `explain_access` (AUD-C-06).
+    """
     return GroundedAnswer(
         answer=reason,
         citations=citations,
@@ -68,6 +85,28 @@ def _no_answer(reason: str, citations: list[Citation]) -> GroundedAnswer:
         missing_information="No verifiable, non-conflicting source supports an answer.",
         escalation_recommended=True,
     )
+
+
+def is_no_source_refusal(answer: GroundedAnswer) -> bool:
+    """AUD-C-06 (D-164): did synthesis end in "no approved source supports an answer"?
+
+    Lives here, next to the constant it compares against, rather than in the graph layer
+    that needs the answer. `NO_SOURCE_MESSAGE` is user-facing copy and this module owns
+    it; a router doing its own `state.answer == "I don't have an approved source..."`
+    would couple routing to that copy and break silently the day the wording is edited.
+    The graph asks this question once, stores the answer as `QAState.no_source_refusal`,
+    and routes on the flag.
+
+    The three other terminal outcomes of `answer_question` must all be False here, and
+    each for its own reason: a **grounded** answer needs no access probe; a **conflict**
+    refusal found sources and is a statement about them, so "maybe it's behind a login"
+    is the wrong follow-up; and a **service-unavailable** result never read the corpus at
+    all (AUD-C-19), so it must not produce a claim about what the corpus contains.
+    Comparing the message is what separates the last two from this one - the conflict
+    branch may legitimately carry zero verified citations, so "no citations" alone does
+    not identify this case.
+    """
+    return answer.answer == NO_SOURCE_MESSAGE
 
 
 def _service_unavailable() -> GroundedAnswer:
@@ -199,7 +238,9 @@ async def answer_question(
     if raw.sources_conflict:
         return _no_answer(CONFLICT_MESSAGE, verified), result.cost_cents
     if not verified or raw.confidence < confidence_threshold:
-        return _no_answer(NO_SOURCE_MESSAGE, verified), result.cost_cents
+        # AUD-C-11: `[]`, not `verified` - see `_no_answer`'s docstring for why this
+        # asymmetry with the conflict branch above is deliberate.
+        return _no_answer(NO_SOURCE_MESSAGE, []), result.cost_cents
 
     return (
         GroundedAnswer(

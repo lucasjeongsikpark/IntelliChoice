@@ -104,9 +104,14 @@ export function useChatSession(token: string | null) {
   // forever. Marking the turn itself is what resolves it - the banner is a page-level
   // signal and cannot clear a per-turn bubble.
   const postTurn = useCallback(
-    async (sid: string, turnId: string, query: string): Promise<TurnSnapshot> => {
+    async (
+      sid: string,
+      turnId: string,
+      query: string,
+      escalate = false,
+    ): Promise<TurnSnapshot> => {
       try {
-        const response: TurnSnapshot = await api.postMessage(token, sid, query);
+        const response: TurnSnapshot = await api.postMessage(token, sid, query, escalate);
         setTranscript((prev) =>
           prev.map((t) => (t.id === turnId ? { ...t, response, error: null } : t)),
         );
@@ -133,6 +138,23 @@ export function useChatSession(token: string | null) {
         const turnId = crypto.randomUUID();
         setTranscript((prev) => [...prev, { id: turnId, query, response: null, error: null }]);
         return await postTurn(sid, turnId, query);
+      });
+    },
+    [run, ensureSession, postTurn],
+  );
+
+  // D-164: the refusal already offers to "pass this on to a branch manager"; this is what
+  // makes the offer real. A new transcript turn is appended rather than mutating the
+  // refusal, because the escalation *is* a separate action the user took and the paused
+  // approval prompt attaches to the latest turn (`App.tsx` reads `lastResponse`).
+  const escalateTurn = useCallback(
+    async (query: string) => {
+      return run(async () => {
+        const sid = await ensureSession();
+        if (!sid) return null;
+        const turnId = crypto.randomUUID();
+        setTranscript((prev) => [...prev, { id: turnId, query, response: null, error: null }]);
+        return await postTurn(sid, turnId, query, true);
       });
     },
     [run, ensureSession, postTurn],
@@ -193,6 +215,7 @@ export function useChatSession(token: string | null) {
     error,
     busy,
     sendMessage,
+    escalateTurn,
     retryTurn,
     respond,
     endSession,

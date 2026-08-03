@@ -26,6 +26,9 @@ class AskInput(BaseModel):
 
     session_id: str
     query: str
+    # D-164. Always supplied per turn (default False), so it can never go stale on a
+    # thread the way a field written only by a node could - see `QAState.escalate`.
+    escalate: bool = False
 
 
 QAGraph = CompiledStateGraph[QAState, nodes.TurnContext, AskInput, QAState]
@@ -61,6 +64,39 @@ def _route_after_answer_document_qa(state: QAState) -> str:
     if state.service_degraded:
         return "service_unavailable"
     return "explain_access" if not state.retrieved_chunk_ids else "synthesize_answer"
+
+
+def _route_after_resolve_role(state: QAState) -> str:
+    """D-164: an escalation is a forward, not a question, so it skips `scope_guard`.
+
+    **What this bypasses, and why that is safe.** `scope_guard` exists to refuse
+    out-of-scope *questions* (SPEC §5.19.4). Nothing is being answered here - the turn
+    builds a fixed-template email for a human to approve, and the text it carries is text
+    the caller could already have sent through the normal path and then escalated by
+    typing "contact an administrator". So skipping classification removes a Bedrock call
+    and a failure mode without widening what a caller can do.
+
+    **What it does not bypass, deliberately:** `prepare_admin_escalation`'s SPEC §5.24.2
+    rate limit (keyed on caller id, falling back to client IP - the only control on an
+    anonymous caller, and one-click access makes it load-bearing), the `interrupt()`
+    approval before any send (CLAUDE.md #4), and the `mcp_tool_calls` audit row. The draft
+    stays the deterministic template, so no model ever writes what an administrator reads.
+    """
+    return "prepare_admin_escalation" if state.escalate else "scope_guard"
+
+
+def _route_after_synthesize_answer(state: QAState) -> str:
+    """AUD-C-06 (D-164): a synthesis that ended in the no-source refusal still gets the
+    SPEC §18-C3 access probe, because "nothing in the corpus answers you" and "nothing you
+    can *see* answers you" are different statements and only the probe can tell them
+    apart. Before this edge existed the probe ran only on zero-row retrieval, which a real
+    retriever essentially never produces - see `nodes.explain_access`.
+
+    Adds no Bedrock call and no LLM decision: the probe is one metadata-only COUNT
+    (`RagRepository.count_matching_by_audience`). The cost of this edge is one extra SQL
+    query on refusals only.
+    """
+    return "explain_access" if state.no_source_refusal else END
 
 
 def _route_after_prepare_admin_escalation(state: QAState) -> str:
@@ -135,7 +171,14 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> QAGraph:
     )
 
     graph.add_edge(START, "resolve_role")
-    graph.add_edge("resolve_role", "scope_guard")
+    graph.add_conditional_edges(
+        "resolve_role",
+        _route_after_resolve_role,
+        {
+            "scope_guard": "scope_guard",
+            "prepare_admin_escalation": "prepare_admin_escalation",
+        },
+    )
     graph.add_conditional_edges(
         "scope_guard",
         _route_after_scope_guard,
@@ -159,6 +202,11 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> QAGraph:
         },
     )
     graph.add_conditional_edges(
+        "synthesize_answer",
+        _route_after_synthesize_answer,
+        {"explain_access": "explain_access", END: END},
+    )
+    graph.add_conditional_edges(
         "prepare_admin_escalation",
         _route_after_prepare_admin_escalation,
         {
@@ -179,7 +227,7 @@ def build_graph(checkpointer: BaseCheckpointSaver) -> QAGraph:
     graph.add_edge("refuse", END)
     graph.add_edge("service_unavailable", END)
     graph.add_edge("unavailable_intent", END)
-    graph.add_edge("synthesize_answer", END)
+    # `synthesize_answer` is no longer terminal - see `_route_after_synthesize_answer`.
     graph.add_edge("explain_access", END)
     graph.add_edge("admin_escalation_blocked", END)
     graph.add_edge("admin_escalation", END)

@@ -9972,3 +9972,161 @@ having re-confirmed it.
 number's *provenance*, not its *attribution*: "fell from 6 to 4" still passes when the real
 movement was 4 → 6. Widening provenance does not widen attribution, but more model prose now
 reaches parents than before, so that gap is worth more than it was.
+
+## D-164 — The chat refusal a user actually sees: no contradicting citation, an access probe that can fire, and an escalation that is a button (accepted, 2026-08-03)
+
+Four changes to one screen — the moment chat tells a user it cannot answer — plus one
+disposition. Taken as a cluster because they compose: AUD-C-11's fix is what makes the
+refusal *detectable* one layer up, which is the precondition AUD-C-06 needed.
+
+**1. AUD-C-11 — the no-source refusal no longer carries citations.** `qa.answer_question`'s
+low-confidence branch passed `verified` into `_no_answer`, so chat-web rendered a citation
+chip under "I don't have an approved source for that yet" — observed live with
+`citations: ["public-organization-overview"]`. It now passes `[]`. The **conflict** branch
+still passes `verified`, deliberately and now documented as an asymmetry not to "unify":
+"the documents I found disagree with each other" is a claim *about specific documents* and
+naming them is the point. A test asserts each arm, and the conflict one is the negative
+control.
+
+**2. AUD-C-06 — the §18-C3 access probe's precondition is now the outcome, not a lexical
+property of retrieval.** It ran only when `retrieved_chunk_ids == []`, which real hybrid
+search essentially never produces; measured against a real model the feature fired **0 times
+in 8**. It now also runs when synthesis *refused* on chunks it did retrieve, via
+`QAState.no_source_refusal` (set by `synthesize_answer`, read by its own router — the
+`service_degraded` pattern). `qa.is_no_source_refusal` owns the message comparison so the
+router never matches on user-facing copy, and the conflict and service-unavailable outcomes
+are excluded for their own stated reasons. **One real bug this introduced and fixed in the
+same change:** both `synthesize_answer` and `explain_access` increment
+`QA_ANSWERS{result="no_answer"}`, and on the new route both run — the turn is now counted by
+whichever node ends it.
+
+**3. The escalation offer is an action.** `escalation_recommended` rendered *"try asking to
+contact an administrator for more help"*, which put the work on the user and depended on the
+scope guard classifying whatever they typed next. A new `escalate` flag on
+`AskMessageRequest`/`AskInput`/`QAState` routes `resolve_role → prepare_admin_escalation`,
+skipping `scope_guard` — the user is forwarding a question, not asking one, and the text is
+text they could already have sent and then escalated by typing "contact an administrator", so
+this removes a Bedrock call without widening what a caller can do. **What it deliberately
+does not skip:** §5.24.2's rate limit, the `interrupt()` approval before any send
+(CLAUDE.md #4), the `mcp_tool_calls` audit row, and the deterministic draft template — no
+model writes what an administrator reads. `resolve_role` sets `intent="admin_contact"` and
+`scope=None` on this path, because `scope_guard` is the only node that writes those and
+without it the response would carry the *previous* turn's classification (AUD-C-04's shape).
+
+**4. Precedence: an access hint suppresses the escalation offer.** Emailing a human about
+content that already exists wastes everyone's time. This needed no new code —
+`explain_access` already sets `escalation_recommended: False` when it returns a hint — so the
+decision is recorded and asserted at both layers rather than implemented.
+
+**Disposition (user, this session): escalation email goes to the configured admin address,
+not the assigned branch manager.** `ProfileAdapter.get_branch_manager_email` exists and stays
+unused on this path. The engineering consequences that make this the cheaper correct choice:
+one address needs no per-branch resolution, and `resolve_role_context` cannot resolve a
+branch for an anonymous caller *or* a parent (children may attend different branches), so
+per-manager routing would work only for students today and would otherwise depend on the
+parent→child→branch link behind the frozen S43 seam. Also decided: **anonymous callers keep
+the ability to escalate** (they can already do it by typing the request; a prospective family
+is exactly who needs the handoff), with the caveat that `InMemoryRateLimiter` is per-process,
+so the effective ceiling is N× the configured one across N tasks.
+
+**⚠️ AUD-C-06 is only partly fixed, and the measurement says so.** The routing widening works
+— observed live, a turn retrieved 3 chunks, refused, and reached the probe, which it could not
+do before — but the re-measured `role_gated_question` score is still **0/3**, because of a
+*third* cause found this session: `count_matching_by_audience` matches with
+`websearch_to_tsquery`, which **ANDs every content word of the question**. One absent word
+voids the probe: the parent chunk says "student" not "child"; the branch-manager chunk has
+neither "escalation" nor "path"; the tutor chunk lacks "procedure" (5 of 6 matched). So
+SPEC §18-C3 has never fired for a realistically-worded question on *either* path. Filed
+rather than fixed — see the finding for the sweep evidence and for why a keyword-coverage
+rule beat a semantic probe.
+
+**Two method corrections worth keeping, because both nearly produced a wrong decision:**
+Postgres `now()` is *transaction*-scoped while production filters on a per-request Python
+`ChunkFilters.as_of`, so ad-hoc sweep SQL using `now()` silently excluded every fixture chunk
+seeded after the transaction began — two of three gated chunks were invisible, which made a
+semantic probe look far worse than it is. And scoring "some gated audience matched" as a hit
+overstates every rule: `build_access_hint` picks by *priority*, so naming the wrong tier is a
+failure, and the eval scores `expected_required_role`.
+
+**Harness:** `CHAT_EVAL_CATEGORIES` narrows the real-Bedrock eval to named categories so one
+finding can be re-measured for cents instead of a full 61-case run. A narrowed run prints a
+loud PARTIAL banner and skips the invariant assertions covering categories it did not execute
+— a partial run scored as complete is the failure that file already warns about.
+
+**Verification:** `make lint` clean, `pyright` 0 errors, **717 passed / 2 skipped** (707 + 10
+new, 5 of them watched failing pre-fix); chat e2e **37/37** on freshly-booted servers,
+including a new `escalate-from-refusal.spec.ts` that asserts on the *outgoing* request
+(D-161's technique) — the button posts the original question with `escalate: true` and reaches
+the approval modal; e2e typecheck clean; chat-web builds. Measurement spend: **~11 cents**.
+Not deployed.
+
+**⚠️ And one honesty fix in the test suite itself.** `response-shapes.spec.ts`'s AUD-C-11 test
+renders a *hardcoded stub*, so it passes whether the bug exists or not — it did **not** flip
+from documented-defect to regression the way that file's docstring claims for AUD-C-04 and
+AUD-C-10, and it cannot. Both it and the fixture now say so, and point at the pytest case
+that is the real guard. Leaving it unannotated would have been D-163's mistake exactly: a
+fixture that can only pass, read as evidence.
+
+## D-165 — SPEC §18-C3's access probe gets a semantic arm, and the fixture is what decided it (accepted, 2026-08-03)
+
+Closes AUD-C-20, and with D-164's routing change closes AUD-C-06. **The substance of this
+decision is that the previous one was wrong for a measurable reason**, so the method matters more
+than the diff.
+
+**What I recommended in D-164, and why it was wrong.** Keyword coverage ≥2/3 measured 8/8 against
+the eight hand-written role-gated cases. But three of those questions were written *beside* the
+chunk they target and shared 5/6, 5/7 and 4/6 content words with it. A question written by
+whoever wrote the answer flatters any keyword rule. The user's instruction — construct the test
+set from the documentation — is what exposed it.
+
+**The instrument.** `scripts/generate_probe_eval_fixture.py` generates one question per corpus
+chunk under an explicit instruction not to reuse the chunk's distinctive vocabulary, and writes
+the **measured** `lexical_overlap` into every case. That number is the control: a fixture whose
+questions echo their own answers is measuring its own paraphrase, and with the figure recorded
+per case anyone can check instead of trusting. Result: 43 gated + 12 public cases, mean overlap
+**0.486** — versus 0.67–0.83 for the hand-written three. `scripts/measure_access_probe_rules.py`
+then scores candidate rules against three classes (a gated doc answers it → hint; a public doc
+answers it → silent; nothing answers it → silent), the third lifted from `qa_coverage_eval.yaml`
+because no corpus-derived generator can invent it.
+
+**The measurement, on 43 gated / 12 public / 8 unanswered:**
+
+| rule | right role | wrong role | silent | FP public | FP unanswered |
+|---|---|---|---|---|---|
+| keyword ≥4/5 | 8 | 0 | 35 | 0 | 0 |
+| **keyword ≥2/3** (D-164's pick) | **10** | 3 | 30 | 1 | 1 |
+| keyword ≥1/2 | 25 | 8 | 10 | 1 | 6 |
+| **semantic ≤0.40** | **25** | **1** | 17 | **0** | **0** |
+| semantic ≤0.45 | 26 | 4 | 13 | 0 | 0 |
+
+2.5× the recall at zero false-positive cost. 0.40 over 0.45 because the extra correct hint costs
+three wrong-tier ones, and naming the wrong tier is worse than staying silent.
+
+**The change.** `count_matching_by_audience` gains an optional `query_embedding` and a
+`max_distance` (config: `access_probe_max_distance`, default 0.40); the two arms are **unioned**.
+`explain_access` embeds the question itself rather than threading the vector down from
+`answer_document_qa` — `QAState` is checkpointed, and 1024 floats per turn in every checkpoint is
+a real cost to avoid a call costing a fraction of a cent. An embedding failure there **degrades
+to keyword-only and never raises**: this node runs *because* the turn already failed, so a
+gateway error would turn a working refusal into a 500. The failed call's cost is still settled.
+
+**Why the keyword arm is kept rather than replaced**, and this is the part worth defending: an
+exact-wording match is free and needs no model, and `MockBedrockProvider`'s embeddings are
+hash-seeded random unit vectors with no semantic content — a semantic-only probe would be
+**structurally unobservable** in the entire mock-backed suite. That is D-163's lesson wearing
+different clothes, and one arm the mock can exercise is what keeps these tests able to fail.
+
+**Verification:** `make lint` clean, `pyright` 0 errors, **720 passed / 2 skipped** (3 new: two
+repository tests that isolate the semantic arm with orthogonal axis vectors, so no provider is
+involved, plus one that proves a probe-embedding failure still yields a correct keyword-only
+hint). **Live re-measurement against the real deployed model: `role_gated_question` 0/3 → 2/3.**
+The remaining case never reaches the probe — the model answers it from `public-contact-guide` at
+confidence 0.85, i.e. a public document genuinely answers it. Not deployed. Spend this step:
+~11 cents (6.3 generating the fixture, 4.7 the live re-measurement).
+
+**⚠️ Carry-over found, not fixed:** the real-Bedrock eval asserts `scores["role_gated"].rate >=
+0.95`, and under a real model that category is **0/5** — its five cases are nonsense markers
+(`"zqxveval1 handbook"`) that a real scope guard refuses as out-of-scope before retrieval ever
+runs. So a *full* real-model run currently cannot pass that assertion, independently of this
+change. Either the assertion or those five fixtures need to go; the marker design exists to
+defeat the mock's keyword matcher and has no meaning under a real model.
