@@ -97,6 +97,8 @@ class DashboardData:
     difficulty_progression: list[DifficultyPoint]
     usage: UsageBreakdown
     attempts_count: int
+    # Exam answering time only (summed `AssessmentAttempt.response_time_ms`); study
+    # attempts carry no response-time column, so study time is genuinely unavailable.
     time_spent_minutes: float
     # SPEC §5.14.2 "pre/post change" - the most recent `LearningGain` row in range, for
     # `services/report.py`'s verified facts. `None` when no cycle completed in range.
@@ -228,9 +230,13 @@ async def build_dashboard(
     assessment_rows = await dashboard_repo.list_assessment_attempts_in_range(
         student_id, start=start, end=end
     )
-    total_time_ms = await dashboard_repo.total_assessment_time_ms_in_range(
-        student_id, start=start, end=end
-    )
+    # AUD-L-14: exam time comes from `response_time_ms`, which the answer endpoint
+    # requires on every accepted attempt - not from the item-state autosave tick, which
+    # is fire-and-forget telemetry that a hard refresh, a closed tab, or a non-browser
+    # client silently drops (S36 measured 140 item-state rows summing to 0 ms beside
+    # 41,250 ms of real attempt time). Summing the rows already fetched above also means
+    # this figure and `attempts_count` can no longer disagree about which attempts exist.
+    total_time_ms = sum(attempt.response_time_ms for attempt, _ in assessment_rows)
     latest_gain = gains[-1] if gains else None
 
     return DashboardData(

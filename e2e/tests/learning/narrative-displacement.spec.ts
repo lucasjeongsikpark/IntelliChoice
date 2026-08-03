@@ -172,7 +172,9 @@ test("a narrative arriving mid-exam leaves the exam screen mounted and the dwell
     "the exam screen remounted, so useState(0) re-initialised and the student was returned to the first question",
   ).toBe(questionBefore);
 
-  // And the measurement the parent report is built from. Navigating away flushes the dwell.
+  // And the dwell telemetry (the exam screen's autosave signal - since AUD-L-14 the
+  // report reads `response_time_ms` instead, but a truncated flush here would still mean
+  // the screen unmounted mid-dwell). Navigating away flushes the dwell.
   await nav.nth(1).click();
   await page.waitForTimeout(1000);
 
@@ -180,7 +182,7 @@ test("a narrative arriving mid-exam leaves the exam screen mounted and the dwell
   audit.note(`${reported.length} time reports, max=${max}ms over a ${DWELL_MS}ms dwell`);
   expect(
     max,
-    `the longest reported dwell was ${max}ms after ${DWELL_MS}ms on one question - an unmount mid-dwell flushes a truncated measurement into time_spent_minutes`,
+    `the longest reported dwell was ${max}ms after ${DWELL_MS}ms on one question - an unmount mid-dwell flushed a truncated measurement`,
   ).toBeGreaterThan(DWELL_MS * 0.5);
 });
 
