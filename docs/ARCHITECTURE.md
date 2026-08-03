@@ -128,6 +128,17 @@ to rot, because nothing fails when it does.)*
   a source demonstrably existed. It now returns the same outage message, with
   `escalation_recommended = False`, because escalation is itself a Bedrock-and-MCP path and
   recommending a hand-off during an outage walks the user into a second failure.
+- **The public edge forwards an explicit prefix allowlist to the ALB; everything else is the
+  SPA.** CloudFront's `api_path_patterns` are `/learning/*`, `/students/*`, `/dev/token` for
+  learning and `/chat/*`, `/me`, `/dev/token` for chat (`terraform/environments/staging/main.tf`).
+  A path outside the list does not 404 — it falls through to the S3 origin and returns
+  `index.html` with a **200**, which is the trap: an unrouted API path looks alive. **`/healthz` is
+  currently outside the list (AUD-F-37, found 2026-08-03),** so `build_identity`'s `build_sha` —
+  the endpoint AUD-F-16 put on an unauthenticated, dependency-free path precisely so the deployed
+  version could always be read — cannot be read without AWS credentials. A deploy's API version is
+  therefore inferred from the workflow run rather than confirmed from the running process, and the
+  built-in smoke test (`curl /` on both domains) exercises only the SPA origin. Adding a path to
+  the edge is a Terraform change plus an apply, not an application change.
 - **A number shown to a family states its window, and is checked against what the system
   already measured** (D-156). Two failures with one root: nothing reconciled a figure against
   the data sitting beside it. A memory fact asserting a `strength` for a skill the same

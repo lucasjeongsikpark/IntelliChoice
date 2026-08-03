@@ -9441,3 +9441,45 @@ label is the fix, because "current standing" is the right thing for a mastery ch
 - `make lint` clean, `pyright` 0 errors, **684 passed / 2 skipped** (671 + 13). Learning e2e
   **18/18**, chat e2e **35/35**, e2e typecheck clean, both frontends build clean.
 - **No deploy, no `terraform apply`, no staging access of any kind.**
+
+## D-157 — three sessions deployed in one run, and "verify the artifact, not the pipeline" (accepted, 2026-08-03)
+
+Recorded because both halves are the kind of thing a future session re-decides from scratch.
+
+### 1. Batching three un-deployed sessions into one deploy
+
+D-154, D-155 and D-156 had accumulated on `main` un-deployed across three sessions. The user
+directed a deploy; the choice was one batched run or three sequential ones.
+
+**One run, and the deciding fact was checked before dispatch rather than assumed: there were no new
+Alembic revisions across any of the three** (`git diff 408374e..HEAD` over `packages/db`). That
+makes `alembic upgrade head` a no-op and the whole thing a code-and-frontend deploy, which removes
+the usual reason to stage database-touching changes separately. Sequential deploys would have cost
+three canary bakes to isolate a failure the rollback step already isolates automatically.
+
+**When this reasoning does not hold:** any batch containing a migration. Then the argument inverts —
+a failed bake rolls back the *services* but not the schema, so the migration and the code that
+depends on it want their own run. Check for revisions first; it is one command and it sets the risk
+level.
+
+### 2. A green pipeline is not evidence the change shipped
+
+The deploy workflow's smoke test curls `/` on the two CloudFront domains. That exercises the **S3
+origin**, not the API, and would pass against a completely stale deployment — so "the deploy was
+green" and "the fix is live" are different claims.
+
+D-156's frontend was confirmed **directly**: the deployed stylesheet was fetched and grepped for
+`.chart-caption`, and the deployed JS bundle for `mastery_window_label`/`pre_post_window_label`.
+That worked only because Vite content-hashes its bundles; it was luck, not design.
+
+**The API half could not be confirmed at all, and that is now AUD-F-37.** `/healthz` carries
+`build_sha` for exactly this question (AUD-F-16) but is not in either edge `api_path_patterns` list,
+so it returns the SPA's `index.html` with a 200. The API version in this deploy is inferred from the
+run (image `gha-0fd2cb8046ff` built from that SHA, `wait services-stable` returned), not read from
+the running process — which is precisely the gap AUD-F-16 was filed to close.
+
+**The standing rule:** after a deploy, name the artifact you checked and how. "The run was green" is
+a statement about CI. Two related habits already in this file for the same reason: pin a workflow
+run by head SHA rather than "the latest run" (the workflow's own comment records a watcher matching
+the previous run), and treat a 200 from an unrouted path as meaningless, since the edge answers
+unmatched paths with the SPA.

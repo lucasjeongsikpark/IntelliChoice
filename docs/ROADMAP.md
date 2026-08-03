@@ -655,8 +655,8 @@ which stop the line.
 
 > **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
 > cheap P2s" (below); the rest were never dispositioned. **19 findings remain *Open — Phase 0B***
-> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (20 open in total, counting AUD-F-16) and **none are
-> integration-blocked** — they are exactly what D-152's "finish and test this codebase against the
+> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**21 open in total**, counting AUD-F-16 and AUD-F-37)
+> and **none are integration-blocked** — they are exactly what D-152's "finish and test this codebase against the
 > dev fakes first" points at. With S43–S47 frozen, post-gate sessions run out of this backlog under
 > PROGRESS.md's "Next session" pointer rather than under a numbered block.
 >
@@ -677,6 +677,11 @@ which stop the line.
 > PROGRESS.md names the remaining candidate clusters. **One is not fix-ready: AUD-L-14 needs its
 > evidence re-measured in a browser first** (D-107's run contradicts its headline number), and that
 > is Playwright, which cannot run alongside `make test` on the shared dev Postgres.
+>
+> **One item is not a Phase 0B code fix at all and should be taken first anyway: AUD-F-37.** It is a
+> Terraform one-liner per app plus an apply, and until it lands every deploy's API version is
+> inferred rather than read — including this session's. Cheap work that makes all later work
+> verifiable is worth doing before the work it verifies.
 All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog: S22.5
 `access_hint` blank turn, S11 parent auto-select, chat-web CI, the unseeded-RNG flake,
 `question_variants` accumulation, the ~249k-row `checkpoints` sweep, ~~EventBridge schedules for

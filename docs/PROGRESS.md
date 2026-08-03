@@ -294,7 +294,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      read without AWS credentials. One line in each of the two `api_path_patterns` lists in
      `terraform/environments/staging/main.tf`, plus an apply. Cheap, and it makes every future
      deploy verifiable instead of inferred.
-  1. **Keep going down the Phase 0B backlog — still the work D-152 points at.** **19** findings remain
+  1. **First, AUD-F-37 — it is cheap and it makes everything after it verifiable.** One line added to
+     each of the two `api_path_patterns` lists in `terraform/environments/staging/main.tf`, plus an
+     apply. Worth pairing with a smoke-test step asserting the deployed `build_sha == GITHUB_SHA`,
+     which is the check `/healthz` exists to enable and which nothing currently performs. Until it
+     lands, every deploy's API version is inferred from the workflow run rather than read from the
+     running process — including the 2026-08-03 one.
+  2. **Then keep going down the Phase 0B backlog — still the work D-152 points at.** **19** findings remain
      tagged *Open — Phase 0B* (21 − D-156's L-13/L-15; AUD-C-19 was never in that tag — it was filed
      and closed inside 24 hours), and **20 open in total** counting AUD-F-16. Taking a cluster rather than a finding is what has made
      the last two sessions coherent. In rough order of what a user would notice:
@@ -312,12 +318,12 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      - **the masked-by-uniform-data pair** — AUD-C-09 (`academic_year` predicate never applied) and
        AUD-L-12 (`recommended_difficulty` routes nothing), both correct code that was never wired and
        is invisible until the data stops being uniform.
-  2. **One thing D-156 opened and did not close: mastery is still not date-filtered.**
+  3. **One thing D-156 opened and did not close: mastery is still not date-filtered.**
      `build_dashboard` reads `mastery_repo.list_for_student`, which takes no range, so a report headed
      "2026-07-01 to 2026-07-31" still shows all-time mastery. This is now *labelled* rather than
      silent, and "current standing" is arguably the right thing for a mastery chart to show — so this
      is a product question ("should the range apply to mastery at all?"), not a bug to fix on sight.
-  3. **Send the two drafted messages** (written and send-ready; the remaining step is you sending them
+  4. **Send the two drafted messages** (written and send-ready; the remaining step is you sending them
      to the right people): the production security findings
      ([S42_SECURITY_REPORT.md](S42_SECURITY_REPORT.md), to the system operator) and the Enrollment FAQ
      approval ([ENROLLMENT_FAQ_APPROVAL.md](ENROLLMENT_FAQ_APPROVAL.md), to the content owner).
@@ -327,14 +333,14 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      with its one unique recommendation (audit `accounts.role` for pre-fix rows) ported into
      `S42_SECURITY_REPORT.md` §2 first. There is now exactly one security document, and it is the
      right one.
-  4. **Optional criterion-6 confirmation reads remain free** on 08-03/08-05/08-09 (the daily-purge
+  5. **Optional criterion-6 confirmation reads remain free** on 08-03/08-05/08-09 (the daily-purge
      ≥7-day clock, not a gate blocker after D-148). `make scheduler-evidence` will keep printing
      ❌ NOT YET until retention-purge reaches 7 unattended days (~08-05); the weekly firing itself is
      already confirmed (08-02). D-148 §2's reopening condition still applies if any future firing
      fails.
-  5. **Still parked:** the Billing-console credit look (D-139 §3, "fine for now") and AUD-F-33's
+  6. **Still parked:** the Billing-console credit look (D-139 §3, "fine for now") and AUD-F-33's
      apply.
-  6. **Not on this list on purpose:** everything integration-shaped (S43–S47, auth, reachability, the
+  7. **Not on this list on purpose:** everything integration-shaped (S43–S47, auth, reachability, the
      dev-fake rewrite). Frozen by D-152 until the user says integration is starting.
 
 - **✅ THE §2.6 GATE IS CLOSED (2026-08-01, D-148) — criterion 6 closed early by user decision, on
@@ -3950,6 +3956,25 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
 - **Docs:** D-156; AUD-C-19/AUD-L-13/AUD-L-15 marked fixed in AUDIT_FINDINGS.md; ARCHITECTURE.md
   §8 and §10 updated plus one new cross-cutting invariant.
 - **Decisions:** D-156.
+- **After the first close-out, on the user's instruction (same session, 2026-08-03) — two flagged
+  items done and one new finding:**
+  - **The orphan security draft is deleted (PR #88), with its one unique recommendation ported
+    first.** `docs/SECURITY_REPORT_TO_ORG.md` had been flagged for two sessions. It was an abandoned
+    partial (truncated mid-word) that `S42_SECURITY_REPORT.md` supersedes on all four findings and
+    beats bilingually — but it held one thing the newer doc did not: fixing the register endpoint
+    does **not** clean up rows created before the fix, so the org should also run `SELECT DISTINCT
+    role FROM accounts;` and look at any `Manager` rows nobody remembers creating. Ported into §2 of
+    both language versions before deleting. There is now exactly one security document.
+  - **Deployed to staging (PR-free, run 30774650665, `main` at `0fd2cb8046ff`)** — D-154 + D-155 +
+    D-156 + the doc cleanup in one run. Run pinned by head SHA; zero new Alembic revisions checked
+    before dispatch; every gate ran and the rollback step is `skipped`. Frontend confirmed live by
+    fetching the deployed CSS/JS, because the built-in smoke test only touches the SPA origin.
+  - **⚠️ AUD-F-37 (P2, new, found while verifying that deploy):** `/healthz` is not in either edge
+    `api_path_patterns` list, so the endpoint AUD-F-16 built to answer "what version is actually
+    answering" returns the SPA's `index.html` and cannot be read without AWS credentials. This
+    deploy's **API** version is inferred from the run, not confirmed from the process. Fix is one
+    line per list plus an apply, ideally with a smoke-test assertion that `build_sha == GITHUB_SHA`.
+  - **Decisions:** D-157 (the batch-deploy call, and "verify the artifact, not the pipeline").
 
 ### S44 (unnumbered) — Phase 0B: the chat error-path cluster, AUD-C-07 + AUD-C-08 + AUD-C-10 (2026-08-02) ✅
 
