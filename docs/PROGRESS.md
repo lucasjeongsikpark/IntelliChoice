@@ -5,6 +5,53 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-166 is deployed, and the verification found the *selector* rather than the threshold
+  (2026-08-03, on user instruction).** PR **#97**, CI **9/9 first attempt**, squash-merged to `main`
+  at **`8eaeacc9b5d821774e99b03b0f4269d3dc4023fe`**, deploy run
+  [30849213134](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30849213134),
+  **success**, rollback **skipped**. The pre-deploy check set the risk level before dispatching
+  (D-157): `git diff c245c8a4..HEAD -- packages/db/alembic/versions/` returned **nothing**, so this
+  was known to be a **code-only** deploy and D-160's expand/contract rule did not apply. Every gate
+  ran: migrations (no-op, exit 0) → MySQL re-seed → RAG re-embed → chat-suggestions upsert →
+  pre-deploy ARNs captured → both services deployed and waited stable → deployed-version gate →
+  `/dev/token` **404** on both public edges → canary bake clean → rollback **skipped** → both
+  frontends synced + invalidated → smoke test through CloudFront.
+  **✅ Revisions read, not inferred:** `learning-api:56` and `chat-api:55`, both
+  `image=gha-8eaeacc9b5d8`, one deployment each.
+  **✅ The dependency risk this deploy actually carried is cleared by evidence, not assumption.**
+  `packages/db` gained a dependency on `intellichoice-shared`, and a lockfile that resolves locally
+  is no proof the built image does. The **RAG re-embed** step is the proof: `intellichoice_knowledge
+  .reembed` imports `intellichoice_db.repositories.rag`, which now imports `access_probe_policy`, and
+  it exited 0 inside the image built from this commit. chat-api reaching stable (its `/readyz` reads
+  the same module) is the independent second confirmation. **The Alembic step alone would not have
+  shown this** — Alembic loads models, not repositories.
+  **✅ AUD-C-21's behaviour change is verified with a before/after pair** on the deployed edge,
+  anonymously, on the exact question D-165 filed the finding about: at 0.40 `access_hint: null`; at
+  0.45 a hint. The probe fires where it could not before.
+  **⚠️ And it names the WRONG TIER — filed as AUD-C-22, and it is not a threshold problem.** The
+  chunk that answers "What happens if my child's attendance hasn't been recorded yet?" is the
+  *parent* "If Attendance Is Unknown" chunk (0.499), but the live hint says
+  **"log in with a branch manager account"**. `build_access_hint` iterates a fixed
+  `_ACCESS_HINT_PRIORITY = (branch_manager, tutor, parent, student)` and returns the first matching
+  tier — it never compares distances, because the probe returns `dict[str, int]` **counts** and the
+  distances are discarded a layer earlier. The response **cannot distinguish** "parent still outside
+  0.45" from "parent matched and lost on priority", and the second is **not fixable by widening the
+  ceiling**: at any ceiling ≥0.499 this question still answers branch_manager.
+  **Inside the measured budget, and still worth the flag:** the sweep predicted exactly **1
+  wrong-tier hint in 38** at 0.45 with zero false hints on either negative class, and the
+  unanswerable class held live (`no_answer` **8/8**). But that one landed on the motivating case, and
+  for *that* question the new output is arguably **worse than the silence it replaced** — a parent is
+  told to log in as a branch manager, where before they got the honest no-source message plus an
+  escalation offer. The second probe question (the ~0.60 human wording) still returns no hint, as
+  predicted: 0.45 is one notch, not a fix for all phrasing.
+  **The method note, since this is the fourth turn of the same screw:** hand-written fixtures →
+  corpus-derived → blind-rewrite → and now the **selector** the fixture was scoring *through* the
+  whole time. `measure_access_probe_rules.py` has always called the real `build_access_hint`, which
+  is why "names the right role" was the right scoring rule — but scoring *through* a component is not
+  the same as questioning it.
+  **⚠️ Not read this time: the cost ledger.** The probe adds one Titan embedding per refusal; no
+  reservation path changed, so no ops-task read was taken for spend.
+
 - **✅ D-166 / AUD-C-21: the probe's ceiling is 0.45, decided against phrasing the corpus did not
   write — and the third instrument correction in this cluster (2026-08-03).** `make lint` clean,
   `pyright` 0 errors, **725 passed / 2 skipped** (+5). **Not deployed.** Spend **~75¢**, of which
@@ -680,15 +727,20 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-03, post-D-166):**
-  0. **Owed: D-166 is not deployed.** A code-only deploy — one config default, one new shared
-     constant module, one `packages/db` dependency line, and test/harness changes. **Check with
-     `git diff c245c8a4..HEAD -- packages/db/alembic/versions/` before dispatching** (D-157), and
-     note `packages/db/pyproject.toml` changed, so this is the first deploy in a while where a
-     *dependency* moved rather than only code — worth confirming the built image resolves
-     `intellichoice-shared` for `intellichoice-db` rather than assuming the lockfile did it.
-     Verify live the way this session verified locally: a real anonymous refusal on a question a
-     gated document answers should now produce the hint at 0.45 where it did not at 0.40.
+- **Next session, in order (2026-08-03, post-D-166 deploy):**
+  0. ~~**Owed: D-166 is not deployed.**~~ **(✅ deployed 2026-08-03 — run 30849213134,
+     `learning-api:56`/`chat-api:55` at `gha-8eaeacc9b5d8`, every gate green, rollback skipped. The
+     `packages/db` → `intellichoice-shared` dependency is confirmed resolved in the built image by
+     the RAG re-embed step, not assumed from the lockfile.)**
+     **New and owed instead: AUD-C-22 — the access hint names the highest-*priority* tier, never the
+     closest one.** Found by this deploy's own verification, on AUD-C-21's motivating question: a
+     parent asking about their child's attendance is now told to *"log in with a branch manager
+     account"*. **A decision is pending on it** (see the top entry): revert the ceiling to 0.40,
+     keep 0.45 and fix the selector next, or fix the selector now. **Widening the ceiling cannot
+     fix it** — `_ACCESS_HINT_PRIORITY` never consults distance, and the probe returns counts, so at
+     any ceiling ≥0.499 that question still answers branch_manager. The fix shape (return
+     per-audience distances; pick the closest, tier priority only as tie-break) **inverts the rule
+     `measure_access_probe_rules.py` scores through**, so it must be re-measured before it ships.
   1. **Reword `role-gated-question-tutor`, and check the other two the same way.** It is answered
      from `public-contact-guide` at 0.85 with a real citation, so it can never reach the probe and
      `role_gated_question` can never exceed 2/3. That is the *same* "public-answered vs

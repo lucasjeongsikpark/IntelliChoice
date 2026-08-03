@@ -60,7 +60,8 @@ ones.
 | AUD-C-15 | Audit trail | P3 | Open — Phase 0B | `McpToolRegistry.call` raises on an unknown tool *before* any audit write, so the one call shape a wiring bug or injection would produce is the one that leaves no `mcp_tool_calls` row |
 | **AUD-C-16** | **Launch journey / data integrity** | **P3 → P1** | **Fixed and live-verified 2026-07-28 (D-112)**: provenance columns stamped at ingest (NULL = unknown = mismatch), idempotent `make knowledge-reembed`, a deploy-step re-embed, and the load-bearing part — chat-api `/readyz` (the ALB health check) **fails closed** on corpus/runtime provenance mismatch, so this class can never again run silently. Staging re-embedded: **159/159 real Titan, 0/159 mock-like by S38's own discriminator** (max cos 0.078, was 159/159 at 1.0), 0.0224¢; the next deploy's re-embed was a 0-chunk/0-cent no-op. Paraphrase probes went from no-source refusals to **9/9 grounded answers with citations** | Stored embeddings are provider-specific with no provenance column and no re-embed path. **Settled by S38: staging's corpus is 159/159 `MockBedrockProvider` hash vectors** while both deployed services query with real Titan v2, so staging's semantic channel returns noise (peak cosine +0.074 vs +0.41 with real vectors) and hybrid search there has always been lexical-only. Live paraphrase citation rate **1/7** |
 | **AUD-C-20** | SPEC conformance | P2 | ✅ **fixed in D-165 (2026-08-03), with a named limit** — semantic arm added and deployed; `role_gated_question` 0/3 → **2/3**. The threshold it ships with is too tight for human phrasing → **AUD-C-21** | The §18-C3 access probe matches with `websearch_to_tsquery`, which **ANDs every content word** of the question, so one absent word voids it — the parent chunk says "student" not "child", the branch-manager chunk has neither "escalation" nor "path". This is why the feature still scores **0/3** after AUD-C-06's routing fix: §18-C3 has never fired for a realistically-worded question on *either* entry path |
-| **AUD-C-21** | SPEC conformance / instrument | P2 | ✅ **fixed in D-166 (2026-08-03)** — ceiling **0.40 → 0.45** against a blind-rewrite fixture: **17/38 → 23/38** correct roles with **zero** false hints on either negative class, verified live (`no_answer` 8/8, and 8/8 false hints at a loosened 0.95, so the check can fail) | `access_probe_max_distance = 0.40` is too tight for how people actually phrase questions: the *fixture's own* parent-attendance case sits at **0.418** and a human wording of the same question at **~0.60**, both misses, while the correct chunk is at 0.499. Root cause is the instrument, not the code — a question **generated from** a chunk sits closer to it than a person's phrasing does, so 25/43 at ≤0.40 was true of the fixture and optimistic about users. Needs a human-phrased validation set before the ceiling moves; ≤0.55 already produces false hints on unanswerable questions, so this is a real trade, not a free widening |
+| **AUD-C-22** | SPEC conformance | P2 | **New — Phase 0B (found in D-166's post-deploy verification, 2026-08-03)** | `build_access_hint` picks the highest-**priority** tier (`branch_manager, tutor, parent, student`), never the **closest** one, and the probe hands it counts rather than distances so the information is already gone. Live, on AUD-C-21's own motivating question, a parent asking about their child's attendance is now told to *"log in with a branch manager account"* — the chunk that answers it is the parent one, measured at 0.499. **Widening the ceiling cannot fix this**: at any ceiling ≥0.499 priority still answers branch_manager |
+| **AUD-C-21** | SPEC conformance / instrument | P2 | ✅ **fixed in D-166 (2026-08-03)** — ceiling **0.40 → 0.45** against a blind-rewrite fixture: **17/38 → 23/38** correct roles with **zero** false hints on either negative class, verified live (`no_answer` 8/8, and 8/8 false hints at a loosened 0.95, so the check can fail). **⚠️ The probe now fires and the live case names the wrong tier → AUD-C-22** | `access_probe_max_distance = 0.40` is too tight for how people actually phrase questions: the *fixture's own* parent-attendance case sits at **0.418** and a human wording of the same question at **~0.60**, both misses, while the correct chunk is at 0.499. Root cause is the instrument, not the code — a question **generated from** a chunk sits closer to it than a person's phrasing does, so 25/43 at ≤0.40 was true of the fixture and optimistic about users. Needs a human-phrased validation set before the ceiling moves; ≤0.55 already produces false hints on unanswerable questions, so this is a real trade, not a free widening |
 | **AUD-X-01** | **Authorization** | **P1** | **Fixed in S40** (D-107) | Fixed in `graph/nodes.py: resolve_student`, which now refuses to move a session to a different student — applied before the role split, so it covers the tutor branch that took `requested_student_id` unvalidated. The legitimate parent rebind is untouched: it pauses at `await_child_selection`, which re-checks the live link on resume. Re-verified live on staging with a before/after pair. Original: `POST /sessions/{id}/student` never checks who already owns the session: a different student claimed an in-progress exam session, the owner was **locked out with 403**, and their `in_progress` assessment row was orphaned. Same structure as AUD-C-01 — the one route that *writes* the identity field all 17 others read is the one that does not check it |
 | **AUD-X-02** | **Minors / child safety** | **P1** | **Fixed in S40** (D-107) | Fixed via `intellichoice_shared.auth.account_refusal_reason`, consumed by both apps' `get_current_claims` **and both SSE routes** — the streams verify `?token=` directly and never pass through the dependency, so the gate had to be repeated rather than inherited (AUD-F-13's split-path shape). 403, not 401. The age-band exempt set is deliberately **empty** until S42 measures the real vocabulary, so every student needs verified parental consent today: stricter than §5.1.2's literal "under 13" wording, and the right way round to be wrong. AUD-X-02's warning that this sits in the S44/S45 seam is addressed by landing the *consuming* side first, so neither session can ship without something already reading its output. Original: SPEC §5.1.2's *"should verify `parental_consent_verified=true`"* has no implementation: that claim plus `account_status` and `consent_status` are carried in every token and read by **nothing**. A `suspended`/`revoked`/unverified/`under_13` token behaved identically to a consented one on all 18 learning routes |
 | **AUD-X-03** | **Data integrity** | **P2** | **Fixed in D-159** | `flow.is_topic_selection_replay` decides what a second `/topics` means from session state alone: a replay of the same topic while still in `pre_exam` is served **from the existing exam, item for item**; a different topic, or a phase that has advanced, is **409**. Pre-flighted in the route (no graph turn, no checkpoint rows) and re-checked in the node. The guard is "a pre-exam exists", not "the phase is pre_exam" — the damage was worse after finalize, where the rebuild repointed `pre_assessment_session_id` while a study session was live off the old exam. The **blocked** path builds nothing and stays fully replayable, which is what keeps D-152 §2's routine UNKNOWN attendance recoverable. Original: a replay built a whole second exam (+1 session, +10 items, different variants) and orphaned the first |
@@ -1509,6 +1510,51 @@ after the transaction began — two of three gated chunks were invisible, which 
 semantic probe first appear unusable. And scoring "some gated audience matched" as a hit
 flatters every rule, since `build_access_hint` picks by priority and naming the wrong tier is a
 failure.
+
+### AUD-C-22 — The access hint names the highest-*priority* tier, never the closest one (P2)
+
+- **Severity:** P2 — a user-visible instruction that is wrong, replacing one that was merely
+  unhelpful · **Area:** SPEC conformance (§18-C3) · **Status:** **New — Phase 0B (found in D-166's
+  post-deploy verification, 2026-08-03)**
+
+**Found by the deploy that was supposed to close AUD-C-21, on AUD-C-21's own motivating question.**
+Against the deployed edge, anonymously, before and after:
+
+| | `"What happens if my child's attendance hasn't been recorded yet?"` |
+|---|---|
+| at 0.40 (pre-deploy) | `access_hint: null` — *"I don't have an approved source for that yet. I can pass this on to a branch manager if you'd like."* |
+| at 0.45 (post-deploy) | `access_hint.required_role: "branch_manager"` — *"That's part of branch management materials… Log in with a branch manager account to see it."* |
+
+The probe now fires, which is what AUD-C-21 was about. **But the tier it names is wrong**, and for
+this question the outcome is arguably worse than the silence it replaced: a parent asking about their
+own child's attendance is told to log in as a *branch manager*. D-165 measured the chunk that
+actually answers it as the **parent** "If Attendance Is Unknown" chunk, at 0.499.
+
+**What.** `build_access_hint` iterates `_ACCESS_HINT_PRIORITY = ("branch_manager", "tutor",
+"parent", "student")` and returns the first non-accessible audience with a non-zero count. Selection
+is by **tier rank**, never by how close that audience's nearest chunk actually was. The probe hands
+it counts, not distances (`count_matching_by_audience` returns `dict[str, int]`), so the information
+needed to choose the *relevant* tier is discarded one layer earlier.
+
+**Two causes are consistent with the observed response and it cannot separate them**, which is worth
+stating rather than guessing: either the parent chunk is still outside 0.45 (0.499 > 0.45) and only a
+branch_manager chunk matched, or both matched and parent lost on priority. **The second is not
+fixable by widening the ceiling** — at any ceiling ≥0.499 this question still answers
+"branch_manager", because priority does not consult distance. So AUD-C-21's remedy cannot reach this
+case, and that is the finding.
+
+**Bound, and it is real.** No content leaks — the hint is backend-authored, names a tier and nothing
+else, and the audit/rate-limit path is untouched. D-166's sweep predicted exactly **1 wrong-tier hint
+in 38** at this ceiling with zero false hints on both negative classes, so this is inside the
+measured budget; it simply landed on the one question the finding was filed about. The unanswerable
+class stayed clean live (`no_answer` 8/8).
+
+**Fix shape, unmeasured and therefore a hypothesis** (D-158's rule): return per-audience *distances*
+from the probe and pick the closest non-accessible audience, keeping tier priority only as the
+tie-break. That inverts the current rule, so `scripts/measure_access_probe_rules.py` must re-score it
+before it ships — its `build_access_hint`-based scoring is exactly what would change. Note D-164
+already recorded that scoring "some gated audience matched" instead of the named role flatters every
+rule; this is the same lesson pointing at the selector rather than the threshold.
 
 ### AUD-C-21 — The access probe's distance ceiling was chosen against questions the corpus wrote (P2)
 
