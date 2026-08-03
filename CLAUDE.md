@@ -100,4 +100,3 @@ AWS Bedrock behind a gateway, pytest. Frontends: React + Vite. Local dev: Docker
 - Tests accompany the session's "Done when" criteria; run `make lint typecheck test`
   before declaring work done.
 - Never read or write `.env` or any credentials; use `.env.example` for shape.
-- Do not commit, push, or deploy unless explicitly asked.

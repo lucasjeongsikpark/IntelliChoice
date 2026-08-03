@@ -20,5 +20,5 @@ description: Close out an IntelliChoice roadmap session. Runs verification, upda
 5. If ROADMAP.md scope for future sessions changed as a result of this session, edit it and
    say so.
 6. Summarize for the user: files changed, verification performed, remaining risks, and the
-   suggested next session. Remind them to review and commit (Claude does not commit unasked).
+   suggested next session.
 7. Update docs/ARCHITECTURE.md if any architecture-level changes were made (e.g., new service, new database, new API).
