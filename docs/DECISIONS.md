@@ -10320,3 +10320,12 @@ fixtures → corpus-derived fixtures → blind-rewrite fixtures → and now the 
 scoring through the whole time. `scripts/measure_access_probe_rules.py` has always called the real
 `build_access_hint`, which is why "names the right role" was the right scoring rule — but scoring
 *through* a component is not the same as questioning it.
+
+**Disposition of AUD-C-22 (user, 2026-08-03): 0.45 stays deployed; the selector is fixed as its own
+piece of work, not as a revert.** The deployed state is a net improvement on the measurement that
+exists, and reverting would trade six correct hints for one wrong-tier one while re-opening
+AUD-C-21. The wrong tier is bounded — backend-authored, names a tier and nothing else, no content
+leaks, audit and rate-limit paths untouched. The fix (per-audience distances instead of counts; pick
+the closest, tier priority only as tie-break) **inverts the rule every number in D-165 and D-166 was
+scored through**, so it needs a re-measured sweep on both query fields and possibly a re-picked
+ceiling — which is exactly why it is not being done as a follow-on one-liner at the end of a deploy.

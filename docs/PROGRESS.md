@@ -44,6 +44,11 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   told to log in as a branch manager, where before they got the honest no-source message plus an
   escalation offer. The second probe question (the ~0.60 human wording) still returns no hint, as
   predicted: 0.45 is one notch, not a fix for all phrasing.
+  **✅ Decision taken (user): 0.45 stays deployed; the selector gets fixed as its own work.** Not a
+  revert, because the deployed state is a net improvement on the measurement that exists and
+  reverting would trade six correct hints for one wrong-tier one while re-opening AUD-C-21. See the
+  next-session pointer for the fix shape and why it needs a re-measured sweep rather than a one-line
+  change.
   **The method note, since this is the fourth turn of the same screw:** hand-written fixtures →
   corpus-derived → blind-rewrite → and now the **selector** the fixture was scoring *through* the
   whole time. `measure_access_probe_rules.py` has always called the real `build_access_hint`, which
@@ -735,12 +740,21 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      **New and owed instead: AUD-C-22 — the access hint names the highest-*priority* tier, never the
      closest one.** Found by this deploy's own verification, on AUD-C-21's motivating question: a
      parent asking about their child's attendance is now told to *"log in with a branch manager
-     account"*. **A decision is pending on it** (see the top entry): revert the ceiling to 0.40,
-     keep 0.45 and fix the selector next, or fix the selector now. **Widening the ceiling cannot
-     fix it** — `_ACCESS_HINT_PRIORITY` never consults distance, and the probe returns counts, so at
-     any ceiling ≥0.499 that question still answers branch_manager. The fix shape (return
-     per-audience distances; pick the closest, tier priority only as tie-break) **inverts the rule
-     `measure_access_probe_rules.py` scores through**, so it must be re-measured before it ships.
+     account"*.
+     **✅ Decision taken (user, 2026-08-03): keep 0.45 deployed and fix the selector here, as its own
+     piece of work.** The reasoning is that the deployed state is a net improvement on the
+     measurement that exists — 23 vs 17 correct roles, zero false hints on either negative class, and
+     `no_answer` 8/8 live — so reverting would trade six correct hints for one wrong-tier one and
+     re-open AUD-C-21. The wrong tier is a real defect and it is *bounded*: backend-authored, names a
+     tier and nothing else, leaks no content.
+     **The fix shape, and why it is a hypothesis rather than a one-liner:** return per-audience
+     *distances* from `count_matching_by_audience` (today `dict[str, int]`) and pick the **closest**
+     non-accessible audience, keeping `_ACCESS_HINT_PRIORITY` only as the tie-break. That **inverts
+     the rule `scripts/measure_access_probe_rules.py` scores through** — every number in D-165 and
+     D-166 was produced by calling the real `build_access_hint` — so the sweep must be re-run on both
+     query fields before it ships, and the ceiling itself may want re-picking once selection changes.
+     **Widening the ceiling is not an alternative:** priority never consults distance, so at any
+     ceiling ≥0.499 that question still answers branch_manager.
   1. **Reword `role-gated-question-tutor`, and check the other two the same way.** It is answered
      from `public-contact-guide` at 0.85 with a real citation, so it can never reach the probe and
      `role_gated_question` can never exceed 2/3. That is the *same* "public-answered vs
