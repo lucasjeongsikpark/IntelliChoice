@@ -9763,3 +9763,190 @@ build` clean; `make lint`/`pyright`/pytest re-run untouched-but-green (693 passe
 **Scope note:** the degraded row itself still exists in `student_reports` history under the old
 key — correct, it is a real generation event with real (zero) cost. Nothing server-side changed;
 this rides the next deploy like any frontend change.
+
+## D-162 — AUD-L-14 measured before fixed: the report's time figure now reads the required column, and the owed AUD-X-04 live exercise is done (accepted, 2026-08-03)
+
+Two pieces of the post-D-159 pointer, in its own order: item 0 (the one verification the deploy
+left owed) and the first finding of item 2's backlog.
+
+### 1. The measurement came first, and it exonerated the client
+
+AUD-L-14's filing demanded a browser re-measurement before any fix, because S36's headline —
+140 `assessment_item_state` rows summing to 0 ms — was produced by journeys driven through the
+API with no browser. Measured this session (`journey-student.spec.ts` against the local stack,
+rows isolated by run timestamp): a browser-driven pre-exam populates **both** sources, within ~7%
+— **1,453 ms** summed `response_time_ms` across 10 attempts vs **1,354 ms** summed item-state.
+The client half was never broken (consistent with D-107's 15,591 ms for a 15,000 ms dwell, and
+with staging's own non-zero 4.6 minutes read during §4 below).
+
+So the finding reduces to a reliability asymmetry, not a bug hunt: both numbers come from the
+same `viewStartRef` in `ExamScreen`, but the item-state tick is fire-and-forget telemetry
+(`.catch(() => {})`; dropped whole by a hard refresh, a closed tab, a failed overview fetch, or
+any non-browser client), while `response_time_ms` is a **required field of `SubmitAnswerRequest`**
+— an `assessment_attempts` row cannot exist without it. One source can quietly be zero; the other
+exists for exactly the rows `attempts_count` counts.
+
+### 2. The fix: sum the column the rows already carry
+
+`build_dashboard` now computes `time_spent_minutes` from the `response_time_ms` of the attempt
+rows it already fetched for `attempts_count` — one query fewer, and the two parent-visible figures
+now derive from the same rows, so "0.0 minutes beside attempts_count: 26" is structurally
+impossible, not just fixed for today's data. `DashboardRepository.total_assessment_time_ms_in_range`
+is **deleted** with its half-true docstring ("the only populated per-question timing source" —
+false for exams), per D-159's delete-the-second-definition precedent; it had exactly one caller.
+
+Deliberately unchanged:
+
+- **The telemetry stays.** `assessment_item_state.time_spent_ms` remains the exam screen's
+  autosave/resume signal; AUD-F-01's regression spec (`time-telemetry.spec.ts`) still guards its
+  honesty and volume. Only the report stops reading it. (`narrative-displacement.spec.ts`'s
+  failure message no longer names `time_spent_minutes` as the consumer.)
+- **Study time stays unavailable** — `study_attempts` genuinely has no response-time column
+  (the half of the old docstring that was true), now stated on the `DashboardData` field.
+- **Semantics narrow slightly and honestly:** dwell on never-answered exam items no longer
+  counts. The browser measurement says the difference is small on a completed journey, and a
+  number tied to rows that provably exist beats a slightly larger number tied to rows that
+  sometimes don't.
+- **Known remaining incoherence, documented not fixed:** `attempts_count` includes study attempts
+  while the minutes are exam-only. Pre-existing, out of this finding's scope.
+
+**Verification:** dashboard tests re-seeded to AUD-L-14's live shape — item-state rows at
+`time_spent_ms = 0` beside attempts carrying the real times — so the assertions fail against the
+old source. `make lint` clean, `pyright` 0 errors, **693 passed / 2 skipped**; e2e typecheck
+clean; `journey-parent` + `time-telemetry` re-run green post-change (4/4).
+
+### 3. The owed live exercise: AUD-X-04 verified against the deployed API
+
+Run against staging (`main = e1c152bc` serving), parent token minted out of band via the
+secret-gated `/dev/token` (the e2e harness's own path), target `student-ext-1`, all four arms in
+one sequence:
+
+- **No `Idempotency-Key` header → 422** (`missing` on `header/Idempotency-Key`) — required, not
+  optional, live.
+- **First call (key + July range) → 200 in 8.2 s**: exactly one `bedrock_call` in the logs
+  (Haiku 4.5, 1514 in / 476 out, 0.3894¢), exactly one `cost_reservations` row (reserved 2.25¢ →
+  settled 0.3894¢).
+- **Replay (same key, same range) → 200 in 1.4 s**: byte-identical body (sha256 match), identical
+  `created_at`, **no** `bedrock_call`, **no** new reservation.
+- **Same key, June range → 409** with the service's exact message ("use a new key").
+
+The database half was **read, not inferred** (one read-only ops-task `run-task`, exit 0 — one more
+manual entry in the ops-task log window): `RESV | … 2.25 0.3894 …` and `RESV_ALL_TIME | 1` for
+`(student_report, student-ext-1)`, with the replay and 409 arms adding nothing. D-159's "not
+verified live" caveat is retired.
+
+### 4. Named, not fixed: the live report degraded on numeric grounding, twice out of twice
+
+Both live generations (the exercise's first arm and a fresh-key control four minutes later)
+returned `generated: false`: the Bedrock call itself succeeded (`repaired: false`, real spend
+settled) and then **"report failed numeric grounding; using facts-only template"** — 2/2. The
+fail-closed path is doing its job; what a parent gets is the facts-only template every time, which
+means the narrative feature is currently not shipping on staging at all. Suspicion, unproven:
+staging's load-test-polluted aggregates (`attempts_count: 7371`) push the model into reformatting
+numbers ("7,371") that exact-match grounding then rejects. Needs a local reproduction against
+those aggregates before any fix — same measure-first rule this entry's §1 followed. Also noted:
+with D-161 not yet deployed, the currently-serving frontend pins that degraded row for the
+lifetime of the view.
+
+## D-163 — AUD-L-18: the parent-report narrative had never shipped under a real model, and the polluted-aggregate suspicion was wrong (accepted, 2026-08-03)
+
+D-162 §4's carry-over, taken under its own rule: reproduce locally before fixing. The reproduction
+refuted the hypothesis it was written to test, and the finding turned out to be larger and older
+than the entry that named it.
+
+### 1. The measurement, and what it refuted
+
+`scripts/measure_report_grounding.py` (new, committed) drives the real deployed model — Haiku 4.5,
+the same `_SYSTEM_PROMPT` and `_MAX_OUTPUT_TOKENS` `services/report.py` uses — over three payload
+shapes, five generations each, and classifies every number `is_grounded` rejects:
+
+| arm | ungrounded | causes |
+|---|---|---|
+| staging (`attempts_count: 7371`) | **5/5** | percent 27, thousands-separator 8, evidence-string 1 |
+| control (`attempts_count: 26`) | **5/5** | percent 30 |
+| integers (clean decimals) | **5/5** | percent 28, evidence-string 1 |
+
+**15/15.** The control arm holds no number a thousands separator could reach and failed every
+time, so D-162 §4's suspicion — that staging's load-test pollution invited "7,371" — is refuted.
+The narrative feature has **never** worked under a real model, on any data, since S28 shipped it.
+Every parent report ever generated on staging paid for a Bedrock call and then served the
+facts-only template. It fails closed, which is exactly why nobody noticed: the output was always
+correct, verified, and merely un-personalized, and no error was ever raised.
+
+The three-arm design is what made this cheap to conclude. One arm would have confirmed the
+suspicion (staging fails, so the aggregates must be it); the control is what falsified it.
+
+### 2. Three causes, and not one of them is the model inventing a number
+
+- **Percent rendering — 85 of 94 rejected numbers.** Evidence carries `mastery_by_skill: 0.8333`
+  and any competent parent-facing writer renders that "83%". The checker had no notion of scale.
+- **Thousands separators — 8.** `-?\d+(?:\.\d+)?` split `"1,284"` into `1` and `284`, neither in
+  evidence. A tokenizer bug; `1,284` *is* 1284.
+- **Numbers inside evidence strings — 2, but structural.** `_collect_evidence_numbers` walked only
+  `int`/`float` values, so `date_range_label` and the `70%` interpolated into
+  `weak_skill_window_label` were invisible — while D-156's prompt change *instructs* the model to
+  name the window each figure comes from. AUD-L-15's fix and this check had been quietly fighting
+  since D-156.
+
+### 3. The fix, and the three places it is deliberately not loose
+
+In `numeric_grounding.py` (shared with `stage_narrative`, so both surfaces benefit):
+
+- **The percent rule is bounded to evidence values in `[0, 1]`.** Unbounded it would be a 100×
+  fail-open — `raw_gain: 3.0` would ground "improved 300%". Bounded, it only reads as a percentage
+  the things that are already rates.
+- **The tolerance is an absolute half percentage point, not `round()`.** Python rounds halves to
+  even, so `round(62.5) == 62` and a round-based rule would reject the equally correct "63%" for
+  an evidence value of `0.625`. Both 62% and 63% are now accepted for it, and both are right.
+- **Grouped-number parsing needed a lookbehind.** Without `(?<![\d.,])`, "In 2026, 317 solutions"
+  matches `026,317` and invents 26317 — a number in neither the text nor the evidence. There is a
+  test for exactly that.
+
+Walking strings as evidence is a **false-negative fix, not a loosening**: a number the model was
+shown in its payload does exist in the evidence, and refusing to let it cite one is the bug.
+
+In `services/report.py`, two prompt additions, both fail-closed:
+
+- **No derived numbers** — no differences, sums, averages, ratios, or trends of the model's own.
+- **No advice quantities** in the recommendations ("even 5–10 minutes a few times per week").
+  Those are not claims about the student, but the check cannot safely exempt
+  `recommendations_text`, since "improve by 20 points" would live there too. Cheaper to stop the
+  model reaching for the number than to teach the check which numbers are harmless.
+
+### 4. What still fails, which is the point
+
+The intermediate re-measurement caught the real model summing `6` hints and `2` solutions into
+"accessed hints or solutions **8** times", and dividing 18.5 minutes by 26 attempts into "about
+**40** seconds per problem" — which is also simply wrong, it is 42.7. Both were rejected. The
+prompt now forbids the derivation, and the check remains the thing that catches it when the prompt
+does not hold: a model told not to do arithmetic did arithmetic anyway, twice, in eleven
+generations. That is the argument for keeping the deterministic check strict rather than trusting
+the instruction.
+
+### 5. Why no test caught this, and what is committed about it
+
+`MockBedrockProvider._report_interpretation_json` builds its output out of the payload's own
+fields, so it round-trips `is_grounded` **by construction**. The local suite could not have
+observed a grounding failure and never will. That is a reasonable mock — a deterministic stand-in
+should not fabricate — but it means this seam has no test-time coverage at all, and the finding
+was reachable only from a live `generated: false`.
+
+So `scripts/measure_report_grounding.py` is committed rather than thrown away: it is the only
+instrument that can answer "does the narrative actually ship?", and the next change to the prompt,
+the payload, or the checker will need it again. It spends real money (~0.3¢ per generation,
+~4.7¢ for a full 15-run sweep) and is bounded by `--runs`, the gateway's `session_budget_cents`,
+and the service's own `_MAX_OUTPUT_TOKENS`.
+
+**Verification.** 14 new unit tests, each widened rule paired with a control that must still fail;
+**8 of them watched failing against the pre-fix module**, and every negative control passes in both
+directions. `make lint` clean, `pyright` 0 errors, **707 passed / 2 skipped** (693 + 14); e2e
+typecheck clean. Final re-measurement, same harness and same arms: **15/15 grounded**, from 0/15.
+Total measurement spend across the session: **~16 cents**.
+
+**⚠️ Not deployed.** Rides the next deploy (backend, learning-api only), alongside D-162's
+AUD-L-14 fix and D-161's frontend fix.
+
+**Scope note — AUD-L-09 stays open and gets slightly more load-bearing.** Grounding verifies a
+number's *provenance*, not its *attribution*: "fell from 6 to 4" still passes when the real
+movement was 4 → 6. Widening provenance does not widen attribution, but more model prose now
+reaches parents than before, so that gap is worth more than it was.

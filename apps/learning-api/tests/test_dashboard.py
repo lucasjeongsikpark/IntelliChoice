@@ -208,12 +208,16 @@ async def _seed(session: AsyncSession, *, in_range_at: datetime, out_of_range_at
         attempt.responded_at = at
         await study.record_attempt(attempt)
 
-    # One assessment session with one in-range item (10 minutes) and one out-of-range
-    # item (5 minutes) - only the in-range minutes should reach `time_spent_minutes`.
+    # One assessment session with one in-range attempt (10 minutes) and one out-of-range
+    # attempt (5 minutes) - only the in-range minutes should reach `time_spent_minutes`.
+    # The item-state rows deliberately carry `time_spent_ms=0`: that is AUD-L-14's live
+    # shape (S36 measured 140 item-state rows summing to 0 ms), and asserting a non-zero
+    # `time_spent_minutes` beside them proves the dashboard reads the attempts' required
+    # `response_time_ms`, not the fire-and-forget telemetry.
     assessment_session = await assessment.create_session(
         AssessmentSession(student_external_id=STUDENT_ID, session_type="pre_exam")
     )
-    for at, time_spent_ms in [(in_range_at, 600_000), (out_of_range_at, 300_000)]:
+    for at, response_time_ms in [(in_range_at, 600_000), (out_of_range_at, 300_000)]:
         variant = await _seed_variant(
             session, questions, topic_id=topic.topic_id, skill_id=skill.skill_id, seed=100
         )
@@ -225,7 +229,7 @@ async def _seed(session: AsyncSession, *, in_range_at: datetime, out_of_range_at
             )
         )
         item_state = AssessmentItemState(
-            assessment_item_id=assessment_item.assessment_item_id, time_spent_ms=time_spent_ms
+            assessment_item_id=assessment_item.assessment_item_id, time_spent_ms=0
         )
         item_state.updated_at = at
         await assessment.create_item_state(item_state)
@@ -237,7 +241,7 @@ async def _seed(session: AsyncSession, *, in_range_at: datetime, out_of_range_at
             selected_option="a",
             correct_option="a",
             is_correct=True,
-            response_time_ms=1000,
+            response_time_ms=response_time_ms,
             idempotency_key=f"key-{at.isoformat()}",
         )
         exam_attempt.submitted_at = at
@@ -282,7 +286,9 @@ def test_dashboard_date_range_filtering_excludes_rows_outside_window() -> None:
             assert data.accuracy_trend[0].accuracy == 1.0
             assert data.accuracy_trend[0].attempts == 2
 
-            # Only the in-range assessment item's 600_000ms (10 minutes) contributes.
+            # Only the in-range attempt's 600_000ms of `response_time_ms` (10 minutes)
+            # contributes - and the item-state rows all hold 0, so a non-zero value here
+            # is what proves the source is the attempts (AUD-L-14).
             assert data.time_spent_minutes == 10.0
             assert data.attempts_count == 2
 

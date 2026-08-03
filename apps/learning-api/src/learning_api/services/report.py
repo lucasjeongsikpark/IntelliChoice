@@ -103,6 +103,25 @@ _SYSTEM_PROMPT = (
     "plain, factual language for parent/tutor/branch_manager audiences. Only reference "
     "numbers and skill names that appear in the data you were given - never invent a "
     "score, a gain, a count, or a skill name that isn't already there. "
+    # D-163: the 15-generation measurement found the model's *own arithmetic* to be the
+    # only remaining real fabrication once the checker stopped rejecting percent
+    # renderings - e.g. "accuracy improved from 40% to 70%, a gain of 30 percentage
+    # points" over a payload holding no trend at all. Every such sentence is rejected by
+    # `is_grounded` and costs the parent the whole narrative, so the prompt now forbids
+    # the derivation rather than leaving the check to catch it after the fact.
+    "Never calculate a new number from the ones you were given: no differences, sums, "
+    "averages, ratios, or trends of your own. If a figure is not in the data, do not "
+    "state it. Rates given as decimals may be written as whole percentages (0.83 as "
+    "83%), and that is the only transformation allowed. "
+    # The other half of what the measurement caught, and a different kind: "even 5-10
+    # minutes a few times per week" is advice, not a claim about the student - but it is
+    # ungrounded all the same, and the check cannot safely make an exception for the
+    # recommendations field, since "improve by 20 points" would live there too. Cheaper
+    # to stop the model reaching for the numbers than to teach the check which ones are
+    # harmless.
+    "In your recommendations, give advice in words, not quantities: no suggested "
+    "durations, frequencies, or problem counts (never '10 minutes a day' or 'three "
+    "problems a week')."
     # AUD-L-15: the labels are only worth carrying if the thing writing the prose is told
     # they mean something. Mastery and "skills to strengthen" now share one window, but
     # they still sit beside range-filtered figures (attempts, usage, accuracy, gain) - so

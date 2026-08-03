@@ -12,15 +12,10 @@ served item, so the join is 1:1, not a fan-out.
 
 from datetime import datetime
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from intellichoice_db.models.assessment import (
-    AssessmentAttempt,
-    AssessmentItem,
-    AssessmentItemState,
-    AssessmentSession,
-)
+from intellichoice_db.models.assessment import AssessmentAttempt, AssessmentSession
 from intellichoice_db.models.mastery import LearningGain, StudyAttempt, StudyItem
 
 
@@ -76,26 +71,3 @@ class DashboardRepository:
         result = await self._session.execute(stmt)
         return [(row[0], row[1]) for row in result.all()]
 
-    async def total_assessment_time_ms_in_range(
-        self, student_id: str, *, start: datetime | None, end: datetime | None
-    ) -> int:
-        """Sum of `AssessmentItemState.time_spent_ms` (S23's autosave tick) for this
-        student's exam items - the only populated per-question timing source in this
-        schema (study-phase attempts carry no response-time column).
-        """
-        stmt = (
-            select(func.coalesce(func.sum(AssessmentItemState.time_spent_ms), 0))
-            .select_from(AssessmentItemState)
-            .join(
-                AssessmentItem,
-                AssessmentItem.assessment_item_id == AssessmentItemState.assessment_item_id,
-            )
-            .join(
-                AssessmentSession,
-                AssessmentSession.assessment_session_id == AssessmentItem.assessment_session_id,
-            )
-            .where(AssessmentSession.student_external_id == student_id)
-        )
-        stmt = _apply_range(stmt, AssessmentItemState.updated_at, start, end)
-        result = await self._session.execute(stmt)
-        return int(result.scalar_one())

@@ -5,6 +5,63 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-163 / AUD-L-18: the parent-report narrative had never shipped under a real model, and
+  D-162 §4's suspicion was wrong (2026-08-03).** `make lint` clean, `pyright` 0 errors,
+  **707 passed / 2 skipped** (693 + 14 new); e2e typecheck clean. **No deploy** — rides the next
+  one (learning-api backend) with D-162's fix and D-161's frontend fix.
+  **The measurement refuted the hypothesis it was built to test.** New committed harness
+  `scripts/measure_report_grounding.py` drove the real deployed model over three payload shapes,
+  5 generations each: staging's polluted aggregates **5/5 ungrounded**, an ordinary 26-attempt
+  month **5/5**, clean decimals **5/5**. The control holds no number a thousands separator could
+  reach and failed every time — so the load-test pollution was a red herring and the finding is
+  **older and larger** than D-162 §4 supposed: the narrative has never worked since S28, on any
+  data. Every staging report paid for a Bedrock call and served the facts-only template.
+  **None of the 94 rejected numbers was an invention.** 85 were percent renderings of proportions
+  the evidence carries as decimals (`0.8333` → "83%"); 8 were thousands-separated counts the
+  tokenizer split (`"1,284"` → `1` and `284`); the rest lived inside evidence *strings* the
+  collector never walked — `date_range_label`, and the "70%" that D-156's own prompt change
+  *instructs* the model to cite. AUD-L-15's fix and this check had been fighting since D-156.
+  **The fix is bounded in three named places** (D-163 §3): the percent rule applies only to
+  evidence values in `[0,1]`, so `raw_gain: 3.0` still does not ground "improved 300%"; the
+  tolerance is an absolute half point, not `round()`, because Python rounds halves to even and
+  would reject the equally correct "63%" for `0.625`; and grouped parsing needed a lookbehind or
+  "In 2026, 317 solutions" invents 26317. Plus two fail-closed prompt rules: no derived numbers,
+  no advice quantities.
+  **What still fails is the point:** the re-measurement caught the model summing 6 hints + 2
+  solutions into "8 times" and dividing 18.5 min by 26 into "about 40 seconds" (wrong — it is
+  42.7). A model told not to do arithmetic did it twice in eleven generations, which is the
+  argument for keeping the deterministic check strict. **Final: 15/15 grounded, from 0/15.**
+  **⚠️ No test could have caught this and none ever will:** `MockBedrockProvider` builds report
+  text from the payload's own fields, so it round-trips `is_grounded` by construction. That is why
+  the harness is committed rather than discarded. Measurement spend this session: **~16 cents**.
+
+- **✅ D-162: AUD-X-04 is verified live, and AUD-L-14 is measured-then-fixed (2026-08-03).**
+  `make lint` clean, `pyright` 0 errors, **693 passed / 2 skipped**; e2e typecheck clean;
+  `journey-parent` + `time-telemetry` green post-change. **No deploy — the AUD-L-14 fix rides the
+  next one (backend, learning-api only), alongside D-161's frontend fix.**
+  **The owed live exercise (pointer item 0) is done and D-159's caveat is retired.** Against the
+  deployed API, out-of-band parent token: missing header → **422**; first call → **200** with
+  exactly one `bedrock_call` and one reservation (2.25¢ reserved → 0.3894¢ settled); replay →
+  **byte-identical body, same `created_at`, no Bedrock, no new reservation**; June range under the
+  same key → **409**. The ledger was **read, not inferred** (read-only ops-task, exit 0 — one more
+  manual `run-task` entry in today's ops-task log window): `RESV_ALL_TIME | 1` for
+  `(student_report, student-ext-1)`.
+  **AUD-L-14 (D-162): the measurement came first and exonerated the client.** Browser-driven
+  journey populates both timing sources within ~7% (1,453 ms attempts vs 1,354 ms item-state), so
+  S36's zeros were the API-driven harness, not the telemetry. The fix is the asymmetry:
+  `time_spent_minutes` now sums the **required** `response_time_ms` from the same attempt rows
+  `attempts_count` counts (0.0-beside-26 is structurally impossible now);
+  `total_assessment_time_ms_in_range` and its half-true docstring are deleted; telemetry stays as
+  the autosave signal under AUD-F-01's spec. Tests re-seeded to the live shape (item-state all 0,
+  attempts carry real times).
+  **⚠️ New, named-not-fixed (D-162 §4): the live parent report degrades on numeric grounding,
+  2/2.** Both real-model generations succeeded at Bedrock (`repaired: false`, spend settled) and
+  then failed numeric grounding → facts-only template — so the narrative feature is currently not
+  shipping on staging at all. Suspicion: load-test-polluted aggregates (`attempts_count: 7371`)
+  invite reformatting ("7,371") that exact-match grounding rejects. **Needs a local repro against
+  those aggregates before any fix.** With D-161 not yet deployed, the serving frontend also pins
+  that degraded row per view.
+
 - **✅ D-161: the regression D-159 opened is closed — a degraded report is no longer pinned by its
   idempotency key (2026-08-03).** Found by the post-deploy risk review, not by a test: the replay
   lookup serves the stored row regardless of `generated`, and both server fallbacks persist their
@@ -424,33 +481,33 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   e2e exercises it.
 
 - **Next session, in order (2026-08-03, post-D-159 deploy):**
-  0. **Everything is landed and deployed, and the schema is read. One item remains owed.** `main` is
-     `e1c152bc1bb8` (PR #93); staging runs it (learning-api `:53`, chat-api `:52`) and the database
-     is at `f2c7d91a4e63`, confirmed by reading `information_schema`/`pg_constraint`, not by
-     inferring it from a green step.
-     **Owed: one live exercise of AUD-X-04 against the deployed API** — the same key twice returning
-     the identical report with no second `cost_reservations` row, and a key reused across date ranges
-     409ing. It needs an out-of-band token (`/dev/token` is closed on the edge; `make e2e-staging`'s
-     harness mints them), which is why it was not done during the deploy. Not a gate blocker — the
-     "verify the artifact, not the pipeline" habit from D-157.
+  0. ~~**Owed: one live exercise of AUD-X-04 against the deployed API**~~ **(✅ done 2026-08-03,
+     D-162 §3 — all four arms plus the ledger read; D-159's "not verified live" caveat is retired.
+     It surfaced D-162 §4: the live report degrades on numeric grounding 2/2, see item 2's new
+     first bullet.)** `main` is `e1c152bc1bb8` (PR #93); staging runs it (learning-api `:53`,
+     chat-api `:52`) and the database is at `f2c7d91a4e63`, confirmed by reading
+     `information_schema`/`pg_constraint`, not by inferring it from a green step.
      **Note on `aws`:** credentials are per-profile, not ambient. `export AWS_PROFILE=intellichoice-
      staging AWS_REGION=us-east-1` — without it every call fails `NoCredentials`/`NoRegion` even
      right after a successful `aws login`, which cost a few minutes to work out this session.
   1. ✅ **The replayed-write cluster is done (D-159)** — AUD-X-03, AUD-L-11, AUD-X-04, and AUD-L-17
      found underneath them. See the top entry; the two carry-overs it *opened* are item 2's last
      bullet and the concurrent-report-spend note in that entry.
-  2. **Then keep going down the Phase 0B backlog — still the work D-152 points at.** **16** findings
-     remain tagged *Open — Phase 0B* (19 − D-159's L-11/X-03/X-04; AUD-L-17 was filed and closed
-     inside the same session, like AUD-C-19 and AUD-F-37 before it), and **17 open in total**
-     counting AUD-F-16. Taking a cluster rather than a finding is what has made the last three
-     sessions coherent. In rough order of what a user would notice:
-     - **AUD-L-14, and it needs a measurement before a fix.** The last of the parent-visible three:
-       [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) records that D-107's browser run measured client
-       telemetry reporting **15,591 ms for a 15,000 ms dwell**, so the headline "140 item-state rows
-       summing to 0 ms" is most likely an artifact of S36 driving those journeys through the API with
-       no browser. The underlying point stands — the report ignores the always-`NOT NULL`
-       `assessment_attempts.response_time_ms` — but re-measure with a browser first. **Note the
-       constraint:** that is Playwright, which cannot run alongside `make test` (shared dev Postgres).
+  2. **Then keep going down the Phase 0B backlog — still the work D-152 points at.** **15** findings
+     remain tagged *Open — Phase 0B* (16 − D-162's AUD-L-14), and **16 open in total**
+     counting AUD-F-16. The count is unchanged by D-163: **AUD-L-18 was found and fixed in the same
+     session**, so it never sat in the backlog. Taking a cluster rather than a finding is what has
+     made the last three sessions coherent. In rough order of what a user would notice:
+     - ~~**NEW (D-162 §4), and it needs a local repro before a fix: the live parent report fails
+       numeric grounding 2/2.**~~ **(✅ done 2026-08-03, D-163, filed as AUD-L-18 (P1) — and the
+       repro refuted the suspicion. The polluted aggregates were irrelevant: an ordinary
+       26-attempt control failed 5/5 too, so the narrative had never shipped under a real model
+       since S28. 85 of 94 rejected numbers were percent renderings of evidence decimals. Fixed
+       in the checker + prompt; re-measured 15/15 grounded, from 0/15.)**
+     - ~~**AUD-L-14, and it needs a measurement before a fix.**~~ **(✅ done 2026-08-03, D-162 —
+       measured first: browser populates both sources within ~7%, S36's zeros were the API-driven
+       harness. `time_spent_minutes` now sums the required `response_time_ms` from the same rows
+       `attempts_count` counts.)**
      - **the masked-by-uniform-data pair** — AUD-C-09 (`academic_year` predicate never applied) and
        AUD-L-12 (`recommended_difficulty` routes nothing), both correct code that was never wired and
        is invisible until the data stops being uniform. **AUD-L-12 now has a precedent to follow:**
@@ -4031,6 +4088,74 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S52 (unnumbered) — AUD-L-18: the parent narrative had never shipped under a real model (2026-08-03) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer, item 2's first bullet** — no numbered roadmap
+  block. D-162 §4's carry-over, taken under its own rule (reproduce before fixing).
+- **The repro refuted the hypothesis it was written to test**, which is the transferable part. The
+  suspicion was that staging's load-test-polluted aggregates (`attempts_count: 7371`) invited
+  thousands separators. A three-arm design — polluted, ordinary, clean-decimals — is what falsified
+  it: the ordinary 26-attempt control failed **5/5** with no four-digit number anywhere in it. A
+  single-arm measurement would have "confirmed" the suspicion and produced a fix for the wrong bug.
+- **Result: 15/15 ungrounded → the feature had never worked since S28.** Not a staging-data
+  problem, a design collision: evidence carries proportions as decimals (`0.8333`) and a
+  parent-facing writer renders them as percentages ("83%"), which the checker read as fabrication.
+  85 of 94 rejected numbers were that one cause. Filed as **AUD-L-18 (P1)**, fixed in D-163,
+  re-measured **15/15 grounded**.
+- **Two smaller causes, both structural:** the tokenizer split `"1,284"`, and
+  `_collect_evidence_numbers` never walked evidence *strings* — so the "70%" that D-156's prompt
+  change explicitly tells the model to cite was ungrounded. AUD-L-15's fix and this check had been
+  fighting since D-156 without either side knowing.
+- **The check was kept strict where it matters** (D-163 §3): percent matching is bounded to
+  evidence values in `[0,1]`, so "improved 300%" is still refused against `raw_gain: 3.0`. The
+  re-measurement then caught the real model doing arithmetic it had just been told not to do —
+  summing 6 + 2 hints/solutions into "8 times", and computing "about 40 seconds per problem"
+  (wrong; 42.7) — and rejected both.
+- **A committed instrument, not a throwaway:** `scripts/measure_report_grounding.py`. The mock is
+  grounded by construction, so no test can observe this seam; the harness is the only thing that
+  can answer "does the narrative actually ship?" ~0.3¢ per generation, ~16¢ spent this session.
+- **Verification:** 14 new unit tests (8 watched failing pre-fix, every negative control green in
+  both directions), `make lint` clean, `pyright` 0 errors, **707 passed / 2 skipped**, e2e
+  typecheck clean. **Not deployed** — rides the next deploy with D-161 and D-162.
+- **Carry-over opened:** none new. AUD-L-09 (provenance vs attribution) is noted as slightly more
+  load-bearing now that model prose actually reaches parents.
+
+### S51 (unnumbered) — the owed AUD-X-04 live exercise, and AUD-L-14 measured-then-fixed (2026-08-03) ✅
+
+_S49 (the D-159/D-160 schema deploy) and S50 (D-161's degraded-report nonce) recorded themselves in
+"Current status" only — same drift the preamble notes. Numbered so the sequence stays unambiguous._
+
+- **Scope: PROGRESS.md's own "Next session" pointer, items 0 and 2 — no numbered roadmap block.**
+  Staging access was read-only plus the one paid exercise below (~0.8¢ total Bedrock spend, two
+  generations). No deploy, no apply, no schema change.
+- **Item 0 (D-162 §3): AUD-X-04 verified against the deployed API, all four arms.** Missing header
+  → 422; first call → 200 with exactly one `bedrock_call` and one reservation (2.25¢ → 0.3894¢
+  settled); replay → byte-identical body, same `created_at`, no Bedrock, no new reservation; same
+  key across ranges → 409 with the service's own message. The ledger read, not inferred: one
+  read-only ops-task run, `RESV_ALL_TIME | 1` for `(student_report, student-ext-1)`. **D-159's
+  "behaviour not verified live" caveat is retired.**
+- **AUD-L-14 (D-162 §1–2): the measurement came first and exonerated the client.** A browser-driven
+  journey populates both timing sources within ~7% (1,453 ms summed `response_time_ms` vs 1,354 ms
+  summed item-state for one pre-exam) — S36's "140 rows summing to 0 ms" was the API-driven
+  harness, exactly as the filing suspected. The fix targets the real asymmetry:
+  `build_dashboard` now sums the **required** `response_time_ms` from the attempt rows it already
+  fetches for `attempts_count` (same rows → the two figures cannot disagree again);
+  `DashboardRepository.total_assessment_time_ms_in_range` and its half-true docstring deleted
+  (single caller, D-159's delete-the-second-definition precedent). Telemetry stays as the autosave
+  signal under AUD-F-01's regression spec. Tests re-seeded to the live shape: item-state rows all
+  `0`, attempts carrying the real times, so the assertions fail against the old source.
+- **New, named-not-fixed (D-162 §4): the live parent report fails numeric grounding 2/2** — Bedrock
+  succeeds (`repaired: false`, spend settled), then "report failed numeric grounding; using
+  facts-only template". The narrative feature is effectively off on staging. Suspicion:
+  load-test-polluted aggregates (`attempts_count: 7371`) invite reformatting exact-match grounding
+  rejects. **Local repro before any fix** — now first in the pointer's item-2 order.
+- **Verification:** `make lint` clean, `pyright` 0 errors, **693 passed / 2 skipped** (same count —
+  two tests re-seeded, none added); e2e typecheck clean; `journey-parent` + `time-telemetry` re-run
+  green post-change (4/4). Playwright and pytest never ran concurrently (shared dev Postgres).
+- **Files:** `services/dashboard.py`, `repositories/dashboard.py`, `tests/test_dashboard.py`,
+  `narrative-displacement.spec.ts` (stale failure message), AUDIT_FINDINGS + DECISIONS (D-162) +
+  this file. **Not committed, not deployed** — the fix rides the next deploy with D-161's.
 
 ### S48 (unnumbered) — Phase 0B: the replayed-write cluster, AUD-X-03 + AUD-L-11 + AUD-X-04 (2026-08-03) ✅
 
