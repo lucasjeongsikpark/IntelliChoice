@@ -60,7 +60,7 @@ ones.
 | AUD-C-15 | Audit trail | P3 | Open — Phase 0B | `McpToolRegistry.call` raises on an unknown tool *before* any audit write, so the one call shape a wiring bug or injection would produce is the one that leaves no `mcp_tool_calls` row |
 | **AUD-C-16** | **Launch journey / data integrity** | **P3 → P1** | **Fixed and live-verified 2026-07-28 (D-112)**: provenance columns stamped at ingest (NULL = unknown = mismatch), idempotent `make knowledge-reembed`, a deploy-step re-embed, and the load-bearing part — chat-api `/readyz` (the ALB health check) **fails closed** on corpus/runtime provenance mismatch, so this class can never again run silently. Staging re-embedded: **159/159 real Titan, 0/159 mock-like by S38's own discriminator** (max cos 0.078, was 159/159 at 1.0), 0.0224¢; the next deploy's re-embed was a 0-chunk/0-cent no-op. Paraphrase probes went from no-source refusals to **9/9 grounded answers with citations** | Stored embeddings are provider-specific with no provenance column and no re-embed path. **Settled by S38: staging's corpus is 159/159 `MockBedrockProvider` hash vectors** while both deployed services query with real Titan v2, so staging's semantic channel returns noise (peak cosine +0.074 vs +0.41 with real vectors) and hybrid search there has always been lexical-only. Live paraphrase citation rate **1/7** |
 | **AUD-C-20** | SPEC conformance | P2 | ✅ **fixed in D-165 (2026-08-03), with a named limit** — semantic arm added and deployed; `role_gated_question` 0/3 → **2/3**. The threshold it ships with is too tight for human phrasing → **AUD-C-21** | The §18-C3 access probe matches with `websearch_to_tsquery`, which **ANDs every content word** of the question, so one absent word voids it — the parent chunk says "student" not "child", the branch-manager chunk has neither "escalation" nor "path". This is why the feature still scores **0/3** after AUD-C-06's routing fix: §18-C3 has never fired for a realistically-worded question on *either* entry path |
-| **AUD-C-21** | SPEC conformance / instrument | P2 | **New — Phase 0B (found D-165 live verification, 2026-08-03)** | `access_probe_max_distance = 0.40` is too tight for how people actually phrase questions: the *fixture's own* parent-attendance case sits at **0.418** and a human wording of the same question at **~0.60**, both misses, while the correct chunk is at 0.499. Root cause is the instrument, not the code — a question **generated from** a chunk sits closer to it than a person's phrasing does, so 25/43 at ≤0.40 was true of the fixture and optimistic about users. Needs a human-phrased validation set before the ceiling moves; ≤0.55 already produces false hints on unanswerable questions, so this is a real trade, not a free widening |
+| **AUD-C-21** | SPEC conformance / instrument | P2 | ✅ **fixed in D-166 (2026-08-03)** — ceiling **0.40 → 0.45** against a blind-rewrite fixture: **17/38 → 23/38** correct roles with **zero** false hints on either negative class, verified live (`no_answer` 8/8, and 8/8 false hints at a loosened 0.95, so the check can fail) | `access_probe_max_distance = 0.40` is too tight for how people actually phrase questions: the *fixture's own* parent-attendance case sits at **0.418** and a human wording of the same question at **~0.60**, both misses, while the correct chunk is at 0.499. Root cause is the instrument, not the code — a question **generated from** a chunk sits closer to it than a person's phrasing does, so 25/43 at ≤0.40 was true of the fixture and optimistic about users. Needs a human-phrased validation set before the ceiling moves; ≤0.55 already produces false hints on unanswerable questions, so this is a real trade, not a free widening |
 | **AUD-X-01** | **Authorization** | **P1** | **Fixed in S40** (D-107) | Fixed in `graph/nodes.py: resolve_student`, which now refuses to move a session to a different student — applied before the role split, so it covers the tutor branch that took `requested_student_id` unvalidated. The legitimate parent rebind is untouched: it pauses at `await_child_selection`, which re-checks the live link on resume. Re-verified live on staging with a before/after pair. Original: `POST /sessions/{id}/student` never checks who already owns the session: a different student claimed an in-progress exam session, the owner was **locked out with 403**, and their `in_progress` assessment row was orphaned. Same structure as AUD-C-01 — the one route that *writes* the identity field all 17 others read is the one that does not check it |
 | **AUD-X-02** | **Minors / child safety** | **P1** | **Fixed in S40** (D-107) | Fixed via `intellichoice_shared.auth.account_refusal_reason`, consumed by both apps' `get_current_claims` **and both SSE routes** — the streams verify `?token=` directly and never pass through the dependency, so the gate had to be repeated rather than inherited (AUD-F-13's split-path shape). 403, not 401. The age-band exempt set is deliberately **empty** until S42 measures the real vocabulary, so every student needs verified parental consent today: stricter than §5.1.2's literal "under 13" wording, and the right way round to be wrong. AUD-X-02's warning that this sits in the S44/S45 seam is addressed by landing the *consuming* side first, so neither session can ship without something already reading its output. Original: SPEC §5.1.2's *"should verify `parental_consent_verified=true`"* has no implementation: that claim plus `account_status` and `consent_status` are carried in every token and read by **nothing**. A `suspended`/`revoked`/unverified/`under_13` token behaved identically to a consented one on all 18 learning routes |
 | **AUD-X-03** | **Data integrity** | **P2** | **Fixed in D-159** | `flow.is_topic_selection_replay` decides what a second `/topics` means from session state alone: a replay of the same topic while still in `pre_exam` is served **from the existing exam, item for item**; a different topic, or a phase that has advanced, is **409**. Pre-flighted in the route (no graph turn, no checkpoint rows) and re-checked in the node. The guard is "a pre-exam exists", not "the phase is pre_exam" — the damage was worse after finalize, where the rebuild repointed `pre_assessment_session_id` while a study session was live off the old exam. The **blocked** path builds nothing and stays fully replayable, which is what keeps D-152 §2's routine UNKNOWN attendance recoverable. Original: a replay built a whole second exam (+1 session, +10 items, different variants) and orphaned the first |
@@ -1509,6 +1509,64 @@ after the transaction began — two of three gated chunks were invisible, which 
 semantic probe first appear unusable. And scoring "some gated audience matched" as a hit
 flatters every rule, since `build_access_hint` picks by priority and naming the wrong tier is a
 failure.
+
+### AUD-C-21 — The access probe's distance ceiling was chosen against questions the corpus wrote (P2)
+
+- **Severity:** P2 · **Area:** SPEC conformance (§18-C3) / instrument · **Status:** ✅ **fixed in
+  D-166 (2026-08-03)**
+
+**Fix: 0.40 → 0.45, and the fixture that decided it is the real deliverable.** D-165's questions
+were generated *from* the chunk they target, under an instruction not to reuse its vocabulary. That
+instruction reduces lexical echo and cannot remove the semantic pull of a passage the generator is
+reading while it writes — so the ceiling it chose was tight enough to fail on the first real
+question anyone asked.
+
+**The instrument, and why it is structural rather than a better prompt.**
+`scripts/generate_probe_eval_fixture.py --from-fixture` adds a `human_query` written by a pass whose
+**only input is the question** — it never sees the passage, so it cannot borrow from it by
+construction. Two controls keep that honest:
+
+- **An answerability judge.** Passage + rewrite → does this passage still answer it? 5 of 55 cases
+  drifted and were dropped. A drifted case is not a harder case, it is a case in the *wrong class* —
+  it belongs to "nothing answers it", and keeping it would have flattered every wider ceiling.
+- **`human_lexical_overlap` recorded per case**, as before.
+
+**Measured, over the same 38 gated / 12 public / 8 unanswerable cases:**
+
+| ceiling | right role | wrong role | silent | FP public | FP unanswerable |
+|---|---|---|---|---|---|
+| 0.40 (D-165) | 17 | 0 | 21 | 0 | 0 |
+| **0.45** | **23** | 1 | 14 | **0** | **0** |
+| 0.50 | 26 | 3 | 9 | 0 | **2** |
+| 0.55 | 27 | 5 | 6 | 1 | 3 |
+
+Distance from a question to the chunk it came from: chunk-derived **p50 0.379 / mean 0.395**,
+human-phrased **p50 0.433 / mean 0.434**. The bias is real at **+0.054 (p50)** — and about a third
+of the ~0.18 gap D-165's single anecdote implied, which is why the fix is one notch rather than a
+jump to 0.55.
+
+**Two negative results worth keeping.** A **relative-margin** rule ("also measurably closer than the
+nearest chunk the caller can already read") was the obvious way to widen the ceiling without buying
+false hints, and it does not work here: on unanswerable questions nearest-gated (0.623) and
+nearest-readable (0.667) are only **0.044** apart, so the margin is satisfied by noise about half the
+time. Its best variant trades 5 more correct hints for 4 false ones. And the **union** of the keyword
+and semantic arms — the rule production actually applies — measured *identical* to the semantic arm
+at every ceiling, so the keyword arm's only remaining justification is D-165's: mock observability.
+
+**⚠️ `role_gated_question` stays at 2/3 live, and 2/3 is this fixture's ceiling.** Verified rather
+than assumed this time: `role-gated-question-tutor` is answered from `public-contact-guide` at
+confidence 0.85 with a real citation ("contact your branch manager immediately by phone"), so it
+never reaches the probe. A public document genuinely answering it makes the case mis-classed, not
+the feature broken — the same "public-answered vs unanswerable" conflation D-165's generator was
+built to remove, sitting in the fixture that measures the feature. Rewording it is carry-over.
+
+**⚠️ Found while making the new assertion fail on purpose: the eval never read the configured
+ceiling.** `qa_coverage_runner.ask` built `TurnContext` without `access_probe_max_distance`, so it
+used the dataclass default while the real route (`routers/sessions.py`) passes `Settings`'.
+`CHAT_ACCESS_PROBE_MAX_DISTANCE=0.95` therefore changed nothing and the run passed, which read as an
+inert assertion. No past measurement was wrong — the two values agreed — but an eval that cannot see
+a tuned config cannot be used to tune one. Now fixed, which is what let the loosened-ceiling run
+produce 8 false hints and fail.
 
 ### AUD-C-12 — §5.21.8's "retrieval score below threshold" has no implementation (P3)
 

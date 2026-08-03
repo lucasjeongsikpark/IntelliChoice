@@ -5,6 +5,51 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-166 / AUD-C-21: the probe's ceiling is 0.45, decided against phrasing the corpus did not
+  write — and the third instrument correction in this cluster (2026-08-03).** `make lint` clean,
+  `pyright` 0 errors, **725 passed / 2 skipped** (+5). **Not deployed.** Spend **~75¢**, of which
+  ~26¢ was wasted on two of my own defects (below).
+  **The lesson sits one level under D-165's.** D-164's hand-written questions flattered a keyword
+  rule; D-165 fixed that with corpus-derived questions plus an instruction not to copy the passage's
+  wording — and those questions *still* sat closer to their own source than a person's phrasing does,
+  because the generator was **looking at the passage while it wrote**. An instruction cannot remove
+  that. Not showing it the passage can: `--from-fixture` adds a `human_query` written by a pass whose
+  only input is the question.
+  **Measured, 38 gated / 12 public / 8 unanswerable:** 0.40 → **17** correct roles, 0.45 → **23**
+  with **1** wrong-tier and **zero** false hints on either negative class, 0.50 → 26 but **2 false
+  hints on questions nothing answers**. So 0.45 is the last clean ceiling, and the harm the last
+  column names — telling someone to log in for an answer that does not exist — is why it stops there.
+  **The bias is real and a third of what the anecdote implied:** question-to-its-own-source p50
+  **0.379 → 0.433** (+0.054), against the ~0.18 D-165's single hand-typed example suggested. One
+  notch, not a jump to 0.55.
+  **✅ Verified live at 0.45, in both directions:** `no_answer` **8/8 with zero false hints**, and the
+  same run at a deliberately loosened 0.95 produces **8 of 8** false hints and fails — so the new
+  assertion can fail. `role_gated_question` stays **2/3**, and its third case was *verified* rather
+  than assumed: `role-gated-question-tutor` is answered from `public-contact-guide` at confidence
+  0.85 with a real citation, so it never reaches the probe. Mis-classed fixture, not broken feature.
+  **Two negative results, recorded so nobody re-proposes them:** the **relative-margin** rule fails
+  because on unanswerable questions nearest-gated (0.623) and nearest-readable (0.667) are only
+  **0.044** apart — the margin is noise, and its best variant trades 5 correct hints for 4 false
+  ones. And the **union** of both arms, measured directly this time, is *identical* to the semantic
+  arm at every ceiling: the keyword arm's only surviving reason is mock observability.
+  **The `role_gated >= 0.95` carry-over is corrected, not dropped.** The five nonsense-marker cases
+  are `mock_only: true` — kept, because they are the mock gate's only role-gated coverage and
+  deleting them would leave a 0.95 threshold asserting over zero cases — and the real run asserts a
+  new `wrong_role_hints` predicate instead: no hint, on any category, ever names a role the case did
+  not expect. A *rate* cannot say that; it scores a silent probe (safe) the same as a wrong tier.
+  **⚠️ Two defects found by trying to make that assertion fail, both mine, both worth keeping:**
+  the eval **never read the configured ceiling** (`ask` built `TurnContext` without it while the real
+  route passes `Settings`'), so `CHAT_ACCESS_PROBE_MAX_DISTANCE=0.95` changed nothing and the run
+  passed — indistinguishable from an inert assertion. And `_Answerability.reason` had
+  `Field(max_length=300)`: a model cannot count characters, so **19 of 55 cases** died as
+  `StructuredOutputError` and were logged as *dropped*, reading as evidence about the cases when it
+  was evidence about the schema. A third: my first rewrite prompt let the model **choose the
+  speaker**, and it chose "parent" almost every time — 17 of 55 cases drifted, and the survivors
+  would have been a fixture silently reweighted toward one audience.
+  **⚠️ Also: bare `uv sync` prunes this venv.** The root project is an empty non-package workspace, so
+  it uninstalled every workspace package and pyright reported ~1349 phantom import errors.
+  `uv sync --all-packages` is the only correct form; no Makefile target wraps it.
+
 - **✅ D-164 + D-165 are deployed and verified live, and the verification found a real limit
   (2026-08-03, on user instruction).** PR **#96**, CI **9/9 first attempt**, squash-merged to `main`
   at **`c245c8a4350c6e783e383ab0ce6b91ee358eac39`**, deploy run
@@ -635,7 +680,47 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-03, post-D-164):**
+- **Next session, in order (2026-08-03, post-D-166):**
+  0. **Owed: D-166 is not deployed.** A code-only deploy — one config default, one new shared
+     constant module, one `packages/db` dependency line, and test/harness changes. **Check with
+     `git diff c245c8a4..HEAD -- packages/db/alembic/versions/` before dispatching** (D-157), and
+     note `packages/db/pyproject.toml` changed, so this is the first deploy in a while where a
+     *dependency* moved rather than only code — worth confirming the built image resolves
+     `intellichoice-shared` for `intellichoice-db` rather than assuming the lockfile did it.
+     Verify live the way this session verified locally: a real anonymous refusal on a question a
+     gated document answers should now produce the hint at 0.45 where it did not at 0.40.
+  1. **Reword `role-gated-question-tutor`, and check the other two the same way.** It is answered
+     from `public-contact-guide` at 0.85 with a real citation, so it can never reach the probe and
+     `role_gated_question` can never exceed 2/3. That is the *same* "public-answered vs
+     unanswerable" conflation D-165's generator was built to remove, sitting in the fixture that
+     measures the feature. Reword so no public document answers it, then re-measure — and while
+     there, confirm the parent and branch-manager cases are not passing for an accidental reason.
+  2. **The escalation work D-164 scoped but did not do** (unchanged): the email carries the
+     question, role and session id and nothing else, so an administrator has **no way to reply to
+     the person who asked**. A deliberate PII posture, but it makes the handoff one-way and wants a
+     product decision. Also `InMemoryRateLimiter` is per-process, so the effective escalation
+     ceiling is N× the configured one across N tasks.
+  3. **Continue the Phase 0B backlog. Counted from the table, not carried forward: 13 findings
+     now read *Open — Phase 0B*, 14 counting AUD-F-16** (*Open — before the gate*). This supersedes
+     the "15/16" in the previous pointer, which still counted AUD-C-06 (closed in D-165) and
+     AUD-C-21 (closed here). In rough order of what a user would notice:
+     - **the masked-by-uniform-data pair** — AUD-C-09 (`academic_year` predicate never applied at
+       query time) and AUD-L-12 (`recommended_difficulty` computed, stored, displayed, routes
+       nothing). AUD-L-12 has a precedent: D-159 deleted `flow.select_topic` as a second unused
+       definition of live behaviour, so "wire it up or delete it and fix both docstrings" is a real
+       fork, not a formality.
+     - **AUD-L-09** (provenance vs attribution), load-bearing since D-163 shipped the narrative.
+  4. **Everything from the post-D-164 pointer that is still live** — listed in full in the
+     superseded pointer below.
+     **Note on `aws`:** credentials are per-profile, and the project venv's botocore cannot resolve
+     either profile (both use `login_session`, needing `botocore[crt]`), so the `AWS_PROFILE=...
+     pytest` form in `test_qa_coverage_eval_real_bedrock.py`'s docstring does not work. Use
+     `eval "$(aws configure export-credentials --profile <p> --format env)"` — that is how every
+     real-model run this session was driven.
+     **Note on `uv`:** never bare `uv sync` (see the D-166 entry above) — `uv sync --all-packages`.
+
+- **Superseded — pointer as of post-D-164 (2026-08-03). Item 0's AUD-C-21 and item 1's eval-assertion
+  carry-over are both closed by D-166; items 2–4 carry into the pointer above:**
   0. ~~**Owed: D-164 is not deployed.**~~ **(✅ deployed 2026-08-03 with D-165 — run 30831190163,
      `chat-api:54`/`learning-api:55` at `gha-c245c8a4350c`, verified live: AUD-C-11, the escalate
      flag and the approval decline all confirmed against the deployed edge. See the top entry.)**

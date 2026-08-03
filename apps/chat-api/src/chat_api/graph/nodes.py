@@ -28,6 +28,7 @@ from intellichoice_observability.metrics import (
     QA_SERVICE_DEGRADED,
 )
 from intellichoice_observability.tracing import traced_span
+from intellichoice_shared.access_probe_policy import ACCESS_PROBE_MAX_DISTANCE
 from intellichoice_shared.auth import TokenClaims
 from intellichoice_shared.bedrock import (
     BedrockGateway,
@@ -184,11 +185,10 @@ class TurnContext:
     candidate_limit: int = 30
     top_k: int = 8
     confidence_threshold: float = 0.4
-    # AUD-C-20/D-165: cosine-distance ceiling for the §18-C3 access probe's semantic arm.
-    # Chosen by `scripts/measure_access_probe_rules.py` against a corpus-derived fixture:
-    # 0.40 named the right audience for 25 of 43 questions with zero false hints on either
-    # negative class; 0.45 buys one more correct hint for three wrong-tier ones.
-    access_probe_max_distance: float = 0.40
+    # AUD-C-20/D-165, raised by AUD-C-21/D-166: cosine-distance ceiling for the §18-C3 access
+    # probe's semantic arm. Defined once in `intellichoice_shared.access_probe_policy`, which
+    # carries the measurement - including why 0.50 is not taken.
+    access_probe_max_distance: float = ACCESS_PROBE_MAX_DISTANCE
     client_ip: str | None = None
 
 

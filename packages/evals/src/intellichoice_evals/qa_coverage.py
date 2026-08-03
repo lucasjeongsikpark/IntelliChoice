@@ -166,6 +166,29 @@ def _union(scores: dict[str, CategoryScore], categories: frozenset[str]) -> Cate
     return merged
 
 
+def wrong_role_hints(outcomes: Iterable[CaseOutcome]) -> list[str]:
+    """Case ids where the turn produced an access hint naming a role the case did not expect.
+
+    AUD-C-21/D-166 added this because a category *rate* cannot express the property worth
+    asserting. `_refusal_passed` marks a role-gated case failed both when the probe named the
+    wrong tier and when it stayed silent, and those are not the same event: staying silent is
+    the pre-D-165 behaviour, honest and safe, while naming the wrong tier tells a person to go
+    log in as somebody they are not - and on a case where *nothing* answers the question, it
+    sends them to log in for an answer that does not exist. A recall number over three
+    fixtures is model quality and belongs in the report; this is the architectural invariant
+    and belongs in an assertion.
+
+    Non-role-gated categories are included on purpose: they carry no
+    `expected_required_role`, so any hint at all on one of them is a false hint.
+    """
+    return [
+        outcome.case_id
+        for outcome in outcomes
+        if outcome.access_hint_role is not None
+        and outcome.access_hint_role != outcome.expected_required_role
+    ]
+
+
 def assert_categories_present(scores: dict[str, CategoryScore], categories: Iterable[str]) -> None:
     """Guards the failure mode a rate can't see: a fixture edit that drops every case of
     a category leaves its rate at a perfect 1.0 forever.

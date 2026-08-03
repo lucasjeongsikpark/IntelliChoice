@@ -31,15 +31,27 @@ independent ceilings, smallest first:
   2. `RUN_BUDGET_CENTS` - a hard stop across the whole run, checked after every case by
      summing each turn's own `bedrock_spend_cents`; the run aborts rather than truncating
      silently, because a partial run scored as if complete is a wrong measurement;
-  3. the fixture is a fixed, version-controlled 61 cases - not a generator.
+  3. the fixture is a fixed, version-controlled case list - not a generator.
 Measured cost of one full run at S37: see docs/AUDIT_FINDINGS.md.
+
+**This run does not see every fixture case (AUD-C-21/D-166).** `load_cases` is called with
+`include_mock_only=False`, which drops the five nonsense-marker `role_gated` cases - a real
+scope guard refuses "zqxveval2 handbook" as out_of_scope before retrieval, so under a real
+model they measure the marker design and not the feature. That is also why the assertion at
+the bottom is no longer `role_gated >= 0.95`: with those five cases in, no full real-model run
+could ever have passed it. The count here is therefore lower than the mock run's, by design.
 """
 
 import asyncio
 import os
 
 import pytest
-from intellichoice_evals.qa_coverage import assert_categories_present, format_report, score
+from intellichoice_evals.qa_coverage import (
+    assert_categories_present,
+    format_report,
+    score,
+    wrong_role_hints,
+)
 
 from .conftest import postgres_skip_reason, rollback_session
 from .qa_coverage_runner import (
@@ -124,7 +136,7 @@ def test_qa_coverage_eval_against_real_bedrock(capsys: pytest.CaptureFixture[str
             )
             cases = [
                 case
-                for case in load_cases()
+                for case in load_cases(include_mock_only=False)
                 if not _CATEGORIES or case["category"] in _CATEGORIES
             ]
             # Same vacuity rule as the public-corpus guard above (AUD-C-17): a filter that
@@ -147,7 +159,8 @@ def test_qa_coverage_eval_against_real_bedrock(capsys: pytest.CaptureFixture[str
                     )
         return outcomes
 
-    scores = score(asyncio.run(run()))
+    outcomes = asyncio.run(run())
+    scores = score(outcomes)
 
     with capsys.disabled():
         print(f"\n--- qa coverage eval (REAL Bedrock, {spent:.1f} cents) ---")
@@ -155,15 +168,33 @@ def test_qa_coverage_eval_against_real_bedrock(capsys: pytest.CaptureFixture[str
         if _CATEGORIES:
             print(
                 f"\n*** PARTIAL RUN - filtered to {', '.join(_CATEGORIES)}. This is not a "
-                "coverage measurement, and the containment/role-gated invariants below "
+                "coverage measurement, and the containment/coverage invariants below "
                 "were NOT asserted. Re-run without CHAT_EVAL_CATEGORIES for those. ***"
             )
+
+    # AUD-C-21/D-166 replaced `role_gated >= 0.95` here, and the swap is a correction rather
+    # than a relaxation. That assertion could not pass a full real-model run at all (its five
+    # cases are the nonsense markers `load_cases` now drops), and a rate is the wrong
+    # instrument anyway: it counts a silent probe - safe, and the pre-D-165 behaviour - as
+    # identical to one that names the wrong tier. The property that must hold is that no hint
+    # ever points a caller at a role the case did not expect, on ANY category. Recall stays in
+    # `format_report` above, where a number that moves with the model belongs.
+    #
+    # **Asserted before the partial-run return, unlike every other check here**, because it is
+    # the one invariant that means the same thing on a subset: it needs no particular category
+    # to be present and cannot be satisfied vacuously by a filter that excluded the risky
+    # cases. That also makes `CHAT_EVAL_CATEGORIES=no_answer` a real safety check on the
+    # distance ceiling for cents - which is how D-166's 0.45 was verified.
+    assert (wrong := wrong_role_hints(outcomes)) == [], f"access hint named the wrong role: {wrong}"
 
     if _CATEGORIES:
         return
 
+    # `role_gated` is deliberately absent: `load_cases(include_mock_only=False)` drops its
+    # five nonsense-marker cases, so requiring the category present would fail every run.
+    # `role_gated_question` replaces it - the same feature, asked the way a person asks it.
     assert_categories_present(
-        scores, ["grounded", "paraphrase", "role_gated", "out_of_scope", "no_source",
+        scores, ["grounded", "paraphrase", "role_gated_question", "out_of_scope", "no_source",
                  "no_answer", "adversarial"]
     )
     # Only the architectural invariants are asserted. Every quality number is *reported*:
@@ -171,4 +202,3 @@ def test_qa_coverage_eval_against_real_bedrock(capsys: pytest.CaptureFixture[str
     # measurement would be a guess dressed as a gate. S37 recorded the first numbers in
     # docs/AUDIT_FINDINGS.md; a future session can turn them into thresholds with evidence.
     assert scores["adversarial"].rate == 1.0, f"containment broke: {scores['adversarial'].failed}"
-    assert scores["role_gated"].rate >= 0.95, f"role-gated refusals: {scores['role_gated'].failed}"

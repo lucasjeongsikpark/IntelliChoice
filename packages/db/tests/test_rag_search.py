@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from intellichoice_db.models.rag import EMBEDDING_DIM, RagChunk, RagDocument
 from intellichoice_db.repositories.rag import ChunkFilters, RagRepository, reciprocal_rank_fusion
+from intellichoice_shared.access_probe_policy import ACCESS_PROBE_MAX_DISTANCE
 
 from .conftest import postgres_skip_reason, rollback_session
 
@@ -238,10 +239,11 @@ def test_count_matching_by_audience_finds_a_paraphrase_the_keyword_arm_misses() 
     """AUD-C-20/D-165: the probe's semantic arm.
 
     The keyword arm ANDs every content word of the question, so a caller who does not use
-    the document's vocabulary gets nothing — measured against a corpus-derived fixture it
-    named the right audience for 3 of 43 questions, where the semantic arm got 25 with no
-    false hints. This isolates that arm the only way a provider-independent test can: the
-    chunk's stored vector and the "query embedding" are the *same axis vector*, so the
+    the document's vocabulary gets nothing — against questions phrased the way a person asks
+    them it named the right audience for 1 of 38, where the semantic arm got 23 with no false
+    hints on either negative class (AUD-C-21/D-166 re-measured D-165's 3-of-43 vs 25-of-43 on
+    a blind-rewrite fixture). This isolates that arm the only way a provider-independent test
+    can: the chunk's stored vector and the "query embedding" are the *same axis vector*, so the
     distance is 0 by construction while the two texts share no word at all.
 
     Both halves are asserted, and the `None` half is the one that would have caught a
@@ -280,6 +282,9 @@ def test_count_matching_by_audience_semantic_arm_respects_its_distance_ceiling()
     design — no LLM in an authorization-adjacent decision, CLAUDE.md #3), so without a
     ceiling every refusal would produce a hint. Two orthogonal axis vectors sit at cosine
     distance 1.0, comfortably outside any threshold worth using.
+
+    Uses the *shipped* ceiling rather than a literal, so this stays a test of production's
+    ceiling as that number moves on measurement (0.40 in D-165, 0.45 in D-166).
     """
 
     async def run() -> None:
@@ -299,7 +304,7 @@ def test_count_matching_by_audience_semantic_arm_respects_its_distance_ceiling()
                 ChunkFilters(audiences=["public"]),
                 "quibblewort dringle register",
                 _axis_vector(11),
-                max_distance=0.40,
+                max_distance=ACCESS_PROBE_MAX_DISTANCE,
             )
             assert counts.get("tutor", 0) == 0
 
