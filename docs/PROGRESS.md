@@ -289,17 +289,14 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   0. **Nothing is unlanded, and everything is deployed.** `main` carries D-154 (#85), D-155 (#86),
      D-156 (#87) and the orphan-doc deletion (#88), and all of it went to staging on 2026-08-03 at
      `0fd2cb8046ff` (run 30774650665, all gates green, rollback skipped).
-     **⚠️ New, found while verifying that deploy — AUD-F-37 (P2): `/healthz` is not routed on the
-     public edge**, so the endpoint built to answer "what version is answering" (AUD-F-16) cannot be
-     read without AWS credentials. One line in each of the two `api_path_patterns` lists in
-     `terraform/environments/staging/main.tf`, plus an apply. Cheap, and it makes every future
-     deploy verifiable instead of inferred.
-  1. **First, AUD-F-37 — it is cheap and it makes everything after it verifiable.** One line added to
-     each of the two `api_path_patterns` lists in `terraform/environments/staging/main.tf`, plus an
-     apply. Worth pairing with a smoke-test step asserting the deployed `build_sha == GITHUB_SHA`,
-     which is the check `/healthz` exists to enable and which nothing currently performs. Until it
-     lands, every deploy's API version is inferred from the workflow run rather than read from the
-     running process — including the 2026-08-03 one.
+     **AUD-F-37, found while verifying that deploy, is now ✅ closed (D-158)** — see item 1.
+  1. ✅ **AUD-F-37 is done (D-158) — but not the way this list originally said.** The proposed fix
+     (add `/healthz` to both `api_path_patterns`) was **wrong**: the Terraform says three lines above
+     the list that `/healthz` and `/metrics` are excluded *deliberately*, internal-only. Reading it
+     before editing caught that. The real defect was that nothing asserted the running code is the
+     built code, so `deploy-staging.yml` gained two gates instead — a deployed-version check off the
+     ECS control plane, and an edge-routing assertion (`GET /me` → 401, not the SPA's 200). No
+     exposure change, no apply, no new IAM.
   2. **Then keep going down the Phase 0B backlog — still the work D-152 points at.** **19** findings remain
      tagged *Open — Phase 0B* (21 − D-156's L-13/L-15; AUD-C-19 was never in that tag — it was filed
      and closed inside 24 hours), and **20 open in total** counting AUD-F-16. Taking a cluster rather than a finding is what has made
