@@ -5,10 +5,44 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-161 + D-162 + D-163 are merged and deployed, and AUD-L-18 is verified live — the parent
+  narrative ships for the first time (2026-08-03, on user instruction).** PR **#95**, CI **9/9
+  first attempt**, squash-merged to `main` at **`e91658b624901aea026113c1e40577714cfed9b4`**, deploy
+  run [30814450173](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30814450173),
+  **success**, rollback **skipped**. Three undeployed decisions cleared in one deploy.
+  **The pre-deploy check set the risk level before dispatching** (D-157's rule):
+  `git diff e1c152bc..HEAD -- packages/db/alembic/versions/` returned **nothing**, so this was known
+  to be a **code-and-frontend** deploy, not a schema one — D-160's expand/contract rule did not
+  apply. Run pinned by head SHA, never by "the latest run is green".
+  **Every gate ran:** migrations exit 0 (no-op, as predicted) → MySQL re-seed → RAG re-embed →
+  chat-suggestions upsert → pre-deploy ARNs captured → both services deployed and waited stable →
+  deployed-version gate → `/dev/token` **404** on both public edges → canary bake clean → rollback
+  **skipped** → both frontends synced + invalidated → smoke test through CloudFront.
+  **✅ And the running revisions were read, not inferred** (independent of the gate's own check):
+  `learning-api:54` and `chat-api:53`, both `image=gha-e91658b62490`.
+  **✅ AUD-L-18 is verified live, which is the whole point — a green pipeline proves nothing here.**
+  Out-of-band parent token, target `student-ext-1`, July range, against the deployed API:
+  **three fresh keys → `generated: true` 3/3** (6.1 s, 5.4 s, 5.5 s). Before this deploy the same
+  route returned `generated: false` on **every** real generation staging had ever done (D-162 §4,
+  2/2). The narrative it wrote quotes "50% mastery" and "stands at 0%" — percent renderings of
+  `0.5` and `0.0`, i.e. **exactly the class that was rejecting everything**, now grounded.
+  **✅ AUD-L-14 verified live in the same response:** `time_spent_minutes: 178.5961` beside
+  `attempts_count: 5547`. The 0.0-beside-a-real-count shape is gone on real data.
+  **✅ D-159's replay property did not regress:** replaying key `-a` returned a **byte-identical
+  body** (matching sha256) in **1.0 s** vs the first call's 6.1 s — no Bedrock.
+  **✅ D-161 verified live by bundle grep** (D-159's technique): the deployed
+  `/assets/index-B9DFsw8n.js` — a genuinely new bundle, was `index-BRhYK8z7.js` — contains
+  `n.generated||S(crypto.randomUUID())`, the minified rotation guard. `Idempotency-Key` still
+  occurs **twice**, matching D-159's own count, so AUD-X-04's client half did not regress.
+  **⚠️ Not read this time: the cost ledger.** Three real Bedrock calls were made and the spend path
+  is unchanged by any of these three decisions, so no ops-task read was taken. `cost_cents` is
+  absent from `StudentReportResponse` by design, so the client cannot report it either — the
+  reservation/settlement evidence for this route is D-162 §3's, not this deploy's.
+
 - **✅ D-163 / AUD-L-18: the parent-report narrative had never shipped under a real model, and
   D-162 §4's suspicion was wrong (2026-08-03).** `make lint` clean, `pyright` 0 errors,
-  **707 passed / 2 skipped** (693 + 14 new); e2e typecheck clean. **No deploy** — rides the next
-  one (learning-api backend) with D-162's fix and D-161's frontend fix.
+  **707 passed / 2 skipped** (693 + 14 new); e2e typecheck clean. **✅ Deployed 2026-08-03 and
+  verified live — `generated: true` 3/3 against the deployed API; see the deploy entry above.**
   **The measurement refuted the hypothesis it was built to test.** New committed harness
   `scripts/measure_report_grounding.py` drove the real deployed model over three payload shapes,
   5 generations each: staging's polluted aggregates **5/5 ungrounded**, an ordinary 26-attempt
@@ -37,8 +71,8 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 - **✅ D-162: AUD-X-04 is verified live, and AUD-L-14 is measured-then-fixed (2026-08-03).**
   `make lint` clean, `pyright` 0 errors, **693 passed / 2 skipped**; e2e typecheck clean;
-  `journey-parent` + `time-telemetry` green post-change. **No deploy — the AUD-L-14 fix rides the
-  next one (backend, learning-api only), alongside D-161's frontend fix.**
+  `journey-parent` + `time-telemetry` green post-change. **✅ Deployed 2026-08-03 and verified live
+  — `time_spent_minutes: 178.5961` beside `attempts_count: 5547`; see the deploy entry above.**
   **The owed live exercise (pointer item 0) is done and D-159's caveat is retired.** Against the
   deployed API, out-of-band parent token: missing header → **422**; first call → **200** with
   exactly one `bedrock_call` and one reservation (2.25¢ reserved → 0.3894¢ settled); replay →
@@ -80,8 +114,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   degraded → rotates (**watched failing pre-fix**), generated → stable, error → stable. Learning
   e2e **21/21** (18 + 3), e2e typecheck clean, build clean; `make lint` / `pyright` / pytest
   re-run untouched-but-green (**693 passed / 2 skipped**).
-  **⚠️ Not deployed** — rides the next deploy (frontend-only; staging has no real users to hit the
-  pinning in the meantime).
+  **✅ Deployed 2026-08-03 and verified live by bundle grep** — the serving
+  `/assets/index-B9DFsw8n.js` contains `n.generated||S(crypto.randomUUID())`; see the deploy entry
+  above.
 
 - **✅ D-159 is merged and deployed — the first deploy since S32 that carried a schema change
   (2026-08-03 05:00–05:16Z, on user instruction).** PR **#93**, CI **9/9 first attempt**,

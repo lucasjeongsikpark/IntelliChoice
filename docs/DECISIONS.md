@@ -9943,8 +9943,30 @@ directions. `make lint` clean, `pyright` 0 errors, **707 passed / 2 skipped** (6
 typecheck clean. Final re-measurement, same harness and same arms: **15/15 grounded**, from 0/15.
 Total measurement spend across the session: **~16 cents**.
 
-**⚠️ Not deployed.** Rides the next deploy (backend, learning-api only), alongside D-162's
-AUD-L-14 fix and D-161's frontend fix.
+### 6. Deployed, and verified live rather than assumed (2026-08-03, on user instruction)
+
+PR **#95**, CI **9/9** first attempt, squash-merged at **`e91658b624901aea026113c1e40577714cfed9b4`**,
+deploy run [30814450173](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30814450173),
+success, rollback **skipped**. It cleared three undeployed decisions at once — D-161, D-162, D-163.
+
+The D-157 pre-deploy check ran before dispatch and returned no migrations, so this was known to be a
+code-and-frontend deploy; D-160's expand/contract rule did not apply. Running revisions were then
+read rather than inferred: `learning-api:54`, `chat-api:53`, both `gha-e91658b62490`.
+
+**The verification that matters, because a green pipeline says nothing about this finding.** Against
+the deployed API with an out-of-band parent token (`student-ext-1`, July range), **three fresh
+idempotency keys each returned `generated: true`** — 3/3, where every real generation staging had
+ever produced was `generated: false` (D-162 §4, 2/2). The narrative quotes "50% mastery" and "stands
+at 0%": percent renderings of `0.5` and `0.0`, precisely the class that had been rejecting
+everything. AUD-L-14 landed in the same response (`time_spent_minutes: 178.5961` beside
+`attempts_count: 5547`), and D-159's replay property held (byte-identical body, 1.0 s vs 6.1 s, no
+Bedrock). D-161 was confirmed by bundle grep: the serving `index-B9DFsw8n.js` contains
+`n.generated||S(crypto.randomUUID())`, and `Idempotency-Key` still occurs twice.
+
+**Not read this deploy: the cost ledger.** Three real Bedrock calls happened, but none of these three
+decisions touches the reservation path, so no ops-task read was taken — the settlement evidence for
+this route remains D-162 §3's. Worth stating so a later reader does not mistake this entry for
+having re-confirmed it.
 
 **Scope note — AUD-L-09 stays open and gets slightly more load-bearing.** Grounding verifies a
 number's *provenance*, not its *attribution*: "fell from 6 to 4" still passes when the real
