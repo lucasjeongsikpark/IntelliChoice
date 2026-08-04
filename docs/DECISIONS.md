@@ -11651,5 +11651,7 @@ Verified: lint clean, pyright 0, **865 passed / 2 skipped** (+13: 8 gain-bounds,
 `e2e/` tsc clean, learning-web tsc clean, full learning e2e suite **22 passed** locally including
 the three rewritten parent journeys (the promoted regression test drives login → child-select →
 dashboard → report against the real local stack). The 404 rows were measured on both deployed
-edges. Inferred, not yet verified: the new endpoint and parent flow on *staging* — owed at this
-session's own deploy, via the parent journey spec against staging.
+edges. **The staging half closed the same session** (this paragraph originally ended "inferred,
+not yet verified", reconciled in the docs follow-up): PR #109 (`c3aef7d`) deployed by run
+30957318802 (`learning-api:63` / `chat-api:62`), and the three parent journeys passed **3/3
+against the deployed staging stack**, `[build-identity] … sha=c3aef7d78d65` on both APIs.
