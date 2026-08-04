@@ -10496,3 +10496,53 @@ ceiling as a feature limit. `role-gated-question-branch-manager` was one public 
 same fate ("if a branch manager cannot resolve an issue, they can escalate it to the regional
 office") and had been *passing* for a reason nothing asserted. Both now ask for the part of the gated
 chunk the public corpus does not contain. The parent case was checked the same way and left alone.
+
+**Deployed and verified live (2026-08-03, on user instruction).** PR **#98**, CI **9/9**,
+squash-merged to `main` at **`b4228aa436b180b985f64ed0c8fb74b7a253b98a`**, deploy run
+[30866202911](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30866202911),
+**success**, rollback **skipped**. The pre-deploy check (D-157) was re-run against the actual merge
+commit rather than the pre-merge branch tip: `git diff 8eaeacc..b4228aa -- packages/db/alembic/
+versions/` returned nothing, so **code-and-frontend**, D-160's expand/contract rule did not apply,
+and Alembic exited 0 as predicted. Every gate ran, including the RAG re-embed — which is again the
+evidence that a new cross-package import (`intellichoice_knowledge.retrieval` →
+`access_probe_policy`) resolves *inside the built image*, not merely in the local lockfile.
+
+**⚠️ The stated prediction was wrong, in the good direction — recorded because a falsified
+prediction is worth more than a vague one.** Before reading the result this entry predicted the
+motivating question would return **silence**, since the corpus-phrasing sweep had the parent and
+branch_manager tiers inside the 0.10 margin. Live, anonymously, on the exact question:
+`access_hint.required_role: "parent"` — the **correct** tier — **stable across four consecutive
+runs**, so not a lucky sample of a nondeterministic reranker. Live retrieval separates the two tiers
+by more than the fixture did. **That is a fixture-vs-production gap, not a win**: the sweep's margin
+suppressions are pessimistic about the deployed system, which means the 29/38 and 28/38 numbers are
+a floor rather than an estimate.
+
+**Also verified live:** a second tier fires correctly (`"Can I see my sibling's classes if we're
+both on the platform?"` → `required_role: "student"`), the probe stays silent where nothing gated
+answers, and **the one regression this entry warned about does not reproduce** —
+`"What happens to a student who misses three sessions in a row?"` returns `access_hint: null` on the
+deployed edge. `/dev/token` **404** on both public edges.
+
+**The reranker is confirmed running by behaviour rather than by a log, and that is the stronger
+check.** The AWS session expired mid-verification so CloudWatch was not read for
+`access_probe_rerank_degraded`. It does not matter for this claim: the distance-only fallback at
+0.45 *is* the pre-D-168 rule, and that rule answers **branch_manager** for this question. A `parent`
+hint is reachable only through the reranked path.
+
+**Not verified, owed:** ECS revision numbers and image tags read directly (the deploy's own
+deployed-version gate passed, so this is a redundant confirmation, not an open question); D-167's
+browser behaviour check now that the bundles are synced; and the added latency on a refusal turn
+under real conditions.
+
+**A dependency detour, resolved on evidence rather than waved through.** `python-dependency-audit`
+went red on four advisories published the same day — on a branch whose commits touch no dependency
+file, with the same scan green on `main` at 20:41Z. Reachability was checked, not assumed: all four
+need code paths this repo does not have (aiohttp's *server* component and WebSocket *client*;
+`cryptography`'s `pkcs7_decrypt_*`), and `cryptography` is not imported anywhere at all. Bumped
+anyway (`aiohttp 3.14.1→3.14.3`, `cryptography 49.0.0→50.0.0`, lockfile only — `>=42` already
+admitted 50) because an all-green deploy gate is worth more than the argument that these are
+unreachable *today*. The two container scans passing is what confirms a major bump installs cleanly
+in the real images; the local suite could not have shown that. **Carry-over:** `cryptography` looks
+like dead weight — nothing imports it and the only JWT work in the tree is HS256 (HMAC), which PyJWT
+does without it. Removing a declared dependency can surface an implicit runtime need no test
+exercises, so that belongs in its own change with its own container build.

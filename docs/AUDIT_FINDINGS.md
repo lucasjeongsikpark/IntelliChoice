@@ -1576,10 +1576,18 @@ zero — reranking alone reaches 33–36 right but keeps 2–5 wrong tiers, beca
 the parent handbook and the branch-manager procedure both genuinely answer.
 
 **The motivating question is fixed in the sense that matters and not in the sense one might hope:**
-it now produces **silence** (the honest no-source message plus its escalation offer), not
-`"log in with a branch manager account"`, and not `"parent"` either. Two tiers legitimately compete
-for it and the probe declines to guess. One regression: a single false hint on the unanswerable class
-on corpus phrasing only (`no-answer-missed-1`), where D-166's rule had none. **Not yet deployed.**
+on the fixture it produces **silence** rather than `"log in with a branch manager account"` — two
+tiers legitimately compete for it and the probe declines to guess.
+
+**✅ Deployed and verified live (2026-08-03).** PR #98, CI 9/9, merge `b4228aa4`, run
+[30866202911](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30866202911), every
+gate green, rollback skipped. **The live result beat the prediction:** the motivating question
+returns `required_role: "parent"` — the *correct* tier, not silence — **stable across four
+consecutive runs**. Live retrieval separates the two tiers by more than the fixture did, so the
+sweep's margin suppressions are pessimistic and 29/38 is a floor. A second tier confirmed live
+(`student`), and the one predicted regression (`no-answer-missed-1`) **does not reproduce** on the
+deployed edge. The reranked path is confirmed by behaviour: the 0.45 distance-only fallback *is* the
+old rule, which answers branch_manager here, so a `parent` hint is reachable only through reranking.
 
 ### AUD-C-21 — The access probe's distance ceiling was chosen against questions the corpus wrote (P2)
 

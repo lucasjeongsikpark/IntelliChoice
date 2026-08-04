@@ -716,6 +716,59 @@ The number now lives once, in `intellichoice_shared.access_probe_policy`, becaus
 written into `Settings`, `TurnContext` and the repository's own default and has already moved once.
 Re-run both scripts after any change to the probe, the corpus, or the threshold.
 
+**D-168 then replaced the whole rule, because the threshold was never the thing that was wrong.**
+Deploying 0.45 made the probe fire and immediately showed it naming the *wrong tier*: a parent
+asking about their own child's attendance was told to log in as a branch manager (AUD-C-22).
+`build_access_hint` ranked audiences by a fixed tier order and the probe handed it counts, so
+relevance was discarded a layer below. **The obvious fix — return distances, pick the closest —
+was measured and scores identically to the rule it replaces**, because at 0.45 the parent chunk
+(0.499) is not in the candidate set at all, so there is no second audience to compare.
+
+What fixed it was noticing the probe had been a crude parallel implementation of a pipeline this
+system already runs properly. It now *is* that pipeline, `intellichoice_knowledge.retrieval.
+probe_access`, with the audience allowlist inverted into `ChunkFilters.exclude_audiences`:
+
+    candidates under 0.60, non-accessible audiences only
+      → rerank (BedrockTask.RERANK — the same task, schema and prompt `retrieve` uses)
+      → keep audiences whose best passage scores > 0.8
+      → name one only if it beats the runner-up tier by > 0.10
+      → build_access_hint maps that audience to its fixed message
+
+| rule | right | wrong tier | FP public | FP unanswerable |
+|---|---|---|---|---|
+| ceiling 0.45 + tier priority (D-166), human phrasing | 23/38 | 1 | 0 | 0 |
+| ceiling 0.45 + tier priority (D-166), corpus phrasing | 23/38 | **4** | 0 | 0 |
+| **this rule**, human phrasing | **29/38** | **0** | 0 | 0 |
+| **this rule**, corpus phrasing | **28/38** | **0** | 0 | 1 |
+
+**The margin is the architectural point, not a tuning knob.** Reranking alone reaches 33–36 right
+but keeps 2–5 wrong tiers, because on attendance questions the parent handbook and the
+branch-manager procedure both genuinely answer and something has to lose. A wrong tier is worse
+than silence — a parent told to log in as a branch manager cannot act on it, where the no-source
+message at least carries an escalation offer — so when the reranker cannot separate two tiers the
+probe says nothing. Every remaining miss above is a silence, not a misdirection.
+
+**Two boundaries are worth stating precisely.** The model scores *passages*; the passage →
+`audience` → fixed message mapping stays deterministic and backend-authored, so no LLM names a role
+and authorization (the pre-retrieval filter) is untouched. But gated chunk **text** now reaches the
+gateway on a refusal turn, where the previous probe returned counts only — org content, not PII, the
+same content the same gateway sees for an authorized user, reduced to `{audience: score}` before
+`probe_access` returns. The earlier claim that this path involves "no LLM in an
+authorization-adjacent decision" is reversed knowingly: the hint grants nothing, so it is not an
+authorization decision.
+
+Degradation is a ladder, because this node runs *because* something already failed: rerank error →
+`count_matching_by_audience` at the 0.45 fallback ceiling (logged `access_probe_rerank_degraded`) →
+no embedding → lexical arm only → nothing. No path raises. The lexical arm also survives as the
+union partner when the reranked arm finds nothing, by measurement — 1 and 3 correct audiences across
+the two phrasings with zero wrong and zero false hits — and it is deliberately *not* consulted when
+the margin suppresses a hint, since having no relevance scale it would resolve the ambiguity by tier
+priority, the exact rule this removed.
+
+Cost: 0.12–0.28¢ per reranked refusal, ~0.11¢ averaged over all refusals including the ~31% where
+nothing is near enough to warrant a model call. Answered turns are unaffected. **HyDE** and a **0.9
+relevance floor** were both measured and rejected (D-168).
+
 **D-155 added a fourth terminal shape, `service_unavailable`.** A `BedrockGatewayError` with no
 SPEC §5.29 fallback used to be absorbed by whichever branch happened to be next — `refuse`,
 `explain_access`, `calendar_no_event` — each of which asserts something the turn never actually
@@ -741,7 +794,7 @@ flowchart TB
     EMBED -->|"BedrockGatewayError<br/>(D-155, AUD-C-07)"| SVCDOWN
     EMBED --> HYBRID["RagRepository.hybrid_search<br/>FTS + pgvector + RRF (S13)"]
     HYBRID --> RERANK["BedrockTask.RERANK (S13)<br/>top-30 → top 5-8,<br/>score=0 dropped (D-052)"]
-    RERANK -->|"chunks empty"| ACCESS["explain_access (S19)<br/>count_matching_by_audience<br/>probe, no LLM, no chunk<br/>content — role-gated only<br/>(D-056)"]
+    RERANK -->|"chunks empty"| ACCESS["explain_access (S19)<br/>retrieval.probe_access (D-168):<br/>candidates ≤0.60 → RERANK →<br/>score >0.8 → tier margin 0.10<br/>model ranks passages, code<br/>names the tier — role-gated only"]
     NOANS -->|"no_source_refusal<br/>(D-164, AUD-C-06)"| ACCESS
     RERANK -->|"chunks non-empty"| SYNTH["synthesize_answer (S13/S19)<br/>BedrockTask.RAG_ANSWER,<br/>untrusted context, never<br/>a system instruction (§5.30.4)"]
     SYNTH --> VERIFY{"qa.answer_question (S13)<br/>quote a real substring?<br/>confidence ≥ threshold?<br/>sources_conflict?"}

@@ -5,6 +5,46 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-168 / AUD-C-22 is deployed and verified live, and the live result beat the prediction
+  (2026-08-03).** PR **#98**, CI **9/9**, squash-merged to `main` at
+  **`b4228aa436b180b985f64ed0c8fb74b7a253b98a`**, deploy run
+  [30866202911](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30866202911),
+  **success**, rollback **skipped**. Every gate ran. Pre-deploy check (D-157) was re-run against the
+  **merge** commit rather than the branch tip — no migration diff, so code-and-frontend, and Alembic
+  exited 0 as predicted. `make lint` clean, pyright 0, **738 passed / 2 skipped** (+13).
+  **The finding's own filed fix was measured and is wrong.** "Return distances, pick the closest"
+  scores *identically* to the rule it replaces (23/38 right, 1 wrong): at 0.45 the parent chunk
+  (0.499) is not in the candidate set, so there is no second audience to compare against.
+  **What fixed it** was making the probe the pipeline it had been paraphrasing — candidates ≤0.60
+  over non-accessible audiences → `BedrockTask.RERANK` (the reranker real retrieval already uses) →
+  audiences scoring >0.8 → name one only if it beats the runner-up tier by >0.10. Measured over both
+  phrasings: **29/38 and 28/38** correct with **zero wrong tiers on either**, against 23/38 with 1
+  and 4. **The margin buys the zero** — reranking alone reaches 33–36 right but keeps 2–5 wrong
+  tiers, because on attendance questions the parent handbook and the branch-manager procedure both
+  genuinely answer, and a wrong tier is worse than silence.
+  **⚠️ The prediction stated before reading the result was falsified, in the good direction.** I
+  predicted silence on the motivating question; live it returns `required_role: "parent"` — the
+  **correct** tier — **stable across four consecutive runs**. The fixture's margin suppressions are
+  *pessimistic* about production, so 29/38 is a floor rather than an estimate. That is a
+  fixture-vs-production gap and it is now a known instrument limitation, not a win.
+  **✅ Also live:** a second tier fires correctly (`student`), the probe stays silent where nothing
+  gated answers, the one predicted regression (`no-answer-missed-1`) **does not reproduce**, and
+  `/dev/token` is **404** on both public edges.
+  **✅ The reranker is confirmed by behaviour rather than a log,** which is the stronger check: the
+  0.45 distance-only fallback *is* the pre-D-168 rule, and that rule answers branch_manager for this
+  question, so a `parent` hint is reachable only through the reranked path. (CloudWatch was not
+  read — the AWS session expired mid-verification.)
+  **⚠️ Owed:** ECS revisions read directly (redundant — the deployed-version gate passed), D-167's
+  browser behaviour check now that the bundles are synced, and refusal-turn latency.
+  **Cost, measured not divided:** 0.12–0.28¢ per reranked refusal (three real calls with the
+  production payload shape), ~0.11¢ averaged over all refusals including the ~31% that make no model
+  call at all. Answered turns unaffected. Session spend ~55–65¢ total.
+
+- **✅ D-167 shipped with the above** — `sessionStorage` → `localStorage` for the staging
+  `/dev/token` secret rode along in PR #98 and the SPA bundles are synced, so the per-tab paste
+  should be over. **Unverified by behaviour** (needs a browser: paste, sign in, fully quit, reopen,
+  confirm the field is pre-filled). Original entry:
+
 - **⏸ D-167 (2026-08-03, out-of-band, no numbered session): the staging login friction is fixed in
   the working tree, and `/dev/token` stayed closed.** A user question — "why can't I log in, and was
   I supposed to fetch a token secret?" — resolved to *yes, by design* (D-097's gate; no real login
@@ -748,7 +788,54 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-03, post-D-166 deploy):**
+- **Next session, in order (2026-08-03, post-D-168 deploy):**
+  0. **Small and owed, needs `aws login` first (the session expired mid-verification):** read the
+     `learning-api`/`chat-api` revision numbers and `image=gha-b4228aa436b1` tags directly, and check
+     CloudWatch for `access_probe_rerank_degraded` over the last day. Neither is load-bearing — the
+     deployed-version gate passed, and a live `parent` hint is only reachable through the reranked
+     path — but both are cheap and the habit is the point.
+  0b. **D-167's behaviour check, which no test can do:** paste the staging secret, sign in, **fully
+     quit the browser**, reopen the staging URL, and confirm the field is pre-filled and sign-in
+     works with no `get-secret-value` call. The bundles are synced, so this should now hold.
+  1. **`cryptography` looks like dead weight, and this is the change to prove it.** Nothing imports
+     it; the only JWT work in the tree is HS256 (HMAC), which PyJWT does without it. It sits in
+     `packages/adapters/pyproject.toml` as `cryptography>=42` and was just major-bumped to 50 for a
+     CVE in an API we never call. **Do it as its own change with its own container build** —
+     removing a declared dependency can surface an implicit runtime need no test exercises, and the
+     image build is the only check that would catch it.
+  2. **A product question the live results raised: "more than one tier holds this".** Two attendance
+     questions now go silent because the parent handbook and the branch-manager procedure both
+     genuinely answer, and the message set has no way to say so. The margin is the right *default*
+     (a wrong tier is worse than silence), but a "this is covered in parent and branch-manager
+     materials" message would convert those silences into something useful. Needs a product decision
+     and, if taken, a re-measured sweep — the scoring rule assumes exactly one expected audience.
+  3. **The escalation work D-164 scoped but did not do** (unchanged): the email carries the
+     question, role and session id and nothing else, so an administrator has **no way to reply to
+     the person who asked**. A deliberate PII posture, but it makes the handoff one-way and wants a
+     product decision. Also `InMemoryRateLimiter` is per-process, so the effective escalation
+     ceiling is N× the configured one across N tasks.
+  4. **Continue the Phase 0B backlog. Counted from the table, not carried forward: 13 findings read
+     *Open — Phase 0B*, 14 counting AUD-F-16** (*Open — before the gate*). **Unchanged by this
+     session** — AUD-C-22 was *Decided*, never *Open*, so closing it moves the "decided but
+     unimplemented" pile, not this count. The 13 are AUD-C-09, C-12, C-13, C-14, C-15, F-03, F-04,
+     F-05, L-01, L-05, L-08, L-12, L-16. In rough order of what a user would notice:
+     - **the masked-by-uniform-data pair** — AUD-C-09 (`academic_year` predicate never applied at
+       query time) and AUD-L-12 (`recommended_difficulty` computed, stored, displayed, routes
+       nothing). AUD-L-12 has a precedent: D-159 deleted `flow.select_topic` as a second unused
+       definition of live behaviour, so "wire it up or delete it and fix both docstrings" is a real
+       fork, not a formality.
+     - **AUD-L-09** (provenance vs attribution), load-bearing since D-163 shipped the narrative —
+       *Decided*, not *Open*, so it is outside the 13 above and still unimplemented.
+  5. **Everything from the post-D-166 pointer that is still live** — listed in full below.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** use `eval "$(aws configure export-credentials --profile <p> --format env)"`;
+     the project venv's botocore cannot resolve either profile directly.
+     **Note on the sweep:** `scripts/measure_access_probe_rules.py --load <dump.json>` re-scores any
+     rule for **free** against identical embeddings and rerank scores. Dumps from this session are
+     scratch-only; re-collect with `--dump` before iterating.
+
+- **Superseded — pointer as of post-D-166 (2026-08-03). Items 0, 0b and 1 are closed by D-168;
+  items 2–4 carry into the pointer above:**
   0. ~~**Owed: D-166 is not deployed.**~~ **(✅ deployed 2026-08-03 — run 30849213134,
      `learning-api:56`/`chat-api:55` at `gha-8eaeacc9b5d8`, every gate green, rollback skipped. The
      `packages/db` → `intellichoice-shared` dependency is confirmed resolved in the built image by
@@ -4515,6 +4602,71 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S55 (unnumbered) — AUD-C-22: the access probe becomes the reranked pipeline it was paraphrasing, deployed, and the fixture turns out pessimistic (2026-08-03) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-166), items 0, 0b and 1** — no numbered
+  roadmap block. Started with `/start-session`; baseline was already green (725 passed).
+- **The user's instruction shaped the whole session:** use the techniques a real RAG system uses —
+  metadata filtering, hybrid search, reranking, HNSW — "whatever is engineering-plausible for this
+  use case", and prefer a model-based rule in production. Checked what already existed before
+  proposing anything: **HNSW is present** (`ix_rag_chunks_embedding_hnsw`, migration
+  `0e846670f363`) and is an index, not a selection rule, so it cannot touch this finding; metadata
+  filtering was already complete. **Reranking was the real gap** — the probe was a crude parallel
+  implementation of a pipeline this repo already runs properly.
+- **The filed fix shape was measured and is wrong, which is the first result.** AUD-C-22 proposed
+  "return distances, pick the closest". It scores **identically** to the rule it replaces (23/38
+  right, 1 wrong) because at 0.45 the parent chunk (0.499) is not in the candidate set at all, so
+  there is no second audience to compare against. D-158's "unmeasured fix is a hypothesis" earned
+  its keep.
+- **Shipped:** `probe_access` in `intellichoice_knowledge.retrieval` — candidates ≤0.60 over
+  non-accessible audiences → `BedrockTask.RERANK` → audiences scoring >0.8 → name one only if it
+  beats the runner-up tier by >0.10. Plus `AudienceMatch(count, score)`,
+  `ChunkFilters.exclude_audiences`, `RagRepository.access_probe_candidates`, and a
+  `build_access_hint` that selects by relevance with tier priority as tie-break only.
+- **Measured, both phrasings:** **29/38 and 28/38** correct audiences with **zero wrong tiers on
+  either**, against 23/38 with 1 and 4 for the rule it replaces. **The margin is what buys the
+  zero** — reranking alone reaches 33–36 right but keeps 2–5 wrong tiers, because on attendance
+  questions the parent handbook and the branch-manager procedure both genuinely answer.
+- **Verification:** `make lint` clean, pyright 0 errors, **738 passed / 2 skipped** (+13). Sweep
+  spend 39.6¢, cost measurement ~0.5¢, live verification ~15–25¢.
+- **Deployed:** PR **#98**, CI **9/9**, merge **`b4228aa4`**, run
+  [30866202911](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30866202911),
+  success, rollback skipped. Pre-deploy check re-run against the *merge* commit, not the branch tip:
+  no migration diff → code-and-frontend.
+- **⚠️ The stated prediction was falsified, in the good direction.** Before reading the result I
+  predicted the motivating question would return **silence**. Live it returns
+  `required_role: "parent"` — the **correct** tier — **stable across four consecutive runs**. The
+  fixture's margin suppressions are *pessimistic* about production, so 29/38 is a floor, not an
+  estimate. A second tier confirmed live (`student`), and the one predicted regression
+  (`no-answer-missed-1`) **does not reproduce** on the deployed edge.
+- **The reranker is confirmed by behaviour, not a log.** The AWS session expired before CloudWatch
+  could be read, and it does not matter here: the 0.45 distance-only fallback *is* the pre-D-168
+  rule, which answers branch_manager for that question, so a `parent` hint is reachable only through
+  the reranked path.
+- **Pointer item 1 done, and the audit found two broken cases rather than one.**
+  `role-gated-question-tutor` was answered from `public-contact-guide` at 0.85, so it could never
+  reach the probe — the ceiling D-166 read as a feature limit. `role-gated-question-branch-manager`
+  was one public sentence from the same defect and had been *passing* for a reason nothing asserted.
+  Both reworded; the parent case checked and left alone.
+- **A dependency detour, resolved on evidence.** `python-dependency-audit` went red on four CVEs
+  published the same day, on a branch touching no dependency file. Reachability checked rather than
+  assumed — all four need code paths this repo lacks. Bumped anyway on the user's call
+  (`aiohttp 3.14.1→3.14.3`, `cryptography 49→50`, lockfile only); the two container scans passing is
+  what confirmed a major bump installs cleanly in the real images.
+- **Two of my own process errors, caught and worth keeping:** I read a **422 validation body** as
+  `access_hint: null` and nearly reported it as confirmation (wrong field name — `query`, not
+  `message`); and I ran two `make test` invocations concurrently against the shared dev Postgres,
+  producing 3 phantom errors that vanished on a clean run. Both are the same shape as S54's
+  pipe-swallowed exit code: *the output looked like a result and was an artefact*.
+- **Not verified, owed:** ECS revision numbers read directly (the deploy's own deployed-version gate
+  passed, so redundant); D-167's browser behaviour check now that the bundles are synced; added
+  latency on a refusal turn.
+- **Carry-over:** (a) `cryptography` looks like dead weight — nothing imports it, JWT is HS256; (b)
+  the fixture-vs-production margin gap is now a known instrument limitation; (c) the two live-silent
+  attendance cases suggest a "more than one tier holds this" message may be worth a product
+  decision.
+- **New decisions:** D-168.
 
 ### S54 (unnumbered, out-of-band) — "why can't I log in?": the staging token gate explained, and the friction fixed without opening it (2026-08-03) ✅
 
