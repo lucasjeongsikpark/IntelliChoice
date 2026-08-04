@@ -701,6 +701,21 @@ which stop the line.
 > own status**, and the status wins: D-174 §3a lost time to a "not yet checked" bullet that was
 > never struck when D-112 closed the finding.
 >
+> **⚠️ A naive `grep -i open` over this file now over-counts, and the fix is to anchor on the status
+> column.** Several rows carry their own history *inside* the status cell — AUD-F-16's reads
+> "✅ fixed … ; this row read `Open — before the gate` until 2026-08-04" — so the word appears in rows
+> that are closed. Found immediately after D-174 shipped, by a recount that returned 7 and named
+> AUD-F-16. Status is the **5th** pipe-delimited field and a real open finding *starts* with `Open`:
+>
+> ```
+> awk -F'|' '$2 ~ /^ *\*{0,2}AUD-[A-Z]-[0-9]+/ { st=$5; gsub(/^[ *]+/,"",st);
+>   if (st ~ /^Open/) { id=$2; gsub(/[ *]/,"",id); sub(/\(.*/,"",id); print id } }' \
+>   docs/AUDIT_FINDINGS.md | sort -u
+> ```
+>
+> That returns the 6 named above. **Do not "correct" the count to whatever a looser grep reports**
+> without checking where the word sits — that is the same class of error twice over.
+>
 > Note also that *Open* and *Decided* are different piles: a finding whose fix has been decided but
 > not implemented (AUD-L-03, AUD-L-09) is not in this count and is not done. That pile is currently
 > **empty of unimplemented items** apart from those two.
