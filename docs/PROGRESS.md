@@ -5,11 +5,65 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **⏸ D-169 + D-170 (2026-08-03, no numbered session): the masked-by-uniform-data pair is closed,
+- **✅ D-169 + D-170 are deployed, and the session's real work was the two things the pipeline did
+  not report (2026-08-04, no numbered session).** PR **#99**, CI **9/9 first attempt**,
+  squash-merged to `main` at **`8097f25580312e585b843c2c2d18207763b8c904`**, deploy run
+  [30872449984](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30872449984),
+  **success**, rollback **skipped**. Every gate ran. `make lint` clean, `pyright` 0,
+  **748 passed / 2 skipped** — unchanged by the deploy, which is the point (below).
+  **The D-157 pre-check was run against the *merge* commit rather than the branch tip** and
+  predicted a no-op: `git diff b4228aa4..8097f25 -- packages/db/alembic/versions/` returned nothing,
+  so code-and-docs, and Alembic exited 0 as predicted.
+  **✅ Revisions read directly, not inferred:** `learning-api:58` / `chat-api:57`, both
+  `image=gha-8097f2558031`, one deployment each.
+  **⚠️ This deploy is unverifiable by behaviour on purpose, and that *is* AUD-L-12's finding.**
+  D-169's routing is inert on 1:1 skill↔difficulty content by construction and D-170 implemented
+  nothing, so there is no live probe that would confirm anything a test has not. The suite is the
+  only instrument that distinguishes wired from unwired. A future session should not read the
+  absence of a staging before/after pair here as a skipped step.
+  **✅ 0b done, and its position in the pointer was wrong in a way that would have silently voided
+  it.** The pointer listed 0b *after* landing D-169/D-170; run in that order it would have read the
+  **new** image tag and confirmed nothing about D-168. Run first, it read `learning-api:57` /
+  `chat-api:56` at `gha-b4228aa436b1` — which are also exactly the rollback targets this deploy
+  captured, so the read doubles as an independent check on those.
+  **✅ Zero `access_probe_rerank_degraded` in 24h, and the zero is load-bearing only because a
+  vacuous control got replaced.** "Any `access_probe` mention" also returned 0 — but that string
+  exists *only* on the degraded path (`retrieval.py:151`), so a zero there says nothing about
+  whether the probe ran. The control that works is traffic: **90 `/chat/` requests** in the window
+  (D-168's own verification runs), so the probe ran and the reranker never fell back. All 9 WARNING
+  lines in the window are benign (7 provisional-timezone notices, 2 `staging_dev_token_issued` from
+  that same verification).
+  **⚠️ AUD-L-01 re-reproduced live, and my first write-up of it was wrong.** I recorded it as
+  "sharper evidence than the finding has"; it is not. This document already carried the same live
+  evidence (`GET` → **405**, `POST {}` → **422**) against the **deployed chat app**. What is
+  genuinely new is narrower: the disclosure survives this deploy, and the **learning** edge now has
+  live confirmation too, where it had only been measured via `TestClient`. Also worth stating
+  precisely, because the shorthand in earlier entries invites the error: "`/dev/token` is 404 on
+  both public edges" describes **one probe shape**, not the endpoint. The route is registered; the
+  404 is a handler-level fail-closed response. The security property holds (valid body + wrong
+  secret → 404, no token minted), so the gate is right to pass.
+  **⚠️ chat-api came back `1/1` where the pre-deploy read was `2/2`, and it is correct behaviour —
+  filed here so it is not re-filed as drift.** chat-api's floor is **1 by design** (the ecs-service
+  module default; learning-api is pinned to 2 for criterion 7 —
+  `terraform/environments/staging/main.tf:620-634`, whose own comment names the asymmetry). The
+  pre-deploy read caught it *temporarily above* its floor from a 01:02 UTC scale-out during D-168's
+  verification traffic; it scaled back in at 02:56 UTC, ~17 minutes into the deploy.
+  **All three alarms in ALARM are expected.** `chat-api-capacity-above-floor` is AUD-F-33's **cost**
+  alarm firing for exactly that elevated period, and terraform **deliberately excludes it from the
+  canary list** ("rolling a deploy back over it would be a worse outcome than the condition"), so
+  not triggering a rollback is the designed behaviour; the scale-in resolved the condition. Both
+  `p95-latency-scale-in` alarms are the documented no-traffic case — missing datapoints treated as
+  breaching, and at the floor the policy's `-1` is a no-op
+  (`terraform/modules/ecs-service/main.tf:337`).
+  **⚠️ Owed, and it cannot be delegated to a test: D-167's behaviour check (pointer item 0c).**
+  **Phase 0B count unchanged: 11** *Open — Phase 0B* (12 counting AUD-F-16). This session closed no
+  findings; D-169/D-170 already took the 13 down to 11.
+
+- **⏸→✅ D-169 + D-170 (2026-08-03, no numbered session): the masked-by-uniform-data pair is closed,
   and one of the two closures deliberately changes nothing a student sees.** `make lint` clean,
-  `pyright` 0 errors, **748 passed / 2 skipped** (+10). **Uncommitted and undeployed** — code and
-  docs only, no migration, no paid API call, so it should ride along with whatever deploys next
-  rather than justify a deploy of its own.
+  `pyright` 0 errors, **748 passed / 2 skipped** (+10). **Deployed 2026-08-04** in run 30872449984
+  (see the entry above); at the time of writing it was uncommitted — code and docs only, no
+  migration, no paid API call, so it rode along rather than justifying a deploy of its own.
   **AUD-L-12 (D-169): `recommended_difficulty` now narrows template choice within the chosen
   skill** — `_closest_to_recommended`: exact tier → ±1 → whole pool, never empty. Threaded at all
   three serve sites; `flow._serve_next_base_or_complete` gained `mastery_repo` so a later base skill
@@ -827,21 +881,26 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-03, post-D-169/D-170):**
-  0. **Owed: D-169 + D-170 are uncommitted and undeployed, and D-167's behaviour check is still
-     unrun.** Code-and-docs only, no migration — check with
-     `git diff b4228aa4..HEAD -- packages/db/alembic/versions/` before dispatching (D-157) and expect
-     it to return nothing. **There is nothing user-visible to verify live for D-169**, which is
-     unusual and is the point: the fix is inert on 1:1 content by construction, so a staging probe
-     would confirm nothing a test has not. Verify it the way it was built — by the suite.
-  0b. **Still owed from post-D-168, needs `aws login` (the session expired mid-verification):** read
-     the `learning-api`/`chat-api` revision numbers and `image=gha-b4228aa436b1` tags directly, and
-     check CloudWatch for `access_probe_rerank_degraded` over the last day. Neither is load-bearing —
-     the deployed-version gate passed, and a live `parent` hint is only reachable through the
-     reranked path — but both are cheap and the habit is the point.
-  0c. **Still owed: D-167's behaviour check, which no test can do** — paste the staging secret, sign
-     in, **fully quit the browser**, reopen the staging URL, and confirm the field is pre-filled and
-     sign-in works with no `get-secret-value` call. The bundles are synced, so this should hold.
+- **Next session, in order (2026-08-04, post-deploy of D-169/D-170):**
+  0. **The only owed item that survives, and no test can do it: D-167's behaviour check.** Paste the
+     staging secret, sign in, **fully quit the browser**, reopen the staging URL, and confirm the
+     field is pre-filled and sign-in works with no `get-secret-value` call. The bundles have been
+     synced twice now (PR #98 and #99), so this should hold.
+  0b. **Nothing else is owed.** D-169/D-170 are deployed (run 30872449984, `learning-api:58` /
+     `chat-api:57` at `gha-8097f2558031`), and the post-D-168 AWS reads are done — revisions read
+     directly and zero `access_probe_rerank_degraded` in 24h against a **traffic** control rather
+     than a log-string control. **Two method notes worth keeping, both from that read:**
+     (a) **a verification whose evidence a deploy overwrites must run before the deploy** — 0b sat
+     after "land D-169/D-170" in the old pointer and would have read the new image tag and confirmed
+     nothing; (b) **check that your control can fail.** "No `access_probe` log lines" was zero
+     because that string only exists on the degraded path, so it was compatible with the probe never
+     running at all.
+     **And one thing not to re-file:** chat-api running a **single task** is by design
+     (`autoscaling_min_capacity` module default 1; learning-api is pinned to 2 for criterion 7 —
+     `terraform/environments/staging/main.tf:620-634`). `chat-api-capacity-above-floor` sitting in
+     ALARM means it is *above* that floor, which is a **cost** signal deliberately kept out of the
+     canary list; and both `p95-latency-scale-in` alarms sit in ALARM whenever traffic is absent.
+     None of the three is a deploy problem.
   1. **AUD-L-12's real unmasking is a *content* question, not a code one, and it is now the blocker
      on rule 2 mattering.** The bank is 1:1 skill↔difficulty (`TOPIC_DIFFICULTY_SKILLS`, and
      `study_plan.py:7-8` acknowledges "a skill *is* its difficulty tier"), so the routing shipped in

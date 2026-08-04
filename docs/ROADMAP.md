@@ -734,6 +734,15 @@ which stop the line.
 > **A finding's write-up can go stale between filing and fixing.** AUD-X-03 blamed a hardcoded
 > `busy={false}` that AUD-F-27 had already fixed. Correct the record in place (D-158's convention)
 > rather than quietly re-scoping.
+>
+> **And a *negative* result is a hypothesis until the control could have been positive (D-171).**
+> "Zero `access_probe_rerank_degraded` events" was paired with a control grep for `access_probe`,
+> which also returned zero — and was worthless, because that substring appears in exactly one log
+> statement: the degraded branch itself. The zero was fully compatible with the probe never running.
+> The control that worked came from a different mechanism than the signal (**request counts**), which
+> is the transferable part. Together with D-159's caller-less guard, D-102's concurrent arm and
+> D-157 §2's smoke test, that is **four checks in this backlog that passed while measuring nothing** —
+> so "what would make this check fail?" is a standing question, not a flourish.
 All P1s + cheap P2s from the audits, merged with the seeded known-issues backlog: S22.5
 `access_hint` blank turn, S11 parent auto-select, chat-web CI, the unseeded-RNG flake,
 `question_variants` accumulation, the ~249k-row `checkpoints` sweep, ~~EventBridge schedules for

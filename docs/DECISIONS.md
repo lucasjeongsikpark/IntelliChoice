@@ -10656,3 +10656,65 @@ a trade worth taking.
 **Revert:** if the corpus ever gains a year dimension, set `academic_year` in `role_access_filter`
 — the repository half (`_apply_filters`) has been in place and tested the whole time. Add the
 availability guard described above at the same time.
+
+## D-171 — two verification-ordering rules, learned by nearly voiding a check (accepted, 2026-08-04)
+
+Recorded because both are cheap to state, invisible until violated, and the session that violated
+them would have reported success either way.
+
+### 1. A check whose evidence the next action destroys must run before that action
+
+The post-D-169/D-170 pointer listed the owed AWS reads (item 0b: confirm `learning-api`/`chat-api`
+are running `image=gha-b4228aa436b1`) *after* "land D-169/D-170". Run in the listed order, the read
+would have returned `gha-8097f2558031` — the tag this session's own deploy had just written — and
+confirmed nothing whatsoever about D-168. It was run first instead, returning `learning-api:57` /
+`chat-api:56` at `gha-b4228aa436b1`, which are also exactly the rollback targets the deploy went on
+to capture.
+
+**The general rule:** when writing a next-session pointer, order deferred verification against what
+each item *reads*, not against what feels like the natural sequence of work. An item that reads
+mutable deployed state is not schedule-neutral. This is the same failure mode as D-157 §2 ("a green
+pipeline is not evidence the change shipped") one step earlier: there, the check measured the wrong
+thing; here, the check would have measured the right thing at the wrong time.
+
+### 2. Before trusting a zero, check that the control could have been non-zero
+
+The other half of 0b was "check CloudWatch for `access_probe_rerank_degraded` over the last day."
+It returned zero. To decide whether that zero meant "the reranker never degraded" or "nothing ran,"
+a control was needed — and the first control chosen, `access_probe` as a substring, **also returned
+zero and was worthless**: that substring occurs in exactly one log statement in the codebase
+(`retrieval.py:151`), the degraded branch itself. A zero there is fully compatible with the probe
+never having executed. There is no success-path log line for the probe at all.
+
+The control that works measures the *input* rather than a sibling of the output: **90 `/chat/`
+requests** in the window (D-168's own verification traffic), against 12,977 total log events, so
+refusal turns did reach the probe and the reranker did not fall back once.
+
+**The general rule:** a negative result needs a control that would have been positive under the
+hypothesis being ruled out. Prefer a control drawn from a *different* mechanism than the signal —
+request counts, row counts, spend — over a near-miss grep on the same code path. The near-miss grep
+is the one most likely to be silent for the same reason the signal is.
+
+**Corollary, since this is the fourth entry in this codebase to land on it** (D-159's caller-less
+guard, D-102's concurrent arm, D-157 §2's smoke test, this): asking "what would make this check
+fail?" is not pedantry, it is the check on the check. Three of the four passed while measuring
+nothing.
+
+### Not decisions, but recorded here so they are not re-filed as defects
+
+- **chat-api runs a single task by design.** `autoscaling_min_capacity` uses the ecs-service
+  module's default of 1; only learning-api is pinned to 2, for criterion 7's "≥2 tasks under load"
+  (`terraform/environments/staging/main.tf:620-634`, whose own comment names the asymmetry). A
+  pre-deploy read showing `2/2` reflects a temporary scale-out, not the floor.
+- **`chat-api-capacity-above-floor` in ALARM is a cost signal, not an availability one**, and is
+  deliberately absent from `deploy-staging.yml`'s canary alarm list — rolling a deploy back over
+  extra capacity would be worse than the condition. Both `p95-latency-scale-in` alarms sit in ALARM
+  whenever traffic is absent, because missing datapoints are treated as breaching and at the floor
+  the policy's `-1` is a no-op (`terraform/modules/ecs-service/main.tf:337`).
+- **AUD-L-01's live evidence was already recorded** (AUDIT_FINDINGS.md's S37 live section: `GET` →
+  405, `POST {}` → 422 on the deployed chat app). Re-reproducing it this session added only the
+  **learning** edge, which had been measured via `TestClient` alone. Stated because the session's
+  first write-up claimed "sharper evidence than the finding has," which was wrong. The shorthand
+  that invites this error is worth retiring: "`/dev/token` is 404 on both public edges" describes
+  **one probe shape**, not the endpoint — the route is registered and the 404 comes from inside the
+  handler.

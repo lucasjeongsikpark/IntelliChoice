@@ -531,6 +531,16 @@ FastAPI's normal behavior for any unknown path.
    This is the same class as D-096's `ecr:DescribeImages` finding — a check that appears to
    assert something stronger than it does.
 
+**Live status, 2026-08-04 (D-171).** Still open, and now confirmed on **both** public CloudFront
+edges rather than one: `POST /dev/token` with no body → **422** (with FastAPI's
+`{"type":"missing","loc":["body"]}` body), `GET` → **405**, both with no credential, on
+`d35dfnjzmgrm01` (learning) and `d222glidpp4azv` (chat). The chat edge was already recorded in the
+S37 live section; the learning edge had only been measured via `TestClient`, so this closes that
+gap. Survives the D-169/D-170 deploy. The security property is intact — a valid body with a missing
+or wrong secret still returns 404 and mints nothing — so the deploy gate is right to pass.
+**Retire the shorthand, though:** "`/dev/token` is 404 on both public edges", used in several
+PROGRESS.md entries, describes the gate's *one probe shape*, not the endpoint.
+
 **Disposition.** Phase 0B. Two changes, neither urgent: correct the comment to describe the
 real mechanism and state that the probe body must remain valid; and register the route
 conditionally rather than gating inside the handler, so a disabled endpoint is genuinely
