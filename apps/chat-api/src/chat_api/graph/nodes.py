@@ -17,6 +17,7 @@ from intellichoice_db.repositories.interrupts import InterruptApprovalRepository
 from intellichoice_db.repositories.mcp import McpToolCallRepository
 from intellichoice_db.repositories.org import OrgEventRepository
 from intellichoice_db.repositories.rag import RagRepository
+from intellichoice_knowledge import retrieval
 from intellichoice_knowledge.retrieval import retrieve
 from intellichoice_observability.metrics import (
     QA_ANSWERS,
@@ -492,20 +493,34 @@ async def explain_access(state: QAState, runtime: Runtime[TurnContext]) -> dict:
     Only that one refusal routes here; see `qa.is_no_source_refusal` for why a conflict
     refusal and a service-unavailable result must not.
 
-    Runs one metadata-only probe
-    (`RagRepository.count_matching_by_audience` - counts + audiences, chunk content never
-    leaves the repository layer) with the branch restriction lifted, so a role- or
-    branch-gated match anywhere still surfaces as a count; `role_access.build_access_hint`
-    turns that into a fixed, backend-authored message. The LLM is never involved in this
-    decision (CLAUDE.md non-negotiable #3) - if the probe finds nothing either, this is a
-    genuine no-answer, same message `qa.answer_question` would have produced for empty
-    chunks.
+    Runs one probe (`intellichoice_knowledge.retrieval.probe_access`) with the branch
+    restriction lifted and the audience allowlist inverted, so a role- or branch-gated match
+    anywhere still surfaces; `role_access.build_access_hint` turns the audience it names into
+    a fixed, backend-authored message. If the probe finds nothing either, this is a genuine
+    no-answer, same message `qa.answer_question` would have produced for empty chunks.
+
+    **The model's part in this, stated precisely (D-168/AUD-C-22).** The probe reranks
+    candidate passages and the *code* maps the winning passage's `audience` to a fixed
+    message. The model never sees a role, never proposes one, and cannot change what the user
+    is allowed to read - authorization is the pre-retrieval filter above, untouched. What
+    changed is that "which tier holds the answer" is now decided by relevance rather than by a
+    hardcoded tier order that, live, told a parent to log in as a branch manager.
     """
     ctx = _ctx(runtime)
     assert state.standalone_query is not None
     base_filters = role_access.role_access_filter(state.user_role, state.branch_external_id)
     probe_filters = base_filters.model_copy(
-        update={"restrict_to_branch": False, "branch_external_id": None}
+        update={
+            "restrict_to_branch": False,
+            "branch_external_id": None,
+            # `audiences` (the allowlist) is dropped and replaced by its inverse: the reranked
+            # probe ranks a *pool*, so a public chunk left in the pool would take a slot from
+            # the gated chunk the probe exists to find. The count-based fallback tolerated
+            # public rows because `build_access_hint` discards them afterwards; a top-10
+            # cannot afford them.
+            "audiences": None,
+            "exclude_audiences": base_filters.audiences,
+        }
     )
 
     # AUD-C-20/D-165: the probe needs a semantic signal, because keyword matching ANDs every
@@ -533,15 +548,18 @@ async def explain_access(state: QAState, runtime: Runtime[TurnContext]) -> dict:
         )
         probe_cost = exc.cost_cents
 
-    audience_counts = await ctx.rag_repo.count_matching_by_audience(
-        probe_filters,
-        state.standalone_query,
-        probe_embedding,
+    probe = await retrieval.probe_access(
+        ctx.rag_repo,
+        ctx.bedrock_gateway,
+        query=state.standalone_query,
+        probe_filters=probe_filters,
+        query_embedding=probe_embedding,
+        session_spend_cents=state.bedrock_spend_cents + probe_cost,
         max_distance=ctx.access_probe_max_distance,
     )
-    hint = role_access.build_access_hint(state.user_role, audience_counts)
+    hint = role_access.build_access_hint(state.user_role, probe.matches)
     QA_ANSWERS.labels(result="no_answer").inc()
-    spend = state.bedrock_spend_cents + probe_cost
+    spend = state.bedrock_spend_cents + probe_cost + probe.cost_cents
 
     if hint is None:
         # Reached from `synthesize_answer` this is an idempotent rewrite of what that node

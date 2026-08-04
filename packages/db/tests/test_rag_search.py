@@ -8,7 +8,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from intellichoice_db.models.rag import EMBEDDING_DIM, RagChunk, RagDocument
 from intellichoice_db.repositories.rag import ChunkFilters, RagRepository, reciprocal_rank_fusion
-from intellichoice_shared.access_probe_policy import ACCESS_PROBE_MAX_DISTANCE
+from intellichoice_shared.access_probe_policy import (
+    ACCESS_PROBE_CANDIDATE_MAX_DISTANCE,
+    ACCESS_PROBE_MAX_DISTANCE,
+)
 
 from .conftest import postgres_skip_reason, rollback_session
 
@@ -198,15 +201,21 @@ def test_count_matching_by_audience_ignores_caller_audience_and_returns_counts_o
                 access_level="public",
             )
 
-            counts = await repo.count_matching_by_audience(
+            matches = await repo.count_matching_by_audience(
                 ChunkFilters(audiences=["public"]), marker
             )
 
-            assert counts.get("tutor") == 1
-            assert counts.get("public") == 1
-            # The probe's own return type proves it: only audience -> int, never a
+            assert matches["tutor"].count == 1
+            assert matches["public"].count == 1
+            # The probe's own return type proves it: audience -> (count, score), never a
             # chunk id, chunk text, or any other content field could leak through it.
-            assert all(isinstance(k, str) and isinstance(v, int) for k, v in counts.items())
+            assert all(
+                isinstance(audience, str) and set(vars(match)) == {"count", "score"}
+                for audience, match in matches.items()
+            )
+            # The lexical arm carries no relevance scale, so it must not invent one - a
+            # fabricated score here would outrank a real semantic match in the selector.
+            assert matches["tutor"].score is None
 
     asyncio.run(run())
 
@@ -226,11 +235,11 @@ def test_count_matching_by_audience_excludes_non_matching_query_text() -> None:
                 access_level="tutor",
             )
 
-            counts = await repo.count_matching_by_audience(
+            matches = await repo.count_matching_by_audience(
                 ChunkFilters(audiences=["public"]), marker
             )
 
-            assert counts.get("tutor", 0) == 0
+            assert "tutor" not in matches
 
     asyncio.run(run())
 
@@ -266,20 +275,22 @@ def test_count_matching_by_audience_finds_a_paraphrase_the_keyword_arm_misses() 
             paraphrase = "quibblewort dringle absence policy"
 
             keyword_only = await repo.count_matching_by_audience(filters, paraphrase)
-            assert keyword_only.get("parent", 0) == 0
+            assert "parent" not in keyword_only
 
             with_semantic = await repo.count_matching_by_audience(
                 filters, paraphrase, _axis_vector(7), max_distance=0.1
             )
-            assert with_semantic.get("parent") == 1
+            assert with_semantic["parent"].count == 1
+            # Distance 0 by construction (same axis vector), so the score is 1.0 - the
+            # semantic arm's score is what AUD-C-22's selector ranks audiences by.
+            assert with_semantic["parent"].score == pytest.approx(1.0)
 
     asyncio.run(run())
 
 
 def test_count_matching_by_audience_semantic_arm_respects_its_distance_ceiling() -> None:
-    """The ceiling is the whole filter. Semantic search always returns *something* (there is
-    no relevance floor in `semantic_search_chunk_ids`, and this probe has no reranker by
-    design — no LLM in an authorization-adjacent decision, CLAUDE.md #3), so without a
+    """The ceiling is the whole filter at this layer. Semantic search always returns
+    *something* (there is no relevance floor in `semantic_search_chunk_ids`), so without a
     ceiling every refusal would produce a hint. Two orthogonal axis vectors sit at cosine
     distance 1.0, comfortably outside any threshold worth using.
 
@@ -300,13 +311,13 @@ def test_count_matching_by_audience_semantic_arm_respects_its_distance_ceiling()
                 embedding=_axis_vector(3),
             )
 
-            counts = await repo.count_matching_by_audience(
+            matches = await repo.count_matching_by_audience(
                 ChunkFilters(audiences=["public"]),
                 "quibblewort dringle register",
                 _axis_vector(11),
                 max_distance=ACCESS_PROBE_MAX_DISTANCE,
             )
-            assert counts.get("tutor", 0) == 0
+            assert "tutor" not in matches
 
     asyncio.run(run())
 
@@ -362,5 +373,79 @@ def test_hybrid_search_restrict_to_branch_hides_other_branches() -> None:
             assert all(
                 chunk.branch_external_id in (None, "branch-a") for chunk in results
             )
+
+    asyncio.run(run())
+
+
+def test_access_probe_candidates_excludes_what_the_caller_can_read_and_orders_by_distance() -> None:
+    """D-168's candidate pool. Two properties, and the exclusion is the load-bearing one: the
+    reranked probe ranks a *pool*, so a public chunk left in it would take a slot from the
+    gated chunk the probe exists to find (the count-based probe could tolerate public rows
+    because the selector discarded them afterwards; a top-N cannot).
+    """
+
+    # The shared dev Postgres carries the real approved corpus with real embeddings, and a
+    # semantic query cannot be scoped by a nonsense marker the way the keyword tests are. An
+    # academic year nothing else uses is the equivalent trick.
+    year = "9999-9998"
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            for audience, axis in (("public", 3), ("tutor", 5), ("parent", 7)):
+                document = await _seed_document(
+                    session, audience=audience, academic_year=year
+                )
+                await _seed_chunk(
+                    session,
+                    document,
+                    chunk_text=f"Zorblex fluminate notes for {audience}.",
+                    audience=audience,
+                    access_level=audience,
+                    embedding=_axis_vector(axis),
+                )
+
+            # Closest to the parent axis, then tutor; public is nearest of all and excluded.
+            query = [0.0] * EMBEDDING_DIM
+            query[7] = 0.9
+            query[5] = 0.4
+            query[3] = 1.0
+            candidates = await repo.access_probe_candidates(
+                ChunkFilters(exclude_audiences=["public"], academic_year=year),
+                query,
+                max_distance=1.0,
+                limit=10,
+            )
+
+            assert [c.audience for c in candidates] == ["parent", "tutor"]
+
+    asyncio.run(run())
+
+
+def test_access_probe_candidates_respects_its_distance_ceiling() -> None:
+    # The ceiling is what keeps the reranker from being asked about a corpus that has nothing
+    # to do with the question - and asking a model to score irrelevant passages is how a
+    # relevance floor gets talked into a false hint.
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            document = await _seed_document(session, audience="tutor")
+            await _seed_chunk(
+                session,
+                document,
+                chunk_text="Zorblex tutor register entries close each fluminate week.",
+                audience="tutor",
+                access_level="tutor",
+                embedding=_axis_vector(3),
+            )
+
+            candidates = await repo.access_probe_candidates(
+                ChunkFilters(exclude_audiences=["public"]),
+                _axis_vector(11),
+                max_distance=ACCESS_PROBE_CANDIDATE_MAX_DISTANCE,
+                limit=10,
+            )
+
+            assert candidates == []
 
     asyncio.run(run())

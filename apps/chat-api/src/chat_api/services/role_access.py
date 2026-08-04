@@ -3,9 +3,11 @@ decides which `audience` values and branch a caller may retrieve - authorization
 in the query layer, never in a prompt (CLAUDE.md non-negotiable #3).
 """
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from intellichoice_db.repositories.rag import ChunkFilters
+from intellichoice_shared.access_probe_policy import AudienceMatch
 from intellichoice_shared.auth import Role, TokenClaims
 from intellichoice_shared.profiles import ProfileAdapter
 from pydantic import BaseModel
@@ -13,10 +15,9 @@ from pydantic import BaseModel
 PUBLIC_AUDIENCE = "public"
 
 # SPEC §18-C3's access-aware refusal: a fixed audience -> "requires X login" message,
-# never generated from chunk content or an LLM (CLAUDE.md non-negotiable #3). Ordered by
-# priority (most specific/highest tier first) for `build_access_hint` below - when the
-# probe finds matches in more than one non-accessible audience, the most specific,
-# accurate guidance wins rather than naming every role that happens to match.
+# never generated from chunk content or an LLM (CLAUDE.md non-negotiable #3). The order is
+# `build_access_hint`'s **tie-break**, used when the probe cannot tell which audience is more
+# relevant - it was the primary rule until AUD-C-22, and that is what named the wrong tier.
 ACCESS_HINT_MESSAGES: dict[str, str] = {
     "branch_manager": (
         "That's part of branch management materials - available to branch managers. "
@@ -35,6 +36,23 @@ ACCESS_HINT_MESSAGES: dict[str, str] = {
 _ACCESS_HINT_PRIORITY = ("branch_manager", "tutor", "parent", "student")
 
 
+def _selection_key(item: tuple[str, AudienceMatch]) -> tuple[int, float, int]:
+    """Sort key for `build_access_hint`, smallest first: scored before unscored, then by
+    descending score, then by tier priority. Negating the score (rather than reversing) keeps
+    the tie-break meaningful - two audiences with an identical score fall through to priority
+    instead of to dict order, which would make the hint depend on row order.
+    """
+    audience, match = item
+    priority = (
+        _ACCESS_HINT_PRIORITY.index(audience)
+        if audience in _ACCESS_HINT_PRIORITY
+        else len(_ACCESS_HINT_PRIORITY)
+    )
+    if match.score is None:
+        return (1, 0.0, priority)
+    return (0, -match.score, priority)
+
+
 class AccessHint(BaseModel):
     """Backend-only, never proposed by an LLM. `required_role` always names a specific
     SPEC §5.19.1 tier - see `build_access_hint`'s docstring for why the generic
@@ -45,11 +63,26 @@ class AccessHint(BaseModel):
     message: str
 
 
-def build_access_hint(user_role: str, audience_counts: dict[str, int]) -> AccessHint | None:
-    """Classifies an empty role-filtered retrieval using the metadata-only probe's
-    per-audience counts (`RagRepository.count_matching_by_audience`, called with branch
-    restriction removed - see `chat_api.graph.nodes.explain_access`). Returns `None` when
-    no higher-tier audience matched - a genuine no-answer, nothing to explain access for.
+def build_access_hint(
+    user_role: str, audience_matches: Mapping[str, AudienceMatch]
+) -> AccessHint | None:
+    """Classifies an empty role-filtered retrieval using the access probe's per-audience
+    matches (`RagRepository.count_matching_by_audience`, called with branch restriction
+    removed - see `chat_api.graph.nodes.explain_access`). Returns `None` when no
+    higher-tier audience matched - a genuine no-answer, nothing to explain access for.
+
+    **Selection is by relevance, with tier priority only as the tie-break (AUD-C-22).**
+    Every scored audience beats every unscored one, best `score` wins among the scored, and
+    `_ACCESS_HINT_PRIORITY` settles the rest. The rule it replaced was priority alone, which
+    on a live parent question about their own child's attendance answered "log in with a
+    branch manager account" because branch_manager outranks parent and nothing compared the
+    two. A scored audience beats an unscored one because a relevance number is strictly more
+    information than "some lexeme matched somewhere"; when *nothing* is scored - the lexical
+    arm alone, or the mock's hash-seeded vectors - this degrades exactly to the old rule.
+
+    An audience with no message in `ACCESS_HINT_MESSAGES` is ignored rather than named: the
+    message set is the closed §5.19.1 tier list, and a new `audience` value appearing in the
+    corpus must not be able to reach a user (or raise) through this path.
 
     Deliberately does **not** implement plan §18-C3's other case (a match under the
     caller's *own* audience, just for a different branch -> generic "different branch"
@@ -66,10 +99,17 @@ def build_access_hint(user_role: str, audience_counts: dict[str, int]) -> Access
     correct guidance rather than an invented reason.
     """
     accessible = {PUBLIC_AUDIENCE, user_role}
-    for role in _ACCESS_HINT_PRIORITY:
-        if role not in accessible and audience_counts.get(role, 0) > 0:
-            return AccessHint(required_role=role, message=ACCESS_HINT_MESSAGES[role])
-    return None
+    candidates = [
+        (audience, match)
+        for audience, match in audience_matches.items()
+        if audience not in accessible
+        and audience in ACCESS_HINT_MESSAGES
+        and match.count > 0
+    ]
+    if not candidates:
+        return None
+    best, _ = min(candidates, key=_selection_key)
+    return AccessHint(required_role=best, message=ACCESS_HINT_MESSAGES[best])
 
 
 async def resolve_role_context(

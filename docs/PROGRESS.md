@@ -5,6 +5,22 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-167 (2026-08-03, out-of-band, no numbered session): the staging login friction is fixed in
+  the working tree, and `/dev/token` stayed closed.** A user question — "why can't I log in, and was
+  I supposed to fetch a token secret?" — resolved to *yes, by design* (D-097's gate; no real login
+  exists in either app until S44, per D-152). The follow-up ask to drop the secret on staging was
+  declined as posed and three options offered instead; the user chose persisting the secret per
+  browser, so the gate, the handler, terraform and the S35 deploy probe are all untouched.
+  **What the refusal rested on, measured not asserted:** cost ceilings are per-student/day while
+  `sub` is caller-chosen input to `/dev/token`, so an open endpoint means a fresh ceiling per
+  invented id — the ceiling design stops binding and only the 6,000/60s per-IP limiter remains
+  (~$27/min/IP at Haiku 4.5's real rate), on real Bedrock.
+  **Verified:** `make lint` clean, pyright 0 errors, 725 passed / 2 skipped, `tsc -b` + `oxlint`
+  exit 0 in both web apps, and no test or e2e fixture reads the storage key.
+  **⏸ because it is uncommitted and undeployed** — the per-tab paste continues until the SPA bundles
+  are rebuilt and synced (pointer item 0b), and the change has **no automated coverage** by choice
+  (these SPAs have no unit-test runner; the e2e harness passes the secret via envp, bypassing browser
+  storage).
 - **✅ D-166 is deployed, and the verification found the *selector* rather than the threshold
   (2026-08-03, on user instruction).** PR **#97**, CI **9/9 first attempt**, squash-merged to `main`
   at **`8eaeacc9b5d821774e99b03b0f4269d3dc4023fe`**, deploy run
@@ -755,6 +771,14 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      query fields before it ships, and the ceiling itself may want re-picking once selection changes.
      **Widening the ceiling is not an alternative:** priority never consults distance, so at any
      ceiling ≥0.499 that question still answers branch_manager.
+  0b. **Owed and small: D-167's staging-login change is uncommitted and undeployed.**
+     `sessionStorage` → `localStorage` for the `/dev/token` secret in both `DevLoginScreen.tsx`
+     files is in the working tree only (not committed, on user instruction not to commit unasked),
+     and it takes effect only once the SPA bundles are rebuilt and synced — so the per-tab paste
+     continues until then. Frontend-only, no migration, no API change: it should ride along with
+     whatever deploys next rather than justify a deploy of its own. **Verify by behaviour, not by
+     bundle diff:** paste the secret, sign in, fully quit the browser, reopen the staging URL, and
+     confirm the field is pre-filled and sign-in works with no `get-secret-value` call.
   1. **Reword `role-gated-question-tutor`, and check the other two the same way.** It is answered
      from `public-contact-guide` at 0.85 with a real citation, so it can never reach the probe and
      `role_gated_question` can never exceed 2/3. That is the *same* "public-answered vs
@@ -4491,6 +4515,44 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S54 (unnumbered, out-of-band) — "why can't I log in?": the staging token gate explained, and the friction fixed without opening it (2026-08-03) ✅
+
+- **No `/start-session`, no roadmap scope.** This began as a user question about the deployed sites
+  — login appeared broken and they had been asked to fetch a token secret — and became a four-line
+  change. Recorded because it reverses a documented choice and because the reasoning against the
+  *other* option is worth keeping (D-167).
+- **The question answered first, from source rather than memory:** login is not broken. Neither app
+  has a real login route at all — `POST /dev/token` is the only token-issuing endpoint in either
+  `main.py`, real auth is deferred to S44 by D-152, and staging's copy is secret-gated by D-097, so
+  a 404 without the header is the designed behaviour.
+- **Then the actual ask — "log in without the secret on staging" — was declined as posed, with the
+  reason measured rather than asserted.** Cost ceilings are per-student/day and `/dev/token` takes
+  `sub` as caller-chosen input, so an open endpoint gives a fresh ceiling per invented id: the
+  ceiling design stops binding entirely and only the 6,000/60s per-IP limiter remains (~$27/min/IP
+  at Haiku 4.5's real rate). It would also have required rewriting the S35 deploy probe that exists
+  because of S33/D-085's two-day public exposure. Three options were put to the user with that
+  stated; they chose the one that keeps the gate.
+- **Shipped:** `sessionStorage` → `localStorage` for the staging secret in both `DevLoginScreen.tsx`
+  files, so the paste is once per browser instead of once per tab. Both rationale comments rewritten
+  — they argued *for* `sessionStorage`, so leaving them would have left the code lying about itself.
+  Gate, handler, terraform and deploy probe all untouched.
+- **Verification:** `make lint` clean, `make typecheck` (pyright) 0 errors, **725 passed / 2 skipped**
+  — a clean-suite baseline, not evidence about this change, which no Python test can reach. Per app:
+  `tsc -b` exit 0 and `oxlint src/` exit 0 in both `learning-web` and `chat-web`. Confirmed by grep
+  that no test or e2e fixture reads the storage key — `make e2e-staging` passes the secret via envp
+  — so nothing existing could regress.
+- **Not verified, and stated as such:** the change has no automated coverage. These two SPAs have no
+  unit-test runner (Playwright only), and the e2e harness deliberately bypasses browser storage, so
+  asserting this would mean standing up vitest for a four-line dev-affordance change. Judged not
+  worth it; the behaviour is verifiable in one manual pass after the next deploy (see pointer 0b).
+- **A method note worth keeping:** the first typecheck I ran reported `exit=0` from `tail`, not from
+  `tsc`, because the command was piped. Caught and re-run before reporting. `$?` after a pipeline is
+  the last stage's status — the same class of mistake as S35's `2>/dev/null` swallowing a failure.
+- **Carry-over:** (a) the change is uncommitted and undeployed — pointer item 0b; (b) the
+  caller-chosen-`sub`-vs-per-student-quota interaction in D-167 is safe *only* because `/dev/token`
+  is closed, and S44 should confirm the real issuer asserts `sub` rather than accepting it.
+- **New decisions:** D-167.
 
 ### S53 (unnumbered) — the chat refusal a user sees: AUD-C-11, AUD-C-06, AUD-C-20, escalation made real, deployed, and AUD-C-21 found live (2026-08-03) ✅
 

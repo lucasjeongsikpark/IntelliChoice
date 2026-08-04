@@ -1316,6 +1316,12 @@ all now reachable. **1** is unassessed since S37.
 - **S44 — independent auth** (I1, I14): the selected option, token issuer with SPEC claims +
   per-app secrets, login UI replacing `DevLoginScreen`, per-account+per-IP login rate limiting,
   refresh/revocation, logout semantics.
+  **Added by D-167:** deleting `/dev/token` also deletes the `staging_token_shared_secret` setting,
+  both `DevLoginScreen`s and their stored-secret keys, and the deploy probe's wrong-credential arm —
+  so that probe needs re-pointing at the real login path rather than dropping. And confirm the new
+  issuer **asserts** `sub` from verified credentials rather than accepting it from the request body:
+  every per-student cost ceiling partitions on `sub`, so a caller-chosen `sub` makes those ceilings
+  non-binding. That is safe today only because the endpoint is closed (D-167's measurement).
 - **S45 — consent** (I9, I10): ledger (external ids + enums only, no PII), parent-grants-for-
   child capture UI, age-band derivation, no-consent→no-token; legal text from the §6.1 track.
   **Plus, assigned here by D-129 as T-02's disposition: §5.1.2's first-visit Adaptive Learning

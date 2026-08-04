@@ -11,6 +11,7 @@ from chat_api.services.role_access import (
     resolve_role_context,
     role_access_filter,
 )
+from intellichoice_shared.access_probe_policy import AudienceMatch
 from intellichoice_shared.auth import Role, TokenClaims
 from intellichoice_shared.profiles import (
     AttendanceStatus,
@@ -117,13 +118,18 @@ def test_role_access_filter_always_includes_public_and_restricts_to_branch() -> 
     assert filters.as_of is not None
 
 
+def _unscored(count: int = 1) -> AudienceMatch:
+    """A lexical-arm match: real, but with no relevance scale (see `AudienceMatch`)."""
+    return AudienceMatch(count=count)
+
+
 def test_build_access_hint_none_when_nothing_matched() -> None:
     assert build_access_hint("public", {}) is None
-    assert build_access_hint("student", {"student": 0, "public": 0}) is None
+    assert build_access_hint("student", {"student": _unscored(0), "public": _unscored(0)}) is None
 
 
 def test_build_access_hint_returns_role_guidance_for_a_higher_tier_match() -> None:
-    hint = build_access_hint("public", {"tutor": 2})
+    hint = build_access_hint("public", {"tutor": _unscored(2)})
     assert hint is not None
     assert hint.required_role == "tutor"
     assert "tutor" in hint.message.lower()
@@ -134,10 +140,65 @@ def test_build_access_hint_ignores_a_match_under_the_callers_own_accessible_audi
     # deliberately not turned into a hint - see `build_access_hint`'s own docstring for
     # why (the probe's looseness makes that signal unreliable, confirmed via live
     # verification during this session).
-    assert build_access_hint("student", {"student": 3, "public": 1}) is None
+    assert build_access_hint("student", {"student": _unscored(3), "public": _unscored(1)}) is None
 
 
-def test_build_access_hint_picks_highest_priority_when_multiple_tiers_match() -> None:
-    hint = build_access_hint("public", {"tutor": 1, "branch_manager": 1, "parent": 1})
+def test_build_access_hint_falls_back_to_priority_when_no_audience_is_scored() -> None:
+    """The pre-AUD-C-22 rule, kept as the tie-break. This is the path every mock-backed test
+    takes (hash-seeded vectors carry no relevance) and the path a semantic-arm failure
+    degrades to, so it has to keep working exactly as it did.
+    """
+    hint = build_access_hint(
+        "public", {"tutor": _unscored(), "branch_manager": _unscored(), "parent": _unscored()}
+    )
     assert hint is not None
     assert hint.required_role == "branch_manager"
+
+
+def test_build_access_hint_picks_the_most_relevant_tier_over_the_highest_ranked_one() -> None:
+    """AUD-C-22, as it was observed live: a parent asking about their own child's attendance
+    was told to log in as a *branch manager*, because branch_manager outranks parent and
+    nothing compared the two. The scores here are the measured ones - the parent chunk that
+    answers that question sat at cosine distance 0.499, the branch_manager material further
+    out - and priority must now lose to them.
+    """
+    hint = build_access_hint(
+        "public",
+        {
+            "branch_manager": AudienceMatch(count=3, score=1.0 - 0.52),
+            "parent": AudienceMatch(count=1, score=1.0 - 0.499),
+        },
+    )
+    assert hint is not None
+    assert hint.required_role == "parent"
+
+
+def test_build_access_hint_prefers_a_scored_audience_over_an_unscored_one() -> None:
+    # A relevance number is strictly more information than "some lexeme matched somewhere",
+    # so the lexical-only arm must not win on tier rank against a semantic match.
+    hint = build_access_hint(
+        "public",
+        {"branch_manager": _unscored(9), "student": AudienceMatch(count=1, score=0.4)},
+    )
+    assert hint is not None
+    assert hint.required_role == "student"
+
+
+def test_build_access_hint_breaks_an_exact_score_tie_by_priority() -> None:
+    # Two equal scores must not resolve by dict/row order - that would make the hint depend
+    # on which row Postgres returned first.
+    hint = build_access_hint(
+        "public",
+        {"parent": AudienceMatch(count=1, score=0.6), "tutor": AudienceMatch(count=1, score=0.6)},
+    )
+    assert hint is not None
+    assert hint.required_role == "tutor"
+
+
+def test_build_access_hint_ignores_an_audience_it_has_no_message_for() -> None:
+    """The message set is the closed §5.19.1 tier list. A new `audience` value in the corpus
+    must not reach a user through this path, and must not raise either - before AUD-C-22 the
+    loop simply never looked at unknown audiences, and that property is worth keeping
+    explicit now that selection iterates what the probe returned instead.
+    """
+    assert build_access_hint("public", {"regional_coordinator": AudienceMatch(1, 0.9)}) is None

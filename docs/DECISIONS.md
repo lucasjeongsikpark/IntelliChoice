@@ -10329,3 +10329,170 @@ leaks, audit and rate-limit paths untouched. The fix (per-audience distances ins
 the closest, tier priority only as tie-break) **inverts the rule every number in D-165 and D-166 was
 scored through**, so it needs a re-measured sweep on both query fields and possibly a re-picked
 ceiling — which is exactly why it is not being done as a follow-on one-liner at the end of a deploy.
+
+## D-167 — the staging `/dev/token` secret persists per browser, not per tab; the endpoint stays closed (accepted, 2026-08-03)
+
+**Context.** The user reported that login "doesn't work" on both deployed sites and asked whether the
+token-issuance step they had performed was intended. It was: D-097's secret gate is the only
+authenticated path to staging until S44, and `/dev/token` 404s without the
+`X-Staging-Token-Secret` header. The follow-up ask was the real decision — *"staging에서도 secret
+없이 로그인해보고 싶어."*
+
+**Three options were put to the user, and the concern was stated before the choice, not after.**
+
+1. **Persist the secret per browser** (`sessionStorage` → `localStorage`), gate untouched.
+2. **No secret, IP-allowlisted** — a WAF/CloudFront carve-out on `POST /dev/token`, keeping the
+   endpoint closed to everyone else. Real terraform work, a deploy-gate exception, and a dynamic
+   home IP breaks it regularly.
+3. **Open `/dev/token` on staging** behind a new flag, with the deploy gate rewritten to stop
+   asserting 404.
+
+**The user chose 1.** Options 2 and 3 are recorded because the reasoning against 3 is the part worth
+keeping.
+
+**Why opening the endpoint was the wrong trade, in one measurement rather than in principle.** Every
+cost ceiling in this codebase is keyed **per student per day** — `DAILY_REPORT_COST_CEILING_CENTS =
+50.0`, chat's sibling at 100 — and `/dev/token` takes `sub` as **caller-chosen input**. So a caller
+who can mint freely gets a *fresh ceiling per invented external id*: the per-student ceiling never
+binds, and the only remaining limit is the 6,000-request/60s per-IP global limiter, which at Haiku
+4.5's real ~0.45¢/report is roughly **$27/minute from one IP** against real Bedrock on the project's
+own account. Opening the endpoint would not have weakened one control; it would have made the whole
+ceiling design non-binding. **Generalizable rule: an authorization input the caller chooses cannot
+also be the partition key for a quota.** That is sound today only because the endpoint is closed —
+and it becomes sound *structurally* at S44, when a real issuer asserts `sub` instead of accepting it.
+
+The second reason: option 3 required editing the S35 deploy-time probe, which exists because
+S33/D-085 "closed" this endpoint in a **gitignored** tfvars file on one machine and left both
+CloudFront distributions minting any-role tokens to the public internet **for two days** while the
+docs recorded the fix as done. Removing that probe is removing the tripwire, not the lock.
+
+**What shipped.** Four functional lines across `apps/learning-web/src/screens/DevLoginScreen.tsx` and
+`apps/chat-web/src/screens/DevLoginScreen.tsx`, plus the rationale comments rewritten — the old ones
+argued *for* `sessionStorage`, so leaving them would have left the code lying about its own reasoning.
+The gate, the handler, terraform, and the deploy probe are all untouched.
+
+**The reasoning the original comment got wrong.** `sessionStorage` vs `localStorage` is a **lifetime**
+difference, not a security tier: both are plaintext, same-origin, readable by any script on the page.
+Per-tab expiry only raises cost for an attacker who must re-obtain the value — and the operator
+re-obtains it trivially from Secrets Manager, so it deterred nobody and taxed every manual staging
+check. A control that only inconveniences the legitimate operator is not a control.
+
+**Threat model now accepted, explicitly:** anything running on the SPA's origin, or anyone holding
+the unlocked machine, can read the staging secret; rotate the Secrets Manager value if such a machine
+is lost. It does **not** widen what the internet can reach. The secret disappears entirely at S44
+when a real issuer replaces `/dev/token`.
+
+## D-168 — AUD-C-22: the access probe becomes the retrieval pipeline it was paraphrasing, and the margin is what makes it safe (accepted, 2026-08-03)
+
+**Context.** D-166 deployed a wider probe ceiling (0.40 → 0.45) and its own verification found the
+probe naming the wrong tier: on AUD-C-21's motivating question, a parent asking about their child's
+attendance was told to *"log in with a branch manager account"*. `build_access_hint` iterated a fixed
+`_ACCESS_HINT_PRIORITY` and returned the first non-accessible audience with a non-zero count; the
+probe handed it counts, so relevance was discarded a layer earlier. The user's disposition was: keep
+0.45 deployed, fix the selector as its own work. The user's instruction for *this* session was to use
+the techniques a real RAG system uses — metadata filtering, hybrid search, reranking, HNSW —
+"whatever is engineering-plausible for this use case", and to prefer a model-based rule in
+production.
+
+**The finding's own proposed fix does not work, and that is the first result.** AUD-C-22 proposed
+returning per-audience distances and picking the closest. Measured, `nearest <=0.45` scores
+**identically** to the priority rule it replaces — 23/38 right, 1 wrong, on the blind-rewrite
+phrasing. The reason is the first of the two causes the finding said it could not separate: at 0.45
+the parent chunk (0.499) is not in the candidate set at all, so there is no second audience to
+compare against. Distance-based selection only starts paying at 0.55, where it is worth +4 right and
+−4 wrong — and 0.55 is where false hints on the negative classes begin. **A fix shape recorded as a
+hypothesis was worth exactly the hypothesis it was labelled as (D-158's rule, working).**
+
+**What the codebase already had, checked before proposing anything.** HNSW is present
+(`ix_rag_chunks_embedding_hnsw`, migration `0e846670f363`) — an index, not a selection rule, so it
+cannot touch this finding; noted for later that pgvector filters *after* the HNSW scan, so a top-k
+probe on a much larger corpus can under-return. Metadata filtering was already complete in the probe.
+Reranking was the real gap: the probe was a crude parallel implementation of a pipeline this
+repository already runs properly (`retrieve`: filter-first hybrid → RRF → LLM rerank → score>0 cut).
+
+**Decision.** `explain_access` now calls `intellichoice_knowledge.retrieval.probe_access`, the same
+pipeline shape as `retrieve` with the audience filter inverted:
+
+    candidates under 0.60, non-accessible audiences only
+      → rerank (BedrockTask.RERANK, the same task/schema/prompt `retrieve` uses)
+      → keep audiences whose best passage scores > 0.8
+      → name one only if it beats the runner-up tier by > 0.10
+      → build_access_hint maps that audience to its fixed message
+
+Four new constants live in `access_probe_policy` next to the sweep that produced them.
+`ACCESS_PROBE_MAX_DISTANCE = 0.45` survives unchanged as the **fallback** ceiling.
+
+**Measured, over both phrasings of the same 38 gated / 12 public / 8 unanswerable cases:**
+
+| rule | right | wrong tier | FP public | FP unanswerable |
+|---|---|---|---|---|
+| `PRIORITY <=0.45` (D-166, human phrasing) | 23/38 | 1 | 0 | 0 |
+| `PRIORITY <=0.45` (D-166, corpus phrasing) | 23/38 | **4** | 0 | 0 |
+| this rule (human phrasing) | **29/38** | **0** | 0 | 0 |
+| this rule (corpus phrasing) | **28/38** | **0** | 0 | 1 |
+
+**The margin is the whole decision, and it is a product judgement, not a tuning knob.** Reranking
+*alone* is stronger on the headline number — 33–36 right, zero silences — but it carries 2–5 wrong
+tiers, because on attendance questions the parent handbook and the branch-manager procedure both
+genuinely answer and something has to lose. AUD-C-22's own argument is that a wrong tier is worse
+than silence: a parent told to log in as a branch manager cannot act on it at all, where the
+no-source message at least carries an escalation offer. So when the reranker cannot separate two
+tiers, the probe says nothing. **Every remaining miss in the table above is a silence, not a
+misdirection** — including, on the corpus phrasing, AUD-C-22's own motivating question. That case is
+therefore *fixed in the sense that matters* (the wrong instruction is gone) and **not** answered with
+"parent"; recorded plainly rather than claimed as a win.
+
+**The one regression, stated:** one false hint on the unanswerable class, corpus phrasing only —
+`no-answer-missed-1` ("What happens to a student who misses three sessions in a row?") draws
+`branch_manager` from an attendance-procedure chunk about two consecutive *weeks*. D-166's rule has
+zero. Between-run variance on the reranker is ±1 case, so this specific cell is at the edge of what
+this fixture can resolve; the 23→29 and 1→0 movements are not.
+
+**Two negative results, so nobody re-proposes them.** **HyDE** was implemented and measured: 28/0
+(human) and 31/0 with a false public hint (corpus), for one extra generation per refusal — not
+better, and rejected. A **relevance floor of 0.9** is unstable across the two phrasings (24 vs 28
+right), which is the reranker's own scoring noise rather than a signal. The **relative-margin
+distance rule** from D-166 stays dead and is kept in the script only as the negative control it now
+is.
+
+**The lexical arm survives, and by measurement rather than sentiment.** It is unioned back in
+whenever the reranked arm yields nothing: `kw >=1` scores 1 and 3 correct audiences across the two
+phrasings with **zero wrong and zero false hits on either negative class** — strictly additive. It is
+also still the only arm `MockBedrockProvider` can exercise, which is what keeps the probe testable in
+the mock-backed suite (D-165's reason, unchanged). It is deliberately *not* consulted when the margin
+suppresses a hint: having no relevance scale, it would resolve the ambiguity by tier priority, which
+is precisely the rule this decision removes.
+
+**What the model is and is not allowed to do.** It scores passages. The passage → `audience` → fixed
+message mapping stays deterministic and backend-authored (CLAUDE.md non-negotiable #3). The model
+never sees a role, never proposes one, and cannot change what the caller may read — authorization is
+the pre-retrieval filter, untouched. **A boundary did move and it is recorded rather than buried:**
+gated chunk *text* now reaches the gateway on a refusal turn, where the previous probe returned
+counts only. It is org content, not PII; it is the same content the same gateway sees when an
+authorized user asks; it reaches nothing else — `probe_access` reduces it to `{audience: score}`
+before its caller sees anything, and `test_probe_sends_passages_but_returns_only_audiences_and_scores`
+pins both halves. The docstring in `test_rag_search.py` that asserted "no LLM in an
+authorization-adjacent decision" is corrected: the hint grants nothing, so it is not an authorization
+decision — but the claim was there in writing and is being reversed knowingly, not by omission.
+
+**Runtime cost, accepted deliberately (user's instruction: prefer model-based).** One extra rerank
+call per no-source refusal, ~10 candidates, plus the embedding that path already took. Degradation is
+a ladder, because this node runs *because* something already failed: rerank error →
+`count_matching_by_audience` at 0.45 (the pre-D-168 rule, logged as `access_probe_rerank_degraded`,
+D-115's lesson) → no embedding → lexical only → nothing. No path raises.
+
+**Instrument changes that outlive this decision.** `measure_access_probe_rules.py` now collects
+candidate *lists* and dumps them to JSON (`--dump`/`--load`), so re-scoring a rule is free and two
+rules are compared against identical embeddings and identical rerank scores rather than two runs —
+iterating cost 39.6¢ once instead of 39.6¢ per idea. `--detail <rule>` prints per-case outcomes,
+which is what showed that the eight remaining misses are all attendance questions where two tiers
+legitimately compete. And a **cost bug** was fixed in it: every gateway call passed
+`session_spend_cents=0.0`, so the 80¢ session ceiling could never bind no matter what a run cost.
+
+**Also in this session (pointer item 1), and the audit found two cases rather than one.**
+`role-gated-question-tutor` was answered from `public-contact-guide` at 0.85 with a citation, so it
+could never reach the probe and `role_gated_question` could never exceed 2/3 — D-166 read that
+ceiling as a feature limit. `role-gated-question-branch-manager` was one public sentence from the
+same fate ("if a branch manager cannot resolve an issue, they can escalate it to the regional
+office") and had been *passing* for a reason nothing asserted. Both now ask for the part of the gated
+chunk the public corpus does not contain. The parent case was checked the same way and left alone.
