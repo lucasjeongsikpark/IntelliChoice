@@ -101,13 +101,17 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
   await expectNotBlank(page);
 });
 
-// CONFIRMED DEFECT (AUD-F-04): measured going back to "Question 1 of 10" from question 3.
-// `test.fail()` inside the body (not at file scope, which would mark every test here) keeps
-// the suite green while the probe keeps running and keeps measuring. When Phase 0B fixes
-// it, this test "passes unexpectedly" and fails the run - the signal to drop the marker and
-// promote it to a regression test.
+// AUD-F-03 regression test, promoted 2026-08-04 exactly as its own marker instructed: it was
+// a `test.fail()` probe measuring a confirmed defect (going back to "Question 1 of 10" from
+// question 3), and the fix made it "pass unexpectedly", which is the signal to drop the
+// marker. **The finding id was wrong here and is corrected**: this behaviour is AUD-F-03;
+// AUD-F-04 is the narrative returning after a refresh (narrative-refresh.spec.ts). Every
+// AUD-F-0x reference in this suite was shifted by one against AUDIT_FINDINGS.md's table.
+//
+// The position is now derived from the exam overview rather than persisted, and applied once
+// per phase - `exam-position-refresh.spec.ts` covers the "once per phase" half, which this
+// test cannot see.
 test("a refresh mid-exam restores the exact position (SPEC Phase 11)", async ({ page, audit }) => {
-  test.fail();
   await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
   await startSession(page);
   await settleToInteractiveScreen(page);
@@ -123,8 +127,10 @@ test("a refresh mid-exam restores the exact position (SPEC Phase 11)", async ({ 
 
   await page.reload();
 
-  // A reload re-shows the already-dismissed narrative (its own finding - see
-  // narrative-refresh.spec.ts); clear it so this test can check the position itself.
+  // `settleToInteractiveScreen` used to be here because a reload re-showed the
+  // already-dismissed narrative (AUD-F-04, fixed 2026-08-04 - see narrative-refresh.spec.ts).
+  // Kept anyway: it settles the screen rather than only clearing narratives, and this test is
+  // about the position, so it should not start depending on AUD-F-04 staying fixed.
   await settleToInteractiveScreen(page);
   await expect(page.locator(".phase-chip")).toHaveText(/pre-exam/i, { timeout: 60_000 });
   await expectNotStuck(page, "Loading the next question…");

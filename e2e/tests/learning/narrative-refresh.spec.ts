@@ -1,14 +1,26 @@
 /**
- * AUD-F-05: does a page refresh re-show a stage narrative the student already dismissed?
+ * AUD-F-04: does a page refresh re-show a stage narrative the student already dismissed?
  *
- * `App.tsx` tracks dismissal in React state (`dismissedNarrative`, keyed by the narrative
+ * **Finding id corrected 2026-08-04.** This file called the behaviour AUD-F-05 throughout,
+ * but AUD-F-05 is the *displacement* finding (a narrative replacing the screen in use, fixed
+ * by AUD-F-21 and covered by `narrative-displacement.spec.ts`). Return-after-refresh is
+ * AUD-F-04. The two were filed under one heading in AUDIT_FINDINGS.md, which is the likely
+ * source of the mix-up.
+ *
+ * `App.tsx` tracked dismissal in React state (`dismissedNarrative`, keyed by the narrative
  * text) while the backend keeps `stage_narrative` in the snapshot. React state does not
- * survive a reload, so the gate closes again.
+ * survive a reload, so the gate closed again.
  *
  * This matters beyond the annoyance: SPEC Phase 11's own "done when" is that a refresh
  * restores the student's exact position, and `useLearningSession`'s docstring cites that
  * requirement explicitly. Landing on a narrative screen instead of the question is a
- * different position. It stays P3 because one further click clears it.
+ * different position. It stayed P3 because one further click cleared it.
+ *
+ * **Fixed 2026-08-04**, and the assertion at the end of this test is inverted accordingly -
+ * it now states that the narrative does *not* come back. Both gates moved into
+ * `useNarrativeGate` (a `sessionStorage` record keyed by learning session id), because
+ * `interactedPhase` is a second door to the same defect: a narrative the student had worked
+ * past would also return, without ever having been dismissed.
  *
  * ---
  *
@@ -33,10 +45,15 @@
  *
  * So this now (a) waits for a narrative to actually appear and captures its text, (b)
  * dismisses it and confirms it is gone, (c) reloads, (d) waits a bounded time for *that
- * same text* to return, and (e) asserts directly that it does. No `test.fail()`: the
- * assertion states today's behaviour, so **when AUD-F-05 is fixed this test fails and is
- * meant to** - update it with the fix. If no narrative ever arrives, the run cannot
- * establish its precondition and `skip`s with that reason rather than reporting a result.
+ * same text* to return, and (e) asserts directly on whether it did. No `test.fail()`: the
+ * assertion states the required behaviour outright. If no narrative ever arrives, the run
+ * cannot establish its precondition and `skip`s with that reason rather than reporting a
+ * result.
+ *
+ * The bounded wait in (d) is load-bearing now that the assertion is inverted, and more so
+ * than it was before. "The narrative did not come back" is an absence, and an absence is
+ * also what a slow snapshot looks like - so `NARRATIVE_RETURN_MS` has to be long enough that
+ * expiry means the app decided not to show it, not that this test ran out of patience.
  *
  * The welcome narrative is used rather than a pre-exam one: it is the case the finding
  * itself quotes, it needs no topic selection or exam, and it removes AUD-F-01's
@@ -77,7 +94,7 @@ test("a dismissed stage narrative stays dismissed across a refresh", async ({ pa
   test.skip(
     !appeared,
     `no stage narrative appeared within ${NARRATIVE_ARRIVAL_MS} ms, so a dismissal could ` +
-      "not be established - this run says nothing about AUD-F-05 either way",
+      "not be established - this run says nothing about AUD-F-04 either way",
   );
 
   const narrativeText = (await page.locator(".stack p, .panel p, main p").first().innerText())
@@ -109,31 +126,26 @@ test("a dismissed stage narrative stays dismissed across a refresh", async ({ pa
     .catch(() => false);
   audit.note(`narrative returned after the refresh: ${returned}`);
 
+  // Distinguishing *which* narrative came back is what keeps a failure here actionable: a
+  // different one arriving is a different defect, not AUD-F-04, and without this the message
+  // below would misattribute it.
+  let textAfter: string | null = null;
   if (returned) {
-    const textAfter = (await page.locator(".stack p, .panel p, main p").first().innerText())
+    textAfter = (await page.locator(".stack p, .panel p, main p").first().innerText())
       .trim()
       .slice(0, 120);
     audit.note(`text after the refresh: ${JSON.stringify(textAfter)}`);
-    // The same narrative, not merely some narrative - a *different* one arriving would be
-    // a different finding, and one this test would otherwise silently report as AUD-F-05.
-    expect(
-      textAfter,
-      "a narrative returned after the refresh, but not the one that was dismissed - that is " +
-        "not AUD-F-05 and needs its own investigation",
-    ).toBe(narrativeText);
-    // And it is genuinely re-dismissable rather than a stuck state, which is the whole of
-    // why this is P3 and not a blocking defect.
-    expect(
-      await dismissNarrativeIfPresent(page),
-      "the returned narrative could not be dismissed again - this is no longer P3",
-    ).toBe(true);
   }
 
-  // (e) Today's behaviour, asserted directly. This is the defect: when it is fixed, this
-  // line fails and should be inverted along with the fix.
+  // (e) The required behaviour, asserted directly. Inverted 2026-08-04 with the fix; before
+  // it, this file asserted `toBe(true)` to state the defect.
   expect(
-    returned,
-    "AUD-F-05 appears to be fixed: a refresh no longer re-shows the dismissed narrative. " +
-      "That is the desired behaviour - invert this assertion and update the finding.",
-  ).toBe(true);
+    returned ? `returned: ${textAfter}` : "did not return",
+    textAfter === narrativeText
+      ? "the dismissed stage narrative came back after a refresh - AUD-F-04 has regressed. " +
+        "Both gates live in useNarrativeGate (sessionStorage, keyed by learning session id); " +
+        "check that the record is being written and that its session id still matches."
+      : "a narrative appeared after the refresh, but not the one that was dismissed - that " +
+        "is not AUD-F-04 and needs its own investigation",
+  ).toBe("did not return");
 });

@@ -116,6 +116,52 @@ export function ExamScreen({
     setSelected(null);
   }, [currentDisplayOrder, phase]);
 
+  // AUD-F-03: restore the student's place after a mid-exam refresh. `currentDisplayOrder` is
+  // this component's state, so a reload used to restore the session, the answers and the
+  // read-only locks and still drop the student to question 1 - measured going from
+  // "Question 3 of 10" to "Question 1 of 10". SPEC Phase 11's own "done when" is that a
+  // refresh restores the exact position, and `useLearningSession`'s docstring cites that as
+  // the reason the session id is persisted at all, so this was a documented requirement that
+  // no test covered.
+  //
+  // **Derived from the overview, not persisted.** The overview already carries a server-side
+  // `status` per `display_order`, and its endpoint exists for precisely this - its docstring
+  // says it "lets the exam nav bar restore item statuses after a mid-exam refresh". Writing a
+  // second copy of the position into `sessionStorage` would add a source of truth that can
+  // disagree with the one the server already keeps.
+  //
+  // **One-shot per phase, and that is the whole design.** Re-applying this on every overview
+  // fetch would fight the nav bar: the poll runs every 20 s, so a student who jumped back to
+  // review an answered question would be silently bounced forward again within the next tick.
+  // The ref stores the phase rather than a boolean so it self-clears at a phase boundary -
+  // the same reason `App.tsx`'s `interactedPhase` does (AUD-F-21) - which means a genuine
+  // pre -> post transition gets its own restore and correctly lands on 0, all items unseen.
+  //
+  // **Residual, stated because it is not what the finding's wording promises.** This restores
+  // *the first item still needing an answer*, not literally the last question on screen,
+  // because nothing server-side records view position: `time_spent_ms` is cumulative per item
+  // and carries no ordering. They differ when a student skips forward - skip question 1,
+  // answer 2 through 10, refresh, and this lands on 1 rather than 10. That is unfinished work
+  // and a defensible place to land, but it is an approximation of "exact position" and a
+  // future change that wants the literal one has to persist it server-side.
+  const restoredPhaseRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isExamPhase || !overview) return;
+    if (restoredPhaseRef.current === phase) return;
+    // App keeps holding the previous phase's overview after the phase moves on (the staleness
+    // AUD-F-24 documents), so without this the post-exam would restore a position derived
+    // from the pre-exam's item statuses.
+    if (overview.phase !== phase) return;
+    restoredPhaseRef.current = phase;
+    if (overview.items.length === 0) return;
+    const ordered = [...overview.items].sort((a, b) => a.display_order - b.display_order);
+    // `skipped` and `flagged` are both still unanswered, and deliberately count as work
+    // remaining - only `answered` is locked in.
+    const firstUnanswered = ordered.find((item) => item.status !== "answered");
+    const target = firstUnanswered ?? ordered[ordered.length - 1];
+    if (target) setCurrentDisplayOrder(target.display_order);
+  }, [isExamPhase, phase, overview]);
+
   // Gated on `isExamPhase`, which AUD-F-24 turned from a nicety into a correctness
   // requirement. `overview` is the *exam's* item list and App keeps holding it after the
   // phase moves on, so outside an exam phase this lookup used to keep resolving a

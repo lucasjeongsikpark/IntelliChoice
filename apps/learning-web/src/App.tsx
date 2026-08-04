@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import "./App.css";
 import * as api from "./api/client";
 import { useLearningSession } from "./hooks/useLearningSession";
+import { useNarrativeGate } from "./hooks/useNarrativeGate";
 import type { Role, SessionSnapshot } from "./types";
 import logoUrl from "../../../packages/ui-brand/assets/logo.png";
 import { DevLoginScreen } from "./screens/DevLoginScreen";
@@ -39,17 +40,26 @@ function App() {
   const [streak, setStreak] = useState(0);
   const [counts, setCounts] = useState({ hint: 0, solution: 0, video: 0 });
   const [interventionDismissed, setInterventionDismissed] = useState(false);
-  // S26: keyed by the narrative text itself (not a boolean) so a *new* narrative
-  // (a different stage firing later in the same session) shows again even though an
-  // earlier one was already dismissed.
-  const [dismissedNarrative, setDismissedNarrative] = useState<string | null>(null);
-  // AUD-F-21: the phase the student has actually done something in, stored as the phase
-  // name rather than a boolean so it self-clears at every phase boundary. A boolean would
-  // need a reset effect, and the reset would race the narrative it is meant to gate:
-  // `nodes.py` writes `phase` and `stage_narrative` in the *same* state update, so a
-  // finalize's outro narrative arrives on the same snapshot as the new phase. Comparing
-  // against the current phase has no such ordering to get wrong.
-  const [interactedPhase, setInteractedPhase] = useState<string | null>(null);
+  // AUD-F-04: both narrative gates now live in a `sessionStorage`-backed hook so they
+  // survive a refresh - see useNarrativeGate.ts for why both of them had to move and why the
+  // record is keyed by learning session id. The two properties they had as React state are
+  // unchanged and still the reason they are shaped this way:
+  //   - `dismissedNarrative` is keyed by the narrative *text* (not a boolean), so a *new*
+  //     narrative (a different stage firing later in the same session) shows again even
+  //     though an earlier one was already dismissed (S26).
+  //   - `interactedPhase` is the phase name rather than a boolean, so it self-clears at
+  //     every phase boundary (AUD-F-21). A boolean would need a reset effect, and the reset
+  //     would race the narrative it is meant to gate: `nodes.py` writes `phase` and
+  //     `stage_narrative` in the *same* state update, so a finalize's outro narrative
+  //     arrives on the same snapshot as the new phase. Comparing against the current phase
+  //     has no such ordering to get wrong.
+  const {
+    dismissedNarrative,
+    interactedPhase,
+    dismissNarrative,
+    markInteracted,
+    reset: resetNarrativeGate,
+  } = useNarrativeGate(snapshot?.learning_session_id ?? null);
 
   useEffect(() => {
     if (snapshot?.is_correct === true) setStreak((s) => s + 1);
@@ -106,8 +116,7 @@ function App() {
   function resetSessionUiState() {
     setStreak(0);
     setCounts({ hint: 0, solution: 0, video: 0 });
-    setDismissedNarrative(null);
-    setInteractedPhase(null);
+    resetNarrativeGate();
   }
 
   // AUD-F-27: every screen below is passed `session.busy` where it used to be given a
@@ -125,8 +134,10 @@ function App() {
   // including the ones that arrive before the student has done anything and are the whole
   // point of S26.
   const markInteraction = useCallback(() => {
-    setInteractedPhase(snapshot?.phase ?? null);
-  }, [snapshot?.phase]);
+    // No phase means no snapshot yet, so there is nothing the student could have interacted
+    // with - previously this stored `null`, which was the same as not recording anything.
+    if (snapshot?.phase) markInteracted(snapshot.phase);
+  }, [snapshot?.phase, markInteracted]);
 
   // Every branch below used to be a direct early return from App() itself
   // (each one a full-page element centered by #root flex). Wrapped in this
@@ -387,7 +398,7 @@ function App() {
           <StageTransitionScreen
             narrative={narrative}
             evidence={snapshot.stage_narrative_evidence ?? []}
-            onContinue={() => setDismissedNarrative(narrative)}
+            onContinue={() => dismissNarrative(narrative)}
           />
         ) : null}
         {phaseContent}

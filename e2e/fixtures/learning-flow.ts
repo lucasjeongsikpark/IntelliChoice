@@ -229,8 +229,10 @@ export async function clearInterventionIfPresent(page: Page): Promise<boolean> {
   }
 
   // The requested hint does not reliably survive to be read: a later SSE snapshot
-  // without `intervention` unmounts the panel (AUD-F-03, measured in
-  // tests/learning/hint-displacement.spec.ts). So the exit button may never appear, and
+  // without `intervention` unmounts the panel (measured in
+  // tests/learning/hint-displacement.spec.ts, which deliberately carries no finding id -
+  // "AUD-F-03" here was a mis-citation; that id is the exam-position finding).
+  // So the exit button may never appear, and
   // its absence is not a journey failure - the graph has already moved on.
   const tryAgain = page.getByRole("button", { name: /i'll try again now/i });
   const gotIt = page.getByRole("button", { name: /got it — next question/i });

@@ -352,40 +352,127 @@ jobs:
       # service has exactly one deployment; asserting that (rather than reading
       # `deployments[0]`) is deliberate, because a stale entry in that list is precisely
       # what makes a rollout look finished when it is not.
+      #
+      # AUD-F-38 (D-173 §6): this step used to require `rolloutState == COMPLETED` and
+      # `runningCount == desiredCount` at the one instant it happened to look, and that
+      # failed a deploy whose artifact was entirely correct. `aws ecs wait services-stable`
+      # returned for chat-api, then `chat-api-p95-latency-scale-out` raised desiredCount
+      # 1 -> 3 underneath it, so the rollout re-entered IN_PROGRESS and this gate read that
+      # as a bad deploy. Everything after it - the security gate, the canary bake, the S3
+      # sync, the smoke test, *and the rollback* - was skipped while the new image served
+      # traffic unwatched.
+      #
+      # The load that caused it is not incidental: D-171 tells a session to run any
+      # verification whose evidence a deploy overwrites *before* the deploy, and those
+      # probes are real-Bedrock chat turns, which are slow and I/O-bound (AUD-F-14: CPU 15%
+      # while p95 sat at 31 s). So probing before a deploy trips the scale-out policy, and
+      # the documented practice and this gate were in direct conflict.
+      #
+      # What the gate actually needs to prove is unchanged and is asserted more directly
+      # now: **the PRIMARY task definition serves this commit's image, and at least one task
+      # is running it.** `COMPLETED` was only ever a proxy for that, and it is a proxy an
+      # unrelated autoscaling event invalidates.
+      #
+      # Three things are deliberately still fatal, so this is a narrower gate and not a
+      # weaker one:
+      #   - `rolloutState == FAILED` fails immediately and is never retried into a pass;
+      #   - a wrong image tag fails immediately, *including* while still IN_PROGRESS, so a
+      #     stale deployment is caught in seconds rather than after the whole wait;
+      #   - `runningCount < 1` fails - "nothing is running this image" is the one thing that
+      #     would make the tag check vacuous.
+      # `runningCount == desiredCount` is what got dropped, and only that: during a
+      # legitimate scale-out running(2) < desired(3) says nothing about the deploy.
       - name: Verify the running image is this commit (deployed-version gate)
         run: |
           set -euo pipefail
           EXPECTED='${{ steps.vars.outputs.tag }}'
+          # Bounded: long enough to outlast a scale-out placing tasks, short enough that a
+          # genuinely stuck rollout is reported rather than waited on for the job's lifetime.
+          # Read by the warning message too, so the number quoted there cannot go stale.
+          WAIT_SECONDS=300
+          WAIT_DEADLINE=$(( $(date +%s) + WAIT_SECONDS ))
           for APP in learning-api chat-api; do
             SERVICE="intellichoice-staging-$APP"
-            aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$SERVICE" \
-              --query 'services[0].deployments' --output json > /tmp/deployments.json
-            TD=$(python3 -c "
+            while :; do
+              aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$SERVICE" \
+                --query 'services[0].deployments' --output json > /tmp/deployments.json
+              # Emits "<VERDICT>|<taskDefinition>|<rolloutState>|<running>/<desired>", where
+              # VERDICT is OK (rollout complete), PENDING (in progress) or FATAL:<reason>.
+              LINE=$(python3 -c "
           import json, sys
           d = json.load(open('/tmp/deployments.json'))
+          def emit(verdict, dep=None):
+              if dep is None:
+                  print(f'{verdict}|-|-|-')
+              else:
+                  print(f\"{verdict}|{dep['taskDefinition']}|{dep.get('rolloutState')}\"
+                        f\"|{dep['runningCount']}/{dep['desiredCount']}\")
+              sys.exit(0)
           if len(d) != 1:
-              sys.exit(f'$SERVICE: expected exactly 1 deployment after services-stable, found {len(d)}: '
-                       + ', '.join(f\"{x['status']}/{x.get('rolloutState')}\" for x in d))
+              emit('FATAL:expected exactly 1 deployment, found ' + str(len(d)) + ': '
+                   + ', '.join(f\"{x['status']}/{x.get('rolloutState')}\" for x in d))
           dep = d[0]
-          if dep['status'] != 'PRIMARY' or dep.get('rolloutState') != 'COMPLETED':
-              sys.exit(f\"$SERVICE: deployment is {dep['status']}/{dep.get('rolloutState')}, not PRIMARY/COMPLETED\")
+          state = dep.get('rolloutState')
+          if dep['status'] != 'PRIMARY':
+              emit(f\"FATAL:deployment status is {dep['status']}, not PRIMARY\", dep)
+          if state == 'FAILED':
+              emit('FATAL:rolloutState is FAILED - ' + str(dep.get('rolloutStateReason')), dep)
           if dep['desiredCount'] < 1:
-              sys.exit(f\"$SERVICE: desiredCount is {dep['desiredCount']} - nothing is running to verify\")
-          if dep['runningCount'] != dep['desiredCount']:
-              sys.exit(f\"$SERVICE: runningCount {dep['runningCount']} != desiredCount {dep['desiredCount']}\")
-          print(dep['taskDefinition'])
+              emit('FATAL:desiredCount is 0 - nothing is running to verify', dep)
+          # An in-progress rollout legitimately has runningCount < desiredCount, so only
+          # 'nothing at all is running' is fatal - that is the one state which would make the
+          # image-tag check below vacuous.
+          if dep['runningCount'] < 1:
+              emit('FATAL:runningCount is 0 - nothing is running this image', dep)
+          emit('OK' if state == 'COMPLETED' else 'PENDING', dep)
           ")
-            IMAGE=$(aws ecs describe-task-definition --task-definition "$TD" \
-              --query "taskDefinition.containerDefinitions[?name=='$APP'].image" --output text)
-            TAG="${IMAGE##*:}"
-            if [ "$TAG" != "$EXPECTED" ]; then
-              echo "Deployed-version gate FAILED for $SERVICE."
-              echo "  running task definition: $TD"
-              echo "  serving image tag:       $TAG"
-              echo "  this run built:          $EXPECTED"
-              exit 1
-            fi
-            echo "$SERVICE: $TD serving $TAG (matches this commit)."
+              VERDICT="${LINE%%|*}"; REST="${LINE#*|}"
+              TD="${REST%%|*}"; REST="${REST#*|}"
+              ROLLOUT="${REST%%|*}"; COUNTS="${REST#*|}"
+
+              case "$VERDICT" in
+                FATAL:*)
+                  echo "Deployed-version gate FAILED for $SERVICE: ${VERDICT#FATAL:}"
+                  echo "  task definition: $TD  rollout: $ROLLOUT  running/desired: $COUNTS"
+                  exit 1
+                  ;;
+              esac
+
+              # Checked on every pass, including PENDING: a wrong image is wrong now and
+              # waiting cannot fix it, so this must not sit behind the retry loop.
+              IMAGE=$(aws ecs describe-task-definition --task-definition "$TD" \
+                --query "taskDefinition.containerDefinitions[?name=='$APP'].image" --output text)
+              TAG="${IMAGE##*:}"
+              if [ "$TAG" != "$EXPECTED" ]; then
+                echo "Deployed-version gate FAILED for $SERVICE."
+                echo "  running task definition: $TD"
+                echo "  serving image tag:       $TAG"
+                echo "  this run built:          $EXPECTED"
+                echo "  rollout: $ROLLOUT  running/desired: $COUNTS"
+                exit 1
+              fi
+
+              if [ "$VERDICT" = "OK" ]; then
+                echo "$SERVICE: $TD serving $TAG, rollout COMPLETED ($COUNTS)."
+                break
+              fi
+
+              if [ "$(date +%s)" -ge "$WAIT_DEADLINE" ]; then
+                # The image is right and tasks are serving it; only the rollout has not
+                # settled, which is AUD-F-38's case. Passing here is the deliberate change -
+                # but it is announced, because a rollout that never settles is worth seeing
+                # even when this deploy is fine.
+                echo "::warning title=Rollout still in progress::$SERVICE is serving the" \
+                     "correct image ($TAG, $COUNTS running/desired) but rolloutState is" \
+                     "$ROLLOUT after ${WAIT_SECONDS}s. Accepting per AUD-F-38 - most likely" \
+                     "an autoscaling event during the rollout. Check scaling activities if" \
+                     "this recurs."
+                echo "$SERVICE: $TD serving $TAG, rollout $ROLLOUT ($COUNTS) - accepted."
+                break
+              fi
+              echo "$SERVICE: rollout $ROLLOUT ($COUNTS), image already correct - waiting…"
+              sleep 15
+            done
           done
           echo "Both services are running this commit's image."
 
