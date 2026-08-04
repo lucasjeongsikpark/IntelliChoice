@@ -1,7 +1,12 @@
 from datetime import datetime
 from typing import Any
 
-from intellichoice_shared.access_probe_policy import ACCESS_PROBE_MAX_DISTANCE
+from intellichoice_shared.access_probe_policy import (
+    ACCESS_PROBE_CANDIDATE_LIMIT,
+    ACCESS_PROBE_CANDIDATE_MAX_DISTANCE,
+    ACCESS_PROBE_MAX_DISTANCE,
+    AudienceMatch,
+)
 from pydantic import BaseModel
 from sqlalchemy import Select, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +27,11 @@ class ChunkFilters(BaseModel):
 
     audience: str | None = None
     audiences: list[str] | None = None
+    # The access probe's inverse of `audiences` (D-168): everything the caller *cannot* read.
+    # Expressed as an exclusion rather than an allowlist of the other tiers because `audience`
+    # is an open string column - a new tier appearing in the corpus must show up in the probe's
+    # candidate pool, not be silently invisible to it.
+    exclude_audiences: list[str] | None = None
     branch_external_id: str | None = None
     restrict_to_branch: bool = False
     academic_year: str | None = None
@@ -37,6 +47,8 @@ def _apply_filters[RowT: tuple[Any, ...]](
         stmt = stmt.where(RagChunk.audience == filters.audience)
     if filters.audiences is not None:
         stmt = stmt.where(RagChunk.audience.in_(filters.audiences))
+    if filters.exclude_audiences:
+        stmt = stmt.where(RagChunk.audience.notin_(filters.exclude_audiences))
     if filters.restrict_to_branch:
         # SPEC §5.21.3: "branch_id is null OR branch_id = current_branch" - applied
         # unconditionally when this flag is set (S13's real access-control path), even
@@ -239,15 +251,22 @@ class RagRepository:
         query_embedding: list[float] | None = None,
         *,
         max_distance: float = ACCESS_PROBE_MAX_DISTANCE,
-    ) -> dict[str, int]:
-        """SPEC §5.19.1/plan §18-C3's access-aware-refusal probe: counts of
-        query-matching chunks grouped by `audience`, applying every filter *except* the
-        caller's own audience allowlist - so a chunk the caller cannot retrieve still
-        contributes to a count, never to content. Returns `{audience: count}` only
-        (never chunk ids or text); called only once the turn has already decided it has
-        no approved source to answer from - either retrieval came back empty, or
+    ) -> dict[str, AudienceMatch]:
+        """SPEC §5.19.1/plan §18-C3's access-aware-refusal probe: query-matching chunks
+        grouped by `audience`, applying every filter *except* the caller's own audience
+        allowlist - so a chunk the caller cannot retrieve still contributes to a match,
+        never to content. Returns `{audience: AudienceMatch}` - a count and a relevance
+        score, never chunk ids or text; called only once the turn has already decided it
+        has no approved source to answer from - either retrieval came back empty, or
         synthesis refused on what it retrieved (AUD-C-06/D-164, which widened the
         second case in).
+
+        **The score is AUD-C-22.** This returned bare counts, so `build_access_hint` had
+        nothing to rank audiences by except a fixed tier order, and live it named
+        branch_manager for a parent's question because the parent chunk's *distance* -
+        computed right here, in the `ORDER BY` - was discarded by `count(*)`. The semantic
+        arm now reports `1 - min(distance)` per audience; the lexical arm reports no score,
+        because a `@@` match has no relevance scale.
 
         **Two signals, unioned (AUD-C-20/D-165).** The keyword arm alone could not do this
         job: `websearch_to_tsquery` ANDs every content word of the question, so one word the
@@ -277,28 +296,72 @@ class RagRepository:
         keyword_stmt = _apply_filters(
             select(RagChunk.audience, func.count()), probe_filters
         ).where(RagChunk.search_vector.op("@@")(tsquery))
-        counts = {
-            audience: count
+        matches = {
+            audience: AudienceMatch(count=count)
             for audience, count in (
                 await self._session.execute(keyword_stmt.group_by(RagChunk.audience))
             ).all()
         }
         if query_embedding is None:
-            return counts
+            return matches
 
-        # Counted per audience rather than "nearest overall": `build_access_hint` picks the
-        # highest-priority *audience* that matched, so collapsing to a single nearest chunk
-        # would let one close public-adjacent tier mask a more specific one.
+        # Grouped per audience rather than "nearest overall" because the caller has to name
+        # one tier: a single nearest chunk would hide that a second, more specific audience
+        # also holds an answer. `min(distance)` is what makes the audiences comparable -
+        # `count` alone is a function of how the source document happened to be chunked.
         distance = RagChunk.embedding.cosine_distance(query_embedding)
         semantic_stmt = (
-            _apply_filters(select(RagChunk.audience, func.count()), probe_filters)
+            _apply_filters(
+                select(RagChunk.audience, func.count(), func.min(distance)), probe_filters
+            )
             .where(RagChunk.embedding.is_not(None))
             .where(distance <= max_distance)
             .group_by(RagChunk.audience)
         )
-        for audience, count in (await self._session.execute(semantic_stmt)).all():
-            counts[audience] = counts.get(audience, 0) + count
-        return counts
+        for audience, count, nearest in (await self._session.execute(semantic_stmt)).all():
+            previous = matches.get(audience)
+            matches[audience] = AudienceMatch(
+                count=(previous.count if previous else 0) + count,
+                score=1.0 - float(nearest),
+            )
+        return matches
+
+    async def access_probe_candidates(
+        self,
+        filters: ChunkFilters,
+        query_embedding: list[float],
+        *,
+        max_distance: float = ACCESS_PROBE_CANDIDATE_MAX_DISTANCE,
+        limit: int = ACCESS_PROBE_CANDIDATE_LIMIT,
+    ) -> list[RagChunk]:
+        """The reranked access probe's candidate pool (D-168): the nearest non-accessible
+        chunks to the caller's question, closest first, within `max_distance`.
+
+        Unlike `count_matching_by_audience` this returns whole chunks, text included, because
+        the next step is a reranker and a reranker needs passages. **That is a real boundary
+        change and it is confined to one hop:** the text goes to the gateway and nowhere else -
+        `intellichoice_knowledge.retrieval.probe_access` reduces it to `{audience: score}`
+        before anything else sees it, and no chunk id, title or text reaches the response, the
+        logs or the traces. The caller is expected to pass filters whose `exclude_audiences`
+        holds everything the caller *can* read; this method does not enforce that, because the
+        audience decision is `role_access`'s job and duplicating it here would be a second
+        place for it to be wrong.
+
+        Semantic only. The lexical arm is absent by measurement, not oversight: on human
+        phrasing `websearch_to_tsquery` ANDs every content word and names the right audience
+        for 1 case in 38 (D-166), and the union of both arms scored *identically* to the
+        semantic arm at every ceiling - so ranking a pool by a signal that contributes nothing
+        would only displace candidates the reranker could have used.
+        """
+        distance = RagChunk.embedding.cosine_distance(query_embedding)
+        stmt = (
+            _apply_filters(select(RagChunk), filters)
+            .where(RagChunk.embedding.is_not(None))
+            .where(distance <= max_distance)
+            .order_by(distance)
+            .limit(limit)
+        )
+        return list((await self._session.execute(stmt)).scalars().all())
 
     async def hybrid_search(
         self,

@@ -403,9 +403,33 @@ cases:
   # wording a real retriever can actually match, so that `explain_access` has a genuine
   # chance to fire. They are the cases that measure whether SPEC §18-C3's feature is
   # reachable at all - see docs/AUDIT_FINDINGS.md (AUD-C).
+  #
+  # **Two of them were rewritten in D-168, and the reason is the finding, not the wording.**
+  # A `role_gated_question` case is only a test of the access probe if *nothing public*
+  # answers it - otherwise the model answers it from a public document with a real citation,
+  # the turn never refuses, and `explain_access` never runs. That is the same
+  # "public-answered vs unanswerable" conflation D-165's fixture generator was built to
+  # remove, and it was sitting in the fixture that measures the feature:
+  #
+  #   tutor          - "procedure to report a safeguarding concern" was answered from
+  #                    `public-contact-guide` ("for anything involving a student's safety
+  #                    or wellbeing, contact your branch manager immediately") at confidence
+  #                    0.85 with a citation. It could never reach the probe, so the category
+  #                    could never exceed 2/3, and D-166 read that ceiling as a feature limit.
+  #   branch_manager - "the escalation path" was one public sentence away from the same fate
+  #                    (`public-contact-guide`: "if a branch manager cannot resolve an issue,
+  #                    they can escalate it to the regional office"). It passed, but for a
+  #                    reason no test asserted.
+  #
+  # Both now ask for the part of the gated chunk the public corpus does not contain: the
+  # record-keeping obligation, and the notification order plus the filing deadline.
+  #
+  # The parent case was checked the same way and left alone: no public document mentions
+  # absence, missed sessions or losing a place at all (`public-enrollment-faq` covers the
+  # placement pre-exam, not attendance), so it is already unanswerable from public content.
   - id: role-gated-question-tutor
     category: role_gated_question
-    query: "What is the procedure for a tutor to report a safeguarding concern about a student?"
+    query: "Where am I supposed to log a safeguarding concern after raising it, and may I discuss it with the student's family?"
     expected_required_role: tutor
     seed:
       audience: tutor
@@ -419,7 +443,7 @@ cases:
       chunk_text: "Attendance and places. A student who misses four consecutive scheduled sessions without notice may lose their reserved place in the program; parents should contact the branch manager to hold a place during a planned absence."
   - id: role-gated-question-branch-manager
     category: role_gated_question
-    query: "What is the escalation path when a session has to be cancelled at short notice?"
+    query: "When a session gets cancelled at the last minute, who has to be told first and what has to be filed afterwards?"
     expected_required_role: branch_manager
     seed:
       audience: branch_manager

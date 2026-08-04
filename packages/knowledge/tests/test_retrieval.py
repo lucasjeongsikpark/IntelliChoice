@@ -16,7 +16,11 @@ from datetime import UTC, datetime
 import pytest
 from intellichoice_db.models.rag import RagChunk
 from intellichoice_db.repositories.rag import ChunkFilters
-from intellichoice_knowledge.retrieval import retrieve
+from intellichoice_knowledge.retrieval import probe_access, retrieve
+from intellichoice_shared.access_probe_policy import (
+    ACCESS_PROBE_MAX_DISTANCE,
+    AudienceMatch,
+)
 from intellichoice_shared.bedrock import (
     BedrockGenerationResult,
     BedrockTask,
@@ -30,22 +34,29 @@ from pydantic import BaseModel
 MODEL_ID = "anthropic.claude-test"
 
 
-def _chunk(chunk_id: str, text: str) -> RagChunk:
+def _chunk(chunk_id: str, text: str, audience: str = "public") -> RagChunk:
     return RagChunk(
         chunk_id=chunk_id,
         document_id="doc-1",
         chunk_text=text,
         document_title="Doc",
-        audience="public",
-        access_level="public",
+        audience=audience,
+        access_level=audience,
         academic_year="2026",
         effective_from=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
 
 class _FakeRepo:
-    def __init__(self, chunks: list[RagChunk]) -> None:
+    def __init__(
+        self,
+        chunks: list[RagChunk],
+        *,
+        fallback_matches: dict[str, AudienceMatch] | None = None,
+    ) -> None:
         self._chunks = chunks
+        self._fallback_matches = fallback_matches or {}
+        self.fallback_calls = 0
 
     async def hybrid_search(
         self,
@@ -57,6 +68,29 @@ class _FakeRepo:
     ) -> list[RagChunk]:
         del filters, query, query_embedding
         return self._chunks[:candidate_limit]
+
+    async def access_probe_candidates(
+        self,
+        filters: ChunkFilters,
+        query_embedding: list[float],
+        *,
+        max_distance: float,
+        limit: int,
+    ) -> list[RagChunk]:
+        del filters, query_embedding, max_distance
+        return self._chunks[:limit]
+
+    async def count_matching_by_audience(
+        self,
+        filters: ChunkFilters,
+        query: str,
+        query_embedding: list[float] | None = None,
+        *,
+        max_distance: float = ACCESS_PROBE_MAX_DISTANCE,
+    ) -> dict[str, AudienceMatch]:
+        del filters, query, query_embedding, max_distance
+        self.fallback_calls += 1
+        return self._fallback_matches
 
 
 class _FakeGateway:
@@ -234,5 +268,208 @@ def test_a_failed_rerank_falls_back_to_rrf_order_and_logs_the_degradation(
         assert len(degraded) == 1
         assert degraded[0].reason == "StructuredOutputError"  # type: ignore[attr-defined]
         assert degraded[0].candidate_count == 10  # type: ignore[attr-defined]
+
+    asyncio.run(run())
+
+
+# --------------------------------------------------------------------------------------
+# The access probe (SPEC §18-C3, D-168/AUD-C-22). Same fakes, same reasons: what broke here
+# was a *selection* rule that no unit test expressed, found only by reading a live response.
+# --------------------------------------------------------------------------------------
+
+
+def _probe(
+    repo: _FakeRepo,
+    gateway: _FakeGateway,
+    **kwargs: float,
+):
+    return probe_access(
+        repo,  # type: ignore[arg-type]
+        gateway,  # type: ignore[arg-type]
+        query="what happens if my child's attendance has not been recorded yet",
+        probe_filters=ChunkFilters(exclude_audiences=["public"]),
+        query_embedding=[0.1] * 4,
+        session_spend_cents=0.0,
+        **kwargs,  # type: ignore[arg-type]
+    )
+
+
+def test_probe_scores_every_qualifying_audience_so_the_selector_can_rank_them() -> None:
+    """AUD-C-22 in one test: the branch_manager passage outranks the parent one by tier and
+    must lose on relevance. Under the rule this replaces, the parent could not win at all.
+
+    The probe deliberately returns *both* audiences rather than the winner - picking is
+    `role_access.build_access_hint`'s job and there is exactly one place that does it. What
+    this asserts is that the scores it hands over say parent, unambiguously.
+    """
+
+    async def run() -> None:
+        repo = _FakeRepo(
+            [
+                _chunk("bm-1", "monthly branch reporting", audience="branch_manager"),
+                _chunk("p-1", "if attendance is unknown", audience="parent"),
+            ]
+        )
+        gateway = _FakeGateway(
+            scores=[
+                RerankedScore(candidate_index=0, relevance_score=0.85),
+                RerankedScore(candidate_index=1, relevance_score=0.98),
+            ]
+        )
+
+        result = await _probe(repo, gateway)
+
+        assert set(result.matches) == {"parent", "branch_manager"}
+        assert result.matches["parent"].score == pytest.approx(0.98)
+        assert result.matches["branch_manager"].score == pytest.approx(0.85)
+        best = max(result.matches.items(), key=lambda item: item[1].score or 0.0)
+        assert best[0] == "parent"
+        assert result.degraded is False
+        assert repo.fallback_calls == 0
+
+    asyncio.run(run())
+
+
+def test_probe_stays_silent_when_two_tiers_are_within_the_margin() -> None:
+    """The honesty clause. Both tiers genuinely hold attendance material, so naming either is
+    a coin flip - and AUD-C-22's argument is that a wrong tier is worse than the honest
+    no-source message. Measured: this is what takes wrong tiers from 1-4 to zero.
+    """
+
+    async def run() -> None:
+        repo = _FakeRepo(
+            [
+                _chunk("bm-1", "attendance marking procedure", audience="branch_manager"),
+                _chunk("p-1", "if attendance is unknown", audience="parent"),
+            ]
+        )
+        gateway = _FakeGateway(
+            scores=[
+                RerankedScore(candidate_index=0, relevance_score=0.95),
+                RerankedScore(candidate_index=1, relevance_score=0.90),
+            ]
+        )
+
+        result = await _probe(repo, gateway)
+
+        assert result.matches == {}
+        assert result.degraded is False
+
+    asyncio.run(run())
+
+
+def test_probe_ignores_candidates_below_the_relevance_floor() -> None:
+    # The floor is what keeps a question nothing answers from producing "log in as a tutor":
+    # the nearest gated chunk always exists, and being nearest is not being an answer.
+    async def run() -> None:
+        repo = _FakeRepo([_chunk("t-1", "tutor register", audience="tutor")])
+        gateway = _FakeGateway(scores=[RerankedScore(candidate_index=0, relevance_score=0.5)])
+
+        result = await _probe(repo, gateway)
+
+        assert result.matches == {}
+
+    asyncio.run(run())
+
+
+def test_probe_falls_back_to_the_distance_rule_when_the_reranker_fails(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """This node runs *because* the turn already failed; the probe may degrade, never raise.
+    D-115's lesson is the second half - the downgrade has to be audible.
+    """
+
+    async def run() -> None:
+        repo = _FakeRepo(
+            [_chunk("p-1", "if attendance is unknown", audience="parent")],
+            fallback_matches={"parent": AudienceMatch(count=1, score=0.6)},
+        )
+        gateway = _FakeGateway(
+            error=StructuredOutputError("model hit max_output_tokens", cost_cents=2.5)
+        )
+
+        with caplog.at_level(logging.WARNING, logger="intellichoice_knowledge.retrieval"):
+            result = await _probe(repo, gateway)
+
+        assert result.matches == {"parent": AudienceMatch(count=1, score=0.6)}
+        assert result.degraded is True
+        assert result.cost_cents == pytest.approx(2.5)
+        assert repo.fallback_calls == 1
+        degraded = [r for r in caplog.records if r.message == "access_probe_rerank_degraded"]
+        assert len(degraded) == 1
+        assert degraded[0].reason == "StructuredOutputError"  # type: ignore[attr-defined]
+
+    asyncio.run(run())
+
+
+def test_probe_without_an_embedding_uses_the_lexical_fallback_and_never_reranks() -> None:
+    # The caller's embedding call failed. Keyword-only is the pre-D-165 rule: worse, honest,
+    # and above all not a second failure on a path that exists to handle a failure.
+    async def run() -> None:
+        repo = _FakeRepo(
+            [_chunk("t-1", "tutor register", audience="tutor")],
+            fallback_matches={"tutor": AudienceMatch(count=2)},
+        )
+        gateway = _FakeGateway(error=AssertionError("the reranker must not be called"))
+
+        result = await probe_access(
+            repo,  # type: ignore[arg-type]
+            gateway,  # type: ignore[arg-type]
+            query="q",
+            probe_filters=ChunkFilters(exclude_audiences=["public"]),
+            query_embedding=None,
+            session_spend_cents=0.0,
+        )
+
+        assert result.matches == {"tutor": AudienceMatch(count=2)}
+        assert result.degraded is True
+        assert result.cost_cents == 0.0
+
+    asyncio.run(run())
+
+
+def test_probe_skips_the_model_entirely_when_nothing_is_near_enough() -> None:
+    """No candidate under the ceiling means no rerank call - the common case on this path is a
+    question nothing answers, and it must not cost a model call to say so. The lexical arm
+    still runs: it asks a different question ("does a gated chunk use these exact words") and
+    needs no model, so skipping the reranker is not a reason to skip it.
+    """
+
+    async def run() -> None:
+        repo = _FakeRepo([], fallback_matches={"tutor": AudienceMatch(count=1)})
+        gateway = _FakeGateway(error=AssertionError("the reranker must not be called"))
+
+        result = await _probe(repo, gateway)
+
+        assert result.matches == {"tutor": AudienceMatch(count=1)}
+        assert result.cost_cents == 0.0
+        assert result.degraded is False
+        assert repo.fallback_calls == 1
+
+    asyncio.run(run())
+
+
+def test_probe_sends_passages_but_returns_only_audiences_and_scores() -> None:
+    """The boundary the reranked probe moved. Chunk text reaches the gateway - it has to, a
+    reranker needs passages - and stops there: nothing the caller receives can carry content
+    into the response, the logs or a trace.
+    """
+
+    async def run() -> None:
+        repo = _FakeRepo([_chunk("p-1", "secret parent-only text", audience="parent")])
+        gateway = _FakeGateway(
+            scores=[RerankedScore(candidate_index=0, relevance_score=0.95)]
+        )
+
+        result = await _probe(repo, gateway)
+
+        payload = gateway.rerank_payload
+        assert payload is not None
+        assert "secret parent-only text" in payload.model_dump_json()
+        # ...and the way back carries no ids, no titles, no text.
+        assert set(result.matches) == {"parent"}
+        assert all(
+            set(vars(match)) == {"count", "score"} for match in result.matches.values()
+        )
 
     asyncio.run(run())

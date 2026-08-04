@@ -11,10 +11,15 @@ const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
 ];
 
 /**
- * `sessionStorage`, not `localStorage`: this secret mints a token for **any** role on a
- * deployed environment, so it should not outlive the tab. Surviving a refresh is the point;
- * surviving a closed browser is not worth it. Per-app by design (D-097) - chat's secret is
- * a different value from learning's, so the two keys must not be shared.
+ * `localStorage`, not `sessionStorage` - see the twin comment in
+ * `apps/learning-web/src/screens/DevLoginScreen.tsx` for the full reasoning behind the
+ * reversal and the threat model it accepts. Short version: per-tab expiry deterred nobody
+ * (the value gets typed back in from Secrets Manager anyway) and taxed every manual staging
+ * check, and the exposure that matters is the D-097 gate, which stays intact.
+ *
+ * Per-app by design (D-097) - chat's secret is a different value from learning's, so the two
+ * keys must not be shared. Same-origin storage makes that concrete: pasting learning's secret
+ * here yields a 404 indistinguishable from having pasted nothing.
  */
 const STAGING_SECRET_KEY = "intellichoice.chat_staging_token_secret";
 
@@ -29,13 +34,14 @@ export function DevLoginScreen({ onLogin, onContinueAsGuest, busy, error }: Prop
   const [role, setRole] = useState<Role>("parent");
   const [sub, setSub] = useState("parent-ext-1");
   const [stagingSecret, setStagingSecret] = useState(
-    () => sessionStorage.getItem(STAGING_SECRET_KEY) ?? "",
+    () => localStorage.getItem(STAGING_SECRET_KEY) ?? "",
   );
 
   function submit() {
     // Remembered only on an actual attempt, so a half-typed value is not persisted.
-    if (stagingSecret) sessionStorage.setItem(STAGING_SECRET_KEY, stagingSecret);
-    else sessionStorage.removeItem(STAGING_SECRET_KEY);
+    // Clearing the field and submitting is also the way to erase a stored secret.
+    if (stagingSecret) localStorage.setItem(STAGING_SECRET_KEY, stagingSecret);
+    else localStorage.removeItem(STAGING_SECRET_KEY);
     onLogin(role, sub, stagingSecret);
   }
 

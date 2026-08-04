@@ -11,10 +11,18 @@ const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
 ];
 
 /**
- * Kept in `sessionStorage`, not `localStorage`: this secret mints a token for **any** role
- * on a deployed environment, so it should not outlive the tab. Surviving a refresh is the
- * whole point (the screen is the first thing a reload lands on); surviving a closed browser
- * is not worth it.
+ * `localStorage`, not `sessionStorage` - a deliberate reversal of the original choice, which
+ * kept this out of `localStorage` on the reasoning that a secret minting a token for **any**
+ * role should not outlive the tab. What that actually bought is smaller than it looks: the
+ * value is typed back in from Secrets Manager on the next tab anyway, so per-tab expiry
+ * deterred nobody and taxed every manual staging check. Persisting it trades disk exposure
+ * on the operator's own machine for keeping the D-097 gate intact, which is the exposure
+ * that matters - the alternative under consideration was opening `/dev/token` outright.
+ *
+ * So the threat model this accepts: anything running on this origin, or anyone holding the
+ * unlocked laptop, can read the staging secret. It does NOT widen what the internet can
+ * reach. Rotate the Secrets Manager value if a machine holding it is lost, and note the
+ * secret is deleted entirely at S44 when a real issuer replaces `/dev/token`.
  */
 const STAGING_SECRET_KEY = "intellichoice.staging_token_secret";
 
@@ -28,13 +36,14 @@ export function DevLoginScreen({ onLogin, busy, error }: Props) {
   const [role, setRole] = useState<Role>("student");
   const [sub, setSub] = useState("student-ext-1");
   const [stagingSecret, setStagingSecret] = useState(
-    () => sessionStorage.getItem(STAGING_SECRET_KEY) ?? "",
+    () => localStorage.getItem(STAGING_SECRET_KEY) ?? "",
   );
 
   function submit() {
     // Remembered only on an actual attempt, so a half-typed value is not persisted.
-    if (stagingSecret) sessionStorage.setItem(STAGING_SECRET_KEY, stagingSecret);
-    else sessionStorage.removeItem(STAGING_SECRET_KEY);
+    // Clearing the field and submitting is also the way to erase a stored secret.
+    if (stagingSecret) localStorage.setItem(STAGING_SECRET_KEY, stagingSecret);
+    else localStorage.removeItem(STAGING_SECRET_KEY);
     onLogin(role, sub, stagingSecret);
   }
 
