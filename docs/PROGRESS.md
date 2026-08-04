@@ -5,6 +5,45 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-169 + D-170 (2026-08-03, no numbered session): the masked-by-uniform-data pair is closed,
+  and one of the two closures deliberately changes nothing a student sees.** `make lint` clean,
+  `pyright` 0 errors, **748 passed / 2 skipped** (+10). **Uncommitted and undeployed** — code and
+  docs only, no migration, no paid API call, so it should ride along with whatever deploys next
+  rather than justify a deploy of its own.
+  **AUD-L-12 (D-169): `recommended_difficulty` now narrows template choice within the chosen
+  skill** — `_closest_to_recommended`: exact tier → ±1 → whole pool, never empty. Threaded at all
+  three serve sites; `flow._serve_next_base_or_complete` gained `mastery_repo` so a later base skill
+  reads a row recomputed *after* the attempt just graded, and the retry ladder passes `None` because
+  it already owns its difficulty movement. Both false docstrings corrected.
+  **⚠️ The fix is provably inert on today's content, and the finding's own evidence still
+  reproduces.** Measured against the dev database: **5 approved skills × 10 templates, one tier
+  each**, so every branch returns the full pool. A student whose weakest skill is tier 5 with a
+  tier-4 recommendation is still served tier 5 — tier 5 is all that skill has. What was bought is a
+  real, tested mechanism and true docstrings; routing starts changing the first time one skill has
+  two tiers. **The user declined the alternative** (reorder target skills by the recommendation),
+  which would have overridden §5.11.2 rule 1 to make the number visibly matter.
+  **Which is why the tests are synthetic, and why that is correct here:** no test on real content can
+  distinguish wired from unwired — that masking *is* the finding. Nine unit tests build multi-tier
+  templates against a stub repo, one of them asserting the masking itself so a second tier per skill
+  makes the suite say so; the wiring is asserted separately against the real flow, recording what
+  reaches `_select_template`, and asserts **no served tier** on purpose. Two unit tests and the flow
+  test were **watched failing** against simulated pre-fix implementations.
+  **AUD-C-09 (D-170): dispositioned as not applicable** (user's call) — the handbook corpus is
+  unified, not partitioned by academic year, so retrieval scopes on approved/effective state plus
+  role access. Nothing implemented; the absence is recorded at both layers
+  (`role_access_filter` = "five of six predicates, by decision"; `ChunkFilters.academic_year` = left
+  `None` on purpose) plus TRACEABILITY.md §3, which counts it as a **dispositioned predicate, not a
+  traced one**. The field is **kept, deliberately unlike D-159** — not a second definition of live
+  behaviour, just a tested query option ingestion-time callers use.
+  **⚠️ A pointer carry-over was falsified rather than done.** `cryptography` is *not* dead weight:
+  **PyMySQL** imports it (`pymysql._auth`, `caching_sha2_password` full auth), exactly as the pin's
+  own comment said since S32/D-084. "Nothing imports it" was true and the conclusion did not follow.
+  Correction appended to D-168, `DO NOT REMOVE` note at the pin. The container build that carry-over
+  asked for is the only check that would have caught it — no local test can, because the dev-compose
+  auth cache is warm.
+  **Phase 0B, counted from the table:** **11** *Open — Phase 0B* (12 counting AUD-F-16), down from
+  13. ROADMAP.md's stale "16" corrected.
+
 - **✅ D-168 / AUD-C-22 is deployed and verified live, and the live result beat the prediction
   (2026-08-03).** PR **#98**, CI **9/9**, squash-merged to `main` at
   **`b4228aa436b180b985f64ed0c8fb74b7a253b98a`**, deploy run
@@ -788,7 +827,64 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-03, post-D-168 deploy):**
+- **Next session, in order (2026-08-03, post-D-169/D-170):**
+  0. **Owed: D-169 + D-170 are uncommitted and undeployed, and D-167's behaviour check is still
+     unrun.** Code-and-docs only, no migration — check with
+     `git diff b4228aa4..HEAD -- packages/db/alembic/versions/` before dispatching (D-157) and expect
+     it to return nothing. **There is nothing user-visible to verify live for D-169**, which is
+     unusual and is the point: the fix is inert on 1:1 content by construction, so a staging probe
+     would confirm nothing a test has not. Verify it the way it was built — by the suite.
+  0b. **Still owed from post-D-168, needs `aws login` (the session expired mid-verification):** read
+     the `learning-api`/`chat-api` revision numbers and `image=gha-b4228aa436b1` tags directly, and
+     check CloudWatch for `access_probe_rerank_degraded` over the last day. Neither is load-bearing —
+     the deployed-version gate passed, and a live `parent` hint is only reachable through the
+     reranked path — but both are cheap and the habit is the point.
+  0c. **Still owed: D-167's behaviour check, which no test can do** — paste the staging secret, sign
+     in, **fully quit the browser**, reopen the staging URL, and confirm the field is pre-filled and
+     sign-in works with no `get-secret-value` call. The bundles are synced, so this should hold.
+  1. **AUD-L-12's real unmasking is a *content* question, not a code one, and it is now the blocker
+     on rule 2 mattering.** The bank is 1:1 skill↔difficulty (`TOPIC_DIFFICULTY_SKILLS`, and
+     `study_plan.py:7-8` acknowledges "a skill *is* its difficulty tier"), so the routing shipped in
+     D-169 cannot move a single question until one skill has templates at two tiers. The
+     `ai_pipeline` can author them — `DIFFICULTY_SHAPES` already lists 2–3 shapes per tier. Worth a
+     product decision: is multi-tier-per-skill content wanted before launch, or does rule 2 stay
+     latent by choice? If the latter, say so in D-169 so a future session does not read the inert
+     mechanism as a bug.
+  2. **A product question the D-168 live results raised: "more than one tier holds this".** Two
+     attendance questions now go silent because the parent handbook and the branch-manager procedure
+     both genuinely answer, and the message set has no way to say so. The margin is the right
+     *default* (a wrong tier is worse than silence), but a "this is covered in parent and
+     branch-manager materials" message would convert those silences into something useful. Needs a
+     product decision and, if taken, a re-measured sweep — the scoring rule assumes exactly one
+     expected audience.
+  3. **The escalation work D-164 scoped but did not do** (unchanged): the email carries the
+     question, role and session id and nothing else, so an administrator has **no way to reply to
+     the person who asked**. A deliberate PII posture, but it makes the handoff one-way and wants a
+     product decision. Also `InMemoryRateLimiter` is per-process, so the effective escalation
+     ceiling is N× the configured one across N tasks.
+  4. **Continue the Phase 0B backlog. Counted from the table, not carried forward: 11 findings read
+     *Open — Phase 0B*, 12 counting AUD-F-16** (*Open — before the gate*). D-169 closed AUD-L-12 and
+     D-170 dispositioned AUD-C-09, so the 13 became 11: AUD-C-12, C-13, C-14, C-15, F-03, F-04,
+     F-05, L-01, L-05, L-08, L-16. In rough order of what a user would notice:
+     - **AUD-L-09** (provenance vs attribution), load-bearing since D-163 shipped the narrative —
+       *Decided*, not *Open*, so it is outside the 11 and still unimplemented. It is now the largest
+       *decided-but-unimplemented* item, since D-169 cleared the other half of that pile.
+     - **AUD-C-12** (§5.21.8's retrieval-score do-not-answer trigger has no implementation) is the
+       nearest neighbour of the D-165→D-168 cluster and would reuse its instruments —
+       `measure_access_probe_rules.py --load <dump.json>` re-scores a rule for **free**.
+     - **AUD-L-16** (both policy snapshots written and never read back) is the same shape D-169 just
+       closed: computed, stored, routes nothing. The fork is identical — wire or delete — and D-169's
+       answer ("wire it, state the inertness, test the masking") is the available precedent.
+  5. **Everything from the post-D-168 pointer that is still live** — listed in full below.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** use `eval "$(aws configure export-credentials --profile <p> --format env)"`;
+     the project venv's botocore cannot resolve either profile directly.
+     **Note on `cryptography`:** do **not** try to remove it again — it is PyMySQL's runtime
+     dependency, not ours (see the correction on D-168).
+
+- **Superseded — pointer as of post-D-168 (2026-08-03). Items 0 and 0b carry into 0b/0c above; item
+  1 is closed by the D-168 correction (the hypothesis was wrong, not the work); items 2–4 carry
+  forward:**
   0. **Small and owed, needs `aws login` first (the session expired mid-verification):** read the
      `learning-api`/`chat-api` revision numbers and `image=gha-b4228aa436b1` tags directly, and check
      CloudWatch for `access_probe_rerank_degraded` over the last day. Neither is load-bearing — the
@@ -797,12 +893,15 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   0b. **D-167's behaviour check, which no test can do:** paste the staging secret, sign in, **fully
      quit the browser**, reopen the staging URL, and confirm the field is pre-filled and sign-in
      works with no `get-secret-value` call. The bundles are synced, so this should now hold.
-  1. **`cryptography` looks like dead weight, and this is the change to prove it.** Nothing imports
-     it; the only JWT work in the tree is HS256 (HMAC), which PyJWT does without it. It sits in
-     `packages/adapters/pyproject.toml` as `cryptography>=42` and was just major-bumped to 50 for a
-     CVE in an API we never call. **Do it as its own change with its own container build** —
-     removing a declared dependency can surface an implicit runtime need no test exercises, and the
-     image build is the only check that would catch it.
+  1. ~~**`cryptography` looks like dead weight, and this is the change to prove it.** Nothing imports
+     it; the only JWT work in the tree is HS256 (HMAC), which PyJWT does without it.~~ **(❌ WRONG —
+     closed 2026-08-03 with no change. `cryptography` is PyMySQL's runtime dependency:
+     `pymysql._auth` imports `cryptography.hazmat` and raises *"'cryptography' package is required
+     for sha256_password or caching_sha2_password auth methods"* without it — MySQL 8's default
+     plugin, exactly as the pin's own comment has said since S32/D-084. "Nothing imports it" was
+     true and the conclusion did not follow. **Do not attempt this again.** The container build this
+     item asked for is the only check that would have caught it, which is the one part of the
+     reasoning that held.)**
   2. **A product question the live results raised: "more than one tier holds this".** Two attendance
      questions now go silent because the parent handbook and the branch-manager procedure both
      genuinely answer, and the message set has no way to say so. The margin is the right *default*
@@ -4602,6 +4701,65 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S56 (unnumbered) — the masked-by-uniform-data pair: AUD-L-12 wired, AUD-C-09 dispositioned, and a carry-over falsified (2026-08-03) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-168), items 1 and 4** — no numbered
+  roadmap block, so there are no numbered "Done when" criteria to check; Phase 0B's unit of
+  completion is a finding, not a session. Started with `/start-session`; baseline was already green
+  (738 passed / 2 skipped, matching D-168's record exactly).
+- **Pointer item 1 closed without a code change, because the hypothesis was wrong.** `cryptography`
+  is not dead weight: **PyMySQL** imports it — `pymysql._auth` does `from
+  cryptography.hazmat.primitives.asymmetric import padding` and raises *"'cryptography' package is
+  required for sha256_password or caching_sha2_password auth methods"* without it. That is exactly
+  what the comment above the pin already said (MySQL 8 `caching_sha2_password` full auth, found live
+  in S32/D-084 on a *fresh* RDS instance). **"Nothing imports it" was true and the conclusion did
+  not follow.** Read from the installed source, not from memory. Correction appended to D-168; a
+  `DO NOT REMOVE` note added at the pin so the next reader does not re-derive it. Notably, the
+  container build the carry-over prudently asked for *is* the only thing that would have caught it —
+  no local test can, because the dev-compose auth cache is warm.
+- **Two user decisions, asked before implementing, because each fork was defensible.** AUD-L-12:
+  wire it into template choice (vs. reordering skills, vs. deleting). AUD-C-09: **not applicable** —
+  the corpus is unified, not partitioned by academic year.
+- **AUD-L-12 fixed (D-169).** `_closest_to_recommended` narrows a skill's approved templates: exact
+  tier → ±1 → whole pool, never empty. Three decisions inside the mechanics: rule 4 (unused-first)
+  applies *within* the narrowed pool because SPEC ranks rules 2–3 above it; the retry ladder passes
+  `None` deliberately (it already owns its difficulty movement); and
+  `flow._serve_next_base_or_complete` gained `mastery_repo` to **re-read** each later base skill's
+  row rather than carry a plan-time value — its sole caller recomputes mastery immediately before it.
+  Parameter required, not defaulted, on `_recompute_all_skill_mastery`'s precedent.
+- **⚠️ And it changes no student's experience today — measured, not assumed.** The dev database has
+  **5 approved skills × 10 templates, one tier each**, so every branch returns the full pool and
+  **the finding's own evidence still reproduces**: a weakest skill at tier 5 with a tier-4
+  recommendation is still served tier 5, because tier 5 is all that skill has. What the fix buys is a
+  tested mechanism and true docstrings. Making it visibly matter today required reordering skills by
+  the recommendation, which overrides §5.11.2 rule 1 — the option the user declined.
+- **Which forced the tests to be synthetic, and that is the right shape.** Nine unit tests
+  (`test_study_plan_difficulty_routing.py`) build multi-tier templates against a stub repo, because
+  no test on real content can distinguish wired from unwired — that masking *is* the finding. One of
+  them asserts the masking itself, so the day content grows a second tier the suite says so instead
+  of silently changing routing. The wiring is asserted separately against the real flow
+  (`test_difficulty_recommendation_reaches_template_selection`), recording what reaches
+  `_select_template` and checking all three contracts. It asserts **no served tier** on purpose: on
+  1:1 content a tier assertion passes with the value still discarded, which is how this survived
+  S10–S42.
+- **Watched failing pre-fix**, both halves: 2 of the 9 unit tests against a simulated unfiltered
+  selector, and the flow test against simulated unwired call sites. Simulations reverted, re-confirmed
+  green.
+- **AUD-C-09 dispositioned (D-170), and recorded where it would be re-filed from.** Nothing
+  implemented. `role_access_filter`'s docstring now states it implements five of §5.21.3's six
+  predicates *by decision* and names where each comes from; `ChunkFilters.academic_year` states the
+  access path leaves it `None` on purpose; TRACEABILITY.md §3 counts it as a **dispositioned
+  predicate, not a traced one**. The field is **kept, deliberately unlike D-159** — it is not a
+  second definition of live behaviour, just a tested query option ingestion-time callers use.
+  Two rejected implementations recorded so they are not re-proposed: a config value (needs a
+  `/readyz` guard, since a strict equality filter whose config and corpus disagree empties retrieval
+  *silently*) and deriving from `org_time` (needs an unconfirmed rollover date, `ORG_TIMEZONE`'s
+  class).
+- **Verification:** `make lint` clean, `pyright` 0 errors, **748 passed / 2 skipped** (+10), run
+  twice — once after the code, once after the docs. No paid API calls, no deploy, no migration.
+- **Phase 0B backlog, counted from the table:** **11** findings read *Open — Phase 0B* (12 counting
+  AUD-F-16), down from 13. ROADMAP.md's stale "16" corrected.
 
 ### S55 (unnumbered) — AUD-C-22: the access probe becomes the reranked pipeline it was paraphrasing, deployed, and the fixture turns out pessimistic (2026-08-03) ✅
 

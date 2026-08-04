@@ -136,6 +136,14 @@ def role_access_filter(user_role: str, branch_external_id: str | None) -> ChunkF
     """SPEC §5.21.3's pre-retrieval filter, built from a resolved role/branch - never
     from the raw query text (that would let a prompt-injected document or a crafted
     question smuggle in an access-scope change; see §5.30.4).
+
+    **Five of §5.21.3's six predicates, by decision rather than omission** (AUD-C-09,
+    dispositioned 2026-08-03): `status = approved` and the `effective_from/to` window come
+    from `as_of` via `_apply_filters`, `audience` from `audiences`, and the branch rule from
+    `restrict_to_branch`. `academic_year = requested_year` is **not applicable to this
+    corpus** - the handbook set is unified, not partitioned by academic year - so retrieval
+    scopes on approved/effective document state plus role access instead. See
+    `ChunkFilters.academic_year`, which stays available for ingestion-time queries.
     """
     return ChunkFilters(
         audiences=[PUBLIC_AUDIENCE, user_role],

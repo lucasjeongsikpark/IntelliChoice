@@ -34,6 +34,14 @@ class ChunkFilters(BaseModel):
     exclude_audiences: list[str] | None = None
     branch_external_id: str | None = None
     restrict_to_branch: bool = False
+    # **Deliberately not set by the access-control path** (AUD-C-09, dispositioned
+    # 2026-08-03): SPEC §5.21.3 lists `academic_year = requested_year` as a sixth
+    # pre-retrieval predicate, and the user's call is that it does not apply to this corpus -
+    # the handbook set is unified rather than partitioned by year, so retrieval scopes on
+    # approved/effective document state plus role access instead. `role_access_filter` leaves
+    # this `None` on purpose; an unused option here is not an oversight to re-file.
+    # Kept (rather than deleted) as a working, tested repository capability for
+    # ingestion-time and verification queries, which is what its existing callers are.
     academic_year: str | None = None
     access_level: str | None = None
     as_of: datetime | None = None

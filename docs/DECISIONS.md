@@ -10546,3 +10546,113 @@ in the real images; the local suite could not have shown that. **Carry-over:** `
 like dead weight — nothing imports it and the only JWT work in the tree is HS256 (HMAC), which PyJWT
 does without it. Removing a declared dependency can surface an implicit runtime need no test
 exercises, so that belongs in its own change with its own container build.
+
+> **⚠️ Correction (2026-08-03, D-169's session): that carry-over is wrong and is closed without a
+> change.** `cryptography` is a real runtime dependency — **PyMySQL** imports it, not our code:
+> `pymysql._auth` does `from cryptography.hazmat.primitives.asymmetric import padding` and raises
+> *"'cryptography' package is required for sha256_password or caching_sha2_password auth methods"*
+> without it. That is exactly what the comment above the pin in `packages/adapters/pyproject.toml`
+> already said — MySQL 8's default `caching_sha2_password` full-auth path, found live in S32/D-084
+> when a *fresh* RDS instance's first connections failed. **"Nothing imports it" was true and the
+> conclusion did not follow**; the container build this carry-over prudently asked for would have
+> been the thing that caught it, and no local test could, because the dev-compose container's auth
+> cache is warm. Verified by reading the installed `pymysql._auth` source, not from memory.
+
+## D-169 — AUD-L-12: `recommended_difficulty` narrows template choice, and rule 1 keeps outranking rule 2 (accepted, 2026-08-03)
+
+**Context.** `mastery_bootstrap.recommended_difficulty` implements §5.11.2's step-up/hold/step-down
+rule correctly and `flow.py` stores it per skill, but `build_study_plan` packed it into the ranking
+tuple and dropped it on unpack — its only readers were display surfaces. Two docstrings claimed it
+seeds `StudySession.starting_difficulty`; neither was true. A computed, stored, displayed number
+that influences nothing is worse than an absent one, so the finding offered a fork: wire it or
+delete it.
+
+**The user chose to wire it into template choice.** The two rejected options are worth recording
+because each was defensible. *Reordering target skills* by the recommendation would have made the
+number visibly matter — the finding's motivating student would get tier 4 instead of the tier 5 they
+had just failed — but §5.11.2 ranks "lowest mastery skill" (rule 1) **above** "difficulty matching
+estimated level" (rule 2), so it buys a visible effect by overriding a higher-ranked SPEC rule.
+*Deleting it* was cheapest and had D-159's precedent, but it costs a number parents and students
+already see, plus a migration.
+
+**Decision.** `study_plan._closest_to_recommended` narrows a skill's approved templates: exact tier
+→ ±1 → whole pool, never empty. Three details are the decision rather than the mechanics:
+
+1. **Rule 4 applies inside the narrowed pool, not across it.** SPEC ranks rules 2–3 above "template
+   not yet used", so a *used* template at the recommended tier beats an unused one two tiers away.
+   Reversing those two filters is the easy bug and is invisible on 1:1 content, so it has its own
+   test.
+2. **The retry ladder passes `None`, deliberately.** Same-skill retry → prerequisite one tier down
+   is already an explicit difficulty policy; layering the bootstrap recommendation on top could
+   pull a deliberate step-down back up, or keep re-serving the tier the student is failing right
+   now. §5.11.2 rules 2–3 describe choosing a *starting* question.
+3. **`_serve_next_base_or_complete` re-reads the mastery row instead of receiving a value.** It
+   gained `mastery_repo` for this. Its sole caller runs `_recompute_all_skill_mastery` immediately
+   before it, so a re-read reflects the attempt just graded, where a value carried from plan time
+   would be stale by up to a whole skill line.
+
+The parameter is **required, not defaulted**, at both `create_study_item` and `_select_template` —
+same reasoning as `_recompute_all_skill_mastery`'s `post_assessment_session_id` (flow.py): a new
+call site should have to say what it means. Defaulting is how the value went unused in the first
+place.
+
+**⚠️ The honest limit: this changes no student's experience today, and the docs say so.** The live
+bank is 1:1 skill↔difficulty — verified against the dev database, 5 approved skills × 10 templates,
+one tier each — so every branch of `_closest_to_recommended` returns the full pool for every
+possible recommendation, and **the finding's own evidence still reproduces**. What the fix buys is
+that the mechanism exists, is tested, and the docstrings are true; it starts changing behaviour the
+first time one skill has templates at two tiers.
+
+**Which forced the tests to be synthetic, and that is the right shape here.** Nine unit tests build
+multi-tier templates by hand against a stub repository (`test_study_plan_difficulty_routing.py`),
+because no end-to-end test on real content can distinguish the wired implementation from the
+unwired one — that masking *is* the finding. One of them,
+`test_the_live_bank_shape_makes_the_narrowing_inert`, asserts the masking itself, so the day content
+grows a second tier the suite says so rather than silently changing routing. The wiring is asserted
+separately against the real flow
+(`test_learning_flow.py::test_difficulty_recommendation_reaches_template_selection`), recording what
+reaches `_select_template` and checking all three contracts. It deliberately asserts **no served
+tier**: on 1:1 content a tier assertion passes with the value still discarded, which is exactly how
+this survived S10 through S42. Two of the unit tests and the flow test were watched failing against
+a simulated pre-fix selector.
+
+**Revert:** drop the `recommended_difficulty` parameter from `_select_template`/`create_study_item`
+and its three call sites; no schema or data change was made, so there is nothing to migrate.
+
+## D-170 — AUD-C-09: §5.21.3's `academic_year` predicate is not applicable to this corpus (accepted, 2026-08-03)
+
+**Context.** SPEC §5.21.3 lists six pre-retrieval predicates. Five are enforced in
+`role_access_filter`; `academic_year = requested_year` was never set by any caller, so a 2019-2020
+chunk was retrievable by every audience including anonymous. Fully masked today — all 23 documents
+and 159 chunks are `2026-2027`.
+
+**Decision (user's call): do not implement it — the predicate does not apply.** The handbook corpus
+is **unified rather than partitioned by academic year**, so retrieval should scope on approved and
+currently-effective document state plus role-based access, which it already does. An
+`academic_year` equality filter is the wrong instrument for a corpus that has no year dimension to
+filter on.
+
+**Two implementation options were considered and are recorded so they are not re-proposed.** A
+`CHAT_CURRENT_ACADEMIC_YEAR` setting would have needed a `/readyz` guard, because a strict equality
+filter whose config and corpus disagree empties retrieval *silently* — every question becomes a
+no-source refusal. Deriving the year from `org_time` would have needed a rollover date, which is an
+unconfirmed org fact of exactly the `ORG_TIMEZONE` class (D-152 defers org asks). Both were
+solutions to a problem this corpus does not have.
+
+**What was done instead: record the absence where a reader would look for it.** A dispositioned
+requirement that leaves no trace gets re-filed as an oversight by the next audit, so
+`role_access_filter`'s docstring now states that it implements five of six predicates *by decision*
+and names where each of the five comes from, `ChunkFilters.academic_year` states that the access
+path leaves it `None` on purpose, and TRACEABILITY.md §3 counts it as a **dispositioned predicate,
+not a traced one** — a decision not to implement is not an implementation.
+
+**`ChunkFilters.academic_year` is kept, not deleted — deliberately unlike D-159.** D-159 deleted
+`flow.select_topic` because it was a second definition of live behaviour that could drift from the
+real one. This is an unused query *option* on a filter object, exercised by
+`packages/db/tests/test_rag_search.py` and genuinely useful for ingestion-time and verification
+queries. Deleting a working, tested capability to make a point that a docstring makes better is not
+a trade worth taking.
+
+**Revert:** if the corpus ever gains a year dimension, set `academic_year` in `role_access_filter`
+— the repository half (`_apply_filters`) has been in place and tested the whole time. Add the
+availability guard described above at the same time.

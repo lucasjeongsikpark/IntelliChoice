@@ -572,6 +572,7 @@ async def _serve_next_base_or_complete(
     assessment_repo: AssessmentRepository,
     study_repo: StudyRepository,
     question_repo: QuestionRepository,
+    mastery_repo: MasteryRepository,
     rng: random.Random,
     outcome_label: str | None = None,
     target_skill_id: str | None = None,
@@ -582,6 +583,11 @@ async def _serve_next_base_or_complete(
     `outcome_label`/`target_skill_id` (S25) describe the just-resolved line, not the
     question this call serves next - passed through so the caller can emit one
     `study_outcome` learning event without a second DB read.
+
+    `mastery_repo` (AUD-L-12) is read here rather than passed in as a value, so the next
+    base skill is served at the tier its *current* `recommended_difficulty` names: the sole
+    caller runs `_recompute_all_skill_mastery` before this, so the row reflects every
+    attempt so far including the one just graded.
     """
     assert learning_session.study_session_id is not None
     session_row = await study_repo.get_study_session(learning_session.study_session_id)
@@ -595,6 +601,9 @@ async def _serve_next_base_or_complete(
     )
     if next_target is not None:
         used = await _used_template_ids(question_repo, items)
+        next_mastery = await mastery_repo.get_mastery(
+            learning_session.student_external_id or "", next_target
+        )
         item = await create_study_item(
             question_repo=question_repo,
             study_repo=study_repo,
@@ -605,6 +614,9 @@ async def _serve_next_base_or_complete(
             is_remediation=False,
             used_template_ids=used,
             rng=rng,
+            recommended_difficulty=(
+                next_mastery.recommended_difficulty if next_mastery is not None else None
+            ),
         )
         learning_session.phase = "study"
         return AnswerResult(
@@ -732,6 +744,12 @@ async def advance_study(
             is_remediation=True,
             used_template_ids=used,
             rng=rng,
+            # No difficulty routing on the remediation path (AUD-L-12). The retry ladder is
+            # already an explicit difficulty policy - same skill, then the prerequisite one
+            # tier down - and applying the bootstrap recommendation on top could pull a
+            # deliberate step-down back up, or keep re-serving the tier the student is
+            # failing right now. §5.11.2 rules 2-3 describe choosing a *starting* question.
+            recommended_difficulty=None,
         )
         learning_session.phase = "study"
         return AnswerResult(
@@ -750,6 +768,7 @@ async def advance_study(
         assessment_repo=assessment_repo,
         study_repo=study_repo,
         question_repo=question_repo,
+        mastery_repo=mastery_repo,
         rng=rng,
         outcome_label=outcome_label,
         target_skill_id=target_skill_id,

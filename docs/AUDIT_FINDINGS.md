@@ -34,7 +34,7 @@ ones.
 | **AUD-L-11** | **Robustness / contracts** | **P2** | **Fixed in D-159** | `UnknownQuestionVariantError` carries a required `reason`, and `POST /answers` answers each case deterministically: **400** for an id not in the bank, **409** for a real variant this session is not serving. Both are pre-flighted off session state before `graph.ainvoke`, so a stale tab that keeps resubmitting no longer leaves checkpoint rows per attempt (asserted). Original: raised at four sites, caught nowhere — an unhandled **500** on the error rate the S34 alarms watch |
 | **AUD-L-17** | **Data integrity / scoring** | **P2** | **Found and fixed in D-159** | Found while fixing AUD-L-11: the exam answer paths checked that a variant *exists* but never that it belongs to this exam, so a real variant from another exam was **graded and inserted into `assessment_attempts` for this one** (200, and `_mark_item_answered` silently no-ops) — an 11th attempt on a 10-item exam, moving the attempt-counted scoring denominator AUD-L-10 was fixed to protect. The study path already checked membership; the exam paths did not. Now `flow.ensure_item_is_served`, pre-flighted in the route and re-checked in the service |
 | **AUD-L-18** | **Correctness / parent-visible** | **P1** | **Found and fixed in D-163** | **The parent-report narrative had never once shipped under a real model.** `is_grounded` rejected **15 of 15** real generations across three payload shapes, so every parent got the facts-only fallback while the Bedrock call was made and paid for. None of the 94 rejected numbers was an invention: **85** were percent renderings of proportions the evidence carries as decimals (`0.8333` → "83%"), 8 were thousands-separated counts the tokenizer split (`"1,284"` → `1` and `284`), and the rest were numbers living inside evidence *strings* the collector never walked (`date_range_label`, and the "70%" the prompt tells the model to cite). Fixed in the checker (percent rule bounded to evidence proportions in [0,1], grouped-number parsing, strings walked) plus a prompt that forbids derived numbers and advice quantities. Re-measured **15/15 grounded**. Found only because D-162 §4 saw `generated: false` twice on staging; no test could have, since `MockBedrockProvider` is grounded by construction |
-| AUD-L-12 | SPEC conformance | P2 | Open — Phase 0B | `recommended_difficulty` is computed, stored and displayed but routes nothing; two docstrings claim it seeds `starting_difficulty` and it does not. Masked only by the 1:1 skill↔difficulty bank |
+| AUD-L-12 | SPEC conformance | P2 | ✅ **Fixed in D-169 (2026-08-03)** — wired, with the behaviour limit stated rather than hidden | `recommended_difficulty` now narrows *template choice within the chosen skill* (`study_plan._closest_to_recommended`: exact tier → ±1 → whole pool, never empty), on the base path only; the retry ladder passes `None` because it already owns its difficulty movement. Threaded at all three serve sites, including `flow._serve_next_base_or_complete`, which re-reads the mastery row *after* recomputation rather than carrying a stale value. **⚠️ Provably inert on today's content and tested as such:** the live bank is 1:1 skill↔difficulty (5 skills × 10 templates, one tier each), so every branch returns the full pool and the finding's own evidence still reproduces — a student whose weakest skill is tier 5 with a tier-4 recommendation is still served tier 5, because tier 5 is all that skill has. The user's decision was to keep SPEC rule 1 (weakest skill) above rule 2 rather than reorder skills by the recommendation. Original: computed, stored and displayed but routed nothing; two docstrings claimed it seeds `starting_difficulty` and it did not. Masked only by the 1:1 skill↔difficulty bank |
 | **AUD-L-13** | **Minors / correctness** | **P2** | **Fixed in D-156** | `_contradicts_measured_mastery` screens `strength`/`weak_skill` candidates against `mastery.weighted_score` at `WEAK_SKILL_THRESHOLD`, on the add path **and the reconfirm path** — the latter is the one that matters, since reconfirmation is the promotion path and repetition was the promotion criterion. Abstains when no mastery row exists (nothing to contradict); the other ten fact types are deliberately unscreened (they describe *how* a student works, which a score cannot contradict). Refusals counted (`mastery_conflicts`), logged, and printed in the CLI summary. `WEAK_SKILL_THRESHOLD` moved to `intellichoice_shared.mastery_policy` so the floor and the study plan cannot drift. Original: consolidation verified provenance and repetition, never the claim against the measured score in the same database — a `strength` fact coexisted with `weighted_score = 0.0` |
 | **AUD-L-14** | **Correctness / parent-visible** | **P2** | **Fixed in D-162** | Measured before fixing, as the filing demanded: a browser-driven journey populates **both** sources within ~7% of each other (1,453 ms summed `response_time_ms` vs 1,354 ms summed item-state for one full pre-exam), so S36's "140 rows summing to 0 ms" was an artifact of driving the journeys through the API with no browser — the client half was never broken (AUD-F-01/D-107). The reliability asymmetry is what stands: item-state is a fire-and-forget tick a hard refresh or non-browser client silently drops; `response_time_ms` is **required** by `SubmitAnswerRequest` on every accepted answer. `build_dashboard` now sums `response_time_ms` from the attempt rows it already fetched (same rows as `attempts_count`, so the two figures can no longer disagree about which attempts exist); the repo's telemetry-summing query and its half-true docstring are deleted. Telemetry itself stays, as the autosave/resume signal, guarded by AUD-F-01's regression spec. Original: `time_spent_minutes` summed the telemetry column and ignored the always-populated server-required one — `0.0` minutes beside `attempts_count: 26`, inside `verified_facts` |
 | **AUD-L-15** | **Correctness / parent-visible** | **P2** | **Fixed in D-156** | Three parts, two of them behaviour changes the user decided: **(a)** mastery now includes the post-exam (`_recompute_all_skill_mastery` gained `post_assessment_session_id` and is now called on post-exam finalize, where it never was) — this also fixes `topic_resolver` choosing the next cycle's targets from a score that had never seen how the last one ended; **(b)** "skills to strengthen" now uses the study plan's own cut (`mastery.weighted_score < WEAK_SKILL_THRESHOLD`) instead of a hardcoded 0.8 on post-exam accuracy, so a report cannot recommend work the system will not do; **(c)** every figure states its window, in the report payload, the prompt, and as `GET /dashboard` chart captions. **Still true and now stated rather than implied:** mastery is not date-filtered. Original: mastery excluded the post-exam while "skills to strengthen" was post-exam-derived, both shown under `date_range_label: "all time"` — one skill reading mastery 1.000 *and* "needs work" |
@@ -50,7 +50,7 @@ ones.
 | AUD-C-06 | SPEC conformance | P2 | ✅ **fixed across D-164 + D-165 (2026-08-03)** — routing widened *and* the probe can match; **2/3** live, the third case is answered by a public doc so it never reaches the probe | SPEC §18-C3's access-aware refusal fired **0 times in 8** under a real model: its precondition is zero-row retrieval, which real hybrid search essentially never produces. A parent gets "no approved source" instead of "log in to see the parent handbook" |
 | **AUD-C-07** | **Robustness** | **P2** | **Fixed 2026-08-02 (D-155)** — `answer_document_qa` and `calendar_extract` (both `retrieve()` call sites, both reproductions) catch `BedrockGatewayError` and route to a new `service_unavailable` node; a narrow `BedrockGatewayError` handler on `app` makes any future gateway call a **503**, not a 500. Watched failing first: the raw exception escaped the node. | An embedding-provider failure or an exhausted budget on the retrieval path is an unhandled **500** — `retrieve()`'s `create_embedding` is the one uncaught gateway call, and chat-api has no exception handler. Violates §5.29's Bedrock-timeout row |
 | **AUD-C-08** | **UX / diagnosability** | **P2** | **Fixed 2026-08-02 (D-155)** — `scope_guard`'s fail-closed branch is unchanged in *behaviour* and changed in *words*: it now yields the temporarily-unavailable message with `scope: null` (no classification happened) instead of the out-of-scope refusal, plus a `qa_service_degraded` warning log and a `stage`-labelled counter, so an outage no longer reads as a surge of off-topic questions. | A total Bedrock outage, or an exhausted cost ceiling, answers every in-scope question with the *out-of-scope* refusal — fail-closed but user-misleading, and indistinguishable from a genuine refusal in logs |
-| AUD-C-09 | SPEC conformance | P2 | Open — Phase 0B | §5.21.3's sixth predicate (`academic_year = requested_year`) is never applied at query time; a 2019-2020 chunk was retrievable by every audience. Fully masked while the corpus holds one academic year |
+| AUD-C-09 | SPEC conformance | P2 | **Dispositioned — not applicable (D-170, 2026-08-03)** | **The predicate does not apply to this corpus** (user's call): the handbook set is unified, not partitioned by academic year, so retrieval scopes on approved/effective document state plus role access instead of an academic-year equality filter. Recorded at both layers so it is not re-filed — `role_access_filter`'s docstring now says "five of six predicates, by decision", and `ChunkFilters.academic_year` says it is deliberately unset by the access path and kept only for ingestion-time queries. Original: §5.21.3's sixth predicate is never applied at query time; a 2019-2020 chunk was retrievable by every audience. Fully masked while the corpus holds one academic year |
 | **AUD-C-10** | **Frontend contract** | **P2** | **Fixed 2026-08-02 (D-155)** — `ChatTurn` gained an `error` field, so a turn has three states instead of two; a failed turn renders a retryable error bubble and `Thinking…` is gated on *not* having failed. The e2e documented-defect test was inverted into a regression test exactly as it said it should be, and watched failing against the pre-fix render gate. | Any API error leaves chat-web's turn stuck on `Thinking…` permanently — the transcript entry keeps `response: null` and nothing clears it. A §2.6 criterion-3 blank/stuck state, reachable from AUD-C-07 |
 | AUD-C-11 | Correctness / UX | P2 | ✅ **fixed in D-164 (2026-08-03)** | The low-confidence branch returns the "I don't have an approved source" message *with* verified citations attached, so the UI shows a source beside a sentence denying one exists. Observed live |
 | **AUD-C-19** | **UX / diagnosability** | **P3** | **Fixed in D-156** | Returns `SERVICE_UNAVAILABLE_MESSAGE` with `escalation_recommended = False` and `missing_information = None`. The deferred product call, decided: escalation is itself a Bedrock-and-MCP path, so recommending it during an outage walks the user into a second failure and books a branch manager for a question the corpus can answer — and the message already offers the human path *conditionally*, after a retry. Matches `graph.nodes.service_unavailable`, so the two outage paths are indistinguishable to the client. Original: the synthesis-failure path answered a Bedrock outage with `NO_SOURCE_MESSAGE` when a source demonstrably existed |
@@ -660,7 +660,47 @@ the route and re-checked in the service, raising `UnknownQuestionVariantError(..
 
 ### AUD-L-12 — `recommended_difficulty` is computed, stored and displayed, but routes nothing (P2)
 
-- **Severity:** P2 · **Area:** SPEC conformance (§5.11.2 rules 2–3) · **Status:** open, Phase 0B
+- **Severity:** P2 · **Area:** SPEC conformance (§5.11.2 rules 2–3) · **Status:** ✅ **fixed in
+  D-169 (2026-08-03)**
+
+**Fix.** `study_plan._closest_to_recommended` narrows a skill's approved templates to the
+recommended tier, widening to ±1 and then to the whole pool — a recommendation can narrow the
+choice but never empty it. The unused-template rule (rule 4) applies *within* that narrowed pool
+rather than across it, because SPEC ranks rules 2–3 above it: a used template at the recommended
+tier beats an unused one two tiers away. That ordering is the one assertion an implementer is
+likeliest to get backwards, so it has its own test.
+
+Threaded at all three serve sites, each saying what it means: `build_study_plan` passes the first
+target's own recommendation; `flow._serve_next_base_or_complete` gained `mastery_repo` and re-reads
+each later base skill's row at serve time (its sole caller runs `_recompute_all_skill_mastery`
+first, so the row reflects the attempt just graded — carrying the plan-time value on the session
+would have been staler); and the retry ladder passes `None` **deliberately**, since same-skill
+retry → prerequisite one tier down is already an explicit difficulty policy, and layering the
+bootstrap recommendation on top could pull a deliberate step-down back up. The parameter is
+required, not defaulted, so a new call site has to state which it wants — defaulting is how the
+value went unused in the first place.
+
+**⚠️ The behaviour limit, stated because the fix does not remove it.** The live bank is 1:1
+skill↔difficulty (verified against the dev database: 5 approved skills, 10 templates each, one
+tier apiece), so all three branches return the same full pool for every possible recommendation.
+**The finding's own evidence still reproduces**: `aud-student-regressing` is still served tier 5
+for `linear_distribute` with a tier-4 recommendation, because tier 5 is all that skill has. What
+changed is that the mechanism exists, is tested, and the docstrings are true; what did not change
+is any student's experience today. The user's decision was to keep §5.11.2 rule 1 (lowest mastery
+skill) above rule 2 — the alternative, reordering target skills by the recommendation, would have
+overridden a higher-ranked SPEC rule to make the number visibly matter.
+
+**Tests, watched failing pre-fix.** Nine unit tests in
+`test_study_plan_difficulty_routing.py` against synthetic multi-tier templates — the only way to
+exercise a mechanism no real content can reach — including one that asserts the masking itself
+(`test_the_live_bank_shape_makes_the_narrowing_inert`), so the day content grows a second tier per
+skill, that test fails and says so. Plus
+`test_learning_flow.py::test_difficulty_recommendation_reaches_template_selection`, which records
+what reaches `_select_template` during a real flow and asserts all three contracts (routed base,
+unrouted remediation, re-read next base). It deliberately asserts no served tier: on 1:1 content a
+tier assertion passes with the value still discarded, which is precisely how this survived.
+
+**Original finding below.**
 
 `mastery_bootstrap.recommended_difficulty` implements the rule correctly (modal assessed tier,
 nudged ±1 by accuracy, clamped 1–5) and `flow.py:233` stores it per skill. Two docstrings claim it
@@ -1362,6 +1402,30 @@ AUD-C-20 lands.
   either — the response is identical to a genuine refusal.
 
 ### AUD-C-09 — §5.21.3's `academic_year` predicate is not implemented (P2)
+
+- **Status: dispositioned — not applicable, 2026-08-03 (D-170).**
+
+**The user's call: the predicate does not apply to this corpus.** The handbook set is unified
+rather than partitioned by academic year, so retrieval scopes on approved/effective document
+state plus role-based access, and an `academic_year` equality filter is the wrong instrument for
+it. Nothing was implemented.
+
+**What was done instead, so the finding cannot be re-filed as an oversight.** The absence is now
+recorded at both layers it would be read from: `role_access_filter`'s docstring states that it
+implements five of §5.21.3's six predicates by decision and names where each comes from, and
+`ChunkFilters.academic_year` states that the access path leaves it `None` on purpose.
+
+**`ChunkFilters.academic_year` is kept rather than deleted**, which is the opposite of D-159's
+call on `flow.select_topic`, and the difference matters: `select_topic` was a *second definition of
+live behaviour* that could drift from the real one, while this is an unused query option on a
+filter object, exercised by `packages/db/tests/test_rag_search.py` and useful for ingestion-time
+and verification queries. Deleting it would remove a working, tested capability to make a point
+that a docstring makes better.
+
+**The original evidence stands as a fact about the code, and is no longer read as a defect:** a
+2019-2020 chunk is retrievable by every audience, because year is not an access dimension here.
+
+**Original finding below.**
 
 - SPEC §5.21.3 lists six pre-retrieval predicates. Five are enforced. `academic_year = requested_year`
   is not: `ChunkFilters.academic_year` exists and `_apply_filters` honours it, but
