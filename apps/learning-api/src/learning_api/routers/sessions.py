@@ -51,6 +51,7 @@ from learning_api.graph.build import EntryInput, LearningGraph
 from learning_api.graph.nodes import TurnContext
 from learning_api.services import attendance, checkpoint_reconcile, flow
 from learning_api.services.assessment_builder import AssessmentBuildError
+from learning_api.services.effective_policy import effective_assistance_policy
 from learning_api.services.session_events import SessionEventBus
 from learning_api.services.study_plan import StudyPlanBuildError
 
@@ -1156,10 +1157,19 @@ async def send_chat_message(
     await resolve_target_student(
         claims, state["student_external_id"], profile_adapter, access="write"
     )
-    if state.get("phase") != "study":
+    # AUD-L-16: the persisted policy snapshot decides this, not the phase string. Same
+    # outcome under the shipped constants (pre/post exam refuse, study allows, every other
+    # phase refuses) - what changed is that retuning `exam_policy._POLICIES` can no longer
+    # alter the rules of a session already in flight, which is the guarantee
+    # `AssessmentSession.policy`'s own comment promises. See `services/effective_policy.py`.
+    assistance = await effective_assistance_policy(db, state)
+    if not assistance.hints_allowed:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"chat is only available during study (phase={state.get('phase')})",
+            detail=(
+                "chat is not available under this session's assistance policy "
+                f"(phase={state.get('phase')}, policy_source={assistance.source})"
+            ),
         )
     if await QuestionRepository(db).get_variant(body.question_variant_id) is None:
         raise HTTPException(

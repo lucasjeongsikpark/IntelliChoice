@@ -94,8 +94,16 @@ test("parent with one child reaches a working screen without being asked to choo
 // This was a conditional `test.skip(!reachable)` from S39 to S43, which meant four sessions
 // of runs reported it as "skipped: no dashboard entry point from the current screen" - a
 // sentence describing the defect, filed as a reason not to look. `test.fail()` instead, the
-// same posture as AUD-F-04/AUD-F-05: the probe keeps running and keeps measuring, and it
-// fails the run the day the gap is closed, which is the signal to promote it.
+// same posture as AUD-F-03: the probe keeps running and keeps measuring, and it fails the run
+// the day the gap is closed, which is the signal to promote it.
+//
+// **Id corrected 2026-08-04 (D-174).** This cited AUD-F-04/AUD-F-05, and neither used this
+// posture: F-04's spec asserted the defect and was inverted on the fix, and F-05 was never
+// probed at all - it was fixed as collateral by AUD-F-21. AUD-F-03 is the one that was a
+// `test.fail()` probe and was promoted when it passed unexpectedly (journey-student.spec.ts).
+//
+// The gap this probe measures is **AUD-F-22**, which is still open and needs a UX decision
+// about where a persistent dashboard entry point belongs.
 test("parent reaches the progress dashboard and generates a report", async ({ page, audit }) => {
   test.fail();
   await signInViaUi(page, LEARNING_WEB, FIXTURES.parentTwoChildren);

@@ -87,6 +87,59 @@ def test_unknown_tool_never_calls_anything() -> None:
     asyncio.run(run())
 
 
+def test_unknown_tool_is_audited_before_it_raises() -> None:
+    """AUD-C-15. Every other failure path writes a `success=False` row; this one raised first
+    and left no trace, which is the worst case for the one call shape a wiring bug or a
+    prompt injection produces. Watched failing before the fix (0 events recorded).
+    """
+    registry, calls = _registry()
+    audit = FakeAuditRepo()
+
+    async def run() -> None:
+        with pytest.raises(McpToolError):
+            await registry.call(
+                "test.does_not_exist",
+                {"value": "hi"},
+                caller_external_id="u-1",
+                audit_repo=audit,
+            )
+        assert calls == []
+        assert len(audit.events) == 1
+        event = audit.events[0]
+        assert event.tool_name == "test.does_not_exist"
+        assert event.caller_external_id == "u-1"
+        assert event.success is False
+        # The attempted name is the whole value of the row, so it must be recorded as asked
+        # for - not normalised to a placeholder like "unknown".
+        assert event.error_type == "McpToolError"
+        assert event.duration_ms >= 0
+
+    asyncio.run(run())
+
+
+def test_an_absurdly_long_unknown_tool_name_is_bounded_before_it_is_audited() -> None:
+    """AUD-C-15's second half: an unknown tool name is caller-controlled and lands in an
+    indexed column. Left unbounded, a long enough name makes the INSERT itself raise (a
+    Postgres btree entry is capped at ~2704 bytes) - i.e. the audit write would fail on
+    exactly the malicious input it exists to record.
+    """
+    registry, _ = _registry()
+    audit = FakeAuditRepo()
+    absurd = "x" * 10_000
+
+    async def run() -> None:
+        with pytest.raises(McpToolError):
+            await registry.call(
+                absurd, {"value": "hi"}, caller_external_id="u-1", audit_repo=audit
+            )
+        assert len(audit.events) == 1
+        recorded = audit.events[0].tool_name
+        assert len(recorded) == 128
+        assert recorded == "x" * 128
+
+    asyncio.run(run())
+
+
 def test_disallowed_role_never_calls_the_handler() -> None:
     registry, calls = _registry(allowed_roles=frozenset({"tutor"}))
 

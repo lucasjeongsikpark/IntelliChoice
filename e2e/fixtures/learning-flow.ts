@@ -19,9 +19,14 @@ export const PHASE_CHIP = ".phase-chip";
  * the DOM" on controls that are visibly present - measured on the topic card, the Submit
  * answer button, and the ladder's own buttons.
  *
- * That churn is AUD-F-01, recorded with measurements in tests/learning/narrative-race.
+ * That churn is AUD-F-05, recorded with measurements in tests/learning/narrative-race.
  * spec.ts. It is absorbed here rather than in each journey so that a *different* defect
  * does not present as this one, and so no journey silently depends on winning a race.
+ *
+ * **Id corrected 2026-08-04 (D-174), and the citation itself carried the evidence.** This
+ * said AUD-F-01, which is the `App.tsx` effect-dependency *refetch burst* - a request-volume
+ * defect whose regression test is tests/learning/time-telemetry.spec.ts. The screen-replacing
+ * swap described above, measured at ~26 ms in the very file cited on the line, is AUD-F-05.
  *
  * AUD-F-21 removed the largest single source of it - the narrative no longer replaces the
  * screen it arrives over - but the retries stay: the assistance panel and the ladder still
@@ -56,7 +61,7 @@ export async function startSession(page: Page): Promise<void> {
  * stage narratives that are up when it gets there.
  *
  * A single dismiss is not enough: narratives arrive over SSE *after* the screen beneath
- * them has rendered (AUD-F-01), so a journey that dismisses once and moves on can be
+ * them has rendered (AUD-F-05), so a journey that dismisses once and moves on can be
  * covered again a moment later. Returns how many narratives it had to clear.
  *
  * **The dismiss runs before the interactivity check, since AUD-F-21.** It used to run only
@@ -94,7 +99,7 @@ export async function settleToInteractiveScreen(page: Page, timeoutMs = 30_000):
 /**
  * Picks a topic, tolerating the stage-narrative screen displacing the topic list
  * mid-click (measured at ~26ms of interactivity - see tests/learning/narrative-race.
- * spec.ts, AUD-F-01). Without the retry every journey inherits that race, so a real
+ * spec.ts, AUD-F-05). Without the retry every journey inherits that race, so a real
  * defect elsewhere would be indistinguishable from this one.
  */
 export async function chooseTopic(page: Page, label = /linear equations/i): Promise<void> {
@@ -124,7 +129,7 @@ export async function chooseTopic(page: Page, label = /linear equations/i): Prom
 export async function answerCurrentQuestion(page: Page): Promise<boolean> {
   // Retried for the same reason `chooseTopic` is: a stage narrative arriving over SSE
   // replaces the exam screen mid-interaction, including between selecting an option and
-  // clicking Submit (AUD-F-01). Every journey would otherwise carry that flake.
+  // clicking Submit (AUD-F-05). Every journey would otherwise carry that flake.
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await dismissNarrativeIfPresent(page);
     // AUD-F-27: wait out an in-flight submission before concluding there is nothing to

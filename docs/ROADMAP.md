@@ -681,7 +681,7 @@ which stop the line.
 > **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
 > cheap P2s" (below); the rest were never dispositioned. **7 findings remain *Open — Phase 0B***
 > in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**8 open in total**, counting AUD-F-16; AUD-F-37 and
-> AUD-L-17 were each filed and closed the same day, D-158 and D-159) and **none are
+> AUD-L-19 were each filed and closed the same day, D-158 and D-159) and **none are
 > integration-blocked** — they are exactly what D-152's "finish and test this codebase against the
 > dev fakes first" points at. With S43–S47 frozen, post-gate sessions run out of this backlog under
 > PROGRESS.md's "Next session" pointer rather than under a numbered block.

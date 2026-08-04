@@ -20,6 +20,16 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel
 
+# AUD-C-15: a *registered* tool name is short and developer-authored, but an unknown one is
+# whatever the caller (or a model's tool call) asked for, and it is now written to an indexed
+# `mcp_tool_calls.tool_name` column with no length limit. Two reasons to bound it, both about
+# the audit write not becoming its own failure: a Postgres btree entry over ~2704 bytes raises
+# on INSERT, which would mean failing *while recording a failure*; and an unbounded
+# caller-controlled string is the wrong thing to copy into Postgres verbatim (SPEC §5.30).
+# Applied on every path so the invariant does not depend on which branch audited - registered
+# names are far shorter than this, so it is a no-op for them.
+_MAX_AUDITED_TOOL_NAME_CHARS = 128
+
 
 class McpToolError(Exception):
     """Base for every registry-raised failure - unknown tool, failed validation,
@@ -92,11 +102,18 @@ class McpToolRegistry:
         caller_role: str | None = None,
         audit_repo: AuditRepo | None = None,
     ) -> Any:
+        start = time.monotonic()
+
         tool = self._tools.get(tool_name)
         if tool is None:
+            # AUD-C-15: audited before raising. Every other failure path here writes an
+            # `mcp_tool_calls` row with `success=False`, and this one - a call to a tool that
+            # does not exist - is precisely the shape a wiring bug or a prompt injection
+            # produces, so it was the one that left no trace at all.
+            await self._audit(
+                audit_repo, tool_name, caller_external_id, False, "McpToolError", start,
+            )
             raise McpToolError(f"unknown tool {tool_name!r}")
-
-        start = time.monotonic()
 
         if tool.allowed_roles is not None and caller_role not in tool.allowed_roles:
             await self._audit(
@@ -146,7 +163,7 @@ class McpToolRegistry:
         duration_ms = (time.monotonic() - start) * 1000
         await audit_repo.record(
             ToolCallAuditEvent(
-                tool_name=tool_name,
+                tool_name=tool_name[:_MAX_AUDITED_TOOL_NAME_CHARS],
                 caller_external_id=caller_external_id,
                 success=success,
                 error_type=error_type,
