@@ -131,7 +131,17 @@ RespondRequest = Annotated[
 
 
 class RespondResponse(BaseModel):
+    # AUD-C-15's sibling in the contract layer, AUD-C-14: these two were missing, and because
+    # `_publish_snapshot` re-validates a `SessionSnapshotEvent` from `response.model_dump()`,
+    # their absence did not fail - it *nulled* `scope`/`intent` for every connected client on
+    # every broadcast after a `/respond`. Exactly the class D-058 was written to prevent
+    # ("any field added to `MessageResponse` must also be added to `_initial_snapshot`"), in
+    # the one direction that decision did not name: a *sibling response model* omitting a
+    # field the shared snapshot carries. The rule is bidirectional, so keep all three of
+    # `MessageResponse`, `RespondResponse` and `SessionSnapshotEvent` in step.
     chat_session_id: str
+    scope: str | None = None
+    intent: str | None = None
     answer: str | None = None
     citations: list[CitationResponse] = []
     confidence: float | None = None
@@ -455,6 +465,8 @@ async def respond_to_interrupt(
     access_hint = result.get("access_hint")
     response = RespondResponse(
         chat_session_id=chat_session_id,
+        scope=result.get("scope"),
+        intent=result.get("intent"),
         answer=result.get("answer"),
         citations=citations,
         confidence=result.get("confidence"),

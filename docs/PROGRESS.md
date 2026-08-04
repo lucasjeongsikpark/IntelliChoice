@@ -5,6 +5,87 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ D-174: the backlog count was wrong in both directions, and the corpus diff came back "there is
+  no difference" (2026-08-04, no numbered session — PROGRESS.md's own pointer, items 3 then 1, then
+  AUD-C-15 and AUD-C-14). `make lint` clean, `pyright` 0, **785 passed / 2 skipped** (782 at start,
+  +13), `e2e/` `tsc` clean. **Uncommitted and not deployed** — code, tests and docs only, no
+  migration.**
+  **⚠️ Read this before taking a count from AUDIT_FINDINGS.md's table again.** The register states
+  its own invariant — *"One row per finding"* — and it was broken for **27 findings** (89 sections, 68
+  rows). The Index stopped being maintained after AUD-F-20 / C-16 / X-08. It cost in **both**
+  directions: **AUD-F-22** (P2, parent cannot reach the dashboard) and **AUD-F-33** (P2, scale-in
+  intermittently stops) were invisible to every count, while **AUD-F-16 was counted as open for two
+  weeks after D-116 fixed it** — its own mechanism had been supplying evidence the whole time
+  (D-173's run printed `[build-identity] … sha=d3b9d3ede59c`). Five section headings still read "not
+  fixed" while the fix sat in DECISIONS/ROADMAP (F-21, F-25, F-27, F-34, X-13). All 27 backfilled,
+  headings corrected, invariant re-checked mechanically: **0 sections without a row**.
+  **✅ `AUD-L-17`'s id collision is resolved — D-159's P2 is now `AUD-L-19` (user's call: the later
+  minting moves).** It named two findings: a P2 from D-159 (variant ownership) and a P3 from S36 (mock
+  hint boilerplate, the original holder, which keeps the id). Applied **per reference, not by global
+  replace** — each of the 33 was classified as P2, P3, or a *range* (`AUD-L-10..AUD-L-17` is the S36
+  audit span and correctly still ends at the P3), and only the **11 pure P2 citations** moved. A
+  `sed -i` would have rewritten the P3's own history and broken that range. **0 duplicate row ids now.**
+  **✅ The e2e id sweep found real mis-citations and disproved the claim that asked for it.**
+  `journey-student.spec.ts` said "every `AUD-F-0x` reference was shifted by one". It was not: every
+  F-01 and F-02 citation is correct, and the real defect was **one family off by four** — five
+  references called the ~26 ms narrative race `AUD-F-01` when it is **AUD-F-05**. The citations
+  carried their own disproof, four of them naming `narrative-race.spec.ts` *on the same line as the
+  wrong id*, and that file is where F-05's measurement lives. Also `journey-parent.spec.ts` cited
+  F-04/F-05 for the `test.fail()`-and-promote posture, which is **AUD-F-03**'s.
+  **✅ AUD-C-23's re-scoped question is answered and the answer is "the corpora are identical".** Read
+  staging's RDS directly via the `ops-task` `run-task` override (read-only, a few Fargate seconds, no
+  model calls — free) and compared against the dev Postgres: documents, document ids, chunks by
+  audience (**144** approved+effective), chunks by their **own** `status`/`audience`/`access_level`/
+  `academic_year` (159 incl. drafts), chunk-vs-document gating disagreements (**0** on both),
+  `branch_external_id` spread, `md5(chunk_text)`, NULL embeddings (**0**) — **all identical**. Both of
+  the pointer's named candidates are dead. **The first pass measured the wrong level:** `ChunkFilters`
+  applies its predicates at *chunk* level and I had filtered on the *document's* status, so it was
+  re-run at chunk level — a corpus comparison must be made at the level the query filter reads.
+  **The eval is aligned with production on every axis checked**, more tightly than assumed: same model
+  ids (its `_gateway` defaults to the deployed Haiku 4.5 and Titan v2), **no** threshold env var set on
+  staging at all, and `reembed_corpus` neutralises the vector-provenance difference before any case
+  runs. **Two false leads, both checked before being believed:** `chat_api.config`'s
+  `bedrock_rerank_model_id` default really is `anthropic.claude-sonnet-5` and really does differ from
+  the deployed Haiku 4.5 — but neither the eval nor `measure_access_probe_rules.py` reads it, so **no
+  access-probe rule was measured through the wrong reranker** and D-165/D-166/D-168 stand; and the
+  follow-up guess that the unversioned default silently degrades is also wrong (it is a valid Bedrock
+  id here).
+  **⚠️ AUD-C-23's own text was overstated and is corrected in place.** "The deployed system does not
+  exhibit this finding" rests on **three** probes, and D-172 recorded this same model moving 6 → 5 → 4
+  citations across runs. The honest claim is *"not observed in 3 probes"*. The remaining fork is
+  (1) harness-vs-route or (2) nondeterminism — neither instrument is free (a staging probe is a real
+  Bedrock turn; the `no_answer` arm is 10c / 72s), which is exactly why the free comparison went first.
+  **✅ AUD-C-16's five-session-old live question is answered: staging is real-Titan embedded, so its
+  semantic half is not noise.** Two independent lines: for chunks with identical `md5(chunk_text)` the
+  `md5(embedding::text)` **differs** from the mock-embedded dev corpus (8/8 sampled), which is
+  decisive because `_deterministic_vector` is a **pure function of the text**; and the deployed task
+  definition sets `CHAT_BEDROCK_PROVIDER=bedrock` with `amazon.titan-embed-text-v2:0`. Dim 1024 and
+  L2-norm 1.0000 on both sides, so neither discriminates — the content-keyed fingerprint is what does.
+  **✅ AUD-C-15 closed, and the finding named one half of it.** The unknown-tool path now audits before
+  raising. The second half: an unknown `tool_name` is caller-controlled and lands in an **indexed**
+  column with no length limit, so a long enough name makes the INSERT itself raise (~2704-byte btree
+  cap) — the audit write would fail on exactly the input it exists to record. Bounded to 128 chars on
+  every path.
+  **✅ AUD-C-14 closed.** `scope`/`intent` added to `RespondResponse`; the test asserts the
+  re-validated `SessionSnapshotEvent` too, using `/messages`' values as a control that can fail.
+  D-058's rule is now bidirectional in the code.
+  **✅ AUD-L-16 wired (your call, D-169's precedent).** `services/effective_policy.py` reads both
+  snapshots back and the chat gate asks it instead of testing `phase == "study"`. **Behaviour
+  deliberately unchanged** under the shipped constants; what changed is that retuning
+  `exam_policy._POLICIES` can no longer alter an in-flight session's rules — the guarantee
+  `AssessmentSession.policy`'s comment promises and did not implement. `policy` is **nullable**
+  (pre-S22 rows unbackfilled), so a `constant_fallback` path is real and is *reported*, because "the
+  snapshot decided" and "the snapshot was missing" are the same boolean and different guarantees.
+  **10 masking tests, all 10 failing against a stub of the old mechanism** — including a study
+  snapshot that *disables* hints and an exam snapshot that *enables* them, each obeyed against the
+  opposite constant.
+  **⚠️ One contract change, and a test caught what my grep missed:** the chat 409 detail now names the
+  phase *and* the policy source. `test_chat_refuses_outside_study_phase` asserted `"study" in detail`
+  — a substring assertion is invisible to a grep for the literal message. Updated to assert the
+  durable part. Nothing else in the repo or either frontend reads it.
+  **Corrected open count: 6** — `AUD-L-01, L-05, L-08, C-23, F-22, F-33`. (9 after the sweep, minus
+  C-14, C-15 and L-16.) The decided-but-unimplemented pile is still empty.
+
 - **✅ D-173 IS DEPLOYED, the fixed gate passed, and the frontend artifact is verified byte-for-byte
   (2026-08-04).** PR **#101**, CI **9/9 first attempt**, squash-merged as
   **`d3b9d3ede59cfb6a1dcb5a6ada56ab81ec79b4cc`**, deploy run
@@ -737,7 +818,7 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   revision, `SET NOT NULL` in a second one after the code is live.** Acceptable this once because
   staging has no real users and the only caller of that route is our own frontend.
 
-- **✅ The replayed-write cluster is closed — AUD-X-03, AUD-L-11, AUD-X-04, plus AUD-L-17 found
+- **✅ The replayed-write cluster is closed — AUD-X-03, AUD-L-11, AUD-X-04, plus AUD-L-19 found
   underneath them (2026-08-03, D-159).** `make lint` clean, `pyright` 0 errors, **693 passed /
   2 skipped** (684 + 9 new); learning e2e **18/18**, chat e2e **35/35**, e2e typecheck clean,
   learning-web build clean. **One Alembic migration. No deploy, no apply, no staging access.**
@@ -755,7 +836,7 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   function, `TopicSelectionResult`, and three now-unused imports are deleted. **D-158's lesson from
   the other direction:** there, check whether something is absent on purpose before adding it back;
   here, read the path that actually runs before believing the fix is in it.
-  **AUD-L-17 was hiding under a status code (P2, new).** The exam answer paths checked that a variant
+  **AUD-L-19 was hiding under a status code (P2, new).** The exam answer paths checked that a variant
   *exists*, never that it belongs to *this* exam — so a real variant from another exam was **graded
   and inserted into `assessment_attempts` for this session**, with a 200. An 11th attempt on a
   10-item exam, i.e. the same attempt-counted scoring denominator AUD-L-10 was fixed to protect,
@@ -1083,9 +1164,58 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-173. ⭐ Everything is committed, merged, deployed and
-  verified — for the first time in several sessions, item 0 is not "land the last session's work".
-  Start at item 1.):**
+- **Next session, in order (2026-08-04, post-D-174):**
+  0. **Owed: land D-174.** Code, tests and docs, **no migration and no schema change**, so the D-157
+     pre-check should predict a code-and-docs deploy. Two application files changed
+     (`packages/shared/.../mcp.py`, `apps/chat-api/.../routers/sessions.py`), so this one *does* need
+     a deploy, unlike D-173's docs-only tail. **Nothing to verify live that a test cannot see** — both
+     fixes are deterministic and covered; the useful live read is simply that `mcp_tool_calls` gains
+     rows for unknown tools if anything ever calls one.
+  1. **✅ Both decisions this session raised are answered and both are implemented** — `AUD-L-17`
+     renumbered (D-159's P2 → `AUD-L-19`) and **AUD-L-16 wired**. Nothing owed on either.
+     **✅ AUD-L-16's browser edge is verified too:** the whole learning e2e suite ran after the
+     chat-gate change — **22 passed**, the same count D-173 recorded — so the in-browser journey
+     (which exercises study-phase chat and the assistance panel) is unaffected.
+  2. **AUD-C-23: discriminate harness-vs-route from nondeterminism**, in that order, because the
+     first is free-ish and would invalidate the second's premise. Probe the deployed edge more than
+     three times (real Bedrock turns, cheap but not free) and read whether the eval's in-process
+     `ask()` applies the access probe the same way `routers/sessions.py` does. Only then take the
+     original fork (tighten the margin / relax the assertion, **naming the tolerated case**).
+     **Do not** tune the rule before this: corpus, config, thresholds and models are all eliminated,
+     so a rule change now would be aimed at an unidentified mechanism.
+  3. **Continue the Phase 0B backlog: 6 open**, re-derived from **both halves** of the Index —
+     **AUD-L-01, L-05, L-08, C-23, F-22, F-33**. In rough order of value:
+     - **AUD-F-22** (P2) is the only one a *user* meets directly: a parent cannot reach their child's
+       progress dashboard without finishing a whole pre/study/post cycle. **Needs a UX decision from
+       you** about where a persistent entry point belongs. Its `test.fail()` probe in
+       `journey-parent.spec.ts` is already measuring it and will fail the run the day it closes.
+     - **AUD-F-33** (P2, autoscaling) was deferred by your call, not closed — detection exists, the
+       mechanism is still unknown. Same family as the now-fixed AUD-F-38.
+  4. **The product decisions still unanswered, unchanged and none of them mine to make:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent by
+     choice; (b) should the access hint be able to say "this is covered in parent *and*
+     branch-manager materials" instead of going silent on the two attendance questions D-168
+     measured; (c) escalation carries no way to reply to the person who asked (D-164's scoped-out
+     half), and `InMemoryRateLimiter` is per-process so the real ceiling is N× the configured one.
+  5. **Everything from the post-D-173 pointer that is still live** — listed in full below.
+     **Note on counting findings:** the Index now covers all 89, but **read both halves** — the
+     original table and the S43-and-later continuation block. A count from the first table alone is
+     the mistake D-174 was about.
+     **Note on reading staging's database:** `aws ecs run-task` with a `containerOverrides` command on
+     `intellichoice-staging-ops-task` reads RDS directly for a few Fargate seconds. AUD-C-16 had
+     recorded the private subnets as making this impossible; they do not. Read-only by construction if
+     the command is a `SELECT`.
+     **Note on chat probes and deploys:** they trip `chat-api-p95-latency-scale-out`. AUD-F-38 is
+     fixed, so probing before a deploy is now safe — expect desiredCount to move and do not read it
+     as a deploy signal.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"`
+     **and export `AWS_REGION=us-east-1`** — the exported credentials carry no region. Valid and
+     unexpired this session.
+
+- **Superseded — pointer as of post-D-173 (2026-08-04). Items 0/0b/0c were already done; items 1 and
+  2 carry up as 2 and 3 with the count corrected from 8/9 to 7; item 3 (the id sweep) is done in
+  D-174; item 4 carries up as 4:**
   0. **✅ Nothing is owed on the deploy.** D-173 is merged (`d3b9d3e`) and deployed (run 30912504443,
      `learning-api:60` / `chat-api:59`), the fixed gate passed, and the frontend bundle is
      byte-identical to a local build of the commit. AUD-F-38 is fixed.
@@ -1480,7 +1610,7 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      **Note on `aws`:** credentials are per-profile, not ambient. `export AWS_PROFILE=intellichoice-
      staging AWS_REGION=us-east-1` — without it every call fails `NoCredentials`/`NoRegion` even
      right after a successful `aws login`, which cost a few minutes to work out this session.
-  1. ✅ **The replayed-write cluster is done (D-159)** — AUD-X-03, AUD-L-11, AUD-X-04, and AUD-L-17
+  1. ✅ **The replayed-write cluster is done (D-159)** — AUD-X-03, AUD-L-11, AUD-X-04, and AUD-L-19
      found underneath them. See the top entry; the two carry-overs it *opened* are item 2's last
      bullet and the concurrent-report-spend note in that entry.
   2. **Then keep going down the Phase 0B backlog — still the work D-152 points at.** **15** findings
@@ -5525,7 +5655,7 @@ unambiguous, not to imply entries exist for them._
   `"not_served"` → 409. `pyright` named six call sites the moment it became required. Pre-flighted for
   exam *and* study phases; the existence read that separates 400 from 409 runs only on the failing
   path, since membership already implies existence.
-- **AUD-L-17 (new, P2, filed and closed same session)** — found writing AUD-L-11's tests: the exam
+- **AUD-L-19 (new, P2, filed and closed same session)** — found writing AUD-L-11's tests: the exam
   paths checked a variant *exists*, never that it is an item of **this** exam, so a real variant from
   another exam was graded into `assessment_attempts` here with a 200 (`_mark_item_answered` silently
   no-ops). An 11th attempt on ten items — the attempt-counted denominator AUD-L-10 protects, which

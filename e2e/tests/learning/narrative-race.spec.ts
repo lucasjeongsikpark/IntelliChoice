@@ -1,5 +1,9 @@
 /**
- * AUD-F probe: the stage narrative arrives over SSE *after* the topic-select screen has
+ * AUD-F-05's measurement (the id was assigned after this file was written, and filled in
+ * 2026-08-04 by D-174's sweep - four other citations pointed here while naming AUD-F-01,
+ * which is the unrelated refetch-burst finding).
+ *
+ * The probe: the stage narrative arrives over SSE *after* the topic-select screen has
  * rendered, and `App.tsx` gates the narrative ahead of the phase branches - so the
  * narrative screen replaces a screen the student is already using.
  *

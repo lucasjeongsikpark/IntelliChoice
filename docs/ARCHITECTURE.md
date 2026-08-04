@@ -264,7 +264,7 @@ to rot, because nothing fails when it does.)*
   both pass it. `learning_gain`'s `max_score` is the attempt count and is the *item* count **only
   because of this constraint** — the dependency is documented at that line.
   **And an attempt must belong to this exam at all, which the constraint cannot say (D-159,
-  AUD-L-17).** A variant from a *different* exam duplicates nothing, so it walked past the unique
+  AUD-L-19).** A variant from a *different* exam duplicates nothing, so it walked past the unique
   index and was graded into this session — an 11th attempt on ten items, moving the same
   denominator. `flow.ensure_item_is_served` is the membership half; the invariant is "one attempt
   per item **of this exam**", and it takes both halves to hold.

@@ -56,7 +56,7 @@
  * expiry means the app decided not to show it, not that this test ran out of patience.
  *
  * The welcome narrative is used rather than a pre-exam one: it is the case the finding
- * itself quotes, it needs no topic selection or exam, and it removes AUD-F-01's
+ * itself quotes, it needs no topic selection or exam, and it removes AUD-F-05's
  * topic-card race from a test that is not about it.
  */
 

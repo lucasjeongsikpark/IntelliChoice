@@ -480,7 +480,7 @@ computes §5.13.3's metrics from pre/post attempts plus study support levels.
 `(session, variant)` as a **database invariant**, after the check-only version let four concurrent
 answers all return 200.
 
-**§5.9.2's "one attempt per item" needed a second half nobody had asked for (D-159/AUD-L-17).** The
+**§5.9.2's "one attempt per item" needed a second half nobody had asked for (D-159/AUD-L-19).** The
 constraint above makes an item unanswerable twice, but nothing checked that the answered variant is
 an item of *this* exam at all — so a real variant from another exam was graded and inserted here,
 past a constraint it does not duplicate, moving the attempt-counted denominator §5.13.3 divides by.

@@ -366,7 +366,15 @@ def test_chat_refuses_outside_study_phase() -> None:
             json={"question_variant_id": variant_id, "message": "can I get a hint?"},
         )
         assert resp.status_code == 409
-        assert "study" in resp.json()["detail"]
+        detail = resp.json()["detail"]
+        # AUD-L-16 (D-174 §6) changed this message deliberately: the refusal now reports the
+        # phase *and* where the decision came from, because the snapshot decides it rather
+        # than a hardcoded `phase == "study"` check. The refusal itself is unchanged.
+        assert "pre_exam" in detail, detail
+        assert "assessment_snapshot" in detail, (
+            "the refusal must name its policy source, so a fallback-driven refusal is "
+            f"distinguishable from a snapshot-driven one: {detail}"
+        )
 
 
 def test_off_topic_message_gets_a_fixed_redirect_with_no_wrong_attempt_needed() -> None:

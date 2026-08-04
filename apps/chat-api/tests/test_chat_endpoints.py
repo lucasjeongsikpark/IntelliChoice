@@ -17,6 +17,7 @@ from typing import cast
 
 import pytest
 from chat_api.main import app
+from chat_api.routers.sessions import SessionSnapshotEvent
 from chat_api.routers.stream import _initial_snapshot
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -328,6 +329,51 @@ def test_branch_locator_consent_then_zip_round_trip_over_http() -> None:
 
     assert "Main Branch" in result["answer"]
     assert "North Branch" in result["answer"]
+
+
+def test_respond_carries_scope_and_intent_into_its_snapshot() -> None:
+    """AUD-C-14. `RespondResponse` omitted `scope`/`intent`, and because `_publish_snapshot`
+    re-validates a `SessionSnapshotEvent` from `response.model_dump()`, the omission did not
+    raise - it *nulled* both fields for every connected client on every broadcast after a
+    `/respond`. Watched failing before the fix, on both assertions.
+
+    Asserted on the same interrupt round trip as the test above, because that is the shortest
+    real path that reaches `/respond`: the `/messages` turn classifies, the `/respond` turn
+    resumes it, and the resumed turn's state still carries the classification.
+    """
+    with TestClient(app) as client:
+        session_id = client.post("/chat/sessions").json()["chat_session_id"]
+        preview = client.post(
+            f"/chat/sessions/{session_id}/messages",
+            json={"query": "What is the nearest branch to me?"},
+        ).json()
+        assert preview["pending_interrupt"]["interrupt_type"] == "location_consent"
+        # The control: `/messages` already reports these, so a null after `/respond` is the
+        # defect and not simply "this journey never classifies anything".
+        assert preview["scope"] == "in_scope"
+        assert preview["intent"] is not None
+
+        result = client.post(
+            f"/chat/sessions/{session_id}/respond",
+            json={
+                "interrupt_type": "location_consent",
+                "approved": True,
+                "zip_code": "62704",
+            },
+        ).json()
+
+    assert result["scope"] == preview["scope"], (
+        "the /respond response dropped `scope`, so its SSE snapshot nulls it (AUD-C-14)"
+    )
+    assert result["intent"] == preview["intent"], (
+        "the /respond response dropped `intent`, so its SSE snapshot nulls it (AUD-C-14)"
+    )
+
+    # The field being present on the response is only half of it - the snapshot is what
+    # connected clients actually receive, and it is built by re-validating the response.
+    snapshot = SessionSnapshotEvent.model_validate(result)
+    assert snapshot.scope == preview["scope"]
+    assert snapshot.intent == preview["intent"]
 
 
 async def _checkpoint_writes_for_thread(thread_id: str) -> list[tuple[str, str, bytes]]:

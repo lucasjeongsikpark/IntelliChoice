@@ -105,8 +105,14 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
 // a `test.fail()` probe measuring a confirmed defect (going back to "Question 1 of 10" from
 // question 3), and the fix made it "pass unexpectedly", which is the signal to drop the
 // marker. **The finding id was wrong here and is corrected**: this behaviour is AUD-F-03;
-// AUD-F-04 is the narrative returning after a refresh (narrative-refresh.spec.ts). Every
-// AUD-F-0x reference in this suite was shifted by one against AUDIT_FINDINGS.md's table.
+// AUD-F-04 is the narrative returning after a refresh (narrative-refresh.spec.ts).
+//
+// **The "shifted by one" claim that used to end this comment was wrong, and the sweep it
+// asked for is what disproved it (2026-08-04, D-174).** Every AUD-F-01 and AUD-F-02 citation
+// in the suite is correct - F-01 traces to the refetch burst (time-telemetry.spec.ts) and
+// F-02 to the post-finalize 409 burst (post-finalize-poll.spec.ts). The real mis-citations
+// were one family, off by four not one: five references called the ~26 ms narrative-
+// displacement race AUD-F-01 when it is AUD-F-05.
 //
 // The position is now derived from the exam overview rather than persisted, and applied once
 // per phase - `exam-position-refresh.spec.ts` covers the "once per phase" half, which this
