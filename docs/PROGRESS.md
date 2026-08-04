@@ -5218,6 +5218,73 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
+### S59 (unnumbered) — the register that could not be counted, a corpus diff whose answer was "no difference", and three findings closed (2026-08-04) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-173)** — no numbered roadmap block
+  (D-152), so no "Done when" criteria apply; items 3 then 1, confirmed with the user before editing,
+  then AUD-C-15 and AUD-C-14 from item 2, then AUD-L-16 and the `AUD-L-17` renumber once the user
+  answered both. Baseline verified first, not assumed: lint clean, pyright 0, **782 passed /
+  2 skipped**, tree clean at `1b2c72a`.
+- **The counting mechanism was broken, and that is the session's main finding.** AUDIT_FINDINGS.md
+  states "One row per finding" and it was false for **27 findings** (89 sections, 68 rows) — the Index
+  stopped being maintained after AUD-F-20 / C-16 / X-08. Cost in **both** directions: **AUD-F-22** and
+  **AUD-F-33** (both P2, both open) were invisible to every count, while **AUD-F-16 was counted as
+  open for two weeks** after D-116 fixed it — its own mechanism had been printing build identity into
+  D-173's staging run throughout. Five headings still read "not fixed" (F-21, F-25, F-27, F-34, X-13).
+  All 27 backfilled; invariant now holds at **0** exceptions. ROADMAP's own "derive the count from the
+  table" instruction — the one that produced the wrong number — corrected to read both halves.
+- **`AUD-L-17` named two findings; D-159's P2 is now `AUD-L-19`** (user's call: the later minting
+  moves). Applied **per reference** — each of 33 classified as P2, P3, or a range
+  (`AUD-L-10..AUD-L-17` is the S36 span and still correctly ends at the P3); only the 11 pure P2
+  citations moved. A global `sed` would have rewritten the P3's history and broken that range.
+- **The e2e id sweep disproved the claim that requested it.** Every `AUD-F-01`/`AUD-F-02` citation was
+  correct; the real defect was one family **off by four** — five references called the ~26 ms narrative
+  race `AUD-F-01` when it is `AUD-F-05`, and four of the five named `narrative-race.spec.ts` *on the
+  same line as the wrong id*, which is F-05's own measurement file. Also `journey-parent.spec.ts`
+  cited F-04/F-05 for the `test.fail()`-and-promote posture, which is `AUD-F-03`'s.
+- **AUD-C-23: the corpus diff came back "there is no difference."** Staging's RDS read directly via
+  the `ops-task` `run-task` override (read-only, free, no model calls — the private subnets AUD-C-16
+  called an obstacle are not one). Documents, chunks by audience (**144** approved+effective), chunks
+  by their **own** gating columns, chunk-vs-document disagreements (**0** both), branch spread,
+  `md5(chunk_text)`, NULL embeddings — **all identical**. My first pass measured at *document* level
+  when `ChunkFilters` reads at *chunk* level and was re-run. Both hypotheses dead; the eval is *more*
+  aligned with production than assumed. Remaining fork: harness-vs-route or nondeterminism, **not the
+  rule**. AUD-C-23's own "the deployed system does not exhibit this" was overstated by its own
+  three-probe evidence and corrected in place.
+- **Three findings closed.** **AUD-C-15** — unknown-tool path audits before raising, *plus* the half
+  the finding did not name: an unknown `tool_name` is caller-controlled and indexed with no length
+  limit, so a long enough name makes the INSERT raise, failing while recording a failure; bounded to
+  128 chars. **AUD-C-14** — `scope`/`intent` on `RespondResponse`; D-058's rule now bidirectional.
+  **AUD-L-16** — wired on D-169's precedent: `services/effective_policy.py` reads both snapshots back
+  and the chat gate asks it; behaviour unchanged, but retuning `exam_policy._POLICIES` can no longer
+  alter an in-flight session's rules.
+- **⚠️ Corrected after the deploy (D-174 §3a) — I answered a question that was already closed.** I
+  claimed `rag_chunks` "records no model or provider"; it records both, since **D-112 (2026-07-28)**.
+  Staging reads `embedding_provider = 'bedrock'` on all 159 chunks, dev reads `'mock'` — one `SELECT`,
+  no fingerprinting needed. The conclusion was right, the route was the hard way round. **Cause:
+  AUD-C-16's "not yet checked against staging" bullet was never struck when D-112 fixed it** — a stale
+  open question inside a *closed* finding's body, this session's own subject in prose rather than in a
+  heading. Narrow lesson: the status *was* read and says fixed; what went unasked is whether an inline
+  question predates the fix. Both stale sentences struck at source.
+- **Verification.** lint clean, pyright **0**, **795 passed / 2 skipped** (782 at start, **+13**),
+  `e2e/` `tsc` clean, and the **whole learning browser e2e suite green: 22 passed** — run because
+  AUD-L-16 changed a gate the in-browser journey depends on, and 22 matches D-173's count. Every new
+  test watched failing against unfixed code first; AUD-L-16's 10 all fail against a stub of the old
+  phase-string mechanism.
+- **Deployed and verified by artifact, not by pipeline.** PR **#104**, CI **9/9 first attempt**,
+  squash-merged `e10b4726`; deploy run
+  [30928085297](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30928085297)
+  **success**, **every step ran**, rollback correctly skipped. Read independently from the control
+  plane: `learning-api:61` / `chat-api:60`, both `gha-e10b47265bad`, both `COMPLETED`, one deployment
+  each, running == desired. `/dev/token` **4/4 → 404**, both edges 200, all four canary alarms OK (the
+  two `p95-latency-scale-in` in ALARM are the documented no-traffic case). **A 422 scared me first and
+  it was my own malformed probe** — an empty body fails FastAPI validation before the endpoint's gate
+  answers; re-probed with the gate's own body, 404. Worth one line because filing that as a P0
+  regression was one careless step away. PR **#105** (docs-only) carries §3a.
+- **Carry-over:** AUD-F-22 needs a **UX decision** (the only open finding a user meets directly);
+  AUD-C-23 needs harness-vs-route discriminated before its rule is touched; open count **6**.
+- **Decisions:** D-174 (with §3a).
+
 ### S58 (unnumbered) — the refresh-state pair, a cluster of three that was really two, and the deploy gate that failed on its own verification traffic (2026-08-04) ✅
 
 - **Scope: PROGRESS.md's own "Next session" pointer (post-D-172)** — no numbered roadmap block

@@ -679,18 +679,31 @@ which stop the line.
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 
 > **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
-> cheap P2s" (below); the rest were never dispositioned. **7 findings remain *Open — Phase 0B***
-> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**8 open in total**, counting AUD-F-16; AUD-F-37 and
-> AUD-L-19 were each filed and closed the same day, D-158 and D-159) and **none are
-> integration-blocked** — they are exactly what D-152's "finish and test this codebase against the
-> dev fakes first" points at. With S43–S47 frozen, post-gate sessions run out of this backlog under
-> PROGRESS.md's "Next session" pointer rather than under a numbered block.
+> cheap P2s" (below); the rest were never dispositioned. **6 findings are open** in
+> [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) — **AUD-L-01, L-05, L-08, C-23, F-22, F-33** (updated
+> 2026-08-04, D-174) — and **none are integration-blocked**; they are exactly what D-152's "finish
+> and test this codebase against the dev fakes first" points at. With S43–S47 frozen, post-gate
+> sessions run out of this backlog under PROGRESS.md's "Next session" pointer rather than under a
+> numbered block.
 >
-> **This count is derived from the table, never carried forward** (corrected 2026-08-03 from a stale
-> "16" that predated several closures). Recount with a grep for the status column rather than
-> trusting any prose, here or in PROGRESS.md — a decremented number in a sentence is the first thing
-> to drift. Note also that *Open* and *Decided* are different piles: a finding whose fix has been
-> decided but not implemented (AUD-L-03, AUD-L-09) is not in this count and is not done.
+> **⚠️ How to recount, corrected 2026-08-04 (D-174) — the previous instruction here was the one that
+> produced a wrong number.** It said "derive the count from the table, never carry it forward",
+> which is right in spirit and was insufficient in fact: the Index had **stopped being maintained**
+> after AUD-F-20 / C-16 / X-08, so **27 findings had a detail section and no row** and a
+> table-derived count silently missed them. That is how the post-D-173 pointer arrived at "8, 9
+> counting AUD-F-16" while **AUD-F-22** and **AUD-F-33** (both P2, both open) were invisible and
+> **AUD-F-16** had been fixed for two weeks.
+>
+> So: **recount by grep, and read *both halves* of the Index** — the original table *and* the
+> "S43 and later" continuation block. Cross-check that every `### AUD-…` section has a row (D-174
+> left that invariant holding, at 0 exceptions) and that no id appears twice (the `AUD-L-17`
+> collision is resolved — D-159's P2 is now `AUD-L-19`). **A finding's body can also contradict its
+> own status**, and the status wins: D-174 §3a lost time to a "not yet checked" bullet that was
+> never struck when D-112 closed the finding.
+>
+> Note also that *Open* and *Decided* are different piles: a finding whose fix has been decided but
+> not implemented (AUD-L-03, AUD-L-09) is not in this count and is not done. That pile is currently
+> **empty of unimplemented items** apart from those two.
 >
 > **Take clusters, not findings — but the two clusters taken so far cohered differently, and the
 > difference is worth carrying forward.** D-155 (AUD-C-07 + AUD-C-08 + AUD-C-10) was *one defect at
