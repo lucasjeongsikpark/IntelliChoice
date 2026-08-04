@@ -1,4 +1,5 @@
 import type {
+  ChildCandidate,
   DashboardData,
   ExamOverview,
   Role,
@@ -79,6 +80,15 @@ export function devToken(
     headers,
     body: JSON.stringify({ role, sub }),
   });
+}
+
+/**
+ * AUD-F-22: the caller's linked children, resolvable *before* any learning session.
+ * Parent-only on the backend (403 for every other role); the id comes from the verified
+ * token, so there is nothing to pass.
+ */
+export function getMyChildren(token: string): Promise<ChildCandidate[]> {
+  return request("/learning/parents/me/children", token);
 }
 
 export function createSession(token: string): Promise<SessionSnapshot> {

@@ -87,6 +87,7 @@ def _average(values: list[int]) -> float:
 async def compute_learning_gain(
     *,
     question_repo: QuestionRepository,
+    declared_item_count: int,
     pre_attempts: list[AssessmentAttempt],
     post_attempts: list[AssessmentAttempt],
     study_attempts: list[StudyAttempt] | None = None,
@@ -96,20 +97,28 @@ async def compute_learning_gain(
 
     pre_raw = float(sum(1 for a in pre_graded if a.is_correct))
     post_raw = float(sum(1 for a in post_graded if a.is_correct))
-    # `max_score` is the attempt count, and it is the *item* count only because
-    # `uq_assessment_attempts_session_variant` allows one attempt per item and
-    # `flow.finalize_exam` synthesizes one for every item left unanswered. That was not
-    # true before AUD-L-10: a second answer under a new key made a 10-item exam score
-    # 10/11 and silently replaced `not_applicable_pre_max` below with a computed gain.
-    # If that constraint is ever relaxed, this line has to start counting items instead.
-    max_score = float(len(pre_graded)) or 1.0
+    # AUD-L-08: `max_score` is the assessment's *declared* item count, never the attempt
+    # count. Attempts are only one-for-one with items while
+    # `uq_assessment_attempts_session_variant` holds and `flow.finalize_exam` synthesizes
+    # one for every unanswered item - a property of other modules this arithmetic must not
+    # depend on. Counting attempts once made a duplicate answer turn a 10-item exam into
+    # 10/11, and an extra *pre* attempt switched `not_applicable_pre_max` off for a
+    # genuine perfect pre-exam - the flag disappeared exactly when it applied.
+    max_score = float(declared_item_count)
 
     if pre_raw >= max_score:
         normalized_gain: float | None = None
         normalized_gain_status: str | None = "not_applicable_pre_max"
     else:
         normalized_gain = (post_raw - pre_raw) / (max_score - pre_raw)
-        normalized_gain_status = None
+        # AUD-L-08: flag, never clamp. A quotient outside [-1, 1] means the inputs broke
+        # the one-attempt-per-item invariant, so the number is not a normalized gain -
+        # clamping would turn a -200% into a plausible -100%, the exact
+        # "plausible-looking number" failure the finding is about. The raw value is kept
+        # for diagnosis; consumers suppress it on the flag (nodes.py's `post_outro`).
+        normalized_gain_status = (
+            "unmeasurable_out_of_range" if not -1.0 <= normalized_gain <= 1.0 else None
+        )
 
     skill_ids = {a.skill_id for a in pre_graded} | {a.skill_id for a in post_graded}
     skill_level_gain: dict[str, dict[str, float]] = {}

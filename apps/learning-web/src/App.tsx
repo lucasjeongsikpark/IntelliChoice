@@ -3,7 +3,7 @@ import "./App.css";
 import * as api from "./api/client";
 import { useLearningSession } from "./hooks/useLearningSession";
 import { useNarrativeGate } from "./hooks/useNarrativeGate";
-import type { Role, SessionSnapshot } from "./types";
+import type { ChildCandidate, Role, SessionSnapshot } from "./types";
 import logoUrl from "../../../packages/ui-brand/assets/logo.png";
 import { DevLoginScreen } from "./screens/DevLoginScreen";
 import { StartScreen } from "./screens/StartScreen";
@@ -35,7 +35,39 @@ function App() {
   // `session` at the call site: the hook returns a fresh object every render, so a
   // `useCallback` depending on `session` would be re-created every render and reintroduce
   // AUD-F-01. The two functions themselves are memoized on `[token]` (useLearningSession.ts).
-  const { snapshot, fetchExamOverview, recordItemTime } = session;
+  // `rememberStudent`/`forgetStudent` are pulled out for the same reason - the
+  // pre-session-resolution effect below lists them as dependencies.
+  const { snapshot, fetchExamOverview, recordItemTime, rememberStudent, forgetStudent } = session;
+
+  // AUD-F-22: resolve a parent's child *before* any session, so `dashboardStudentId`
+  // below is non-null on the start screen and the existing dashboard button is reachable
+  // without sitting through a pre → study → post cycle. One child: resolved silently.
+  // Several: the existing ChildSelectionScreen is shown once, at login. `null` means the
+  // lookup hasn't finished; `[]` doubles as the fetch-failure fallback, which degrades to
+  // the old behavior (the in-session `child_selection` interrupt still resolves a child,
+  // server-side, whenever no explicit id is passed).
+  const [childCandidates, setChildCandidates] = useState<ChildCandidate[] | null>(null);
+
+  useEffect(() => {
+    if (!token || role !== "parent" || session.studentId) return;
+    let cancelled = false;
+    api
+      .getMyChildren(token)
+      .then((children) => {
+        if (cancelled) return;
+        if (children.length === 1) {
+          rememberStudent(children[0].student_external_id);
+        } else {
+          setChildCandidates(children);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setChildCandidates([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, role, session.studentId, rememberStudent]);
 
   const [streak, setStreak] = useState(0);
   const [counts, setCounts] = useState({ hint: 0, solution: 0, video: 0 });
@@ -111,6 +143,11 @@ function App() {
     setSub(null);
     setRole(null);
     session.endSession();
+    // AUD-F-22: the resolved child is login-scoped, so logout is where it is forgotten -
+    // `endSession` deliberately no longer clears it (a session ending is not a change of
+    // who is signed in, and clearing there is what made the dashboard button vanish).
+    forgetStudent();
+    setChildCandidates(null);
   }
 
   function resetSessionUiState() {
@@ -164,6 +201,30 @@ function App() {
     }
 
     if (!session.sessionId) {
+      // AUD-F-22: a parent's child is resolved before the start screen. While the
+      // children lookup is in flight there is nothing to act on yet; once it lands, a
+      // multi-child parent picks once (the same screen the in-session interrupt uses)
+      // and the choice holds for the whole login. An empty list is the fetch-failure /
+      // no-linked-children fallback and falls through to the start screen unresolved.
+      if (role === "parent" && !session.studentId) {
+        if (childCandidates === null) {
+          return (
+            <div className="panel">
+              <p>Loading…</p>
+            </div>
+          );
+        }
+        if (childCandidates.length > 1) {
+          return (
+            <ChildSelectionScreen
+              candidates={childCandidates}
+              busy={false}
+              onSelect={(studentId) => rememberStudent(studentId)}
+            />
+          );
+        }
+      }
+
       return (
         <StartScreen
           sub={sub}
@@ -174,11 +235,15 @@ function App() {
           onStart={() => {
             resetSessionUiState();
             // `/student` must run for every role, not just "student" - it's what
-            // resolves SPEC §5.6.1's role-based routing (self, auto-selected only
-            // child, or the multi-child interrupt). A student passes their own id
-            // (self-select); a parent passes none and lets the backend decide.
+            // resolves SPEC §5.6.1's role-based routing (self, explicit child, or the
+            // multi-child interrupt). A student passes their own id (self-select); a
+            // parent passes the child resolved at login (AUD-F-22), so the in-session
+            // interrupt only fires as the fallback when that resolution failed. The
+            // backend re-verifies the link either way (SPEC §5.6.1).
             void session.startSession().then(() => {
-              void session.chooseStudent(role === "student" ? sub : undefined);
+              void session.chooseStudent(
+                role === "student" ? sub : (session.studentId ?? undefined),
+              );
             });
           }}
           onViewDashboard={() => setView("dashboard")}

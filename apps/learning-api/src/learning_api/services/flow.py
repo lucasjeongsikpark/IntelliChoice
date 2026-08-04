@@ -890,8 +890,14 @@ async def _complete_post_exam(
     pre_attempts = await assessment_repo.get_attempts(learning_session.pre_assessment_session_id)
     post_attempts = await assessment_repo.get_attempts(learning_session.post_assessment_session_id)
     study_attempts = await study_repo.get_attempts(learning_session.study_session_id or "")
+    # AUD-L-08: the gain's denominator is the pre form's *declared* item count, read from
+    # the items table - not the attempt count, which drifts from it whenever the
+    # one-attempt-per-item invariant is broken (the post form is built one variant per pre
+    # item, so pre items are the declared length of both forms).
+    pre_items = await assessment_repo.get_items(learning_session.pre_assessment_session_id)
     gain = await compute_learning_gain(
         question_repo=question_repo,
+        declared_item_count=len(pre_items),
         pre_attempts=pre_attempts,
         post_attempts=post_attempts,
         study_attempts=study_attempts,
