@@ -576,6 +576,20 @@ the other three add two new Bedrock tasks (`LEARNING_CHAT_INTENT` for classifica
 `TUTOR_CHAT` for free replies) plus a PII-redaction pass (D-072) and a self-harm keyword
 screen ahead of any Bedrock call.
 
+**What gates it, since D-174 (AUD-L-16): the session's own persisted policy snapshot, not the
+phase string.** `services/effective_policy.py` resolves the current phase to its snapshot -
+`assessment_sessions.policy` for pre/post exam, `study_sessions.intervention_policy` for study -
+and the route refuses with 409 unless that snapshot allows assistance. It previously tested
+`phase == "study"` directly, with a comment noting it was "matching `exam_policy`'s
+`hints_allowed=False`", i.e. the snapshot documented the rule while a constant enforced it.
+**Behaviour is identical under the shipped constants**; what the seam buys is the guarantee
+`AssessmentSession.policy`'s own comment promises and previously did not implement - retuning
+`exam_policy._POLICIES` cannot change the rules of a session already in flight. `policy` is
+nullable (pre-S22 rows were never backfilled), so the resolver reports its source
+(`assessment_snapshot` / `study_snapshot` / `constant_fallback` / `phase_has_no_policy`) and the
+409 carries it: "the snapshot decided" and "the snapshot was missing" are the same boolean and
+different guarantees. Fails closed on an unknown phase or an unresolvable session id.
+
 ## 3. AI question-generation pipeline (S9, offline)
 
 Runs via `make question-gen-run`; never on a request path. A candidate that fails *any*
