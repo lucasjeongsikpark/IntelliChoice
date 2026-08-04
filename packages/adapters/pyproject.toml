@@ -13,6 +13,14 @@ dependencies = [
     # container's auth cache had already been warmed by repeated prior connections;
     # a fresh RDS instance's first connections hit full auth and fail without this
     # (found live during S32/D-084's first deploy).
+    #
+    # DO NOT REMOVE because "nothing imports it" - no first-party module does, and that
+    # reasoning already produced one wrong carry-over (see the correction on D-168). The
+    # importer is PyMySQL: `pymysql._auth` does
+    # `from cryptography.hazmat.primitives.asymmetric import padding` and raises
+    # "'cryptography' package is required for sha256_password or caching_sha2_password
+    # auth methods" without it. No local test can catch its absence (warm auth cache);
+    # only a fresh-database connection can.
     "cryptography>=42",
     "boto3>=1.43.55",
     "icalendar>=7.2.2",

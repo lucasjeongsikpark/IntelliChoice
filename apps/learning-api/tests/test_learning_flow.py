@@ -30,7 +30,7 @@ from intellichoice_db.repositories.assessment import AssessmentRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_shared.auth import Audience, Role
 from learning_api.main import app
-from learning_api.services import video_catalog
+from learning_api.services import study_plan, video_catalog
 from learning_api.services.attendance import BLOCKED_MESSAGE, UNKNOWN_MESSAGE
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -743,6 +743,140 @@ def test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite() -> N
     assert len(unresolved) == 1
     assert unresolved[0].tutor_review_flagged is True
     assert all(not a.tutor_review_flagged for a in line_attempts if a not in unresolved)
+
+
+def test_difficulty_recommendation_reaches_template_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AUD-L-12: `Mastery.recommended_difficulty` was computed, stored and displayed while
+    `build_study_plan` dropped it out of the ranking tuple - so §5.11.2 rules 2-3 were
+    unimplemented and two docstrings said otherwise.
+
+    This asserts the *wiring* on the path that actually runs, by recording what reaches
+    `_select_template` during a real flow. It deliberately does not assert a served tier:
+    the live bank is 1:1 skill<->difficulty, so no recommendation can change which template
+    is served today, and a tier assertion would therefore pass with the value still
+    discarded. `test_study_plan_difficulty_routing.py` covers the selection rule itself
+    against synthetic multi-tier templates.
+
+    Three contracts, one flow:
+      1. the first base question is selected with the weakest skill's own recommendation,
+      2. a *remediation* question is selected with `None` - the retry ladder owns its own
+         difficulty movement (`flow._advance_study`),
+      3. the next base skill, served later by `flow._serve_next_base_or_complete`, is
+         selected with *its* recommendation, re-read after mastery was recomputed.
+    """
+    calls: list[tuple[str, int | None]] = []
+    real_select = study_plan._select_template
+
+    async def recording_select(
+        question_repo, skill_id, used_template_ids, rng, recommended_difficulty
+    ):
+        calls.append((skill_id, recommended_difficulty))
+        return await real_select(
+            question_repo, skill_id, used_template_ids, rng, recommended_difficulty
+        )
+
+    monkeypatch.setattr(study_plan, "_select_template", recording_select)
+
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        pre_items = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        ).json()["items"]
+        pre_correct = _correct_options([i["question_variant_id"] for i in pre_items])
+
+        # Same setup as the retry-ladder test: fail both difficulty-2 items (indices 2,3) so
+        # `linear_two_step` is the weakest skill and is routed first.
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            correct = pre_correct[variant_id]
+            selected = _other_option(correct) if index in (2, 3) else correct
+            client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"recdiff-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": selected,
+                    "response_time_ms": 2000,
+                },
+            )
+
+        body = _finalize_exam(client, headers, session_id)
+        assert body["phase"] == "study"
+
+        base_calls = list(calls)
+        assert base_calls, "no template selection happened while building the study plan"
+        first_skill, first_recommended = base_calls[-1]
+        assert first_skill == "linear_two_step"
+
+        rows = {row.skill_id: row for row in _mastery_rows(STUDENT_UNLINKED)}
+        assert rows["linear_two_step"].recommended_difficulty is not None, (
+            "the pre-exam should have produced a recommendation for the weakest skill"
+        )
+        assert first_recommended == rows["linear_two_step"].recommended_difficulty
+        # Failing both tier-2 items means the model recommends stepping down, which is the
+        # case the finding was filed on: the student is not re-served their failed tier
+        # because of a recommendation, only because tier 2 is all this skill has.
+        assert first_recommended == 1
+
+        # One wrong answer + "solution" produces a remediation item on the same line.
+        variant_id = body["items"][0]["question_variant_id"]
+        correct = _correct_options([variant_id])[variant_id]
+        client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "recdiff-study-wrong"},
+            json={
+                "question_variant_id": variant_id,
+                "selected_option": _other_option(correct),
+                "response_time_ms": 2000,
+            },
+        )
+        body = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "solution"},
+        ).json()
+        assert body["phase"] == "study"
+        remediation_skill, remediation_recommended = calls[-1]
+        assert remediation_skill == "linear_two_step"
+        assert remediation_recommended is None, (
+            "the retry ladder must not apply the bootstrap recommendation - it has its own "
+            "difficulty policy (same skill, then the prerequisite one tier down)"
+        )
+
+        # Resolving the line correctly moves to the next base skill, which is where
+        # `_serve_next_base_or_complete` has to read that skill's own recommendation.
+        variant_id = body["items"][0]["question_variant_id"]
+        correct = _correct_options([variant_id])[variant_id]
+        body = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": "recdiff-study-right"},
+            json={
+                "question_variant_id": variant_id,
+                "selected_option": correct,
+                "response_time_ms": 2000,
+            },
+        ).json()
+        assert body["phase"] == "study"
+        next_skill, next_recommended = calls[-1]
+        assert next_skill != "linear_two_step", "expected the next base skill line"
+        rows_after = {row.skill_id: row for row in _mastery_rows(STUDENT_UNLINKED)}
+        assert next_recommended == rows_after[next_skill].recommended_difficulty
+        assert next_recommended is not None, (
+            "the next base skill was selected with no recommendation - "
+            "`_serve_next_base_or_complete` is not reading the mastery row"
+        )
 
 
 def _drive_full_flow(

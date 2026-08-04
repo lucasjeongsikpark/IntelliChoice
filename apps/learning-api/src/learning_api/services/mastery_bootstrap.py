@@ -5,6 +5,15 @@ doesn't exist pre-launch, so S10 keeps this bootstrap formula and adds only the 
 adaptive planner needs on top of it: outcome-aware grading (a study answer counts toward
 *independent* mastery only if it was `independent_correct`, §5.10.3/§5.11.5) and a
 deterministic `recommended_difficulty` for difficulty routing (§5.11.2 rules 2-3).
+
+**What `recommended_difficulty` actually routes** (AUD-L-12, corrected 2026-08-03 - this
+docstring previously claimed routing that did not exist): it narrows *template choice within
+an already-chosen skill*, in `study_plan._select_template`. It does not choose the skill -
+§5.11.2 ranks "lowest mastery skill" above "difficulty matching estimated level", so the
+weakest skill is served even when its tier is above the recommendation - and it is not
+assigned to `StudySession.starting_difficulty`, which records the tier actually served.
+On the current 1:1 skill<->difficulty bank the narrowing is inert by construction; see
+`_closest_to_recommended`.
 """
 
 from collections import Counter

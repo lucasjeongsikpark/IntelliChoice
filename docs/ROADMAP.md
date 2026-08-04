@@ -679,12 +679,18 @@ which stop the line.
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 
 > **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
-> cheap P2s" (below); the rest were never dispositioned. **16 findings remain *Open — Phase 0B***
-> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**17 open in total**, counting AUD-F-16; AUD-F-37 and
+> cheap P2s" (below); the rest were never dispositioned. **11 findings remain *Open — Phase 0B***
+> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**12 open in total**, counting AUD-F-16; AUD-F-37 and
 > AUD-L-17 were each filed and closed the same day, D-158 and D-159) and **none are
 > integration-blocked** — they are exactly what D-152's "finish and test this codebase against the
 > dev fakes first" points at. With S43–S47 frozen, post-gate sessions run out of this backlog under
 > PROGRESS.md's "Next session" pointer rather than under a numbered block.
+>
+> **This count is derived from the table, never carried forward** (corrected 2026-08-03 from a stale
+> "16" that predated several closures). Recount with a grep for the status column rather than
+> trusting any prose, here or in PROGRESS.md — a decremented number in a sentence is the first thing
+> to drift. Note also that *Open* and *Decided* are different piles: a finding whose fix has been
+> decided but not implemented (AUD-L-03, AUD-L-09) is not in this count and is not done.
 >
 > **Take clusters, not findings — but the two clusters taken so far cohered differently, and the
 > difference is worth carrying forward.** D-155 (AUD-C-07 + AUD-C-08 + AUD-C-10) was *one defect at
@@ -694,6 +700,15 @@ which stop the line.
 > against something it knew — and they were taken together for the shared fix vocabulary, not
 > because one was load-bearing for another. Both worked; the second is the more available pattern,
 > since a backlog rarely offers a second three-layer defect.
+>
+> **A third shape, from D-169/D-170: a cluster can be right about the shape and wrong about the
+> work.** AUD-L-12 and AUD-C-09 were taken together as "the masked-by-uniform-data pair" — correct
+> code, never wired, invisible because the data has one value — and that reading held. But they
+> closed by *different means*: one was implemented, and one turned out **not to apply at all** once
+> the user was asked whether the corpus even has the dimension the SPEC predicate filters on. So
+> pair findings by shape to get the vocabulary, and still ask of each one separately whether it
+> describes a defect. A shared shape is a reason to read them together, not evidence that both need
+> code.
 >
 > **A cluster can carry a product decision, and that decision belongs to the user, not the
 > session.** D-156 surfaced two (should mastery include the post-exam; should two subsystems keep

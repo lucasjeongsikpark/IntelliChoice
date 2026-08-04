@@ -167,6 +167,13 @@ retrieval, not as prompt instruction —
 `branch_id IS NULL OR branch_id = current_branch`, with a branchless caller seeing org-wide chunks
 only. Tests: `packages/db/tests/test_rag_search.py`, `apps/chat-api/tests/test_role_access.py`.
 
+**Five of §5.21.3's six listed predicates are enforced, and the sixth is dispositioned rather than
+missing** (AUD-C-09, D-170, 2026-08-03): `academic_year = requested_year` is **not applicable to
+this corpus** — the handbook set is unified, not partitioned by academic year — so retrieval scopes
+on approved/effective document state plus role access instead. Recorded in `role_access_filter`'s
+docstring and on `ChunkFilters.academic_year`. Counted here as a **dispositioned predicate, not a
+traced one**, per this document's method: a decision not to implement is not an implementation.
+
 **The hole is §7-R8** (AUD-L-07): `resolve_target_student` returns the requested id unchecked for
 tutor and branch_manager. Accepted residual risk as of D-123, expiring at first real traffic. This
 is a **dispositioned gap, not a traced requirement** — §5.30.2's matrix is not fully enforced.
