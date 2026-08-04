@@ -11267,9 +11267,34 @@ were mock, staging's semantic half is currently noise."* **It is real. Two indep
    `CHAT_BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0`.
 
 Both sides are dim 1024 and L2-norm exactly 1.0000 across all 159 chunks, so **neither dimension nor
-normalisation discriminates** — a fingerprint keyed on identical content is what does. The
-provenance *gap* the finding names is still real (`rag_chunks` records no model or provider, which is
-why this had to be inferred rather than read off a column); what closed is the staging question.
+normalisation discriminates** — a fingerprint keyed on identical content is what does.
+
+### 3a. Correction: §3 answered a question AUD-C-16 had already closed, and got one claim wrong
+
+§3 closed by saying "the provenance gap the finding names is still real — `rag_chunks` records no
+model or provider". **It records both, and has since D-112 (2026-07-28).** AUD-C-16's own row says
+so: *"provenance columns stamped at ingest (NULL = unknown = mismatch)"*.
+`rag_chunks.embedding_provider` and `.embedding_model_id` exist; `reembed_cli` re-embeds any row
+whose provenance does not match the configured provider; the staging deploy runs it on **every**
+deploy; chat-api's `/readyz` fails closed on a mismatched corpus. Read directly:
+**staging is `embedding_provider = 'bedrock'` on all 159 chunks, the dev corpus is `'mock'` on all
+159**, both `amazon.titan-embed-text-v2:0`. One `SELECT`, no inference needed.
+
+**The conclusion was right and the route to it was wrong**, which is the less comfortable kind of
+error: nothing downstream changes, so nothing would have caught it.
+
+**How it happened, and it is this session's own subject biting back.** AUD-C-16's "Not yet checked
+against staging … the first thing S38's live pass should settle" bullet was written at filing time
+and **never struck when D-112 fixed the finding**. A stale open question sat inside a closed
+finding's *body* and read as live work — the same defect class as §1's 27 unrowed findings and five
+stale headings, but in prose rather than in a heading or the Index, which is where I was looking.
+**The lesson is narrower than "read the status":** I did read the status, and it says fixed. What I
+did not do is ask whether an inline question predated the fix. A finding's body can contradict its
+own status, and the status wins.
+
+**What survives.** The fingerprint measurement is kept as an *independent* cross-check: it confirms
+from the vectors themselves what the provenance column asserts, so the column is not merely
+self-reporting. That has real value — it is just not how this should have been answered first.
 
 ### Verification
 

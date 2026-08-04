@@ -2064,8 +2064,11 @@ on this evidence. (The mock quotes 80 characters, so the mock-backed eval scores
   `MockBedrockProvider`'s hash-based vectors is noise, and nothing detects it — keyword search keeps
   working, so the system degrades to lexical-only retrieval while appearing healthy.
 - This session hit it directly: the real-Bedrock eval had to re-embed all 144 approved chunks inside
-  its rolled-back transaction to measure anything meaningful. There is no `make` target for that and
-  no way to tell from the database which provider produced what.
+  its rolled-back transaction to measure anything meaningful. ~~There is no `make` target for that and
+  no way to tell from the database which provider produced what.~~ **Both halves of that sentence were
+  fixed by D-112 (2026-07-28): `make knowledge-reembed` / `reembed_cli` is the target, and
+  `rag_chunks.embedding_provider` / `.embedding_model_id` are how you tell. Struck 2026-08-04 (D-174
+  §3a) after the stale text below cost a session an unnecessary inference.**
 - **~~Not yet checked against staging~~ (RDS is in private subnets and this session's live pass was
   black-box over the API): whether staging's corpus was ingested with real Titan vectors or mock ones
   is unknown, and if it were mock, staging's semantic half is currently noise. Recorded as the first
@@ -2084,10 +2087,27 @@ on this evidence. (The mock quotes 80 characters, so the mock-backed eval scores
   2. **The deployed task definition** sets `CHAT_BEDROCK_PROVIDER=bedrock` and
      `CHAT_BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0`.
   Both sides are dim **1024** and L2-norm exactly **1.0000** over all **159** chunks, so neither
-  dimension nor normalisation discriminates — the fingerprint is what does. **The provenance gap this
-  finding names is still real** (`rag_chunks` records no model or provider, so this had to be
-  established by inference rather than read off a column); what is now closed is the *staging
-  question*, not the finding.
+  dimension nor normalisation discriminates — the fingerprint is what does.
+- **⚠️ Correction, same day (D-174 §3a): the bullet above answered a question this finding had already
+  closed, and its closing claim was wrong.** It said "the provenance gap this finding names is still
+  real — `rag_chunks` records no model or provider". **It does record both.** `D-112` fixed this
+  finding on **2026-07-28** and this row's own status says how: *"provenance columns stamped at ingest
+  (NULL = unknown = mismatch)"*. `rag_chunks.embedding_provider` and `.embedding_model_id` exist,
+  `intellichoice_knowledge.reembed_cli` re-embeds any row whose provenance does not match the
+  configured provider, the staging deploy runs it on **every** deploy, and chat-api's `/readyz`
+  **fails closed** on a mismatched corpus. So the answer was one `SELECT` away the whole time:
+  **staging reads `embedding_provider = 'bedrock'` on all 159 chunks; the dev corpus reads `'mock'`
+  on all 159** (both `amazon.titan-embed-text-v2:0`).
+  **Why the mistake was possible, which is the part worth keeping:** the "Not yet checked against
+  staging" bullet was written at filing time and **was never struck when D-112 fixed the finding**, so
+  a stale open question sat inside a closed finding's body and read as live work. That is precisely the
+  defect class the rest of this session was about (D-174 §1's 27 unrowed findings and five stale
+  headings) — found here in the body text rather than in a heading or the Index, which is where nobody
+  was looking. **The lesson is narrower than "read the status":** the status *was* read, and it says
+  fixed; what was not checked is whether an inline question predates the fix.
+  **The measurement stands as an independent cross-check** and is worth keeping for that reason — the
+  fingerprint argument confirms, from the vectors themselves, what the provenance column asserts, so
+  the column is not merely self-reporting. But it was the hard way round.
 
 ### Areas audited with no finding — S37
 
