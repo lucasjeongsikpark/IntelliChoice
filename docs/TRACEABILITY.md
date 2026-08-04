@@ -194,6 +194,14 @@ fail closed by construction rather than by an `else` branch someone has to maint
 `apps/learning-api/tests/test_auth_and_attendance.py`. RAG's no-citation refusal is covered by
 `apps/chat-api/tests/test_qa_coverage_eval.py`.
 
+**One deliberate exception, recorded so it is not read as a gap (D-172 §3).** The retrieval-score
+floor is **not** applied when the reranker is unavailable: with no scores, applying it would discard
+every candidate and turn a model outage into a corpus-wide "no approved source" — the false
+statement about the corpus AUD-C-08/AUD-C-19 exist to prevent. Failing closed on a *scoring* outage
+would be failing closed on the wrong proposition. The degraded path is loud
+(`retrieval_rerank_degraded`) and asserted by
+`test_the_floor_does_not_apply_when_the_reranker_is_unavailable`.
+
 ### 6. Structured output → Pydantic → limited repair → deterministic fallback (§5.25.3, §5.27)
 
 **Traced.** [gateway.py:270-285, 419](../packages/adapters/src/intellichoice_adapters/bedrock/gateway.py#L270-L285)
@@ -415,6 +423,19 @@ citation against the actual retrieved chunk — its docstring is explicit that "
 trusted just because the model produced it" — and `_no_answer` is the deterministic fallback. Tests:
 `test_qa_service.py`, `test_qa_graph.py`, `test_qa_coverage_eval.py`, and `packages/knowledge/`'s
 chunking/ingest/retrieval suites.
+
+**Two of §5.21.8's seven do-not-answer triggers were traced to a check that verified less than its
+name implied, and both are now traced to a measured floor (D-172).** "Retrieval score is below
+threshold" had **no implementation** until AUD-C-12 closed — the only cut was `rerank_score > 0.0`,
+and `groundedness_confidence_threshold` gates the model's confidence in its own answer, a different
+trigger. It is now `MIN_RERANK_RELEVANCE_SCORE = 0.35` in
+[retrieval.py](../packages/knowledge/src/intellichoice_knowledge/retrieval.py), chosen from a real
+reranker sweep; test `packages/knowledge/tests/test_retrieval.py`. "Citations do not support the
+response" was traced but its floor was one character (AUD-C-13); it is now
+`MIN_CITATION_QUOTE_CHARS = 20`, chosen from the corpus's own span-uniqueness distribution; tests in
+`test_qa_service.py`, including one asserting what the floor makes uncitable. **Read as method
+rather than as two fixes:** a criterion can be traced to real code and still be unenforced, so
+"traced" here means the check's *floor* was read, not only that a check exists.
 
 ### §5.22–§5.24 — MCP tools (Maps, Calendar, Gmail)
 

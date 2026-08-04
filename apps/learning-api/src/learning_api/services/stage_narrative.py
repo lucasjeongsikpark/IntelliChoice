@@ -6,11 +6,18 @@ builds its own `StageNarrativePayload` from already-resolved evidence (skill *na
 never ids; numbers already computed, never raw DB rows - same discipline
 `history.py`'s module docstring establishes for the parent dashboard) and calls
 `generate_stage_narrative` here. The model's `narrative_text` is only trusted once
-`intellichoice_shared.numeric_grounding.is_grounded` confirms every number in it already
-exists in that same payload (SPEC §5.25.3's "invalid -> deterministic fallback",
-generalized from schema validity to numeric grounding) - a gateway failure or a failed
-grounding check both fall back to `_fallback_text`, a plain Python template built only
-from the same payload fields, so a fallback narrative is grounded by construction.
+`intellichoice_shared.numeric_grounding.grounding_failure` confirms every number in it
+already exists in that same payload *and* that it does not state the known pre/post pair in
+reverse (SPEC §5.25.3's "invalid -> deterministic fallback", generalized from schema
+validity to numeric grounding) - a gateway failure or a failed grounding check both fall
+back to `_fallback_text`, a plain Python template built only from the same payload fields,
+so a fallback narrative is grounded by construction.
+
+**Each payload carries only its own stage's fields, and that is load-bearing rather than
+tidy** (AUD-L-09/D-098 mitigation 2): a `study_outro` payload holds hint/solution/video
+counts and no scores, so there is no score in its evidence for a narrative to misattribute
+in the first place. Adding a field to a stage that does not need it widens what that
+stage's prose can get wrong - `test_stage_payloads_stay_narrow.py` fails when it happens.
 """
 
 import logging
@@ -25,7 +32,7 @@ from intellichoice_shared.bedrock import (
     StageNarrativePayload,
     StageNarrativeResponse,
 )
-from intellichoice_shared.numeric_grounding import is_grounded
+from intellichoice_shared.numeric_grounding import grounding_failure
 
 logger = logging.getLogger(__name__)
 
@@ -162,12 +169,21 @@ async def generate_stage_narrative(
         logger.warning("stage narrative generation fell back to a template: %s", exc)
         narrative_text, cost_cents, generated = _fallback_text(payload), exc.cost_cents, False
     else:
-        if is_grounded(result.value.narrative_text, evidence):
+        failure = grounding_failure(result.value.narrative_text, evidence)
+        if failure is None:
             narrative_text = result.value.narrative_text
             cost_cents = result.cost_cents
             generated = True
         else:
-            logger.warning("stage narrative failed numeric grounding; using template instead")
+            # AUD-L-09: the reason is in the log because the two are different events - a
+            # fabricated number is the model inventing, an inverted score pair is the model
+            # misreading numbers it was handed. Without it, a rise in rejections says
+            # nothing about which rule is firing, and an `inverted_score_pair` that never
+            # appears cannot be distinguished from one that cannot fire.
+            logger.warning(
+                "stage narrative failed numeric grounding; using template instead",
+                extra={"reason": failure, "stage": payload.stage},
+            )
             narrative_text = _fallback_text(payload)
             cost_cents = result.cost_cents
             generated = False

@@ -679,8 +679,8 @@ which stop the line.
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 
 > **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
-> cheap P2s" (below); the rest were never dispositioned. **11 findings remain *Open — Phase 0B***
-> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**12 open in total**, counting AUD-F-16; AUD-F-37 and
+> cheap P2s" (below); the rest were never dispositioned. **10 findings remain *Open — Phase 0B***
+> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**11 open in total**, counting AUD-F-16; AUD-F-37 and
 > AUD-L-17 were each filed and closed the same day, D-158 and D-159) and **none are
 > integration-blocked** — they are exactly what D-152's "finish and test this codebase against the
 > dev fakes first" points at. With S43–S47 frozen, post-gate sessions run out of this backlog under
@@ -734,6 +734,24 @@ which stop the line.
 > **A finding's write-up can go stale between filing and fixing.** AUD-X-03 blamed a hardcoded
 > `busy={false}` that AUD-F-27 had already fixed. Correct the record in place (D-158's convention)
 > rather than quietly re-scoping.
+>
+> **A threshold measured only in the direction it helps is half-measured (D-172).** All three
+> findings in that cluster were "a guard whose floor is lower than its name", and two closed with a
+> number that had to be chosen. In both cases the *buy* was easy to measure and the *cost* was not —
+> and in both cases the cost measurement is what changed the design: "≥20 characters **or** the whole
+> chunk" was rejected once the five sub-floor chunks turned out to be content-free headings, and the
+> retrieval floor sits at 0.35 rather than 0.50 because the answerable tail is the one a fixture
+> under-measures (D-166's live lesson). A threshold justified by its buy alone reads as
+> equally well-evidenced and is wrong in the direction users notice.
+>
+> **Two more from the same session, both about instruments rather than code.** A test double can share
+> a scale with the real model and measure a different quantity — `MockBedrockProvider`'s reranker
+> returns query-word coverage on 0-1, so applying a real-model floor to it moved a gated category by
+> 11 points with nothing broken; check what a number *means* in the double before comparing it. And
+> **an opt-in paid instrument stops being evidence the moment it stops being run**: the real-Bedrock
+> coverage eval had been failing since D-168 landed and only D-172's verification found it, which is
+> AUD-F-15's shape (`chat-purge` had never once run) on a test rather than a job. The cheap fix is a
+> bounded arm — `CHAT_EVAL_CATEGORIES=no_answer` is **10 cents and 72 seconds**.
 >
 > **And a *negative* result is a hypothesis until the control could have been positive (D-171).**
 > "Zero `access_probe_rerank_degraded` events" was paired with a control grep for `access_probe`,

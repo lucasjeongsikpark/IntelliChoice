@@ -22,6 +22,7 @@ from intellichoice_shared.bedrock import (
     RagAnswerResponse,
 )
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from .conftest import postgres_skip_reason, rollback_session
 
@@ -310,6 +311,269 @@ def test_whitespace_tolerance_does_not_admit_a_reordered_or_paraphrased_quote() 
 
             assert answer.citations == []
             assert answer.escalation_recommended is True
+
+    asyncio.run(run())
+
+
+# --- AUD-C-13: the verbatim check's floor was one character -------------------------
+#
+# `quote in chunk_text` is a real defense, and its floor was `"a"`. Measured over the 144
+# approved chunks with `scripts/measure_citation_quote_floor.py`: a 1-character span occurs
+# in a **median of 140 of them** (0% unique), 2 chars in 74, 4 chars in 10. By 20 chars the
+# median is 1 and the p90 is 2, which is where the curve flattens - 24 and 32 chars buy
+# nothing more. So the floor below is the measured knee, not a round number someone liked.
+
+
+def test_a_one_character_quote_no_longer_verifies() -> None:
+    """The finding's own example. "a" is a real substring of this chunk, so the verbatim
+    check passed it and shipped a citation that identified nothing - the same "a" verifies
+    against 140 of the corpus's 144 approved chunks.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(
+                session, chunk_text="Attendance is required for every on-site session."
+            )
+            gateway = _FakeGateway(
+                _result(
+                    RagAnswerResponse(
+                        answer="Attendance is required.",
+                        citations=[LlmCitation(context_index=0, quote="a")],
+                        confidence=0.9,
+                    )
+                )
+            )
+
+            answer, _cost = await qa.answer_question(
+                repo,
+                gateway,
+                query="Is attendance required?",
+                user_role="parent",
+                chunks=[chunk],
+                session_spend_cents=0.0,
+                confidence_threshold=0.4,
+            )
+
+            # Nothing survives, so the turn fails closed the same way a fabricated quote
+            # does - SPEC §5.21.8's "citations do not support the response".
+            assert answer.citations == []
+            assert answer.answer == qa.NO_SOURCE_MESSAGE
+
+    asyncio.run(run())
+
+
+def test_the_quote_floor_is_measured_at_its_own_boundary() -> None:
+    """One character either side of `MIN_CITATION_QUOTE_CHARS`, so the constant is what
+    decides rather than the shape of the test's sentence.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk_text = "Attendance is required for every on-site session, without exception."
+            just_under = chunk_text[: qa.MIN_CITATION_QUOTE_CHARS - 1]
+            exactly_at = chunk_text[: qa.MIN_CITATION_QUOTE_CHARS]
+
+            for quote, expected_citations in ((just_under, 0), (exactly_at, 1)):
+                chunk = await _seed_chunk(session, chunk_text=chunk_text)
+                gateway = _FakeGateway(
+                    _result(
+                        RagAnswerResponse(
+                            answer="Attendance is required.",
+                            citations=[LlmCitation(context_index=0, quote=quote)],
+                            confidence=0.9,
+                        )
+                    )
+                )
+
+                answer, _cost = await qa.answer_question(
+                    repo,
+                    gateway,
+                    query="Is attendance required?",
+                    user_role="parent",
+                    chunks=[chunk],
+                    session_spend_cents=0.0,
+                    confidence_threshold=0.4,
+                )
+
+                assert len(answer.citations) == expected_citations, (
+                    f"{quote!r} ({len(quote)} chars) should have produced "
+                    f"{expected_citations} citations"
+                )
+
+    asyncio.run(run())
+
+
+def test_the_floor_is_applied_to_the_normalized_quote() -> None:
+    """Length is measured after the AUD-C-18 whitespace collapse, i.e. on the same string
+    the containment check uses. Padding a short quote with newlines is not a longer quote.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(
+                session, chunk_text="Attendance\n\n   is    required for every session."
+            )
+            gateway = _FakeGateway(
+                _result(
+                    RagAnswerResponse(
+                        answer="Attendance is required.",
+                        citations=[LlmCitation(context_index=0, quote="  Attendance  \n\n  ")],
+                        confidence=0.9,
+                    )
+                )
+            )
+
+            answer, _cost = await qa.answer_question(
+                repo,
+                gateway,
+                query="Is attendance required?",
+                user_role="parent",
+                chunks=[chunk],
+                session_spend_cents=0.0,
+                confidence_threshold=0.4,
+            )
+
+            assert answer.citations == []
+
+    asyncio.run(run())
+
+
+def test_a_quote_dropped_for_being_too_short_says_so_in_the_log(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """D-171 §2 applied forward: a floor whose effect is invisible cannot be told apart
+    from one that never fires. Dropping for shortness and dropping for a fabricated quote
+    are different events - the first is a model that under-quotes and may be fixable in the
+    prompt, the second is a model that made something up.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(
+                session, chunk_text="Attendance is required for every on-site session."
+            )
+            gateway = _FakeGateway(
+                _result(
+                    RagAnswerResponse(
+                        answer="Attendance is required.",
+                        citations=[LlmCitation(context_index=0, quote="required")],
+                        confidence=0.9,
+                    )
+                )
+            )
+
+            with caplog.at_level(logging.WARNING, logger="chat_api.services.qa"):
+                answer, _cost = await qa.answer_question(
+                    repo,
+                    gateway,
+                    query="Is attendance required?",
+                    user_role="parent",
+                    chunks=[chunk],
+                    session_spend_cents=0.0,
+                    confidence_threshold=0.4,
+                )
+
+            assert answer.citations == []
+            records = [r for r in caplog.records if r.message == "citation_quote_below_floor"]
+            assert len(records) == 1
+            assert records[0].dropped == 1  # type: ignore[attr-defined]
+            # The quote itself is never logged: chunk text is org content, and a log line is
+            # the one place this pipeline has no PII floor applied to it.
+            assert "required" not in records[0].getMessage()
+
+    asyncio.run(run())
+
+
+def test_the_model_is_told_what_a_quote_has_to_be() -> None:
+    """The floor is only fail-closed if the model was told about it: an unannounced
+    requirement turns into refusals the user sees (the D-155/AUD-C-08 class). Asserted
+    against the real system prompt rather than a copy of it.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(
+                session, chunk_text="Attendance is required for every on-site session."
+            )
+            captured: dict[str, str] = {}
+
+            class _PromptCapturingGateway(_FakeGateway):
+                async def generate_structured(self, *, system_prompt: str, **kwargs):  # type: ignore[override]
+                    captured["system_prompt"] = system_prompt
+                    return await super().generate_structured(system_prompt=system_prompt, **kwargs)
+
+            gateway = _PromptCapturingGateway(
+                _result(
+                    RagAnswerResponse(
+                        answer="Attendance is required for every on-site session.",
+                        citations=[
+                            LlmCitation(
+                                context_index=0,
+                                quote="Attendance is required for every on-site session.",
+                            )
+                        ],
+                        confidence=0.9,
+                    )
+                )
+            )
+
+            await qa.answer_question(
+                repo,
+                gateway,
+                query="Is attendance required?",
+                user_role="parent",
+                chunks=[chunk],
+                session_spend_cents=0.0,
+                confidence_threshold=0.4,
+            )
+
+            assert str(qa.MIN_CITATION_QUOTE_CHARS) in captured["system_prompt"]
+
+    asyncio.run(run())
+
+
+def test_the_quote_floor_excludes_only_heading_chunks() -> None:
+    """The floor's cost, as a check rather than a claim in a doc.
+
+    A flat floor means any chunk shorter than it can never be cited at all - and refusing an
+    answer the corpus does contain is AUD-C-08's defect. Measured when the floor was chosen:
+    of the 144 approved chunks, the five under 20 normalized characters are all bare markdown
+    headings ("# our team", "## administration"), which support no answer, so nothing citable
+    was lost. That is a fact about *today's* corpus, not a property of the rule, so it is
+    asserted here: a future document with a genuinely short standalone fact fails this test
+    instead of silently becoming unquotable.
+
+    Reads the real ingested corpus (CI loads it before pytest - `ingest_cli`), which is also
+    the control: with an empty corpus this would pass while checking nothing.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            rows = await session.execute(
+                text("SELECT chunk_text FROM rag_chunks WHERE status = 'approved'")
+            )
+            chunks = [row[0] for row in rows]
+            assert len(chunks) > 100, (
+                "the approved corpus looks unloaded, so this test would assert nothing - "
+                "run `make knowledge-load`"
+            )
+
+            too_short = [
+                chunk
+                for chunk in chunks
+                if len(qa._normalized_for_containment(chunk)) < qa.MIN_CITATION_QUOTE_CHARS
+            ]
+            not_a_heading = [chunk for chunk in too_short if not chunk.lstrip().startswith("#")]
+            assert not not_a_heading, (
+                "an approved chunk shorter than the citation floor is not a markdown heading, "
+                f"so it can no longer be cited at all: {not_a_heading}"
+            )
 
     asyncio.run(run())
 

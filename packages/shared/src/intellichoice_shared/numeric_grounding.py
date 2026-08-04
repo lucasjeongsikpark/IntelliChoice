@@ -42,6 +42,35 @@ contains no such trend is still rejected, because 0.30 is nowhere in the payload
 check kept catching real inventions across the re-measurement; what it stopped doing was
 rejecting faithful prose. `tests/test_numeric_grounding.py` pairs every widened rule with
 a control asserting the invented-number case still fails.
+
+## AUD-L-09/D-098: the check verifies provenance, and now one thing about attribution
+
+Everything above asks only whether a number *exists* in the evidence. It never asks what
+the number is claimed to mean, so for a student who went 4 -> 6 the sentence "your score
+fell from 6 to 4" is fully grounded, and shipped to a parent. `grounding_failure` now also
+rejects one attribution error: an explicit `from X to Y` transition stating the known
+`pre_raw_score`/`post_raw_score` pair in reverse (D-098 mitigation 1, the damaging class).
+
+**This does not make the check sound, and that is recorded here rather than only in the
+audit** so nobody later reads the directional rule as full verification. Still accepted:
+a swapped pair of *skills*, a mastery figure attributed to the wrong skill, a pre-exam
+number presented as a post-exam one, a hint count read as a solution count, and any
+inversion phrased without `from`/`to` ("6 was your score before, 4 after"). Real semantic
+verification is the only complete answer; D-098 rejected it as a project rather than a fix
+- it adds a paid call per narrative and would need its own cost ceiling (AUD-L-02).
+
+D-098's mitigation 2 ("narrow the evidence dict per stage") turned out to be **already
+satisfied where it applies**: every `StageNarrativePayload` is built per stage with only
+that stage's fields (`graph/nodes.py`, `routers/stream.py`), so a `study_outro` narrative
+is never shown a score it could misattribute. `apps/learning-api/tests/
+test_stage_payloads_stay_narrow.py` pins that structurally, since a fix with nothing to
+implement is the kind that silently regresses. The report payload is broad by audience
+authorization, and narrowing it further would mean showing the model less than the parent
+is entitled to see - a quality regression, and the false-rejection class D-163 measured.
+
+What bounds the residue is unchanged and is why this is P2 rather than P1: the numbers
+themselves can never be invented, the deterministic fallback always carries the correct
+figures, and both parent-facing surfaces render `verified_facts` beside the prose.
 """
 
 import re
@@ -104,15 +133,82 @@ def _matches(extracted: float, evidence_value: float) -> bool:
     return False
 
 
+# AUD-L-09 mitigation 1. `from X to Y` is the one phrasing that *asserts an order* between
+# two numbers, which is why it is the only one judged: the assertion is in the connective,
+# not in the verb, so no list of "improved"/"fell" verbs has to be maintained or kept in
+# sync with growth-oriented rewording. Up to three intervening words carries "from 6 down
+# to 4" and "from 6 all the way to 4"; a wider window would start pairing numbers across
+# clause boundaries, which asserts nothing.
+_TRANSITION_RE = re.compile(
+    rf"\bfrom\s+({_GROUPED}|{_PLAIN})\s*%?\s+(?:\w+\s+){{0,3}}?to\s+({_GROUPED}|{_PLAIN})",
+    re.IGNORECASE,
+)
+
+# The only pair whose order this module knows. Both payload shapes that reach here
+# (`StageNarrativePayload`, `ReportInterpretationPayload`) carry these at the top level and
+# compute them deterministically before the call, so a disagreement between them and the
+# narrative is the model's, never the data's.
+_PAIR_BEFORE_KEY = "pre_raw_score"
+_PAIR_AFTER_KEY = "post_raw_score"
+
+UNGROUNDED_NUMBER = "ungrounded_number"
+INVERTED_SCORE_PAIR = "inverted_score_pair"
+
+
+def _known_score_pair(evidence: dict) -> tuple[float, float] | None:
+    """The (before, after) pair, or None when the evidence does not pin an order - either
+    score absent, or the two indistinguishable at reporting tolerance.
+    """
+    before = evidence.get(_PAIR_BEFORE_KEY)
+    after = evidence.get(_PAIR_AFTER_KEY)
+    if isinstance(before, bool) or isinstance(after, bool):
+        return None
+    if not isinstance(before, (int, float)) or not isinstance(after, (int, float)):
+        return None
+    if _matches_at_same_scale(float(before), float(after)):
+        return None
+    return float(before), float(after)
+
+
+def _inverts_the_score_pair(narrative_text: str, pair: tuple[float, float]) -> bool:
+    before, after = pair
+    for stated_first, stated_second in _TRANSITION_RE.findall(narrative_text):
+        first = float(stated_first.replace(",", ""))
+        second = float(stated_second.replace(",", ""))
+        # Matched with the same tolerance as provenance on purpose: a number the
+        # provenance check would accept as a rendering of `post_raw_score` has to be read
+        # as referring to it here too, or rounding alone would sidestep the rule.
+        if _matches(first, after) and _matches(second, before):
+            return True
+    return False
+
+
+def grounding_failure(narrative_text: str, evidence: dict) -> str | None:
+    """The reason `narrative_text` must not be shown, or None if it may be.
+
+    Two distinct failures, reported apart because they mean different things about the
+    model: `UNGROUNDED_NUMBER` is fabrication, `INVERTED_SCORE_PAIR` is misattribution of
+    a number the model was given. The order is fixed - fabrication is the more basic
+    failure and is reported first when a narrative manages both.
+    """
+    evidence_numbers = _collect_evidence_numbers(evidence)
+    for extracted in extract_numbers(narrative_text):
+        if not any(_matches(extracted, value) for value in evidence_numbers):
+            return UNGROUNDED_NUMBER
+    pair = _known_score_pair(evidence)
+    if pair is not None and _inverts_the_score_pair(narrative_text, pair):
+        return INVERTED_SCORE_PAIR
+    return None
+
+
 def is_grounded(narrative_text: str, evidence: dict) -> bool:
     """False if `narrative_text` contains any number that doesn't correspond to a numeric
     value found anywhere in `evidence` - exactly, within nearest-integer/one-decimal
     rounding, or as a whole-percent rendering of an evidence value that is a proportion in
     [0, 1]. Numbers written inside evidence *strings* count as evidence. A narrative with
     no numbers at all is trivially grounded.
+
+    Also False when the narrative states the known pre/post score pair in reverse - see
+    `grounding_failure`, which callers should prefer when they log the reason (AUD-L-09).
     """
-    evidence_numbers = _collect_evidence_numbers(evidence)
-    for extracted in extract_numbers(narrative_text):
-        if not any(_matches(extracted, value) for value in evidence_numbers):
-            return False
-    return True
+    return grounding_failure(narrative_text, evidence) is None

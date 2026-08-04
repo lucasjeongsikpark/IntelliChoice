@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from intellichoice_adapters.fake_auth import DEV_JWT_SECRET
+from intellichoice_knowledge.retrieval import MIN_RERANK_RELEVANCE_SCORE
 from intellichoice_shared.access_probe_policy import ACCESS_PROBE_MAX_DISTANCE
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -82,8 +83,15 @@ class Settings(BaseSettings):
     retrieval_candidate_limit: int = 30
     retrieval_top_k: int = 8
     # SPEC §5.21.8: below this confidence the Response Verifier refuses rather than
-    # returning a low-confidence guess (§5.29's "No RAG result -> do not guess").
+    # returning a low-confidence guess (§5.29's "No RAG result -> do not guess"). This gates
+    # the *model's self-reported confidence about its own answer*; the retrieval-score
+    # trigger below is a different §5.21.8 rule and the two are not interchangeable, which is
+    # what AUD-C-12 recorded when only this one existed.
     groundedness_confidence_threshold: float = 0.4
+    # AUD-C-12/D-172: SPEC §5.21.8's "retrieval score is below threshold" trigger. Measured,
+    # not guessed, and defined once in `intellichoice_knowledge.retrieval` - that module
+    # carries the sweep that chose it, the same way `access_probe_policy` does below.
+    retrieval_min_relevance_score: float = MIN_RERANK_RELEVANCE_SCORE
 
     # SPEC §5.24/§6.16 MCP tool registry.
     mcp_tool_timeout_s: float = 10.0

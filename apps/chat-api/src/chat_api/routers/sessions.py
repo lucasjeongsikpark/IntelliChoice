@@ -306,6 +306,7 @@ def _turn_context(
         top_k=settings.retrieval_top_k,
         confidence_threshold=settings.groundedness_confidence_threshold,
         access_probe_max_distance=settings.access_probe_max_distance,
+        min_relevance_score=settings.retrieval_min_relevance_score,
         client_ip=client_ip,
     )
 

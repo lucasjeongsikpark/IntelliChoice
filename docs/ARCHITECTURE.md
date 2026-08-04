@@ -319,7 +319,20 @@ to rot, because nothing fails when it does.)*
   whitespace-insensitive since D-150 — hard-wrapped source documents put newlines
   mid-sentence, AUD-C-18) before anything reaches a caller; an answer with zero surviving
   citations becomes a no-answer/escalation response instead (S13, mirrors D-024's "verify
-  calculations with tools" pattern for hint/solution content).
+  calculations with tools" pattern for hint/solution content). **Since D-172 the quote also
+  has to be substantial** — 20 normalized characters, the length at which a span stops
+  matching most of the corpus (a 1-character quote verified against a median of 140 of 144
+  approved chunks, AUD-C-13).
+- **Two score floors decide when *not* to answer, and both are model-calibrated rather than
+  arbitrary** (SPEC §5.21.8, D-172). `retrieve` keeps only passages the reranker scores above
+  `MIN_RERANK_RELEVANCE_SCORE` (0.35), so an empty retrieval *is* the "retrieval score below
+  threshold" do-not-answer trigger and the graph refuses without paying for synthesis; the
+  separate `groundedness_confidence_threshold` (0.4) gates the model's confidence in its own
+  answer, which is a different trigger. Two consequences worth knowing before touching either:
+  the retrieval floor is **not** applied when the reranker is unavailable (no scores means
+  discarding everything, which would turn an outage into a corpus-wide "no approved source"),
+  and it cannot be exercised by the mock-backed suite, whose reranker returns query-word
+  coverage on the same 0-1 scale but measures a different quantity.
 - **Retrieved content is data, never instructions** — the Q&A graph's Scope Guard/Intent
   Router runs on the user's own query only, entirely before retrieval; document text is
   never concatenated into a system prompt, and no tool exists yet that a document's text
@@ -381,7 +394,7 @@ flowchart TB
         ADAPT["packages/adapters<br/>JwtTokenVerifier (S2)<br/>MySQLProfileAdapter (S2, D-083)<br/>ResilientBedrockGateway (S8)<br/>FakeEmailTransport (S7)<br/>FakeCalendarTransport, ics (S14)<br/>FakeMapsProvider,<br/>FakeYoutubeProvider (S15)<br/>YoutubeDataApiProvider,<br/>httpx-based (S27, unexercised)"]
         DB["packages/db (S3)<br/>28 SQLAlchemy models · repositories<br/>hybrid_search + RRF (S13)<br/>mcp_tool_calls (S14)<br/>youtube_videos + search_catalog (S15)<br/>question_validation_runs (S20)<br/>hint_events (S21)<br/>tutor_chat_messages (S24)<br/>learning_events, semantic_memory +<br/>superseded_by_id/contradicts_event_count<br/>(S25)<br/>youtube_videos: prerequisite_skill_ids,<br/>transcript/license/suitability_status,<br/>verification_failures (S27)<br/>async Alembic migrations"]
         CURR["packages/curriculum<br/>taxonomy · shape registry ·<br/>variant gen · §5.8.5 validation (S4)<br/>ai_pipeline · settings (S9)<br/>authored_validation · review_cli<br/>(S20, sympy independent solve)<br/>hint_ladders: 11 hand-authored<br/>canonical shape ladders (S21)"]
-        KNOW["packages/knowledge<br/>manifest validation ·<br/>ContentStore · chunking ·<br/>ingest pipeline (S12)<br/>retrieval: embed→search→rerank<br/>→drop score=0 (S13/S17)"]
+        KNOW["packages/knowledge<br/>manifest validation ·<br/>ContentStore · chunking ·<br/>ingest pipeline (S12)<br/>retrieval: embed→search→rerank<br/>→drop score≤0.35 (S13/S17, D-172)"]
         YT["packages/youtube (S15)<br/>classify: re-validate against<br/>curriculum registry (D-046)<br/>catalog_sync · sync_cli<br/>channel-pin filter, prerequisite<br/>derivation, verification pass (S27)"]
         WEB["packages/webcontent (S17)<br/>fetch (real live site, D-051) ·<br/>extractors (about/branches/team) ·<br/>render · org_load · sync_cli"]
         MEM["packages/memory (S25)<br/>consolidation.py: session-scoped +<br/>weekly-window entrypoints, one<br/>shared core · events.py (emit/<br/>render vocabulary) · consolidate_cli"]

@@ -16,7 +16,11 @@ from datetime import UTC, datetime
 import pytest
 from intellichoice_db.models.rag import RagChunk
 from intellichoice_db.repositories.rag import ChunkFilters
-from intellichoice_knowledge.retrieval import probe_access, retrieve
+from intellichoice_knowledge.retrieval import (
+    MIN_RERANK_RELEVANCE_SCORE,
+    probe_access,
+    retrieve,
+)
 from intellichoice_shared.access_probe_policy import (
     ACCESS_PROBE_MAX_DISTANCE,
     AudienceMatch,
@@ -268,6 +272,135 @@ def test_a_failed_rerank_falls_back_to_rrf_order_and_logs_the_degradation(
         assert len(degraded) == 1
         assert degraded[0].reason == "StructuredOutputError"  # type: ignore[attr-defined]
         assert degraded[0].candidate_count == 10  # type: ignore[attr-defined]
+
+    asyncio.run(run())
+
+
+# --- AUD-C-12: SPEC §5.21.8's "retrieval score is below threshold" trigger -------------
+#
+# The only score filter used to be `score > 0.0`, so a passage the reranker rated 0.01 went to
+# synthesis exactly like one it rated 0.99 - the SPEC trigger had no implementation. The floor
+# was measured, not guessed: see `MIN_RERANK_RELEVANCE_SCORE`'s comment and
+# `scripts/measure_retrieval_score_floor.py`.
+
+
+def test_a_candidate_below_the_relevance_floor_is_dropped_before_synthesis() -> None:
+    async def run() -> None:
+        chunks = [_chunk("a", "alpha"), _chunk("b", "beta")]
+        gateway = _FakeGateway(
+            scores=[
+                RerankedScore(candidate_index=0, relevance_score=0.9),
+                # Above the old `> 0.0` cut and below the measured floor: the exact band this
+                # finding is about.
+                RerankedScore(candidate_index=1, relevance_score=0.2),
+            ]
+        )
+
+        result = await retrieve(
+            _FakeRepo(chunks),  # type: ignore[arg-type]
+            gateway,  # type: ignore[arg-type]
+            query="q",
+            filters=ChunkFilters(),
+            session_spend_cents=0.0,
+        )
+
+        assert [c.chunk_id for c in result.chunks] == ["a"]
+
+    asyncio.run(run())
+
+
+def test_a_turn_where_nothing_clears_the_floor_retrieves_nothing() -> None:
+    """Which is the do-not-answer trigger actually firing: `answer_question` never sees an
+    empty chunk list as anything but "no approved source supports an answer", and the graph
+    routes it to the access-hint/no-source path without paying for synthesis.
+    """
+
+    async def run() -> None:
+        chunks = [_chunk("a", "alpha"), _chunk("b", "beta")]
+        gateway = _FakeGateway(
+            scores=[
+                RerankedScore(candidate_index=0, relevance_score=0.2),
+                RerankedScore(candidate_index=1, relevance_score=0.1),
+            ]
+        )
+
+        result = await retrieve(
+            _FakeRepo(chunks),  # type: ignore[arg-type]
+            gateway,  # type: ignore[arg-type]
+            query="q",
+            filters=ChunkFilters(),
+            session_spend_cents=0.0,
+        )
+
+        assert result.chunks == []
+
+    asyncio.run(run())
+
+
+def test_the_caller_can_tighten_the_floor_but_the_default_is_the_measured_one() -> None:
+    async def run() -> None:
+        chunks = [_chunk("a", "alpha"), _chunk("b", "beta")]
+        scores = [
+            RerankedScore(candidate_index=0, relevance_score=0.95),
+            RerankedScore(candidate_index=1, relevance_score=0.5),
+        ]
+
+        loose = await retrieve(
+            _FakeRepo(chunks),  # type: ignore[arg-type]
+            _FakeGateway(scores=scores),  # type: ignore[arg-type]
+            query="q",
+            filters=ChunkFilters(),
+            session_spend_cents=0.0,
+        )
+        tight = await retrieve(
+            _FakeRepo(chunks),  # type: ignore[arg-type]
+            _FakeGateway(scores=scores),  # type: ignore[arg-type]
+            query="q",
+            filters=ChunkFilters(),
+            session_spend_cents=0.0,
+            min_relevance_score=0.9,
+        )
+
+        assert [c.chunk_id for c in loose.chunks] == ["a", "b"]
+        assert [c.chunk_id for c in tight.chunks] == ["a"]
+
+    asyncio.run(run())
+
+
+def test_the_default_floor_stays_inside_the_band_that_was_measured() -> None:
+    """The measurement, as a guard rather than a comment. Over the coverage fixture's cases
+    against real Titan + the real reranker (38.49c, D-172): no unanswerable case scored above
+    **0.30**, and the weakest answerable case's own document scored **0.60**. Any floor in
+    [0.30, 0.60) empties every unanswerable case while keeping every answerable one; outside
+    it, one side of the trade breaks. Moving the constant out of that band means re-running
+    `scripts/measure_retrieval_score_floor.py`, not editing this test.
+    """
+    assert 0.30 <= MIN_RERANK_RELEVANCE_SCORE < 0.60
+
+
+def test_the_floor_does_not_apply_when_the_reranker_is_unavailable() -> None:
+    """Deliberate, and the opposite of fail-closed for one specific reason: with no reranker
+    there are no scores, so applying a floor would mean discarding *every* candidate. A
+    reranker outage would then become a corpus-wide "no approved source" - the false statement
+    about the corpus AUD-C-08/AUD-C-19 exist to prevent - instead of a degraded ranking. The
+    degradation is loud (`retrieval_rerank_degraded`), which is what makes this safe.
+    """
+
+    async def run() -> None:
+        chunks = [_chunk("a", "alpha"), _chunk("b", "beta")]
+        gateway = _FakeGateway(
+            error=StructuredOutputError("reranker down", cost_cents=0.1),
+        )
+
+        result = await retrieve(
+            _FakeRepo(chunks),  # type: ignore[arg-type]
+            gateway,  # type: ignore[arg-type]
+            query="q",
+            filters=ChunkFilters(),
+            session_spend_cents=0.0,
+        )
+
+        assert [c.chunk_id for c in result.chunks] == ["a", "b"]
 
     asyncio.run(run())
 

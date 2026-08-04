@@ -5,6 +5,76 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-172: the three guards whose floor was lower than their name — AUD-L-09, AUD-C-13, AUD-C-12,
+  all three measured before being fixed (2026-08-04, no numbered session).** `make lint` clean,
+  `pyright` 0, **782 passed / 2 skipped** (+34). **Not deployed** — code, tests, docs and two new
+  measurement scripts; no migration.
+  **The cluster held, in D-156's shape** (three defects of one shape, shared vocabulary): each was a
+  verification that ran, passed, and checked far less than its name implied. Numeric grounding
+  verified a number *exists*; the citation check verified a quote is *non-empty*; §5.21.8's
+  retrieval-score trigger verified nothing at all.
+  **✅ AUD-L-09 (D-172 §1): the directional check, plus a mitigation that needed no code.**
+  `grounding_failure` rejects a `from X to Y` transition stating the known pre/post pair in reverse —
+  "your score fell from 6 to 4" for a 4→6 student was fully grounded and shipped to a parent. Only
+  `from`/`to` is judged, so no verb list has to track growth-oriented rewording, and the residual
+  unsoundness is now **in the module docstring** as D-098 required. **D-098's mitigation 2 was
+  already satisfied** — stage payloads are per-stage by construction — so the work was proving it
+  stays so: `test_stage_payloads_stay_narrow.py` reads the real construction sites' AST and was
+  watched failing against a widened `study_step` payload. Six unit tests and three service tests
+  were watched failing pre-fix.
+  **⚠️ One accepted false rejection, pinned rather than discovered later:** hints 6→4 while scores
+  go 4→6 is indistinguishable from an inverted score claim, because numbers carry no field identity —
+  which is the finding restated. It fails closed and the parent still gets the correct figures.
+  **✅ AUD-C-13 (D-172 §2): `MIN_CITATION_QUOTE_CHARS = 20`, and the floor's *cost* is what shaped
+  it.** Measured over the real 144-chunk corpus: a 1-char span occurs in a **median of 140 chunks**
+  (0% unique), 2 in 74, 4 in 10; at 20 the median is 1 and the p90 is 2, and 24/32/40 buy nothing
+  more. The five approved chunks under the floor are all bare markdown headings, so nothing citable
+  was lost — asserted, with a chunk-count control so an unloaded corpus fails instead of passing
+  vacuously. **"≥20 chars or the whole chunk" was rejected**: it re-admits exactly the heading-only
+  citations that prove nothing. Verified the mock eval is unmoved by running it at floor 1 and 20 —
+  byte-identical scores.
+  **✅ AUD-C-12 (D-172 §3): `MIN_RERANK_RELEVANCE_SCORE = 0.35`, from a 38.49-cent real-model
+  sweep.** New `scripts/measure_retrieval_score_floor.py` (dump/`--load`, so re-scoring is free
+  afterwards) scored 20 answerable and 24 unanswerable fixture cases with real Titan + the real
+  reranker, corpus re-embedded inside a rolled-back transaction (without that, AUD-C-16 makes the
+  semantic arm noise). **No unanswerable case scored above 0.30; the weakest answerable case's own
+  document scored 0.60** — so every floor in [0.30, 0.60) empties 24/24 unanswerable while keeping
+  20/20 answerable, and 0.35 was chosen for margin at no cost in passages kept. A test asserts the
+  band, so moving the constant means re-running the sweep.
+  **⚠️ The most interesting result: the mock and the real reranker are not on the same scale, and
+  wiring 0.35 in took the gated `grounded` category from 88.9% to 77.8% with nothing broken.**
+  `MockBedrockProvider`'s reranker returns the *fraction of query words present in the chunk* — a
+  coverage ratio sharing the [0,1] range with a relevance judgement. Any floor ≥0.25 drops
+  `grounded-team-3` under the mock; the real sweep says [0.30, 0.60) is safe. Both are right about
+  different quantities, so `MOCK_MIN_RELEVANCE_SCORE = 0.0` keeps the mock run's exact pre-D-172
+  numbers (88.9 / 0.0 / 27.3 / 55.0 / 73.8) and its comparability with its own history.
+  **Consequence stated plainly: `make test` does not exercise the shipped floor end to end.** The
+  knowledge unit tests cover it with explicit scores (watched failing at 0.0); the real-Bedrock run
+  reads it from `Settings`.
+  **✅ Verified against a real model the same day, in three bounded arms (10.0c + 11.6c + 30.1c),
+  and the risk side is clean.** `paraphrase` **11/11**, `grounded_citation_rate` **17/20**, and
+  **zero** `citation_quote_below_floor` events across 20 answerable cases — a real model never
+  under-quoted, and the 17 verified citations are what keep that zero from being the vacuous kind
+  (D-171 §2). The three `grounded` failures are all `grounded-branch-*`, and they were attributed
+  **for free** from the existing sweep dump: their expected document scores **0.95 / 1.00 / 0.95**,
+  far above the floor and top-ranked, so they fail for the keyword-list reason S37 documented, not
+  for anything D-172 did.
+  **⚠️ One framing correction, and it changes how the §3 table should be read:** a real model
+  *already* refuses all 8 `no_answer` cases (8/8 at both floors, matching S37), so AUD-C-12's payoff
+  on this fixture is **the paid synthesis call avoided and the refusal made one stage earlier — not
+  accuracy gained**.
+  **⚠️ The run also failed, on something that is not mine: AUD-C-23, filed.** `wrong_role_hints`
+  reports `no-answer-missed-1` — an anonymous caller asking a plausible question nothing answers is
+  told to log in. **Reproduced identically at floor 0.0**, which is why that arm was run at all, so
+  D-172 is ruled out. It is **D-168's own recorded residual** (`access_probe_policy`'s table already
+  shows 1 false hint on the unanswerable class) meeting an eval assertion written to a stricter
+  standard — so a decision, not a bug fix. The more useful half: **the paid eval has been red since
+  D-168 landed and nobody knew**, because it is opt-in and costs money. AUD-F-15's shape.
+  **Phase 0B, counted from the table: 10** *Open — Phase 0B* (11 counting AUD-F-16), down from 11 —
+  three closed, one filed. AUD-L-09 also clears the largest *decided-but-unimplemented* item, and
+  that pile is now empty. Remaining: AUD-L-01, L-05, L-08, L-16, C-14, C-15, **C-23 (new)**, F-03,
+  F-04, F-05.
+
 - **✅ D-169 + D-170 are deployed, and the session's real work was the two things the pipeline did
   not report (2026-08-04, no numbered session).** PR **#99**, CI **9/9 first attempt**,
   squash-merged to `main` at **`8097f25580312e585b843c2c2d18207763b8c904`**, deploy run
@@ -881,7 +951,65 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-deploy of D-169/D-170):**
+- **Next session, in order (2026-08-04, post-D-172, nothing deployed):**
+  0. **Owed and blocking nothing, but it is now two sessions old: D-172 is not deployed.** Code,
+     tests and docs only — no migration, no schema change — so the D-157 pre-check should predict a
+     code-and-docs deploy. **Two things to verify live afterwards, and both are new instruments
+     rather than the usual revision read:** `citation_quote_below_floor` counts (does a real model
+     ever under-quote?) and whether any turn now retrieves nothing where it previously answered.
+     Neither has ever been observed in production, which is the point of looking.
+  0b. **D-167's behaviour check, still the one thing no test can do** (unchanged, three sessions
+     owed): paste the staging secret, sign in, **fully quit the browser**, reopen the staging URL,
+     confirm the field is pre-filled and sign-in works with no `get-secret-value` call.
+  1. **AUD-C-23, filed by D-172's own verification and the only new finding: decide the fork.** The
+     paid eval asserts **zero** false role hints on every category; `access_probe_policy`'s table
+     records the shipped D-168 rule at **1** on the unanswerable class. Either close the residual
+     (tighten the margin, re-measure with `measure_access_probe_rules.py` — free from a dump) or relax
+     the assertion to the standard D-168 actually accepted, **naming the tolerated case** so it can
+     still catch a new one. Two cheap things first: identify which role the hint names (one probe
+     call — `wrong_role_hints` returns case ids only, and "log in as a parent" vs "as a branch
+     manager" are different products here), and decide whether the **10-cent, 72-second**
+     `CHAT_EVAL_CATEGORIES=no_answer` arm belongs in the per-deploy checklist. It has been red since
+     2026-08-03 and only an opt-in paid run could see it — AUD-F-15's shape.
+  2. **Continue the Phase 0B backlog. Counted from the table, not carried forward: 10 findings read
+     *Open — Phase 0B*, 11 counting AUD-F-16** (*Open — before the gate*). D-172 closed AUD-L-09,
+     AUD-C-12 and AUD-C-13 and its own verification filed AUD-C-23, so 11 became 10: **AUD-L-01,
+     L-05, L-08, L-16, C-14, C-15, C-23, F-03, F-04, F-05**. **The decided-but-unimplemented pile is
+     now empty** — AUD-L-09 was the last of it.
+     In rough order of what a user would notice:
+     - **AUD-F-03 / F-04 / F-05** are one cluster and the only remaining findings a *student* sees
+       directly: a refresh mid-exam drops from "Question 3 of 10" to "Question 1 of 10" (F-03,
+       against SPEC Phase 11's own "done when"), a dismissed stage narrative returns after a refresh
+       (F-04), and the narrative displaces the screen the student is already using (F-05). All three
+       are frontend state that should be derived from the persisted snapshot — the same shape three
+       times, which is the D-156 pattern that has worked twice.
+     - **AUD-L-16** (both policy snapshots written and never read back) is D-169's shape: computed,
+       stored, routes nothing. Same fork — wire or delete — and D-169's answer ("wire it, state the
+       inertness, test the masking") plus D-170's ("ask whether the dimension applies at all") are
+       both available precedents.
+     - **AUD-C-15** (an unknown-tool call raises before any audit row) is small, and it is the one
+       call shape a prompt-injection or wiring bug would produce.
+  3. **The product decisions still unanswered, unchanged and none of them mine to make:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent by
+     choice; (b) should the access hint be able to say "this is covered in parent *and*
+     branch-manager materials" instead of going silent on the two attendance questions D-168
+     measured; (c) escalation carries no way to reply to the person who asked (D-164's scoped-out
+     half), and `InMemoryRateLimiter` is per-process so the real ceiling is N× the configured one.
+  4. **Everything from the post-D-169/D-170 pointer that is still live** — listed in full below.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** use `eval "$(aws configure export-credentials --profile <p> --format env)"`;
+     the project venv's botocore cannot resolve either profile directly. Credentials were valid and
+     unexpired this session, so a sweep needed no login.
+     **Note on `cryptography`:** do **not** try to remove it again — it is PyMySQL's runtime
+     dependency (see the correction on D-168).
+     **Note on the two new free instruments:** `scripts/measure_citation_quote_floor.py` needs only
+     the dev corpus, and `scripts/measure_retrieval_score_floor.py --load <dump>` re-scores any
+     retrieval floor against identical scores for **zero cost**. This session's dump is scratch-only;
+     re-collect with `--dump` before iterating.
+
+- **Superseded — pointer as of post-deploy of D-169/D-170 (2026-08-04). Items 1, 2 and 3 carry into
+  the pointer above (as items 3a/3b/3c); item 4's backlog is recounted there; item 0's D-167 check is
+  now 0b:**
   0. **The only owed item that survives, and no test can do it: D-167's behaviour check.** Paste the
      staging secret, sign in, **fully quit the browser**, reopen the staging URL, and confirm the
      field is pre-filled and sign-in works with no `get-secret-value` call. The bundles have been
@@ -4760,6 +4888,53 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S57 (unnumbered) — the three guards whose floor was lower than their name: AUD-L-09, AUD-C-13, AUD-C-12 (2026-08-04) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-169/D-170), item 4's Phase 0B backlog** —
+  no numbered roadmap block, for the reason D-152 gives. The cluster was chosen and confirmed with
+  the user before any edit: three verifications whose floor sits far below what their name implies.
+- **Baseline verified before starting, not assumed:** lint clean, pyright 0, 748 passed / 2 skipped,
+  working tree clean at `79fd8e6` — matching the recorded state, so no baseline repair was needed.
+- **AUD-L-09 → D-172 §1.** D-098's decided mitigation 1 (reverse `from X to Y` on the known pre/post
+  pair) implemented in `numeric_grounding.grounding_failure`, with the residual unsoundness written
+  into the module docstring as that disposition required, and the two failure modes logged apart at
+  both call sites. Mitigation 2 needed **no code** — stage payloads are already per-stage — so it was
+  pinned structurally instead (`test_stage_payloads_stay_narrow.py`, AST over the real construction
+  sites, watched failing against a widened payload). Narrowing the *report* payload was rejected as
+  D-163's false-rejection class.
+- **AUD-C-13 → D-172 §2.** `MIN_CITATION_QUOTE_CHARS = 20`, from a new free instrument
+  (`scripts/measure_citation_quote_floor.py`): a 1-char span occurs in a median of **140 of 144**
+  approved chunks. The floor's cost was measured as well — the five chunks under it are all markdown
+  headings — and that measurement is now a test, which is what killed the "≥20 or the whole chunk"
+  alternative.
+- **AUD-C-12 → D-172 §3/§4.** `MIN_RERANK_RELEVANCE_SCORE = 0.35` from a **38.49-cent** real-model
+  sweep (new `scripts/measure_retrieval_score_floor.py`, dump/`--load` so re-scoring is free). The
+  band [0.30, 0.60) separates cleanly and is asserted by a test. **The finding of the session was
+  the scale mismatch:** the mock reranker returns query-word coverage, so a real-model floor took the
+  gated `grounded` category from 88.9% to 77.8% with nothing broken — hence
+  `MOCK_MIN_RELEVANCE_SCORE = 0.0` and an explicit statement that `make test` does not exercise the
+  shipped floor end to end.
+- **Verification:** `make lint` clean, `pyright` 0, **782 passed / 2 skipped** (+34). Every new guard
+  was watched failing against the pre-fix behaviour — six unit + three service tests for AUD-L-09,
+  five for AUD-C-13, three for AUD-C-12 (constant temporarily set to 0.0), and the AST pin against a
+  deliberately widened payload. **Not deployed.**
+- **Method note worth carrying:** two of the three floors sit inside a *band*, and in both cases the
+  band came from measuring the cost direction as well as the buy — which is what changed the design
+  both times. A threshold chosen from the buy alone would have looked equally well-evidenced.
+- **Live verification (paid, three bounded arms, 51.7c total):** the risk side is clean —
+  `paraphrase` 11/11, `grounded_citation_rate` 17/20, zero quote-floor drops against 17 verified
+  citations. The three `grounded-branch-*` failures were attributed **for free** from the sweep dump
+  (expected document at 0.95-1.00, top-ranked) to S37's documented keyword-list artifact. The
+  `no_answer` arm was run **twice on purpose**, at floor 0.35 and floor 0.0, to attribute the
+  failure the run surfaced.
+- **New finding, filed not fixed: AUD-C-23.** The paid eval has been red since D-168 landed — an
+  access hint on an unanswerable question — and it is D-168's own recorded residual against a
+  stricter assertion. Ruled out as D-172's doing by the floor-0.0 arm. Fork (close the residual vs
+  relax the assertion to what was accepted) is a decision, so it goes to the pointer.
+- **Carry-over:** deploy D-172; decide AUD-C-23's fork and whether the 10-cent `no_answer` arm
+  belongs in a per-deploy checklist; identify which role that false hint names (one probe call);
+  D-167's browser check, still owed.
 
 ### S56 (unnumbered) — the masked-by-uniform-data pair: AUD-L-12 wired, AUD-C-09 dispositioned, and a carry-over falsified (2026-08-03) ✅
 

@@ -32,7 +32,7 @@ from intellichoice_shared.bedrock import (
     ReportInterpretationResponse,
 )
 from intellichoice_shared.mastery_policy import WEAK_SKILL_THRESHOLD
-from intellichoice_shared.numeric_grounding import is_grounded
+from intellichoice_shared.numeric_grounding import grounding_failure
 
 from learning_api.services.dashboard import MASTERY_WINDOW_LABEL, DashboardData
 
@@ -443,14 +443,23 @@ async def generate_student_report(
         interpretation_text, recommendations_text = _fallback_texts(payload)
         cost_cents, generated = exc.cost_cents, False
     else:
-        if is_grounded(result.value.interpretation_text, evidence) and is_grounded(
-            result.value.recommendations_text, evidence
-        ):
+        failure = grounding_failure(result.value.interpretation_text, evidence) or (
+            grounding_failure(result.value.recommendations_text, evidence)
+        )
+        if failure is None:
             interpretation_text = result.value.interpretation_text
             recommendations_text = result.value.recommendations_text
             cost_cents, generated = result.cost_cents, True
         else:
-            logger.warning("report failed numeric grounding; using facts-only template")
+            # AUD-L-09: both texts are still all-or-nothing - a report that pairs correct
+            # prose with an inverted claim is not half-shippable - but the reason is logged,
+            # because `inverted_score_pair` and `ungrounded_number` are different events
+            # (see `numeric_grounding`'s docstring) and D-163 showed how much this path's
+            # rejection rate matters.
+            logger.warning(
+                "report failed numeric grounding; using facts-only template",
+                extra={"reason": failure, "audience": payload.audience},
+            )
             interpretation_text, recommendations_text = _fallback_texts(payload)
             cost_cents, generated = result.cost_cents, False
 
