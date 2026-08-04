@@ -154,6 +154,76 @@ def test_ungrounded_response_falls_back_to_deterministic_template() -> None:
     asyncio.run(run())
 
 
+def test_an_inverted_score_pair_falls_back_to_the_template() -> None:
+    """AUD-L-09 on the student-facing half, through the service rather than the unit. Only
+    `post_outro` carries both scores (`test_stage_payloads_stay_narrow.py` pins that), so it
+    is the only stage where this can happen at all.
+
+    Both numbers are the payload's own, so this text was grounded and shipped before the
+    directional rule existed - to a student who had just improved by 2 points, in a product
+    whose whole framing is growth-oriented (SPEC §5.10.3).
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = StageTransitionRepository(session)
+            gateway = _FakeGateway(
+                [StageNarrativeResponse(narrative_text="Your score slipped from 6 to 4.")]
+            )
+
+            result = await generate_stage_narrative(
+                gateway=gateway,
+                repo=repo,
+                student_external_id=STUDENT_ID,
+                learning_session_id="session-inverted",
+                payload=_payload(
+                    stage="post_outro",
+                    pre_raw_score=4.0,
+                    post_raw_score=6.0,
+                    raw_gain=2.0,
+                ),
+                session_spend_cents=0.0,
+            )
+
+            assert result.generated is False
+            assert "slipped" not in result.narrative_text
+            assert "from 4.0 to 6.0" in result.narrative_text
+
+    asyncio.run(run())
+
+
+def test_the_same_pair_in_the_right_order_is_still_trusted() -> None:
+    """The control for the test above: the rule must not reject the ordinary post-exam
+    sentence, which is the one this stage exists to produce.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = StageTransitionRepository(session)
+            gateway = _FakeGateway(
+                [StageNarrativeResponse(narrative_text="You went from 4 to 6 - nice work!")]
+            )
+
+            result = await generate_stage_narrative(
+                gateway=gateway,
+                repo=repo,
+                student_external_id=STUDENT_ID,
+                learning_session_id="session-ordered",
+                payload=_payload(
+                    stage="post_outro",
+                    pre_raw_score=4.0,
+                    post_raw_score=6.0,
+                    raw_gain=2.0,
+                ),
+                session_spend_cents=0.0,
+            )
+
+            assert result.generated is True
+            assert result.narrative_text == "You went from 4 to 6 - nice work!"
+
+    asyncio.run(run())
+
+
 def test_grounded_response_is_trusted_as_is() -> None:
     async def run() -> None:
         async with _rollback_session() as session:

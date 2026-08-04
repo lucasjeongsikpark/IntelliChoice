@@ -29,7 +29,7 @@ ones.
 | AUD-L-06 | Minors | P3 | **Decided** — delete in Phase 0B | `tutor.generate_hint` is dead code that omits the leak check its live sibling applies — a trap for whoever wires it up |
 | AUD-L-03 | Money | P2 | **Decided** — Phase 0B | `pre_intro` stage-narrative spend is never folded back into the session total, so the per-session ceiling is permanently one call short |
 | **AUD-L-07** | **Authorization** | **P1** | **Accepted residual risk 2026-07-30 (D-123) — §7-R8**; still open as a finding, closes at S43/S46; **write half closed in S40** (D-107) | **The read half is now an accepted, written, expiring risk rather than an undecided open P1** — the product call the gate had been carrying for several sessions. Fixing it needs the tutor-assignment model `ProfileAdapter` gains at S43, which is after the gate; failing closed now was rejected because S40 showed it ends tutor report generation outright until S46. Acceptance is scoped to the no-real-users pilot window. Original: S40 closed the mutating surface via AUD-X-05's `access="write"` refusal, so what remains is the original read-scope gap: a tutor token can still read any student's dashboard/history and generate reports about them. Unchanged disposition — it needs the assignment/branch-roster model `ProfileAdapter` gains in S43, with the formal disposition at S46. The stale "lands with Q&A authorization (Session 13)" comment is fixed. Original: D-086's known tutor/branch_manager scope gap now reaches further than when it was written: it covers the S28 dashboard and report surface, so a tutor token can read any student's data and generate reports about them |
-| AUD-L-09 | Correctness | P2 | **Decided** — Phase 0B | Numeric grounding verifies a number's *provenance*, not its *attribution*, so a report can invert a real result ("fell from 6 to 4") and still pass |
+| **AUD-L-09** | **Correctness** | **P2** | ✅ **fixed in D-172 §1 (2026-08-04)** | D-098's mitigation 1 implemented: `grounding_failure` rejects an explicit `from X to Y` transition stating the known `pre_raw_score`/`post_raw_score` pair in reverse, with the two failure modes now logged apart (`inverted_score_pair` vs `ungrounded_number`). **Deliberately incomplete, and the incompleteness is in the code** (`numeric_grounding`'s docstring): swapped skills, a mastery figure on the wrong skill, and any inversion phrased without `from`/`to` still pass. One known false rejection — hints 6 → 4 while scores go 4 → 6 — fails closed and is pinned by a test. **Mitigation 2 was already satisfied**: stage payloads are per-stage by construction, now asserted from the AST of the real construction sites (`test_stage_payloads_stay_narrow.py`, watched failing against a widened payload); narrowing the *report* payload was rejected as D-163's false-rejection class. Original: numeric grounding verifies a number's *provenance*, not its *attribution*, so a report can invert a real result ("fell from 6 to 4") and still pass |
 | **AUD-L-10** | **Data integrity / scoring** | **P1** | **Fixed in S42** (D-110 §1) | Uniqueness on `assessment_attempts` tightened from `(session, variant, idempotency_key)` to `(session, variant)`, so one attempt per item is a database invariant rather than a check — the check alone is the same read-then-act shape this cluster exists to remove, and the concurrent arm proves it: with the constraint dropped, four simultaneous answers all return 200 while the sequential test still passes. A `flow` pre-flight turns the ordinary duplicate into a 409 before a graph turn starts, kept because a refused duplicate that reaches `ainvoke` measurably left **+2 `checkpoints` / +4 `checkpoint_writes`** behind. Original: The server marks an exam item `answered` and then accepts more answers for it; exam scores are computed over the *attempt* count, so one changed answer rescores a 10-item exam as 10/11 and silently removes the `not_applicable_pre_max` flag. Enforced client-side only |
 | **AUD-L-11** | **Robustness / contracts** | **P2** | **Fixed in D-159** | `UnknownQuestionVariantError` carries a required `reason`, and `POST /answers` answers each case deterministically: **400** for an id not in the bank, **409** for a real variant this session is not serving. Both are pre-flighted off session state before `graph.ainvoke`, so a stale tab that keeps resubmitting no longer leaves checkpoint rows per attempt (asserted). Original: raised at four sites, caught nowhere — an unhandled **500** on the error rate the S34 alarms watch |
 | **AUD-L-17** | **Data integrity / scoring** | **P2** | **Found and fixed in D-159** | Found while fixing AUD-L-11: the exam answer paths checked that a variant *exists* but never that it belongs to this exam, so a real variant from another exam was **graded and inserted into `assessment_attempts` for this one** (200, and `_mark_item_answered` silently no-ops) — an 11th attempt on a 10-item exam, moving the attempt-counted scoring denominator AUD-L-10 was fixed to protect. The study path already checked membership; the exam paths did not. Now `flow.ensure_item_is_served`, pre-flighted in the route and re-checked in the service |
@@ -54,12 +54,13 @@ ones.
 | **AUD-C-10** | **Frontend contract** | **P2** | **Fixed 2026-08-02 (D-155)** — `ChatTurn` gained an `error` field, so a turn has three states instead of two; a failed turn renders a retryable error bubble and `Thinking…` is gated on *not* having failed. The e2e documented-defect test was inverted into a regression test exactly as it said it should be, and watched failing against the pre-fix render gate. | Any API error leaves chat-web's turn stuck on `Thinking…` permanently — the transcript entry keeps `response: null` and nothing clears it. A §2.6 criterion-3 blank/stuck state, reachable from AUD-C-07 |
 | AUD-C-11 | Correctness / UX | P2 | ✅ **fixed in D-164 (2026-08-03)** | The low-confidence branch returns the "I don't have an approved source" message *with* verified citations attached, so the UI shows a source beside a sentence denying one exists. Observed live |
 | **AUD-C-19** | **UX / diagnosability** | **P3** | **Fixed in D-156** | Returns `SERVICE_UNAVAILABLE_MESSAGE` with `escalation_recommended = False` and `missing_information = None`. The deferred product call, decided: escalation is itself a Bedrock-and-MCP path, so recommending it during an outage walks the user into a second failure and books a branch manager for a question the corpus can answer — and the message already offers the human path *conditionally*, after a retry. Matches `graph.nodes.service_unavailable`, so the two outage paths are indistinguishable to the client. Original: the synthesis-failure path answered a Bedrock outage with `NO_SOURCE_MESSAGE` when a source demonstrably existed |
-| AUD-C-12 | SPEC conformance | P3 | Open — Phase 0B | §5.21.8's "retrieval score is below threshold" do-not-answer trigger has no implementation: the only filter is `rerank > 0.0`, and the 0.4 threshold gates the model's self-reported confidence, not retrieval |
-| AUD-C-13 | Grounding | P3 | Open — Phase 0B | The citation verbatim check accepts any non-empty substring, so a one-character quote verifies against nearly any chunk; only the quote's hash is stored, so it cannot be re-examined |
+| **AUD-C-12** | **SPEC conformance** | **P3** | ✅ **fixed in D-172 §3 (2026-08-04)** | `retrieve` cuts at `MIN_RERANK_RELEVANCE_SCORE = 0.35` instead of `> 0.0`, so an empty result *is* the §5.21.8 trigger firing and the graph routes it to the no-source/access-hint path without paying for synthesis. **Measured, one real-model run at 38.49c** (`scripts/measure_retrieval_score_floor.py`): no unanswerable case scored above 0.30, the weakest answerable case's own document scored 0.60, so any floor in [0.30, 0.60) empties 24/24 unanswerable while keeping 20/20 answerable — 0.35 for margin, and the band is asserted by a test. Not applied on the reranker-degraded path (no scores ⇒ discarding everything would make an outage a corpus-wide "no approved source"). **The mock run keeps floor 0.0 by decision** — its reranker returns query-word coverage, a different quantity on the same scale (D-172 §4) |
+| **AUD-C-13** | **Grounding** | **P3** | ✅ **fixed in D-172 §2 (2026-08-04)** | `MIN_CITATION_QUOTE_CHARS = 20`, applied to the AUD-C-18-normalized quote. **Measured over the real 144-chunk corpus** (`scripts/measure_citation_quote_floor.py`): a 1-char span occurs in a median of **140** chunks (0% unique), 2 in 74, 4 in 10, 8 in 2; at 20 the median is 1 and the p90 is 2, and 24/32/40 buy nothing more. The floor's *cost* was measured too — the five approved chunks under 20 chars are all bare markdown headings, asserted by `test_the_quote_floor_excludes_only_heading_chunks` so a future short standalone fact fails loudly instead of becoming uncitable. "≥20 or the whole chunk" was rejected: it re-admits exactly the heading-only citations. The prompt states the requirement and the drop is logged (`citation_quote_below_floor`, counts only). Original: the verbatim check accepts any non-empty substring, so a one-character quote verifies against nearly any chunk |
 | AUD-C-14 | Contracts | P3 | Open — Phase 0B | `RespondResponse` omits `scope`/`intent`, so every SSE snapshot published after a `/respond` nulls them for connected clients — D-058's class, in the direction that decision did not name |
 | AUD-C-15 | Audit trail | P3 | Open — Phase 0B | `McpToolRegistry.call` raises on an unknown tool *before* any audit write, so the one call shape a wiring bug or injection would produce is the one that leaves no `mcp_tool_calls` row |
 | **AUD-C-16** | **Launch journey / data integrity** | **P3 → P1** | **Fixed and live-verified 2026-07-28 (D-112)**: provenance columns stamped at ingest (NULL = unknown = mismatch), idempotent `make knowledge-reembed`, a deploy-step re-embed, and the load-bearing part — chat-api `/readyz` (the ALB health check) **fails closed** on corpus/runtime provenance mismatch, so this class can never again run silently. Staging re-embedded: **159/159 real Titan, 0/159 mock-like by S38's own discriminator** (max cos 0.078, was 159/159 at 1.0), 0.0224¢; the next deploy's re-embed was a 0-chunk/0-cent no-op. Paraphrase probes went from no-source refusals to **9/9 grounded answers with citations** | Stored embeddings are provider-specific with no provenance column and no re-embed path. **Settled by S38: staging's corpus is 159/159 `MockBedrockProvider` hash vectors** while both deployed services query with real Titan v2, so staging's semantic channel returns noise (peak cosine +0.074 vs +0.41 with real vectors) and hybrid search there has always been lexical-only. Live paraphrase citation rate **1/7** |
 | **AUD-C-20** | SPEC conformance | P2 | ✅ **fixed in D-165 (2026-08-03), with a named limit** — semantic arm added and deployed; `role_gated_question` 0/3 → **2/3**. The threshold it ships with is too tight for human phrasing → **AUD-C-21** | The §18-C3 access probe matches with `websearch_to_tsquery`, which **ANDs every content word** of the question, so one absent word voids it — the parent chunk says "student" not "child", the branch-manager chunk has neither "escalation" nor "path". This is why the feature still scores **0/3** after AUD-C-06's routing fix: §18-C3 has never fired for a realistically-worded question on *either* entry path |
+| **AUD-C-23** | Instrument / product correctness | P2 | Open — Phase 0B (filed 2026-08-04, D-172's verification) | **The paid real-Bedrock coverage eval fails, and has been failing since D-168 landed** — nobody knew, because it is opt-in and was not re-run after that change. `wrong_role_hints` reports `no-answer-missed-1`: an anonymous caller asking *"What happens to a student who misses three sessions in a row?"* — a plausible in-scope question **nothing** answers — is told to log in as some role. **This is D-168's own recorded residual, observed live**: `access_probe_policy`'s table shows the shipped rule at **1 false hint on the unanswerable class** in the corpus-phrasing arm (0 in the human arm), and the eval asserts **zero on every category**. So the assertion and the accepted decision disagree, and one of them has to move. **Not caused by D-172** — reproduced identically with `CHAT_RETRIEVAL_MIN_RELEVANCE_SCORE` at 0.35 and at 0.0 |
 | **AUD-C-22** | SPEC conformance | P2 | ✅ **fixed in D-168 (2026-08-03), not deployed** — the probe became the reranked pipeline it was paraphrasing: **29/38 and 28/38** correct audiences across both phrasings with **zero wrong tiers on either**, against 23/38 with 1 and 4. The filed fix shape ("pick the closest") was measured and scores *identically* to the rule it replaces. The motivating question now returns **silence** rather than the wrong tier — two tiers legitimately compete for it | `build_access_hint` picks the highest-**priority** tier (`branch_manager, tutor, parent, student`), never the **closest** one, and the probe hands it counts rather than distances so the information is already gone. Live, on AUD-C-21's own motivating question, a parent asking about their child's attendance is now told to *"log in with a branch manager account"* — the chunk that answers it is the parent one, measured at 0.499. **Widening the ceiling cannot fix this**: at any ceiling ≥0.499 priority still answers branch_manager |
 | **AUD-C-21** | SPEC conformance / instrument | P2 | ✅ **fixed in D-166 (2026-08-03)** — ceiling **0.40 → 0.45** against a blind-rewrite fixture: **17/38 → 23/38** correct roles with **zero** false hints on either negative class, verified live (`no_answer` 8/8, and 8/8 false hints at a loosened 0.95, so the check can fail). **⚠️ The probe now fires and the live case names the wrong tier → AUD-C-22** | `access_probe_max_distance = 0.40` is too tight for how people actually phrase questions: the *fixture's own* parent-attendance case sits at **0.418** and a human wording of the same question at **~0.60**, both misses, while the correct chunk is at 0.499. Root cause is the instrument, not the code — a question **generated from** a chunk sits closer to it than a person's phrasing does, so 25/43 at ≤0.40 was true of the fixture and optimistic about users. Needs a human-phrased validation set before the ceiling moves; ≤0.55 already produces false hints on unanswerable questions, so this is a real trade, not a free widening |
 | **AUD-X-01** | **Authorization** | **P1** | **Fixed in S40** (D-107) | Fixed in `graph/nodes.py: resolve_student`, which now refuses to move a session to a different student — applied before the role split, so it covers the tutor branch that took `requested_student_id` unvalidated. The legitimate parent rebind is untouched: it pauses at `await_child_selection`, which re-checks the live link on resume. Re-verified live on staging with a before/after pair. Original: `POST /sessions/{id}/student` never checks who already owns the session: a different student claimed an in-progress exam session, the owner was **locked out with 403**, and their `in_progress` assessment row was orphaned. Same structure as AUD-C-01 — the one route that *writes* the identity field all 17 others read is the one that does not check it |
@@ -418,6 +419,31 @@ the only *complete* answer but is a project rather than a fix, adds a paid call 
 would itself need a cost ceiling given AUD-L-02. **Neither chosen mitigation makes the check
 sound** — that limitation should be recorded in the code, not just here, so nobody later mistakes
 the directional check for full verification.
+
+**✅ Closed 2026-08-04 (D-172 §1), both mitigations resolved — one implemented, one found already
+satisfied.**
+
+Mitigation 1 shipped as `grounding_failure`: an explicit `from X to Y` transition that states the
+known `pre_raw_score`/`post_raw_score` pair in reverse is rejected, matched with the same rounding
+tolerance as provenance so a rounded rendering cannot sidestep it. `from`/`to` is the only phrasing
+judged — the order is asserted by the connective, so no verb list has to be maintained against a
+product that rewords for growth-oriented tone. The unsoundness is now recorded **in
+`numeric_grounding`'s docstring**, as this entry asked: swapped skills, a mastery figure on the
+wrong skill, a pre-exam number presented as post-exam, and inversions phrased without `from`/`to`
+all still pass.
+
+One false rejection is accepted and pinned by a test rather than discovered later: with scores
+4 → 6 and hints 6 → 4, a faithful sentence about hints is indistinguishable from an inverted one
+about scores, because numbers carry no field identity — which is this finding restated. It fails
+closed, and the fallback keeps the correct figures.
+
+Mitigation 2 needed no code: every `StageNarrativePayload` already carries only its own stage's
+fields, so a `study_outro` narrative is never shown a score to misattribute. A fix with nothing to
+implement is the kind that regresses silently, so `test_stage_payloads_stay_narrow.py` asserts it
+from the AST of the real construction sites and was watched failing against a deliberately widened
+`study_step` payload. Narrowing the *report* payload was rejected: it is broad by audience
+authorization, and trimming it would show the model less than the parent is entitled to see, which
+is exactly the false-rejection class D-163 measured.
 
 ### AUD-L-08 — `normalized_gain` is unbounded, and its denominator comes from the attempt count (P3)
 
@@ -1585,6 +1611,47 @@ semantic probe first appear unusable. And scoring "some gated audience matched" 
 flatters every rule, since `build_access_hint` picks by priority and naming the wrong tier is a
 failure.
 
+### AUD-C-23 — The paid coverage eval has been red since D-168, on D-168's own accepted residual (P2)
+
+- **Severity:** P2 — a user is directed to log in for an answer that does not exist, which is the
+  damage D-166 and D-168 both name explicitly ("a wrong tier is worse than silence"); bounded to 1
+  of 8 unanswerable fixture cases · **Area:** access probe + eval instrument · **Status:** open,
+  Phase 0B, filed 2026-08-04 by D-172's verification run
+
+**What.** `apps/chat-api/tests/test_qa_coverage_eval_real_bedrock.py` fails its
+`wrong_role_hints(outcomes) == []` assertion on `no-answer-missed-1` — *"What happens to a student
+who misses three sessions in a row?"*, an ordinary question in a supported topic that the corpus
+does not answer. The access probe names a role for it, so the anonymous caller is told to go log in.
+
+**Two findings in one, and the second is the more useful.**
+
+1. **The behaviour is already recorded and was already accepted.**
+   `intellichoice_shared.access_probe_policy`'s measurement table gives the shipped D-168 rule **1
+   false hint on the unanswerable class** in the corpus-phrasing arm and 0 in the human-phrasing arm.
+   This live observation is that 1. So this is not new behaviour and not a regression — it is a
+   documented residual meeting an assertion written to a stricter standard (`== []`, every category).
+   **One of the two has to move**, and that is a decision, not a bug fix: either the residual gets
+   closed (the margin rule tightened, re-measured with `measure_access_probe_rules.py`), or the
+   assertion is relaxed to the standard D-168 actually accepted — in which case it must name the case
+   it tolerates, or it stops being able to detect a new one.
+2. **The eval was red for a whole day of sessions and nothing said so.** D-168 landed 2026-08-03 and
+   was verified with live staging probes, not with this eval; S56 and S57 both ran and neither
+   touched it. Same shape as AUD-F-15 (`chat-purge` had never once run against the deployed
+   database): an opt-in instrument that costs money is an instrument that silently stops being
+   evidence. Worth deciding whether this run belongs in a per-deploy checklist at a bounded
+   `CHAT_EVAL_CATEGORIES=no_answer` subset — **that subset is 10 cents and 72 seconds**, and it is
+   the arm that carries this risk.
+
+**Reproduction (2026-08-04, real Bedrock, anonymous caller).** `CHAT_EVAL_CATEGORIES=no_answer`:
+`no_answer` 8/8 and `correct_refusal_rate` 8/8 — the refusals themselves are correct — with
+`wrong_role_hints == ['no-answer-missed-1']` at **both** `CHAT_RETRIEVAL_MIN_RELEVANCE_SCORE=0.35`
+(10.0c) and `=0.0` (11.6c). **The floor-0.0 arm is what rules out D-172 as the cause**, and it was
+run for exactly that reason.
+
+**Not yet known:** which role is named. `wrong_role_hints` returns case ids only, and identifying the
+tier needs one more probe call — worth doing before deciding between the two forks above, because
+"log in as a parent" and "log in as a branch manager" are different products for this question.
+
 ### AUD-C-22 — The access hint names the highest-*priority* tier, never the closest one (P2)
 
 - **Severity:** P2 — a user-visible instruction that is wrong, replacing one that was merely
@@ -1729,6 +1796,43 @@ produce 8 false hints and fail.
   confidence about its own answer*, not retrieval. A chunk the reranker scored 0.01 is passed to
   synthesis exactly like one scored 0.99. No minimum-relevance setting exists.
 
+**✅ Closed 2026-08-04 (D-172 §3): `MIN_RERANK_RELEVANCE_SCORE = 0.35`, measured against the real
+reranker.** `scripts/measure_retrieval_score_floor.py` (new; the dump/`--load` shape of
+`measure_access_probe_rules.py`, so re-scoring any floor afterwards is free) scored the coverage
+fixture's 20 answerable and 24 unanswerable cases with real Titan embeddings and the real
+reranker — the approved corpus re-embedded inside a rolled-back transaction, because without that
+step a real query vector meets the dev database's mock vectors and the semantic arm is noise
+(AUD-C-16). **One run, 38.49 cents, no synthesis calls:**
+
+| floor | answerable keep their document | unanswerable emptied | passages per answerable turn |
+|---|---|---|---|
+| 0.00 (shipped until now) | 20/20 | 7/24 | 9.9 |
+| 0.10 | 20/20 | 13/24 | 5.7 |
+| 0.30 | 20/20 | **24/24** | 3.5 |
+| 0.35 | 20/20 | 24/24 | 3.5 |
+| 0.60 | 19/20 | 24/24 | 2.9 |
+
+No unanswerable case scored above 0.30; the weakest answerable case's own document scored 0.60. Any
+floor in [0.30, 0.60) makes the same trade, so 0.35 was chosen for margin — one 0.05 quantization
+step above the noise ceiling, 0.25 of headroom under the weakest real signal, and the same passage
+count 0.30 keeps. A test asserts the band, so moving the constant means re-running the sweep.
+
+**Two deliberate limits.** The floor is not applied when the reranker is unavailable: with no
+scores it would discard every candidate and turn an outage into a corpus-wide "no approved source"
+(AUD-C-08/AUD-C-19's class), and that path is already loud. And the **mock-backed eval keeps floor
+0.0 by decision** — `MockBedrockProvider`'s reranker returns the fraction of query words present in
+the chunk, so any floor ≥ 0.25 drops `grounded-team-3` and takes the gated `grounded` category from
+88.9% to 77.8% without anything being broken. The two numbers measure different quantities on the
+same scale (D-172 §4). Consequence: `make test` does not exercise the shipped floor end to end —
+`packages/knowledge/tests/test_retrieval.py` covers it with explicit scores (watched failing at
+0.0), and the real-Bedrock run reads it from `Settings`. **Run 2026-08-04 in three bounded arms (10.0c + 11.6c + 30.1c), and it corrected the framing:** a
+real model already refuses all 8 `no_answer` cases (8/8 at floor 0.35 *and* at 0.0, matching S37's
+record), so this floor's payoff on this fixture is **the paid synthesis call avoided and the refusal
+made one stage earlier — not accuracy**. No answerable turn was lost: `paraphrase` 11/11,
+`grounded_citation_rate` 17/20, and the three `grounded-branch-*` failures keep their expected
+document at 0.95-1.00 (free attribution from the sweep dump), failing instead for the keyword-list
+reason S37 documented.
+
 ### AUD-C-13 — The citation verbatim check accepts a one-character quote (P3)
 
 - `qa._verify_citations` accepts a citation when `quote.lower() in chunk.chunk_text.lower()` and the
@@ -1736,6 +1840,33 @@ produce 8 false hints and fail.
   answer, so `"a"` verifies against nearly any chunk. Only the quote's **hash** is stored
   (`supporting_quote_hash`, per SPEC's Citation schema), so nothing downstream can re-examine what
   was actually quoted. The defense is real but its floor is one character.
+
+**✅ Closed 2026-08-04 (D-172 §2) with a measured floor, `MIN_CITATION_QUOTE_CHARS = 20`.**
+Quantified first, over the real 144-chunk approved corpus
+(`scripts/measure_citation_quote_floor.py`, seeded, free): a 1-character span occurs in a **median
+of 140 chunks** (0% of sampled spans unique), 2 chars in 74, 4 in 10, 8 in 2 (44% unique). At 20
+chars the median is 1 and the p90 is 2; 24, 32 and 40 chars barely improve on that, so 20 is the
+knee rather than a preference. Length is measured on the AUD-C-18-normalized quote, so padding a
+bare word with newlines is not a longer quote.
+
+**The overlap-with-the-answer half of this finding was deliberately not implemented.** A faithful
+answer legitimately paraphrases its source ("classes run 9am-6pm" over "operating hours are
+09:00-18:00"), so a lexical-overlap requirement would drop real citations; the length floor is the
+part that can be measured against the corpus rather than guessed.
+
+**The cost was measured, not assumed.** A flat floor makes any shorter chunk uncitable, and
+refusing an answer the corpus contains is AUD-C-08's defect. The five approved chunks under 20
+normalized characters are all bare markdown headings (`# our team`, `## administration`), which
+support no answer — asserted by `test_the_quote_floor_excludes_only_heading_chunks`, with a
+chunk-count control so an unloaded corpus fails instead of passing vacuously. The alternative
+"≥ 20 chars **or** the entire chunk" was rejected for admitting exactly those heading-only
+citations. The synthesis prompt now states the requirement (asserted), and drops are logged as
+`citation_quote_below_floor` with counts only — chunk text is org content and nothing redacts a log
+line. **Measured 2026-08-04, same day:** across 20 answerable cases on real Bedrock producing **17
+verified citations**, `citation_quote_below_floor` fired **zero** times — a real model never
+under-quoted, and the 17 citations are the control that keeps that zero meaningful. The floor is free
+on this evidence. (The mock quotes 80 characters, so the mock-backed eval scores identically at floor
+1 and floor 20.)
 
 ### AUD-C-14 — `RespondResponse` omits `scope` and `intent`, so the post-resume SSE snapshot nulls them (P3)
 

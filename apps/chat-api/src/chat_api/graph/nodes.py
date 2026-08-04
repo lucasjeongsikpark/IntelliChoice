@@ -18,7 +18,7 @@ from intellichoice_db.repositories.mcp import McpToolCallRepository
 from intellichoice_db.repositories.org import OrgEventRepository
 from intellichoice_db.repositories.rag import RagRepository
 from intellichoice_knowledge import retrieval
-from intellichoice_knowledge.retrieval import retrieve
+from intellichoice_knowledge.retrieval import MIN_RERANK_RELEVANCE_SCORE, retrieve
 from intellichoice_observability.metrics import (
     QA_ANSWERS,
     QA_CALENDAR_CALLS,
@@ -190,6 +190,9 @@ class TurnContext:
     # probe's semantic arm. Defined once in `intellichoice_shared.access_probe_policy`, which
     # carries the measurement - including why 0.50 is not taken.
     access_probe_max_distance: float = ACCESS_PROBE_MAX_DISTANCE
+    # AUD-C-12/D-172: SPEC §5.21.8's retrieval-score do-not-answer trigger, applied by
+    # `retrieve`. Defined once in `intellichoice_knowledge.retrieval`, which carries the sweep.
+    min_relevance_score: float = MIN_RERANK_RELEVANCE_SCORE
     client_ip: str | None = None
 
 
@@ -404,6 +407,7 @@ async def answer_document_qa(state: QAState, runtime: Runtime[TurnContext]) -> d
             session_spend_cents=state.bedrock_spend_cents,
             candidate_limit=ctx.candidate_limit,
             top_k=ctx.top_k,
+            min_relevance_score=ctx.min_relevance_score,
         )
     except BedrockGatewayError as exc:
         # AUD-C-07. `retrieve()` already degrades gracefully when the *reranker* fails
@@ -725,6 +729,7 @@ async def calendar_extract(state: QAState, runtime: Runtime[TurnContext]) -> dic
             session_spend_cents=state.bedrock_spend_cents,
             candidate_limit=ctx.candidate_limit,
             top_k=ctx.top_k,
+            min_relevance_score=ctx.min_relevance_score,
         )
     except BedrockGatewayError as exc:
         # AUD-C-07's second call site, reached only when the deterministic `org_events`

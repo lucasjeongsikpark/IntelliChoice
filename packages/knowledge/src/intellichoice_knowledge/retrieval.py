@@ -209,6 +209,36 @@ async def _lexical_only(
     return await repo.count_matching_by_audience(probe_filters, query, None)
 
 
+# AUD-C-12/D-172: SPEC §5.21.8's "retrieval score is below threshold" do-not-answer trigger.
+# Until this existed the only score filter was `> 0.0`, so a passage the reranker rated 0.01
+# reached synthesis exactly like one it rated 0.99, and the SPEC trigger was unimplemented.
+#
+# **Measured, by `scripts/measure_retrieval_score_floor.py`** over `qa_coverage_eval.yaml`'s
+# 20 answerable (`grounded` + `paraphrase`) and 24 unanswerable (`no_answer` + `no_source`)
+# cases, with the approved corpus re-embedded by real Titan and scored by the real reranker
+# (one run, 38.49 cents):
+#
+#   floor | answerable keep their document | unanswerable emptied | chunks kept per answerable
+#   0.00  |            20/20              |         7/24         |            9.9
+#   0.10  |            20/20              |        13/24         |            5.7
+#   0.30  |            20/20              |      **24/24**       |            3.5
+#   0.35  |            20/20              |        24/24         |            3.5
+#   0.60  |            19/20              |        24/24         |            2.9
+#
+# No unanswerable case scored above **0.30**; the weakest answerable case's own document
+# scored **0.60** (`paraphrase-organization-2`). So every floor in [0.30, 0.60) makes the same
+# trade, and the choice inside that band is about margin, not about this fixture. 0.35 is one
+# quantization step above the noise ceiling (the reranker emits 0.05 steps) and leaves 0.25 of
+# headroom under the weakest real signal, while keeping the same 3.5 passages per answerable
+# turn that 0.30 does - so the extra margin costs no context.
+#
+# **Biased toward answering, deliberately.** Raising the floor buys nothing on this evidence
+# (24/24 already empty at 0.30) and risks the tail D-166 measured live: real users phrase
+# questions further from the corpus than any fixture, so the answerable side is the tail more
+# likely to be under-measured here. Do not raise this without re-running the sweep.
+MIN_RERANK_RELEVANCE_SCORE = 0.35
+
+
 async def retrieve(
     repo: RagRepository,
     gateway: BedrockGateway,
@@ -218,6 +248,7 @@ async def retrieve(
     session_spend_cents: float,
     candidate_limit: int = 30,
     top_k: int = 8,
+    min_relevance_score: float = MIN_RERANK_RELEVANCE_SCORE,
 ) -> RetrievalResult:
     """Embeds `query`, runs the filter-first hybrid search, then reranks. Every retrieved
     chunk is untrusted document content by the time it leaves this function (SPEC
@@ -285,10 +316,17 @@ async def retrieve(
     # closest-available row from a hybrid search that (by design) always returns up
     # to candidate_limit rows even when none are actually relevant. Dropping those
     # before synthesis is what makes reranking a real filter, not just a sort.
+    #
+    # AUD-C-12: the cut is `min_relevance_score`, not 0.0. "Present in the corpus at all" was
+    # never what §5.21.8's threshold trigger meant, and an empty result here is the trigger
+    # firing - the graph routes it to the access-hint/no-source path without paying for a
+    # synthesis call that would have quoted a passage rated 0.05.
     scored = [
         (chunk, score_by_index.get(index, 0.0)) for index, chunk in enumerate(candidates)
     ]
-    ranked = [chunk for chunk, score in sorted(scored, key=_by_score) if score > 0.0]
+    ranked = [
+        chunk for chunk, score in sorted(scored, key=_by_score) if score > min_relevance_score
+    ]
     return RetrievalResult(
         chunks=ranked[:top_k], cost_cents=embedding_result.cost_cents + rerank_result.cost_cents
     )

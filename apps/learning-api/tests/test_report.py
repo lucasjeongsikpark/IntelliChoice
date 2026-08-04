@@ -372,6 +372,83 @@ def test_ungrounded_response_falls_back_to_facts_only_template() -> None:
     asyncio.run(run())
 
 
+def test_an_inverted_score_pair_falls_back_to_facts_only_template() -> None:
+    """AUD-L-09 through the path that actually runs. The unit rule lives in
+    `packages/shared/tests/test_numeric_grounding.py`; this asserts that *this service*
+    consults it - D-159's lesson, where a guard was written into a function with no callers
+    and every status-code assertion still passed.
+
+    Every number below is in the evidence (4.0 and 6.0 are the payload's own scores), so the
+    provenance check accepts this sentence and accepted it before the directional rule
+    existed. The parent's real result is a two-point gain.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = StudentReportRepository(session)
+            ledger = _cost_ledger()
+            gateway = _FakeGateway(
+                [
+                    ReportInterpretationResponse(
+                        interpretation_text="Their score fell from 6.0 to 4.0 this month.",
+                        recommendations_text="Focus on Two-Step Equations.",
+                    )
+                ]
+            )
+
+            result = await generate_student_report(
+                gateway=gateway,
+                repo=repo,
+                cost_ledger=ledger,
+                student_external_id=STUDENT_ID,
+                payload=_payload("parent"),
+                idempotency_key="report-inverted-pair",
+                session_spend_cents=0.0,
+            )
+
+            assert result.generated is False
+            assert "fell from" not in result.interpretation_text
+            # The fallback still carries the real figures, in the real order - which is why
+            # rejecting costs the parent the prose and not the numbers.
+            assert "from 4.0 to 6.0" in result.interpretation_text
+
+    asyncio.run(run())
+
+
+def test_an_inverted_pair_in_the_recommendations_rejects_the_whole_report() -> None:
+    """Both texts are checked, and one bad text drops both: a report whose interpretation is
+    faithful and whose recommendations invert the same pair is not half-shippable.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = StudentReportRepository(session)
+            ledger = _cost_ledger()
+            gateway = _FakeGateway(
+                [
+                    ReportInterpretationResponse(
+                        interpretation_text="Score improved from 4.0 to 6.0.",
+                        recommendations_text="Since they slid from 6.0 to 4.0, review daily.",
+                    )
+                ]
+            )
+
+            result = await generate_student_report(
+                gateway=gateway,
+                repo=repo,
+                cost_ledger=ledger,
+                student_external_id=STUDENT_ID,
+                payload=_payload("parent"),
+                idempotency_key="report-inverted-recommendations",
+                session_spend_cents=0.0,
+            )
+
+            assert result.generated is False
+            assert "slid from" not in result.recommendations_text
+
+    asyncio.run(run())
+
+
 def test_grounded_response_is_trusted_as_is() -> None:
     async def run() -> None:
         async with _rollback_session() as session:

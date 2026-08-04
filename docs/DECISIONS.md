@@ -10718,3 +10718,170 @@ nothing.
   that invites this error is worth retiring: "`/dev/token` is 404 on both public edges" describes
   **one probe shape**, not the endpoint — the route is registered and the 404 comes from inside the
   handler.
+
+## D-172 — the three guards whose floor was lower than their name: AUD-L-09, AUD-C-13, AUD-C-12 (accepted, 2026-08-04)
+
+Taken as one cluster in D-156's shape — three defects of one shape, sharing fix vocabulary, not
+one defect at three layers. Each of the three is a verification that ran, passed, and checked
+much less than its name implies: numeric grounding verified that a number *exists*, the citation
+check verified that a quote is *non-empty*, and §5.21.8's retrieval-score trigger verified
+nothing at all. All three were closed by **measuring the floor first and choosing it from the
+measurement**, which is also what separates this from three plausible one-liners.
+
+### 1. AUD-L-09 — a directional check, and the unsoundness written into the code
+
+D-098's disposition, implemented as decided: `grounding_failure` now rejects an explicit
+`from X to Y` transition that states the known `pre_raw_score`/`post_raw_score` pair in reverse.
+"Your score fell from 6 to 4" for a student who went 4 → 6 was fully grounded before — both
+numbers are in the evidence — and shipped to a parent.
+
+**`from`/`to` is the only phrasing judged, and that is a deliberate scope, not laziness.** The
+order is asserted by the connective, so no list of "improved"/"fell" verbs has to be maintained
+against a product whose whole framing is growth-oriented rewording (SPEC §5.10.3). What stays
+accepted is recorded in `numeric_grounding`'s own docstring rather than only in the audit:
+swapped skills, a mastery figure on the wrong skill, a pre-exam number presented as post-exam,
+and any inversion phrased without `from`/`to`. **The directional check is not full verification
+and the code says so.**
+
+**One known false rejection, pinned by a test so it stays a decision.** With scores 4 → 6 and
+hints 6 → 4, a faithful sentence about hints is indistinguishable from an inverted one about
+scores — numbers carry no field identity, which is the finding itself. It fails closed: the
+parent loses the prose and keeps the correct figures (`_fallback_texts`).
+
+**D-098's mitigation 2 was already satisfied, and the useful work was proving it stays so.**
+Every `StageNarrativePayload` is built per stage with only that stage's fields, so a
+`study_outro` narrative is never shown a score to misattribute. Nothing to implement — which is
+exactly the kind of fix that silently regresses, so
+`apps/learning-api/tests/test_stage_payloads_stay_narrow.py` asserts it from the AST of the real
+construction sites (the same source-level argument as
+`test_standalone_clis_use_the_env_fallback.py`: the property is "this call site does not pass
+that field", and a behavioural test would pass just as happily if the field were present and
+None). It was watched failing against a deliberately widened `study_step` payload. Narrowing the
+*report* payload was rejected: it is broad by audience authorization, and trimming it would show
+the model less than the parent is entitled to see, which is D-163's false-rejection class.
+
+The two failure modes are now logged apart (`ungrounded_number` vs `inverted_score_pair`) at both
+call sites. A single "failed grounding" counter cannot distinguish a model that fabricates from
+one that misreads, and a rule that never fires looks identical to one that cannot (D-171 §2).
+
+### 2. AUD-C-13 — the quote floor, measured against the corpus rather than chosen
+
+`quote in chunk_text` is a real defense whose floor was `"a"`. Quantified with
+`scripts/measure_citation_quote_floor.py` over the 144 approved chunks: a 1-character span
+occurs in a median of **140 of them** (0% of sampled spans unique), 2 chars in 74, 4 in 10, 8 in
+2. At **20 chars** the median is 1 and the p90 is 2, and 24/32/40 buy essentially nothing more —
+so `MIN_CITATION_QUOTE_CHARS = 20` is the knee of a curve, not a round number.
+
+A module constant, not a setting, unlike `groundedness_confidence_threshold`: the number is a
+property of the corpus (how long a span must be to identify a document), and the only thing a
+per-environment override could do is weaken a verification.
+
+**The floor's cost was measured too, and turned into a test.** A flat floor makes any chunk
+shorter than it uncitable, and refusing an answer the corpus contains is AUD-C-08's defect. Of
+the 144 approved chunks, the five under 20 normalized characters are all bare markdown headings
+(`# our team`, `## administration`) — content that supports no answer, so nothing citable was
+lost. That is a fact about today's corpus rather than a property of the rule, so
+`test_the_quote_floor_excludes_only_heading_chunks` asserts it (with a chunk-count control, so
+an unloaded corpus fails instead of passing vacuously). A future document with a genuinely short
+standalone fact fails that test instead of silently becoming unquotable. The rejected
+alternative was "≥20 chars **or** the whole chunk", which sounds safer and is worse: it admits
+exactly the heading-only citations that prove nothing.
+
+The model is told the requirement in the synthesis prompt, and a test asserts the constant
+appears there. An unannounced floor converts into refusals a user sees, which is the D-155 class
+of cost, and the drop is logged (`citation_quote_below_floor`, counts only — chunk text is org
+content and nothing redacts a log line).
+
+**Not measured: what a real model's quotes look like.** The mock quotes 80 characters, so the
+mock-backed eval is unaffected — verified by running it at floor 1 and floor 20 and getting
+byte-identical scores. Whether a real model ever under-quotes is a live question, and the log
+line above is the instrument for it.
+
+### 3. AUD-C-12 — SPEC §5.21.8's retrieval-score trigger, and the floor that had to be measured twice
+
+The trigger had no implementation: the only score filter was `rerank_score > 0.0`, so a passage
+the reranker rated 0.01 reached synthesis exactly like one it rated 0.99. The 0.4 threshold that
+exists gates the *model's self-reported confidence about its own answer* — a different §5.21.8
+rule, and the two are not interchangeable.
+
+`scripts/measure_retrieval_score_floor.py` (new, dump/`--load` shape borrowed from
+`measure_access_probe_rules.py` so re-scoring any floor is free) ran the coverage fixture's 20
+answerable and 24 unanswerable cases against **real Titan + the real reranker**, with the
+corpus re-embedded inside a rolled-back transaction — without that step a real query vector is
+compared against the dev database's mock vectors and the semantic half of the search is noise
+(AUD-C-16). **One run, 38.49 cents**, no synthesis calls:
+
+| floor | answerable keep their document | unanswerable emptied | passages kept per answerable turn |
+|---|---|---|---|
+| 0.00 (today) | 20/20 | 7/24 | 9.9 |
+| 0.10 | 20/20 | 13/24 | 5.7 |
+| 0.30 | 20/20 | **24/24** | 3.5 |
+| 0.35 | 20/20 | 24/24 | 3.5 |
+| 0.60 | 19/20 | 24/24 | 2.9 |
+
+No unanswerable case scored above **0.30**; the weakest answerable case's own document scored
+**0.60** (`paraphrase-organization-2`). Every floor in [0.30, 0.60) makes the same trade, so the
+choice inside the band is about margin: **0.35** is one quantization step above the noise ceiling
+(the reranker emits 0.05 steps), leaves 0.25 of headroom under the weakest real signal, and keeps
+the same 3.5 passages per answerable turn that 0.30 does. Biased toward answering on purpose —
+raising it buys nothing on this evidence and risks the tail D-166 measured live, where real
+phrasings sit further from the corpus than any fixture. `test_the_default_floor_stays_inside_the_band_that_was_measured` asserts the band, so moving the
+constant out of it means re-running the sweep rather than editing a test.
+
+**The floor deliberately does not apply when the reranker is unavailable.** With no scores,
+applying it would discard every candidate and turn a reranker outage into a corpus-wide "no
+approved source" — the false statement about the corpus AUD-C-08/AUD-C-19 exist to prevent. The
+degradation is already loud (`retrieval_rerank_degraded`), which is what makes that safe.
+
+### 4. The mock and the real reranker are not on the same scale, and one floor cannot serve both
+
+Wiring 0.35 in took the gated `grounded` category from 88.9% to 77.8% in the **mock** run, and
+the interesting part is that nothing was broken. `MockBedrockProvider`'s reranker returns *the
+fraction of query words present in the chunk* — a lexical coverage ratio that shares the [0, 1]
+range with the real model's relevance judgement and measures something else, so a chunk that
+fully answers a twelve-word question can score 0.25. Measured across the mock run: any floor
+≥ 0.25 drops `grounded-team-3`; the real-model sweep says every floor in [0.30, 0.60) keeps all
+20 answerable cases. Both measurements are right about different quantities.
+
+So `MOCK_MIN_RELEVANCE_SCORE = 0.0`: the mock run keeps its exact pre-D-172 numbers
+(88.9 / 0.0 / 27.3 / 55.0 / 73.8), which is what keeps its history and its comparison against
+the real run readable — the same reason its own docstring gives for never gating
+retrieval-quality categories on the mock. The shipped value is exercised by
+`packages/knowledge/tests/test_retrieval.py`, whose three floor tests were watched failing with
+the constant set to 0.0, and by the real-Bedrock run, which reads it from `Settings`.
+
+**Consequence worth stating plainly: `make test` does not exercise the shipped floor end to
+end.** That is the price of a test double that scores on a different scale, and the alternative —
+recalibrating the mock's reranker so one number serves both — would bake a calibration
+assumption into a shared double whose documented job is stable ordering.
+
+**Discharged the same day: the real-Bedrock coverage run was executed, in three bounded arms
+(10.0c + 11.6c + 30.1c).** What it found, in order of usefulness:
+
+- **Neither floor costs an answerable turn.** `paraphrase` **11/11**, `grounded_citation_rate`
+  **17/20**, and the three `grounded` failures are all `grounded-branch-*` — whose expected document
+  the retrieval dump shows scoring **0.95 / 1.00 / 0.95**, far above the floor and top-ranked. They
+  fail for the reason S37 diagnosed and wrote down: the queries are keyword lists
+  ("Baton Rouge Carver Public Library Terrace Street Saturday hours"), which a real classifier
+  refuses before retrieval ever runs. Attributed for free from the existing dump rather than by
+  paying for a second arm.
+- **AUD-C-13's floor never fired under a real model.** Zero `citation_quote_below_floor` events
+  across 20 answerable cases that produced **17 verified citations** — so the zero has a control and
+  is not the vacuous kind D-171 §2 warns about. The 20-character floor is, on this evidence, free.
+- **AUD-C-12's payoff on this fixture is cost, not accuracy**, and that correction matters: a real
+  model already refuses all 8 `no_answer` cases (S37 recorded 8/8, and both arms here reproduce it),
+  so the floor buys the synthesis call avoided and the refusal made one stage earlier, not a refusal
+  that would otherwise have been wrong. Anyone reading the §3 table as an accuracy win is reading it
+  wrong.
+- **And the run failed on something else entirely, now filed as AUD-C-23** — D-168's own recorded
+  false-hint residual, observed live, against an eval assertion written to a stricter standard. The
+  floor-0.0 arm exists precisely to rule out D-172 as its cause, and does.
+
+### 5. A method note, since this is the second time in two sessions
+
+Two of the three floors here (20 characters, 0.35) sit inside a *band* rather than at a point,
+and in both cases the band came from measuring the two failure directions separately: what the
+floor buys and what it costs. The buy was easy to measure and the cost was not, and in both cases
+the cost measurement is what changed the design — "≥20 chars or the whole chunk" was rejected
+because of it, and 0.35 rather than 0.50 because of it. A threshold chosen from the buy alone
+would have looked equally well-evidenced and been wrong in the direction users notice.

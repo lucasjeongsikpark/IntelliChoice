@@ -164,8 +164,34 @@ async def reembed_corpus(session: AsyncSession, gateway: BedrockGateway) -> int:
     return len(rows)
 
 
+# AUD-C-12/D-172. The mock run must NOT apply the shipped retrieval floor, and this is the
+# one place where the two runs deliberately differ in configuration rather than only in
+# provider.
+#
+# `MIN_RERANK_RELEVANCE_SCORE` (0.35) was calibrated against the real reranker, which scores
+# "how relevant is this passage" on the prompt's own 0-1 scale. `MockBedrockProvider`'s
+# reranker returns *the fraction of query words present in the chunk* - a lexical coverage
+# ratio that shares the [0, 1] range and means something else entirely, so a chunk that fully
+# answers a twelve-word question can score 0.25. Measured over this fixture: any floor at or
+# above 0.25 drops `grounded-team-3` and takes the gated `grounded` category from 88.9% to
+# 77.8%, while the real-model sweep says every floor in [0.30, 0.60) keeps all 20 answerable
+# cases. Nothing is wrong with either number; they are measurements of different quantities.
+#
+# So the mock run keeps its pre-D-172 behaviour exactly (floor 0.0), which is what makes its
+# history and its comparison against the real run still readable - the same reason this
+# module's docstring gives for not gating retrieval-quality categories on the mock at all. The
+# shipped floor is exercised by `packages/knowledge/tests/test_retrieval.py` (explicit scores,
+# each watched failing at 0.0) and by the real-Bedrock run.
+MOCK_MIN_RELEVANCE_SCORE = 0.0
+
+
 async def ask(
-    session: AsyncSession, gateway: BedrockGateway, *, query: str, thread_id: str
+    session: AsyncSession,
+    gateway: BedrockGateway,
+    *,
+    query: str,
+    thread_id: str,
+    min_relevance_score: float | None = None,
 ) -> dict:
     """AUD-C-21/D-166: `access_probe_max_distance` is read from `Settings`, the way the real
     route does (`routers/sessions.py`), not left to `TurnContext`'s own default.
@@ -189,6 +215,15 @@ async def ask(
         rate_limiter=InMemoryRateLimiter(max_per_window=1000, window_s=3600.0),
         admin_escalation_email="admin@example.test",
         access_probe_max_distance=get_settings().access_probe_max_distance,
+        # AUD-C-12/D-172, and the same rule as the line above: the eval must see the tuned
+        # value, not `TurnContext`'s default. It matters more here than for the probe, because
+        # the two runs need *different* values - see this module's own note below on why a
+        # floor calibrated against the real reranker cannot be applied to the mock's scores.
+        min_relevance_score=(
+            get_settings().retrieval_min_relevance_score
+            if min_relevance_score is None
+            else min_relevance_score
+        ),
         query=query,
     )
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
@@ -218,7 +253,12 @@ def to_outcome(
     )
 
 
-async def run_all(session: AsyncSession, gateway: BedrockGateway) -> list[CaseOutcome]:
+async def run_all(
+    session: AsyncSession,
+    gateway: BedrockGateway,
+    *,
+    min_relevance_score: float | None = None,
+) -> list[CaseOutcome]:
     """Every case on its own thread id, seeded first where the case asks for it.
 
     Seeds accumulate within the run (the caller's transaction is rolled back afterwards),
@@ -248,6 +288,12 @@ async def run_all(session: AsyncSession, gateway: BedrockGateway) -> list[CaseOu
         for key in ("seed", "extra_seed"):
             if key in case:
                 await seed_chunk(session, gateway, **case[key])
-        result = await ask(session, gateway, query=case["query"], thread_id=f"eval-{case['id']}")
+        result = await ask(
+            session,
+            gateway,
+            query=case["query"],
+            thread_id=f"eval-{case['id']}",
+            min_relevance_score=min_relevance_score,
+        )
         outcomes.append(to_outcome(case, result, public_document_ids))
     return outcomes
