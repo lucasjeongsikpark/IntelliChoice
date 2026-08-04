@@ -1083,17 +1083,22 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-173. Everything is committed, merged and deployed;
-  nothing is owed except two things needing a browser or an `aws login`):**
+- **Next session, in order (2026-08-04, post-D-173. ⭐ Everything is committed, merged, deployed and
+  verified — for the first time in several sessions, item 0 is not "land the last session's work".
+  Start at item 1.):**
   0. **✅ Nothing is owed on the deploy.** D-173 is merged (`d3b9d3e`) and deployed (run 30912504443,
      `learning-api:60` / `chat-api:59`), the fixed gate passed, and the frontend bundle is
      byte-identical to a local build of the commit. AUD-F-38 is fixed.
   0b. **✅ Done — the live before/after pair is complete.** Both specs pass against staging, the run
      recorded `sha=d3b9d3ede59c` for both APIs, and the position arm proved the once-per-phase
      property against the real 20 s poll ("position after the wait: 1"). Nothing owed here.
-  0c. **D-167's behaviour check, THE ONLY THING STILL OWED, and no test can do it** (five sessions
-     owed): paste the staging secret, sign in, **fully quit the browser**, reopen the staging URL,
-     confirm the field is pre-filled and sign-in works with no `get-secret-value` call.
+  0c. **✅ D-167's behaviour check: confirmed by the user 2026-08-04 — it works.** Sign in, fully quit
+     the browser, reopen staging: the field is pre-filled and sign-in succeeds with no
+     `get-secret-value` call. Five sessions owed, and **not through neglect** — the claim is "state
+     survives the browser process dying", and Playwright's `storageState` is process-local, so an
+     automated version would assert its own fixture rather than `localStorage`'s lifetime (D-171 §2's
+     shape). It stayed listed as owed instead of being downgraded to "probably fine", which is the
+     part to repeat. **Nothing is owed to any previous session now.**
   1. **AUD-C-23's fork has changed shape and the new first question is cheap.** It does **not**
      reproduce on the deployed corpus (`access_hint: null`, three probes, against a control that can
      fail), so before choosing between "tighten the margin" and "relax the assertion", find out
@@ -5073,6 +5078,58 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S58 (unnumbered) — the refresh-state pair, a cluster of three that was really two, and the deploy gate that failed on its own verification traffic (2026-08-04) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-172)** — no numbered roadmap block
+  (D-152). Item 0 (deploy D-172) and item 2's frontend cluster, both confirmed with the user before
+  editing. Baseline verified first, not assumed: lint clean, pyright 0, **782 passed / 2 skipped**,
+  matching D-172's recorded numbers exactly.
+- **D-172 deployed, via a run that FAILED.** PR #100, CI 9/9, merged `70a7643`; run 30884342749
+  failed the deployed-version gate on `chat-api: PRIMARY/IN_PROGRESS` *after* `wait services-stable`
+  returned, while the artifact was correct throughout (`learning-api:59`/`chat-api:58` at
+  `gha-70a764315664`). **My own pre-deploy probes caused it** — real-Bedrock chat turns tripped
+  `chat-api-p95-latency-scale-out`, desiredCount 1→3 mid-rollout. The four steps the failure skipped
+  (security gate, canary bake, S3 sync, smoke test) were completed by hand: 4/4 → 404, 0/4 alarms
+  breached, both edges 200, no frontend delta to sync. Filed **AUD-F-38**.
+- **AUD-F-03 fixed** — exam position derived from the exam overview (first item still needing an
+  answer), applied **once per phase** so the 20 s poll cannot yank a student off an answered question
+  they navigated back to review. Residual named in the code: this is "first unanswered", not literally
+  "last viewed", because nothing server-side records view position. The existing `test.fail()` probe
+  in `journey-student.spec.ts` was promoted exactly as its own comment instructed.
+- **AUD-F-04 fixed** — both narrative gates moved into `useNarrativeGate` (one `sessionStorage`
+  record keyed by learning session id). **The finding named one door and there were two:**
+  `interactedPhase` was also React state, so a narrative the student had *worked past* returned after
+  a reload without ever being dismissed. `narrative-refresh.spec.ts`'s assertion was inverted per its
+  own instruction.
+- **AUD-F-05 needed no code — already fixed by AUD-F-21, with a passing regression test written to
+  its own subject.** Status corrected. It read as open because F-04 and F-05 share one heading in
+  AUDIT_FINDINGS.md, and that same heading had shifted **every** `AUD-F-0x` reference in `e2e/` by one
+  against the table.
+- **AUD-F-38 fixed the same session it was filed**, because the next deploy needed the frontend sync.
+  The gate now asserts the artifact (PRIMARY task definition's image + `runningCount ≥ 1`) and
+  bound-retries `rolloutState`. Narrower, not weaker: `FAILED` never retries into a pass, a wrong tag
+  fails **in 0 s even while IN_PROGRESS**, `runningCount < 1` fails.
+- **D-173 deployed clean.** PR #101, CI 9/9, merged `d3b9d3e`; run 30912504443 **success, rollback
+  skipped, every gate ran** — `learning-api:60`/`chat-api:59` at `gha-d3b9d3ede59c`.
+- **Verification:** `make lint` clean, `pyright` 0, **782 passed / 2 skipped** (unchanged — the
+  cluster is frontend-only); learning-web `tsc -b` + `oxlint` clean; e2e `tsc` clean; both workflow
+  YAMLs parse; **whole learning e2e suite 22 passed**. AUD-F-03 and AUD-F-04 both **watched failing
+  before their fixes**. AUD-F-38 verified against **7 stubbed deployment states** with a harness that
+  extracts the step from the YAML as the runner sees it — that path runs only in a deploy, so the
+  alternatives were a green run proving little or a red one costing another deploy.
+  **A live before/after pair on staging, both halves:** before the deploy both specs failed for their
+  own defects (position **1 where 3 was expected**; the dismissed narrative **returned**); after, both
+  pass, with the position arm proving the once-per-phase property against the real 20 s poll
+  ("position after the wait: 1"). Zero console/page/server errors on both.
+  **The deployed commit is established three ways from three mechanisms:** the gate's control-plane
+  read, a **SHA-256 match** between the deployed bundle and a local build at the merge commit
+  (`index-BFt53dSP.js`, 625,332 bytes — which also proves the S3 sync ran), and the harness's own
+  `[build-identity] sha=d3b9d3ede59c`.
+  **D-167's behaviour check confirmed by the user**, five sessions after shipping — no harness in this
+  project can assert "state survives the browser process dying" without asserting its own fixture.
+- **Carry-over:** none owed. Phase 0B is **7 open** (8 with AUD-F-16), re-derived by grep.
+- **New decisions:** D-173 (§1–§8), plus the D-167 verification note.
 
 ### S57 (unnumbered) — the three guards whose floor was lower than their name: AUD-L-09, AUD-C-13, AUD-C-12 (2026-08-04) ✅
 

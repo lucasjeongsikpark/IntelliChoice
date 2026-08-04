@@ -10382,6 +10382,17 @@ the unlocked machine, can read the staging secret; rotate the Secrets Manager va
 is lost. It does **not** widen what the internet can reach. The secret disappears entirely at S44
 when a real issuer replaces `/dev/token`.
 
+**✅ VERIFIED BY THE USER 2026-08-04 (D-173's session), five sessions after the fix shipped: it
+works.** Sign in, fully quit the browser, reopen the staging URL — the field is pre-filled and sign-in
+succeeds with no `get-secret-value` call. **Worth recording that this took five sessions, because the
+reason is structural rather than neglect:** the check is "does state survive the browser process
+dying", and no automated harness in this project can assert it. Playwright's `storageState` is
+process-local by construction, so a test would be asserting its own fixture, not `localStorage`'s
+lifetime — the exact vacuous shape D-171 §2 is about. The honest options were a human confirmation or
+nothing, and it stayed listed as owed rather than being quietly downgraded to "probably fine", which
+is the part to repeat. **Consequence: the `sessionStorage` → `localStorage` change is now confirmed to
+have bought what it was chosen for**, and the manual-staging-check tax D-167 described is gone.
+
 ## D-168 — AUD-C-22: the access probe becomes the retrieval pipeline it was paraphrasing, and the margin is what makes it safe (accepted, 2026-08-03)
 
 **Context.** D-166 deployed a wider probe ceiling (0.40 → 0.45) and its own verification found the

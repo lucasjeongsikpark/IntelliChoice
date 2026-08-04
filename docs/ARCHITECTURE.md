@@ -140,10 +140,25 @@ to rot, because nothing fails when it does.)*
   ran rather than merely "not 200".
   **`/healthz` and `/metrics` are outside the list deliberately** — internal-only, with the reason
   written at the list itself. So `build_identity`'s `build_sha` is unreadable from outside the VPC,
-  and the deploy answers "is this commit actually serving?" from the ECS control plane instead
-  (exactly one `PRIMARY`/`COMPLETED` deployment whose image tag is this run's). Adding a path to the
-  edge is a Terraform change plus an apply **and an exposure decision** — check whether something is
-  absent on purpose before adding it back.
+  and the deploy answers "is this commit actually serving?" from the ECS control plane instead:
+  **exactly one `PRIMARY` deployment whose image tag is this run's, with `runningCount ≥ 1`.**
+  Adding a path to the edge is a Terraform change plus an apply **and an exposure decision** — check
+  whether something is absent on purpose before adding it back.
+  **`rolloutState == COMPLETED` is bound-retried, not required at a single instant (AUD-F-38,
+  D-173 §6), and the reason generalizes.** It was required, and that failed a deploy whose artifact
+  was perfect: pre-deploy verification probes are slow real-Bedrock turns, they tripped chat-api's
+  p95 scale-out policy, and desiredCount moved 1 → 3 *after* `wait services-stable` returned — so the
+  rollout re-entered `IN_PROGRESS` and the gate read an autoscaling event as a bad deploy, skipping
+  every later step including the rollback. `COMPLETED` was only ever a proxy for "the right image is
+  serving", and an unrelated scaling event invalidates the proxy without touching the fact. **A
+  deploy gate must not assert a property that healthy autoscaling can change.** Still fatal, so the
+  gate is narrower rather than weaker: `FAILED`, a wrong image tag (checked *before* the retry, since
+  waiting cannot fix a stale image), and `runningCount < 1` — the one state that would make the tag
+  check vacuous.
+  **A deterministic frontend build gives a second, independent answer to the same question**
+  (D-173 §7): Vite content-hashes its bundles, so building the commit locally and comparing the
+  deployed asset's SHA-256 proves the bytes serving the edge are the bytes that commit produces. That
+  covers the S3/CloudFront half, which the ECS control plane says nothing about.
 - **A number shown to a family states its window, and is checked against what the system
   already measured** (D-156). Two failures with one root: nothing reconciled a figure against
   the data sitting beside it. A memory fact asserting a `strength` for a skill the same
@@ -981,7 +996,23 @@ construction. Idempotent per (session, stage[, skill]) via `StageTransitionRepos
 get_for_session_stage`, checked before ever calling Bedrock. **D-163 widened what `is_grounded`
 accepts** (percent renderings of proportions, thousands separators, numbers inside evidence
 strings) — this surface shares the module, so it inherits the change; see the report section below
-for why the old rules rejected faithful prose and where the new ones stay bounded.
+for why the old rules rejected faithful prose and where the new ones stay bounded. **D-172 §1 added a
+directional check** on top: an explicit `from X to Y` transition stating the known pre/post pair in
+reverse is rejected, because a fully-grounded sentence can still invert a real result.
+
+**The client half is not decoration, and it has its own persistence rule (D-173 §2).** A narrative is
+*server*-state — it lives in the snapshot and survives a refresh — while the two gates deciding
+whether to *show* it are client state: `dismissedNarrative` (the student clicked Continue) and
+`interactedPhase` (the student has already started working in this phase, so a late arrival is
+dropped rather than pushing the question down the page). Both were React state, so a reload re-opened
+both gates and the narrative came back. They now live in `useNarrativeGate` — one `sessionStorage`
+record **keyed by learning session id**, because dismissal is keyed by the narrative *text* and the
+welcome narrative is frequently identical across sessions, so a text-only key would make a new
+session's first narrative arrive pre-dismissed. **The general shape: when server state is durable and
+the client's decision about it is not, a refresh silently re-runs the decision.** The same reading
+fixed the exam position (`ExamScreen`'s `currentDisplayOrder`, AUD-F-03/D-173 §1) — except there the
+server already held the answer in the exam overview, so it is *derived* rather than persisted, which
+is the better option whenever it is available.
 
 ```mermaid
 flowchart LR
