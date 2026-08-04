@@ -11081,3 +11081,36 @@ needs `make e2e-staging`, which needs the two `/dev/token` secrets, which needs 
 this profile uses `login_session`, so refreshing it is interactive. This is confirmation rather than
 a gap: the suite is green locally, both fixes were watched failing pre-fix, and the deployed bundle
 is byte-identical to the tested commit.
+
+### 8. The live pair completed: both fixes verified on the deployed system
+
+`make e2e-staging` for the two specs, after the deploy: **both pass**. With §7's "before" run this is
+a genuine before/after pair on staging rather than a local result plus an assumption.
+
+| | before the deploy | after |
+|---|---|---|
+| `exam-position-refresh` | question **1** where 3 was expected | restored to **3**, and **still 1** after jumping back and waiting out a poll tick |
+| `narrative-refresh` | the dismissed narrative **returned** | *"narrative returned after the refresh: **false**"* |
+
+Three things worth keeping.
+
+**The position arm's live result is the load-bearing one**, because it exercises the property the
+plausible bad fix would break rather than the defect itself: restore to 3, jump back to the answered
+question 1, wait 26 s (past `OVERVIEW_POLL_MS`), still on 1. That is the once-per-phase design holding
+against staging's real poll, which no local run with a mock can fully stand in for.
+
+**AUD-F-16's mechanism supplied a third independent confirmation of the deployed version, for free.**
+The run printed `[build-identity] learning-api sha=d3b9d3ede59c` / `chat-api sha=d3b9d3ede59c`. So the
+deployed commit is now established three ways from three mechanisms — the gate's control-plane read,
+the bundle SHA-256, and the harness's own identity check. That is what AUD-F-16 was filed to make
+possible, and it is worth using deliberately rather than noticing in passing.
+
+**And the narrative dismissed on staging was a real-Bedrock one** (*"You're just getting started with
+the math tutoring app…"*), textually unlike the mock's `"Welcome back!"`. The fix is therefore
+confirmed against the deployed model's own output, not against a fixture that happens to be stable —
+which matters here because dismissal is keyed by the narrative *text*.
+
+Zero console, page and server errors on both specs. Read independently from the control plane
+afterwards: `learning-api:60` 2/2 COMPLETED, `chat-api:59` 1/1 COMPLETED (back at its by-design floor
+now the probe traffic has subsided), both `gha-d3b9d3ede59c`, one deployment each; all four canary
+alarms OK, with only the two documented no-traffic `p95-latency-scale-in` alarms in ALARM.

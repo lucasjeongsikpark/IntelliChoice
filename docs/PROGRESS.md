@@ -29,13 +29,26 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   `exam-position-refresh` got **question 1 where 3 was expected**, and `narrative-refresh` saw the
   dismissed narrative **return**. Artifacts preserved outside `artifacts/test-results/` because the
   next run overwrites those paths — D-171 §(a) applied to a test run rather than a deploy.
-  **⚠️ OWED, and blocked on one interactive command: the "after" half of that pair.** The AWS session
-  expired (`aws login` — this profile is `login_session`, not exportable SSO), and `make e2e-staging`
-  needs it to fetch the two `/dev/token` secrets. **This is confirmation, not a hole in the fix's
-  verification:** the full learning e2e suite is green locally (22 passed), both fixes were watched
-  failing pre-fix, and the deployed bundle is byte-identical to the tested commit. Run
-  `make e2e-staging E2E_ARGS="tests/learning/narrative-refresh.spec.ts tests/learning/exam-position-refresh.spec.ts"`
-  after `aws login` and both should now pass.
+  **✅ The "after" half is done — both specs now PASS against staging, so the pair is complete and
+  both fixes are verified on the deployed system, not only locally.** And the run recorded *which*
+  version it tested: `[build-identity] learning-api sha=d3b9d3ede59c` / `chat-api sha=d3b9d3ede59c`,
+  which is AUD-F-16's own mechanism supplying a third independent confirmation of the deployed
+  commit (after the gate and the bundle hash).
+  **The position arm's live evidence is the interesting half**, because it exercises the property a
+  plausible bad fix would break: *"position restored to question 3 after the refresh"* → *"jumped
+  back to question 1; waiting 26000 ms for a poll tick"* → **"position after the wait: 1"**. The
+  once-per-phase restore holds against staging's real 20 s poll, so the student is not yanked off an
+  answered question they navigated back to review. AUD-F-04's arm: *"narrative returned after the
+  refresh: **false**"*, against a real-Bedrock narrative (different text from the mock's, so it is
+  the deployed model's output being dismissed and staying dismissed).
+  **Zero console errors, zero page errors and zero server errors on both specs**, which also feeds
+  §2.6 criterion 3.
+  **✅ Read independently from the control plane afterwards** (not from the run's own output):
+  `learning-api:60` **2/2 COMPLETED**, `chat-api:59` **1/1 COMPLETED**, both `gha-d3b9d3ede59c`, one
+  deployment each. chat-api is back at its by-design floor of 1 now that the probe traffic has
+  subsided. **All four canary alarms OK**; the only two in ALARM are both `p95-latency-scale-in`, the
+  documented no-traffic case (missing datapoints treated as breaching, and at the floor the policy's
+  `-1` is a no-op) — deliberately excluded from the canary list, so not a deploy problem.
 
 - **✅ D-173 (the work itself): D-172 deployed via a failed run, and a cluster of three that was
   really two —
@@ -1075,11 +1088,10 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   0. **✅ Nothing is owed on the deploy.** D-173 is merged (`d3b9d3e`) and deployed (run 30912504443,
      `learning-api:60` / `chat-api:59`), the fixed gate passed, and the frontend bundle is
      byte-identical to a local build of the commit. AUD-F-38 is fixed.
-  0b. **⚠️ Needs `aws login` first, then it is two minutes: the "after" half of D-173's live pair.**
-     `make e2e-staging E2E_ARGS="tests/learning/narrative-refresh.spec.ts tests/learning/exam-position-refresh.spec.ts"`
-     — both failed against staging *before* the deploy (position 1-instead-of-3; narrative returned)
-     and should now pass. Confirmation only; the fixes are verified locally and by artifact identity.
-  0c. **D-167's behaviour check, still the one thing no test can do** (unchanged, four sessions
+  0b. **✅ Done — the live before/after pair is complete.** Both specs pass against staging, the run
+     recorded `sha=d3b9d3ede59c` for both APIs, and the position arm proved the once-per-phase
+     property against the real 20 s poll ("position after the wait: 1"). Nothing owed here.
+  0c. **D-167's behaviour check, THE ONLY THING STILL OWED, and no test can do it** (five sessions
      owed): paste the staging secret, sign in, **fully quit the browser**, reopen the staging URL,
      confirm the field is pre-filled and sign-in works with no `get-secret-value` call.
   1. **AUD-C-23's fork has changed shape and the new first question is cheap.** It does **not**
