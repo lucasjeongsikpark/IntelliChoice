@@ -5,7 +5,40 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **✅ D-173: D-172 deployed (via a failed run), and a cluster of three that was really two —
+- **✅ D-173 IS DEPLOYED, the fixed gate passed, and the frontend artifact is verified byte-for-byte
+  (2026-08-04).** PR **#101**, CI **9/9 first attempt**, squash-merged as
+  **`d3b9d3ede59cfb6a1dcb5a6ada56ab81ec79b4cc`**, deploy run
+  [30912504443](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30912504443),
+  **success**, rollback **skipped**, **every gate ran** — the first fully green deploy since the
+  AUD-F-38 failure. `learning-api:60` / `chat-api:59`, both `gha-d3b9d3ede59c`.
+  **✅ The gate reported `rollout COMPLETED (2/2)` for both services on its first read**, so the
+  AUD-F-38 fix did not disturb the normal path. **⚠️ State plainly what this run did *not* show:** no
+  autoscaling event happened during it, so **the retry and deadline-accept paths were not exercised
+  live** — they are verified only by the 7-state harness. The next deploy that follows chat probes is
+  the one that will exercise them.
+  **✅ The frontend half is verified as strongly as it can be, and this is the method to reuse.**
+  D-157 §2 could only grep the deployed bundle for a string. Better: Vite content-hashes its
+  bundles, so building the commit locally and comparing is conclusive. The deployed
+  `/assets/index-BFt53dSP.js` and a local `npm run build` at `d3b9d3e` are **the same filename,
+  625,332 bytes, and the same SHA-256** (`1b0a7c56…14ba51`). **The bundle serving staging is exactly
+  what this commit builds** — which also settles that the S3 sync ran, the thing D-172's deploy
+  skipped. `intellichoice.narrativeGate` is present in it as a cross-check.
+  **✅ Both edges 200, `/dev/token` → 404 on both** (re-checked by hand as well as by the pipeline).
+  **✅ A live before/after pair exists for both fixes, and the "before" half is on the deployed
+  system.** Run against staging *before* this deploy, both specs failed for their own defects:
+  `exam-position-refresh` got **question 1 where 3 was expected**, and `narrative-refresh` saw the
+  dismissed narrative **return**. Artifacts preserved outside `artifacts/test-results/` because the
+  next run overwrites those paths — D-171 §(a) applied to a test run rather than a deploy.
+  **⚠️ OWED, and blocked on one interactive command: the "after" half of that pair.** The AWS session
+  expired (`aws login` — this profile is `login_session`, not exportable SSO), and `make e2e-staging`
+  needs it to fetch the two `/dev/token` secrets. **This is confirmation, not a hole in the fix's
+  verification:** the full learning e2e suite is green locally (22 passed), both fixes were watched
+  failing pre-fix, and the deployed bundle is byte-identical to the tested commit. Run
+  `make e2e-staging E2E_ARGS="tests/learning/narrative-refresh.spec.ts tests/learning/exam-position-refresh.spec.ts"`
+  after `aws login` and both should now pass.
+
+- **✅ D-173 (the work itself): D-172 deployed via a failed run, and a cluster of three that was
+  really two —
   AUD-F-03, AUD-F-04, AUD-F-05 (2026-08-04, no numbered session).** `make lint` clean, `pyright` 0,
   **782 passed / 2 skipped** (unchanged — this cluster is frontend-only), and the **whole learning
   e2e suite green: 22 passed**. Frontend `tsc -b` and `oxlint` clean. **Uncommitted at time of
@@ -1037,17 +1070,15 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-173. D-172 is deployed; D-173's own frontend work is
-  uncommitted):**
-  0. **Land D-173.** The AUD-F-03/F-04 work is uncommitted — code, tests and docs, **no migration,
-     no python change** (782 unchanged), and **frontend files change for the first time in three
-     deploys**, so this one *does* need the S3 sync + CloudFront invalidation that D-172's deploy
-     skipped harmlessly. The D-157 pre-check should predict a frontend-and-docs deploy.
-  0b. **✅ AUD-F-38 is fixed (D-173 §6) and rides in the same commit**, so this deploy is the one
-     that tests the fixed gate. Expect either `rollout COMPLETED` or one or two `waiting…` lines
-     followed by COMPLETED; a `::warning title=Rollout still in progress` means it hit the 300 s
-     deadline with the right image, which is a pass. **If the gate fails on the image tag, that is
-     real** — the fix deliberately does not retry that.
+- **Next session, in order (2026-08-04, post-D-173. Everything is committed, merged and deployed;
+  nothing is owed except two things needing a browser or an `aws login`):**
+  0. **✅ Nothing is owed on the deploy.** D-173 is merged (`d3b9d3e`) and deployed (run 30912504443,
+     `learning-api:60` / `chat-api:59`), the fixed gate passed, and the frontend bundle is
+     byte-identical to a local build of the commit. AUD-F-38 is fixed.
+  0b. **⚠️ Needs `aws login` first, then it is two minutes: the "after" half of D-173's live pair.**
+     `make e2e-staging E2E_ARGS="tests/learning/narrative-refresh.spec.ts tests/learning/exam-position-refresh.spec.ts"`
+     — both failed against staging *before* the deploy (position 1-instead-of-3; narrative returned)
+     and should now pass. Confirmation only; the fixes are verified locally and by artifact identity.
   0c. **D-167's behaviour check, still the one thing no test can do** (unchanged, four sessions
      owed): paste the staging secret, sign in, **fully quit the browser**, reopen the staging URL,
      confirm the field is pre-filled and sign-in works with no `get-secret-value` call.

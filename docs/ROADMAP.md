@@ -764,6 +764,14 @@ which stop the line.
 > already written. Together with D-170 (a shared shape, one finding inapplicable) the general form
 > is: a shared framing earns two findings a joint *reading*, never a joint *verdict*.
 >
+> **A deterministic build makes a frontend deploy verifiable by identity, not by grep (D-173 §7).**
+> D-157 §2 confirmed a frontend deploy by grepping the deployed bundle for a class name and called
+> that "luck, not design". The better use of the same property: **build the commit locally and compare
+> bytes.** The deployed bundle and a local build at the merge commit matched on filename, size and
+> SHA-256 — which answers "is this commit live?" outright and also proves the S3 sync ran. Prefer it
+> to a grep whenever the build is deterministic; its limit is that it proves correspondence to a
+> commit, not that the commit is right.
+>
 > **And a fix can be verified live by a probe whose real job was something else (D-173).** The
 > control run to prove that AUD-C-23's `access_hint: null` was a real negative rather than an empty
 > corpus happened to be the exact question D-166 had recorded returning the *wrong* tier — so it

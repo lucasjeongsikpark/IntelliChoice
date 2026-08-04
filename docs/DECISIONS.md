@@ -11048,3 +11048,36 @@ hardcoded `300s` while the deadline was a separate literal (now one `WAIT_SECOND
 message cannot lie), and an early harness reading of "exit 0" on a fatal case turned out to be a
 missing `set -o pipefail` in the *harness*, not a gate defect — worth recording because it is the
 same class of mistake as the finding it was testing: a status read from the wrong place.
+
+### 7. Deployed, and a better way to verify a frontend deploy than D-157 §2 had
+
+Run [30912504443](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30912504443):
+**success**, rollback skipped, every gate ran. `learning-api:60` / `chat-api:59` at
+`gha-d3b9d3ede59c`. The fixed gate reported `rollout COMPLETED (2/2)` for both services on its first
+read — so §6 did not disturb the normal path. **What this run did not show, stated because a future
+session would otherwise read the green as broader than it is:** no autoscaling event occurred during
+it, so the retry and deadline-accept paths were *not* exercised live and remain verified only by the
+harness.
+
+**The frontend verification is the reusable part.** D-157 §2 confirmed a frontend deploy by fetching
+the deployed stylesheet and grepping it for a class name, and its own note called that "luck, not
+design" — it worked only because Vite content-hashes bundles. That property supports something much
+stronger: **build the commit locally and compare.** The deployed `/assets/index-BFt53dSP.js` and a
+local `npm run build` at `d3b9d3e` produced the same filename, the same 625,332 bytes and the same
+SHA-256. That is not "a string I expected is present"; it is "the bytes serving staging are the bytes
+this commit produces", which also settles that the S3 sync ran — the step D-172's failed deploy
+skipped.
+
+Worth preferring over a grep whenever the build is deterministic, and worth knowing the limit: it
+proves correspondence to a *commit*, not that the commit is correct. It replaces the artifact
+question, not the test suite.
+
+**Owed and blocked on an interactive command, recorded rather than glossed:** the "after" half of the
+live pair. Both specs were run against staging *before* the deploy and failed for their own defects
+(position 1-instead-of-3; the dismissed narrative returning), which is a real "before" on the
+deployed system — those artifacts were copied out of `artifacts/test-results/` first, since the next
+run overwrites the same paths (D-171 §(a), applied to a test run instead of a deploy). The "after"
+needs `make e2e-staging`, which needs the two `/dev/token` secrets, which needs a live AWS session;
+this profile uses `login_session`, so refreshing it is interactive. This is confirmation rather than
+a gap: the suite is green locally, both fixes were watched failing pre-fix, and the deployed bundle
+is byte-identical to the tested commit.
