@@ -38,10 +38,10 @@ ones.
 | **AUD-L-13** | **Minors / correctness** | **P2** | **Fixed in D-156** | `_contradicts_measured_mastery` screens `strength`/`weak_skill` candidates against `mastery.weighted_score` at `WEAK_SKILL_THRESHOLD`, on the add path **and the reconfirm path** — the latter is the one that matters, since reconfirmation is the promotion path and repetition was the promotion criterion. Abstains when no mastery row exists (nothing to contradict); the other ten fact types are deliberately unscreened (they describe *how* a student works, which a score cannot contradict). Refusals counted (`mastery_conflicts`), logged, and printed in the CLI summary. `WEAK_SKILL_THRESHOLD` moved to `intellichoice_shared.mastery_policy` so the floor and the study plan cannot drift. Original: consolidation verified provenance and repetition, never the claim against the measured score in the same database — a `strength` fact coexisted with `weighted_score = 0.0` |
 | **AUD-L-14** | **Correctness / parent-visible** | **P2** | **Fixed in D-162** | Measured before fixing, as the filing demanded: a browser-driven journey populates **both** sources within ~7% of each other (1,453 ms summed `response_time_ms` vs 1,354 ms summed item-state for one full pre-exam), so S36's "140 rows summing to 0 ms" was an artifact of driving the journeys through the API with no browser — the client half was never broken (AUD-F-01/D-107). The reliability asymmetry is what stands: item-state is a fire-and-forget tick a hard refresh or non-browser client silently drops; `response_time_ms` is **required** by `SubmitAnswerRequest` on every accepted answer. `build_dashboard` now sums `response_time_ms` from the attempt rows it already fetched (same rows as `attempts_count`, so the two figures can no longer disagree about which attempts exist); the repo's telemetry-summing query and its half-true docstring are deleted. Telemetry itself stays, as the autosave/resume signal, guarded by AUD-F-01's regression spec. Original: `time_spent_minutes` summed the telemetry column and ignored the always-populated server-required one — `0.0` minutes beside `attempts_count: 26`, inside `verified_facts` |
 | **AUD-L-15** | **Correctness / parent-visible** | **P2** | **Fixed in D-156** | Three parts, two of them behaviour changes the user decided: **(a)** mastery now includes the post-exam (`_recompute_all_skill_mastery` gained `post_assessment_session_id` and is now called on post-exam finalize, where it never was) — this also fixes `topic_resolver` choosing the next cycle's targets from a score that had never seen how the last one ended; **(b)** "skills to strengthen" now uses the study plan's own cut (`mastery.weighted_score < WEAK_SKILL_THRESHOLD`) instead of a hardcoded 0.8 on post-exam accuracy, so a report cannot recommend work the system will not do; **(c)** every figure states its window, in the report payload, the prompt, and as `GET /dashboard` chart captions. **Still true and now stated rather than implied:** mastery is not date-filtered. Original: mastery excluded the post-exam while "skills to strengthen" was post-exam-derived, both shown under `date_range_label: "all time"` — one skill reading mastery 1.000 *and* "needs work" |
-| AUD-L-08 | Correctness | P3 | Open — Phase 0B | `normalized_gain` has no bound in either direction and derives its denominator from the pre *attempt count*. **Reachability corrected in the S36 continuation:** −200% reached on an ordinary journey, and >1 reachable via AUD-L-10's duplicate attempts |
+| AUD-L-08 | Correctness | P3 | ✅ fixed 2026-08-04 (D-176) | `normalized_gain` has no bound in either direction and derives its denominator from the pre *attempt count*. **Reachability corrected in the S36 continuation:** −200% reached on an ordinary journey, and >1 reachable via AUD-L-10's duplicate attempts. **Fixed as the user decided (D-175 §5): denominator is now the declared item count, and a quotient still outside [-1, 1] is flagged `unmeasurable_out_of_range`, never clamped** — the raw value survives for diagnosis, and `post_outro`'s narrative payload suppresses any flagged gain. 8 tests, one per row of the reproduction table |
 | AUD-L-16 | Design integrity | P3 | ✅ **fixed in D-174 §6 (2026-08-04) — wired, on D-169's precedent (user's call)** | `services/effective_policy.py` reads both snapshots back and the chat gate now asks it instead of testing `phase == "study"`. **Behaviour is deliberately unchanged** under the shipped constants (pre/post refuse, study allows, every other phase refuses); what changed is that retuning `exam_policy._POLICIES` can no longer alter an in-flight session's rules — the guarantee `AssessmentSession.policy`'s own comment promises and did not implement. **`policy` is nullable** (pre-S22 rows were never backfilled), so a `constant_fallback` path is real and is *reported* rather than passed off as the snapshot's answer — "the snapshot decided" and "the snapshot was missing" are the same boolean and different guarantees. **10 tests, and they are masking tests by construction:** all 10 fail against a stub of the old phase-string mechanism, including the two load-bearing ones (a study snapshot that *disables* hints, and an exam snapshot that *enables* them, each obeyed against the opposite constant). Fails closed on an unknown phase and on an id that no longer resolves. Original: | Both policy snapshots (`assessment_sessions.policy`, `study_sessions.intervention_policy`) are written at creation and never read back; only `time_limit_seconds` governs behavior, via a separate column |
 | AUD-L-17 *(keeps the id — it held it first; D-159's P2 was renumbered to `AUD-L-19` by D-174)* | Test integrity | P3 | **Fixed in S36 continuation** | The default mock's own hint boilerplate (`Level 1`) tripped the runtime answer-leak check whenever the served answer was `"1"`, making a hint test fail 8 times in 60 runs; `hint_events.was_personalized` still records no reason code, so the real rate is unmeasurable |
-| AUD-L-01 | Auth surface | P3 | ✅ fixed 2026-08-04 (D-175) | A gated-off `/dev/token` still discloses that it exists, and the S35 deploy gate's stated rationale is wrong about why it 404s. **Fixed in HTTP middleware, not by conditional registration** — the finding's own recommended fix (register the route only when enabled) would have moved `Settings` to import time and broken the monkeypatch-after-import approach every existing test and the gate's own reasoning depend on; middleware runs before routing, so all shapes 404 with a byte-identical body while the decision stays per-request. Asserted on both apps against a genuinely-absent-path control, over 5 request shapes — including `no_body` and `PUT`, which the finding's table never listed. **The quoted false sentence no longer existed**: the gate comment had been rewritten before this session, so only the mechanism claim was live |
+| AUD-L-01 | Auth surface | P3 | ✅ fixed 2026-08-04 (D-175) | A gated-off `/dev/token` still discloses that it exists, and the S35 deploy gate's stated rationale is wrong about why it 404s. **Fixed in HTTP middleware, not by conditional registration** — the finding's own recommended fix (register the route only when enabled) would have moved `Settings` to import time and broken the monkeypatch-after-import approach every existing test and the gate's own reasoning depend on; middleware runs before routing, so all shapes 404 with a byte-identical body while the decision stays per-request. Asserted on both apps against a genuinely-absent-path control, over 5 request shapes — including `no_body` and `PUT`, which the finding's table never listed. **The quoted false sentence no longer existed**: the gate comment had been rewritten before this session, so only the mechanism claim was live. **Live rows measured at the D-176 deploy: GET and no-body POST → 404 on both public edges** (D-171's 405/422 rows are gone). Residual, infra-level not app-level: CloudFront's *behavior* config still routes `/dev/token` to the API (JSON 404) while `/dev/nonexistent` falls through to the SPA, so the CDN discloses the path exists — a Terraform surface, and the same fact is visible in this public repo, so noted here rather than re-opened |
 | **AUD-C-01** | **Authorization** | **P1** | **Fixed in S40** (D-107) | Both halves, fixed independently so neither relies on the other being correct: `_assert_session_access` now runs in `/messages` (folded into the one place that already reads the checkpoint, so a future caller cannot pick up the paused check and leave the access check behind), and `resolve_role` no longer downgrades an existing `user_external_id` to `None` on an anonymous turn. Landed with AUD-C-04 as D-101 requires. Original: `POST /messages` has no thread-ownership check *and* an anonymous turn erases the owner that `/respond` and `/stream` do check. Live-verified on staging: an unauthenticated caller continued a tutor's thread, received the tutor's answer and citation, and resolved its interrupt. Locally, tutor-audience text reached the anonymous response verbatim |
 | **AUD-C-02** | **Launch journey** | **P1** | **Fixed and live-verified 2026-07-28 (D-111 + D-112)**: D-111's topic fix alone was **measured insufficient** — with it live, "What is IntelliChoice?" was still refused or bounced to clarification 3/3 on real Bedrock. Closing it took D-112's intent *definitions* + pinned examples in the same prompt. Post-fix: **3/3 grounded answers citing About IntelliChoice** ("Who leads…" 3/3, "people who run…" 3/3, from an `admin_contact` misroute). Static guards: `test_scope_prompt_spec_coverage.py` (topics) + `test_scope_prompt_defines_intents` (definitions); behaviour: `paraphrase` eval cases on the real-Bedrock runner | Original: The `SCOPE_AND_INTENT` prompt's topic list omits SPEC §5.19.4's first supported topic ("IntelliChoice organization"), so live staging refuses **"What is IntelliChoice?"** as out of scope, 5/5. The mock's keyword list contains `"intellichoice"`, so no test could see it |
 | **AUD-C-03** | **Minors / PII** | **P1** | **Fixed 2026-07-28 (D-113), verified live on staging 2026-07-29**: `purge_resume_writes` deletes the thread's `__resume__` rows immediately after a `location_consent` resume completes — the finding's own targeted delete, keeping crash-safety for exactly the window it covers. Regression test drives the real endpoints + real `AsyncPostgresSaver` and decodes blobs with LangGraph's own serializer (msgpack-aware, honoring the finding's method note); watched failing pre-fix with the audit's exact two `__resume__` rows. **Post-deploy staging probe (deploy `9467c78`): a real-coordinates locator turn answered with distances, then an ops-task query found 0 `__resume__` rows and the coordinates' raw float64 bytes absent from every surviving blob** | Original: A caller's precise coordinates persist indefinitely in `checkpoint_writes.__resume__`, contradicting the consent notice's verbatim promise not to store them. D-045 called this "briefly"; nothing purges it, and D-045's "not eliminable" is wrong — a targeted delete works |
@@ -135,7 +135,7 @@ corrected and the correction is marked in it.
 | AUD-C-17 | RAG / test integrity | P1 | ✅ Fixed 2026-08-01 (D-144) | The adversarial containment cases were passing over an empty-in-practice corpus, and broke the moment 11 documents became effective |
 | AUD-C-18 | RAG / retrieval | P2 | ✅ Fixed and live-verified 2026-08-01 (D-150) | Four of the six newly-effective public documents are unretrievable on staging, while the same corpus answers them locally |
 | AUD-F-21 | Launch journey / frontend | P1 | ✅ Fixed 2026-07-29 (D-117) — **heading said "not fixed" until D-174** | A late stage narrative unmounts the screen the student is already using. Also the fix that closed AUD-F-05 as collateral |
-| **AUD-F-22** | **Launch journey / UX** | **P2** | **Open — needs a UX decision** (filed not fixed, D-117) | **A parent cannot reach their child's progress dashboard without finishing a whole pre/study/post cycle** — the dashboard button exists only on `StartScreen` (which needs a `studentId` a parent gets by starting a session) and `ResultsScreen`. The fix is a decision about where a persistent entry point belongs, which is why it was filed rather than fixed. Measured continuously by the `test.fail()` probe in `e2e/tests/learning/journey-parent.spec.ts`, which fails the run the day the gap closes |
+| **AUD-F-22** | **Launch journey / UX** | **P2** | **✅ fixed 2026-08-04 (D-176)** | **A parent cannot reach their child's progress dashboard without finishing a whole pre/study/post cycle** — the dashboard button exists only on `StartScreen` (which needs a `studentId` a parent gets by starting a session) and `ResultsScreen`. **Fixed per the user's UX call (D-175 §5 → D-176): the child resolves at login** — one child silently, several via the existing `ChildSelectionScreen`, via new parent-only `GET /learning/parents/me/children`; the choice is login-scoped (survives `endSession`, forgotten on logout) and the in-session interrupt is now the server-side fallback. Also closes the S11 carry-over. The `test.fail()` probe is promoted to a regression test asserting the stronger property: dashboard + report with **zero** sessions |
 | AUD-F-23 | Audit integrity / harness | P3 | ✅ Found and fixed in the S43 continuation (D-117) | A conditional skip made an untested journey look tested for four sessions |
 | AUD-F-24 | Launch journey / frontend | P1 | ✅ Found and fixed in the S43 continuation (D-118) | A conditional wrapper remounts the screen below it, so AUD-F-21's first fix truncated the dwell anyway |
 | AUD-F-25 | Launch journey / staging content | P2 | ✅ Fixed 2026-07-29 (D-119 §3) — **heading said "not fixed" until D-174** | chat's suggestion chips have never been seeded on staging, and the seeder cannot run there (a dangling editable install in the ops-task image) |
@@ -153,15 +153,17 @@ corrected and the correction is marked in it.
 | AUD-F-37 | Deploy pipeline | P2 | ✅ Fixed 2026-08-03 (D-158) | Nothing verified that the deployed code is the code that was built |
 | **AUD-C-24** | **Minors / PII floor — chat free text** | **P2** | **Open — filed 2026-08-04 (D-175), not fixed** | **The chat app sends the user's typed question to Bedrock unredacted, and no decision ever covered that surface.** `redact_free_text` has **exactly one call site in the repository** — learning-api's chat router, at the request boundary (D-072) — while chat-api has none, so a question typed into `chat.intellichoice.org` reaches four payloads verbatim: `ScopeAndIntentPayload.standalone_query`, `RerankPayload.query`, `RagAnswerPayload.query`, `CalendarExtractionPayload.query`. D-072's own "How to apply" clause requires the pass for "any future free-text-accepting Bedrock task". **Bounded, and the bound is what holds it at P2**: chat queries are **not persisted** — there is no chat-message table (`chat_suggestions.prompt_text` is hand-authored seed content, checked), so this is the wire and traces, not storage or backups. **Not an accepted risk, an unexamined one**: D-018's prompt-injection scope call names chat-api's surface deliberately and defers PII to "S24/D-072 already judged that surface", which judged the *learning* surface. Needs a decision (redact at the chat request boundary as learning-api does, vs. accept and write the acceptance down), not just a patch — a minor typing "my mum's email is …, when is class?" is the realistic case |
 
-**Open findings, counted from both halves of the Index (2026-08-04, D-174; recounted D-175): 5.**
-Arithmetic, written out because this line has now been wrong three times: 6 open at the start of
-D-175, **minus** AUD-L-01 and AUD-L-05 (both fixed here) = 4, **plus** AUD-C-24 (newly filed here) =
-**5**. Confirmed by running ROADMAP's anchored `awk`, not by counting the sentence below.
-`Open — Phase 0B`: **AUD-L-08, C-23** from the table above (**AUD-L-01, AUD-L-05, L-16, C-14, C-15 are
-now fixed** — the last three in D-174, the first two in D-175) plus **AUD-F-22**, **AUD-F-33** and the
-new **AUD-C-24** from this block. **AUD-F-16 is not among them** — it was fixed in D-116. AUD-F-32 is
-dispositioned rather than open. **The pre-D-174 count of "8, 9 counting AUD-F-16" was wrong in both
-directions**: it carried a closed finding and missed two open ones.
+**Open findings, counted from both halves of the Index (2026-08-04, D-174; recounted D-175 and
+D-176): 3.** Arithmetic, written out because this line has now been wrong three times: 5 open after
+D-175, **minus** AUD-L-08 and AUD-F-22 (both implemented in D-176, per the decisions D-175 §5
+recorded) = **3**. Confirmed by running ROADMAP's anchored `awk`, not by counting the sentence
+below. `Open — Phase 0B`: **AUD-C-23** (needs the user's margin-vs-named-tolerance call),
+**AUD-C-24** (needs the user's redact-vs-accept call), and **AUD-F-33** (deferred by the user's
+call — detection exists, mechanism unknown). **AUD-L-01, AUD-L-05, L-08, L-16, C-14, C-15 and F-22
+are now fixed** — C-14/C-15/L-16 in D-174, L-01/L-05 in D-175, L-08/F-22 in D-176. **AUD-F-16 is
+not among the open ones** — it was fixed in D-116. AUD-F-32 is dispositioned rather than open.
+**The pre-D-174 count of "8, 9 counting AUD-F-16" was wrong in both directions**: it carried a
+closed finding and missed two open ones.
 
 **✅ One id used to name two different findings: `AUD-L-17`. Resolved 2026-08-04 (D-174) — D-159's P2
 is now `AUD-L-19`.**
@@ -561,12 +563,14 @@ from the AST of the real construction sites and was watched failing against a de
 authorization, and trimming it would show the model less than the parent is entitled to see, which
 is exactly the false-rejection class D-163 measured.
 
-### AUD-L-08 — `normalized_gain` is unbounded, and its denominator comes from the attempt count (P3)
+### AUD-L-08 — `normalized_gain` is unbounded, and its denominator comes from the attempt count (P3; ✅ fixed 2026-08-04, D-176)
 
 - **Severity:** P3 — but see the reachability correction at the end of this entry; "not reachable
   today" was wrong in two ways.
 - **Area:** correctness / learning-gain math (SPEC §5.13.3)
-- **Status:** open, Phase 0B
+- **Status:** ✅ fixed 2026-08-04 (D-176) — declared-count denominator, out-of-range flagged
+  `unmeasurable_out_of_range` and never clamped, narrative payload suppresses any flagged gain;
+  see the closing subsection at the end of this entry
 
 **What.** `learning_gain.compute_learning_gain` sets `max_score = float(len(pre_graded)) or 1.0` —
 the *count of resolved pre attempts*, not the assessment's declared item count — and then computes
@@ -628,6 +632,19 @@ exists to mark this case unmeasurable disappears exactly when it applies.
 `apps/learning-web/src/types.ts` but is rendered by **no screen or component**, so −200% is not
 displayed today. It *is* passed into `StageNarrativePayload` (`nodes.py:650`), so it can shape the
 `post_outro` narrative text a student reads.
+
+**Closed 2026-08-04 (D-176), implementing D-175 §5's recorded decision.**
+`compute_learning_gain` now takes `declared_item_count` — the pre form's item count read from
+`assessment_items` by `_complete_post_exam`, the level the invariant actually lives at — and a
+quotient still outside [-1, 1] keeps its raw value and sets
+`normalized_gain_status="unmeasurable_out_of_range"`. Flag, never clamp: clamping converts a −200%
+into a plausible −100%, which is this finding's own core complaint. The `or 1.0` guard is gone (a
+zero-item form lands in `not_applicable_pre_max` instead of fabricating a denominator), and the
+one student-facing consumer is cut at the seam: `post_outro`'s payload gets `None` whenever any
+status flag is set. 8 tests in `test_learning_gain_bounds.py`, one per row of the reproduction
+table above plus the reachability correction — including the live −200% (now flagged, unclamped)
+and the extra-pre-attempt case that used to turn `not_applicable_pre_max` off exactly when it
+applied.
 
 ### AUD-L-01 — A gated-off `/dev/token` discloses its own existence; the S35 gate's rationale is incorrect
 
@@ -3936,7 +3953,7 @@ interposed after answering, topic list absent beneath the narrative. Local suite
 **Staging re-verification is still outstanding** — the fix is not on staging at the time of
 writing, so criterion 3's two clean runs have not been taken.
 
-### AUD-F-22 — A parent cannot reach their child's progress dashboard without finishing a whole cycle (P2, found in the S43 continuation, D-117; not fixed)
+### AUD-F-22 — A parent cannot reach their child's progress dashboard without finishing a whole cycle (P2, found in the S43 continuation, D-117; ✅ fixed 2026-08-04, D-176)
 
 Found by de-conditionalizing a `test.skip()`, which is the only reason it is written down: the
 skip's own message was *"no dashboard entry point from the current screen"* — an accurate
@@ -3968,6 +3985,20 @@ starts, which is the S11 item itself) — visible behaviour on the parent journe
 already spent its one product call on AUD-F-21. The probe is now `test.fail()` rather than a
 conditional skip, on AUD-F-04/AUD-F-05's pattern: it keeps measuring, and it fails the run the day
 the gap closes, which is the signal to promote it to a regression test.
+
+**Closed 2026-08-04 (D-176), per the user's UX call: the child resolves at login.** One linked
+child resolves silently; several show the *existing* `ChildSelectionScreen` once, before the start
+screen — no new UI, exactly as D-175 §5 recorded. Mechanics: new parent-only
+`GET /learning/parents/me/children` (id from the verified token, live MySQL lookup per D-020,
+every other role 403s), the resolved child is **login-scoped** (`endSession` no longer clears it —
+that clearing is what made "backing out does not help" — logout does, via `forgetStudent`), and
+session start passes the child explicitly so the in-session interrupt is the server-side fallback
+and the resume re-check, with the link still verified server-side either way. Also closes the S11
+carry-over. **The probe was promoted by rewriting, not by flipping:** its journey assumed a
+mid-session button, which no faithful reading of the recorded decision produces; the promoted
+regression test asserts the stronger property — login → pick child → dashboard → report with
+**zero** learning sessions. Known deliberate limitation: switching children means signing out and
+back in (a persistent switcher is new UI, which the decision excluded).
 
 ### AUD-F-23 — A conditional skip made an untested journey look tested for four sessions (P3, found and fixed in the S43 continuation, D-117)
 

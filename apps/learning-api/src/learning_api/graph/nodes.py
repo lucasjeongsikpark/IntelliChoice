@@ -719,7 +719,12 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
                 pre_raw_score=gain.pre_raw_score,
                 post_raw_score=gain.post_raw_score,
                 raw_gain=gain.raw_gain,
-                normalized_gain=gain.normalized_gain,
+                # AUD-L-08: a flagged gain (`unmeasurable_out_of_range`) is not a
+                # normalized gain and must not shape narrative text a student reads -
+                # the payload gets None, same as the `not_applicable_pre_max` case.
+                normalized_gain=(
+                    gain.normalized_gain if gain.normalized_gain_status is None else None
+                ),
                 independent_correct_rate=gain.independent_correct_rate,
                 relevant_learning_facts=relevant_facts,
             ),

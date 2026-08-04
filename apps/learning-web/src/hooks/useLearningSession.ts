@@ -64,9 +64,18 @@ export function useLearningSession(token: string | null) {
     return close;
   }, [token, sessionId, checkpointReady]);
 
+  // AUD-F-22: the resolved student is *login-scoped* identity, not session state - it is
+  // set at login (App.tsx's pre-session resolution) or by an explicit selection, survives
+  // `endSession` (so the start screen's dashboard button does not vanish when a session
+  // ends - the finding's "backing out does not help"), and is forgotten only on logout.
   const rememberStudent = useCallback((id: string) => {
     sessionStorage.setItem(STUDENT_ID_KEY, id);
     setStudentId(id);
+  }, []);
+
+  const forgetStudent = useCallback(() => {
+    sessionStorage.removeItem(STUDENT_ID_KEY);
+    setStudentId(null);
   }, []);
 
   /**
@@ -284,13 +293,14 @@ export function useLearningSession(token: string | null) {
     [token],
   );
 
+  // Deliberately does NOT forget the resolved student (AUD-F-22): clearing it here was
+  // what made the start screen's dashboard button disappear the moment a parent backed
+  // out of a session. Logout calls `forgetStudent` explicitly.
   const endSession = useCallback(() => {
     sessionStorage.removeItem(SESSION_ID_KEY);
-    sessionStorage.removeItem(STUDENT_ID_KEY);
     sessionIdRef.current = null;
     setSessionId(null);
     setCheckpointReady(false);
-    setStudentId(null);
     setSnapshot(null);
     setExamOverview(null);
   }, []);
@@ -303,6 +313,8 @@ export function useLearningSession(token: string | null) {
     error,
     busy,
     startSession,
+    rememberStudent,
+    forgetStudent,
     chooseStudent,
     chooseTopic,
     resolveAttendance,

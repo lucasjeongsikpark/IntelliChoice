@@ -686,11 +686,12 @@ which stop the line.
 > With S43–S47 frozen, post-gate sessions run out of this backlog under PROGRESS.md's "Next session"
 > pointer rather than under a numbered block.
 >
-> **Two of the five are decided and awaiting implementation, which is a different pile from open** —
-> see the note further down. **AUD-F-22** (resolve the parent's child before the session, closing the
-> S11 carry-over with it) and **AUD-L-08** (declared item count as the denominator, flag rather than
-> clamp) both have the user's answer recorded in D-175 §5. They are the cheapest real work available:
-> the decision is made, the shape is written down, and neither needs another measurement first.
+> **The two decided-and-awaiting findings are implemented (2026-08-04, D-176), so the decided pile
+> is empty again.** **AUD-F-22** (child resolves at login — the user picked "at login" over "at
+> dashboard entry" when the recorded wording supported both) and **AUD-L-08** (declared item count
+> as the denominator, out-of-range flagged `unmeasurable_out_of_range`, never clamped) are closed
+> with tests. The backlog is now **3 open**: AUD-C-23 and AUD-C-24 (each waiting on a user
+> decision) and AUD-F-33 (deferred by the user's call).
 >
 > **⚠️ How to recount, corrected 2026-08-04 (D-174) — the previous instruction here was the one that
 > produced a wrong number.** It said "derive the count from the table, never carry it forward",
@@ -719,15 +720,16 @@ which stop the line.
 >   docs/AUDIT_FINDINGS.md | sort -u
 > ```
 >
-> That returns the 6 named above. **Do not "correct" the count to whatever a looser grep reports**
-> without checking where the word sits — that is the same class of error twice over.
+> That returns **3** as of 2026-08-04 (D-176): AUD-C-23, AUD-C-24, AUD-F-33. (It returned 6 when
+> this instruction was written, 5 after D-175.) **Do not "correct" the count to whatever a looser
+> grep reports** without checking where the word sits — that is the same class of error twice over.
 >
 > Note also that *Open* and *Decided* are different piles: a finding whose fix has been decided but
-> not implemented (AUD-L-03, AUD-L-09) is not in this count and is not done. **That pile stopped being
-> empty on 2026-08-04 (D-175 §5): AUD-F-22 and AUD-L-08 now have the user's decision and no
-> implementation.** Both are also still `Open` in the table, because a decided fix that has not shipped
-> is not a closed finding — so they are counted once, as open, and their decisions are recorded in
-> D-175 rather than in the status column.
+> not implemented (AUD-L-03, AUD-L-09) is not in this count and is not done. That pile held AUD-F-22
+> and AUD-L-08 from D-175 §5 until later the same day — **both implemented in D-176**, so it is
+> empty again. (The pattern held: while decided-but-unshipped, they stayed `Open` in the table and
+> were counted once, as open, with the decision recorded in the decision log rather than the status
+> column.)
 >
 > **Take clusters, not findings — but the two clusters taken so far cohered differently, and the
 > difference is worth carrying forward.** D-155 (AUD-C-07 + AUD-C-08 + AUD-C-10) was *one defect at

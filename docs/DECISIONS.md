@@ -11569,3 +11569,87 @@ control were real Bedrock turns against staging, anonymous, ~14 cents at the rec
 inside the 15c cap stated before the run; they trip `chat-api-p95-latency-scale-out` as documented.
 **Not deployed** — the `/dev/token` middleware is an application change on a live auth surface and its
 live re-verification (the 405/422 rows on both public edges) is owed at the next deploy.
+
+## D-176 — the two decided findings implemented, and D-175 landed with its owed live rows measured (accepted, 2026-08-04)
+
+Scope: PROGRESS.md's post-D-175 pointer, item 0 (land and deploy D-175) plus item 3 (the two
+decided-but-unimplemented findings, AUD-F-22 and AUD-L-08). No numbered roadmap block (D-152).
+Baseline verified before editing: lint clean, pyright 0, **852 passed / 2 skipped**, tree carrying
+exactly D-175's uncommitted work.
+
+### 1. D-175 landed and deployed, and AUD-L-01's live rows now read 404
+
+PR #108 (`05d82dd`), deploy run 30954614653 success, `learning-api:62` / `chat-api:61`, both
+`gha-05d82ddcd6af`. The owed live verification — the one thing a test could not see — was taken on
+both public edges: `GET /dev/token` and a no-body `POST /dev/token` return **404** with FastAPI's
+`{"detail":"Not Found"}` on both apps, where D-171 measured 405 and 422. The deploy gate's own
+probes (valid-body, no/wrong credential) also passed.
+
+**One residual observed while measuring, recorded rather than dropped:** at the *CloudFront* edge,
+`/dev/token` returns the API's JSON 404 while `/dev/nonexistent` falls through to the SPA's
+`index.html` — the CDN's path-routing still distinguishes the path even though the app no longer
+does. The middleware closed the app-level disclosure (any request shape, byte-identical to an
+unregistered path *on the app*); the behavior-level disclosure is CloudFront configuration, i.e.
+Terraform, not application code. Information disclosure only — nothing mints. Left as a note on
+AUD-L-01's register row rather than a new finding: the exposed fact ("this deployment has a
+`/dev/token` route behavior") is also visible in this public repository.
+
+### 2. AUD-F-22 implemented as decided: the parent's child resolves at login
+
+The recorded decision ("resolve the parent's child *before* the session — no new UI") supported two
+shapes, so the user picked one before any code: **at login** (over "at dashboard entry"), for one
+resolution point at the root cause rather than two.
+
+- **Backend:** `GET /learning/parents/me/children` (`routers/parents.py`) — parent-only (every other
+  role 403s; fails closed rather than falling through, the AUD-C-01/X-01/X-05 lesson), id from the
+  verified token's `sub` only, profile data served live from the MySQL adapter per D-020, never
+  stored. 5 tests including role refusals.
+- **Frontend:** `App.tsx` resolves before the start screen — one child silently, several via the
+  *existing* `ChildSelectionScreen` shown once at login; the choice is **login-scoped**:
+  `endSession` no longer forgets it (clearing there is what made the button vanish on back-out —
+  the finding's "backing out does not help"), logout does, via the hook's new `forgetStudent`.
+  Session start now passes the resolved child explicitly, so the in-session `child_selection`
+  interrupt becomes the server-side fallback (it still re-verifies the link either way, and remains
+  the resume path's re-check; SPEC §5.6.1's deterministic authorization is untouched).
+- **The probe could not "flip", and the reason is worth keeping.** D-175 §5 predicted the
+  `test.fail()` probe would fail the run when the fix landed. Tracing the probe before implementing
+  showed its journey assumed a *mid-session* button (settle after child selection, then wait for
+  the dashboard button on the topic screen) — a flow no faithful reading of the recorded decision
+  produces. So the probe was promoted by rewriting it to the stronger property the fix actually
+  delivers: **dashboard reachable with zero learning sessions** (login → pick child → start screen
+  → dashboard → report). The prediction was wrong about the mechanism, not the outcome.
+- Also closes the S11 carry-over (parent auto-select never set `student_external_id` client-side) —
+  the login-time fetch supersedes the snapshot-enrichment fix S11 had sketched.
+- **Known limitation, deliberate:** a multi-child parent switches children by signing out and back
+  in. A persistent switcher is new UI, which the decision explicitly excluded.
+
+### 3. AUD-L-08 implemented as decided: declared-count denominator, flag never clamp
+
+`compute_learning_gain` now takes `declared_item_count` (the pre form's item count, read from
+`assessment_items` by `_complete_post_exam`; the post form is built one variant per pre item, so
+pre items are the declared length of both forms) and uses it as `max_score`. A quotient still
+outside [-1, 1] keeps its raw value (diagnosis) and sets
+`normalized_gain_status="unmeasurable_out_of_range"` (suppression) — clamping was rejected in the
+decision because it turns a −200% into a plausible −100%, the finding's own complaint. The `or 1.0`
+zero-guard is gone: a zero-item form now lands in `not_applicable_pre_max` (0 ≥ 0) instead of
+fabricating a denominator.
+
+The one consumer that shapes student-facing text is handled at the seam: `post_outro`'s
+`StageNarrativePayload` gets `normalized_gain=None` whenever *any* status flag is set, so a flagged
+number can no longer reach narrative text (the finding's live-exposure bound). The API responses
+(history, sessions, students routers) keep carrying value + status together — honest, and the
+frontend renders `normalized_gain` nowhere today.
+
+8 tests in `test_learning_gain_bounds.py`, one per row of the finding's reproduction table plus its
+reachability correction: the live −200% is flagged unclamped; the 133%/600%/1000% rows are either
+in-range under the declared count or flagged; the extra-pre-attempt case that used to switch
+`not_applicable_pre_max` *off* exactly when it applied keeps it on.
+
+### 4. What was measured vs. inferred
+
+Verified: lint clean, pyright 0, **865 passed / 2 skipped** (+13: 8 gain-bounds, 5 parents-router),
+`e2e/` tsc clean, learning-web tsc clean, full learning e2e suite **22 passed** locally including
+the three rewritten parent journeys (the promoted regression test drives login → child-select →
+dashboard → report against the real local stack). The 404 rows were measured on both deployed
+edges. Inferred, not yet verified: the new endpoint and parent flow on *staging* — owed at this
+session's own deploy, via the parent journey spec against staging.

@@ -409,7 +409,7 @@ flowchart TB
 
     subgraph APPS["FastAPI apps (S1)"]
         subgraph LAPI["learning-api :8001"]
-            LROUTES["routers/sessions (S5–S7)<br/>routers/questions (S9)<br/>routers/stream, routers/students (S11)<br/>/healthz (liveness-only), /readyz<br/>(DB-aware, ALB target-group health<br/>check since S34) (S1/S34)"]
+            LROUTES["routers/sessions (S5–S7)<br/>routers/questions (S9)<br/>routers/stream, routers/students (S11)<br/>routers/parents (AUD-F-22, D-176)<br/>/healthz (liveness-only), /readyz<br/>(DB-aware, ALB target-group health<br/>check since S34) (S1/S34)"]
             LAUTH["auth deps<br/>audience=learning (S2)<br/>+ dev-only /dev/token (S11)"]
             GRAPH["LangGraph workflow (S6–S8)<br/>see diagram 2"]
             LSVC["services: attendance, grading,<br/>assessment_builder, mastery_bootstrap,<br/>study_plan, learning_gain, flow (S5)<br/>tutor, topic_resolver (S8)<br/>question_reports (S9)<br/>study_outcomes (S10)<br/>video_catalog: real Postgres+<br/>Bedrock catalog (S10 stub → S15)<br/>session_events, history (S11)<br/>tutor.generate_personalized_hint,<br/>topic_resolver.resolve_misconception_tag<br/>(S21)<br/>memory_events (6 emission points),<br/>tutor.py/tutor_chat.py/study_plan.py<br/>read `relevant_learning_fact`/<br/>weak_skill tie-break (S25)"]

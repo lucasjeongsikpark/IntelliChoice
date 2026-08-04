@@ -5,11 +5,48 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-176: D-175 landed and its live rows measured, then the two decided findings implemented —
+  AUD-F-22 (child resolves at login) and AUD-L-08 (declared-count denominator, flag never clamp)
+  (2026-08-04, S61 — no numbered session; PROGRESS.md's own pointer, items 0 and 3).** `make lint`
+  clean, `pyright` 0, **865 passed / 2 skipped** (852 at start, +13), `e2e/` `tsc` clean,
+  learning-web `tsc` clean, **learning e2e 22 passed** locally with the three parent journeys
+  rewritten to the new contract. **This session's own work is uncommitted and needs a deploy**
+  (learning-api router + gain math + learning-web flow — live surfaces).
+  **✅ Item 0 done:** PR #108 (`05d82dd`) merged, deploy run 30954614653 success, `learning-api:62` /
+  `chat-api:61`, both `gha-05d82ddcd6af`. Live: `GET /dev/token` and no-body `POST` → **404** on both
+  public edges (D-171 measured 405/422). One residual recorded on AUD-L-01's row: CloudFront's
+  behavior config still routes `/dev/token` to the API while `/dev/nonexistent` falls through to the
+  SPA — a CDN-level path disclosure, Terraform not application code, and the same fact is public in
+  this repo.
+  **✅ AUD-F-22 closed at the root, per the user's shape call ("at login" over "at dashboard entry" —
+  the recorded decision supported both).** New parent-only `GET /learning/parents/me/children` (id
+  from the verified token, live MySQL per D-020, other roles 403 — fails closed); `App.tsx` resolves
+  before the start screen (one child silently, several via the existing `ChildSelectionScreen`); the
+  choice is login-scoped — `endSession` no longer clears it (that clearing was "backing out does not
+  help"), logout does. Session start passes the child explicitly; the in-session interrupt is now the
+  server-side fallback and resume re-check. Also closes the S11 carry-over. **The probe could not
+  "flip" as D-175 predicted** — its journey assumed a mid-session button no reading of the decision
+  produces — so it was promoted by rewriting to the stronger property: **dashboard + report with zero
+  sessions**, passing against the real local stack. Deliberate limitation: switching children =
+  sign out and back in (a persistent switcher is new UI, which the decision excluded).
+  **✅ AUD-L-08 closed as decided: flag, never clamp.** `compute_learning_gain` takes
+  `declared_item_count` (pre-form items, read where the invariant lives); out-of-range keeps the raw
+  value and sets `normalized_gain_status="unmeasurable_out_of_range"`; the `or 1.0` fabricated
+  denominator is gone; `post_outro`'s narrative payload gets `None` for any flagged gain, closing the
+  finding's student-facing exposure. 8 tests, one per reproduction-table row — including the live
+  −200% (flagged, unclamped) and the extra-pre-attempt case that used to hide
+  `not_applicable_pre_max` exactly when it applied.
+  **Open count: 3** — `AUD-C-23, C-24, F-33`, confirmed with ROADMAP's anchored `awk`. Arithmetic:
+  5 at start, −F-22, −L-08. C-23 and C-24 each wait on a user decision; F-33 is deferred by choice.
+
 - **⚠️ D-175: AUD-C-23 reproduces on the deployed system 6 times in 10, and two guard rails turned out
   to assert less than they appeared to (2026-08-04, S60 — no numbered session; PROGRESS.md's own
   pointer, items 2 and 3, cluster chosen by the user). `make lint` clean, `pyright` 0, **852 passed /
-  2 skipped** (795 at start, **+57**), `e2e/` `tsc` clean. **Uncommitted and not deployed** — but note
-  this is an *application* change on a live auth surface, so it needs one.**
+  2 skipped** (795 at start, **+57**), `e2e/` `tsc` clean. **✅ Landed and deployed in D-176** —
+  PR #108 (`05d82dd`), deploy run 30954614653 success, `learning-api:62` / `chat-api:61`, both
+  `gha-05d82ddcd6af`; the owed live rows were measured (GET and no-body POST `/dev/token` → **404**
+  on both public edges, where D-171 had 405/422). *This sentence read "Uncommitted and not deployed"
+  for a few hours and was reconciled the same day — the D-174/D-175 close-out lesson, applied.*
   **⚠️ The headline result reverses two sessions of reasoning, and the correction was cheap.**
   AUD-C-23's "the deployed system does not exhibit this finding" rested on **three** anonymous probes.
   Ten probes: **6 returned `access_hint: {"required_role": "branch_manager"}` and 4 returned the correct
@@ -1246,7 +1283,55 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-175):**
+- **Next session, in order (2026-08-04, post-D-176):**
+  0. **Owed unless the D-176 close-out says otherwise: deploy D-176's work and verify the parent
+     flow on staging.** Application changes on live surfaces (learning-api's new router + gain math,
+     learning-web's login-time resolution). The staging verification a local test cannot see is the
+     parent journey against the deployed stack: `make e2e-staging
+     E2E_ARGS="tests/learning/journey-parent.spec.ts"` — three tests, including the promoted
+     zero-sessions dashboard regression. (If the close-out below already records the deploy run and
+     the staging e2e result, nothing is owed.)
+  1. **AUD-C-23 needs your decision, and it is now the most user-visible open finding.** 6 of 10
+     anonymous askers of *"What happens to a student who misses three sessions in a row?"* are told
+     to log in as a branch manager for an answer that exists at no tier. The fork: **tighten the
+     margin** (re-measure with `measure_access_probe_rules.py`, ~cost of one paid arm) or **accept
+     and name the tolerated case** in the eval assertion. Nondeterminism is confirmed (D-175), so
+     "leave it and re-run" is not a third option. **Do not tune it without the re-measurement**:
+     every current rule value came from a measured table (D-165/D-166/D-168). Worth capturing
+     per-probe rerank scores at the same time, to confirm the inferred mechanism.
+  2. **AUD-C-24 needs your decision: redact chat free text, or accept and write it down.**
+     Recommendation unchanged: redact at chat-api's request boundary exactly as learning-api does —
+     one call, and learning-api proves an answer survives the pass. The users are minors and the
+     realistic input is a child typing a parent's email into a chat box.
+  3. **AUD-F-33** (P2, autoscaling) remains deferred by your call — detection exists, mechanism
+     unknown.
+  4. **The product decisions still unanswered, unchanged and none of them mine to make:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent by
+     choice; (b) should the access hint be able to say "this is covered in parent *and*
+     branch-manager materials" instead of going silent — interacts with AUD-C-23, same margin;
+     (c) escalation carries no way to reply to the person who asked (D-164's scoped-out half), and
+     `InMemoryRateLimiter` is per-process so the real ceiling is N× the configured one. New from
+     D-176, low stakes: does a multi-child parent need an in-app way to switch children, or is
+     sign-out-and-back-in acceptable until real auth replaces the dev login?
+  5. **Notes that survive from the post-D-175 pointer:**
+     **Counting findings:** ROADMAP's anchored `awk` (status is the 5th pipe field, a real open
+     finding *starts* with `Open`) returns **3** today: C-23, C-24, F-33.
+     **Reading staging's database:** `aws ecs run-task` with a `containerOverrides` command on
+     `intellichoice-staging-ops-task` reads RDS directly for a few Fargate seconds, read-only by
+     construction if the command is a `SELECT`.
+     **Probing the deployed chat API:** the base path is **`/chat/...`**, not `/sessions/...` — a
+     bare `POST /sessions` returns CloudFront 403 because only the `/chat/*` behavior allows POST.
+     Cost ~1.25c per anonymous turn.
+     **Chat probes and deploys:** they trip `chat-api-p95-latency-scale-out`. AUD-F-38 is fixed, so
+     probing before a deploy is safe — expect desiredCount to move and do not read it as a deploy
+     signal.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"`
+     **and export `AWS_REGION=us-east-1`** — the exported credentials carry no region. (Not needed
+     for anonymous edge probes, which are ordinary HTTPS.)
+
+- **Superseded — pointer as of post-D-175 (2026-08-04). Item 0 (land and deploy D-175) and item 3
+  (AUD-F-22 + AUD-L-08) are done in D-176; items 1, 2 and 4–6 carry up unchanged:**
   0. **Owed: land and deploy D-175.** Application changes on two live surfaces
      (`intellichoice_shared/auth.py` plus both apps' `main.py`), so this needs a deploy — and the one
      thing to verify live that a test cannot see is **AUD-L-01's own reproduction table on the public
@@ -5342,6 +5427,46 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S61 (unnumbered) — D-175 landed with its 404 rows measured, and the two decided findings implemented: AUD-F-22 and AUD-L-08 (2026-08-04) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-175), items 0 and 3** — no numbered
+  roadmap block (D-152). Scope confirmed by the user before work started ("Item 0 + F-22 & L-08"),
+  and AUD-F-22's implementation shape confirmed separately ("at login" over "at dashboard entry" —
+  the recorded decision supported both). Baseline verified first: lint clean, pyright 0,
+  **852 passed / 2 skipped**, tree carrying exactly D-175's uncommitted work.
+- **✅ Item 0: D-175 landed and deployed.** PR #108 (`05d82dd`), CI green, deploy run 30954614653
+  success (dispatched manually — the `push` trigger remains deliberately disabled),
+  `learning-api:62` / `chat-api:61`, both `gha-05d82ddcd6af`. The owed live rows: `GET /dev/token`
+  and no-body `POST /dev/token` → **404** with `{"detail":"Not Found"}` on both public edges, where
+  D-171 measured 405/422. One residual recorded on AUD-L-01's register row: at the CloudFront edge
+  the `/dev/token` *behavior* still routes to the API while `/dev/nonexistent` falls through to the
+  SPA — a CDN-config path disclosure (Terraform, not app code; the fact is also public in this repo).
+- **✅ AUD-F-22 (P2) closed at the root.** `GET /learning/parents/me/children` (new
+  `routers/parents.py`, parent-only, id from the verified token, live MySQL per D-020, all other
+  roles 403 — 5 tests incl. role refusals); `App.tsx` resolves the child before the start screen
+  (one silently, several via the existing `ChildSelectionScreen` — no new UI); the resolution is
+  login-scoped (`endSession` keeps it, logout forgets it via the hook's new `forgetStudent`);
+  session start passes the child explicitly, so the in-session interrupt is the server-side
+  fallback and resume re-check. Closes the S11 carry-over too. **The `test.fail()` probe could not
+  "flip" as D-175 §5 predicted** — read before implementing, its journey waits for a *mid-session*
+  dashboard button, which no faithful reading of the recorded decision produces — so it was
+  promoted by rewriting to the stronger property: **login → pick child → dashboard → report with
+  zero learning sessions**. All three parent journeys rewritten to the new contract; **learning e2e
+  22 passed** locally (same count as D-173/D-174).
+- **✅ AUD-L-08 (P3, reachability-corrected) closed as decided: flag, never clamp.**
+  `compute_learning_gain(declared_item_count=...)` from the pre form's `assessment_items`;
+  out-of-range quotients keep the raw value and set `unmeasurable_out_of_range`; the `or 1.0`
+  fabricated denominator is gone; `post_outro`'s `StageNarrativePayload` gets `None` for any
+  flagged gain (the finding's student-facing exposure). 8 tests, one per reproduction-table row,
+  including the live −200% and the flag-vanishing extra-pre-attempt case.
+- **Verification:** lint clean, pyright 0, **865 passed / 2 skipped** (+13: 8 gain-bounds, 5
+  parents-router), `e2e/` tsc clean, learning-web tsc clean, learning e2e 22 passed locally.
+  **Deploy of this session's own work + the staging parent-journey run recorded in the close-out
+  below** (they happen after this entry's PR merges; the follow-up docs commit reconciles — the
+  D-174 #104/#105 pattern, applied on purpose this time).
+- Decisions: D-176. Register: AUD-F-22 and AUD-L-08 rows + sections closed, AUD-L-01 residual
+  noted, open count 3 (C-23, C-24, F-33) re-derived with the anchored `awk`.
 
 ### S60 (unnumbered) — two guard rails that asserted less than they appeared to, and the probe that overturned AUD-C-23's live claim (2026-08-04) ✅
 
