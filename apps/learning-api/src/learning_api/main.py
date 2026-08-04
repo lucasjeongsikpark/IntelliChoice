@@ -23,7 +23,13 @@ from intellichoice_observability.tracing import (
     instrument_fastapi_app,
     instrument_sqlalchemy_engines,
 )
-from intellichoice_shared.auth import Audience, Role, TokenClaims, staging_secret_matches
+from intellichoice_shared.auth import (
+    Audience,
+    Role,
+    TokenClaims,
+    install_dev_token_gate_middleware,
+    staging_secret_matches,
+)
 from intellichoice_shared.bedrock import BedrockTask
 from intellichoice_shared.build_identity import build_identity
 from intellichoice_shared.db_ready import ping_engine
@@ -205,6 +211,30 @@ install_global_rate_limit_middleware(
     max_per_window=get_settings().global_rate_limit_max_per_window,
     window_s=get_settings().global_rate_limit_window_s,
 )
+
+
+def _dev_token_endpoint_is_open(presented_secret: str | None) -> bool:
+    """Whether `/dev/token` exists for this caller - the single condition both the
+    AUD-L-01 middleware gate and `issue_dev_token` itself apply.
+
+    Two independent ways in, deliberately unlike each other (D-085, S36/D-097): the
+    local-dev path needs BOTH `environment=="dev"` AND the feature flag, and the staging
+    path needs a configured shared secret that the caller actually presents. `get_settings`
+    is called here rather than captured, so a test that monkeypatches it on this module
+    still controls both the gate and the handler - the property the previous
+    inside-the-handler-only check had and that conditional route registration would have
+    cost (see `install_dev_token_gate_middleware`'s docstring).
+    """
+    settings = get_settings()
+    local_dev_path = settings.environment == "dev" and settings.dev_token_endpoint_enabled
+    return local_dev_path or staging_secret_matches(
+        presented_secret, settings.staging_token_shared_secret
+    )
+
+
+# AUD-L-01 (D-175): a closed `/dev/token` must be indistinguishable from an absent path for
+# every request shape, not only for the valid-body POST the handler's own 404 covers.
+install_dev_token_gate_middleware(app, endpoint_is_open=_dev_token_endpoint_is_open)
 # SPEC §5.32 Observability (S31) - registered at module level (not inside `lifespan`)
 # since FastAPI's middleware stack is built once and must be in place before the first
 # request; `otel_enabled`'s FastAPI/SQLAlchemy auto-instrumentation is the one piece
@@ -300,13 +330,16 @@ async def issue_dev_token(
     Wraps the existing `FakeTokenIssuer` (D-006), issues no new secret. A failure is 404,
     not 401/403, so a caller without the secret learns nothing about whether the endpoint
     is configured at all.
+
+    AUD-L-01 (D-175): in practice this 404 is now unreachable - the middleware installed by
+    `install_dev_token_gate_middleware` answers first, for every request shape rather than
+    only this one. It is kept because the two use the *same* predicate, so this is defence
+    in depth against the middleware being removed or reordered, not a second condition that
+    could drift from the first.
     """
     settings = get_settings()
     local_dev_path = settings.environment == "dev" and settings.dev_token_endpoint_enabled
-    staging_path = staging_secret_matches(
-        x_staging_token_secret, settings.staging_token_shared_secret
-    )
-    if not (local_dev_path or staging_path):
+    if not _dev_token_endpoint_is_open(x_staging_token_secret):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     # The issuer MUST be given the same secret the verifier uses (D-085 made verification
     # settings-driven with a real per-app Secrets Manager value). A bare `FakeTokenIssuer()`

@@ -116,6 +116,64 @@ def test_dev_token_404s_on_staging_without_the_shared_secret(
     assert resp.status_code == 404
 
 
+# AUD-L-01 (D-175). The finding's own reproduction table, turned into an assertion for
+# every row rather than only the valid-body POST the S35 gate probes. A closed endpoint has
+# to answer like a path that was never registered - same status *and* same body - because
+# 422 ("your body is malformed") and 405 ("wrong method for this path") both confirm the
+# path exists to a caller who is not supposed to know that.
+#
+# `/dev/nonexistent` is the control: it is genuinely absent, so if these assertions ever
+# pass vacuously (a blanket 404 handler, say) that row would still have to differ. It does
+# not - which is exactly the point.
+_DISCLOSING_REQUEST_SHAPES = [
+    pytest.param("POST", {"role": "not-a-role"}, id="invalid_role_body"),
+    pytest.param("POST", {}, id="empty_body"),
+    pytest.param("POST", None, id="no_body"),
+    pytest.param("GET", None, id="wrong_method"),
+    pytest.param("PUT", None, id="unregistered_method"),
+]
+
+
+@pytest.mark.parametrize(("method", "body"), _DISCLOSING_REQUEST_SHAPES)
+def test_closed_dev_token_is_indistinguishable_from_an_absent_path(
+    monkeypatch: pytest.MonkeyPatch, method: str, body: dict | None
+) -> None:
+    monkeypatch.setattr(main_module, "get_settings", _staging_settings)
+    client = TestClient(app)
+
+    resp = client.request(method, "/dev/token", json=body)
+    control = client.request(method, "/dev/nonexistent", json=body)
+
+    assert (resp.status_code, resp.json()) == (control.status_code, control.json())
+    assert resp.status_code == 404
+
+
+def test_the_absent_path_control_is_not_vacuous() -> None:
+    """If `/dev/nonexistent` ever stopped 404ing, the comparison above would pass for the
+    wrong reason - so the control is asserted directly too (D-171 §2's rule).
+    """
+    client = TestClient(app)
+    assert client.post("/dev/nonexistent", json={}).status_code == 404
+
+
+def test_an_open_dev_token_still_validates_its_body_normally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The gate must not swallow real validation for a caller who holds the secret: 422 is
+    correct there, and only the *closed* case has to be silent.
+    """
+    monkeypatch.setattr(main_module, "get_settings", _staging_settings)
+    client = TestClient(app)
+
+    resp = client.post(
+        "/dev/token",
+        json={"role": "not-a-role"},
+        headers={"X-Staging-Token-Secret": STAGING_SECRET},
+    )
+
+    assert resp.status_code == 422
+
+
 CONSENT_REFUSALS = [
     pytest.param({"account_status": "suspended"}, id="suspended-account"),
     pytest.param({"consent_status": "revoked"}, id="revoked-consent"),

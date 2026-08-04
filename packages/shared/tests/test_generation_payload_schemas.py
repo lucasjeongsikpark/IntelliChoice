@@ -3,6 +3,16 @@ they aren't bound by the §5.30.1 field-allowlist the tutor payload is. But each
 still be a strict `extra="forbid"` model - that's the "no ad-hoc dict payloads cross the
 gateway" invariant `bedrock.py`'s module docstring claims when it generalizes
 `generate_structured`'s `payload` type to `BaseModel` (D-023).
+
+**AUD-L-05 / D-175:** this file is "regime 2" of the three that
+`test_bedrock_payload_pii_floor.py::test_every_bedrock_payload_is_governed_by_one_regime`
+now enforces, and it names these seven payloads in its own
+`_GENERATION_REGIME_PAYLOAD_NAMES` set. **The two lists have to move together.** Adding a
+generation payload here but not there fails that completeness test (it reads as
+ungoverned, which is the safe direction); adding it there but not to `_GENERATION_PAYLOADS`
+below passes both files while nothing actually asserts the new payload's
+`extra="forbid"` - the one residual gap, recorded rather than papered over with a
+cross-test-module import.
 """
 
 import pytest

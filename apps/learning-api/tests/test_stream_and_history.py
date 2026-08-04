@@ -281,6 +281,56 @@ def test_dev_token_404s_on_staging_when_no_secret_is_configured_at_all(
         assert resp.status_code == 404
 
 
+# AUD-L-01 (D-175). Mirrors chat-api's `test_auth.py` block - see that file for the full
+# reasoning. Both apps are asserted because the finding was measured on both public edges
+# (D-171) and because the fix lives in shared code that either app could stop calling.
+_DISCLOSING_REQUEST_SHAPES = [
+    pytest.param("POST", {"role": "not-a-role"}, id="invalid_role_body"),
+    pytest.param("POST", {}, id="empty_body"),
+    pytest.param("POST", None, id="no_body"),
+    pytest.param("GET", None, id="wrong_method"),
+    pytest.param("PUT", None, id="unregistered_method"),
+]
+
+
+@pytest.mark.parametrize(("method", "body"), _DISCLOSING_REQUEST_SHAPES)
+def test_closed_dev_token_is_indistinguishable_from_an_absent_path(
+    monkeypatch: pytest.MonkeyPatch, method: str, body: dict | None
+) -> None:
+    monkeypatch.setattr(main_module, "get_settings", _staging_settings)
+    client = TestClient(app)
+
+    resp = client.request(method, "/dev/token", json=body)
+    control = client.request(method, "/dev/nonexistent", json=body)
+
+    assert (resp.status_code, resp.json()) == (control.status_code, control.json())
+    assert resp.status_code == 404
+
+
+def test_the_absent_path_control_is_not_vacuous() -> None:
+    client = TestClient(app)
+    assert client.post("/dev/nonexistent", json={}).status_code == 404
+
+
+def test_an_open_dev_token_still_validates_its_body_normally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A caller holding the secret must still get FastAPI's ordinary 422 - only the closed
+    case has to be silent, and a gate that swallowed validation for everyone would be a
+    different defect.
+    """
+    monkeypatch.setattr(main_module, "get_settings", _staging_settings)
+    client = TestClient(app)
+
+    resp = client.post(
+        "/dev/token",
+        json={"role": "not-a-role"},
+        headers={"X-Staging-Token-Secret": STAGING_SECRET},
+    )
+
+    assert resp.status_code == 422
+
+
 def test_session_event_bus_publishes_only_to_subscribers_of_that_session() -> None:
     bus = SessionEventBus()
     queue_a = bus.subscribe("session-a")

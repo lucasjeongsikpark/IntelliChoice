@@ -511,6 +511,25 @@ jobs:
       # that is silently broken costs an audit session some confusion; a leaked one costs
       # more. For a future production environment no secret is configured at all, so both
       # probes below assert plain unreachability there, unchanged.
+      #
+      # AUD-L-01/D-175 removed a latent trap in this gate, and it is worth knowing what
+      # changed. Until now the 404 came from *inside* the handler, after FastAPI had matched
+      # the route and validated the body - so the gate only meant something because it
+      # happens to probe with a *valid* body, the one shape that reaches the handler.
+      # Nothing said so, and "send an empty body, we only care about the status code" would
+      # have quietly turned this step into decoration that always passes. A closed
+      # `/dev/token` is now gated in HTTP middleware, before routing, so every request shape
+      # 404s with a byte-identical body to a path that was never registered (asserted for
+      # both apps in `test_auth.py` / `test_stream_and_history.py`, with a genuinely absent
+      # path as the control).
+      #
+      # Consequence for reading a failure here: a **422 now means more than it used to**.
+      # Before, it meant "the route exists and validated your body". Now it can only be
+      # reached by a caller the app considered *authorized*, so a 422 from these
+      # no-credential / wrong-credential probes would mean the secret comparison matched
+      # something it must not - a stronger and more alarming signal than a bare
+      # reachability report. 404 is still the pass condition; the probes still send a valid
+      # body deliberately, because that is the shape that would actually mint a token.
       - name: Verify /dev/token is closed on the public edge (security gate)
         run: |
           FAILED=0

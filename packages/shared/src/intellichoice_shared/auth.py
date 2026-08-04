@@ -1,9 +1,13 @@
 import hmac
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from enum import StrEnum
 from typing import Protocol
 
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from starlette import status
 
 
 class Role(StrEnum):
@@ -120,3 +124,54 @@ def staging_secret_matches(presented: str | None, configured: str) -> bool:
     if not configured or presented is None:
         return False
     return hmac.compare_digest(presented, configured)
+
+
+DEV_TOKEN_PATH = "/dev/token"
+
+# A genuinely absent FastAPI path answers exactly this, and so must a closed `/dev/token` -
+# the whole point of AUD-L-01's fix is that the two are indistinguishable.
+_NOT_FOUND_BODY = {"detail": "Not Found"}
+
+
+def install_dev_token_gate_middleware(
+    app: FastAPI,
+    *,
+    endpoint_is_open: Callable[[str | None], bool],
+    path: str = DEV_TOKEN_PATH,
+) -> None:
+    """AUD-L-01 (D-175): make a closed `/dev/token` absent for **every request shape**, not
+    just for the one shape the handler's own 404 covers.
+
+    The problem this fixes. `@app.post("/dev/token")` is registered at module import, and
+    the handler's 404 is raised from *inside* the function body - so FastAPI has already
+    matched the route and validated the request body by the time the gate is consulted.
+    Request shapes that fail earlier never reach it: a malformed body 422s and a `GET`
+    405s, both of which tell an unauthenticated caller the path exists. Measured on both
+    public CloudFront edges, not just locally (D-171).
+
+    Why middleware rather than conditional registration. Registering the route only when
+    the endpoint is open is the more obvious fix and it was the wrong one here: `Settings`
+    would have to be read at import time, while every existing test - and the deploy gate's
+    own reasoning - depends on `get_settings` being monkeypatchable *after* import. HTTP
+    middleware runs before routing, so this closes all three shapes (422, 405, and any
+    future method) while keeping the decision per-request, which is also what lets a single
+    process serve tests that flip the setting between cases.
+
+    `endpoint_is_open` receives the presented `X-Staging-Token-Secret` header (or `None`)
+    and returns whether this caller may see the endpoint at all. Each app passes its own,
+    reading its own `Settings` at call time; the handler then re-applies the same predicate,
+    so the gate is defence in depth rather than a relocation of the check. An open endpoint
+    is left completely alone - a caller holding the secret still gets FastAPI's ordinary
+    422 for a bad body, which is correct: the disclosure only matters to callers who are
+    not supposed to know the path is there.
+    """
+
+    @app.middleware("http")
+    async def _dev_token_gate(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        if request.url.path == path and not endpoint_is_open(
+            request.headers.get("x-staging-token-secret")
+        ):
+            return JSONResponse(_NOT_FOUND_BODY, status_code=status.HTTP_404_NOT_FOUND)
+        return await call_next(request)

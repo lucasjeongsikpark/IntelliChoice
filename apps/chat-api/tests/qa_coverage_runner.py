@@ -201,8 +201,21 @@ async def ask(
     changed nothing and the run passed, which looked like the assertion being inert. The two
     values agree today (both come from `access_probe_policy`), so no past measurement was
     wrong - but an eval that cannot see a tuned config cannot be used to tune one.
+
+    **AUD-C-23/D-175: the same hole was still open for three more fields.** D-166 and D-172
+    each closed the one field they needed and left the rest to `TurnContext`'s defaults, so
+    `candidate_limit`, `top_k` and `confidence_threshold` were still unset here while
+    `routers/sessions.py` passes all six from `Settings`. The defaults **agree today** (30 /
+    8 / 0.4 on both sides), so no past measurement was taken through the wrong retrieval
+    width and AUD-C-23's red assertion is *not* explained by this - it is the latent version
+    of the same defect, and it was worth closing while the question "is the harness the
+    route?" was being asked, because the honest answer has to be "yes, on every axis" rather
+    than "yes, on the axes someone has needed so far".
+    `test_qa_coverage_runner_config_parity.py` now fails if a seventh field is wired into the
+    route and not into this function.
     """
     graph = build_graph(InMemorySaver())
+    settings = get_settings()
     ctx = TurnContext(
         claims=None,
         profile_adapter=FakeProfileAdapter(),
@@ -214,13 +227,17 @@ async def ask(
         org_event_repo=OrgEventRepository(session),
         rate_limiter=InMemoryRateLimiter(max_per_window=1000, window_s=3600.0),
         admin_escalation_email="admin@example.test",
-        access_probe_max_distance=get_settings().access_probe_max_distance,
-        # AUD-C-12/D-172, and the same rule as the line above: the eval must see the tuned
+        access_probe_max_distance=settings.access_probe_max_distance,
+        # AUD-C-23/D-175: the three fields the route passes and this harness did not.
+        candidate_limit=settings.retrieval_candidate_limit,
+        top_k=settings.retrieval_top_k,
+        confidence_threshold=settings.groundedness_confidence_threshold,
+        # AUD-C-12/D-172, and the same rule as the lines above: the eval must see the tuned
         # value, not `TurnContext`'s default. It matters more here than for the probe, because
         # the two runs need *different* values - see this module's own note below on why a
         # floor calibrated against the real reranker cannot be applied to the mock's scores.
         min_relevance_score=(
-            get_settings().retrieval_min_relevance_score
+            settings.retrieval_min_relevance_score
             if min_relevance_score is None
             else min_relevance_score
         ),
