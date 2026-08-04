@@ -61,6 +61,15 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   decisive because `_deterministic_vector` is a **pure function of the text**; and the deployed task
   definition sets `CHAT_BEDROCK_PROVIDER=bedrock` with `amazon.titan-embed-text-v2:0`. Dim 1024 and
   L2-norm 1.0000 on both sides, so neither discriminates — the content-keyed fingerprint is what does.
+  **⚠️ Corrected after the deploy (D-174 §3a): that answer was already available, and my closing claim
+  was wrong.** I wrote that `rag_chunks` "records no model or provider". **It records both, since
+  D-112 (2026-07-28)** — `embedding_provider`/`embedding_model_id` columns, a `reembed_cli` that runs
+  on every staging deploy, and a `/readyz` that fails closed on a mismatched corpus. One `SELECT`:
+  **staging is `'bedrock'` on all 159 chunks, dev is `'mock'`** (both `titan-embed-text-v2:0`). The
+  conclusion was right; the route was the hard way round. **Cause: AUD-C-16's "not yet checked against
+  staging" bullet was never struck when D-112 fixed the finding**, so a stale open question sat in a
+  closed finding's *body* — this session's own subject, in prose rather than in a heading. The
+  narrow lesson: I *did* read the status; I did not ask whether an inline question predated the fix.
   **✅ AUD-C-15 closed, and the finding named one half of it.** The unknown-tool path now audits before
   raising. The second half: an unknown `tool_name` is caller-controlled and lands in an **indexed**
   column with no length limit, so a long enough name makes the INSERT itself raise (~2704-byte btree
