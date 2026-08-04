@@ -135,7 +135,16 @@ to rot, because nothing fails when it does.)*
   `index.html` with a **200**, which is the trap: an unrouted API path looks alive rather than
   missing. That is not hypothetical — `/students/{id}/attendance` was once absent from the list, the
   frontend received S3 XML where it expected JSON, and its error handler crashed; it was found by a
-  user report, not in review. **`deploy-staging.yml` now asserts against it** (AUD-F-37/D-158):
+  user report, not in review.
+  **The trap has a second shape for non-GET requests, measured 2026-08-04 (D-175):** the SPA behavior
+  only allows GET/HEAD, so a **POST** to an unlisted path does not fall through to S3 at all — it gets
+  a CloudFront **403** with *"This distribution is not configured to allow the HTTP request method that
+  was used for this request. The distribution supports only cachable requests."* Found by probing
+  `POST /sessions` when the real path is `POST /chat/sessions`. Worth knowing because the two failures
+  look nothing alike and neither says "wrong path": a GET looks alive, and a POST looks like an auth,
+  WAF or method-support problem at the edge. **When probing the deployed API by hand, take the prefix
+  from this list**, not from the route decorator in the app — the app mounts `/sessions`, the edge only
+  forwards `/chat/*`. **`deploy-staging.yml` now asserts against it** (AUD-F-37/D-158):
   `GET /me` through the edge must return 401, which proves the request reached the app and its auth
   ran rather than merely "not 200".
   **`/healthz` and `/metrics` are outside the list deliberately** — internal-only, with the reason
@@ -144,6 +153,15 @@ to rot, because nothing fails when it does.)*
   **exactly one `PRIMARY` deployment whose image tag is this run's, with `runningCount ≥ 1`.**
   Adding a path to the edge is a Terraform change plus an apply **and an exposure decision** — check
   whether something is absent on purpose before adding it back.
+  **`/dev/token` is on the edge deliberately and is gated in HTTP middleware, not in its handler
+  (AUD-L-01/D-175).** It is the audit sessions' only authenticated path until S44 (S36/D-097), so it is
+  forwarded rather than removed, and the deploy gate asserts it is closed to every caller without the
+  Secrets Manager shared secret. The gate lives *before* routing so that a closed endpoint is
+  indistinguishable from a path that was never registered for **every** request shape — previously the
+  404 came from inside the handler, after FastAPI had matched the route and validated the body, so a
+  malformed body returned 422 and a `GET` returned 405 and both told an unauthenticated caller the path
+  exists. Consequence when reading the gate: a 422 from its probes now means the app considered the
+  caller *authorized*, which is a stronger signal than reachability.
   **`rolloutState == COMPLETED` is bound-retried, not required at a single instant (AUD-F-38,
   D-173 §6), and the reason generalizes.** It was required, and that failed a deploy whose artifact
   was perfect: pre-deploy verification probes are slow real-Bedrock turns, they tripped chat-api's

@@ -26,7 +26,13 @@ from intellichoice_observability.tracing import (
     instrument_fastapi_app,
     instrument_sqlalchemy_engines,
 )
-from intellichoice_shared.auth import Audience, Role, TokenClaims, staging_secret_matches
+from intellichoice_shared.auth import (
+    Audience,
+    Role,
+    TokenClaims,
+    install_dev_token_gate_middleware,
+    staging_secret_matches,
+)
 from intellichoice_shared.bedrock import BedrockGatewayError, BedrockTask
 from intellichoice_shared.build_identity import build_identity
 from intellichoice_shared.calendar import CalendarEvent
@@ -208,6 +214,23 @@ install_global_rate_limit_middleware(
     max_per_window=get_settings().global_rate_limit_max_per_window,
     window_s=get_settings().global_rate_limit_window_s,
 )
+
+
+def _dev_token_endpoint_is_open(presented_secret: str | None) -> bool:
+    """Whether `/dev/token` exists for this caller - mirrors
+    `learning_api.main._dev_token_endpoint_is_open` verbatim; see that one for why
+    `get_settings` is called rather than captured (AUD-L-01/D-175).
+    """
+    settings = get_settings()
+    local_dev_path = settings.environment == "dev" and settings.dev_token_endpoint_enabled
+    return local_dev_path or staging_secret_matches(
+        presented_secret, settings.staging_token_shared_secret
+    )
+
+
+# AUD-L-01 (D-175): a closed `/dev/token` must be indistinguishable from an absent path for
+# every request shape, not only for the valid-body POST the handler's own 404 covers.
+install_dev_token_gate_middleware(app, endpoint_is_open=_dev_token_endpoint_is_open)
 # SPEC §5.32 Observability (S31) - registered at module level, mirrors
 # `learning_api.main`'s same reasoning (middleware must be in place before the first
 # request; the FastAPI/SQLAlchemy auto-instrumentation stays lifespan-scoped since it
@@ -336,14 +359,13 @@ async def issue_dev_token(
     issue_dev_token` (D-006/D-032's pattern) verbatim, just defaulting to
     `Audience.CHAT`. 404s unless EITHER the local-dev path (`environment=="dev"` AND
     `dev_token_endpoint_enabled`, D-085) or the staging-secret path (S36/D-097) holds -
-    see that function's docstring for the full rationale of both.
+    see that function's docstring for the full rationale of both, and for why this 404 is
+    now defence in depth behind the AUD-L-01/D-175 middleware gate rather than the only
+    check.
     """
     settings = get_settings()
     local_dev_path = settings.environment == "dev" and settings.dev_token_endpoint_enabled
-    staging_path = staging_secret_matches(
-        x_staging_token_secret, settings.staging_token_shared_secret
-    )
-    if not (local_dev_path or staging_path):
+    if not _dev_token_endpoint_is_open(x_staging_token_secret):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     # S36: mirrors learning-api's identical fix - see that comment for the real staging
     # failure this closes (issuer signed with the public dev constant, verifier used the

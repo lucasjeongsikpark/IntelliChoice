@@ -25,7 +25,7 @@ ones.
 |---|---|---|---|---|
 | **AUD-L-02** | **Money** | **P0** | **Fixed in S36** | `POST /students/{id}/report` had no cost ceiling of any kind — it passed `session_spend_cents=0.0`, so the gateway's budget check could never fire, and one authenticated caller could drive unbounded Bedrock spend |
 | **AUD-L-04** | **Minors / PII** | **P1** | **Fixed 2026-07-29 (D-114)** — schedule applied and ENABLED | D-072 accepted "names in free text may survive" *because* that text lived in a 90-day-purged table; S25 then derived permanent, never-purged `semantic_memory.fact_text` from it, and those facts reach parent-visible reports |
-| AUD-L-05 | Minors / PII | P2 | Open — Phase 0B | `MemoryConsolidationPayload` carries free text but was never added to the PII-floor allowlist test, contrary to D-072's own stated rule |
+| AUD-L-05 | Minors / PII | P2 | ✅ fixed 2026-08-04 (D-175) | `MemoryConsolidationPayload` carries free text but was never added to the PII-floor allowlist test, contrary to D-072's own stated rule. **Fixed wider than filed**: the file claimed to cover "every payload type that crosses the gateway" and covered **6 of 20**, so the four chat payloads and `VideoClassificationPayload` were ungoverned too. Two structural changes rather than seven rows — the denylist now **recurses into nested models** (without which the fix would have been decoration on this very payload: its own field names are `events`/`existing_facts`/`allowed_fact_types` while the student text is in `MemoryEventSummary.summary`), and a completeness test fails when a **new payload class** is added, not just a new field. 17 models allowlisted, 7 in the generation regime, 1 excluded with a written reason |
 | AUD-L-06 | Minors | P3 | **Decided** — delete in Phase 0B | `tutor.generate_hint` is dead code that omits the leak check its live sibling applies — a trap for whoever wires it up |
 | AUD-L-03 | Money | P2 | **Decided** — Phase 0B | `pre_intro` stage-narrative spend is never folded back into the session total, so the per-session ceiling is permanently one call short |
 | **AUD-L-07** | **Authorization** | **P1** | **Accepted residual risk 2026-07-30 (D-123) — §7-R8**; still open as a finding, closes at S43/S46; **write half closed in S40** (D-107) | **The read half is now an accepted, written, expiring risk rather than an undecided open P1** — the product call the gate had been carrying for several sessions. Fixing it needs the tutor-assignment model `ProfileAdapter` gains at S43, which is after the gate; failing closed now was rejected because S40 showed it ends tutor report generation outright until S46. Acceptance is scoped to the no-real-users pilot window. Original: S40 closed the mutating surface via AUD-X-05's `access="write"` refusal, so what remains is the original read-scope gap: a tutor token can still read any student's dashboard/history and generate reports about them. Unchanged disposition — it needs the assignment/branch-roster model `ProfileAdapter` gains in S43, with the formal disposition at S46. The stale "lands with Q&A authorization (Session 13)" comment is fixed. Original: D-086's known tutor/branch_manager scope gap now reaches further than when it was written: it covers the S28 dashboard and report surface, so a tutor token can read any student's data and generate reports about them |
@@ -41,7 +41,7 @@ ones.
 | AUD-L-08 | Correctness | P3 | Open — Phase 0B | `normalized_gain` has no bound in either direction and derives its denominator from the pre *attempt count*. **Reachability corrected in the S36 continuation:** −200% reached on an ordinary journey, and >1 reachable via AUD-L-10's duplicate attempts |
 | AUD-L-16 | Design integrity | P3 | ✅ **fixed in D-174 §6 (2026-08-04) — wired, on D-169's precedent (user's call)** | `services/effective_policy.py` reads both snapshots back and the chat gate now asks it instead of testing `phase == "study"`. **Behaviour is deliberately unchanged** under the shipped constants (pre/post refuse, study allows, every other phase refuses); what changed is that retuning `exam_policy._POLICIES` can no longer alter an in-flight session's rules — the guarantee `AssessmentSession.policy`'s own comment promises and did not implement. **`policy` is nullable** (pre-S22 rows were never backfilled), so a `constant_fallback` path is real and is *reported* rather than passed off as the snapshot's answer — "the snapshot decided" and "the snapshot was missing" are the same boolean and different guarantees. **10 tests, and they are masking tests by construction:** all 10 fail against a stub of the old phase-string mechanism, including the two load-bearing ones (a study snapshot that *disables* hints, and an exam snapshot that *enables* them, each obeyed against the opposite constant). Fails closed on an unknown phase and on an id that no longer resolves. Original: | Both policy snapshots (`assessment_sessions.policy`, `study_sessions.intervention_policy`) are written at creation and never read back; only `time_limit_seconds` governs behavior, via a separate column |
 | AUD-L-17 *(keeps the id — it held it first; D-159's P2 was renumbered to `AUD-L-19` by D-174)* | Test integrity | P3 | **Fixed in S36 continuation** | The default mock's own hint boilerplate (`Level 1`) tripped the runtime answer-leak check whenever the served answer was `"1"`, making a hint test fail 8 times in 60 runs; `hint_events.was_personalized` still records no reason code, so the real rate is unmeasurable |
-| AUD-L-01 | Auth surface | P3 | Open — Phase 0B | A gated-off `/dev/token` still discloses that it exists, and the S35 deploy gate's stated rationale is wrong about why it 404s |
+| AUD-L-01 | Auth surface | P3 | ✅ fixed 2026-08-04 (D-175) | A gated-off `/dev/token` still discloses that it exists, and the S35 deploy gate's stated rationale is wrong about why it 404s. **Fixed in HTTP middleware, not by conditional registration** — the finding's own recommended fix (register the route only when enabled) would have moved `Settings` to import time and broken the monkeypatch-after-import approach every existing test and the gate's own reasoning depend on; middleware runs before routing, so all shapes 404 with a byte-identical body while the decision stays per-request. Asserted on both apps against a genuinely-absent-path control, over 5 request shapes — including `no_body` and `PUT`, which the finding's table never listed. **The quoted false sentence no longer existed**: the gate comment had been rewritten before this session, so only the mechanism claim was live |
 | **AUD-C-01** | **Authorization** | **P1** | **Fixed in S40** (D-107) | Both halves, fixed independently so neither relies on the other being correct: `_assert_session_access` now runs in `/messages` (folded into the one place that already reads the checkpoint, so a future caller cannot pick up the paused check and leave the access check behind), and `resolve_role` no longer downgrades an existing `user_external_id` to `None` on an anonymous turn. Landed with AUD-C-04 as D-101 requires. Original: `POST /messages` has no thread-ownership check *and* an anonymous turn erases the owner that `/respond` and `/stream` do check. Live-verified on staging: an unauthenticated caller continued a tutor's thread, received the tutor's answer and citation, and resolved its interrupt. Locally, tutor-audience text reached the anonymous response verbatim |
 | **AUD-C-02** | **Launch journey** | **P1** | **Fixed and live-verified 2026-07-28 (D-111 + D-112)**: D-111's topic fix alone was **measured insufficient** — with it live, "What is IntelliChoice?" was still refused or bounced to clarification 3/3 on real Bedrock. Closing it took D-112's intent *definitions* + pinned examples in the same prompt. Post-fix: **3/3 grounded answers citing About IntelliChoice** ("Who leads…" 3/3, "people who run…" 3/3, from an `admin_contact` misroute). Static guards: `test_scope_prompt_spec_coverage.py` (topics) + `test_scope_prompt_defines_intents` (definitions); behaviour: `paraphrase` eval cases on the real-Bedrock runner | Original: The `SCOPE_AND_INTENT` prompt's topic list omits SPEC §5.19.4's first supported topic ("IntelliChoice organization"), so live staging refuses **"What is IntelliChoice?"** as out of scope, 5/5. The mock's keyword list contains `"intellichoice"`, so no test could see it |
 | **AUD-C-03** | **Minors / PII** | **P1** | **Fixed 2026-07-28 (D-113), verified live on staging 2026-07-29**: `purge_resume_writes` deletes the thread's `__resume__` rows immediately after a `location_consent` resume completes — the finding's own targeted delete, keeping crash-safety for exactly the window it covers. Regression test drives the real endpoints + real `AsyncPostgresSaver` and decodes blobs with LangGraph's own serializer (msgpack-aware, honoring the finding's method note); watched failing pre-fix with the audit's exact two `__resume__` rows. **Post-deploy staging probe (deploy `9467c78`): a real-coordinates locator turn answered with distances, then an ops-task query found 0 `__resume__` rows and the coordinates' raw float64 bytes absent from every surviving blob** | Original: A caller's precise coordinates persist indefinitely in `checkpoint_writes.__resume__`, contradicting the consent notice's verbatim promise not to store them. D-045 called this "briefly"; nothing purges it, and D-045's "not eliminable" is wrong — a targeted delete works |
@@ -60,7 +60,7 @@ ones.
 | AUD-C-15 | Audit trail | P3 | ✅ **fixed in D-174 §4 (2026-08-04)**: `start` moved above the lookup and the unknown-tool path now writes a `success=False` / `error_type="McpToolError"` row before raising. **Plus a second half the finding did not name:** an unknown `tool_name` is caller-controlled and lands in an *indexed* `mcp_tool_calls.tool_name` column with no length limit, so a long enough name makes the INSERT itself raise (Postgres btree entries cap at ~2704 bytes) — the audit write would fail on exactly the malicious input it exists to record. Bounded to 128 chars on **every** path, so the invariant does not depend on which branch audited. Two tests, both watched failing first (the first on `0 = len([])`, the defect's own signature) | Original: | `McpToolRegistry.call` raises on an unknown tool *before* any audit write, so the one call shape a wiring bug or injection would produce is the one that leaves no `mcp_tool_calls` row |
 | **AUD-C-16** | **Launch journey / data integrity** | **P3 → P1** | **Fixed and live-verified 2026-07-28 (D-112)**: provenance columns stamped at ingest (NULL = unknown = mismatch), idempotent `make knowledge-reembed`, a deploy-step re-embed, and the load-bearing part — chat-api `/readyz` (the ALB health check) **fails closed** on corpus/runtime provenance mismatch, so this class can never again run silently. Staging re-embedded: **159/159 real Titan, 0/159 mock-like by S38's own discriminator** (max cos 0.078, was 159/159 at 1.0), 0.0224¢; the next deploy's re-embed was a 0-chunk/0-cent no-op. Paraphrase probes went from no-source refusals to **9/9 grounded answers with citations** | Stored embeddings are provider-specific with no provenance column and no re-embed path. **Settled by S38: staging's corpus is 159/159 `MockBedrockProvider` hash vectors** while both deployed services query with real Titan v2, so staging's semantic channel returns noise (peak cosine +0.074 vs +0.41 with real vectors) and hybrid search there has always been lexical-only. Live paraphrase citation rate **1/7** |
 | **AUD-C-20** | SPEC conformance | P2 | ✅ **fixed in D-165 (2026-08-03), with a named limit** — semantic arm added and deployed; `role_gated_question` 0/3 → **2/3**. The threshold it ships with is too tight for human phrasing → **AUD-C-21** | The §18-C3 access probe matches with `websearch_to_tsquery`, which **ANDs every content word** of the question, so one absent word voids it — the parent chunk says "student" not "child", the branch-manager chunk has neither "escalation" nor "path". This is why the feature still scores **0/3** after AUD-C-06's routing fix: §18-C3 has never fired for a realistically-worded question on *either* entry path |
-| **AUD-C-23** | Instrument / product correctness | P2 | Open — Phase 0B (filed 2026-08-04, D-172's verification) | **The paid real-Bedrock coverage eval fails, and has been failing since D-168 landed** — nobody knew, because it is opt-in and was not re-run after that change. `wrong_role_hints` reports `no-answer-missed-1`: an anonymous caller asking *"What happens to a student who misses three sessions in a row?"* — a plausible in-scope question **nothing** answers — is told to log in as some role. **This is D-168's own recorded residual**: `access_probe_policy`'s table shows the shipped rule at **1 false hint on the unanswerable class** in the corpus-phrasing arm (0 in the human arm), and the eval asserts **zero on every category**. So the assertion and the accepted decision disagree, and one of them has to move. **Not caused by D-172** — reproduced identically with `CHAT_RETRIEVAL_MIN_RELEVANCE_SCORE` at 0.35 and at 0.0. **⚠️ Re-scoped 2026-08-04 (D-173): "observed live" was wrong, and the correction changes the fork.** Probed anonymously against the *deployed* edge three times, this question returns **`access_hint: null`** and refuses correctly — the deployed system does not exhibit it. Verified against a control that can fail (a question known to trigger a hint still returns `required_role: "parent"` there, which incidentally confirms AUD-C-22's fix live against D-166's recorded `"branch_manager"`). So this is a property of the **local eval fixture corpus**, and the first question is why the two corpora disagree — not which of the two original forks to take, since tuning the rule on the eval's evidence would tune it against a corpus no user meets |
+| **AUD-C-23** | Instrument / product correctness | P2 | Open — Phase 0B (filed 2026-08-04, D-172's verification) | **The paid real-Bedrock coverage eval fails, and has been failing since D-168 landed** — nobody knew, because it is opt-in and was not re-run after that change. `wrong_role_hints` reports `no-answer-missed-1`: an anonymous caller asking *"What happens to a student who misses three sessions in a row?"* — a plausible in-scope question **nothing** answers — is told to log in as some role. **This is D-168's own recorded residual**: `access_probe_policy`'s table shows the shipped rule at **1 false hint on the unanswerable class** in the corpus-phrasing arm (0 in the human arm), and the eval asserts **zero on every category**. So the assertion and the accepted decision disagree, and one of them has to move. **Not caused by D-172** — reproduced identically with `CHAT_RETRIEVAL_MIN_RELEVANCE_SCORE` at 0.35 and at 0.0. **⚠️ Re-scoped 2026-08-04 (D-173): "observed live" was wrong, and the correction changes the fork.** Probed anonymously against the *deployed* edge three times, this question returns **`access_hint: null`** and refuses correctly — the deployed system does not exhibit it. Verified against a control that can fail (a question known to trigger a hint still returns `required_role: "parent"` there, which incidentally confirms AUD-C-22's fix live against D-166's recorded `"branch_manager"`). So this is a property of the **local eval fixture corpus**, and the first question is why the two corpora disagree — not which of the two original forks to take, since tuning the rule on the eval's evidence would tune it against a corpus no user meets. **⚠️⚠️ Re-scoped again 2026-08-04 (D-175), and this time in the other direction: it DOES reproduce live, 6 times in 10.** The corpora were then measured identical (D-174), and 10 anonymous probes of the deployed edge — the sample D-174 said three could not substitute for — returned `required_role: "branch_manager"` on **6** and a correct `null` refusal on **4**, same question, same corpus, same config. So the eval was right all along, the "deployed system does not exhibit this" claim was a **sampling artefact**, and **hypothesis (1) harness-vs-route is dead as an explanation while (2) nondeterminism is confirmed**. The original fork reopens with much worse numbers: 60% of real anonymous askers of an ordinary unanswerable question are told to go get a branch-manager account. **Needs a rule decision (tighten the margin vs. tolerate a named case) plus a re-measurement, not a quiet tune** |
 | **AUD-C-22** | SPEC conformance | P2 | ✅ **fixed in D-168 (2026-08-03), not deployed** — the probe became the reranked pipeline it was paraphrasing: **29/38 and 28/38** correct audiences across both phrasings with **zero wrong tiers on either**, against 23/38 with 1 and 4. The filed fix shape ("pick the closest") was measured and scores *identically* to the rule it replaces. The motivating question now returns **silence** rather than the wrong tier — two tiers legitimately compete for it | `build_access_hint` picks the highest-**priority** tier (`branch_manager, tutor, parent, student`), never the **closest** one, and the probe hands it counts rather than distances so the information is already gone. Live, on AUD-C-21's own motivating question, a parent asking about their child's attendance is now told to *"log in with a branch manager account"* — the chunk that answers it is the parent one, measured at 0.499. **Widening the ceiling cannot fix this**: at any ceiling ≥0.499 priority still answers branch_manager |
 | **AUD-C-21** | SPEC conformance / instrument | P2 | ✅ **fixed in D-166 (2026-08-03)** — ceiling **0.40 → 0.45** against a blind-rewrite fixture: **17/38 → 23/38** correct roles with **zero** false hints on either negative class, verified live (`no_answer` 8/8, and 8/8 false hints at a loosened 0.95, so the check can fail). **⚠️ The probe now fires and the live case names the wrong tier → AUD-C-22** | `access_probe_max_distance = 0.40` is too tight for how people actually phrase questions: the *fixture's own* parent-attendance case sits at **0.418** and a human wording of the same question at **~0.60**, both misses, while the correct chunk is at 0.499. Root cause is the instrument, not the code — a question **generated from** a chunk sits closer to it than a person's phrasing does, so 25/43 at ≤0.40 was true of the fixture and optimistic about users. Needs a human-phrased validation set before the ceiling moves; ≤0.55 already produces false hints on unanswerable questions, so this is a real trade, not a free widening |
 | **AUD-X-01** | **Authorization** | **P1** | **Fixed in S40** (D-107) | Fixed in `graph/nodes.py: resolve_student`, which now refuses to move a session to a different student — applied before the role split, so it covers the tutor branch that took `requested_student_id` unvalidated. The legitimate parent rebind is untouched: it pauses at `await_child_selection`, which re-checks the live link on resume. Re-verified live on staging with a before/after pair. Original: `POST /sessions/{id}/student` never checks who already owns the session: a different student claimed an in-progress exam session, the owner was **locked out with 403**, and their `in_progress` assessment row was orphaned. Same structure as AUD-C-01 — the one route that *writes* the identity field all 17 others read is the one that does not check it |
@@ -151,12 +151,17 @@ corrected and the correction is marked in it.
 | AUD-F-35 | Personalization correctness | P2 | ✅ Fixed 2026-08-01 (D-150) | `promote_if_eligible` applies no evidence bar, so plan §9's stability rule is enforced at creation and bypassed on the next reconfirmation |
 | AUD-F-36 | Launch journey / interrupts | P2 | ✅ Fixed 2026-08-01 (D-145), deployed; criterion 3 re-met behind it (D-147) | The parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription |
 | AUD-F-37 | Deploy pipeline | P2 | ✅ Fixed 2026-08-03 (D-158) | Nothing verified that the deployed code is the code that was built |
+| **AUD-C-24** | **Minors / PII floor — chat free text** | **P2** | **Open — filed 2026-08-04 (D-175), not fixed** | **The chat app sends the user's typed question to Bedrock unredacted, and no decision ever covered that surface.** `redact_free_text` has **exactly one call site in the repository** — learning-api's chat router, at the request boundary (D-072) — while chat-api has none, so a question typed into `chat.intellichoice.org` reaches four payloads verbatim: `ScopeAndIntentPayload.standalone_query`, `RerankPayload.query`, `RagAnswerPayload.query`, `CalendarExtractionPayload.query`. D-072's own "How to apply" clause requires the pass for "any future free-text-accepting Bedrock task". **Bounded, and the bound is what holds it at P2**: chat queries are **not persisted** — there is no chat-message table (`chat_suggestions.prompt_text` is hand-authored seed content, checked), so this is the wire and traces, not storage or backups. **Not an accepted risk, an unexamined one**: D-018's prompt-injection scope call names chat-api's surface deliberately and defers PII to "S24/D-072 already judged that surface", which judged the *learning* surface. Needs a decision (redact at the chat request boundary as learning-api does, vs. accept and write the acceptance down), not just a patch — a minor typing "my mum's email is …, when is class?" is the realistic case |
 
-**Open findings, counted from both halves of the Index (2026-08-04, D-174): 9.**
-`Open — Phase 0B`: **AUD-L-01, L-05, L-08, L-16, C-14, C-15, C-23** (7, all from the table above)
-plus **AUD-F-22** and **AUD-F-33** from this block. **AUD-F-16 is not among them** — it was fixed in
-D-116. AUD-F-32 is dispositioned rather than open. **The previous count of "8, 9 counting AUD-F-16"
-was wrong in both directions**: it carried a closed finding and missed two open ones.
+**Open findings, counted from both halves of the Index (2026-08-04, D-174; recounted D-175): 5.**
+Arithmetic, written out because this line has now been wrong three times: 6 open at the start of
+D-175, **minus** AUD-L-01 and AUD-L-05 (both fixed here) = 4, **plus** AUD-C-24 (newly filed here) =
+**5**. Confirmed by running ROADMAP's anchored `awk`, not by counting the sentence below.
+`Open — Phase 0B`: **AUD-L-08, C-23** from the table above (**AUD-L-01, AUD-L-05, L-16, C-14, C-15 are
+now fixed** — the last three in D-174, the first two in D-175) plus **AUD-F-22**, **AUD-F-33** and the
+new **AUD-C-24** from this block. **AUD-F-16 is not among them** — it was fixed in D-116. AUD-F-32 is
+dispositioned rather than open. **The pre-D-174 count of "8, 9 counting AUD-F-16" was wrong in both
+directions**: it carried a closed finding and missed two open ones.
 
 **✅ One id used to name two different findings: `AUD-L-17`. Resolved 2026-08-04 (D-174) — D-159's P2
 is now `AUD-L-19`.**
@@ -324,7 +329,7 @@ than re-opening a settled trade-off. Phase 0B work, before the §2.6 gate:
 
 - **Severity:** P2 — no live leak today; a missing guard rail, not a broken one
 - **Area:** minors / PII floor
-- **Status:** open, Phase 0B
+- **Status:** ✅ fixed 2026-08-04 (D-175) — see the closing subsection
 
 **What.** D-072's own "How to apply" clause states the rule: *"any future free-text-accepting
 Bedrock task must run `redact_free_text` (or a stricter successor) before the wire and before
@@ -345,6 +350,38 @@ protection, and this one is the payload closest to real student free text.
 **Disposition.** Phase 0B: add the allowlist case. Also worth checking the other uncovered
 payloads in the same pass (`VideoClassificationPayload`, `LlmJudgePayload`, and the
 curriculum-pipeline payloads); the chat-app payloads belong to AUD-C/S37.
+
+#### ✅ Fixed 2026-08-04 (D-175) — and the one-row fix would not have worked
+
+**Adding the row the disposition asks for would have left this payload unprotected.**
+`MemoryConsolidationPayload`'s own field names are `events` / `existing_facts` /
+`allowed_fact_types`; the student's chat text lives in `MemoryEventSummary.summary` and
+`MemoryExistingFact.fact_text`, one level down. The test's denylist compared *top-level*
+`model_fields` only, so the payload the finding was filed about — "the payload closest to real
+student free text" — would have passed a scan that never looked at the fields carrying the text.
+Verified rather than reasoned: the completeness assertions were run against the pre-fix registry
+*with* `MemoryConsolidationPayload` added, and the nested check still failed, naming both models.
+
+**Scope, measured.** The module docstring claimed coverage of "every payload type that ever crosses
+the Bedrock gateway". Actual: **6 of 20**. `test_generation_payload_schemas.py` governs 7 more under
+a deliberately narrower `extra="forbid"`-only regime (documented, and correct — curriculum content,
+not student data), and `LlmJudgePayload` carries a written exclusion at its definition site. That
+left **6 genuinely ungoverned**: `MemoryConsolidationPayload` and the four chat payloads
+(`ScopeAndIntentPayload`, `RerankPayload`, `RagAnswerPayload`, `CalendarExtractionPayload`) plus
+`VideoClassificationPayload`. The chat payloads were never anybody's follow-up — this entry's own
+disposition assigned them to "AUD-C/S37", and no AUD-C finding picked them up.
+
+**What was built.** 17 models on exact field allowlists (nested models are first-class rows), the
+denylist recursing one hop through field annotations, and two structural tests: every `*Payload` in
+`intellichoice_shared.bedrock` must sit in exactly one of three named regimes, and every nested model
+reachable from an allowlisted payload must itself be allowlisted. The first fails on a **new payload
+class**, which is the level D-072's clause was violated at; both were watched failing against the
+pre-fix registry, naming exactly the 7 and the 2. Suite: 25 → 68 tests in the two files.
+
+**Found while doing it, filed separately as AUD-C-24:** the four chat payloads carry the user's typed
+question verbatim, and **nothing in chat-api redacts it** — `redact_free_text` has exactly one call
+site in the repository, in learning-api's router. These allowlists pin field *names*; they say nothing
+about the text inside them.
 
 ### AUD-L-06 — `tutor.generate_hint` is unreachable and omits the leak check its sibling applies (P3)
 
@@ -598,7 +635,7 @@ displayed today. It *is* passed into `StageNarrativePayload` (`nodes.py:650`), s
 - **Area:** auth surface / deploy-time security gate
 - **Found by:** reading [.github/workflows/deploy-staging.yml](../.github/workflows/deploy-staging.yml)'s
   gate comment while extending it for S36/D-097, then probing the claim instead of trusting it
-- **Status:** open, Phase 0B
+- **Status:** ✅ fixed 2026-08-04 (D-175) — see the closing subsection
 
 **What.** The gate comment asserts: *"with the endpoint gated off, the route is never
 registered on the app at all."* That is not how the code works. `@app.post("/dev/token")` is
@@ -653,6 +690,45 @@ absent for every request shape. The second is the real fix but touches how both 
 `Settings` are read at import time, and the existing tests monkeypatch `get_settings` on the
 module *after* import — so it needs a small test-approach change, which is Phase 0B work, not
 mid-audit work.
+
+#### ✅ Fixed 2026-08-04 (D-175) — in middleware, because the recommended fix was the wrong one
+
+**The disposition's own reservation was the answer, not an obstacle.** Conditional registration
+would force `Settings` to be read at import time, and both apps' tests — and the deploy gate's
+reasoning — depend on `get_settings` being monkeypatchable *after* import. HTTP middleware runs
+**before routing**, so it closes every request shape while leaving the decision per-request:
+`install_dev_token_gate_middleware` (in `intellichoice_shared.auth`, next to
+`staging_secret_matches`, following `install_global_rate_limit_middleware`'s established shape)
+returns a 404 with a byte-identical body to a path that was never registered. The handler keeps its
+own 404 as defence in depth, and both now call **one** predicate
+(`_dev_token_endpoint_is_open`), so the gate and the handler cannot drift.
+
+**Asserted, on both apps, over five request shapes** — the finding's three (`invalid_role_body`,
+`empty_body`, `wrong_method`) plus `no_body` and an unregistered `PUT`. Each row is compared against
+`/dev/nonexistent` as a genuinely-absent control, so the assertion is *indistinguishability* rather
+than "returns 404"; the control is separately asserted non-vacuous. A sixth test pins the other
+direction: a caller **holding** the secret still gets FastAPI's ordinary 422 for a malformed body,
+because a gate that swallowed validation for everyone would be a different defect. All five failed
+against the un-gated app first (405/422 vs 404).
+
+**Two corrections to this entry.**
+
+1. **The false sentence it quotes no longer exists.** *"With the endpoint gated off, the route is
+   never registered on the app at all"* is not in `deploy-staging.yml` today — the comment was
+   rewritten at some point between S35 and now, and the current text already treats 422 as a
+   *symptom of reachability* rather than an impossibility. Only the mechanism half of the finding was
+   still live. Grepped for the exact phrasing across the workflow, both apps and the docs: one hit,
+   in this entry.
+2. **The gate comment is updated for what actually changed**, which is subtler than "the disclosure
+   is closed": a 422 from those probes now means the app considered the caller **authorized**, since
+   nothing else can get past the middleware. That is a stronger and more alarming signal than the
+   comment's previous reading, and the latent trap the finding correctly predicted — "send an empty
+   body, we only care about the status code" quietly turning the gate into decoration — is gone,
+   because body validity no longer has anything to do with what the gate proves.
+
+**Live re-verification is owed at the next deploy**, and cheaply: the gate itself probes both edges,
+and a `GET`/no-body probe by hand would confirm the 405/422 rows are gone from the public edges where
+D-171 measured them. Not done here — this fix is not deployed yet.
 
 ## S36 continuation — the four uncovered audit areas (2026-07-25)
 
@@ -1824,6 +1900,108 @@ to chase a sampling artefact, would both be worse than leaving it red and named.
 **A note for whoever runs the staging probes:** they trip `chat-api-p95-latency-scale-out`, which is
 what AUD-F-38 was about. That gate is fixed (D-173 §6), so probing before a deploy is now safe — but
 expect the desired count to move, and do not read it as a deploy signal.
+
+#### ⚠️⚠️ The probes were run, and the finding reproduces on the deployed edge 6 times in 10 (2026-08-04, D-175)
+
+**Every "it does not reproduce live" sentence above is a sampling artefact, and the fork has
+resolved.** 10 anonymous probes of `no-answer-missed-1` against the deployed chat edge
+(`/chat/sessions` → `/chat/sessions/{id}/messages`, no credential, ~14c of real Bedrock turns):
+
+| Probes | `access_hint` | `escalation_recommended` | What the user gets |
+|---|---|---|---|
+| **6 / 10** | `{"required_role": "branch_manager", …}` | `false` | *"That's part of branch management materials — available to branch managers. Log in with a branch manager account to see it."* |
+| 4 / 10 | `null` | `true` | the correct refusal, plus the offer to escalate |
+| control (1) | `{"required_role": "parent", …}` | `false` | the hint machinery is live and can fail — D-171 §2 |
+
+**What this settles.**
+
+1. **Hypothesis (2), nondeterminism, is confirmed. Hypothesis (1), harness-vs-route, is dead as an
+   explanation** — the route exhibits the same defect the eval measured, more often. The eval was
+   never measuring a harness artefact or a corpus no user meets; it was measuring this.
+2. **The three-probe claim was wrong, and D-174 had already said why it could not be trusted.** It
+   corrected the wording to *"not observed in 3 probes"* and named the remaining risk exactly right.
+   Taking the sample was the cheap step that resolved a fork two sessions had reasoned about — and at
+   60% reproduction, three probes returning null has a ~6% chance, so this was not bad luck so much
+   as an under-powered instrument being read as an answer.
+3. **The severity is worse than the eval showed.** The eval's residual was 1 of 8 unanswerable cases
+   in the corpus-phrasing arm. Live, for this question, it is 6 of 10 — and the damage is the one
+   D-166 and D-168 both named in as many words: *a wrong tier is worse than silence*. A parent or
+   student asking an ordinary question about missed sessions is told to go get a branch-manager
+   account for an answer that **does not exist at any tier**.
+
+**Mechanism, inferred and not yet verified.** AUD-C-22/D-165 made the access probe run *the reranked
+pipeline* rather than a paraphrase of it, so an LLM rerank now sits inside the probe — and an LLM
+score is not reproducible. Near the margin, two runs land on opposite sides. That is consistent with
+D-172 watching this same model return 6 → 5 → 4 citations on an unchanged corpus, and it predicts the
+flip rate should depend on how close this question sits to the threshold. **Not measured here**: no
+per-probe rerank scores were captured, so this remains a hypothesis with a mechanism rather than a
+demonstrated cause.
+
+**Still open, and deliberately not fixed in D-175.** The fork is now the original one — tighten the
+margin, or accept and *name* the tolerated case — and both arms are rule changes to a component whose
+current rules were each chosen from a measured table (D-165/D-166/D-168). Tuning it from this session's
+10 samples, without re-running `measure_access_probe_rules.py`, would repeat in miniature the mistake
+this finding has already made twice: acting on the evidence that happened to be cheap. It also carries
+a product judgment that is the user's — whether a hint that is sometimes wrong beats silence — so it is
+recorded with numbers and left for a decision.
+
+### AUD-C-24 — The chat app sends the user's typed question to Bedrock unredacted (P2, filed 2026-08-04, D-175, not fixed)
+
+- **Severity:** P2 — a real gap in a stated rule, bounded by the fact that nothing persists the text
+- **Area:** minors / PII floor (SPEC §5.30.1, CLAUDE.md rule 1), chat-api
+- **Found by:** extending the PII-floor allowlist to the chat payloads for AUD-L-05, then asking what
+  the allowlisted `query` field actually *contains* — the allowlist pins field names, not text
+- **Status:** open, needs a decision
+
+**What.** `intellichoice_shared.pii_redaction.redact_free_text` has **exactly one call site in the
+repository**: `apps/learning-api/src/learning_api/routers/sessions.py:1188`, at the request boundary,
+where D-072 put it. **chat-api never calls it.** So a question typed into `chat.intellichoice.org`
+crosses the Bedrock wire verbatim in four payloads:
+
+| Payload | Field | Task |
+|---|---|---|
+| `ScopeAndIntentPayload` | `standalone_query` | `SCOPE_AND_INTENT` |
+| `RerankPayload` | `query` | `RERANK` |
+| `RagAnswerPayload` | `query` | `RAG_ANSWER` |
+| `CalendarExtractionPayload` | `query` | `CALENDAR_EXTRACTION` |
+
+D-072's "How to apply" clause is explicit that this is required of *"any future free-text-accepting
+Bedrock task"* — the same clause whose allowlist half was AUD-L-05.
+
+**Why it is P2 and not higher — the bound, checked rather than assumed.** The text is **not stored**.
+There is no chat-message table: `packages/db/.../models/chat.py` holds only `chat_suggestions`, whose
+`prompt_text` is hand-authored seed content (`suggestions_seed`), and `tutor_chat_messages` belongs to
+the *learning* app and stores `redacted_student_message` — already redacted, and the only table with a
+retention job. So this is the Bedrock wire and whatever traces carry it, not Postgres, not backups.
+Contrast AUD-L-04, which is P1 precisely because the derived text landed in a table with no purge.
+
+**Why it is nevertheless worth a decision.** The users are minors. The realistic input is not exotic —
+*"my mum's email is … , when is the next parent meeting?"* is an ordinary thing for a 12-year-old to
+type into a chat box, and the learning app already treats that exact shape as requiring a pass.
+
+**It is an unexamined gap, not an accepted risk, and that distinction is the finding.** Two decisions
+look like they cover it and neither does:
+
+- **D-072** judged "free text reaching an LLM, mandatory PII redaction before it does" for the
+  *learning* tutor/hint surface, and installed the pass there.
+- **D-018**'s prompt-injection scope call is *deliberately* scoped to chat-api's Q&A/RAG/tool-call
+  surface and explicitly defers the PII question with *"S24/D-072 already judged that surface's
+  specific risk … and made its own scope call at the time"* — but the surface D-072 judged was
+  learning-api's. Each decision points at the other, and chat-api's own free-text input falls between
+  them.
+
+**Recommended disposition, for the user's call.** Apply `redact_free_text` at chat-api's request
+boundary the way learning-api does — one call in the message route, before the query reaches
+`TurnContext` — since redaction removes emails/URLs/phones and not question words, so an answer is
+still answerable (learning-api is the existence proof). The alternative is to accept it and write the
+acceptance down with its reasoning, which is the outcome D-072 would have produced if this surface had
+been considered. **Not fixed in D-175**: it is outside the confirmed cluster, it changes what crosses
+the wire on a live user path, and "which pass, at which boundary" is a decision rather than a patch.
+
+**Not investigated here:** whether traces carry the query. `LANGSMITH_HIDE_INPUTS/HIDE_OUTPUTS=true`
+is recorded as the mitigation for a related concern (D-093-era), and AUD-F-13 established that a PII
+floor has to be re-established per store rather than inherited — so "the trace is clean" needs its own
+check and does not follow from this entry.
 
 ### AUD-C-22 — The access hint names the highest-*priority* tier, never the closest one (P2)
 

@@ -679,12 +679,18 @@ which stop the line.
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 
 > **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
-> cheap P2s" (below); the rest were never dispositioned. **6 findings are open** in
-> [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) — **AUD-L-01, L-05, L-08, C-23, F-22, F-33** (updated
-> 2026-08-04, D-174) — and **none are integration-blocked**; they are exactly what D-152's "finish
-> and test this codebase against the dev fakes first" points at. With S43–S47 frozen, post-gate
-> sessions run out of this backlog under PROGRESS.md's "Next session" pointer rather than under a
-> numbered block.
+> cheap P2s" (below); the rest were never dispositioned. **5 findings are open** in
+> [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) — **AUD-L-08, C-23, C-24, F-22, F-33** (updated 2026-08-04,
+> D-175: AUD-L-01 and AUD-L-05 fixed, AUD-C-24 newly filed) — and **none are integration-blocked**;
+> they are exactly what D-152's "finish and test this codebase against the dev fakes first" points at.
+> With S43–S47 frozen, post-gate sessions run out of this backlog under PROGRESS.md's "Next session"
+> pointer rather than under a numbered block.
+>
+> **Two of the five are decided and awaiting implementation, which is a different pile from open** —
+> see the note further down. **AUD-F-22** (resolve the parent's child before the session, closing the
+> S11 carry-over with it) and **AUD-L-08** (declared item count as the denominator, flag rather than
+> clamp) both have the user's answer recorded in D-175 §5. They are the cheapest real work available:
+> the decision is made, the shape is written down, and neither needs another measurement first.
 >
 > **⚠️ How to recount, corrected 2026-08-04 (D-174) — the previous instruction here was the one that
 > produced a wrong number.** It said "derive the count from the table, never carry it forward",
@@ -717,8 +723,11 @@ which stop the line.
 > without checking where the word sits — that is the same class of error twice over.
 >
 > Note also that *Open* and *Decided* are different piles: a finding whose fix has been decided but
-> not implemented (AUD-L-03, AUD-L-09) is not in this count and is not done. That pile is currently
-> **empty of unimplemented items** apart from those two.
+> not implemented (AUD-L-03, AUD-L-09) is not in this count and is not done. **That pile stopped being
+> empty on 2026-08-04 (D-175 §5): AUD-F-22 and AUD-L-08 now have the user's decision and no
+> implementation.** Both are also still `Open` in the table, because a decided fix that has not shipped
+> is not a closed finding — so they are counted once, as open, and their decisions are recorded in
+> D-175 rather than in the status column.
 >
 > **Take clusters, not findings — but the two clusters taken so far cohered differently, and the
 > difference is worth carrying forward.** D-155 (AUD-C-07 + AUD-C-08 + AUD-C-10) was *one defect at

@@ -5,11 +5,84 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ D-175: AUD-C-23 reproduces on the deployed system 6 times in 10, and two guard rails turned out
+  to assert less than they appeared to (2026-08-04, S60 — no numbered session; PROGRESS.md's own
+  pointer, items 2 and 3, cluster chosen by the user). `make lint` clean, `pyright` 0, **852 passed /
+  2 skipped** (795 at start, **+57**), `e2e/` `tsc` clean. **Uncommitted and not deployed** — but note
+  this is an *application* change on a live auth surface, so it needs one.**
+  **⚠️ The headline result reverses two sessions of reasoning, and the correction was cheap.**
+  AUD-C-23's "the deployed system does not exhibit this finding" rested on **three** anonymous probes.
+  Ten probes: **6 returned `access_hint: {"required_role": "branch_manager"}` and 4 returned the correct
+  `null` refusal** — same question, same corpus (measured identical in D-174), same config, same models,
+  with a control that fired (`required_role: "parent"`). So it was a **sampling artefact**: at a 60% flip
+  rate, three nulls in a row has a ~6% chance. **D-174 had already named this exact risk** and softened
+  the wording to "not observed in 3 probes"; what was missing was the sample, and the sample cost ~14
+  cents. **The rule, now earned twice: when the suspected mechanism is nondeterminism, a claim of the
+  form "never" needs a sample size chosen before the probes, not however many someone happened to run.**
+  **The user-facing damage is the one D-166 and D-168 both named** (*a wrong tier is worse than
+  silence*): 6 in 10 real anonymous askers of *"What happens to a student who misses three sessions in a
+  row?"* are told to log in with a **branch manager** account, for an answer that exists at **no** tier.
+  Severity is worse than the eval showed — the eval's residual was 1 of 8 in one arm.
+  **✅ The harness-vs-route half is closed and was *not* the cause**, which is worth separating. Three
+  more `TurnContext` fields (`candidate_limit`, `top_k`, `confidence_threshold`) were left to defaults
+  while the route passes all six from `Settings` — but those defaults **equal** the `Settings` defaults
+  (30 / 8 / 0.4), so no past measurement was taken through the wrong retrieval width. Latent, not
+  causal, and now closed with an `ast`-based parity guard that fails when the route reads a `Settings`
+  field the harness does not pass. **Hypothesis (1) is dead as an explanation; (2) nondeterminism is
+  confirmed.** Mechanism inferred, not verified: D-165 put an LLM rerank *inside* the access probe, so
+  scores near the margin flip — consistent with D-172 watching this model return 6 → 5 → 4 citations on
+  an unchanged corpus. No per-probe rerank scores captured, so it stays a hypothesis with a mechanism.
+  **Deliberately not fixed:** both arms of the fork change rules whose current values each came from a
+  measured table (D-165/D-166/D-168), and "a sometimes-wrong hint vs. silence" is a product judgment.
+  **✅ AUD-L-05 closed, and the fix the finding asked for would not have worked.** Adding
+  `MemoryConsolidationPayload` to the allowlist leaves it unprotected: its own field names are
+  `events`/`existing_facts`/`allowed_fact_types` while the student's chat text is in
+  `MemoryEventSummary.summary`, one level down, and the check was **top-level only**. Proven, not
+  argued — the new assertions were run against the pre-fix registry *with* the payload added and the
+  nested check still failed, naming both nested models. Measuring real coverage found the rest: the file
+  claims "every payload type that ever crosses the Bedrock gateway" and governed **6 of 20**. Fixed
+  structurally — 17 models on exact allowlists, the denylist recursing into nested models, and a
+  completeness test that **fails on a new payload class**, which is the level D-072's clause was
+  actually violated at. 25 → 68 tests.
+  **⚠️ AUD-C-24 filed, not fixed — chat free text crosses the Bedrock wire unredacted.** Asking what
+  the newly-allowlisted `query` field *contains*: `redact_free_text` has **exactly one call site in the
+  repository** (learning-api's router, D-072's boundary) and **chat-api has none**, so a question typed
+  into `chat.intellichoice.org` reaches four payloads verbatim. **Bounded, and the bound was checked:**
+  not persisted — there is no chat-message table (`chat_suggestions.prompt_text` is hand-authored seed
+  content, a false lead worth recording since the name reads like user input), so wire and traces, not
+  Postgres. **An unexamined gap, not an accepted one:** D-072 judged the *learning* surface, D-018
+  defers chat-api's PII question *to* D-072, and chat-api's own typed input falls between them.
+  **✅ AUD-L-01 closed in middleware — the finding's own recommended fix was the wrong one.** Conditional
+  registration would move `Settings` to import time and break the monkeypatch-after-import approach
+  every test and the deploy gate's reasoning depend on; the disposition flagged that cost itself, and it
+  was the answer. Middleware runs before routing, so every shape 404s with a byte-identical body while
+  the decision stays per-request, and gate and handler now share **one** predicate. Asserted on **both**
+  apps over 5 shapes (the finding's 3, plus `no_body` and `PUT`), each against a `/dev/nonexistent`
+  control so the property is *indistinguishability* rather than "returns 404". **The false sentence the
+  finding quotes no longer exists** — grepped across the workflow, both apps and the docs: one hit, in
+  the finding itself.
+  **✅ Two user decisions recorded, neither implemented — the "Decided" pile is no longer empty.**
+  **AUD-F-22:** resolve the parent's child *before* the session (root cause; also closes the S11
+  carry-over, and adds no UI). **AUD-L-08:** declared item count as denominator, **flag** rather than
+  clamp — clamping turns a −200% into a plausible −100%, which is the finding's own complaint.
+  **⚠️ And a correction to this file's own headline**, made this session: the D-174 bullet below said
+  "Uncommitted and not deployed" with "785 passed" while the session log recorded the successful deploy
+  and 795. D-174's subject one level up — a stale claim in the *summary* rather than in the register,
+  and the summary is what a new session reads first.
+  **Open count: 5** — `AUD-L-08, C-23, C-24, F-22, F-33`, confirmed with ROADMAP's anchored `awk`
+  rather than by counting a sentence. Arithmetic: 6 at start, −L-01, −L-05, +C-24.
+
 - **⚠️ D-174: the backlog count was wrong in both directions, and the corpus diff came back "there is
   no difference" (2026-08-04, no numbered session — PROGRESS.md's own pointer, items 3 then 1, then
-  AUD-C-15 and AUD-C-14). `make lint` clean, `pyright` 0, **785 passed / 2 skipped** (782 at start,
-  +13), `e2e/` `tsc` clean. **Uncommitted and not deployed** — code, tests and docs only, no
-  migration.**
+  AUD-C-15 and AUD-C-14). `make lint` clean, `pyright` 0, **795 passed / 2 skipped** (782 at start,
+  +13), `e2e/` `tsc` clean.
+  **✅ Landed and deployed** — PR #104 (`e10b472`) + #105 (`aa4c444`), deploy run 30928085297 success,
+  `learning-api:61` / `chat-api:60`, both `gha-e10b47265bad`. Session log below has the detail.
+  **⚠️ This bullet said "Uncommitted and not deployed" and "785 passed" until 2026-08-04 (D-175).**
+  It was written mid-session and never reconciled at close-out, so the status document's own headline
+  contradicted its session log — which records the successful deploy — and understated the test count
+  by 10. Exactly D-174's subject (a stale claim inside a document that had since been corrected
+  elsewhere), reproduced one level up, in the summary rather than in the register.
   **⚠️ Read this before taking a count from AUDIT_FINDINGS.md's table again.** The register states
   its own invariant — *"One row per finding"* — and it was broken for **27 findings** (89 sections, 68
   rows). The Index stopped being maintained after AUD-F-20 / C-16 / X-08. It cost in **both**
@@ -1173,7 +1246,59 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-174):**
+- **Next session, in order (2026-08-04, post-D-175):**
+  0. **Owed: land and deploy D-175.** Application changes on two live surfaces
+     (`intellichoice_shared/auth.py` plus both apps' `main.py`), so this needs a deploy — and the one
+     thing to verify live that a test cannot see is **AUD-L-01's own reproduction table on the public
+     edges**: `GET /dev/token` and a no-body `POST` should now be **404**, where D-171 measured 405 and
+     422. Two `curl`s on each edge. The deploy gate itself will also exercise it, and note its comment's
+     new reading: a 422 from those probes would now mean the app considered the caller *authorized*.
+  1. **AUD-C-23 needs your decision, and it is now the most user-visible open finding.** 6 of 10
+     anonymous askers of *"What happens to a student who misses three sessions in a row?"* are told to
+     log in as a branch manager for an answer that exists at no tier. The fork: **tighten the margin**
+     (re-measure with `measure_access_probe_rules.py`, ~cost of one paid arm) or **accept and name the
+     tolerated case** in the eval assertion. Nondeterminism is confirmed, so "leave it and re-run"
+     is not a third option — it will keep flipping. **Do not tune it without the re-measurement**:
+     every current rule value came from a measured table (D-165/D-166/D-168).
+     Worth capturing per-probe rerank scores at the same time, to confirm the inferred mechanism (an
+     LLM score inside the probe since D-165) rather than leaving it inferred.
+  2. **AUD-C-24 needs your decision: redact chat free text, or accept and write it down.**
+     Recommendation is to redact at chat-api's request boundary exactly as learning-api does — one call,
+     and learning-api proves an answer survives the pass. The users are minors and the realistic input
+     is a child typing a parent's email into a chat box.
+  3. **The two decided-and-unimplemented items are the cheapest real work available.** Both have your
+     answer recorded in D-175 §5 and need no further measurement: **AUD-F-22** (resolve the parent's
+     child before the session — also closes the S11 carry-over; expect
+     `journey-parent.spec.ts`'s `test.fail()` probe to flip to failing, which is the promote signal, not
+     a break) and **AUD-L-08** (declared item count as denominator, flag rather than clamp; note −200%
+     already reaches the DB and feeds `StageNarrativePayload`).
+  4. **AUD-F-33** (P2, autoscaling) remains deferred by your call — detection exists, mechanism unknown.
+  5. **The product decisions still unanswered, unchanged and none of them mine to make:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent by
+     choice; (b) should the access hint be able to say "this is covered in parent *and* branch-manager
+     materials" instead of going silent — **note this now interacts with AUD-C-23**, since the wrong-tier
+     hint and the silence rule are the same margin; (c) escalation carries no way to reply to the person
+     who asked (D-164's scoped-out half), and `InMemoryRateLimiter` is per-process so the real ceiling is
+     N× the configured one.
+  6. **Notes that survive from the post-D-174 pointer:**
+     **Counting findings:** use ROADMAP's anchored `awk` (status is the 5th pipe field, a real open
+     finding *starts* with `Open`); a naive `grep -i open` over-counts because rows carry their own
+     history inside the status cell. It returns **5** today.
+     **Reading staging's database:** `aws ecs run-task` with a `containerOverrides` command on
+     `intellichoice-staging-ops-task` reads RDS directly for a few Fargate seconds, read-only by
+     construction if the command is a `SELECT`.
+     **Probing the deployed chat API:** the base path is **`/chat/...`**, not `/sessions/...` — a bare
+     `POST /sessions` returns CloudFront 403 ("supports only cachable requests") because only the
+     `/chat/*` behavior allows POST. Cost ~1.25c per anonymous turn.
+     **Chat probes and deploys:** they trip `chat-api-p95-latency-scale-out`. AUD-F-38 is fixed, so
+     probing before a deploy is safe — expect desiredCount to move and do not read it as a deploy signal.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"`
+     **and export `AWS_REGION=us-east-1`** — the exported credentials carry no region. (Not needed for
+     anonymous edge probes, which are ordinary HTTPS.)
+
+- **Superseded — pointer as of post-D-174 (2026-08-04). Item 0 is done (D-174 landed and deployed in
+  S59); items 2 and 3 were this session's scope; item 4 carries up as 5:**
   0. **Owed: land D-174.** Code, tests and docs, **no migration and no schema change**, so the D-157
      pre-check should predict a code-and-docs deploy. Two application files changed
      (`packages/shared/.../mcp.py`, `apps/chat-api/.../routers/sessions.py`), so this one *does* need
@@ -5217,6 +5342,81 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S60 (unnumbered) — two guard rails that asserted less than they appeared to, and the probe that overturned AUD-C-23's live claim (2026-08-04) ✅
+
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-174)**, items 2 and 3 — no numbered
+  roadmap block (D-152), so no "Done when" criteria apply. Cluster chosen by the user from four
+  options: **AUD-L-05 + AUD-L-01**, paired as *"a check that asserts less than it appears to"*.
+  Baseline verified first, not assumed: lint clean, pyright 0, **795 passed / 2 skipped**, tree clean
+  at `531656a`. Item 0 (land D-174) was already done — merged and deployed in S59.
+- **⚠️ AUD-C-23 reproduces on the deployed edge 6 times in 10, and that reverses two sessions of
+  reasoning.** The pointer asked to discriminate harness-vs-route from nondeterminism. Both done:
+  the **harness half is closed and was not the cause** (three more `TurnContext` fields —
+  `candidate_limit`, `top_k`, `confidence_threshold` — were on defaults that *equal* the `Settings`
+  defaults, so latent, not causal; now passed from `Settings` with an `ast`-based parity guard), and
+  the **live half refuted the finding's own live claim**: 10 anonymous probes returned
+  `required_role: "branch_manager"` on **6** and a correct `null` refusal on **4**, same question,
+  same corpus, same config, with a control that fired. **"The deployed system does not exhibit this"
+  was a sampling artefact.** At a 60% flip rate, three nulls in a row has a ~6% chance — an
+  under-powered instrument read as an answer. D-174 had named this risk exactly and downgraded the
+  wording to "not observed in 3 probes"; taking the sample cost ~14 cents and settled it. **The rule
+  earned twice now: when the suspected mechanism is nondeterminism, "never" needs a sample size chosen
+  before the probes.** Severity is worse than the eval showed — 6 in 10 real askers of an ordinary
+  unanswerable question are told to get a branch-manager account for an answer that exists at no tier.
+  Mechanism inferred, not verified: D-165 put an LLM rerank inside the access probe, so scores near the
+  margin flip. **Deliberately not fixed** — both arms of the fork change measured rules and carry a
+  product judgment (sometimes-wrong hint vs. silence) that is the user's.
+- **✅ AUD-L-05 closed, and the fix the finding asked for would not have worked.** Adding
+  `MemoryConsolidationPayload` to the allowlist leaves it unprotected: its own field names are
+  `events`/`existing_facts`/`allowed_fact_types` while the student text is in
+  `MemoryEventSummary.summary`, one level down, and the check was top-level only. Proven by running the
+  new assertions against the pre-fix registry *with* the payload added — the nested check still failed.
+  Measuring real coverage found the rest: the file claims "every payload type" and governed **6 of 20**
+  (7 more legitimately under `test_generation_payload_schemas.py`, 1 excluded with a written reason,
+  leaving **6 ungoverned** — the four chat payloads, `VideoClassificationPayload`, and the filed one).
+  Fixed structurally: 17 models on exact allowlists, the denylist recursing into nested models, and a
+  completeness test that **fails on a new payload class** rather than only a new field — the level
+  D-072's clause was actually violated at. 25 → 68 tests in the two files.
+- **⚠️ AUD-C-24 filed, not fixed: chat free text crosses the Bedrock wire unredacted.** Asking what the
+  newly-allowlisted `query` field *contains*: `redact_free_text` has **exactly one call site in the
+  repository** (learning-api's router) and **chat-api has none**, so a typed question reaches four
+  payloads verbatim. **Bounded and the bound was checked** — not persisted (no chat-message table;
+  `chat_suggestions.prompt_text` is hand-authored seed content, a false lead worth recording), so wire
+  and traces, not Postgres. **An unexamined gap, not an accepted one:** D-072 judged the *learning*
+  surface, D-018 defers chat-api's PII question to D-072, and chat-api's own input falls between them.
+- **✅ AUD-L-01 closed, in middleware — the finding's recommended fix was the wrong one.** Conditional
+  registration would move `Settings` to import time and break the monkeypatch-after-import approach
+  every test and the gate's reasoning depend on; the disposition flagged that cost itself. Middleware
+  runs before routing, so all shapes 404 with a byte-identical body while the decision stays
+  per-request. Asserted on **both** apps over 5 shapes (the finding's 3 plus `no_body` and `PUT`), each
+  against a `/dev/nonexistent` control, so the property is *indistinguishability* rather than "404";
+  plus one test pinning that a secret-holding caller still gets a normal 422. All five failed against
+  the un-gated app first. **The false sentence the finding quotes no longer exists** — grepped, one
+  hit, in the finding itself; only its mechanism claim was live.
+- **✅ Two user decisions recorded, neither implemented — the "Decided" pile is no longer empty.**
+  **AUD-F-22:** resolve the parent's child *before* the session, which closes the S11 carry-over too
+  and adds no UI (the existing button appears once `dashboardStudentId` is non-null). **AUD-L-08:** use
+  the declared item count as the denominator and **flag** rather than clamp — clamping turns a −200%
+  into a plausible −100%, which is the finding's own complaint. Both are the cheapest real work
+  available next.
+- **⚠️ A correction to this file's own headline.** The top "Current status" bullet said D-174 was
+  "Uncommitted and not deployed" with "785 passed", while the session log below records the successful
+  deploy and 795. D-174's subject, one level up: a stale claim in the *summary* rather than the
+  register — and the summary is what a new session reads first.
+- **Verification.** lint clean, pyright **0**, **852 passed / 2 skipped** (795 at start, **+57**).
+  Every new test watched failing against unfixed code first. Staging probes: 11 real Bedrock turns,
+  anonymous, ~14c against a 15c cap stated before the run; they trip
+  `chat-api-p95-latency-scale-out` as documented. Register invariants re-checked mechanically: **0**
+  sections without a row, **0** duplicate row ids, anchored open count **5**.
+  **A false lead worth one line:** my first probe script hit `POST /sessions` and got CloudFront 403
+  ("distribution supports only cachable requests"). Not a defect — the API is mounted under `/chat/*`,
+  which is the behavior that allows POST. No model calls were spent on it.
+- **Not deployed.** The `/dev/token` middleware is an application change on a live auth surface; its
+  live re-verification (the 405/422 rows on both public edges) is owed at the next deploy.
+- **Carry-over:** AUD-C-23 needs a rule decision plus re-measurement; AUD-C-24 needs a
+  redact-or-accept decision; AUD-F-22 and AUD-L-08 are decided and unimplemented. Open count **5**.
+- **Decisions:** D-175.
 
 ### S59 (unnumbered) — the register that could not be counted, a corpus diff whose answer was "no difference", and three findings closed (2026-08-04) ✅
 
