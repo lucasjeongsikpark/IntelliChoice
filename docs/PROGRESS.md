@@ -10,8 +10,11 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   (2026-08-04, S61 — no numbered session; PROGRESS.md's own pointer, items 0 and 3).** `make lint`
   clean, `pyright` 0, **865 passed / 2 skipped** (852 at start, +13), `e2e/` `tsc` clean,
   learning-web `tsc` clean, **learning e2e 22 passed** locally with the three parent journeys
-  rewritten to the new contract. **This session's own work is uncommitted and needs a deploy**
-  (learning-api router + gain math + learning-web flow — live surfaces).
+  rewritten to the new contract. **✅ Landed and deployed** — PR #109 (`c3aef7d`), deploy run
+  30957318802 success, `learning-api:63` / `chat-api:62`, both `gha-c3aef7d78d65`. **Staging
+  verification: the three parent journeys ran against the deployed stack and passed 3/3**
+  (`[build-identity] … sha=c3aef7d78d65` on both APIs), including the promoted zero-sessions
+  dashboard + report regression test.
   **✅ Item 0 done:** PR #108 (`05d82dd`) merged, deploy run 30954614653 success, `learning-api:62` /
   `chat-api:61`, both `gha-05d82ddcd6af`. Live: `GET /dev/token` and no-body `POST` → **404** on both
   public edges (D-171 measured 405/422). One residual recorded on AUD-L-01's row: CloudFront's
@@ -1284,13 +1287,9 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   e2e exercises it.
 
 - **Next session, in order (2026-08-04, post-D-176):**
-  0. **Owed unless the D-176 close-out says otherwise: deploy D-176's work and verify the parent
-     flow on staging.** Application changes on live surfaces (learning-api's new router + gain math,
-     learning-web's login-time resolution). The staging verification a local test cannot see is the
-     parent journey against the deployed stack: `make e2e-staging
-     E2E_ARGS="tests/learning/journey-parent.spec.ts"` — three tests, including the promoted
-     zero-sessions dashboard regression. (If the close-out below already records the deploy run and
-     the staging e2e result, nothing is owed.)
+  0. **✅ Nothing owed.** D-176's work is landed (PR #109, `c3aef7d`), deployed (run 30957318802,
+     `learning-api:63` / `chat-api:62`), and staging-verified (the three parent journeys, 3/3
+     against the deployed stack with the build identity pinned to this commit).
   1. **AUD-C-23 needs your decision, and it is now the most user-visible open finding.** 6 of 10
      anonymous askers of *"What happens to a student who misses three sessions in a row?"* are told
      to log in as a branch manager for an answer that exists at no tier. The fork: **tighten the
@@ -5462,9 +5461,10 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   including the live −200% and the flag-vanishing extra-pre-attempt case.
 - **Verification:** lint clean, pyright 0, **865 passed / 2 skipped** (+13: 8 gain-bounds, 5
   parents-router), `e2e/` tsc clean, learning-web tsc clean, learning e2e 22 passed locally.
-  **Deploy of this session's own work + the staging parent-journey run recorded in the close-out
-  below** (they happen after this entry's PR merges; the follow-up docs commit reconciles — the
-  D-174 #104/#105 pattern, applied on purpose this time).
+  **Landed as PR #109 (`c3aef7d`), deployed by run 30957318802 (`learning-api:63` /
+  `chat-api:62`, both `gha-c3aef7d78d65`), and staging-verified: the three parent journeys
+  passed 3/3 against the deployed stack** — reconciled in this docs follow-up the same session,
+  the D-174 #104/#105 pattern applied on purpose this time.
 - Decisions: D-176. Register: AUD-F-22 and AUD-L-08 rows + sections closed, AUD-L-01 residual
   noted, open count 3 (C-23, C-24, F-33) re-derived with the anchored `awk`.
 
