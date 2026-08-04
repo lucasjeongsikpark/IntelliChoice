@@ -5,6 +5,92 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-173: D-172 deployed (via a failed run), and a cluster of three that was really two —
+  AUD-F-03, AUD-F-04, AUD-F-05 (2026-08-04, no numbered session).** `make lint` clean, `pyright` 0,
+  **782 passed / 2 skipped** (unchanged — this cluster is frontend-only), and the **whole learning
+  e2e suite green: 22 passed**. Frontend `tsc -b` and `oxlint` clean. **Uncommitted at time of
+  writing** (the AUD-F-03/F-04 work); D-172 itself is merged as `70a7643` (PR **#100**, CI **9/9
+  first attempt**) and **live on staging**.
+  **⚠️ The deploy run FAILED and D-172 shipped anyway — read this before re-deploying.** Run
+  [30884342749](https://github.com/lucasjeongsikpark/IntelliChoice/actions/runs/30884342749) failed
+  the **deployed-version gate** with `chat-api: deployment is PRIMARY/IN_PROGRESS, not
+  PRIMARY/COMPLETED`, *after* `wait services-stable` had returned. The artifact was correct
+  throughout: both services `gha-70a764315664`, **learning-api:59 / chat-api:58**, both
+  `PRIMARY/COMPLETED` minutes later. **Cause: this session's own pre-deploy probes.** Real-Bedrock
+  chat turns are I/O-bound and slow, so they tripped `chat-api-p95-latency-scale-out` at 06:29 and
+  06:33 UTC (desiredCount **1 → 3**) while the deploy dispatched at 06:32 — `wait services-stable`
+  saw a momentarily consistent state and returned, then autoscaling moved desiredCount underneath
+  it. **Filed as AUD-F-38 (P2)**, because the collision is structural: D-171 §(a) *tells* a session
+  to probe before deploying, so the practice and the gate are in conflict until the gate stops
+  requiring `COMPLETED` at one instant.
+  **✅ The four steps the failure skipped were completed by hand, not assumed** — security gate
+  **4/4 `/dev/token` → 404**, canary alarms **0/4 breached** (the one ALARM is the documented
+  no-traffic `learning-api-p95-latency-scale-in`), both edges **200**, and **no frontend delta to
+  sync** (this deploy changed no frontend file, so the S3 bundles were already current). Rollback
+  was skipped by the same failure, which is why the correct image stayed live.
+  **✅ D-172's two live questions both answered, and the second needed a control from a different
+  mechanism.** No turn lost its answer to the 0.35 floor: the same four probes before and after cite
+  the same documents at the same confidence. The one number that moved (5 → 4 citations on
+  `grounded-team-1`) **also moved 6 → 5 between two pre-deploy runs**, which is what makes it model
+  nondeterminism rather than the floor — and why the cited *document title* is the right comparison
+  key, not the count. **Zero `citation_quote_below_floor`**, but a log-based control would have been
+  vacuous: that string is emitted *only* on the drop path (`qa.py:201`). The control that works is
+  the **5 citations the API responses actually returned**.
+  **✅ AUD-F-03 (D-173 §1): the position is derived from the overview, not persisted.** The endpoint
+  already existed for this — its docstring says it "lets the exam nav bar restore item statuses
+  after a mid-exam refresh" — so a `sessionStorage` copy would have been a second source of truth.
+  **Applied once per phase, which is the load-bearing half:** re-deriving on each 20 s poll would
+  yank a student off an answered question they had navigated back to review, which is worse than the
+  defect. The existing `test.fail()` probe in `journey-student.spec.ts` was **promoted exactly as
+  its own comment instructed**, and watched failing pre-fix; `exam-position-refresh.spec.ts` covers
+  the once-per-phase property and waits past a poll tick because that defect is silent and delayed.
+  **⚠️ Residual in the code:** it restores the *first item still needing an answer*, not literally
+  the last question viewed — nothing server-side records view position.
+  **✅ AUD-F-04 (D-173 §2): the finding named one door and there were two.** `interactedPhase`
+  (AUD-F-21's rule) was also React state, so a narrative the student had *worked past* also returned
+  after a reload without ever being dismissed — persisting only the named field would have left the
+  defect reproducible. Both gates now live in `useNarrativeGate`, one `sessionStorage` record
+  **keyed by learning session id**, and that key is not optional: the welcome narrative is often
+  identical across sessions, so a text-only key would make a new session's first narrative arrive
+  pre-dismissed. `narrative-refresh.spec.ts` had been written to assert the defect with an
+  instruction to invert it; inverted, and watched failing pre-fix with the exact recorded text.
+  **✅ AUD-F-05 (D-173 §3): already fixed by AUD-F-21 — status corrected, no new code.** AUD-F-21
+  made the narrative render *above* the phase screen instead of returning `StageTransitionScreen` as
+  a sibling branch, which is this finding's own mechanism, and shipped a regression test written to
+  its subject (`narrative-displacement.spec.ts` arm 3). What survives is a layout shift, not a
+  displacement.
+  **⚠️ The process finding is worth more than AUD-F-05 itself: a combined heading hid a closure and
+  shifted every id in the e2e suite by one.** F-04 and F-05 share one heading in AUDIT_FINDINGS.md,
+  and `narrative-refresh.spec.ts` called the refresh defect **F-05**, `journey-student.spec.ts`
+  called the position defect **F-04**, and `learning-flow.ts` cited **F-03** for a hint-panel defect
+  whose own spec deliberately carries no id. Ids corrected in the files this session touched; **the
+  table is the authority and a count must come from it.** This is D-170's lesson from the opposite
+  direction — there a shared *shape* held while one finding turned out not to apply; here a shared
+  *heading* hid one that was already fixed.
+  **⚠️ AUD-C-23 re-scoped, and my own filing of it was wrong on one word.** It said the false role
+  hint was "observed live". It is not: probed anonymously against the **deployed** edge three times,
+  `no-answer-missed-1` returns **`access_hint: null`** and refuses correctly. Verified against a
+  control that can fail — a question known to trigger a hint still returns `required_role: "parent"`
+  there. So it is a property of the **local eval fixture corpus**, and the first question is why the
+  two corpora disagree, not which of its two forks to take. **That control probe also verified
+  AUD-C-22's fix live against a recorded prior value:** D-166 measured that exact question returning
+  `"branch_manager"` (the wrong tier the finding was about); it now returns `"parent"`, the tier
+  D-165 measured as correct.
+  **✅ AUD-F-38 fixed the same session it was filed (D-173 §6), because the next deploy needs the
+  frontend sync this one skipped.** The gate now asserts the artifact — PRIMARY task definition
+  serving this commit's image, `runningCount ≥ 1` — and bound-retries `rolloutState` for 300 s.
+  Narrower, not weaker: `FAILED` never retries into a pass, a wrong tag fails **in 0 s even while
+  IN_PROGRESS**, and `runningCount < 1` fails. **Verified against 7 stubbed deployment states with a
+  harness that extracts the step from the YAML as the runner sees it** — because this code path runs
+  only in a deploy, so the alternatives were a green run proving little or a red one costing another
+  deploy.
+  **Phase 0B, re-derived from the table by grep rather than decremented: 7** *Open — Phase 0B*
+  (**8 open in total**, counting AUD-F-16 as *Open — before the gate*). Down from 10 + F-16:
+  AUD-F-03, F-04 and F-05 closed, and AUD-F-38 was filed and closed the same day. The seven are
+  **AUD-L-01, L-05, L-08, L-16, C-14, C-15, C-23**.
+  **The frontend cluster is gone, and with it the last findings a *student* sees directly.** Every
+  remaining item is backend, contract, instrument or pipeline.
+
 - **✅ D-172: the three guards whose floor was lower than their name — AUD-L-09, AUD-C-13, AUD-C-12,
   all three measured before being fixed (2026-08-04, no numbered session).** `make lint` clean,
   `pyright` 0, **782 passed / 2 skipped** (+34). **Not deployed** — code, tests, docs and two new
@@ -951,7 +1037,63 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-172, nothing deployed):**
+- **Next session, in order (2026-08-04, post-D-173. D-172 is deployed; D-173's own frontend work is
+  uncommitted):**
+  0. **Land D-173.** The AUD-F-03/F-04 work is uncommitted — code, tests and docs, **no migration,
+     no python change** (782 unchanged), and **frontend files change for the first time in three
+     deploys**, so this one *does* need the S3 sync + CloudFront invalidation that D-172's deploy
+     skipped harmlessly. The D-157 pre-check should predict a frontend-and-docs deploy.
+  0b. **✅ AUD-F-38 is fixed (D-173 §6) and rides in the same commit**, so this deploy is the one
+     that tests the fixed gate. Expect either `rollout COMPLETED` or one or two `waiting…` lines
+     followed by COMPLETED; a `::warning title=Rollout still in progress` means it hit the 300 s
+     deadline with the right image, which is a pass. **If the gate fails on the image tag, that is
+     real** — the fix deliberately does not retry that.
+  0c. **D-167's behaviour check, still the one thing no test can do** (unchanged, four sessions
+     owed): paste the staging secret, sign in, **fully quit the browser**, reopen the staging URL,
+     confirm the field is pre-filled and sign-in works with no `get-secret-value` call.
+  1. **AUD-C-23's fork has changed shape and the new first question is cheap.** It does **not**
+     reproduce on the deployed corpus (`access_hint: null`, three probes, against a control that can
+     fail), so before choosing between "tighten the margin" and "relax the assertion", find out
+     **why the local eval corpus and staging's disagree** on this question. Likely candidates: which
+     chunks are approved/effective in each, and whether the audience mix differs. That is a corpus
+     diff, not a model run, so it is free. Tuning the rule on the eval's evidence first would tune
+     it against a corpus no user meets.
+  2. **Continue the Phase 0B backlog: 8** *Open — Phase 0B*, **9 counting AUD-F-16** — re-derived by
+     grep, not carried forward. **AUD-L-01, L-05, L-08, L-16, C-14, C-15, C-23, F-38.** In rough
+     order of value:
+     - **AUD-F-38** (above) is the one that will otherwise cost every future deploy a manual
+       verification pass.
+     - **AUD-L-16** (both policy snapshots written and never read back) is D-169's shape: computed,
+       stored, routes nothing. Same fork — wire or delete — with D-169's answer ("wire it, state the
+       inertness, test the masking") and D-170's ("ask whether the dimension applies at all") both
+       available as precedent. **Ask the user which before writing code**, since D-170's half turned
+       out not to need any.
+     - **AUD-C-15** (an unknown-tool call raises before any audit row) is small, and it is the one
+       call shape a prompt-injection or wiring bug would produce.
+     - **AUD-C-14** (`RespondResponse` omits `scope`/`intent`, so every SSE snapshot after a
+       `/respond` nulls them for connected clients) is a contract defect with a known shape.
+  3. **A method item this session earned, cheap and worth doing once:** the `AUD-F-0x` ids in
+     `e2e/` were shifted by one against AUDIT_FINDINGS.md's table, and only the files D-173 touched
+     were corrected. `journey-parent.spec.ts:97` still cites "AUD-F-04/AUD-F-05" for a `test.fail()`
+     *posture* (defensible either way), but a sweep would confirm nothing else is mis-cited. **Read
+     the table as the authority.**
+  4. **The product decisions still unanswered, unchanged and none of them mine to make:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent by
+     choice; (b) should the access hint be able to say "this is covered in parent *and*
+     branch-manager materials" instead of going silent on the two attendance questions D-168
+     measured; (c) escalation carries no way to reply to the person who asked (D-164's scoped-out
+     half), and `InMemoryRateLimiter` is per-process so the real ceiling is N× the configured one.
+  5. **Everything from the post-D-172 pointer that is still live** — listed in full below.
+     **Note on chat probes and deploys:** they cause AUD-F-38. Probe *before* dispatching (D-171),
+     and expect the gate to fail until AUD-F-38 is fixed.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"`
+     **and export `AWS_REGION=us-east-1`** — the exported credentials carry no region, so every
+     command fails `NoRegion` without it. Credentials were valid and unexpired this session.
+
+- **Superseded — pointer as of post-D-172 (2026-08-04). Items 0 and 0b are done (D-172 deployed,
+  its two live instruments read); item 0b's D-167 check carries up as 0c; item 1 carries up as 1
+  with a changed first question; items 2 and 3 carry up as 2 and 4:**
   0. **Owed and blocking nothing, but it is now two sessions old: D-172 is not deployed.** Code,
      tests and docs only — no migration, no schema change — so the D-157 pre-check should predict a
      code-and-docs deploy. **Two things to verify live afterwards, and both are new instruments

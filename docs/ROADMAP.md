@@ -679,8 +679,8 @@ which stop the line.
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 
 > **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
-> cheap P2s" (below); the rest were never dispositioned. **10 findings remain *Open — Phase 0B***
-> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**11 open in total**, counting AUD-F-16; AUD-F-37 and
+> cheap P2s" (below); the rest were never dispositioned. **7 findings remain *Open — Phase 0B***
+> in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) (**8 open in total**, counting AUD-F-16; AUD-F-37 and
 > AUD-L-17 were each filed and closed the same day, D-158 and D-159) and **none are
 > integration-blocked** — they are exactly what D-152's "finish and test this codebase against the
 > dev fakes first" points at. With S43–S47 frozen, post-gate sessions run out of this backlog under
@@ -752,6 +752,24 @@ which stop the line.
 > coverage eval had been failing since D-168 landed and only D-172's verification found it, which is
 > AUD-F-15's shape (`chat-purge` had never once run) on a test rather than a job. The cheap fix is a
 > bounded arm — `CHAT_EVAL_CATEGORIES=no_answer` is **10 cents and 72 seconds**.
+>
+> **A cluster can also be wrong about its own size, and a combined heading is how (D-173).**
+> AUD-F-03/F-04/F-05 were taken as three findings of one shape ("frontend state that should derive
+> from the persisted snapshot"). The shape held for two. **AUD-F-05 had already been closed by
+> AUD-F-21** — the fix is described in a comment that names the finding's own mechanism, and a
+> regression test written to its subject was already passing. It read as open because F-04 and F-05
+> share a single heading in AUDIT_FINDINGS.md, so one status column covered two findings. That same
+> heading shifted **every** `AUD-F-0x` reference in `e2e/` by one against the table. Two rules:
+> **file one finding per heading**, and **read the code before implementing a fix** — this one was
+> already written. Together with D-170 (a shared shape, one finding inapplicable) the general form
+> is: a shared framing earns two findings a joint *reading*, never a joint *verdict*.
+>
+> **And a fix can be verified live by a probe whose real job was something else (D-173).** The
+> control run to prove that AUD-C-23's `access_hint: null` was a real negative rather than an empty
+> corpus happened to be the exact question D-166 had recorded returning the *wrong* tier — so it
+> doubled as a live before/after pair for AUD-C-22's fix, from the record rather than from a test.
+> Worth noticing when choosing a control: prefer one whose expected value is already written down
+> somewhere.
 >
 > **And a *negative* result is a hypothesis until the control could have been positive (D-171).**
 > "Zero `access_probe_rerank_degraded` events" was paired with a control grep for `access_probe`,

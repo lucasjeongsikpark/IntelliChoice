@@ -10885,3 +10885,166 @@ floor buys and what it costs. The buy was easy to measure and the cost was not, 
 the cost measurement is what changed the design — "≥20 chars or the whole chunk" was rejected
 because of it, and 0.35 rather than 0.50 because of it. A threshold chosen from the buy alone
 would have looked equally well-evidenced and been wrong in the direction users notice.
+
+## D-173 — the refresh-state pair, and a cluster of three that was really two (accepted, 2026-08-04)
+
+AUD-F-03 and AUD-F-04 closed with code; AUD-F-05 closed with a status correction. All three were
+taken as one cluster on the shape PROGRESS.md named — "frontend state that should be derived from
+the persisted snapshot" — and that shape held for the two that were real.
+
+### 1. AUD-F-03: derive the exam position, do not persist it
+
+`currentDisplayOrder` was `ExamScreen` state, so a refresh restored the session, the answers and
+the read-only locks and still dropped the student to question 1 (measured: "Question 3 of 10" →
+"Question 1 of 10"), against SPEC Phase 11's own "done when".
+
+**Derived from the exam overview rather than persisted, and the reason is that the server already
+answered this question.** `GET /exam/overview`'s own docstring says it exists to "restore item
+statuses after a mid-exam refresh (SPEC §5.16's checkpoint-restore property, extended to nav
+state)". The per-item `status` was already on the wire and already used for the nav bar and the
+read-only lock; only the position ignored it. A `sessionStorage` copy would have added a second
+source of truth that can disagree with the first.
+
+**Applied once per phase, and that is the load-bearing half.** Re-deriving on every overview fetch
+would pass a refresh test and be worse than the defect: the overview polls every 20 s, so a student
+who navigated back to review an answered question would be yanked forward again seconds later, with
+nothing on screen explaining why. The guard is a ref holding the *phase* rather than a boolean, so
+it self-clears at a phase boundary — the same trick, and for the same stated reason, as AUD-F-21's
+`interactedPhase`. `exam-position-refresh.spec.ts` is that scenario, and it waits past a poll tick
+because the defect it rejects is silent and delayed.
+
+**Residual, in the code because it is not what the finding's wording promises.** This restores *the
+first item still needing an answer*, not literally the last question on screen — nothing
+server-side records view position (`time_spent_ms` is cumulative and unordered). They differ when a
+student skips forward: skip 1, answer 2–10, refresh, and this lands on 1 rather than 10. That is
+unfinished work and a defensible landing place, but it is an approximation, and a future change that
+wants the literal position has to persist it server-side.
+
+**The existing probe was promoted rather than duplicated.** `journey-student.spec.ts` already had a
+`test.fail()` probe whose comment said a fix would make it "pass unexpectedly" and that this was
+the signal to drop the marker. It was, so it was. Watched failing pre-fix.
+
+### 2. AUD-F-04: the finding named one door and there were two
+
+Dismissal was React state, so a reload re-opened a gate the student had closed. But `interactedPhase`
+— AUD-F-21's rule that a narrative arriving *after* the student has started working is dropped
+rather than shown — was also React state, so after a reload a narrative the student had worked past
+returned too, without ever having been dismissed. **Persisting only the field the finding mentions
+would have left the defect reproducible through the other path.** Both now live in
+`useNarrativeGate`.
+
+**`sessionStorage`, keyed by learning session id, and the key is not optional.** Dismissal is keyed
+by narrative *text* (S26's design, so a genuinely new narrative shows again). Text alone stops being
+a safe key the moment it is persisted: the welcome narrative is frequently identical across sessions,
+so a student who dismissed it and started another session in the same tab would have the new
+session's welcome narrative arrive pre-dismissed. Storing the session id makes the record
+self-invalidating, so a mismatch reads as "no dismissal" without anything having to clear it. The
+record is *derived*, not synchronised — a foreign record is simply invisible, so there is no effect
+that has to notice a change and no window where a stale dismissal is briefly live.
+
+`narrative-refresh.spec.ts` had been written to assert the defect, with an instruction to invert the
+assertion when it was fixed. Inverted, and watched failing pre-fix with the exact recorded text.
+
+### 3. AUD-F-05 was already fixed, and the shared heading is why nobody noticed
+
+No new code. AUD-F-21 restructured `App.tsx` so the narrative renders *above* the phase screen in a
+two-slot Fragment instead of returning `StageTransitionScreen` as a sibling branch — which is
+exactly AUD-F-05's mechanism ("`App.tsx` gates it ahead of every phase branch"). It even shipped a
+regression test written to this finding's own subject: `narrative-displacement.spec.ts` arm 3
+asserts the topic list is visible *beneath* the narrative, and its comment calls it "the one arm of
+this file that would have caught AUD-F-21 without faking any timing".
+
+**Two process facts worth more than the finding.** AUD-F-04 and AUD-F-05 were filed under a single
+combined heading in AUDIT_FINDINGS.md, and that is what let one of them sit "open" for sessions
+after it was closed — and what shifted **every** `AUD-F-0x` reference in the e2e suite by one
+(`narrative-refresh.spec.ts` called the refresh defect F-05; `journey-student.spec.ts` called the
+position defect F-04; `learning-flow.ts` cited F-03 for a hint-panel defect whose own spec
+deliberately carries no id). The ids in the files this session touched are corrected; the table is
+the authority, and a count should come from it.
+
+This is D-170's lesson reached from the opposite direction. There, a pair shared a shape and one
+turned out not to apply. Here, a pair shared a *heading* and one turned out to be already fixed. The
+rule is the same either way: **a shared framing is a reason to read two findings together, never
+evidence that both still describe a defect.** Ask of each one separately whether it is still true —
+and read the code before implementing, because AUD-F-05's fix was sitting in a comment that names it.
+
+### 4. The deploy failed on a gate that was right, measuring the wrong thing (AUD-F-38)
+
+D-172's deploy run failed the deployed-version gate with `chat-api: deployment is
+PRIMARY/IN_PROGRESS, not PRIMARY/COMPLETED`, *after* `aws ecs wait services-stable` had returned
+for that service. The image was correct and live the whole time (both services
+`gha-70a764315664`, revisions 59/58, both `COMPLETED` minutes later).
+
+Cause: this session's own pre-deploy verification probes are real-Bedrock chat turns, which are
+I/O-bound and slow, so they tripped `chat-api-p95-latency-scale-out` twice (06:29, 06:33 UTC),
+taking desiredCount 1 → 3 while the deploy was in flight. `wait services-stable` saw a momentarily
+consistent state and returned; autoscaling then moved desiredCount underneath it.
+
+**Recorded as a decision because the collision is structural, not bad luck.** D-171 §(a) tells a
+session to run any verification whose evidence a deploy overwrites *before* the deploy. Doing so
+generates exactly the load that fails the gate. So the practice and the pipeline were in conflict
+until the gate stopped requiring `COMPLETED` at a single instant. Filed as AUD-F-38 and **fixed in
+§6 below.**
+
+**What was done instead of a redundant redeploy:** the four steps the gate's failure skipped were
+completed by hand and recorded — security gate 4/4 `404`, canary alarms 0/4 breached, both edges
+`200`, and no frontend delta to sync (this deploy changed no frontend file, so the S3 bundles were
+already current for the commit). Rollback was skipped by the same failure, which is why the correct
+image stayed live rather than being reverted.
+
+### 5. Two live results that were free, and one that corrected a finding
+
+D-172's own post-deploy questions both answered. **No turn lost its answer to the 0.35 floor:** the
+same four probes before and after cite the same documents at the same confidence, and the one
+number that moved (5 → 4 citations on `grounded-team-1`) also moved 6 → 5 between two *pre*-deploy
+runs, which is what makes it attributable to model nondeterminism rather than to the floor — and is
+why the cited *document title* is the right comparison key, not the count. **Zero
+`citation_quote_below_floor` in the window**, and the usable control had to come from a different
+mechanism than the signal: that string is emitted only on the drop path (`qa.py:201`), so a
+log-based control would have been the vacuous kind D-171 §2 names. The control that works is the
+5 citations the API responses actually returned.
+
+And **AUD-C-23 does not reproduce on the deployed corpus** — `access_hint: null`, three probes,
+against a control that can fail. Re-scoped in place: it is a property of the local eval fixture
+corpus, so the first question is why the two corpora disagree, not which of its two forks to take.
+
+### 6. AUD-F-38 fixed: the gate asserts the artifact, not the rollout's instantaneous state
+
+Closes the finding §4 filed. The gate's *purpose* (D-158) is unchanged and is now asserted more
+directly: **the PRIMARY task definition serves this commit's image, and at least one task is running
+it.** `rolloutState == COMPLETED` was only ever a proxy for that, and an unrelated autoscaling event
+invalidates the proxy without touching the thing it stood for.
+
+**What changed:** a bounded 300 s retry on `rolloutState`, and `runningCount == desiredCount` became
+`runningCount >= 1`.
+
+**What deliberately did not, so this is a narrower gate rather than a weaker one:**
+
+- `rolloutState == FAILED` fails immediately and is **never** retried into a pass.
+- A wrong image tag fails immediately, **including while still IN_PROGRESS**. This check sits *ahead*
+  of the retry on purpose: waiting cannot turn a stale image into the right one, so a genuinely
+  stale deployment is caught in seconds instead of after the full wait. Measured at **0 s** in the
+  harness.
+- `runningCount < 1` fails. That is the one state which would make the image-tag assertion vacuous —
+  the tag would be right about something nobody is serving.
+- The one-deployment assertion is kept, for the reason its own comment already gives: a stale entry
+  in that list is precisely what makes a rollout look finished when it is not.
+- Passing at the deadline emits a `::warning`, because a rollout that never settles is worth seeing
+  even when this particular deploy is fine.
+
+**Verified before shipping, which for a deploy-only code path meant building a harness.** This step
+runs nowhere except in a deploy, and the failure it exists to catch is one a retry cannot be allowed
+to paper over — so testing it in a real run would have meant either a green run that proves little
+or a red one that costs another deploy. Instead the harness extracts the step from the YAML *exactly
+as the runner sees it* (block-scalar dedent applied, the `python3 -c` payload's shell escapes
+resolved) and runs it against a stubbed `aws` over 7 deployment states: healthy → pass with no
+waiting; wrong tag while COMPLETED → fail; `FAILED` → fail with the reason; wrong tag while
+IN_PROGRESS → fail in 0 s; **AUD-F-38's own 2/3-then-COMPLETED → pass via one retry**; still pending
+at the deadline → pass with the warning; `runningCount 0` → fail. The extraction step is the part
+worth reusing: it is what makes this a test of the shipped text rather than of a copy that can drift.
+
+Two smaller things the harness caught, both of which would have shipped: the warning quoted a
+hardcoded `300s` while the deadline was a separate literal (now one `WAIT_SECONDS` variable, so the
+message cannot lie), and an early harness reading of "exit 0" on a fatal case turned out to be a
+missing `set -o pipefail` in the *harness*, not a gate defect — worth recording because it is the
+same class of mistake as the finding it was testing: a status read from the wrong place.

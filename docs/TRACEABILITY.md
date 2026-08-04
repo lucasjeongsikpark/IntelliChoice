@@ -506,6 +506,17 @@ commit at dependency teardown. Seam (a) is fixed and controlled by `checkpoint_r
 and the commit ordering are accepted residual risk with `learning_checkpoint_repairs_total` as the
 tripwire. Test: `test_checkpoint_reconcile.py`.
 
+**§5.16's client half — "extended to nav state" — is traced as of 2026-08-04 (D-173) and was not
+before.** `GET /exam/overview`'s docstring claims the checkpoint-restore property covers exam nav
+state, and SPEC Phase 11's "done when" is that a refresh restores the exact position. The server
+side was implemented and used (nav bar, read-only locks); the *position* was `ExamScreen` state and
+a refresh lost it (AUD-F-03), so the requirement was implemented-but-untested on the client — the
+"unverified counts as not traced" case this document's method section is about. Now derived from the
+overview and covered by two e2e arms: `journey-student.spec.ts`'s promoted position test, and
+`exam-position-refresh.spec.ts` for the once-per-phase property. **Residual, named because it is
+narrower than the SPEC wording:** the restore lands on the first item still needing an answer, not
+literally the last item viewed — nothing server-side records view position.
+
 ### §5.26 — SQL, structured output, constrained decoding
 
 **Traced, including the negative half — which is rare and worth noting.** "No runtime NL2SQL" is
