@@ -12024,3 +12024,114 @@ looking for the defect live — and by then the pre-fix behaviour was no longer 
 question "did this ever reach a user?" is permanently unanswerable for this finding. **Measure the
 defect live before deploying its fix, or accept that you never will.** The cost of getting this
 right was one probe run, before the merge instead of after.
+
+## D-181 — the escalation rate limit moves to a shared counter, after measuring 8-against-5 on the deployed system first (accepted, 2026-08-04)
+
+Scope: PROGRESS.md's post-D-180 pointer, item 3(c) — the `InMemoryRateLimiter` half, which the
+pointer had recorded as "per-process so the real ceiling is N× the configured one" without anyone
+having measured N. Chosen by the user over three alternatives (dumps-only, multi-audience hints,
+un-deferring AUD-F-33) as the one remaining item that is an engineering defect rather than a
+preference. Filed as **AUD-C-27** and fixed in the same session. No numbered roadmap block (D-152).
+
+### 1. Measured live before the fix shipped — 8 accepted against a configured 5
+
+D-180's most expensive lesson was ordering: it shipped a fix and then looked for the defect live, by
+which time the pre-fix behaviour was gone. So this went the other way round, and it cost nothing:
+
+    attempts 1-8   pending_interrupt, intent=admin_contact   -> accepted
+    attempts 9-11  RATE_LIMITED_MESSAGE, no interrupt        -> blocked
+    configured cap: email_rate_limit_max_per_window = 5
+
+Anonymous, one source IP, **a fresh chat session per attempt**. The whole probe is free and sends
+nothing, which is *why* the number exists: `_route_after_resolve_role` sends `escalate: true`
+straight to `prepare_admin_escalation` without `scope_guard`, so no Bedrock call is made, and
+`FakeEmailTransport` is wired unconditionally, so no mail leaves. The approved 40¢ went unspent.
+
+The four **pre-registered vacuity modes** (D-180's other lesson) all resolved cleanly: session reuse
+would have 409'd (avoided); a turn that never reached the escalation path would make a block
+meaningless (excluded positively via `intent` and `pending_interrupt`, not by absence); all requests
+landing on one task would make a ceiling of exactly 5 ambiguous (moot — the observed ceiling
+*exceeded* the cap, which nothing but a per-process count can produce); a `None` `client_ip` would
+have collapsed callers onto one key and been *stricter*.
+
+### 2. Postgres, not Redis, and no env flag
+
+- **Postgres over Redis/ElastiCache.** The volume is 5 attempts per hour per caller, so a round-trip
+  is free, and the sibling fix for this exact defect class (AUD-X-08 / `cost_reservations`) already
+  established the pattern in this codebase: a session **factory** rather than the request session,
+  `pg_advisory_xact_lock(hashtext(key))` around the read-then-write, commit on refusal to release
+  the lock early. New infrastructure for a five-per-hour counter would be operational burden with
+  nothing to show for it.
+- **No `CHAT_SHARED_RATE_LIMIT_ENABLED` flag.** D-002's fake-by-default pattern is for *external*
+  dependencies whose real client costs money or needs credentials. Postgres is this app's own
+  database, already required by the turn that reaches this code, so a flag would only create the
+  possibility of deployed behaviour differing from tested behaviour — which is the shape of the
+  defect, not a safeguard against it. `InMemoryRateLimiter` stays the `RateLimiter` fake for unit
+  tests that build a `TurnContext` directly.
+- **`allow` became async on the Protocol**, including for the in-memory implementation. The
+  alternative was two near-identical limiter hierarchies; the middleware is already async, so the
+  cost is an await on a function with nothing to await.
+
+### 3. The key is stored as an HMAC, and the purity test now has teeth it lacked
+
+A rate-limit key is a caller external id or, anonymously, a **client IP**. Before `rate_limit_events`
+no client IP was persisted anywhere in Postgres, and SPEC §5.30 keeps identifying values out of it —
+so the column holds `hmac(jwt_signing_secret, "rate-limit-caller-key-v1|" + key)`.
+
+- **HMAC, not `sha256`.** An unsalted digest of an IPv4 address is reversible by exhausting 2^32
+  candidates; that is obfuscation, not protection.
+- **The app's existing signing secret, domain-separated.** No new secret, no Terraform change, and a
+  rate-limit hash cannot collide with a token signature. Rotating the secret resets the counters,
+  which for a 1-hour window is bounded and acceptable.
+- **`test_schema_purity` had no IP-shaped names on its denylist** — names, emails, addresses, but
+  nothing that would have failed if this fix had stored `client_ip` raw. `ip`, `ip_address`,
+  `client_ip` and `remote_addr` are on it now. The decision to hash is worth little as a comment and
+  something as a failing test.
+
+### 4. What was deliberately left per-task
+
+The global per-IP cap (`install_global_rate_limit_middleware`, 6000/min, both apps) keeps counting in
+process memory. A database write on *every* request would cost more than the imprecision it removes,
+and S34 chose 6000 as roughly 3× a measured legitimate burst rather than as a precise abuse
+threshold — so the task multiplier makes it more generous without making it wrong. The precise
+control is the WAF, already dispositioned to S50 A7 (D-087). Its docstring is the part that was
+actually wrong: it justified single-process storage with "`desired_count` defaults to 1 (D-084)",
+untrue since autoscaling landed, and now states the real ceiling and which limiter could not accept
+that trade.
+
+### 5. Two smaller things the probe found, and one it created
+
+- **`RATE_LIMITED_MESSAGE` said "from this session".** It never was: the key is the caller. Every
+  probe attempt used a fresh session and was still blocked, so the message was telling a blocked
+  caller that opening a new chat would help. Words only.
+- **The pre-existing test could not have caught any of this.**
+  `test_rate_limit_blocks_repeated_anonymous_escalation` injects its own limiter, so it passed
+  throughout. D-159's corollary, third time: test the path that actually runs. The new
+  `test_escalation_rate_limit_wiring.py` asserts what `lifespan` builds, and that the cap survives a
+  **fresh lifespan** — a replacement task.
+- **A persistent cap has a test-suite consequence.** Every `TestClient` request shares the caller key
+  `testclient`, and the counter no longer dies with the process, so on the shared dev Postgres the
+  third suite run inside an hour would have started failing on a real limit that looks exactly like
+  a regression. An autouse fixture clears that one key. Noted here because the global middleware's
+  own comment had already worried about this hazard in the in-memory case, where it could not bite.
+
+### 6. Also in this session: the probe dumps are committed, so re-scoring stays free
+
+D-180's pointer flagged that `probe_run_{human,corpus}.json` existed only in two session scratchpads
+under `/private/tmp` — 1.4 MB, and the only free way to score an access-probe rule change. They are
+now `apps/chat-api/tests/fixtures/probe_measurements/*.json.gz` (128 KB the pair, ~9% of the
+original), with `_dump_rows`/`_load_rows` handling `.gz` transparently. Re-scored from the committed
+copies through the real rule: **corpus 26 | 0 | 12 | 0 | 0** and **human 27 | 0 | 11 | 0 | 0**,
+matching D-180's recorded numbers exactly, at zero spend.
+
+Two guards and a README came with them, because a fixture that decisions rest on should not be able
+to rot quietly: a test that both dumps still load and still carry what `_load_rows` needs, a
+gzip round-trip test, and a README recording which file is which arm — under `--load` the
+`--query-field` flag selects nothing (`_load_cases` normalizes the chosen field into `case["query"]`
+at collection time), so the header line can mislabel an arm without changing a single number.
+
+### 7. Verification
+
+`make lint` clean, `pyright` 0 errors, **889 passed / 2 skipped** (878 at session start, +11).
+Migration `a3f81c62b904` applied, downgraded and re-applied cleanly against the dev database. The
+live pre-fix row is §1; the post-deploy re-probe is owed and is the first item of the next session.

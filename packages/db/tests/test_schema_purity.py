@@ -31,6 +31,15 @@ FORBIDDEN_COLUMN_NAMES = {
     "student_name",
     "manager_email",
     "guardian_name",
+    # AUD-C-27. A caller's IP is identifying, and until `rate_limit_events` there was no
+    # table that wanted one - so nothing here would have caught the first raw
+    # `client_ip` column. `rate_limit_events.caller_key_hash` stores an HMAC
+    # (`intellichoice_shared.rate_limit.hash_caller_key`) precisely so this stays a
+    # denylist and not an exemption.
+    "ip",
+    "ip_address",
+    "client_ip",
+    "remote_addr",
 }
 
 # (table_name, column_name) pairs exempted from the denylist above, with the reason

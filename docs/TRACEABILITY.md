@@ -686,7 +686,7 @@ Three are absent, and **their status is not the same**:
 
 | control | terraform | disposition |
 |---|---|---|
-| AWS WAF | absent | **dispositioned** — deferred with a written reason, tracked to S50 A7 (D-087, which added per-IP rate limiting as the explicit in-memory stopgap "not a replacement for one") |
+| AWS WAF | absent | **dispositioned** — deferred with a written reason, tracked to S50 A7 (D-087, which added per-IP rate limiting as the explicit in-memory stopgap "not a replacement for one"). **The stopgap's ceiling was measured in D-181 and it is per-task:** one source IP gets `6000 × running tasks` per minute, and that is accepted for a bound chosen as ~3× a legitimate burst. The §5.24.2 escalation cap could not accept it and moved to a shared Postgres counter (AUD-C-27) |
 | Pod Security Standards / NetworkPolicy | absent | **moot** — EKS concepts, and D-004 chose ECS/Fargate |
 | **GuardDuty** | absent | ~~none anywhere in the repo~~ → **deferred, written reason, S50 A7 (D-125)** |
 | **CloudTrail** | ~~absent~~ **built** | ~~none — one incidental D-095 mention~~ → **implemented and live-verified (D-125)** |

@@ -151,15 +151,17 @@ corrected and the correction is marked in it.
 | AUD-F-35 | Personalization correctness | P2 | ✅ Fixed 2026-08-01 (D-150) | `promote_if_eligible` applies no evidence bar, so plan §9's stability rule is enforced at creation and bypassed on the next reconfirmation |
 | AUD-F-36 | Launch journey / interrupts | P2 | ✅ Fixed 2026-08-01 (D-145), deployed; criterion 3 re-met behind it (D-147) | The parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription |
 | AUD-F-37 | Deploy pipeline | P2 | ✅ Fixed 2026-08-03 (D-158) | Nothing verified that the deployed code is the code that was built |
+| **AUD-C-27** | **Security control / abuse — escalation rate limit** | **P2** | ✅ **fixed 2026-08-04 (D-181), measured live before the fix shipped: 8 accepted against a configured 5** | **The SPEC §5.24.2 escalation cap counts in one process's memory, and a process is one ECS task, so the deployed cap is the configured number times the running task count.** Not inferred - probed anonymously against the deployed chat edge from one IP, with a fresh session per attempt: **8 escalation drafts accepted, then blocked**, against `email_rate_limit_max_per_window = 5`. The path is free to probe (`escalate: true` skips `scope_guard` and reaches a deterministic template, so no Bedrock call) and sends nothing (`FakeEmailTransport` is wired unconditionally), which is why the pre-fix number exists at all. Uvicorn runs one worker in both Dockerfiles, `autoscaling_min_capacity` is 2 for learning-api and 1 for chat-api with `max_capacity` 3, and no ALB target-group stickiness pins a caller to a task. **Same defect class as AUD-X-08** (a limit enforced from state other callers cannot see); the only difference is which state was invisible - there an uncommitted row, here another task's memory. The control this defeats is the *only* one on an anonymous caller's ability to mail the org's admin. **Two things the finding also caught:** `RATE_LIMITED_MESSAGE` said "from this session", which is wrong - the key is the caller, and every probe attempt used a fresh session - and `test_schema_purity`'s denylist had no IP-shaped column names, so nothing would have failed if the fix had stored raw client IPs. Fixed with a shared Postgres counter behind the existing seam (`rate_limit_events`, HMAC of the key, advisory-locked count), the global 6000/min per-IP middleware deliberately left per-task |
 | **AUD-C-26** | **Product correctness — access hint** | **P3** (filed P2; **re-argued down in D-180 after the live row came back vacuous**) | ✅ **fixed and deployed 2026-08-04 (D-180), as the user decided: silence on ambiguity** — one measured option was refuted on the way, and the severity claim did not survive the live check | **A question the public corpus answers is told to log in as a parent, on the probe branch no rule table ever modelled.** Found by AUD-C-25's fix on its first run, at zero cost. When *nothing* is within `ACCESS_PROBE_CANDIDATE_MAX_DISTANCE`, `probe_access` returns at its `if not candidates` branch — no reranker call, **no relevance floor and no tier margin** — and `_lexical_only` decides alone. With no score to rank by, `build_access_hint` falls back to tier **priority**, which is the exact rule AUD-C-22 was filed against; the D-165/D-168/D-177 constants are not implicated because none of them runs on this path. **Not a knife edge, and not rare:** the branch is reached on **18 of 58** cases in the human-phrasing arm (11 public, 4 unanswerable, 3 gated) and 17 of 58 in the corpus arm — "no candidate within 0.60" is the ordinary case for a question phrased unlike the corpus. The keyword arm is quiet across almost all of it (1 fire in 35 empty-pool cases over both arms), and the one fire is wrong: **`probe-public-025`**, *"How do I get or delete my kid's school records?"*, nearest non-public chunk at distance **0.7251** against the 0.60 ceiling, keyword arm returning `{parent: 1, student: 3}` → **`required_role: "parent"`** for an answer the **public** Privacy Notice carries. So a caller is told to authenticate for public information. **Severity P2, argued both ways:** milder than AUD-C-22's wrong tier on gated content (the user probably *is* a parent) but the same defect class — a user-visible instruction that cannot help, on a negative class the recorded table showed as clean. **Why it needs a decision rather than a patch:** the obvious fix (skip the lexical arm when the candidate pool is empty) collides with D-165's reason for keeping the arm at all — `MockBedrockProvider`'s embeddings are hash-seeded vectors with no semantic content, so this is the **only** arm the entire mock-backed suite can exercise, and removing it makes the probe structurally unobservable offline. Candidate fixes: (a) require ≥2 matched audiences to disagree before the priority fallback names one, (b) give the keyword arm a minimum-match bar (`probe-public-025` fires on a single chunk), (c) keep the arm for tests but gate the *hint* on a scored signal, (d) accept and record it. All four are measurable for free with `--shipped` |
 | **AUD-C-25** | **Audit integrity / measurement harness** | **P2** | ✅ **fixed 2026-08-04 (D-179) — and it found AUD-C-26 on its first run** | **`measure_access_probe_rules.py` does not measure the rule it is used to choose.** Every access-probe constant since D-165 was set from this script's tables, and the script **reimplements** the rule (`rerank_prefloor_margin_hint`) rather than calling `probe_access`. The reimplementation differs from production in two ways, and no test compares them. **(i) The branch order is reversed:** the harness checks the floor first (line 558) then the margin; `probe_access` checks the margin first ([retrieval.py:187](../packages/knowledge/src/intellichoice_knowledge/retrieval.py#L187)) then the floor. **(ii) The harness has no lexical arm at all** — neither `_lexical_only` nor `count_matching_by_audience` appears in it — so where production falls through to a keyword match that *can* return a hint, the harness returns `None` and scores it as silence. The two disagree exactly when `winner ≤ floor` **and** `winner − runner_up ≥ margin`, which is **AUD-C-23's own failing case** (winner 0.75–0.90 against the 0.9 floor, runner-up 0.2–0.3). So D-177's headline "0 wrong tiers, 0 false hints, 0/40 stability fires" is a true statement about the harness's rule that **does not cover** production's composed path on the decisive question. **Bounded, and the bound is why this is P2 not P1:** D-178's 10 live probes measured the composed path directly at **0/10 hints with a 3/3 control**, so no user-facing damage exists today, and the lexical arm was separately measured clean on both negative classes. The exposure is the *instrument*: the next rule decision will be made on tables that model a rule nobody ships. Same class as AUD-F-16 (a harness measuring something other than what it claimed) and as D-175's config-parity gap — whose `ast` guard checks the harness passes the same `Settings` **fields** as the route, while nothing checks the rule has the same **structure**. **Two candidate fixes, neither costing a paid re-measurement:** have the harness call `probe_access` with an injected score map, or add a parity test that runs both over the saved dumps and asserts identical hints per case. Also unresolved and cheap to settle from the same dumps: production's pre-floor margin now **gates** the lexical arm (two audiences at `0.0` → `matches={}`, `lexical_calls=0`, verified), which the "strictly additive, gets the last word" comment at [retrieval.py:196](../packages/knowledge/src/intellichoice_knowledge/retrieval.py#L196) no longer describes, and which plausibly accounts for part of the 29→27 drop D-177 attributed to the floor raise **✅ Fixed 2026-08-04 (D-179), arm (a) — the harness now calls `probe_access` instead of restating it.** `--shipped` replays the real function per case: rerank scores come from the dump (the paid, nondeterministic input, and `--load`'s whole purpose is comparing rules against identical model output), while the **lexical arm is real**, delegated to `RagRepository.count_matching_by_audience` against local Postgres — it takes no embedding, so it is faithful offline even with mock vectors stored, which is exactly why it could have been modelled for free at any point and never was. The table gains a `SHIPPED probe_access` row and a parity section against `pf_f09_m01`, its transcription. **It paid for itself immediately:** the first run reported **FP public 1** where D-177 recorded 0, and the parity section named the one disagreeing case out of 58 — now filed as **AUD-C-26**. **My own prediction on this row was wrong in two ways, which is why the fix and not the reasoning is what closed it:** the divergence that bites is the *empty candidate pool* branch, not the sub-floor one (reached on 18 of 58 cases, at distance 0.72 against a 0.60 cut — nowhere near a knife edge), and the unmodelled arm *adds* false hints as well as costing recall. 7 regression tests in `test_access_probe_harness_parity.py`, one per branch, including one that fails if the shipped column is ever re-transcribed and one asserting the replay errors rather than returning `{}` when it cannot reach the lexical arm — returning an empty match set there would be this finding, reintroduced by its own fix |
 | **AUD-C-24** | **Minors / PII floor — chat free text** | **P2** | ✅ fixed 2026-08-04 (D-177) | **The chat app sends the user's typed question to Bedrock unredacted, and no decision ever covered that surface.** `redact_free_text` has **exactly one call site in the repository** — learning-api's chat router, at the request boundary (D-072) — while chat-api has none, so a question typed into `chat.intellichoice.org` reaches four payloads verbatim: `ScopeAndIntentPayload.standalone_query`, `RerankPayload.query`, `RagAnswerPayload.query`, `CalendarExtractionPayload.query`. D-072's own "How to apply" clause requires the pass for "any future free-text-accepting Bedrock task". **Bounded, and the bound is what holds it at P2**: chat queries are **not persisted** — there is no chat-message table (`chat_suggestions.prompt_text` is hand-authored seed content, checked), so this is the wire and traces, not storage or backups. **Not an accepted risk, an unexamined one**: D-018's prompt-injection scope call names chat-api's surface deliberately and defers PII to "S24/D-072 already judged that surface", which judged the *learning* surface. Needs a decision (redact at the chat request boundary as learning-api does, vs. accept and write the acceptance down), not just a patch — a minor typing "my mum's email is …, when is class?" is the realistic case **✅ Fixed 2026-08-04 (D-177), as the user decided: redact at the boundary.** `redact_free_text(body.query)` in chat-api's `post_message` — the one place free text enters the graph (`/respond`'s free text is location data that goes to geocoding and is purged per AUD-C-03; `/stream` takes no input) — so the four payloads, the checkpointed `QAState`, **and** the escalation email draft all carry the redacted text. Two HTTP tests: the raw email absent from the escalation draft and from serializer-decoded `checkpoint_writes` (the AUD-C-03 lesson), and an email-bearing in-scope question still classifies and answers. D-072's "How to apply" clause now holds on both apps |
 
 **Open findings, counted from both halves of the Index (2026-08-04, D-174; recounted D-175
-through D-180): 1.** Arithmetic, written out because this line has now been wrong three times:
+through D-181): 1.** Arithmetic, written out because this line has now been wrong three times:
 1 open after D-177, **plus** AUD-C-25 (filed in D-178 while landing D-177's work), **minus**
 AUD-C-25 (fixed in D-179), **plus** AUD-C-26 (filed in D-179, found *by* that fix on its first
-run), **minus** AUD-C-26 (fixed in D-180) = **1**. Confirmed by running ROADMAP's anchored `awk`,
+run), **minus** AUD-C-26 (fixed in D-180), **plus and minus** AUD-C-27 (filed *and* fixed in
+D-181, so it never sat open) = **1**. Confirmed by running ROADMAP's anchored `awk`,
 not by counting the sentence below. `Open`: **AUD-F-33** only (deferred by the user's call —
 detection exists, mechanism unknown).
 
@@ -2028,6 +2030,91 @@ the wire on a live user path, and "which pass, at which boundary" is a decision 
 is recorded as the mitigation for a related concern (D-093-era), and AUD-F-13 established that a PII
 floor has to be re-established per store rather than inherited — so "the trace is clean" needs its own
 check and does not follow from this entry.
+
+### AUD-C-27 — the escalation rate limit counts per task, so the deployed cap is N× the configured one (P2, filed and fixed 2026-08-04, D-181)
+
+**Area:** security control / abuse — SPEC §5.24.2 "IP and user rate limiting"
+**Status:** ✅ fixed 2026-08-04 (D-181). Measured live *before* the fix shipped.
+
+**The defect.** `InMemoryRateLimiter` keeps its sliding window in a `dict` on one process.
+`app.state.email_rate_limiter` was one of those, and it is the control on SPEC §5.24.2's
+specific concern: an anonymous caller's ability to send mail to the org's administrator.
+Uvicorn runs a single worker in both Dockerfiles, so one process is one ECS task; Terraform
+sets `autoscaling_min_capacity` 2 (learning-api) and 1 (chat-api) with `max_capacity` 3, and
+no target-group stickiness pins a caller to a task. Each task therefore enforced its own
+private copy of "5 per hour".
+
+**Measured, not inferred — 8 accepted against a configured 5.** Anonymous probes of the
+deployed chat edge from a single IP, one **fresh session per attempt**, `escalate: true`:
+attempts 1–8 all returned a `pending_interrupt` with `intent: "admin_contact"`, attempts
+9–11 returned `RATE_LIMITED_MESSAGE`. The measurement is free and harmless, which is the
+only reason a pre-fix number exists: `_route_after_resolve_role` sends an escalation
+straight to `prepare_admin_escalation` without touching `scope_guard`, so the path makes no
+Bedrock call, and `FakeEmailTransport` is wired unconditionally, so nothing is sent. This
+was done in the D-180 order deliberately — **measure the defect live before deploying its
+fix** — the lesson D-180 recorded after getting it backwards and permanently losing the
+answer to "did this ever reach a user?" for AUD-C-26.
+
+**Pre-registered vacuity modes** (D-180's other lesson), all resolved: session reuse would
+have 409'd on `_reject_if_paused` (avoided with fresh sessions); a turn that never reached
+the escalation path would make a `null` block meaningless (excluded positively — `intent`
+and `pending_interrupt` on every attempt); all requests landing on one task would make a
+ceiling of exactly 5 ambiguous (moot, since the observed ceiling *exceeded* the cap, which
+only a shared-count failure can produce); and a `None` `client_ip` collapsing every caller
+onto the `"anonymous"` key would have been *stricter*, not weaker.
+
+**Why P2 and not P1.** No PII is disclosed and no authorization is bypassed; the damage is
+that the one anti-abuse control on an anonymous path is 1.6–3× looser than its configured
+number, in the direction of letting a stranger mail the administrator more often. It sat
+below AUD-C-16's class and above a cosmetic wording issue.
+
+**Same class as AUD-X-08, and the fix is its sibling.** There, per-day spend ceilings were
+read-then-act against rows that did not commit until after the response, so ten concurrent
+callers each read zero and spent 10× the ceiling. A limit enforced from state that other
+callers cannot see is not a limit; the only difference here is that the invisible state was
+another task's memory rather than an uncommitted row. So the remedy is the one that already
+exists in this codebase: `rate_limit_events`, a `RateLimitRepository` holding a **session
+factory** (not the request session, whose writes land after the response), and a
+transaction-scoped `pg_advisory_xact_lock` around count-prune-insert.
+
+**Two things this finding caught on the way.**
+
+1. `RATE_LIMITED_MESSAGE` read *"Too many escalation requests **from this session**"*, and
+   the probe is what proved it wrong: every attempt used a fresh session and was still
+   blocked, because the key is the caller (external id, else client IP). A message that
+   misdescribes its own scope tells a blocked caller that opening a new chat will help.
+2. `test_schema_purity`'s denylist covered names, emails and addresses but **no IP-shaped
+   column names** — so nothing would have failed if this fix had stored raw `client_ip`
+   values, which would have been the first identifying value in Postgres. `ip`,
+   `ip_address`, `client_ip` and `remote_addr` are now on the denylist, and the column
+   stores an HMAC (`hash_caller_key`) rather than the key. HMAC rather than a bare digest
+   because an unsalted `sha256` of an IPv4 address is reversible by exhausting 2^32.
+
+**What was deliberately *not* changed:** the global per-IP request cap
+(`install_global_rate_limit_middleware`, 6000/min, both apps) stays in-process and per-task.
+A database round-trip on every request would cost more than the imprecision it removes, and
+that number was chosen as "roughly 3× a measured legitimate burst" (S34's k6 run) rather
+than as a precise abuse threshold, so the task multiplier makes it more generous without
+making it wrong. The precise control is the WAF, already dispositioned to S50 A7. Its
+docstring — which justified single-process storage with "`desired_count` defaults to 1
+(D-084)", untrue since autoscaling landed — now states the real ceiling instead.
+
+**A consequence worth stating, because it is the kind that surfaces as a fake regression:**
+the cap is now persistent, and every `TestClient` request shares the caller key
+`testclient`. Before this change the suite could not trip a 5/hour cap because the counter
+died with the process; now the third run inside an hour would, on the shared dev Postgres.
+An autouse `reset_escalation_rate_limit` fixture clears that one key.
+
+**Tests.** `packages/db/tests/test_rate_limit_repository.py` (shared quota across two
+repository instances — the assertion `InMemoryRateLimiter` cannot pass; concurrent attempts
+bounded by the cap; scoping by surface, caller and window; expired-row pruning),
+`apps/chat-api/tests/test_escalation_rate_limit_wiring.py` (the app wires the shared
+limiter; an escalation over HTTP is visible to an independently built repository; the cap
+holds across fresh sessions **and across a fresh lifespan**, i.e. a replacement task), and
+`packages/shared/tests/test_rate_limit.py` (the per-process property pinned where it is
+still deliberate, plus the key-hashing properties). The pre-existing
+`test_rate_limit_blocks_repeated_anonymous_escalation` passed throughout the defect because
+it injects its own limiter — D-159's corollary again: test the path that actually runs.
 
 ### AUD-C-26 — A public-corpus question is told to log in as a parent, on the probe branch no rule table modelled (P2, filed 2026-08-04, D-179; ✅ fixed 2026-08-04, D-180)
 

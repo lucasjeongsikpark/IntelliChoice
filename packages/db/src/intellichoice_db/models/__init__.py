@@ -27,6 +27,7 @@ from intellichoice_db.models.questions import (
     QuestionVariant,
 )
 from intellichoice_db.models.rag import RagChunk, RagDocument
+from intellichoice_db.models.rate_limit import RateLimitEvent
 from intellichoice_db.models.reports import ProblemReport
 from intellichoice_db.models.stage_transition import StageTransition
 from intellichoice_db.models.student_report import StudentReport
@@ -56,6 +57,7 @@ __all__ = [
     "QuestionVariant",
     "RagChunk",
     "RagDocument",
+    "RateLimitEvent",
     "SemanticMemory",
     "Skill",
     "StageTransition",
