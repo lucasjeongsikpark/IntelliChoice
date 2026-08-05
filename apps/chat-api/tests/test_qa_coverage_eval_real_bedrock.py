@@ -30,9 +30,11 @@ independent ceilings, smallest first:
      cannot spend the run's whole allowance;
   2. `RUN_BUDGET_CENTS` - a hard stop across the whole run, checked after every case by
      summing each turn's own `bedrock_spend_cents`; the run aborts rather than truncating
-     silently, because a partial run scored as if complete is a wrong measurement;
+     silently, because a partial run scored as if complete is a wrong measurement. Set
+     `CHAT_EVAL_RUN_BUDGET_CENTS=<n>` to tighten it to whatever figure the run's spend was
+     approved at; it cannot loosen it above the default;
   3. the fixture is a fixed, version-controlled case list - not a generator.
-Measured cost of one full run at S37: see docs/AUDIT_FINDINGS.md.
+Measured cost of one full run: **76.7 cents / 13m17s** at S37 (docs/AUDIT_FINDINGS.md).
 
 **This run does not see every fixture case (AUD-C-21/D-166).** `load_cases` is called with
 `include_mock_only=False`, which drops the five nonsense-marker `role_gated` cases - a real
@@ -64,7 +66,13 @@ from .qa_coverage_runner import (
 )
 
 PER_CASE_BUDGET_CENTS = 15.0
-RUN_BUDGET_CENTS = 400.0
+# 400 is the standing headroom, not an estimate: one full run measured **76.7 cents** at S37
+# (see docs/AUDIT_FINDINGS.md). `CHAT_EVAL_RUN_BUDGET_CENTS` lowers it for a run whose spend
+# was approved at a specific figure, so the approved number is *enforced* by the same hard
+# stop rather than checked by hand afterwards - D-178 ran the first full post-AUD-C-23 eval
+# at 150. It can only tighten the ceiling: a value above the default is ignored, because a
+# run must not be able to raise its own spend limit from the environment.
+RUN_BUDGET_CENTS = min(float(os.getenv("CHAT_EVAL_RUN_BUDGET_CENTS") or 400.0), 400.0)
 
 _ENABLED = os.getenv("CHAT_EVAL_REAL_BEDROCK") == "1"
 

@@ -710,6 +710,18 @@ which stop the line.
 > own status**, and the status wins: D-174 §3a lost time to a "not yet checked" bullet that was
 > never struck when D-112 closed the finding.
 >
+> **One benign duplicate, so nobody re-investigates it (checked in D-178):** `### AUD-C-16` appears
+> twice, and it is *one* finding with two sections — the original, plus a later
+> `### AUD-C-16 (settled) …` that escalates it P3 → P1. Unlike the `AUD-L-17` collision, no
+> renumbering is owed. A mechanical "no id appears twice" check flags it; that is the check being
+> imprecise, not the file.
+>
+> **⚠️ The `awk` reads the status positionally, so keep `|` out of the first four cells.** Four rows
+> already carry an extra pipe (AUD-C-14, C-15, L-16, F-16 — 8 fields where the norm is 7); checked in
+> D-178, all four still have their real status in `$5` because the stray pipe sits in the *description*
+> cell, after it. A pipe in the id, area, severity or status cell would shift `$5` and silently
+> miscount that finding — the fourth way this count could go wrong, after the three already recorded.
+>
 > **⚠️ A naive `grep -i open` over this file now over-counts, and the fix is to anchor on the status
 > column.** Several rows carry their own history *inside* the status cell — AUD-F-16's reads
 > "✅ fixed … ; this row read `Open — before the gate` until 2026-08-04" — so the word appears in rows
@@ -722,9 +734,13 @@ which stop the line.
 >   docs/AUDIT_FINDINGS.md | sort -u
 > ```
 >
-> That returns **1** as of 2026-08-04 (D-177): AUD-F-33. (It returned 6 when
-> this instruction was written, 5 after D-175, 3 after D-176.) **Do not "correct" the count to whatever a looser
+> That returns **2** as of 2026-08-04 (D-178): AUD-F-33 and AUD-C-25. (It returned 6 when
+> this instruction was written, 5 after D-175, 3 after D-176, 1 after D-177.) **Do not "correct" the count to whatever a looser
 > grep reports** without checking where the word sits — that is the same class of error twice over.
+>
+> Note that the count can go **up** without anything regressing: AUD-C-25 was filed by D-178 while
+> *landing* D-177, from reading the shipped rule against the harness whose table justified it. A
+> backlog that only ever shrinks is a backlog nobody is reading.
 >
 > Note also that *Open* and *Decided* are different piles: a finding whose fix has been decided but
 > not implemented (AUD-L-03, AUD-L-09) is not in this count and is not done. That pile held AUD-F-22

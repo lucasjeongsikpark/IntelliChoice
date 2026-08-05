@@ -5,13 +5,68 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-178: D-177 landed, deployed and live-verified at 0/10, the full eval re-baselined under the
+  new floor — and the harness that chose every access-probe constant turned out not to implement the
+  rule it measures (2026-08-04, S63 — no numbered session; PROGRESS.md's own pointer, items 0 and 1,
+  the second opted into by the user).** `make lint` clean, `pyright` 0, **869 passed / 2 skipped** at
+  baseline, matching D-177's recorded numbers exactly — so the uncommitted work was the work that had
+  been measured. **✅ Landed and deployed** — PR #111 (`e1ab0ad`), deploy run 30962420370 success,
+  `learning-api:64` / `chat-api:63`, both `gha-e1ab0adbacb4`, rollouts COMPLETED (2/2 and 1/1).
+  D-177's 10 files went in **unchanged**, deliberately: the deployed code has to be the configuration
+  the measurement tables describe.
+  **✅ The owed live row, and it is the headline: 0 of 10, with a control that fired 3/3.** Anonymous
+  probes of *"What happens to a student who misses three sessions in a row?"* against the deployed
+  chat edge returned **no `access_hint` on any of 10** (all correct `null` refusals, `scope=in_scope`,
+  `citations=0`), where D-175 measured **6/10 `required_role: "branch_manager"`**. The control fired
+  **3/3** with the correct `required_role: "parent"` — three rather than D-173's one, because this
+  rule turns 2–3 of 38 hints into silences and a single silent control could not be told apart from a
+  control the rule legitimately retired. **What it does not establish, written down because the
+  mirror-image error is the easy one here:** 0/10 refutes the 60% rate decisively (probability 0.01%)
+  but bounds the residual only at **<26% one-sided 95%** — a 10% residual still yields 0/10 about 35%
+  of the time. The sample size adequate to *detect* a 60% rate is not adequate to *certify* a low one;
+  that is the half of D-175's lesson D-175 did not state. Nothing here licenses "never".
+  **✅ Item 1 done — the full unfiltered eval, 52.5¢ of the approved 150¢, 5m33s**, every assertion
+  live including the containment/coverage invariants D-177's narrowed run could not assert.
+  `no_answer` **8/8** (AUD-C-23's own case included), `no_source` 16/16, `out_of_scope` 10/10,
+  `paraphrase` 11/11, `adversarial` 6/6. Each non-100% line was checked against the record rather than
+  read as new: `grounded` 6/9 and `grounded_citation_rate` **17/20** are the documented baseline
+  (17/20 matches exactly; the three `grounded-branch-*` have failed since S37 for the keyword-list
+  reason S37 documented), and `role_gated_question` 2/3 is the tutor-case *silence* D-177 already
+  named. **`correct_refusal_rate` 97.3% (36/37) is the new number, and it re-baselines rather than
+  proves a delta** — the comparators (79.5% / 87.2% / 73.8%) come from different configs and eras.
+  Spend caps are now enforced rather than checked afterwards: `CHAT_EVAL_RUN_BUDGET_CENTS` can only
+  **tighten** the 400¢ standing ceiling (`9999` → 400, verified), so a run cannot raise its own limit
+  from the environment.
+  **⚠️ AUD-C-25 filed, and it corrects a claim made earlier in the same session.**
+  `measure_access_probe_rules.py` **reimplements** the rule as `rerank_prefloor_margin_hint` and never
+  calls `probe_access`; the branch order is reversed (harness floor-then-margin, production
+  margin-then-floor) and the harness has **no lexical arm at all**. They disagree exactly when
+  `winner ≤ floor` **and** `winner − runner_up ≥ margin` — **AUD-C-23's own failing case**. So D-177's
+  "0 wrong tiers, 0 false hints, 0/40 stability" is true of the harness's rule and does not cover
+  production's composed path on the decisive question. Every access-probe constant since D-165 came
+  from these tables. Same shape as D-175's config-parity gap one level up: its `ast` guard checks the
+  harness passes the same `Settings` *fields*, and nothing checks the rule's *structure*. Both fixes
+  are free (the D-177 dumps re-score via `--load`); not done here because choosing between them
+  changes what the instrument is, which is past this session's scope. **Also on that row:**
+  production's pre-floor margin now *gates* the lexical arm (`0.0/0.0 → lexical_calls=0`, verified),
+  so the "strictly additive, gets the last word" comment no longer describes the code and part of the
+  29→27 drop attributed to the floor raise is plausibly this bypass.
+  **Open count: 2** — `AUD-F-33` (deferred by the user's call) and `AUD-C-25` (new), confirmed with
+  ROADMAP's anchored `awk`. Arithmetic: 1 at start, +C-25.
+
 - **⚠️ D-177: the last two decision-gated findings implemented — AUD-C-23 (re-measured, and the
   re-measurement moved the fix off the knob the fork named) and AUD-C-24 (chat free text redacted
   at the boundary) (2026-08-04, S62 — no numbered session; PROGRESS.md's own pointer, items 1
   and 2, both user decisions taken at session start).** `make lint` clean, `pyright` 0,
-  **869 passed / 2 skipped** (865 at start, +4). **⚠️ Uncommitted and not deployed** — owed: PR,
-  deploy, and the live row (below). Written the day of the work, on purpose (the D-174/D-175
-  close-out lesson).
+  **869 passed / 2 skipped** (865 at start, +4). **✅ Landed, deployed and live-verified in D-178** —
+  PR #111 (`e1ab0ad`), deploy run 30962420370 success, `learning-api:64` / `chat-api:63`, both
+  `gha-e1ab0adbacb4`; the owed live row measured **0/10 hints with a 3/3 control**, where D-175 had
+  6/10. *This sentence read "Uncommitted and not deployed" for a few hours and was reconciled the same
+  day — the D-174/D-175 close-out lesson, applied twice now.* Written the day of the work, on purpose.
+  **⚠️ One claim in this entry is corrected by D-178/AUD-C-25:** the measured tables below were
+  produced by `measure_access_probe_rules.py`'s *reimplementation* of the rule, not by
+  `probe_access`, and the two differ exactly on this finding's own failing case. The outcomes stand —
+  the live 0/10 measured the composed path directly — but the tables do not prove what they appear to.
   **✅ AUD-C-24 closed as decided: redact at the boundary.** `redact_free_text(body.query)` in
   chat-api's `post_message` — the only place free text enters the QA graph (`/respond`'s free text
   is location data, geocoded and purged per AUD-C-03; `/stream` takes no input) — so all four
@@ -1318,7 +1373,64 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-177):**
+- **Next session, in order (2026-08-04, post-D-178):**
+  0. **✅ Nothing owed.** D-178's own work is landed, deployed and verified: PR #111 (`e1ab0ad`),
+     deploy run 30962420370, `learning-api:64` / `chat-api:63` both on `gha-e1ab0adbacb4`, the live
+     row measured (0/10 hints, control 3/3), and the full eval run with every assertion live. The
+     D-178 docs + the `CHAT_EVAL_RUN_BUDGET_CENTS` cap are their own small PR.
+  1. **AUD-C-25 needs your decision, and it is the only open finding with a fork.** The harness that
+     chose every access-probe constant since D-165 reimplements the rule instead of calling
+     `probe_access`, with a reversed branch order and no lexical arm, and the two disagree on
+     AUD-C-23's own case. **Both fixes are free** — the D-177 dumps re-score offline via `--load`.
+     They were copied forward in D-178 and now exist in **two** session scratchpads
+     (`…/2a3304c0-…/scratchpad/` and `…/80fe2941-…/scratchpad/`, `probe_run_{human,corpus}.json`,
+     1.4 MB the pair, **128 KB gzipped**). Both are still ephemeral: **commit them or re-copy them
+     forward**, or the free re-score reverts to a ~43¢ paid re-run. Git would store the pair at about
+     the gzipped size since it compresses objects itself, so the only real question is whether this
+     repo wants generated artifacts tracked — your call, deliberately not made for you. The fork: (a) make the harness call `probe_access` with an injected score map and a
+     repo double — one implementation, tables of the shipped code by construction, and the lexical arm
+     gets modelled instead of skipped; or (b) a dump-replay parity test that asserts identical hints
+     per case — cheaper, fails loudly on the next divergence, but leaves two implementations. (a) is
+     the recommendation; (b) is what you take if you want it closed in an hour.
+     **Bundled with it, same file:** the pre-floor margin gates the lexical arm, so two comments in
+     `probe_access` no longer describe the code, and whether that bypass should be restored (move the
+     floor check ahead of the margin for the sub-floor case) is answerable from the same dumps at zero
+     cost. Do not tune the constants themselves without a re-measurement — D-177's rule, still good.
+  2. **AUD-F-33** (P2, autoscaling) remains deferred by your call — detection exists, mechanism
+     unknown.
+  3. **The product decisions still unanswered, unchanged and none of them mine to make:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent
+     by choice; (b) should the access hint be able to say "this is covered in parent *and*
+     branch-manager materials" instead of going silent — the same margin AUD-C-23 retuned, and the
+     retune makes silence *more* common on two-tier questions; (c) escalation carries no way to reply
+     to the person who asked (D-164's scoped-out half), and `InMemoryRateLimiter` is per-process so
+     the real ceiling is N× the configured one; (d) does a multi-child parent need an in-app switcher,
+     or is sign-out-and-back-in acceptable until real auth replaces the dev login; (e) is
+     `[redacted-email]` in escalation drafts acceptable long-term, or should escalation eventually
+     carry a structured (consented) contact field.
+  4. **Notes that survive, plus one earned in D-178:**
+     **⚠️ New — sample size has a direction.** D-175's rule (fix N before probing) was followed and is
+     not sufficient alone: 0/10 refutes a 60% rate at p=0.01% but bounds a residual only at <26%
+     (one-sided 95%). Choose N for the direction of the claim — detecting a high rate is cheap,
+     certifying a low one is not. Do not upgrade D-178's 0/10 to "never".
+     **Counting findings:** ROADMAP's anchored `awk` (status is the 5th pipe field, a real open
+     finding *starts* with `Open`) returns **2** today: F-33 and C-25.
+     **Reading staging's database:** `aws ecs run-task` with a `containerOverrides` command on
+     `intellichoice-staging-ops-task` reads RDS directly for a few Fargate seconds, read-only by
+     construction if the command is a `SELECT`.
+     **Probing the deployed chat API:** base path **`/chat/...`**, edge
+     `d222glidpp4azv.cloudfront.net` (learning is `d35dfnjzmgrm01`); `POST /chat/sessions` then
+     `POST /chat/sessions/{id}/messages` with `{"query": ...}`, anonymous, ~1.25¢/turn. The 13-probe
+     script from D-178 is reusable — it fixes both sample sizes in its own header comment.
+     **Paid eval:** `CHAT_EVAL_RUN_BUDGET_CENTS=<n>` enforces an approved figure (tighten-only); a
+     full unfiltered run is **52.5¢ / 5m33s** as of D-178 (76.7¢ at S37).
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"`
+     **and export `AWS_REGION=us-east-1`** — the exported credentials carry no region, and
+     `AWS_PROFILE` alone does not work for the paid eval (D-164). Not needed for anonymous edge probes.
+
+- **Superseded — pointer as of post-D-177 (2026-08-04). Items 0 and 1 were both done in D-178;
+  items 2–4 carry up:**
   0. **Owed: land and deploy D-177, then take its live row.** Application changes on both live
      surfaces (chat-api's boundary redaction; the probe rule in `intellichoice_knowledge` +
      `intellichoice_shared`), so this needs a PR and deploy. The one thing to verify live that a
