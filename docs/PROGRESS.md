@@ -5,6 +5,64 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-184 + D-185: the multi-child switcher is built and browser-verified, and K-12 curriculum
+  coverage became a launch requirement (2026-08-05, no numbered session; PROGRESS.md's own
+  post-D-183 pointer, item 1's product decisions — you picked (d) to build, and answered the
+  content question the investigation surfaced).** `make lint` clean, `pyright` 0, **889 passed /
+  2 skipped** — unchanged, because no Python changed. `tsc --noEmit` clean for `learning-web` and
+  `e2e`; `oxlint` clean. **Nothing was spent** (local stack, `MockBedrockProvider`).
+  **✅ D-183's docs landed first.** The previous session ended without committing them — `main` was
+  still at the D-182 close-out. Four doc files, +258/−23, now `be7308b`, pushed.
+  **✅ The switcher (D-184), and it needed no backend at all.** `authorization.py:38-45` re-derives
+  the parent→child link on every request and already accepted any linked child on the same token —
+  `TokenClaims` carries no child claim, so there is nothing to re-issue, and
+  `test_auth_and_attendance.py:89-98/:111-121` had pinned that property since before the question
+  was asked. Three frontend files: `ChildSelectionScreen` gained optional `title`/`onCancel`,
+  `StartScreen` gained the button, and `App.tsx`'s children-fetch effect stopped bailing on
+  `session.studentId` — it had been discarding the candidate list the moment a child was bound,
+  which is why there was nothing to build a switcher out of.
+  **✅ Verified in a real browser, and the evidence is the access log rather than the green check.**
+  `journey-parent.spec.ts` — **4 passed** including the three pre-existing journeys, so login-time
+  resolution did not regress. Journey 3 (first child) reads `/learning/students/student-ext-2/…`;
+  journey 4 (after switching) reads `student-ext-3` — a different child bound with no sign-out, and
+  the dashboard served it.
+  **⚠️ The switcher sits next to a finding it could have reintroduced.** Cancelling leaves the
+  current child *bound*; unbinding would make the dashboard button vanish, which is AUD-F-22
+  exactly. The e2e journey asserts the cancel path for that reason and not for coverage.
+  **⚠️ The gate is `bind()`, not taste.** `nodes.py:216-240` refuses to move an existing session to
+  a different student (AUD-X-01) — a mid-session switcher would be a button that raises. Offering
+  it only on the start screen respects that by construction; `ResultsScreen` deliberately has no
+  button because "Done" lands on the start screen anyway.
+  **⚠️ A second browser tab was already an accidental switcher, and it is being kept.** Token in
+  `localStorage` (shared) vs bound child in `sessionStorage` (per-tab) means a fresh tab has a valid
+  login and no bound child. Undocumented anywhere, unintended, and coherent — two children side by
+  side — so D-184 documents it as the second route instead of closing it.
+  **⚠️ K-12 coverage is now a launch requirement (D-185), and the content position is worse than
+  "multi-tier is latent" suggested.** Counted this session: 3 topics / 10 skills in the taxonomy,
+  **50 templates all in `linear_equations`** (5 skills × 1 tier), `fraction_operations` and
+  `place_value` at **zero** — i.e. **grade band 6-7 only**, on a K-12 product. Not a live defect:
+  `topics.ts` marks both `available: false` and the server degrades to `phase: "error"` rather than
+  crashing. New ROADMAP track **A6-C**; D-060's "future content work" stands as a statement about
+  S20's pipeline and is superseded as a *scheduling* statement.
+  **⚠️ The pipeline cannot author it as written, so that is task 1, not the content.**
+  `TOPIC_DIFFICULTY_SKILLS` is `topic → {tier: one skill}`; the skill is derived *from* the
+  difficulty, and `generate_authored_candidate` raises `PipelineConfigError` outside the map by
+  design. One map plus four call sites. The real cost driver is D-026's no-self-approval rule —
+  human review per item, not model spend.
+  **⚠️ Product decision (a) is now a prerequisite, not a standalone question.** Content authored
+  1:1 skill↔difficulty keeps D-169's rule 2 latent for the *new* topics too, and adding tiers later
+  means re-authoring. It has to be answered before authoring starts, and it carries a pedagogical
+  half no pipeline answers: what a tier-3 `linear_one_step` question actually is.
+  **⚠️ Latent trap found while measuring:** `grade_topic_candidates` is loaded (`content.py:36, 79`)
+  and **never read at runtime** — availability is actually gated by the frontend's hardcoded
+  `TOPICS` list, in a different file, with no link between them. Wiring grade-based topic selection
+  without reconciling the two would offer contentless topics.
+  **⚠️ I hit D-183's own `PIPESTATUS` trap within an hour of reading it.** My first `tsc` check
+  printed `EXIT: 0` from `${PIPESTATUS[1]}` in a zsh shell, which is a bashism that silently read
+  `$?` (i.e. `tail`'s exit). Re-run with `cmd > file 2>&1; echo $?`. Also checked and dismissed:
+  `prettier` flags two of my files, but it flags untouched files too and is in neither
+  `package.json` nor CI — it is not this project's formatter.
+
 - **✅ D-183: AUD-F-33 closed — Application Auto Scaling accepts the metric-math alarm, observed on
   both services, and the wait was skipped for $0 with `set-alarm-state` (2026-08-05, no numbered
   session; PROGRESS.md's own pointer, item 0; skipping the wait was your call — "do we really have
@@ -1674,7 +1732,57 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-05, post-D-183):**
+- **Next session, in order (2026-08-05, post-D-185):**
+  0. **Nothing is owed and nothing is broken.** Audit backlog still **0**. The one optional free
+     run for the record: `make scaling-evidence` can exit 0 with `DAYS=1` after 2026-08-06T02:23Z
+     or with the default window after 2026-08-13T02:23Z — a window holding no transitions exits
+     INVALID rather than green, so a quiet day means "widen the window", not failure.
+  1. **The A6-C curriculum track is now the largest open item (D-185), and it has a fixed order:**
+     (i) answer product decision (a) — multi-tier-per-skill or 1:1 — **before** authoring, because
+     authoring 1:1 keeps D-169's rule 2 latent for the new topics and adding tiers later means
+     re-authoring; (ii) unblock the generator (`TOPIC_DIFFICULTY_SKILLS` is `topic → {tier: one
+     skill}`, one map + four call sites); (iii) author + human-review (D-026 forbids
+     self-approval — that is the cost, not model spend); (iv) reconcile
+     `grade_topic_candidates` (loaded, never read) against `topics.ts`'s hardcoded availability
+     list before anything offers topics by grade.
+  2. **The remaining product decisions, now three rather than five.** (d) is built (D-184) and (a)
+     is folded into the track above. Still open:
+     (b) should the access hint say "covered in parent *and* branch-manager materials" instead of
+     going silent — **my recommendation is no**, and it is a stronger no than when it was last
+     offered: an access hint *suppresses* the escalation offer, so converting silences into hints
+     removes the "ask an administrator" button from exactly those turns, and the four hint
+     sentences are not composable as written. It was already declined once in D-181.
+     (c) escalation carries no way to reply to the person who asked, and (e) `[redacted-email]` in
+     drafts — **these are one decision, not two**: D-177 accepted stripping the address *because*
+     D-164 had no channel for it, and D-164 cited PII posture in part. Neither holds if the other
+     is revisited. Cheapest real improvement is putting `user_external_id` in the draft body
+     (~1-2 h, legal — external ids are the sanctioned reference type, and it is already computed
+     at `nodes.py:599-600`), but note `test_chat_endpoints.py:130-131` **pins "no identity" on
+     purpose**, so it needs an explicit call. It does not help the anonymous asker, which is (e)'s
+     real content; the pattern for that already exists (AUD-C-03's `purge_resume_writes`).
+  3. **⚠️ `terraform.tfvars` will go stale again, and it is gitignored.** Unchanged habit:
+     **`make tfvars-floor-check` before every apply**, and expect it to fail after any deploy that
+     did not bump the floor (fourth occurrence as of D-182).
+  4. **Notes that survive, plus two earned in D-184/D-185:**
+     **⚠️ New — before building a client-side feature, check whether the server already permits
+     it.** The switcher needed zero backend because authorization re-derives the parent→child link
+     per request and two tests had pinned that since before the question existed. The question read
+     as "new UI"; the answer was 50 lines.
+     **⚠️ New — measure the content, not the mechanism.** Question (a) was "is rule 2 wanted"; the
+     count behind it was "one topic, one grade band, on a K-12 product". The mechanism question was
+     downstream of a scope question nobody had asked.
+     **⚠️ `PIPESTATUS` is a bashism and reads wrong under zsh** — it silently returns `$?`. Use
+     `cmd > file 2>&1; echo $?`. (D-183 recorded this; I repeated it the same day.)
+     **⚠️ `prettier` is not this project's formatter** — it flags untouched files and is in neither
+     `package.json` nor CI. `oxlint` is (`npm run lint` in each web app).
+     **⚠️ Running the e2e suite locally needs only `make up`** — Playwright's `webServer` starts
+     both APIs and both web servers itself, and `globalSetup` refuses a stale reused server. Never
+     concurrent with `make test`: they share the dev Postgres.
+     **⚠️ Everything below carries up from post-D-183 unchanged.**
+
+- **Superseded — pointer as of post-D-183 (2026-08-05). Item 1's product decisions are down from
+  five to three: (d) was built (D-184) and (a) was folded into the new A6-C curriculum track
+  (D-185). Items 0, 2 and 3 carry up unchanged:**
   0. **Nothing is owed.** AUD-F-33 is closed (D-183) and the audit backlog is **0** by ROADMAP's
      anchored `awk`. One optional free run for the record: `make scaling-evidence` can exit 0 with
      `DAYS=1` after 2026-08-06T02:23Z, or with the default window after 2026-08-13T02:23Z — a

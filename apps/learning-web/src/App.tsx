@@ -42,23 +42,35 @@ function App() {
   // AUD-F-22: resolve a parent's child *before* any session, so `dashboardStudentId`
   // below is non-null on the start screen and the existing dashboard button is reachable
   // without sitting through a pre → study → post cycle. One child: resolved silently.
-  // Several: the existing ChildSelectionScreen is shown once, at login. `null` means the
+  // Several: the existing ChildSelectionScreen is shown at login, and again on demand once
+  // a child is bound (the D-184 switcher below - same screen, dismissable). `null` means the
   // lookup hasn't finished; `[]` doubles as the fetch-failure fallback, which degrades to
   // the old behavior (the in-session `child_selection` interrupt still resolves a child,
   // server-side, whenever no explicit id is passed).
   const [childCandidates, setChildCandidates] = useState<ChildCandidate[] | null>(null);
+  // The switcher (D-184). Separate from `childCandidates` because "which children exist"
+  // and "is the parent currently choosing between them" are different questions - after
+  // AUD-F-22 the first is answered once per login and the second can be re-asked.
+  const [switchingChild, setSwitchingChild] = useState(false);
 
+  // Keyed on `[token, role]` only. It used to also bail on `session.studentId`, which meant
+  // the candidate list was fetched *only* while unresolved and thrown away the moment a
+  // child was bound - so there was nothing left to offer a switcher, and a refresh with a
+  // child already in `sessionStorage` never fetched at all. Now the list is always
+  // populated for a parent and the auto-resolve is what stays conditional. Costs one extra
+  // `GET /learning/parents/me/children` per parent page load (one indexed MySQL read,
+  // D-020); re-binding an already-bound single child is a same-value `setState` and a
+  // no-op.
   useEffect(() => {
-    if (!token || role !== "parent" || session.studentId) return;
+    if (!token || role !== "parent") return;
     let cancelled = false;
     api
       .getMyChildren(token)
       .then((children) => {
         if (cancelled) return;
+        setChildCandidates(children);
         if (children.length === 1) {
           rememberStudent(children[0].student_external_id);
-        } else {
-          setChildCandidates(children);
         }
       })
       .catch(() => {
@@ -67,7 +79,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [token, role, session.studentId, rememberStudent]);
+  }, [token, role, rememberStudent]);
 
   const [streak, setStreak] = useState(0);
   const [counts, setCounts] = useState({ hint: 0, solution: 0, video: 0 });
@@ -148,6 +160,7 @@ function App() {
     // who is signed in, and clearing there is what made the dashboard button vanish).
     forgetStudent();
     setChildCandidates(null);
+    setSwitchingChild(false);
   }
 
   function resetSessionUiState() {
@@ -225,6 +238,27 @@ function App() {
         }
       }
 
+      // D-184: the same screen again, re-opened deliberately by a parent who already has a
+      // child bound. Only reachable here, with no session in flight - `bind()` refuses to
+      // move an existing session to a different student (AUD-X-01, nodes.py), so switching
+      // mid-session is not a thing to support but a thing to keep unreachable. Cancelling
+      // leaves the current child bound, which is why this uses `onCancel` rather than
+      // routing through `forgetStudent`.
+      if (role === "parent" && switchingChild && childCandidates && childCandidates.length > 1) {
+        return (
+          <ChildSelectionScreen
+            candidates={childCandidates}
+            busy={false}
+            title="Switch child"
+            onSelect={(studentId) => {
+              rememberStudent(studentId);
+              setSwitchingChild(false);
+            }}
+            onCancel={() => setSwitchingChild(false)}
+          />
+        );
+      }
+
       return (
         <StartScreen
           sub={sub}
@@ -248,6 +282,8 @@ function App() {
           }}
           onViewDashboard={() => setView("dashboard")}
           onLogout={handleLogout}
+          canSwitchChild={role === "parent" && (childCandidates?.length ?? 0) > 1}
+          onSwitchChild={() => setSwitchingChild(true)}
         />
       );
     }
