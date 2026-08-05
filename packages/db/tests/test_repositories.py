@@ -164,6 +164,51 @@ def test_question_repository_round_trip() -> None:
     asyncio.run(run())
 
 
+def test_count_active_questions_by_topic_counts_only_what_an_exam_could_use() -> None:
+    """D-187: the count that decides whether a topic may be offered has to agree with
+    `get_active_questions`, or the picker advertises a topic the exam builder refuses.
+    Asserted by seeding one approved template and two that are excluded for the two
+    reasons that filter allows - pending validation, and retired.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            chain = await _seed_question_chain(session)
+            questions = QuestionRepository(session)
+            for validation_status, active_status, difficulty in (
+                ("pending", "active", 2),
+                ("approved", "retired", 3),
+            ):
+                await questions.create_template(
+                    QuestionTemplate(
+                        curriculum_version="v1",
+                        topic_id=chain.topic_id,
+                        skill_id=chain.skill_id,
+                        grade_band="6-8",
+                        difficulty_label=difficulty,
+                        difficulty_confidence=0.9,
+                        parameter_schema={"a": "int"},
+                        solution_function="solve_linear",
+                        correct_option_generator="gen_correct",
+                        estimated_time_seconds=60,
+                        generator_model="mock-generator",
+                        validation_status=validation_status,
+                        active_status=active_status,
+                    )
+                )
+
+            counts = await questions.count_active_questions_by_topic()
+
+            # Scoped to this test's own topic: the shared dev database holds the real
+            # 50-template bank, and asserting on the whole dictionary would make this test
+            # a function of whatever else is loaded.
+            assert counts[chain.topic_id] == {2: 1}
+            active = await questions.get_active_questions(topic_id=chain.topic_id, difficulty=2)
+            assert counts[chain.topic_id][2] == len(active)
+
+    asyncio.run(run())
+
+
 def test_question_validation_run_repository_round_trip() -> None:
     async def run() -> None:
         async with rollback_session() as session:

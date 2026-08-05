@@ -71,8 +71,15 @@ test("a click landing in that window is discarded (the student loses the interac
 
   // Click the topic and immediately look at where the app ends up. `/topics` is what a
   // successful click sends; its absence proves the click never reached the API.
+  // Matched on the method too since D-187: the same path now serves a GET that populates
+  // the picker, and it fires *before* this line runs (`.card-list` renders only once that
+  // GET resolves). A path-only predicate would therefore have gone on matching - on the
+  // wrong request - and reported "the click reached the API" for a click that never landed.
   const topicsCall = page
-    .waitForRequest((request) => request.url().includes("/topics"), { timeout: 8000 })
+    .waitForRequest(
+      (request) => request.method() === "POST" && request.url().includes("/topics"),
+      { timeout: 8000 },
+    )
     .then(() => true)
     .catch(() => false);
   // The click is allowed to fail. Playwright throws "element was detached from the DOM" when

@@ -44,6 +44,28 @@ class CurriculumContent(BaseModel):
     def skills_for_topic(self, topic_id: str) -> list[SkillDef]:
         return [s for s in self.skills if s.topic_id == topic_id]
 
+    def topics_for_grade(self, grade: str) -> list[str]:
+        """The §5.7.3 candidate topic ids for a student's grade, or `[]` if none.
+
+        `grade_topic_candidates` is keyed by *band* ("1-2", "6-7", and in the full §5.7.3
+        table "K-1"), while a student's profile carries a single grade ("3"). Nothing
+        resolved one to the other before D-187, which is why the map was loaded and never
+        read - this is that resolution, kept here because the taxonomy owns both halves.
+
+        Deliberately **not** a range comparison: bands are matched by explicit membership
+        of their endpoints, so "K" needs no ordinal and a malformed key can only fail to
+        match rather than silently swallow a neighbouring grade. A grade in no band (today:
+        3, whose band 2-3 has no seeded topic) returns `[]` - the caller decides what that
+        means, and no caller may treat "no candidates" as "no topics" (D-187).
+        """
+        wanted = grade.strip().upper()
+        if not wanted:
+            return []
+        for band, candidates in self.grade_topic_candidates.items():
+            if wanted in {part.strip().upper() for part in band.split("-")}:
+                return list(candidates)
+        return []
+
     def prerequisite_for(self, skill_id: str) -> str | None:
         """The immediate prerequisite skill for `skill_id`, or None if it has none.
 

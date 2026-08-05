@@ -6,6 +6,7 @@ import type {
   SessionSnapshot,
   StudentHistory,
   StudentReport,
+  TopicOption,
 } from "../types";
 
 export const API_BASE = (import.meta.env.VITE_LEARNING_API_URL as string | undefined) ??
@@ -104,6 +105,18 @@ export function selectStudent(
     method: "POST",
     body: JSON.stringify({ student_id: studentId ?? null }),
   });
+}
+
+/**
+ * D-187: the topic picker's contents, availability decided by the backend's template bank
+ * rather than by a hard-coded list in this app. Session-scoped because the grade that
+ * annotates it is profile data the server resolves from the session's bound student.
+ */
+export function getTopics(
+  token: string,
+  sessionId: string,
+): Promise<{ learning_session_id: string; topics: TopicOption[] }> {
+  return request(`/learning/sessions/${sessionId}/topics`, token);
 }
 
 export function selectTopic(

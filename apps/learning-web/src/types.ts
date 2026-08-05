@@ -12,6 +12,20 @@ export interface ChildCandidate {
   branch_name: string;
 }
 
+/**
+ * D-187: what the *backend* says may be studied, replacing the hard-coded `available`
+ * flags this file's sibling `topics.ts` used to carry. `available` means the template bank
+ * can build an exam right now; `recommended_for_grade` is §5.7.3's grade candidate and is
+ * only ever true when `available` is too.
+ */
+export interface TopicOption {
+  topic_id: string;
+  name: string;
+  grade_band: string;
+  available: boolean;
+  recommended_for_grade: boolean;
+}
+
 export interface EmailPreview {
   recipient: string;
   subject: string;

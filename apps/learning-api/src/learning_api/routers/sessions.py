@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
+from intellichoice_curriculum.content import load_curriculum
 from intellichoice_db.repositories.assessment import AssessmentRepository
 from intellichoice_db.repositories.cost_reservation import CostReservationRepository
 from intellichoice_db.repositories.curriculum import CurriculumRepository
@@ -49,7 +50,7 @@ from learning_api.dependencies import (
 from learning_api.graph import nodes
 from learning_api.graph.build import EntryInput, LearningGraph
 from learning_api.graph.nodes import TurnContext
-from learning_api.services import attendance, checkpoint_reconcile, flow
+from learning_api.services import attendance, checkpoint_reconcile, flow, topic_availability
 from learning_api.services.assessment_builder import AssessmentBuildError
 from learning_api.services.effective_policy import effective_assistance_policy
 from learning_api.services.session_events import SessionEventBus
@@ -98,6 +99,11 @@ class SelectStudentRequest(BaseModel):
 
 class SelectTopicRequest(BaseModel):
     topic_id: str
+
+
+class TopicListResponse(BaseModel):
+    learning_session_id: str
+    topics: list[topic_availability.TopicOption]
 
 
 class QuestionItemResponse(BaseModel):
@@ -577,6 +583,46 @@ async def select_student(
     )
     _publish_snapshot(events, response)
     return response
+
+
+@router.get("/{learning_session_id}/topics", response_model=TopicListResponse)
+async def list_topics(
+    learning_session_id: str,
+    claims: Annotated[TokenClaims, Depends(get_current_claims)],
+    profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    graph: Annotated[LearningGraph, Depends(get_graph)],
+) -> TopicListResponse:
+    """What this session may choose, answered from the template bank (D-187).
+
+    Session-scoped rather than a bare `/learning/topics` for two reasons. The grade that
+    drives §5.7.3's candidates is MySQL profile data, so resolving it here keeps it off the
+    query string and behind the same `resolve_target_student` check the sibling POST
+    performs - a caller can never read the topic list for a student it may not teach. And
+    the picker is only ever rendered inside a session with a bound student, so there is no
+    caller for the unscoped form.
+
+    A plain read: no `ainvoke`, no state mutation, nothing checkpointed.
+    """
+    state = await _get_state_values(graph, learning_session_id, db)
+    student_external_id = state.get("student_external_id")
+    if student_external_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="select a student before a topic"
+        )
+    await resolve_target_student(claims, student_external_id, profile_adapter, access="read")
+
+    profile = await profile_adapter.get_student_profile(student_external_id)
+    question_repo = QuestionRepository(db)
+    options = topic_availability.build_topic_options(
+        curriculum=load_curriculum(),
+        active_counts=await question_repo.count_active_questions_by_topic(),
+        # A profile that cannot be read costs the grade hint, never the topic list: an
+        # unreachable MySQL would otherwise turn "we cannot suggest one" into "you may
+        # study nothing", which is a much worse failure than an unannotated picker.
+        grade=profile.grade if profile is not None else None,
+    )
+    return TopicListResponse(learning_session_id=learning_session_id, topics=options)
 
 
 @router.post("/{learning_session_id}/topics", response_model=TopicSelectionResponse)

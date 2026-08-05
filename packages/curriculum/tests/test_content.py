@@ -1,4 +1,4 @@
-from intellichoice_curriculum.content import load_curriculum
+from intellichoice_curriculum.content import CurriculumContent, load_curriculum
 
 
 def test_loads_three_seeded_topics() -> None:
@@ -46,6 +46,43 @@ def test_prerequisite_for_returns_edge_or_none() -> None:
     assert content.prerequisite_for("linear_two_step") == "linear_one_step"
     assert content.prerequisite_for("linear_one_step") is None
     assert content.prerequisite_for("no_such_skill") is None
+
+
+def test_topics_for_grade_resolves_a_single_grade_through_its_band() -> None:
+    content = load_curriculum()
+
+    # The profile carries "6" or "7"; the map is keyed "6-7". Resolving the two is the
+    # whole reason D-187 could read a map that had been loaded and ignored since S3.
+    assert content.topics_for_grade("6") == ["linear_equations"]
+    assert content.topics_for_grade("7") == ["linear_equations"]
+    assert content.topics_for_grade("2") == ["place_value"]
+
+
+def test_topics_for_grade_is_empty_for_a_grade_no_band_covers() -> None:
+    content = load_curriculum()
+
+    # Grade 3's band (2-3 in the §5.7.3 table) has no seeded topic, so the honest answer is
+    # "no candidates" - which callers must not read as "no topics" (see topic_availability).
+    assert content.topics_for_grade("3") == []
+    assert content.topics_for_grade("") == []
+    assert content.topics_for_grade("not-a-grade") == []
+
+
+def test_topics_for_grade_matches_band_endpoints_rather_than_substrings() -> None:
+    content = CurriculumContent(
+        curriculum_version="test",
+        topics=[],
+        skills=[],
+        prerequisites=[],
+        grade_topic_candidates={"K-1": ["kindergarten_topic"], "11-12": ["algebra_2"]},
+    )
+
+    # "K" needs no ordinal, and "1" must not be swallowed by the "11-12" band.
+    assert content.topics_for_grade("K") == ["kindergarten_topic"]
+    assert content.topics_for_grade("k") == ["kindergarten_topic"]
+    assert content.topics_for_grade("1") == ["kindergarten_topic"]
+    assert content.topics_for_grade("12") == ["algebra_2"]
+    assert content.topics_for_grade("2") == []
 
 
 def test_grade_topic_candidates_reference_known_topics() -> None:

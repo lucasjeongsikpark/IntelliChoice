@@ -1550,10 +1550,15 @@ requested directly. Coverage gap, not a break.
    **⚠️ No content is authored yet, so rule 2 is still inert:** the bank is still 5 skills × 1 tier
    and `test_study_plan_difficulty_routing.py:132`'s canary still passes, correctly. D-186 removed
    the structural blocker and set the target; it did not move the bank.
-4. **Reconcile the two availability sources.** `grade_topic_candidates` is loaded
-   (`content.py:36, 79`) and **never read at runtime**; the frontend's hardcoded `TOPICS` list is
-   what actually gates availability. Wiring grade-based topic selection without reconciling them
-   would offer contentless topics (D-185 §4).
+4. **✅ Reconcile the two availability sources — done 2026-08-05, D-187.**
+   `GET /learning/sessions/{id}/topics` serves availability from the template bank, using
+   `assessment_builder`'s own threshold rather than a restated copy, and `grade_topic_candidates`
+   is read at last through `CurriculumContent.topics_for_grade`. `recommended_for_grade` is
+   conjunctive with `available`, so the grade map can never surface a topic the bank cannot serve —
+   which is not hypothetical: every seeded student's band candidate is an **empty** topic today.
+   `topics.ts` keeps only labels. Step 3's blocker also went with it: `test_loader.py` asserted
+   `len(active) == 10`, so approving an authored template broke the suite (S20 hit this live); it
+   now asserts identity, not size.
 
 ### Parallel track (any time, non-coding) — Phase 0 legal & policy docs (§6.1)
 Privacy Notice, AI Use Notice, product Learning Notice, retention policy, etc. Drafting can

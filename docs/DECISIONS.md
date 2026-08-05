@@ -12618,3 +12618,91 @@ spent — the scripted gateway test double, no Bedrock call.
 **Revert:** delete `TOPIC_SKILL_DIFFICULTIES` and the `skill_id` parameter, restore
 `run_authored_pipeline`'s tier-only loop and `review_cli`'s derived skill. The 1:1 ladder is intact
 and untouched, so the revert is a deletion rather than a migration.
+
+## D-187 — A6-C step 4: topic availability is served from the template bank, and the grade map is finally read (accepted, 2026-08-05)
+
+**Context.** A6-C step 4 (D-185 §4) named a trap rather than a feature: availability had **two
+sources and neither was the content**. `apps/learning-web/src/topics.ts` hard-coded
+`available: true/false` per topic, hand-maintained in the frontend; `grade_topic_candidates`
+(SPEC §5.7.3) was loaded by `content.load_curriculum` and **never read at runtime** anywhere in
+either app. Wiring grade-based topic selection on top of the second would have offered topics with
+no questions behind them, and the first had to be remembered every time content landed.
+
+### 1. One predicate, imported rather than restated
+
+`GET /learning/sessions/{id}/topics` answers both halves from the fact that actually decides them:
+whether `assessment_builder.build_pre_exam` could build an exam *right now*.
+`topic_availability._is_available` imports `DIFFICULTIES` and `QUESTIONS_PER_DIFFICULTY` from that
+module instead of repeating "2 per tier", so the offer and the build cannot drift. A topic this
+service calls available and the builder then refuses is precisely the 503 the endpoint exists to
+prevent.
+
+`QuestionRepository.count_active_questions_by_topic` is the read — one grouped query for the whole
+bank, with the same `active`+`approved` filter as `get_active_questions`. A looser filter would
+advertise pending or retired content; a per-topic loop would have pulled every template row to take
+five lengths.
+
+### 2. The invariant: the grade map may never surface what the bank cannot serve
+
+`recommended_for_grade` is **conjunctive with `available`**, and that is the whole reconciliation.
+Measured against the real fixtures: seeded students are grades 2-5, the only stocked topic is
+`linear_equations` (band 6-7), so §5.7.3 would recommend `fraction_operations` to a grade-4 student
+and `place_value` to a grade-2 — both **empty**. Verified live on the real seeded data:
+`student-ext-4` (grade 4) gets `fraction_operations` with `available: false` and
+`recommended_for_grade: false`.
+
+**And it never filters.** Showing only grade candidates would show most seeded students an empty
+screen; showing them unfiltered by content would 503 on the click. Every topic is listed, what has
+no content is disabled, and what the grade suggests is annotated — the only combination that
+misleads nobody. `test_an_unknown_grade_annotates_nothing_but_still_offers_every_topic` pins that
+"no candidates" never collapses into "no topics".
+
+### 3. Reading the map needed a resolution nobody had written
+
+The map is keyed by *band* ("1-2", "6-7", and in the full §5.7.3 table "K-1"); a profile carries a
+single grade ("3"). `CurriculumContent.topics_for_grade` is that resolution, matched by explicit
+membership of the band endpoints rather than by range comparison — so "K" needs no ordinal, and "1"
+cannot be swallowed by an "11-12" band. **Grade 3 resolves to no band today** (its 2-3 band has no
+seeded topic), which is the case the never-filter rule above exists for.
+
+### 4. Session-scoped, not `/learning/topics`
+
+The grade driving §5.7.3 is MySQL profile data, so resolving it inside the session keeps it off the
+query string and behind the same `resolve_target_student` check the sibling POST performs — a
+caller can never read the topic list for a student it may not teach, and a 403 test pins it. The
+picker only ever renders inside a session with a bound student, so the unscoped form has no caller.
+An unreadable profile costs the *hint* and never the list: an unreachable MySQL turning "we cannot
+suggest one" into "you may study nothing" is the worse failure.
+
+### 5. What stayed, and what this unblocked
+
+`topics.ts` keeps a **label** map: `StudentDashboardScreen` names topics from historical sessions,
+outside any learning session, so it has no topic-list response to read. Drift there renders a raw
+id (cosmetic); drift in the availability flags offered contentless topics, which is why only the
+flags left.
+
+Separately, **A6-C step 3's real blocker was removed**: `test_loader.py` asserted
+`len(active) == 10` for `linear_equations` difficulty 1, making the loader's contract a claim about
+everything approved at that tier — so approving one authored template broke the suite, exactly as
+S20's live verification found. It now asserts *identity* (the ten deterministically-named
+hand-authored ids are present), so the authored pipeline can add to the same topic and tier without
+touching it. A sweep confirmed every other active-bank assertion is membership-based already.
+
+`e2e/tests/learning/narrative-race.spec.ts` now matches on **method** too: the same path serves a
+GET that fires before the probe arms, and a path-only predicate would have reported "the click
+reached the API" for a click that never landed.
+
+### 6. Verification
+
+`ruff` clean, `pyright` 0, **909 passed / 2 skipped** — up 14, the new tests, with the prior 895
+unchanged. `tsc --noEmit` clean for `learning-web` and `e2e`; `oxlint` clean. Real browser: 8
+Playwright journeys pass, and the access log shows
+`GET /learning/sessions/{learning_session_id}/topics 200` firing before each `POST` — the picker is
+served by the backend, not by a constant. Nothing was spent.
+
+**⚠️ The suggestion badge is unexercised in a browser**, because no seeded student is in grade 6-7 —
+the only band with content. It is unit-tested at both levels; it becomes visible the first time
+either a 6-7 fixture student exists or `fraction_operations`/`place_value` are authored.
+
+**Revert:** delete the endpoint, the service and `topics_for_grade`, and restore `topics.ts`'s
+`TOPICS` array with its `available` flags. Nothing else reads any of it.

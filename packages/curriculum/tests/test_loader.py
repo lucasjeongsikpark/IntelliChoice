@@ -74,7 +74,14 @@ def test_loading_curriculum_produces_the_expected_final_state() -> None:
 
             question_repo = QuestionRepository(session)
             active = await question_repo.get_active_questions("linear_equations", difficulty=1)
-            assert len(active) == 10
+            # Identity, not size (D-187). This used to assert `len(active) == 10`, which made
+            # the loader's contract a claim about *everything* approved at this tier - so
+            # approving one authored template broke it, exactly as S20's live verification
+            # found. What the loader actually promises is that its own deterministically-named
+            # bank is loaded and servable; the authored pipeline (D-186) is expected to add to
+            # this same topic and difficulty, and must be able to without touching this test.
+            hand_authored = {f"linear_equations-d1-{index:02d}" for index in range(10)}
+            assert hand_authored <= {t.question_template_id for t in active}
 
     asyncio.run(run())
 
