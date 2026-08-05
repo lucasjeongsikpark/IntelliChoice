@@ -207,6 +207,20 @@ scheduler-evidence:
 	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
 	  uv run python -u scripts/read_scheduler_evidence.py --days $${DAYS:-21}
 
+# AUD-F-33's read (D-182). Read-only. Joins each scale-in alarm's `OK -> ALARM` transition to
+# the Auto Scaling outcome that followed, which is where the mechanism was recorded all along:
+# `treat_missing_data = "breaching"` on a metric that publishes nothing at zero traffic puts
+# the alarm into ALARM with no metric VALUE, and a step-scaling policy cannot select a step
+# without one - so the invocation is refused and no scaling activity is created, which is why
+# `describe-scaling-activities` looked empty. Measured deterministic at 46/46 on first run,
+# and the split moves with the rolling window while the separation does not. Exits 1 while
+# any refusal is present, so the same command that demonstrates the defect verifies the
+# `FILL(m1, 0)` fix. Exits 2 on an empty window, because "no refusals" from an instrument that
+# saw nothing is the AUD-F-12 false negative.
+scaling-evidence:
+	eval "$$(aws configure export-credentials --profile jeongsik-staging-admin --format env)" && \
+	  uv run python -u scripts/read_scaling_evidence.py --days $${DAYS:-8}
+
 # AUD-X-16: the tfvars image-tag floor check, executable and tracked (the comment form
 # of this step lives in a gitignored file and failed to prevent the same near-miss three
 # times - see scripts/check_tfvars_floor.py's docstring). Run before EVERY

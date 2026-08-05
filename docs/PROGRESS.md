@@ -5,6 +5,82 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ D-182: AUD-F-33's mechanism found for $0 in read-only alarm history, and the fix applied the
+  same session — a service that goes idle cannot scale in (2026-08-04, no numbered session;
+  PROGRESS.md's own pointer, items 1 and 3, your call from three options).** `make lint` clean,
+  `pyright` 0, **889 passed / 2 skipped** — unchanged from the session-start baseline, because no
+  Python behaviour changed. **Nothing was spent.** Every number below came from `describe-alarm-history`,
+  `get-metric-statistics` and `get-metric-data`, all read-only, plus one free `escalate: true` probe.
+  **✅ The mechanism, and it was recorded all along.** The scale-in alarm sets
+  `treat_missing_data = "breaching"` on ALB `TargetResponseTime`, which publishes **nothing** at zero
+  traffic. So an idle service enters ALARM with **15 evaluated datapoints and a value on none of
+  them**, and a step-scaling policy cannot select a step adjustment without a metric value.
+  Application Auto Scaling **refuses the invocation** — `Failed to execute AutoScaling action: Metric
+  data points must be provided` — and creates **no scaling activity at all**, which is exactly why
+  D-132's `describe-scaling-activities` came back empty. One row lands on the finding's own evidence:
+  `2026-07-31T00:51:31Z`, the minute D-132 recorded the alarm entering ALARM.
+  **✅ Deterministic, which retires the word "intermittently": 46 invocations, 0 exceptions** — 26
+  refused, all with no value; 20 accepted, all with one. The real statement is **scale-in requires
+  traffic**, so a service that goes fully idle after a scale-out cannot be scaled back in, and the
+  **quieter** service is the stuck one (learning-api: 6 accepted against 9 refused, 3 scale-in
+  activities in 8 days). Cost measured rather than asserted: **81.8 excess task-hours = $2.02 over 8
+  days, ≈$7.58/month**, with chat-api above its floor in **26.6%** of samples against learning-api's
+  **5.9%** — the reverse of the finding's original "learning-api-specific" framing.
+  **✅ Fix applied to staging, with its one uncertainty settled *before* it was recommended.** Both
+  scale-in alarms now evaluate metric math `FILL(m1, 0)` — an idle minute becomes a p95 of 0 s, which
+  is both true and a *value*. `FILL` is documented to have nothing to fill on an entirely absent
+  series, so `get-metric-data` was run over `2026-07-31T00:36Z–00:51Z`, the window behind a real
+  refusal: it returns **15 values of 0.0** where the raw metric returns none, so no anchoring metric is
+  needed. Post-apply, the **live** expression returns 15 values while learning-api is completely idle.
+  Services untouched — learning-api revision **66** at 2/2, chat-api **65** at 1/1.
+  **⚠️ One row is owed, and the finding therefore stays `Open` — count unchanged at 1.** Auto Scaling
+  has not yet been observed *accepting* a metric-math alarm for step scaling; only a real invocation
+  shows it, and that needs a fresh `→ ALARM` transition. An alarm leaves ALARM only on a datapoint
+  **above 1 s**, and the one free probe path (`escalate: true`, no Bedrock call per D-181) returns in
+  **0.175 s** — far too fast. A paid chat turn would force it for ~1.25¢ plus a 15-minute wait and was
+  **not spent**: chat-api produces several natural transitions a day and `make scaling-evidence` exits
+  non-zero while any refusal remains, so **the confirmation arrives for free and cannot arrive
+  silently.** Confirmed rather than assumed: both alarms' `StateReason` still reads the pre-fix *"no
+  datapoints were received for 15 periods…"* with a `StateUpdatedTimestamp` predating the apply.
+  **⚠️ The transferable lesson, and it is not D-181's.** Two prior sessions both prescribed a
+  *controlled repro*; it was never necessary. **Before designing an experiment, check whether the
+  system already records the answer.** D-134 read the activity list and the configuration — both
+  truthfully — and the refusal happens *between* them, in the one history type nobody queried. Three
+  sessions of "mechanism unknown" against one `describe` call.
+  **⚠️ Second lesson, from my own wrong instrument.** The first pass reconstructed the alarm's input by
+  counting raw `TargetResponseTime` datapoints in `[t − 15 min, t]` and separated **nothing** (23
+  refusals *and* 10 acceptances among zero-datapoint rows, plus a refusal *with* a datapoint), which
+  killed two plausible hypotheses including one about `min_capacity` that died on its own evidence.
+  Publish lag means that is not the window the alarm used. **When the question is what a component
+  decided on, read what it recorded — a recomputation that disagrees is evidence about the
+  recomputation**, and here it nearly refuted a correct hypothesis.
+  **⚠️ And I corrected my own count mid-session.** The committed script's tally showed the hand-read
+  "23/23 and 21/21" was wrong; the *separation* (0 exceptions) was always the claim and is unchanged,
+  and all four files now carry the script's numbers. The window is rolling, so the totals move while
+  the separation does not — which is why the claim is the separation.
+  **⚠️ Two things the apply itself surfaced.** (a) `make tfvars-floor-check` (AUD-X-16) **failed
+  first**: `terraform.tfvars` still recorded `gha-812db34916a6` while both services ran
+  `gha-70100623148d`, because D-181's deploy had not bumped the floor. Bumping it is the only reason
+  the freshly registered task-definition revision carries the running image rather than one several
+  deploys old — the D-137/D-142 near-miss, prevented by its own guard, on the fourth occurrence of the
+  same shape. **The file is gitignored, so that correction is local only and will go stale again.**
+  (b) **`-target` is not as narrow as its name:** the alarm depends on the scaling policy → scalable
+  target → ECS service → **task definition**, so the plan pulled in this environment's known
+  task-definition drift and deregistered revisions **47 and 48** (neither in use). Read the resolved
+  action list before applying a `-target`ed plan, not the target list.
+  **✅ The instrument is committed rather than left in a scratchpad**, because it is also the
+  verification: `scripts/read_scaling_evidence.py` + `make scaling-evidence`, which exits **1** while
+  any refusal remains and **0** when the fix works. Guards in the house style — an empty window exits
+  INVALID rather than clean (the AUD-F-12 false negative), unclassifiable invocations are printed
+  rather than dropped, UTC always. **⚠️ The branch it cannot see, named on purpose:** Auto Scaling also
+  re-applies a step policy while the alarm stays in ALARM (chat-api 3→2 at `00:15:32Z`, 2→1 at
+  `00:21:32Z`, one uninterrupted ALARM), and refusals on that path leave no record anywhere. So the
+  mechanism is **proven for the alarm-action path** and only **consistent with** the other.
+  **Open count: 1** — `AUD-F-33` only, confirmed with ROADMAP's anchored `awk`; index invariant
+  re-checked at 0 exceptions. **The count did not move even though a mechanism was found and a fix
+  shipped**, which is the point: diagnosing a finding does not close it, and neither does a fix whose
+  decisive row has not been read.
+
 - **⚠️ D-181: the escalation rate limit was 8 per hour where it said 5, measured on the deployed
   system before the fix shipped — and the fix's own test-suite side effect is the part to remember
   (2026-08-04, no numbered session; PROGRESS.md's own pointer, item 3(c), your call from four
@@ -1542,7 +1618,84 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-181):**
+- **Next session, in order (2026-08-04, post-D-182):**
+  0. **One thing owed, and it is one command.** Run `make scaling-evidence`. **Exit 0 closes
+     AUD-F-33** — it means Application Auto Scaling accepted the new metric-math alarm and every
+     ALARM transition carried a value it could act on. **A refusal with the *same* message means the
+     `FILL` is not reaching the policy; a refusal with a *new* message means metric-math alarms are
+     not accepted for step scaling**, and the fallback is to move the scale-in leg onto a metric that
+     always publishes (ECS `CPUUtilization`), which needs its own guard against scaling in during an
+     I/O-bound overload where CPU is low and latency is not. Nothing else from D-182 is outstanding:
+     the fix is applied, the docs are current, the instrument is committed.
+     **⚠️ Do not read "still ALARM, no new row" as failure.** Both alarms were already in ALARM when
+     the fix landed, and an alarm that never transitions never invokes. The row arrives on the next
+     scale-out-then-idle cycle, which chat-api produces on its own several times a day.
+  1. **The product decisions still unanswered, unchanged from post-D-181:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent by
+     choice; (b) should the access hint be able to say "this is covered in parent *and*
+     branch-manager materials" instead of going silent; (c) escalation still carries **no way to reply
+     to the person who asked** (D-164's scoped-out half — the `InMemoryRateLimiter` half was fixed in
+     D-181 and is not this); (d) does a multi-child parent need an in-app switcher, or is
+     sign-out-and-back-in acceptable until real auth replaces the dev login; (e) is
+     `[redacted-email]` in escalation drafts acceptable long-term, or should escalation eventually
+     carry a structured (consented) contact field.
+  2. **⚠️ `terraform.tfvars` will go stale again, and it is gitignored.** D-182 bumped its image-tag
+     floor to `gha-70100623148d` because AUD-X-16's check refused the apply otherwise — D-181's deploy
+     had left it behind. That is now the **fourth** time this shape has appeared. The check catches it
+     every time, so the standing habit is enough: **`make tfvars-floor-check` before every apply**,
+     and expect it to fail after any deploy that did not bump the floor.
+  3. **Notes that survive, plus three earned in D-182:**
+     **⚠️ New — before designing an experiment, check whether the system already records the answer.**
+     Two sessions prescribed a controlled repro for AUD-F-33; the refusal was in
+     `describe-alarm-history --history-item-type Action` the whole time. They read the activity list
+     and the configuration, both truthfully, and the refusal happens *between* them. This is sharper
+     than D-181's "check whether a defect is free to measure": the question is not only cost, it is
+     **which record the system already keeps.**
+     **⚠️ New — when the question is what a component decided on, read what it recorded.** A
+     reconstruction of the alarm's input from the raw metric separated nothing and nearly refuted a
+     correct hypothesis; publish lag means it was not the same window. A recomputation that disagrees
+     with the component is evidence about the recomputation.
+     **⚠️ New — `-target` pulls in dependencies, so read the resolved action list.** Targeting a
+     CloudWatch alarm reached the task definitions through alarm → policy → scalable target → service.
+     **⚠️ Diagnosing a finding does not close it, and neither does shipping a fix whose verification
+     is owed** (D-182 kept the count at 1 through both).
+     **⚠️ A limiter's *number* is a promise; storage decides whether it is kept** (D-181). Per-process
+     state is fine where the number is a bound (the 6000/min stopgap) and not where it is a control
+     (the 5/hour escalation cap). **D-182 sharpens the pairing:** a service that cannot scale in holds
+     the task-count multiplier at its maximum for hours, so the two defects compounded.
+     **⚠️ Measure the defect live *before* deploying its fix, or accept that you never will** (D-180's
+     lesson; D-181 and D-182 both followed it and it cost nothing either time).
+     **⚠️ Enumerate the ways a live probe can be vacuous, before running it.** D-180 was caught by a
+     third mode. D-182 hit a fourth shape: **an alarm already in the target state never transitions,
+     so the action never fires** — an absence that reads like a failure.
+     **⚠️ A measurement that omits a branch reports that branch as its most flattering outcome.**
+     D-182's table proves the alarm-action path and is only *consistent with* Auto Scaling's own
+     re-application path, whose refusals leave no record anywhere.
+     **Counting findings:** ROADMAP's anchored `awk` returns **1** today: F-33 only.
+     **Sample size has a direction** (D-178): 0/10 refutes a 60% rate at p=0.01% but bounds a residual
+     only at <26% (one-sided 95%). Do not upgrade D-178's 0/10 to "never".
+     **The probe dumps are committed** under `apps/chat-api/tests/fixtures/probe_measurements/`, so
+     re-scoring access-probe rules stays free: `--load <dump> --query-field <field> --shipped`.
+     **⚠️ `aws` credentials:** the `jeongsik-staging-admin` **profile itself is a static IAM user and
+     does not expire** — D-181's "session has expired" was an *exported* session token. `aws` CLI
+     calls work with `--profile` directly; **boto3 and Terraform do not** (boto3 needs
+     `botocore[crt]`, Terraform finds no credential source), so both need
+     `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"` plus
+     `export AWS_REGION=us-east-1`.
+     **Reading staging's database:** `aws ecs run-task` with a `containerOverrides` command on
+     `intellichoice-staging-ops-task` reads RDS directly for a few Fargate seconds, read-only by
+     construction if the command is a `SELECT`.
+     **Probing the deployed chat API:** base path **`/chat/...`**, edge
+     `d222glidpp4azv.cloudfront.net` (learning is `d35dfnjzmgrm01`); `POST /chat/sessions` returns
+     **`chat_session_id`** (not `session_id`), then `POST /chat/sessions/{id}/messages` with
+     `{"query": ...}`, anonymous, ~1.25¢/turn — **except the `escalate: true` path, which is free and
+     returns in ~0.175 s** (D-181/D-182).
+     **Paid eval:** `CHAT_EVAL_RUN_BUDGET_CENTS=<n>` enforces an approved figure (tighten-only); a
+     full unfiltered run is **52.5¢ / 5m33s** as of D-178.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+
+- **Superseded — pointer as of post-D-181 (2026-08-04). Item 0 is done, item 1's F-33 deferral was
+  lifted and the finding diagnosed and fixed in D-182; the product decisions carry up unchanged:**
   0. **✅ Nothing owed.** D-181 is landed (PR #117, `7010062`), deployed (run 30971390686,
      `learning-api:66` / `chat-api:65`, both `gha-70100623148d`, Alembic exit 0) and **confirmed
      live on the shared counter**: `rate_limit_events` holds `admin_escalation | 5 | 03:28:05Z →

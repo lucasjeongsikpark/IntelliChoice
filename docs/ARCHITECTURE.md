@@ -107,6 +107,23 @@ to rot, because nothing fails when it does.)*
   implies. **⚠️ And a resize has lead time that is not money:** this account's Free Tier
   restrictions rejected `db.t4g.small` outright with a real `CreateDBInstance` failure in S32/D-084,
   so anything above `micro` is a prerequisite to check before it is a line item.
+- **An alarm that reaches ALARM through `treat_missing_data` carries no metric *value*, and a
+  step-scaling policy cannot act on one** (AUD-F-33, D-182). Both scale-in legs alarm on ALB
+  `TargetResponseTime`, which publishes nothing when there are no requests, and
+  `treat_missing_data = "breaching"` was set so that "no traffic" would count as evidence the extra
+  tasks are idle. The evidence reasoning is right and the effect was the opposite: the alarm entered
+  ALARM with fifteen evaluated datapoints and a value on none of them, so Application Auto Scaling
+  had nothing to compute a step adjustment from, **refused the invocation** ("Metric data points must
+  be provided") and created no scaling activity at all — which is why the activity list looked empty
+  to the two sessions that read it. Measured deterministic across 46 invocations on both services: 26
+  refused all with no value, 20 accepted all with one. **Net effect: scale-in required traffic**, so a
+  service that went idle after a scale-out stayed at elevated capacity and the *quieter* service was
+  the stuck one. Fixed by making the metric always produce a value — metric math `FILL(m1, 0)`, an
+  idle minute being a p95 of 0 s. **The generalizable rule: a missing-data policy decides an alarm's
+  *state*, and a step policy needs its *value* — a control loop wired through the state alone is
+  fine, and one wired through the value silently stops.** Scale-out never had this shape
+  (`notBreaching`, so it cannot enter ALARM without data). `capacity-above-floor` remains the
+  detection, and it is the reason this was visible at all.
 - **Deterministic core** — grading, attendance gating, authorization, mastery, study-plan
   selection, and question validation are code, never an LLM (non-negotiable #2). The S9 AI
   pipeline only proposes *shape keys from an allowlist*; every output is re-validated

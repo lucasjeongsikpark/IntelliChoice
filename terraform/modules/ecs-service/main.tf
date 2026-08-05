@@ -336,6 +336,21 @@ resource "aws_cloudwatch_metric_alarm" "latency_scale_out" {
 # breaching - "no traffic" is the strongest possible evidence the extra tasks are idle.
 # At min_capacity the policy's -1 is a no-op, so the alarm sitting in ALARM overnight is
 # harmless.
+#
+# ⚠️ AUD-F-33 / D-182: the paragraph above was right about the evidence and wrong about the
+# effect, and that was the defect the `FILL` expression below fixes. `treat_missing_data =
+# "breaching"` alone made the alarm ENTER ALARM with 15 evaluated datapoints and no VALUE on
+# any of them, and a step-scaling policy cannot select a step adjustment without a metric
+# value - so Application Auto Scaling rejected the invocation ("Metric data points must be
+# provided") and created no scaling activity at all, which is why `describe-scaling-activities`
+# looked empty to D-132. Measured deterministic across 46 invocations on both services: 26
+# refused all with no value, 20 accepted all with one. Net effect before the fix: SCALE-IN
+# REQUIRED TRAFFIC, so a service that went fully idle after a scale-out stayed at elevated
+# capacity - and the quieter service was the stuck one.
+# Note the scale-out leg never had this shape: it uses `notBreaching`, so it cannot enter
+# ALARM without data and never hands Auto Scaling an empty evaluation.
+# Verify with `make scaling-evidence` - it exits 0 only when every ALARM transition carried a
+# value Auto Scaling could act on.
 resource "aws_appautoscaling_policy" "latency_scale_in" {
   count              = var.enable_autoscaling && var.enable_latency_step_scaling ? 1 : 0
   name               = "${var.name_prefix}-${var.name}-p95-latency-scale-in"
@@ -361,17 +376,48 @@ resource "aws_cloudwatch_metric_alarm" "latency_scale_in" {
   alarm_name          = "${var.name_prefix}-${var.name}-p95-latency-scale-in"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 15
-  metric_name         = "TargetResponseTime"
-  namespace           = "AWS/ApplicationELB"
-  period              = 60
-  extended_statistic  = "p95"
   threshold           = 1
-  treat_missing_data  = "breaching"
-  alarm_description   = "AUD-F-14: ${var.name} p95 under 1s (or no traffic) for 15 minutes - scale back in."
-  dimensions = {
-    LoadBalancer = var.alb_arn_suffix
-    TargetGroup  = aws_lb_target_group.this.arn_suffix
+  alarm_description   = "AUD-F-14: ${var.name} p95 under 1s (or no traffic, filled as 0s) for 15 minutes - scale back in. AUD-F-33/D-182: the FILL is what makes this actionable."
+
+  # AUD-F-33 / D-182. `FILL(m1, 0)` turns a minute with no requests into a p95 of 0 s, which
+  # is both true and - the point - a metric VALUE. Auto Scaling needs one to select a step
+  # adjustment, and an alarm that reached ALARM purely through `treat_missing_data` carries
+  # none, so the invocation was refused 26 times out of 26.
+  #
+  # `FILL` is documented to have nothing to fill on an *entirely* absent series, so that was
+  # checked before this was written rather than after: `get-metric-data` over
+  # 2026-07-31T00:36Z-00:51Z, the window behind a real refusal, returns 15 values of 0.0 where
+  # the raw metric returns none. No anchoring metric is needed.
+  metric_query {
+    id          = "e1"
+    expression  = "FILL(m1, 0)"
+    label       = "${var.name} p95 latency, idle minutes as 0s"
+    return_data = true
   }
+
+  metric_query {
+    id          = "m1"
+    return_data = false
+
+    metric {
+      namespace   = "AWS/ApplicationELB"
+      metric_name = "TargetResponseTime"
+      period      = 60
+      stat        = "p95"
+      dimensions = {
+        LoadBalancer = var.alb_arn_suffix
+        TargetGroup  = aws_lb_target_group.this.arn_suffix
+      }
+    }
+  }
+
+  # Kept at `breaching` deliberately, and it is now a fallback rather than the mechanism. With
+  # the FILL supplying a value every minute this should never apply; if the expression ever
+  # stops returning data, `breaching` reproduces the OLD behaviour - an ALARM the policy
+  # refuses - which `make scaling-evidence` detects. `missing` would instead fail silently, and
+  # a silent version of this defect is what cost four days.
+  treat_missing_data = "breaching"
+
   alarm_actions = [aws_appautoscaling_policy.latency_scale_in[0].arn]
   tags          = var.tags
 }

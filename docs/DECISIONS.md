@@ -12169,3 +12169,146 @@ that condition between the pre-fix probe and the post-fix one. Read the running 
 choosing what a probe can prove, or reach past the edge to the row the store itself writes. The
 second is what settled this, and it is the cheaper habit: one `SELECT` is more decisive than any
 number of turns through the front door.
+
+## D-182 — AUD-F-33's mechanism, found for $0 in read-only history: a service that goes idle cannot scale in (accepted, 2026-08-04)
+
+Scope: PROGRESS.md's post-D-181 pointer, items 1 and 3 — the last open finding, plus the note D-181
+had just earned ("check whether a defect is free to measure before deciding it is expensive").
+Chosen by the user over three alternatives. No numbered roadmap block (D-152). **Diagnosis only —
+the fix is named and not applied.**
+
+### 1. The note paid for itself on the first item it was applied to
+
+AUD-F-33 had sat open since 2026-07-31 with "mechanism unknown", and both D-132 and D-134 named the
+same next step: *a controlled repro* — hold capacity and traffic still across two OK→ALARM cycles.
+That is expensive in wall-clock and needs the staging environment held steady.
+
+It was never necessary. The mechanism was already written down, in a CloudWatch history type nobody
+had queried:
+
+```
+aws cloudwatch describe-alarm-history --alarm-name …-p95-latency-scale-in --history-item-type Action
+→ Failed to execute AutoScaling action: Metric data points must be provided
+```
+
+Three sessions of "unknown mechanism" against one `describe` call. The generalizable form is
+narrower than D-181's version of the note and worth keeping separately: **before designing an
+experiment, check whether the system already records the answer.** D-134 queried
+`describe-scaling-activities` and `describe-alarms` — the activity list and the configuration — and
+concluded "no activity at all, configuration identical". Both were true. The refusal is in neither,
+because it happens *between* them.
+
+### 2. What the defect actually is
+
+`TargetResponseTime` publishes nothing when there are no requests, and the scale-in alarm sets
+`treat_missing_data = "breaching"` so that "no traffic" counts as evidence the extra tasks are idle.
+That reasoning is sound and its effect is the opposite: the alarm enters ALARM carrying **15
+evaluated datapoints, none with a value**, and a step-scaling policy cannot select a step adjustment
+without a metric value. Application Auto Scaling therefore **rejects the invocation** and no scaling
+activity is created — which is exactly why the activity list looked empty.
+
+**So `treat_missing_data = "breaching"` on a sometimes-absent metric is a footgun specific to step
+scaling:** it makes the alarm fire and the action impossible, at the same time, for the same reason.
+A target-tracking policy would not have this shape, and the scale-*out* leg does not either — it
+uses `notBreaching`, so it never hands Auto Scaling an empty evaluation.
+
+### 3. Deterministic, which retires the word "intermittently"
+
+Joining each `OK → ALARM` transition's `stateReasonData.evaluatedDatapoints` to the Action entry that
+followed it, over the full retained window on both services — 46 invocations, 0 exceptions:
+
+| alarm evaluation | outcome | count |
+|---|---|---|
+| 15 datapoints, **0 with a value** | refused | **26 / 26** |
+| 15 datapoints, **≥ 1 with a value** | executed | **20 / 20** |
+
+The finding's headline said "intermittently stops scaling in". That was an accurate description of
+the *symptom* and it hid a deterministic cause: **scale-in requires traffic.** A service that goes
+fully idle after a scale-out cannot be scaled back in, because the signal the policy needs stops
+existing. The quieter service is therefore the stuck one — learning-api managed **3 scale-ins in 8
+days against 9 refusals, and performed only 3 scale-in activities** — the exact inversion of the
+intuition that made this look random.
+
+**⚠️ And the branch this table does not cover, named because omitting one reports it as its most
+flattering outcome** (D-179's lesson). Auto Scaling also re-applies a step policy on its own while
+the alarm stays in ALARM, with no CloudWatch transition — visible here as chat-api stepping `3 → 2`
+at `2026-07-31T00:15:32Z` and `2 → 1` at `00:21:32Z` inside one uninterrupted ALARM, which is also
+what kept D-134's third hypothesis dead. **Refusals on that path leave no record anywhere:**
+CloudWatch logs alarm-action outcomes, Auto Scaling logs successful activities, and nothing logs
+"re-evaluated, had no data". So the mechanism is **proven for the alarm-action path (46/46)** and
+only **consistent with** the re-application path. This does not change the fix — `FILL` supplies a
+value to both — but it does change what may be claimed, and a future session should not read
+"46/46, 0 exceptions" as covering every way this policy runs.
+
+### 4. Two wrong instruments, and the second one is the transferable part
+
+**(a) The activity list was the wrong place to look** (§1).
+
+**(b) Reconstructing the alarm's input from the raw metric does not reproduce the alarm's
+evaluation.** The first pass here counted `TargetResponseTime` datapoints in `[t − 15 min, t]` for
+each invocation and got a table that separated *nothing*: 23 FAIL and 10 OK among the zero-datapoint
+rows, plus a FAIL *with* a datapoint. Both candidate explanations died on it — including a plausible
+one about `min_capacity` that also died on its own evidence (a refusal at the floor, and a success
+above it).
+
+The alarm's own `stateReasonData` then separated the same 44 events perfectly. The window is not the
+same window: publish lag and evaluation offsets shift it, and only the alarm records which datapoints
+it actually used. **When the question is "what did a component decide on", read what it recorded, not
+what you can recompute from the same source.** A recomputation that disagrees is not evidence about
+the component — it is evidence about the recomputation, and here it nearly refuted a correct
+hypothesis.
+
+### 5. Cost, measured, and it is small — which is stated plainly rather than argued around
+
+Integrating `DesiredTaskCount − floor` over the 8 days of retained history: **78.2 excess task-hours
+= $1.93, ≈$7.24/month** at staging's traffic. The distribution contradicts the original framing once
+more — **chat-api above its floor in 25.3% of samples, learning-api in 5.7%**, where the finding was
+filed as learning-api-specific.
+
+$7/month does not on its own justify P2, and P2 is kept for two reasons that are not the bill.
+**First**, this is a floor on production rather than an estimate of it: the pilot's
+school-hours-then-idle pattern is precisely a scale-out followed by no traffic, so the fraction of
+time spent stuck is a function of the usage shape, and staging's shape is not the pilot's.
+**Second**, and the reason it interacts with real behaviour: D-181 measured that a per-process
+control is multiplied by the running task count, and deliberately left the global 6000/min per-IP cap
+per-task. A service that cannot scale in holds that multiplier at its maximum for hours. The cost is
+the visible symptom; the control surface drifting is the part that would matter to a user.
+
+### 6. The fix is applied, its one uncertainty was settled first, and one row is owed
+
+Replace the scale-in alarm's plain metric with metric math `FILL(m1, 0)`: an idle minute becomes 0 s,
+which is both true and a value Auto Scaling can compute a step from. `FILL` is documented to have a
+trap on an *entirely* absent series, so that was checked before recommending it rather than after —
+`get-metric-data` over `2026-07-31T00:36Z–00:51Z`, the window behind a real refusal, returns **15
+values of 0.0** where the raw metric returns none. So the plain expression suffices and no anchoring
+metric is needed.
+
+**Applied to staging the same session, on the user's call.** Both alarms now evaluate the expression
+on the deployed stack, and the live query returns **15 values while learning-api is completely idle**
+— the window that used to hand Auto Scaling nothing. The apply was `-target`ed at the two alarms and
+left both services untouched (learning-api revision 66 at 2/2, chat-api 65 at 1/1), because
+`desired_count` and `task_definition` sit in `ignore_changes`.
+
+**⚠️ One row is owed, and the reason it was not taken in the same session is worth recording.** The
+remaining assumption is that Application Auto Scaling *accepts* a metric-math alarm for step scaling,
+and only a real invocation shows that. An invocation needs a fresh `→ ALARM` transition; an alarm
+leaves ALARM only on a datapoint **above** 1 s, and the one free probe path — `escalate: true`, which
+D-181 established makes no Bedrock call — returns in **0.175 s**. Far too fast. A real chat turn would
+force it for ~1.25¢ plus a 15-minute wait, and that was **not spent**: chat-api produces several
+natural transitions a day and `make scaling-evidence` exits non-zero while any refusal remains, so the
+confirmation arrives for free and cannot arrive silently. This is not D-180's mistake repeated in
+reverse — the *defect* was measured before the fix shipped, which is the ordering that matters; what
+is owed is a confirmation, not the measurement.
+
+**Two things the apply itself surfaced.** (a) `make tfvars-floor-check` (AUD-X-16) failed first:
+`terraform.tfvars` still recorded `gha-812db34916a6` while both services ran `gha-70100623148d`,
+because D-181's deploy had not bumped the floor. Bumping it before the apply is the only reason the
+freshly registered task-definition revision carries the running image rather than one several deploys
+old — the D-137/D-142 near-miss, prevented by its own guard, on the fourth occurrence of the same
+shape. (b) `-target` on an alarm is not as narrow as it sounds: the alarm depends on the scaling
+policy → scalable target → ECS service → **task definition**, so the plan pulled in the environment's
+known task-definition drift and deregistered revisions 47 and 48. Neither was in use. Worth checking
+the resolved action list before applying a `-target`ed plan, rather than trusting the target list.
+
+**AUD-F-33 stays `Open` and the count stays 1.** Diagnosing a finding does not close it, and neither
+does shipping a fix whose decisive row has not been read.
