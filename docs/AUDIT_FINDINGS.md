@@ -2063,6 +2063,21 @@ ceiling of exactly 5 ambiguous (moot, since the observed ceiling *exceeded* the 
 only a shared-count failure can produce); and a `None` `client_ip` collapsing every caller
 onto the `"anonymous"` key would have been *stricter*, not weaker.
 
+**✅ Verified live after the fix, past the edge rather than through it.** The re-probe returned the
+configured 5 (blocked at 6), but chat-api had scaled to **1 task** by then and a per-process limiter
+returns 5 there too — so the front-door number was consistent without being decisive. The row that
+settled it is the store's own: `admin_escalation | 5 attempts | 03:28:05Z → 03:28:09Z`,
+`DISTINCT_CALLERS: 1`, key length **64**. Three things at once — the deployed process really writes
+to the shared counter, a refusal consumes no attempt in production either (8 requests, 5 rows), and
+the stored value is a digest rather than an address, i.e. SPEC §5.30 verified on the deployed system
+instead of only in a unit test.
+
+**The multiplier, measured.** `RunningTaskCount` for chat-api was **2** during the pre-fix probe, so
+8 accepted lies inside the 5–10 that two tasks permit and is impossible on one. Better than "N×",
+from the autoscaling history: desired count moved **2 → 3 → 1 → 2 → 3 → 2 → 1** across one evening,
+so **the effective cap wandered between 5 and 15 with nobody touching configuration**. A limit that
+changes when a latency alarm fires is not a limit.
+
 **Why P2 and not P1.** No PII is disclosed and no authorization is bypassed; the damage is
 that the one anti-abuse control on an anonymous path is 1.6–3× looser than its configured
 number, in the direction of letting a stranger mail the administrator more often. It sat

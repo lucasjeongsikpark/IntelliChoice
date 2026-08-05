@@ -16,17 +16,22 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   `learning-api:66` / `chat-api:65`, both `gha-70100623148d`, rollouts COMPLETED (2/2 and 1/1),
   Alembic exit code 0 on `a3f81c62b904`, canary bake clean, smoke test green.
   **✅ The post-deploy re-probe: 5 accepted, blocked at 6 — the configured cap exactly** (pre-fix:
-  8). **⚠️ And it is consistent rather than decisive, which is worth saying out loud.** chat-api is
-  running **1 task** right now (`rollout COMPLETED (1/1)`), and on a single task a per-process
-  limiter yields 5 too — so this row cannot by itself tell the fix from the defect. That is the
-  mirror image of D-180's vacuity problem and it was foreseen here rather than discovered
-  afterwards. What the evidence *does* establish, as a chain: the deployed image is this commit
-  (deployed-version gate, `gha-70100623148d`), this commit wires `PostgresRateLimiter` (enforced by
-  `test_the_app_wires_the_shared_escalation_limiter`, which fails on the in-memory one), and
-  `rate_limit_events` exists on staging RDS (migration exit 0). The one unclosed link is "the
-  deployed process really writes to that table", and the decisive check is one `SELECT count(*)
-  FROM rate_limit_events` through `intellichoice-staging-ops-task` — **not taken because the AWS
-  session expired mid-session**. Cheap, read-only, and the first thing to do next.
+  8). On its own that row was *consistent rather than decisive*, because chat-api had scaled to
+  **1 task** and a per-process limiter also yields 5 there. **✅ Closed the same evening with the
+  read-only row, once AWS was re-authenticated:** `rate_limit_events` on staging RDS holds
+  `admin_escalation | 5 attempts | 03:28:05Z → 03:28:09Z`, `DISTINCT_CALLERS: 1`, key length
+  **64** — so the deployed process really writes there, one caller, and what is stored is a hex
+  digest rather than the IP. **Two properties came free with it:** the probe made **8** requests
+  and the table holds exactly **5**, so a refusal consumes no attempt in production either (the
+  local test asserted this; now it is measured), and the 64-char key confirms the SPEC §5.30
+  storage promise on the deployed system rather than only in a unit test.
+  **✅ And the multiplier is now measured, not called N.** `RunningTaskCount` for chat-api was **2**
+  during the pre-fix probe, so the observed 8 sits inside the 5–10 that two tasks permit and is
+  **impossible on one** (max 5) — the pre-fix and post-fix rows are therefore not confounded, they
+  are the same instrument at two different task counts. The sharper statement the autoscaling
+  history gives: chat-api's desired count moved **2 → 3 → 1 → 2 → 3 → 2 → 1** across a single
+  evening, so **the effective cap wandered between 5 and 15 on its own**, with nobody touching
+  configuration. That is the real shape of the defect.
   **✅ Measured live first, which is D-180's lesson applied rather than restated: 8 accepted, then
   blocked, against a configured 5.** Anonymous, one source IP, **a fresh session per attempt** —
   attempts 1–8 returned `pending_interrupt` with `intent: "admin_contact"`, attempts 9–11 returned
@@ -1538,20 +1543,19 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   e2e exercises it.
 
 - **Next session, in order (2026-08-04, post-D-181):**
-  0. **⚠️ Owed, and it is one read-only SQL statement: confirm the deployed process writes to
-     `rate_limit_events`.** D-181 is landed (PR #117, `7010062`) and deployed (run 30971390686,
-     `learning-api:66` / `chat-api:65`, both `gha-70100623148d`, Alembic exit 0), and the re-probe
-     came back at the configured **5, blocked at 6** (pre-fix 8). But chat-api is at **1 task**, and
-     on one task a per-process limiter also yields 5 — so that row is consistent with the fix
-     without discriminating it. Close it with:
-     `SELECT count(*), max(created_at) FROM rate_limit_events WHERE scope = 'admin_escalation';`
-     through `intellichoice-staging-ops-task` (read-only by construction). A non-zero count dated
-     after the deploy is the whole proof. **The AWS session expired mid-session (D-181)**, so
-     re-authenticate first. The probe script is in that session's scratchpad
-     (`probe_escalation_ceiling.py`, four vacuity modes in its header) and costs nothing to re-run.
-     **⚠️ Note the shape of this gap for next time:** a per-caller limit cannot be told from a
-     per-process one while only one process is running. If a future session needs that
-     distinction from the outside, check the running task count *before* choosing the probe.
+  0. **✅ Nothing owed.** D-181 is landed (PR #117, `7010062`), deployed (run 30971390686,
+     `learning-api:66` / `chat-api:65`, both `gha-70100623148d`, Alembic exit 0) and **confirmed
+     live on the shared counter**: `rate_limit_events` holds `admin_escalation | 5 | 03:28:05Z →
+     03:28:09Z`, one distinct caller, 64-char key. The probe made 8 requests and 5 rows exist, so
+     the refusal-consumes-nothing property is measured in production too. The multiplier was
+     measured rather than assumed: **2 running tasks** during the pre-fix probe (8 observed, 5–10
+     permitted, impossible on one), and chat-api's desired count moved **2→3→1→2→3→2→1** in one
+     evening, so the cap wandered **5–15** by itself.
+     **⚠️ The transferable bit, because it nearly cost the whole measurement:** a per-caller limit
+     cannot be distinguished from a per-process one while only one process is running, and
+     autoscaling can take that away between the pre-fix probe and the post-fix one. Read the running
+     task count *before* choosing what a probe can prove — or reach past the edge to the row the
+     store itself writes, which is what actually settled this.
   1. **AUD-F-33** (P2, autoscaling) remains deferred by your call — detection exists, mechanism
      unknown. Note that D-181 measured the thing F-33 is about from the other side: task count is
      what multiplied the cap, so anything else sized per-process is worth a second look.

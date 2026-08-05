@@ -12143,14 +12143,29 @@ per-process limiter returns 5 as well, so that row is *consistent with* the fix 
 discriminating it. Recorded that way deliberately: D-180's lesson was about a vacuous live row, and
 the way to not repeat it is to name the ambiguity rather than let the number read as proof.
 
-What the evidence does establish is a chain with one open link: the deployed image is this commit
-(deployed-version gate on `gha-70100623148d`), this commit wires `PostgresRateLimiter` (enforced by
-`test_the_app_wires_the_shared_escalation_limiter`, which fails on the in-memory one), and
-`rate_limit_events` exists on staging RDS (migration exit 0). The open link is "the deployed process
-really writes there", and it closes with one read-only statement through
-`intellichoice-staging-ops-task` — `SELECT count(*), max(created_at) FROM rate_limit_events WHERE
-scope = 'admin_escalation'`. Not taken because the AWS session expired mid-session; it is item 0 of
-the next pointer.
+**✅ Closed the same evening, once AWS was re-authenticated.** One read-only statement through
+`intellichoice-staging-ops-task`:
 
-**The generalizable form:** a per-caller limit cannot be distinguished from a per-process one while
-only one process is running. Read the running task count *before* choosing what a probe can prove.
+    scope             attempts  first_at                    last_at
+    admin_escalation  5         2026-08-05 03:28:05.835Z    2026-08-05 03:28:09.547Z
+    DISTINCT_CALLERS: 1     KEY_LEN: 64
+
+So the deployed process does write to the shared counter, from one caller, storing a hex digest
+rather than the IP — the SPEC §5.30 promise verified on the deployed system and not only in a unit
+test. **Two properties came free:** the probe issued **8** requests and the table holds exactly
+**5**, so a refusal consumes no attempt in production either (asserted locally, now measured); and
+the 64-character key rules out a raw address having been written.
+
+**✅ The multiplier is measured, not asserted.** `RunningTaskCount` for chat-api was **2** during
+the pre-fix probe, so 8 accepted sits inside the 5–10 that two tasks permit and is **impossible on
+one**. The pre-fix and post-fix rows are therefore the same instrument at two task counts rather
+than two confounded measurements. And the autoscaling history states the defect better than "N×"
+does: desired count went **2 → 3 → 1 → 2 → 3 → 2 → 1** across one evening, so the effective cap
+**wandered between 5 and 15 with nobody touching configuration**.
+
+**The generalizable form, which nearly cost this measurement:** a per-caller limit cannot be
+distinguished from a per-process one while only one process is running — and autoscaling can remove
+that condition between the pre-fix probe and the post-fix one. Read the running task count *before*
+choosing what a probe can prove, or reach past the edge to the row the store itself writes. The
+second is what settled this, and it is the cheaper habit: one `SELECT` is more decisive than any
+number of turns through the front door.
