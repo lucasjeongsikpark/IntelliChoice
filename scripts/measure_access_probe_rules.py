@@ -97,12 +97,22 @@ from intellichoice_adapters.bedrock.bedrock_runtime_provider import AnthropicBed
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.titan_embedding_provider import TitanEmbeddingProvider
 from intellichoice_db.engine import create_engine, create_session_factory
-from intellichoice_db.repositories.rag import reciprocal_rank_fusion
-from intellichoice_shared.access_probe_policy import AudienceMatch
+from intellichoice_db.repositories.rag import (
+    ChunkFilters,
+    RagRepository,
+    reciprocal_rank_fusion,
+)
+from intellichoice_knowledge.retrieval import probe_access
+from intellichoice_shared.access_probe_policy import (
+    ACCESS_PROBE_CANDIDATE_MAX_DISTANCE,
+    AudienceMatch,
+)
 from intellichoice_shared.bedrock import (
     BedrockGateway,
+    BedrockGenerationResult,
     BedrockTask,
     RerankCandidate,
+    RerankedScore,
     RerankPayload,
     RerankResponse,
 )
@@ -161,6 +171,21 @@ class _Candidate:
     distance: float
 
 
+class _NotComputed:
+    """Sentinel for "the shipped rule was not replayed for this row".
+
+    Distinct from `None`, which is a real outcome meaning "the shipped rule returned no
+    hint". AUD-C-25 is in part a story about a missing branch being scored as a silence,
+    so this file should not repeat the shape at the reporting layer.
+    """
+
+    def __repr__(self) -> str:  # pragma: no cover - debugging aid
+        return "<not computed>"
+
+
+_NOT_COMPUTED = _NotComputed()
+
+
 @dataclass
 class _Row:
     """Everything measured for one case, before any rule is applied."""
@@ -180,6 +205,14 @@ class _Row:
     # rerank per case is chosen off a single sample of the noisy variable. Only populated
     # for cases named with --stability.
     rerank_repeats: list[dict[str, float]] = field(default_factory=list)
+    # AUD-C-25/D-179: the outcome of the **shipped** `probe_access`, replayed over this
+    # row. Every other entry in `_RULES` is a candidate rule reimplemented here; this one
+    # is the production function itself, so the table has a column nobody has to trust a
+    # transcription for. `None` means "not computed" (no `--shipped`), which is why it is
+    # not a `bool`-guarded field: `_RULES["shipped"]` must be able to tell "no hint" from
+    # "never asked", and scoring the second as a silence is exactly this finding.
+    shipped: Any = _NOT_COMPUTED
+    shipped_repeats: list[Any] = field(default_factory=list)
 
 
 _LEX = text("SELECT unnest(tsvector_to_array(to_tsvector('english', :q))) AS lex")
@@ -560,6 +593,175 @@ def rerank_prefloor_margin_hint(row: _Row, floor: float, margin: float, cut: flo
     if len(ordered) > 1 and winner_score - ordered[1][1] < margin:
         return None
     return _hint({winner: AudienceMatch(count=counts[winner], score=winner_score)})
+
+
+# ---------------------------------------------------------------------------------------
+# AUD-C-25/D-179: the shipped rule as a measured column, by calling it instead of restating it
+#
+# Every rule above is a *reimplementation* of a candidate rule, which is what this whole file
+# is for - you cannot compare twenty rules by deploying twenty of them. The defect AUD-C-25
+# names is that the **chosen** rule stayed a reimplementation after it was chosen, so the
+# table justifying production described a function nobody ships. Two concrete divergences had
+# accumulated by D-177: `rerank_prefloor_margin_hint` checks the floor *before* the margin
+# while `probe_access` checks the margin first, and no rule here models `_lexical_only` at
+# all, so production's keyword fallback was scored as silence.
+#
+# The fix is to run the real `probe_access` over a replayed row. Two doubles, and the split
+# between them is the point:
+#
+#   - the **rerank scores are replayed** from the dump, because they are the paid,
+#     nondeterministic input and `--load`'s entire purpose is comparing rules against
+#     *identical* model output (D-175: two rules scored on different rerank calls is not a
+#     comparison);
+#   - the **lexical arm is real**, delegated to `RagRepository.count_matching_by_audience`
+#     against local Postgres. It takes no embedding, so it is faithful offline even though
+#     the locally stored vectors are mock hashes (AUD-C-16) - which is precisely why this
+#     arm could be modelled for free and never was.
+#
+# The candidate pool is replayed rather than re-queried for the same reason as the scores:
+# `row.semantic` was measured against a real-Titan re-embedding inside `_collect`'s
+# rolled-back transaction, and that is not reproducible from a `--load` run.
+
+
+@dataclass
+class _ReplayChunk:
+    """The subset of `RagChunk` that `probe_access` touches: audience, text, and an id for
+    mapping scores back. Deliberately not a real `RagChunk` - constructing an ORM object
+    would invite the replay to drift into exercising the mapper instead of the rule.
+    """
+
+    chunk_id: str
+    audience: str
+    chunk_text: str
+
+
+class _ReplayRepo:
+    """`RagRepository`'s two probe methods: the candidate pool from the dump, the lexical
+    arm from the real repository.
+
+    `real` is `None` only when no database is reachable, in which case the lexical arm
+    raises rather than returning `{}` - a silent empty dict here would reintroduce
+    AUD-C-25's own failure mode, scoring an unmodelled branch as a silence.
+    """
+
+    def __init__(self, row: _Row, real: Any | None) -> None:
+        self._row = row
+        self._real = real
+
+    async def access_probe_candidates(
+        self,
+        filters: Any,
+        query_embedding: list[float],
+        *,
+        max_distance: float,
+        limit: int,
+    ) -> list[_ReplayChunk]:
+        del filters, query_embedding  # the dump already has the filtered, ordered pool
+        return [
+            _ReplayChunk(chunk_id=c.chunk_id, audience=c.audience, chunk_text=c.text)
+            for c in self._row.semantic
+            if c.distance <= max_distance
+        ][:limit]
+
+    async def count_matching_by_audience(
+        self,
+        filters: Any,
+        query: str,
+        query_embedding: list[float] | None = None,
+        **kwargs: Any,
+    ) -> dict[str, AudienceMatch]:
+        if self._real is None:
+            raise RuntimeError(
+                "probe_access reached its lexical/degraded fallback, but this replay has no "
+                "database session. Re-run without --no-db: scoring this branch as an empty "
+                "match set is the AUD-C-25 defect, not a workaround for it."
+            )
+        return await self._real.count_matching_by_audience(
+            filters, query, query_embedding, **kwargs
+        )
+
+
+class _ReplayGateway:
+    """Returns the dumped rerank scores as a real `RerankResponse`. No network, no cost.
+
+    Scores are keyed by `chunk_id` in the dump and by `candidate_index` in the payload, so
+    the mapping runs through the candidate list `_ReplayRepo` just returned - the same list
+    `probe_access` enumerated. A chunk the reranker never scored is absent here exactly as
+    it is absent live, and `probe_access` reads it as 0.0 through its own `.get`.
+    """
+
+    def __init__(self, scores: dict[str, float], candidates: Sequence[_ReplayChunk]) -> None:
+        self._scores = scores
+        self._candidates = candidates
+
+    async def generate_structured(
+        self,
+        *,
+        task: BedrockTask,
+        system_prompt: str,
+        payload: BaseModel,
+        response_model: type[Any],
+        max_output_tokens: int,
+        session_spend_cents: float,
+    ) -> Any:
+        del task, system_prompt, payload, response_model, max_output_tokens
+        del session_spend_cents
+        scored = [
+            RerankedScore(candidate_index=index, relevance_score=self._scores[chunk.chunk_id])
+            for index, chunk in enumerate(self._candidates)
+            if chunk.chunk_id in self._scores
+        ]
+        return BedrockGenerationResult(
+            value=RerankResponse(scores=scored),
+            input_tokens=0,
+            output_tokens=0,
+            cost_cents=0.0,
+            model_id="replay",
+            repaired=False,
+        )
+
+    async def create_embedding(self, *args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("probe_access does not embed; it is handed a query_embedding")
+
+
+async def _shipped_hint(row: _Row, scores: dict[str, float], real_repo: Any | None):
+    """Run the production `probe_access` over one row and reduce it the same way the live
+    route does - through `role_access.build_access_hint`, which every other rule here also
+    ends in, so the column is comparable.
+    """
+    repo = _ReplayRepo(row, real_repo)
+    candidates = await repo.access_probe_candidates(
+        None, [], max_distance=ACCESS_PROBE_CANDIDATE_MAX_DISTANCE, limit=CANDIDATE_LIMIT
+    )
+    result = await probe_access(
+        repo,  # type: ignore[arg-type]
+        _ReplayGateway(scores, candidates),  # type: ignore[arg-type]
+        query=row.case["query"],
+        probe_filters=ChunkFilters(exclude_audiences=list(ACCESSIBLE)),
+        query_embedding=[0.0],  # replayed pool; the value is never used for distance here
+        session_spend_cents=0.0,
+    )
+    return _hint(result.matches)
+
+
+async def _attach_shipped(rows: list[_Row], real_repo: Any | None) -> None:
+    """Populate `row.shipped` (and `row.shipped_repeats`) for every row, in place."""
+    for row in rows:
+        row.shipped = await _shipped_hint(row, row.rerank, real_repo)
+        row.shipped_repeats = [
+            await _shipped_hint(row, scores, real_repo) for scores in row.rerank_repeats
+        ]
+
+
+def shipped_hint(row: _Row):
+    """`_RULES` entry for the shipped rule. Fails loudly rather than reporting a silence
+    when the replay was not run - see `_NotComputed`.
+    """
+    if isinstance(row.shipped, _NotComputed):
+        raise RuntimeError(
+            "the 'shipped' rule needs --shipped, which replays probe_access over each row"
+        )
+    return row.shipped
 
 
 def rerank_only_hint(row: _Row, floor: float, hyde: bool = False):
@@ -950,6 +1152,13 @@ def _report(args: argparse.Namespace, rows: list[_Row], skipped: list[str], spen
                     ),
                 )
 
+    # AUD-C-25/D-179: the row that is the code. Printed last and separated, because it is not
+    # a candidate being compared - it is what production does, and every row above is a
+    # candidate *description* of a rule. Only present with --shipped.
+    if rows and not isinstance(rows[0].shipped, _NotComputed):
+        print("-" * (len(hdr) - 1))
+        line("SHIPPED probe_access", shipped_hint)
+
     reranked = sum(1 for r in rows if r.rerank)
     print(f"\nrerank scores obtained for {reranked}/{len(rows)} cases")
     print(f"real spend this run: {spend.cents:.2f} cents")
@@ -981,7 +1190,49 @@ _RULES: dict[str, Any] = {
     "pf_f085_m01": lambda r: rerank_prefloor_margin_hint(r, 0.85, 0.1, cut=0.60),
     "pf_f09_m005": lambda r: rerank_prefloor_margin_hint(r, 0.9, 0.05, cut=0.60),
     "pf_f09_m01": lambda r: rerank_prefloor_margin_hint(r, 0.9, 0.1, cut=0.60),
+    # AUD-C-25/D-179: not a candidate rule - the production function, replayed. `pf_f09_m01`
+    # is this rule's *transcription* at the shipped constants, so the two rows are expected
+    # to agree, and `--shipped`'s parity section is what checks that rather than assuming it.
+    "shipped": shipped_hint,
 }
+
+
+def _parity(rows: list[_Row], against: str = "pf_f09_m01") -> None:
+    """AUD-C-25's own claim, measured: does the transcribed rule agree with the shipped one?
+
+    Prints one line per disagreement, with the pre-floor bests that produced it, because the
+    interesting output is not "they differ" but *which* branch differs - the predicted
+    divergence is a case whose winner fails the floor while clearing the margin, where the
+    transcription returns silence and production consults the lexical arm.
+    """
+    if not rows or isinstance(rows[0].shipped, _NotComputed):
+        return
+    rule = _RULES[against]
+    diffs: list[tuple[_Row, Any, Any]] = []
+    for row in rows:
+        mine, theirs = row.shipped, rule(row)
+        if (mine.required_role if mine else None) != (theirs.required_role if theirs else None):
+            diffs.append((row, theirs, mine))
+    print(f"\nparity: shipped probe_access vs {against} (the transcription of it)")
+    if not diffs:
+        print(f"  identical on all {len(rows)} cases")
+        return
+    print(f"  ⚠️  {len(diffs)} of {len(rows)} cases disagree")
+    print(f"    {'case':<28} {'category':<14} {against:>12} -> {'shipped':<14} pre-floor bests")
+    for row, theirs, mine in diffs:
+        best: dict[str, float] = {}
+        for candidate in _under(row.semantic, 0.60):
+            score = row.rerank.get(candidate.chunk_id)
+            if score is not None:
+                best[candidate.audience] = max(best.get(candidate.audience, 0.0), score)
+        bests = "  ".join(
+            f"{a}={s:.2f}" for a, s in sorted(best.items(), key=lambda kv: -kv[1])
+        )
+        print(
+            f"    {row.case['id']:<28} {row.case['category']:<14} "
+            f"{(theirs.required_role if theirs else '-'):>12} -> "
+            f"{(mine.required_role if mine else '-'):<14} {bests}"
+        )
 
 
 def _stability(rows: list[_Row]) -> None:
@@ -1014,11 +1265,19 @@ def _stability(rows: list[_Row]) -> None:
             print(f"    repeat {index:>2}: {summary}")
         print(f"    {'rule':>26} | hint rate | roles named")
         for name, rule in _RULES.items():
-            if not name.startswith(("chosen", "pf_")):
+            if not name.startswith(("chosen", "pf_", "shipped")):
                 continue
             named: list[str] = []
-            for scores in row.rerank_repeats:
-                hint = rule(replace(row, rerank=scores))
+            if name == "shipped":
+                # `replace(row, rerank=...)` cannot drive this one: the shipped column is
+                # computed by an async replay, so its per-repeat outcomes were precomputed
+                # alongside `rerank_repeats` and are read positionally here.
+                if isinstance(row.shipped, _NotComputed):
+                    continue
+                hints = row.shipped_repeats
+            else:
+                hints = [rule(replace(row, rerank=scores)) for scores in row.rerank_repeats]
+            for hint in hints:
                 if hint is not None:
                     named.append(hint.required_role)
             roles = ", ".join(sorted(set(named))) if named else "-"
@@ -1122,7 +1381,21 @@ async def _run(args: argparse.Namespace) -> int:
         if args.dump:
             _dump_rows(rows, Path(args.dump))
             print(f"measurements written to {args.dump}", file=sys.stderr)
+    if args.shipped:
+        # AUD-C-25/D-179. The database is for the lexical arm only - `probe_access` reaches
+        # `count_matching_by_audience` when nothing clears the floor, and modelling that as
+        # an empty dict is the defect being fixed. It needs no embeddings, so a local
+        # Postgres with mock vectors serves it correctly (AUD-C-16 notwithstanding).
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_factory() as session:
+                await _attach_shipped(rows, RagRepository(session))
+        finally:
+            await engine.dispose()
+        print(f"replayed the shipped probe_access over {len(rows)} cases (no Bedrock calls)")
     _report(args, rows, skipped, spend)
+    _parity(rows)
     _stability(rows)
     if args.detail:
         _detail(args, rows)
@@ -1173,6 +1446,14 @@ def main() -> int:
         "--load",
         help="Re-score a dumped run instead of calling Bedrock. Free, and the only way to "
         "compare two rules against identical embeddings and rerank scores.",
+    )
+    parser.add_argument(
+        "--shipped",
+        action="store_true",
+        help="AUD-C-25: add a 'shipped' column by replaying the real `probe_access` over "
+        "each case (dumped rerank scores, real lexical arm via local Postgres), plus a "
+        "parity section against `pf_f09_m01`, its transcription here. Free - no Bedrock "
+        "calls - and the only rule in this file that is the code that ships.",
     )
     parser.add_argument("--detail", help=f"Per-case outcomes for one rule: {', '.join(_RULES)}")
     parser.add_argument("--detail-all", action="store_true", help="Include passing cases.")

@@ -5,6 +5,46 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ D-179: the access-probe rule table now calls the rule instead of restating it — and the
+  first run found a false hint the restatement had been reporting as a correct refusal
+  (2026-08-04, S64 — no numbered session; PROGRESS.md's own pointer, item 1).** `make lint` clean,
+  `pyright` 0, **876 passed / 2 skipped** (869 at start, +7). **No paid measurement** — every number
+  below came from re-scoring D-177's two dumps offline, which is what made arm (a) worth doing now
+  instead of deferring it. **⚠️ Uncommitted at the time of writing** — written the day of the work,
+  per the D-174/D-175 lesson.
+  **✅ AUD-C-25 fixed, arm (a) — `--shipped` replays the real `probe_access` per case.** The split
+  between replayed and real is the design: **rerank scores are replayed** (the paid,
+  nondeterministic input — `--load` exists so rules are compared against identical model output),
+  while **the lexical arm is real**, delegated to `RagRepository.count_matching_by_audience` against
+  local Postgres. It takes no embedding, so it is faithful offline even with mock vectors stored —
+  which is exactly why it could have been modelled for free at any point in four sessions and never
+  was. The summary table gains a `SHIPPED probe_access` row and a `parity` section against
+  `pf_f09_m01`, its transcription. 7 regression tests, one per branch, including one that fails if
+  the shipped column is ever re-transcribed and one asserting the replay **raises** rather than
+  returning `{}` when it cannot reach the lexical arm — an empty match set there would be the
+  finding reintroduced by its own fix.
+  **⚠️ It paid for itself immediately, and both of my predictions were wrong.** Parity: **1
+  disagreement in 58 cases**. The corrected row is `SHIPPED probe_access` (human) **FP public = 1**
+  where D-177 recorded **0**; everything else in D-177's table is confirmed, and the corpus arm is
+  genuinely 0. I predicted the **sub-floor** branch would diverge — what bites is the **empty
+  candidate pool** branch, reached on **18 of 58** human-arm cases at distance 0.7251 against a 0.60
+  ceiling, nowhere near a knife edge. And I wrote that the unmodelled arm costs **recall**; it
+  *adds* false hints too. Both directions real, neither visible to the old harness. This is the
+  argument for building the instrument instead of reasoning one more round.
+  **⚠️ AUD-C-26 filed, needs your decision, deliberately not fixed.** `probe-public-025`
+  (*"How do I get or delete my kid's school records?"*): nearest non-public chunk at **0.7251** →
+  zero candidates → `probe_access` returns at `if not candidates` with **no floor and no margin** →
+  `_lexical_only` gives `{parent: 1, student: 3}` → `build_access_hint` falls back to tier
+  **priority**, the exact rule AUD-C-22 was filed against → **`required_role: "parent"`** for an
+  answer the **public** Privacy Notice carries. A caller is told to authenticate for public
+  information. Not patched because the obvious fix collides with D-165's reason for keeping the arm
+  (`MockBedrockProvider`'s hash embeddings make it the only arm the mock suite can exercise).
+  Four candidates on the finding, all free to measure now; recommendation **(a)**.
+  `access_probe_policy`'s table and `probe_access`'s docstring are corrected, with the other rows
+  marked `0+` since they remain restatements that model no lexical arm.
+  **Open count: 2** — `AUD-F-33` (deferred) and `AUD-C-26` (new), confirmed with ROADMAP's anchored
+  `awk`. Arithmetic: 2 at start, −C-25, +C-26.
+
 - **✅ D-178: D-177 landed, deployed and live-verified at 0/10, the full eval re-baselined under the
   new floor — and the harness that chose every access-probe constant turned out not to implement the
   rule it measures (2026-08-04, S63 — no numbered session; PROGRESS.md's own pointer, items 0 and 1,
@@ -1373,7 +1413,68 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-178):**
+- **Next session, in order (2026-08-04, post-D-179):**
+  0. **Owed: land D-179.** No deploy — the only production-code edits are comments and docstrings
+     (`retrieval.py`, `access_probe_policy.py`); the behaviour change is in a script and a test file.
+     Confirm that before skipping the deploy, because it is the kind of claim that is true until it
+     isn't.
+  1. **AUD-C-26 needs your decision — a product call, and the last open finding with a fork.** A
+     question the **public** Privacy Notice answers is told `required_role: "parent"`, because when
+     no candidate is within 0.60 the probe consults the keyword arm alone and `build_access_hint`
+     falls back to tier priority with no score to rank by. Four candidates on the finding's row,
+     **all measurable for free** with `--shipped` over the D-177 dumps: (a) require exactly one
+     lexically matching audience before priority names a tier — **recommended**, it targets the
+     mechanism rather than the symptom; (b) a minimum-match bar (the false hint rests on a single
+     chunk, but the arm's true positives are only 1 and 3, so the margin is thin); (c) keep the arm
+     for retrieval and gate the *hint* on a scored signal — most faithful to AUD-C-22, costs the
+     arm's whole live contribution; (d) accept and record it, defensible at 1 case in 58.
+     **Do not simply delete the keyword arm:** D-165 kept it because `MockBedrockProvider`'s
+     embeddings are hash vectors, so it is the only arm the mock-backed suite can exercise, and
+     removing it makes the probe structurally unobservable offline.
+     **One cheap thing owed alongside it:** the empty-pool path is embedding-dependent, so the live
+     corpus could differ from local. D-174 measured the two corpora identical, but no live probe of
+     this question was taken — ~1.25¢ to confirm, worth doing when the fix is chosen.
+  2. **AUD-F-33** (P2, autoscaling) remains deferred by your call — detection exists, mechanism
+     unknown.
+  3. **The product decisions still unanswered, unchanged and none of them mine to make:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent
+     by choice; (b) should the access hint be able to say "this is covered in parent *and*
+     branch-manager materials" instead of going silent; (c) escalation carries no way to reply to
+     the person who asked (D-164's scoped-out half), and `InMemoryRateLimiter` is per-process so the
+     real ceiling is N× the configured one; (d) does a multi-child parent need an in-app switcher,
+     or is sign-out-and-back-in acceptable until real auth replaces the dev login; (e) is
+     `[redacted-email]` in escalation drafts acceptable long-term, or should escalation eventually
+     carry a structured (consented) contact field.
+  4. **Notes that survive, plus one earned in D-179:**
+     **⚠️ New — a measurement that omits a branch reports that branch as its most flattering
+     outcome.** Here an unmodelled fallback was scored as silence, i.e. as a correct refusal, for
+     four sessions. When a table justifies a constant, check that the table calls the code: the
+     `SHIPPED probe_access` row is the only row in that file that does, and the rest are marked `0+`
+     to say so.
+     **⚠️ New — the dumps are now load-bearing for a decision.** AUD-C-26's four candidates are all
+     free to measure *only* while `probe_run_{human,corpus}.json` survive. They are in two session
+     scratchpads (`…/2a3304c0-…/` and `…/80fe2941-…/`), 1.4 MB the pair, 128 KB gzipped. Commit them
+     or copy them forward; otherwise deciding AUD-C-26 costs ~43¢ instead of nothing.
+     **Counting findings:** ROADMAP's anchored `awk` returns **2** today: F-33 and C-26.
+     **Sample size has a direction** (D-178): 0/10 refutes a 60% rate at p=0.01% but bounds a
+     residual only at <26% (one-sided 95%). Do not upgrade D-178's 0/10 to "never".
+     **Reading staging's database:** `aws ecs run-task` with a `containerOverrides` command on
+     `intellichoice-staging-ops-task` reads RDS directly for a few Fargate seconds, read-only by
+     construction if the command is a `SELECT`.
+     **Probing the deployed chat API:** base path **`/chat/...`**, edge
+     `d222glidpp4azv.cloudfront.net` (learning is `d35dfnjzmgrm01`); `POST /chat/sessions` then
+     `POST /chat/sessions/{id}/messages` with `{"query": ...}`, anonymous, ~1.25¢/turn. D-178's
+     13-probe script fixes both sample sizes in its own header comment.
+     **Paid eval:** `CHAT_EVAL_RUN_BUDGET_CENTS=<n>` enforces an approved figure (tighten-only); a
+     full unfiltered run is **52.5¢ / 5m33s** as of D-178 (76.7¢ at S37).
+     **Re-scoring probe rules is free:** `--load <dump> --query-field <field> --shipped`.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"`
+     **and export `AWS_REGION=us-east-1`** — the exported credentials carry no region, and
+     `AWS_PROFILE` alone does not work for the paid eval (D-164). Not needed for anonymous probes.
+
+- **Superseded — pointer as of post-D-178 (2026-08-04). Item 1 (AUD-C-25) was done in D-179;
+  items 2–4 carry up, with AUD-C-26 taking C-25's place as the finding with a fork:**
   0. **✅ Nothing owed.** D-178's own work is landed, deployed and verified: PR #111 (`e1ab0ad`),
      deploy run 30962420370, `learning-api:64` / `chat-api:63` both on `gha-e1ab0adbacb4`, the live
      row measured (0/10 hints, control 3/3), and the full eval run with every assertion live. The

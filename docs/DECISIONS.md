@@ -11831,3 +11831,87 @@ probes, the full eval's every assertion, the budget override's three cases, and 
 table above. Inferred, not verified: that the lexical arm would not have produced a false hint on the
 AUD-C-23 question had it been consulted — it is an all-terms gate and was measured clean on both
 negative classes, but the composed path was never measured offline, which is AUD-C-25.
+
+## D-179 — The access-probe rule table now calls the rule instead of restating it, and the first run found a false hint the restatement had reported as a correct refusal (accepted, 2026-08-04)
+
+Scope: PROGRESS.md's post-D-178 pointer, item 1 — AUD-C-25, arm **(a)** (make the harness call
+`probe_access`) over arm (b) (a dump-replay parity test). No numbered roadmap block (D-152). No
+paid measurement: everything below was produced by re-scoring D-177's two dumps offline, which
+is what made arm (a) worth doing rather than deferring.
+
+### 1. The fix: `--shipped` replays the production function
+
+`scripts/measure_access_probe_rules.py` gains a `shipped` rule that *is* `probe_access`, run over
+each dumped case through two doubles. The split between what is replayed and what is real is the
+whole design:
+
+- **rerank scores are replayed** from the dump, because they are the paid, nondeterministic input
+  and `--load` exists precisely so that two rules are compared against identical model output
+  (D-175: two rules scored on different rerank calls is not a comparison);
+- **the lexical arm is real**, delegated to `RagRepository.count_matching_by_audience` against
+  local Postgres. It takes no `query_embedding`, so it is faithful offline even though the
+  locally stored vectors are mock hashes (AUD-C-16) — which is exactly why this arm could have
+  been modelled for free at any point in the last four sessions and never was.
+
+The candidate pool is replayed for the same reason as the scores: `row.semantic` was measured
+against a real-Titan re-embedding inside `_collect`'s rolled-back transaction, so it is not
+reproducible from a `--load` run.
+
+Output gains a `SHIPPED probe_access` row in the summary table — separated from the candidate
+rows, because it is not a candidate — and a `parity` section diffing it against `pf_f09_m01`, its
+transcription at the shipped constants. 7 regression tests in
+`apps/chat-api/tests/test_access_probe_harness_parity.py`, one per branch, including one that
+fails if the shipped column is ever re-transcribed and one asserting the replay **raises** rather
+than returning `{}` when it cannot reach the lexical arm — an empty match set there would be
+AUD-C-25 reintroduced by its own fix.
+
+### 2. It paid for itself on the first run, and my write-up of AUD-C-25 was wrong in two ways
+
+Parity reported **1 disagreement in 58 cases**, and the corrected table row is:
+
+    rule                       | right | wrong | silent | FP public | FP unans
+    pf >0.90 m0.10  (human)    |   27  |   0   |   11   |     0     |    0
+    SHIPPED probe_access (human)|  27  |   0   |   11   |   **1**   |    0
+    pf >0.90 m0.10  (corpus)   |   26  |   0   |   12   |     0     |    0
+    SHIPPED probe_access (corpus)| 26  |   0   |   12   |     0     |    0
+
+So D-177's "zero false hints on both negative classes in both arms" is wrong in exactly one
+cell, and right everywhere else. **Both of my predictions about where it would diverge were
+wrong**, which is the argument for building the instrument rather than reasoning further:
+
+- I predicted the **sub-floor** branch. What bites is the **empty candidate pool** branch —
+  reached on 18 of 58 cases in the human arm, at distance 0.7251 against a 0.60 ceiling, nowhere
+  near a knife edge.
+- I wrote that the unmodelled lexical arm costs **recall**. It also *adds* false hints. Both
+  directions were real and the harness could see neither.
+
+`access_probe_policy`'s table and `probe_access`'s docstring are corrected, and the other rows are
+marked `0+` — a lower bound, since every row except `SHIPPED` is still a restatement that models
+no lexical arm.
+
+### 3. AUD-C-26 filed, and deliberately not fixed
+
+The false hint is its own defect, not a harness artefact: `probe-public-025`, *"How do I get or
+delete my kid's school records?"*, nearest non-public chunk at 0.7251 → zero candidates →
+`_lexical_only` returns `{parent: 1, student: 3}` → `build_access_hint` falls back to tier
+**priority** (no score exists to rank by) → **`required_role: "parent"`** for an answer the
+**public** Privacy Notice carries. A caller is told to authenticate for public information.
+
+Not fixed here because the obvious fix collides with the arm's reason for existing: D-165 kept
+the keyword arm because `MockBedrockProvider`'s embeddings are hash vectors, making it the only
+arm the mock-backed suite can exercise. Four candidates are written on the finding, all now
+measurable for free; the recommendation is **(a) require exactly one lexically matching audience
+before priority names a tier**, because it targets the mechanism (priority deciding an ambiguous
+match — the thing AUD-C-22 established it must not do) rather than the symptom. **The choice is
+the user's**, since it trades the arm's live contribution against a false hint and both sides are
+small.
+
+### 4. What was measured vs. inferred
+
+Verified: the corrected table (both arms, free `--load` re-score), the 18-of-58 empty-pool
+frequency and its per-category split, the lexical arm's output for the failing case read from
+local Postgres, `shipped` and `pf_f09_m01` agreeing 0/10 on the stability case, 7 new tests,
+lint clean, pyright 0. Inferred, not verified: that the live corpus behaves as local does on this
+branch — D-174 measured the two corpora identical, but no live probe of `probe-public-025` was
+taken, and the empty-pool path is embedding-dependent so a live check would be the honest
+confirmation. Cheap (~1.25¢) and worth doing when AUD-C-26 is decided.

@@ -65,13 +65,28 @@ ACCESS_PROBE_MAX_DISTANCE = 0.45
 # the two noise-flipped cases (`no-answer-missed-1`, `probe-parent-013`):
 #
 #   rule                                  | right | wrong tier | FP public | FP unanswerable
-#   floor .8, post-floor margin (human)   | 29/38 |     1      |     0     |       1
-#   floor .8, post-floor margin (corpus)  | 29/38 |     0      |     0     |       0*
-#   this rule                    (human)  | 27/38 |   **0**    |     0     |     **0**
+#   floor .8, post-floor margin (human)   | 29/38 |     1      |     0+    |       1
+#   floor .8, post-floor margin (corpus)  | 29/38 |     0      |     0+    |       0*
+#   this rule                    (human)  | 27/38 |   **0**    |   **1**   |     **0**
 #   this rule                    (corpus) | 26/38 |   **0**    |     0     |     **0**
 #
 #   * flips run to run: the old rule fired on the unanswerable case 2/10 (human arm) and
 #     3/10 (corpus arm) stability repeats; this rule 0/40 across every repeat of both cases.
+#   + a lower bound only, and the reason is AUD-C-25 (see below): every row in this table
+#     except "this rule" was produced by a *reimplementation* of the rule that models no
+#     lexical arm, so its negative-class columns cannot see the branch that produces the 1.
+#
+# **⚠️ The FP-public 1 on the human arm was 0 in this table until D-179, and the correction is
+# AUD-C-25's** - `measure_access_probe_rules.py` scored candidate rules by restating them,
+# and no restatement modelled `probe_access`'s earliest exit: when *nothing* is within
+# `CANDIDATE_MAX_DISTANCE` the probe never calls the reranker and asks the keyword arm alone.
+# That branch is reached on **18 of 58 cases** in the human arm, and on one of them
+# (`probe-public-025`, *"How do I get or delete my kid's school records?"*, nearest non-public
+# chunk at distance **0.7251** against a 0.60 ceiling) the keyword arm names **parent** for a
+# question the **public** Privacy Notice answers. The rule constants are not implicated: no
+# floor or margin runs on that path. Re-measure with `--shipped`, which replays the real
+# `probe_access` over a dump for free, and read the `SHIPPED probe_access` row - it is the
+# only row in the table that is the code.
 #
 # **The margin is what buys the zero wrong tiers; the floor is what buys the zero false
 # hints.** AUD-C-22's argument stands: a wrong tier is worse than silence, and every miss

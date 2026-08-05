@@ -734,7 +734,8 @@ which stop the line.
 >   docs/AUDIT_FINDINGS.md | sort -u
 > ```
 >
-> That returns **2** as of 2026-08-04 (D-178): AUD-F-33 and AUD-C-25. (It returned 6 when
+> That returns **2** as of 2026-08-04 (D-179): AUD-F-33 and AUD-C-26 — C-25 was fixed in D-179 and
+> C-26 is what that fix found. (It returned 6 when
 > this instruction was written, 5 after D-175, 3 after D-176, 1 after D-177.) **Do not "correct" the count to whatever a looser
 > grep reports** without checking where the word sits — that is the same class of error twice over.
 >
