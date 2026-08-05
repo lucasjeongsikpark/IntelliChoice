@@ -146,7 +146,7 @@ corrected and the correction is marked in it.
 | AUD-F-30 | Observability / cost | P3 | ✅ Fixed 2026-07-31 (D-132, on the third attempt) | 97% of every trace this project has ever scanned is a health check, and X-Ray's free tier stopped covering it |
 | AUD-F-31 | Latency | P2 | ✅ Fixed 2026-07-30 (D-131); verified on staging 2026-07-31 (D-132) | `select_topic` spends its 1.6 s on ~50 sequential SQL round-trips, and none of them are checkpoint writes |
 | AUD-F-32 | Latency / capacity | P2 | **Dispositioned — measured, deliberately not fixed** (D-132, re-measured D-134) | The learning app's latency ceiling is ~726 ms per answer request that is neither SQL nor graph work. The re-measurement refuted the premise: the ~726 ms is **queueing, not work**, so there is no hidden fixed cost to remove — it is a capacity statement, not an optimization target |
-| **AUD-F-33** | **Autoscaling** | **P2** | **Open — detection added, mechanism unknown; deferred by user call, not closed** (found D-132, reproduced and re-scoped D-134) | **Step scaling intermittently stops scaling in while its alarm stays in ALARM, on both services.** Observed at 3 tasks for 84 minutes with `p95-latency-scale-in` in ALARM the whole time, against a `-1` step and a 300 s cooldown. Raised P3→P2 the same day. Same family as AUD-F-38 and the reason `chat-api-capacity-above-floor` is deliberately kept off the canary list — an autoscaling signal must not be read as a deploy signal |
+| **AUD-F-33** | **Autoscaling** | **P2** | **Open — mechanism found and measured D-182 (2026-08-04); fix APPLIED to staging the same session (`FILL(m1, 0)` on both scale-in alarms, `-target`ed apply); held open because the decisive live row is owed — Auto Scaling has not yet been observed accepting a metric-math alarm for step scaling** (found D-132, reproduced and re-scoped D-134) | **A service that goes idle cannot scale in.** The scale-in alarm uses `treat_missing_data = "breaching"` on `TargetResponseTime`, which publishes nothing at zero traffic, so the alarm enters ALARM with **15 evaluated datapoints and none carrying a value**; Application Auto Scaling cannot select a step without a metric value and rejects the invocation with `Failed to execute AutoScaling action: Metric data points must be provided`, creating **no scaling activity** — which is why D-132's `describe-scaling-activities` looked empty. **Deterministic, not intermittent: 46 invocations across both alarms, 0 exceptions** — 26 refused, all with no value; 20 accepted, all with one. So **scale-in requires traffic**, and the quieter service is the stuck one (learning-api: 6 accepted against 9 refused in 8 days). Measured cost **81.8 excess task-hours over 8 days = $2.02, ≈$7.58/month**, with chat-api above its floor in 26.6% of samples against learning-api's 5.9% — the reverse of this row's original "learning-api-specific" framing. Scale-out is unaffected (`notBreaching`). Fix: metric math `FILL(m1, 0)` on the scale-in alarm, confirmed by `get-metric-data` to return 15 zeros over a window behind a real refusal. Same family as AUD-F-38 and the reason `chat-api-capacity-above-floor` is deliberately kept off the canary list — an autoscaling signal must not be read as a deploy signal |
 | AUD-F-34 | Scheduled jobs / model caps | P1 | ✅ Fixed, deployed and verified 2026-07-31 (D-141) — **heading still said "blocks gate criterion 6" until D-174** | `memory-consolidate` has never once worked: every model call fails on prompt length, and it exits 0. Criterion 6 is met behind the fix |
 | AUD-F-35 | Personalization correctness | P2 | ✅ Fixed 2026-08-01 (D-150) | `promote_if_eligible` applies no evidence bar, so plan §9's stability rule is enforced at creation and bypassed on the next reconfirmation |
 | AUD-F-36 | Launch journey / interrupts | P2 | ✅ Fixed 2026-08-01 (D-145), deployed; criterion 3 re-met behind it (D-147) | The parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription |
@@ -162,8 +162,9 @@ through D-181): 1.** Arithmetic, written out because this line has now been wron
 AUD-C-25 (fixed in D-179), **plus** AUD-C-26 (filed in D-179, found *by* that fix on its first
 run), **minus** AUD-C-26 (fixed in D-180), **plus and minus** AUD-C-27 (filed *and* fixed in
 D-181, so it never sat open) = **1**. Confirmed by running ROADMAP's anchored `awk`,
-not by counting the sentence below. `Open`: **AUD-F-33** only (deferred by the user's call —
-detection exists, mechanism unknown).
+not by counting the sentence below. `Open`: **AUD-F-33** only — **its mechanism is no longer unknown
+(D-182, 2026-08-04, measured at 46/46 from free read-only history), but it stays open because the fix
+is not applied.** Diagnosing a finding does not close it, and the count is unchanged at **1**.
 
 **Worth noting about the last three entries, since the count moved in both directions:** D-178
 filed C-25 while landing D-177's work, D-179's fix for C-25 found C-26 on its first run, and
@@ -5075,7 +5076,7 @@ artifact of assuming linearity and should not be quoted.
    knife-edge, and the figure for a criterion 7 that passes with margin is materially larger** — before
    the RDS resize D-133 already identified. Re-price with a target ratio, not a target task count.
 
-### AUD-F-33 — step scaling intermittently stops scaling in while its alarm stays in ALARM, on both services (**P2** — raised from P3 same day, found 2026-07-31 D-132, reproduced and re-scoped D-134; detection added, mechanism unknown)
+### AUD-F-33 — a service that goes idle cannot scale in: the scale-in alarm hands Auto Scaling an evaluation with no metric value, and the invocation is refused (**P2** — raised from P3 same day, found 2026-07-31 D-132, reproduced and re-scoped D-134; **mechanism found 2026-08-04 D-182, deterministic at 46/46; fix applied the same session, live confirmation owed — so still open**. The heading read "step scaling intermittently stops scaling in" until D-182; "intermittently" was the symptom, and the cause is not intermittent)
 
 Observed while trying to capacity-match D-132's two arms. The service went to 3 tasks at
 **00:22:51Z** (`learning-api-p95-latency-scale-out`, triggered by a cold post-deploy run) and was
@@ -5200,6 +5201,110 @@ capacity and traffic held identical, which is cheap now that the alarm makes the
 without anyone watching for it.
 
 **`desired-count` restored to 1 manually** (its floor), as D-132 did for learning-api.
+
+#### Mechanism found 2026-08-04 (D-182), at zero cost, from read-only CloudWatch history
+
+**The error is recorded verbatim, and nobody had looked at the one history type that carries it.**
+`describe-alarm-history --history-item-type Action` on both scale-in alarms:
+
+```
+Failed to execute AutoScaling action: Metric data points must be provided
+```
+
+**So the alarm is not being ignored — the invocation is being *rejected*.** CloudWatch transitions
+the alarm to ALARM and invokes the policy; Application Auto Scaling cannot select a step adjustment
+without a metric value, refuses, and **no scaling activity is ever created**. That is why D-132's
+`describe-scaling-activities` came back empty: it was reading the wrong side of a refusal. One row
+lands on this finding's own evidence — `2026-07-31T00:51:31Z`, the exact minute D-132 recorded the
+scale-in alarm entering ALARM, failed for missing datapoints, and again at `02:54:31Z`.
+
+**The cause is the alarm's `treat_missing_data = "breaching"` on a metric that publishes nothing at
+zero traffic.** `TargetResponseTime` has no datapoints when there are no requests, so the alarm
+enters ALARM with **15 evaluated datapoints, none of which carries a value**. The configuration
+achieves the opposite of its stated intent: the module's own comment argues that "no traffic is the
+strongest possible evidence the extra tasks are idle", which is true — and treating it as breaching
+makes the alarm *fire* while making the scaling action *impossible*.
+
+**Deterministic, 46 invocations, 0 exceptions.** Joining each `OK → ALARM` transition's
+`stateReasonData.evaluatedDatapoints` against the Action entry that followed it (learning-api 15
+invocations, chat-api 29, the full retained window):
+
+| alarm evaluation | Auto Scaling outcome | count |
+|---|---|---|
+| 15 datapoints, **0 with a value** | `FAIL` — "Metric data points must be provided" | **26 / 26** |
+| 15 datapoints, **≥ 1 with a value** | `Successfully executed` | **20 / 20** |
+
+So the finding's "intermittent" is wrong. It is fully determined by whether the alarm's evaluation
+window contained real traffic, and the counter-intuitive consequence is the whole defect:
+**scale-in requires traffic.** A service that goes completely idle after a scale-out cannot be
+scaled back in, because the only signal the policy can act on stops existing. learning-api — the
+*quieter* service — took **6 accepted invocations against 9 refused** in the same 8 days, and
+performed only **3 scale-in activities**.
+
+**This confirms D-134's two refutations rather than overturning them, and explains why they were
+right.** "learning-api-specific" and "the `min_capacity` difference" both died on chat-api
+reproducing the fault; the mechanism shows the services were never the variable. Hypothesis 3
+("only acts on a transition") also stays dead: `describe-scaling-activities` shows chat-api stepping
+`3 → 2` at `2026-07-31T00:15:32Z` and `2 → 1` at `00:21:32Z` — two `-1` steps inside one
+uninterrupted ALARM, so Auto Scaling does re-apply on its own.
+
+**⚠️ Which is also this measurement's limit, stated rather than rounded up.** That re-application is
+a *second* path, and it leaves no record when it is refused: CloudWatch logs alarm-action outcomes,
+Auto Scaling logs successful activities, and nothing logs "AAS re-evaluated and had no data". So the
+mechanism is **proven for the alarm-action path (46/46)** and only **consistent with** the
+re-application path. The fix below removes the missing-value condition for both, so the distinction
+does not change what to do — it changes what may be claimed.
+
+**Cost, so the severity argument rests on a number.** Integrating `DesiredTaskCount - floor` over the
+8 days of retained history: **78.2 excess task-hours = $1.93, ≈ $7.24/month** at staging's traffic
+(512 CPU / 1024 MB on-demand). The split is the reverse of the original framing —
+**chat-api sat above its floor in 25.3% of samples, learning-api in 5.7%** — and it is a floor on
+production, not an estimate of it: the pilot's school-hours-then-idle shape is exactly the pattern
+that produces a scale-out followed by no traffic.
+
+**Scale-out is unaffected**, and the asymmetry is in the config: `latency_scale_out` uses
+`treat_missing_data = "notBreaching"`, so it never enters ALARM without data and never hands Auto
+Scaling an empty evaluation.
+
+**Cross-link to D-181, which is why this is worth more than $7/month.** D-181 measured that a
+per-process control is multiplied by the running task count, and left the global 6000/min per-IP cap
+per-task on purpose. A service that cannot scale in holds that multiplier at its maximum for hours,
+so this defect widens the window in which the remaining per-process imprecision is largest.
+
+**Fix, applied 2026-08-04, with its one uncertainty settled first.** The scale-in alarm's plain
+metric is replaced with metric math `FILL(m1, 0)` — an idle minute becomes 0 s, which is both true and a value Auto Scaling
+can compute a step from. `FILL` has a documented trap on an *entirely* absent series, so it was
+checked with `get-metric-data` over `2026-07-31T00:36Z–00:51Z`, the window behind a real refusal:
+it returns **15 values of 0.0** where the raw metric returns none, so the plain expression suffices
+and no anchoring metric is needed.
+
+**Applied and confirmed on the metric side, not yet on the Auto Scaling side.** Both alarms now
+evaluate `FILL(m1, 0)` over p95 `TargetResponseTime` on the deployed stack, and the live expression
+returns **15 values while learning-api is completely idle** — the window that used to hand Auto
+Scaling nothing. Services were untouched by the apply (learning-api revision 66 at 2/2, chat-api 65
+at 1/1; `desired_count` and `task_definition` are in `ignore_changes`).
+
+**⚠️ The owed row, and why it could not be taken in the same session.** One assumption remains:
+that Application Auto Scaling *accepts* a metric-math alarm for step scaling. Only a real invocation
+shows it, and an invocation needs a fresh `→ ALARM` transition — which cannot be forced cheaply. An
+alarm leaves ALARM only on a datapoint **above** 1 s, and the one free probe path (`escalate: true`,
+no Bedrock call) returns in **0.175 s**, far too fast. A paid chat turn would do it for ~1.25¢ plus a
+15-minute wait; not spent, because chat-api produces several natural transitions a day and
+`make scaling-evidence` exits non-zero if the invocation is still refused. **The verification arrives
+for free and fails loudly.** Both alarms' `StateReason` still reads the pre-fix
+`"no datapoints were received for 15 periods and 15 missing datapoints were treated as [Breaching]"`
+with a `StateUpdatedTimestamp` predating the apply, which is how the absence of a transition was
+confirmed rather than assumed.
+
+**Prerequisite the apply surfaced, and the guard that caught it.** `make tfvars-floor-check`
+(AUD-X-16) failed before the apply: `terraform.tfvars` still recorded `gha-812db34916a6` while both
+services ran `gha-70100623148d` — D-181's deploy had left the floor stale. Bumped to the running tag
+before applying, which is exactly why the freshly registered task-definition revision carries the
+running image instead of one several deploys old. That is the D-137/D-142 near-miss, prevented by its
+own check. Note also that `terraform plan` is not clean against this environment (see the carry-over
+above), so the apply was `-target`ed at the two alarms — which still pulls in the task definitions via
+the alarm → policy → scalable target → service → task definition chain, deregistering revisions 47
+and 48 (neither in use).
 
 **Related, and worth knowing before quoting criterion 7's chat leg:** chat-api's `min_capacity` is
 **1**, so its baseline is one task and the "**3 tasks running, ≥ 2 ✅**" recorded for criterion 7 was

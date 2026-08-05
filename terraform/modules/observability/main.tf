@@ -151,6 +151,13 @@ resource "aws_cloudwatch_metric_alarm" "target_5xx" {
 # and an alarm that only fires when one named cause occurs would have missed this one.
 # `DesiredTaskCount` above the floor for an hour is true whatever the cause.
 #
+# D-182 found the mechanism, and alarming on the outcome turned out to be the right call for a
+# reason better than the one above: BOTH named hypotheses were wrong. The cause is that the
+# scale-in alarm's `treat_missing_data = "breaching"` puts it into ALARM with no metric VALUE,
+# which Application Auto Scaling refuses to act on - so scale-in requires traffic, and neither
+# the alarm's datapoint configuration nor `min_capacity` is implicated. This alarm keeps its
+# job until that fix is applied; it is the only thing that sees the condition.
+#
 # `Maximum` over 5-minute periods, so a single scale-out during a load test does not have to
 # be smoothed away by an average: the question is "was it ever above the floor in this
 # period", and the sustained window is what makes that mean something.

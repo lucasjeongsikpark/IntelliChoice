@@ -694,8 +694,13 @@ which stop the line.
 > as the denominator, out-of-range flagged `unmeasurable_out_of_range`, never clamped) are closed
 > with tests. **D-177 (2026-08-04) then closed AUD-C-23 (floor 0.9 + pre-floor tier margin, chosen
 > by re-measurement; live 10-probe re-verification owed after deploy) and AUD-C-24 (chat free text
-> redacted at the request boundary), so the backlog is now 1 open**: AUD-F-33 (deferred by the
-> user's call).
+> redacted at the request boundary), so the backlog is now 1 open**: AUD-F-33 — no longer deferred.
+> **D-182 (2026-08-04) diagnosed it for $0 from read-only alarm history and applied the fix the same
+> session**: the scale-in alarm reached ALARM through `treat_missing_data` with no metric *value*, so
+> Auto Scaling refused every invocation and created no scaling activity, which is why two earlier
+> sessions read the activity list and found nothing. Deterministic at 46 invocations, 0 exceptions.
+> It stays **open** because one row is owed — Auto Scaling has not yet been observed *accepting* the
+> new metric-math alarm — and `make scaling-evidence` is the one command that closes it.
 >
 > **⚠️ How to recount, corrected 2026-08-04 (D-174) — the previous instruction here was the one that
 > produced a wrong number.** It said "derive the count from the table, never carry it forward",
@@ -736,7 +741,10 @@ which stop the line.
 >   docs/AUDIT_FINDINGS.md | sort -u
 > ```
 >
-> That returns **1** as of 2026-08-04 (D-181): AUD-F-33 only. The four entries before it are worth
+> That returns **1** as of 2026-08-04 (D-182, unchanged from D-181): AUD-F-33 only — and D-182 is the
+> case to remember for *why the count did not move*: it found the mechanism and shipped the fix, and
+> the finding still counts as open because its decisive live row has not been read. **Diagnosing a
+> finding does not close it, and neither does shipping a fix whose verification is owed.** The four entries before it are worth
 > reading together — D-178 filed C-25, D-179's fix for C-25 found C-26, D-180 fixed C-26, and D-181
 > filed *and* closed C-27 in one session — because the count went **up twice on the way down**, and
 > each step came from building or running an instrument rather than from reading the code more
