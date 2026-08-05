@@ -1550,6 +1550,13 @@ requested directly. Coverage gap, not a break.
    **⚠️ No content is authored yet, so rule 2 is still inert:** the bank is still 5 skills × 1 tier
    and `test_study_plan_difficulty_routing.py:132`'s canary still passes, correctly. D-186 removed
    the structural blocker and set the target; it did not move the bank.
+   **Priced 2026-08-05 (D-187):** 4 LLM calls + 1 embedding per candidate, each capped at 2000 in /
+   400 out; 11 pairs × 2 = 22 items → **~$1.06 worst case at the placeholder sonnet rates, ~$0.35
+   at haiku**. Two prerequisites, both needing an explicit answer because `.env` is off-limits:
+   `CURRICULUM_BEDROCK_PROVIDER` defaults to `mock` (and `.env.example` has no `CURRICULUM_`
+   entries at all), and the default `anthropic.claude-sonnet-5` is not this account's invocable id
+   (D-084's is `us.anthropic.claude-haiku-4-5-20251001-v1:0`). **The test that used to make this
+   step break the suite is fixed** — see step 4.
 4. **✅ Reconcile the two availability sources — done 2026-08-05, D-187.**
    `GET /learning/sessions/{id}/topics` serves availability from the template bank, using
    `assessment_builder`'s own threshold rather than a restated copy, and `grade_topic_candidates`
