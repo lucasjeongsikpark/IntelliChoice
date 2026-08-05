@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import ClassVar, Literal, Protocol, TypeVar
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BedrockTask(StrEnum):
@@ -404,7 +404,15 @@ class QuestionJudgeResponse(BaseModel):
     is_ambiguous: bool
     is_aligned: bool
     is_age_appropriate: bool
-    hint_quality_score: int
+    # Bounded because an unbounded score silently disabled the gate that reads it. The
+    # first real-Bedrock authoring run (2026-08-05) had the judge score every item 8 or 9
+    # on its own invented 1-10 scale, while `ai_pipeline`'s thresholds reject below 2 and
+    # flag at or below 3 on the documented 1-5 scale - so both arms were unreachable and
+    # every item passed a hint-quality check that never ran. The constraint reaches the
+    # model as `minimum`/`maximum` in the tool's JSON schema (the gateway sends
+    # `model_json_schema()`), and an out-of-range score now fails validation into the
+    # repair retry and then rejection, which is the fail-closed direction (SPEC §5.25.3).
+    hint_quality_score: int = Field(ge=1, le=5)
     reasoning: str = ""
 
 

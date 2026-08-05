@@ -99,9 +99,44 @@ def check_unique_options(
         result.fail("options are not all unique")
 
 
+# Typographic characters a real model emits freely in math text but SymPy cannot parse.
+# U+2212 MINUS SIGN is the one actually observed (the first real-Bedrock authoring run,
+# 2026-08-05); the dashes are its near neighbours on the same keyboard-vs-typography
+# fault line and are cheap to accept here rather than after another paid run finds them.
+_MATH_TEXT_SUBSTITUTIONS = {
+    "−": "-",  # minus sign
+    "–": "-",  # en dash
+    "—": "-",  # em dash
+    "×": "*",  # multiplication sign
+    "÷": "/",  # division sign
+}
+# "x = 7" as an option means the value 7 - a restated equation, not a different answer.
+_ASSIGNMENT_PREFIX_RE = re.compile(r"^\s*[A-Za-z]\w*\s*=\s*")
+
+
+def _normalize_math_text(text: str) -> str:
+    """Make human-written math text parseable without changing what it asserts.
+
+    Both transformations were found by the first real authoring run against Bedrock
+    (2026-08-05), where they cost six of eleven candidates: the model wrote correct
+    answers as `'x = 7'` and `'−4'`, neither of which `sympy.sympify` accepts, so the
+    independent-solve gate reported a mismatch for items whose math was right.
+
+    This makes the gate *stricter*, not looser, which is the reason it is safe to do at
+    the parse site. A value that could not be parsed was silently exempt from
+    `check_sympy_independent_solve`'s "no distractor also matches" arm - the run that
+    prompted this produced exactly that, an item whose `'−3'` distractor was never
+    compared to the solved answer at all. Nothing here can turn a wrong answer into a
+    matching one: the text still has to denote the same value.
+    """
+    for character, replacement in _MATH_TEXT_SUBSTITUTIONS.items():
+        text = text.replace(character, replacement)
+    return _ASSIGNMENT_PREFIX_RE.sub("", text, count=1)
+
+
 def _sympify(text: str) -> sympy.Basic | None:
     try:
-        return sympy.sympify(text)
+        return sympy.sympify(_normalize_math_text(text))
     except (sympy.SympifyError, TypeError, ValueError, AttributeError):
         return None
 

@@ -12706,3 +12706,119 @@ either a 6-7 fixture student exists or `fraction_operations`/`place_value` are a
 
 **Revert:** delete the endpoint, the service and `topics_for_grade`, and restore `topics.ts`'s
 `TOPICS` array with its `available` flags. Nothing else reads any of it.
+
+## D-188 — A6-C step 3: the first real authoring run, four defects it was the only way to find, and the one that blocks the track (accepted, 2026-08-05)
+
+**Context.** D-187 recorded step 3 as "unblocked in every sense" — steps 1, 2 and 4 done, the
+loader test that used to break on approval fixed, the run priced at ~$1.06 worst case. The user
+chose Haiku 4.5 (D-084's invocable id, the only one this account can call) and
+`--candidates-per-difficulty 1`, i.e. 11 items, one per planned (skill, tier) pair. Everything
+below was found by running it. Nothing below is visible against `MockBedrockProvider`, which is
+why S20's pipeline had shipped, been tested, and never once produced a servable item.
+
+Total spend across four runs plus two probes: **24.8 cents**.
+
+### 1. The output ceiling made authored generation impossible, not merely tight
+
+Every call in `ai_pipeline` shared `_MAX_TOKENS = 400`, sized for S9's shape mode, whose responses
+are a fraction of the size. Measured directly against Bedrock: a complete
+`AuthoredGeneratedItemResponse` — stem, context, four options, three hints, a step-by-step
+canonical solution, misconception tags, reasoning — runs **631 output tokens at tier 1 and 954 at
+tier 5**. The first run rejected **11 of 11** candidates at the generator stage for 4.09¢, and the
+gateway deliberately does not retry under an unchanged ceiling, so no number of re-runs could ever
+have produced content.
+
+The ceiling is now per call site, not per `BedrockTask`: the authored solvers deliberately reuse
+`QUESTION_GENERATION`/`QUESTION_REVIEW` so they resolve to two different models, so the task alone
+cannot say how large a response to expect. `_AUTHORED_ITEM_MAX_TOKENS = 1600` (headroom above the
+measured worst case, not at it — the ceiling is a runaway guard, and output tokens bill by actual
+use); `_AUTHORED_REVIEW_MAX_TOKENS = 800` for solver and judge, where a truncation discards a
+candidate that has already paid for four calls. Shape mode keeps 400 unchanged.
+
+### 2. The independent-solve gate rejected correct answers on formatting, and was quieter for it
+
+Six of the second run's seven rejections were mathematically correct items: the model wrote
+answers as `'x = 7'` and `'−4'` (U+2212), neither of which `sympy.sympify` accepts, so the gate
+reported a mismatch. Nothing had ever told the generator otherwise — the prompt's own exemplars use
+`'40 cm'`, which this gate would also reject.
+
+`_normalize_math_text` now repairs both at the parse site, and the prompt states the format. **This
+makes the gate stricter, which is why it is safe:** an option that failed to parse was silently
+exempt from `check_sympy_independent_solve`'s "no distractor also matches" arm. The run produced
+exactly that — an item whose `'−3'` distractor was never compared to the solved answer at all.
+
+### 3. The hint-quality gate was dead, not mistuned
+
+The judge scored `hint_quality_score` **8 or 9 on all eight** surviving items, on a scale it
+invented. `ai_pipeline` rejects below 2 and flags at or below 3 on a **1–5** scale documented in a
+comment — so both arms were unreachable and every item passed a check that never ran. The judge's
+system prompt never stated the scale and `QuestionJudgeResponse.hint_quality_score` had no range.
+
+Both are fixed: `Field(ge=1, le=5)` reaches the model as `minimum`/`maximum` in the tool's JSON
+schema (the gateway sends `model_json_schema()`), and an out-of-range score now fails validation
+into the repair retry and then rejection — the fail-closed direction (rule 5, SPEC §5.25.3). A
+re-judge of the eight items under the corrected contract returned **4s and 5s with no repair
+retry**, so the gate is live rather than merely bounded.
+
+**⚠️ Uncalibrated, still.** The same item was judged difficulty 3 before and 4 after, on a fix that
+touched only the hint scale. The judge's difficulty signal is noisy at exactly the ±1 granularity
+the gate acts on; D-059's thresholds remain placeholders.
+
+### 4. The run was not safely re-runnable
+
+Seeds are a pure function of (skill, tier, index) and a template id is a pure function of the seed,
+so a second run re-proposes the ids the first run's survivors hold. `main` commits **once after the
+whole batch**, so a single primary-key collision would discard every candidate in the run,
+including the ones that passed. `--seed-offset` claims a fresh range; the offset must exceed one
+run's own span (~4500) or it aliases onto another pair's seed instead of escaping it. The seed
+formula is now the pure `authored_seed()` so its one real invariant is testable — the batch runner
+had **no test coverage at all**, which is why this went unnoticed.
+
+### 5. The blocker: authored content cannot be served, and approving it breaks exam building
+
+Five items were approved, one per skill at its native tier. **34 tests failed** with
+`VariantGenerationError: unknown shape 'authored'`. `variant_persistence.build_variant_row` renders
+every served question through `generate_variant(shape_key=template.solution_function)`, and an
+authored template carries `solution_function="authored"`, which `SHAPES` has no entry for. It is an
+exception on the serving path, not a degradation: any student who draws an authored item gets a
+failed exam build.
+
+The pipeline has been able to *produce* authored items since S20. Nothing had ever approved one
+into the active bank, so the gap between producing and serving them had never been exercised — and
+D-187 read the symptom (approving broke the suite) as `test_loader.py`'s size assertion, which was
+a real but separate defect. **"Unblocked in every sense" was wrong**, and this is the evidence.
+
+The approvals were rolled back to `pending` and `review_cli.approve` now refuses any template whose
+`solution_function` has no registered shape. Keyed on the shape registry rather than on
+`authoring_mode`, so building authored serving is what lifts it, not editing the test. Deliberately
+not a repository-level guard — `intellichoice_db` importing the curriculum shape registry would
+invert the dependency.
+
+**Lifting it needs a product decision, not just a branch.** The post-exam is meant to be a
+*parallel form* of the pre-exam (`avoid_rendered_question`, SPEC §5.13.1) and an authored template
+has exactly one canonical rendering to give. What a post-exam serves for authored content has not
+been decided.
+
+### 6. What the content itself showed
+
+Eight items survived, covering **7 of 11 planned pairs**; the four missing pairs were lost to
+duplicate stems. All eight were mathematically correct on independent check. But the tiers differ
+by **label more than by substance** — `2x + 5 = 19` at tier 1 and `2x + 7 = 19` at tier 2 are the
+same item, as are `−2x + 5 = 13` at tier 2 and `−2x + 6 = 14` at tier 3.
+
+Same root cause as the duplicate rejections: `AuthoredGeneratorPayload` carries **no per-candidate
+variation and no rubric describing what a tier means**, so the generator writes the same item and
+relabels it. D-186's premise was that multi-tier content would be genuinely harder per tier.
+The user's call was to keep one item per skill at its native tier and reject the near-twins, so
+**D-169's rule 2 stays inert and A6-C's multi-tier goal is not met** — the bank is still one tier
+per skill. What the session produced is five reviewed authored items awaiting a serving path, and
+the five fixes above.
+
+### 7. Verification
+
+`ruff` clean, `pyright` 0, **915 passed / 2 skipped** — up 6, the new tests, with the prior 909
+unchanged. The 34-failure state was real and is recorded above; the suite is green because the
+approvals were rolled back, not because the defect was fixed.
+
+**Revert:** the five code changes are independent. Reverting §5's guard restores the ability to
+approve an unservable template; reverting §1 restores a pipeline that cannot generate at all.
