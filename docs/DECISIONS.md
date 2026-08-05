@@ -11915,3 +11915,71 @@ lint clean, pyright 0. Inferred, not verified: that the live corpus behaves as l
 branch — D-174 measured the two corpora identical, but no live probe of `probe-public-025` was
 taken, and the empty-pool path is embedding-dependent so a live check would be the honest
 confirmation. Cheap (~1.25¢) and worth doing when AUD-C-26 is decided.
+
+## D-180 — AUD-C-26 fixed by extending AUD-C-22's silence rule to the unscored keyword arm, after measurement refuted one of the four candidates (accepted, 2026-08-04)
+
+Scope: PROGRESS.md's post-D-179 pointer, item 1 — AUD-C-26, the finding D-179's own fix produced.
+The user chose **(a) silence on ambiguity** from four options that were **measured before being
+chosen**, at zero cost, using the `--shipped` replay D-179 built. No numbered roadmap block (D-152).
+
+### 1. Measuring first changed the shape of the decision twice
+
+All four candidates, scored through the real `probe_access` over both dumps:
+
+    policy                | right | wrong | silent | FP public | lexical-decided hints
+    (d) accept / current  |   27  |   0   |   11   |     1     | probe-public-025 -> parent  WRONG
+    (a) single audience   |   27  |   0   |   11   |     0     | none
+    (b) count >= 2        |   27  |   0   |   11   |     1     | probe-public-025 -> student WRONG
+    (c) scored only       |   27  |   0   |   11   |     0     | none
+    (corpus arm: all four identical at 26 / 0 / 12 / 0 / 0)
+
+- **(b) does not work, and AUD-C-26's own row had recommended it as plausible.** "The false hint
+  rests on a single chunk, so `count >= 2` would drop it" — true about `parent` (1 chunk) and
+  irrelevant, because `student` has 3 and inherits the hint. It relabels the defect. Same shape as
+  AUD-L-05, where the fix the finding asked for would have left the defect standing.
+- **(c)'s cost was understated by that row too.** `test_role_access.py`'s own docstring records the
+  unscored-priority fallback as *"the path every mock-backed test takes"* **and** *"the path a
+  semantic-arm failure degrades to"* — D-168's deliberate "worse guidance, still honest, never a
+  500". (c) would have silenced that degraded path as well, for no gain over (a).
+- **The decisive number:** through production's composed path the keyword arm contributes **zero**
+  correct hints and one wrong one. The "1 and 3 correct audiences" in the record was measured on
+  the *old standalone* lexical rule, not through `probe_access`, where the reranked path already
+  wins every case the arm would have gotten right. So (a) costs nothing measurable.
+
+### 2. The fix, and the expectation it retired
+
+`_lexical_only` returns `{}` unless exactly one audience matched. Two lines. It applies
+AUD-C-22's existing principle — ambiguity is answered with silence, because a wrong tier is worse
+than none — to the one arm AUD-C-22 never reached, which had no `tier_margin` equivalent and, on
+the `if not candidates` branch, no floor or margin in front of it either.
+
+**The real cost was a recorded expectation rather than a test.** `role-gated-priority` (mock-only)
+existed to pin the tier-priority tie-break: two seeds holding *identical* text
+(`"zqxveval5 handbook."`), one `tutor` and one `branch_manager`, expecting `branch_manager`. Its
+own construction is the argument against it — with identical text there is nothing to choose
+between them, so the assertion was pinning a coin flip. Renamed `role-gated-ambiguous-tie` and now
+expects **silence**, and kept as a case rather than deleted because `wrong_role_hints` then fails
+if a hint ever returns on it — a guard the old expectation could not be. Mock-backed `role_gated`
+went **80% -> 100% (5/5)**.
+
+Verified through the real code path, not the transcription: `SHIPPED probe_access` now reports
+**FP public 0** in the human arm (was 1) with right/wrong/silent unchanged, and the corpus arm
+unchanged at 26/0/12/0/0.
+
+### 3. A green parity line is not the claim it looks like
+
+With the arm silenced, `--shipped`'s parity section reports the same outcome on all 58 cases in
+both arms. That is **not** evidence that the transcription models production: it still models no
+lexical arm, and agreement here only means the arm is now silent wherever the transcription is.
+The output now says exactly that in two lines, because AUD-C-25's lesson is otherwise easy to undo
+by reading one green summary — which is how this whole three-session sequence started.
+
+### 4. What was measured vs. inferred
+
+Verified: the four-policy table (both arms, free), the fix through `--shipped`, mock-backed
+`role_gated` 5/5, and the full suite. **Not verified: the live edge.** This is a real behaviour
+change on a live user path, so it needs a deploy, and the honest live row is a probe of
+*"How do I get or delete my kid's school records?"* against the deployed chat edge — expected
+`access_hint: null` where local reproduced `parent`. The empty-pool branch is embedding-dependent,
+so local agreement does not settle staging; D-174 measured the two corpora identical, which makes
+this a confirmation rather than an open question, but it is still owed.

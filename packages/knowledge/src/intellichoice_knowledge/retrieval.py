@@ -241,8 +241,37 @@ async def _lexical_only(
     It is also the only arm `MockBedrockProvider` can exercise - its embeddings are
     hash-seeded random vectors with no semantic content - so this is what keeps the probe
     testable at all in the mock-backed suite (D-165's reason for keeping the arm, unchanged).
+
+    **AUD-C-26/D-180: one audience or none.** These matches carry no score - a `@@` hit has no
+    relevance scale - so with two or more matching audiences `build_access_hint` has nothing to
+    rank them by and falls back to tier *priority*, which is the rule AUD-C-22 was filed
+    against. Everywhere else in this probe that ambiguity is answered with silence (see
+    `tier_margin`); this arm had no equivalent, and on the `if not candidates` branch there is
+    no floor or margin in front of it either.
+
+    Measured over both phrasings of the 58-case probe fixture (free, by replaying D-177's dumps
+    through the real `probe_access` - see `--shipped`): through this function the arm
+    contributed **zero** correct hints and **one** wrong one. *"How do I get or delete my kid's
+    school records?"* matched one `parent` chunk and three `student` chunks, and priority named
+    `parent` for an answer the **public** Privacy Notice carries. This rule removes that hint
+    at no measured cost: right/wrong/silent are unchanged in both arms, FP public 1 -> 0.
+
+    Two things it deliberately does not do, both because they were measured:
+
+      - **It does not filter by `count`.** `count >= 2` was the obvious bar and it does not
+        work - it drops the single `parent` chunk, keeps the three `student` ones, and the same
+        case emerges as a `student` hint. That moves the wrong label rather than removing it.
+      - **It does not touch `build_access_hint`'s unscored priority fallback.** That is the
+        path every mock-backed test takes *and* the path a semantic-arm failure degrades to
+        (D-168: worse guidance, still honest, never a 500). Narrowing this arm keeps both.
+
+    The cost is one retired expectation: `role-gated-ambiguous-tie` (mock-only) used to assert
+    that two audiences matching identical text resolve to the higher-priority tier. Under
+    AUD-C-22's own argument that is a coin flip a user cannot act on, so it now asserts
+    silence, and `wrong_role_hints` guards the case against a hint returning.
     """
-    return await repo.count_matching_by_audience(probe_filters, query, None)
+    matches = await repo.count_matching_by_audience(probe_filters, query, None)
+    return matches if len(matches) == 1 else {}
 
 
 # AUD-C-12/D-172: SPEC §5.21.8's "retrieval score is below threshold" do-not-answer trigger.

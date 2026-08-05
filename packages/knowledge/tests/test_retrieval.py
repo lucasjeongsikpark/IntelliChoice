@@ -650,6 +650,56 @@ def test_probe_skips_the_model_entirely_when_nothing_is_near_enough() -> None:
     asyncio.run(run())
 
 
+def test_probe_stays_silent_when_the_keyword_arm_matches_more_than_one_audience() -> None:
+    """AUD-C-26/D-180. The keyword arm's matches carry no score, so with two audiences
+    `build_access_hint` would decide by tier *priority* - the rule AUD-C-22 was filed against -
+    and on this branch there is no relevance floor or tier margin in front of it either.
+
+    The measured case: *"How do I get or delete my kid's school records?"* matched one `parent`
+    chunk and three `student` chunks, and priority named `parent` for an answer the **public**
+    Privacy Notice carries. Note the shape of the counts here: the fix must not be a `count`
+    bar, because `count >= 2` keeps `student` and simply moves the wrong label.
+    """
+
+    async def run() -> None:
+        repo = _FakeRepo(
+            [],
+            fallback_matches={
+                "parent": AudienceMatch(count=1),
+                "student": AudienceMatch(count=3),
+            },
+        )
+        gateway = _FakeGateway(error=AssertionError("the reranker must not be called"))
+
+        result = await _probe(repo, gateway)
+
+        assert result.matches == {}
+        assert result.degraded is False
+        # The arm still *runs* - it is the only arm the mock-backed suite can exercise
+        # (D-165), and silencing the hint is not the same as removing the query.
+        assert repo.fallback_calls == 1
+
+    asyncio.run(run())
+
+
+def test_probe_still_names_a_single_unambiguous_keyword_audience() -> None:
+    """The other half of AUD-C-26's rule, so it reads as "one audience or none" rather than
+    "the keyword arm never speaks". With exactly one match there is nothing for priority to
+    decide, so the hint is as trustworthy as this arm gets and survives.
+    """
+
+    async def run() -> None:
+        repo = _FakeRepo([], fallback_matches={"tutor": AudienceMatch(count=1)})
+        gateway = _FakeGateway(error=AssertionError("the reranker must not be called"))
+
+        result = await _probe(repo, gateway)
+
+        assert result.matches == {"tutor": AudienceMatch(count=1)}
+        assert repo.fallback_calls == 1
+
+    asyncio.run(run())
+
+
 def test_probe_sends_passages_but_returns_only_audiences_and_scores() -> None:
     """The boundary the reranked probe moved. Chunk text reaches the gateway - it has to, a
     reranker needs passages - and stops there: nothing the caller receives can carry content

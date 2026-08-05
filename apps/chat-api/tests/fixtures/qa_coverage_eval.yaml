@@ -123,11 +123,20 @@ cases:
     seed:
       audience: branch_manager
       chunk_text: "zqxveval4 handbook."
-  - id: role-gated-priority
+  # AUD-C-26/D-180: this case was `role-gated-priority` and expected `branch_manager` - it
+  # existed to pin the tier-priority tie-break. Its own construction is what retired it: two
+  # audiences hold *identical* text, so there is nothing to choose between them, and naming
+  # the higher-priority one is a coin flip the caller cannot act on. That is AUD-C-22's
+  # argument (a wrong tier is worse than silence) applied to the arm AUD-C-22 never reached,
+  # and live it produced a `parent` hint for a question the public Privacy Notice answers.
+  # `_lexical_only` now returns nothing when more than one audience matches, so the expectation
+  # here is silence. Kept as a case rather than deleted: `wrong_role_hints` fails if a hint
+  # ever comes back on it, which is the guard the old expectation could not be.
+  - id: role-gated-ambiguous-tie
     category: role_gated
     mock_only: true
     query: "zqxveval5 handbook"
-    expected_required_role: branch_manager
+    expected_required_role: null
     seed:
       audience: tutor
       chunk_text: "zqxveval5 handbook."
