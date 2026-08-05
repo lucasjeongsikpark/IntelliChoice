@@ -722,9 +722,13 @@ which stop the line.
 >   docs/AUDIT_FINDINGS.md | sort -u
 > ```
 >
-> That returns **1** as of 2026-08-04 (D-177): AUD-F-33. (It returned 6 when
-> this instruction was written, 5 after D-175, 3 after D-176.) **Do not "correct" the count to whatever a looser
+> That returns **2** as of 2026-08-04 (D-178): AUD-F-33 and AUD-C-25. (It returned 6 when
+> this instruction was written, 5 after D-175, 3 after D-176, 1 after D-177.) **Do not "correct" the count to whatever a looser
 > grep reports** without checking where the word sits — that is the same class of error twice over.
+>
+> Note that the count can go **up** without anything regressing: AUD-C-25 was filed by D-178 while
+> *landing* D-177, from reading the shipped rule against the harness whose table justified it. A
+> backlog that only ever shrinks is a backlog nobody is reading.
 >
 > Note also that *Open* and *Decided* are different piles: a finding whose fix has been decided but
 > not implemented (AUD-L-03, AUD-L-09) is not in this count and is not done. That pile held AUD-F-22

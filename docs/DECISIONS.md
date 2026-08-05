@@ -11730,3 +11730,104 @@ reproducible offline (`--load`) at zero cost. **Not yet verified: the live edge.
 system still runs the 0.8/post-floor rule until the next deploy; the owed live row is **10
 anonymous probes** (sample size fixed now, before anyone runs them) of the AUD-C-23 question
 against `chat.intellichoice.org`, expected 0/10 hints where D-175 measured 6/10.
+
+## D-178 — D-177 landed and live-verified at 0/10, the full eval re-baselined, and the harness that chose the rule turned out not to implement it (accepted, 2026-08-04)
+
+Scope: PROGRESS.md's post-D-177 pointer, item 0 (owed: land, deploy, take the live row) plus item 1
+(the optional full unfiltered eval, which the user opted into). No numbered roadmap block (D-152).
+Baseline verified before anything was committed: lint clean, pyright 0, **869 passed / 2 skipped** —
+matching D-177's recorded figures exactly, so the uncommitted work was the work that was measured.
+
+### 1. Landed and deployed
+
+PR #111 (`e1ab0ad`), squash-merged. Deploy run 30962420370 success:
+`intellichoice-staging-learning-api:64` and `intellichoice-staging-chat-api:63`, both serving
+`gha-e1ab0adbacb4`, rollouts COMPLETED (2/2 and 1/1). D-177's 10 files were committed **unchanged**,
+deliberately: the deployed code has to be the configuration the measurement tables describe, and
+D-177's own rule is not to tune this rule without a re-measurement.
+
+### 2. The owed live row: 0/10, with a control that fired 3/3
+
+Against the deployed chat edge, anonymous, sample sizes fixed before the run per D-175:
+
+- **Target** (*"What happens to a student who misses three sessions in a row?"* — nothing answers it),
+  **n=10 fixed in D-177**: **0 hints**, 10 correct `null` refusals (`scope=in_scope`, `citations=0`).
+  D-175 measured **6/10 `required_role: "branch_manager"`** on the 0.8/post-floor rule.
+- **Control** (a question known to fire), **n=3**: **3/3 `required_role: "parent"`** — the correct
+  tier. Three rather than D-173's one, because this rule converts 2–3 of 38 hints into silences, so a
+  single silent control could not be distinguished from a control the rule legitimately retired, and
+  a run whose control never fires proves nothing about the target.
+
+**What 0/10 establishes, and what it does not — recorded because the mirror-image error is the easy
+one to make here.** Under the old 60% rate, 0/10 has probability **0.01%**, so the 6/10 behaviour is
+refuted decisively. But 0/10 bounds the residual flip rate only at **<26% (one-sided 95%)**; a 10%
+residual would still yield 0/10 about 35% of the time. **The sample size adequate to *detect* a 60%
+rate is not adequate to *certify* a low one.** D-175's rule ("fix the sample size before probing")
+was followed and is not sufficient by itself — the fixed size must also be chosen for the direction
+of the claim. Nothing here licenses writing "never".
+
+### 3. The full unfiltered eval, and a spend cap that is now enforced rather than checked afterwards
+
+`CHAT_EVAL_RUN_BUDGET_CENTS` added to `test_qa_coverage_eval_real_bedrock.py`. It can only
+**tighten** the standing 400¢ ceiling — `min(env, 400.0)`, verified at unset → 400, `150` → 150,
+`9999` → 400 — so a run cannot raise its own spend limit from the environment, and a typo raises at
+import rather than silently falling back to 400. Run at the approved **150¢**; actual spend
+**52.5¢**, 5m33s. The docstring's "measured cost of one full run: see AUDIT_FINDINGS" is now the
+figure itself (76.7¢ at S37), so the next person does not re-derive it.
+
+Every assertion live this time, including the containment and coverage invariants D-177's narrowed
+run could not assert. `no_answer` **8/8** (AUD-C-23's case included), `no_source` 16/16,
+`out_of_scope` 10/10, `paraphrase` 11/11, `adversarial` 6/6, `role_gated_question` 2/3.
+
+**Each non-100% line was checked against the record rather than read as new.** `grounded` 6/9 and
+`grounded_citation_rate` **17/20** are the documented baseline — 17/20 matches the recorded figure
+exactly, and the three `grounded-branch-*` cases have failed since S37 for the keyword-list reason
+S37 documented, with their expected document scoring 0.95–1.00. `role_gated_question`'s miss is the
+tutor-case *silence* D-177 already named. **`correct_refusal_rate` 97.3% (36/37) is the genuinely new
+number**, and it **re-baselines** rather than proves a delta: the historical comparators (79.5% /
+87.2% / 73.8%) come from different configs and eras. Cost fell from S37's 76.7¢ to 52.5¢ on the same
+fixture; not attributed, since model pricing, token counts and the refusal stage all moved in between.
+
+### 4. AUD-C-25 filed: the harness that chose every access-probe constant does not implement the rule
+
+Found by reading the shipped `probe_access` against the harness function whose table justified it.
+`scripts/measure_access_probe_rules.py` **reimplements** the rule as `rerank_prefloor_margin_hint`
+and never calls `probe_access`. It differs in two ways, and no test compares them: the **branch order
+is reversed** (harness floor-then-margin, production margin-then-floor), and the harness has **no
+lexical arm at all**, so where production falls through to a keyword match that can return a hint,
+the harness scores silence. They disagree exactly when `winner ≤ floor` **and**
+`winner − runner_up ≥ margin` — **AUD-C-23's own failing case**.
+
+So D-177 §2's "0 wrong tiers, 0 false hints, 0/40 stability fires" is true of the harness's rule and
+does **not** cover production's composed path on the decisive question. **This corrects a claim made
+earlier in this session** ("the tables were measured with this exact code, so the numbers stand"):
+they were measured with a reimplementation of it. The live 0/10 is consequently not a formality
+confirming a settled result — it is the *only* evidence that covers floor, margin and lexical arm
+together, which raises its value rather than lowering it.
+
+Same shape as D-175's config-parity gap, one level up: that session's `ast` guard fails when the
+harness omits a `Settings` **field** the route passes, and nothing guards the rule's **structure**. A
+harness that reads identical config and applies a differently-shaped rule passes that guard and still
+measures the wrong thing.
+
+**Not fixed here, and the reason is scope rather than cost.** Both candidate fixes are free — the
+D-177 dumps re-score offline via `--load` — but choosing between "make the harness call
+`probe_access`" and "add a dump-replay parity test" changes what the instrument *is*, and the session
+scope was to land and verify D-177, not to redesign its measurement. Filed at P2 with both options
+written down.
+
+**A second, smaller thing it exposed**, recorded on the finding: production's pre-floor margin now
+*gates* the lexical arm (verified: `0.0/0.0 → lexical_calls=0`, `0.25/0.20 → 0`, `0.30/0.10 → 1`,
+`0.90/0.30 → 1`). Two audiences at `0.0` is the most likely shape on a question nothing answers, so
+the arm is bypassed in its most common trigger case; the "strictly additive, gets the last word"
+comment no longer describes the code, and part of the 29→27 drop attributed to the floor raise is
+plausibly this bypass. Direction is toward silence, so it is a recall and record-accuracy issue, not
+a wrong-tier one.
+
+### 5. What was measured vs. inferred
+
+Verified: the deploy's own gate (both task definitions serving `gha-e1ab0adbacb4`), the 13 live
+probes, the full eval's every assertion, the budget override's three cases, and the lexical-bypass
+table above. Inferred, not verified: that the lexical arm would not have produced a false hint on the
+AUD-C-23 question had it been consulted — it is an all-terms gate and was measured clean on both
+negative classes, but the composed path was never measured offline, which is AUD-C-25.
