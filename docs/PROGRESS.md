@@ -10,8 +10,24 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   session; PROGRESS.md's own pointer, item 1, the user's product call).** `make lint` clean,
   `pyright` 0, **876 passed / 2 skipped**. **No paid measurement** — all four options were scored
   through the real `probe_access` over D-177's dumps for free, using the `--shipped` replay D-179
-  built. **⚠️ Uncommitted and not deployed at the time of writing**, and this one **does** need a
-  deploy: `_lexical_only` is live-path production code.
+  built. **✅ Landed and deployed** — PR #114 (`dee6f07`), deploy run 30967028354 success,
+  `learning-api:65` / `chat-api:64`, both `gha-dee6f07c0bc1`, rollouts COMPLETED (2/2 and 3/3).
+  **⚠️ The owed live row is vacuous, and it cost the finding its severity.** Target n=3 returned
+  `access_hint: null` with `citations=0` — but **`scope=out_of_scope`** on all three.
+  `_route_after_scope_guard` sends anything not `in_scope` to `refuse`, so the probe never ran:
+  `null` because it was never asked, not because it stayed silent. A **third** vacuity mode past
+  the two I had pre-registered. The control fired `parent` 2/2 with `scope=in_scope`, so the
+  instrument was live and the difference is the scope decision alone. Consequence: the defect is
+  verified of `probe_access` **as a function** and was never demonstrated of the product, so
+  **AUD-C-26 is re-argued P2 → P3**. The fix still stands (it removes a wrong-instruction path at
+  no measured cost, and the scope guard is a filter rather than a guarantee) but the row claimed an
+  urgency it had not earned.
+  **⚠️ And the ordering was my error, which is the transferable part.** D-175 measured its defect
+  live *first* (6/10), then chose the fix against that number. Here the fix shipped and the live
+  look came after — by which time the pre-fix behaviour was gone, so *"did this ever reach a
+  user?"* is permanently unanswerable for this finding. **Measure the defect live before deploying
+  its fix, or accept that you never will.** Doing it in the right order would have cost one probe
+  run before the merge instead of after.
   **⚠️ Measuring before choosing changed the decision twice.** (b) `count >= 2` — which AUD-C-26's
   own row had floated as plausible because the false hint rests on one chunk — **does not work**:
   it drops the single `parent` chunk, keeps the three `student` ones, and the case re-emerges as a
@@ -1450,18 +1466,18 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   e2e exercises it.
 
 - **Next session, in order (2026-08-04, post-D-180):**
-  0. **Owed: land and deploy D-180, then take its live row.** Unlike D-179 this **is** a production
-     behaviour change on a live user path (`_lexical_only` in `intellichoice_knowledge`), so it needs
-     a PR, a deploy, and one live probe: *"How do I get or delete my kid's school records?"*
-     anonymously against the deployed chat edge, expecting **`access_hint: null`** where local
-     reproduced `required_role: "parent"`. ~1.25¢. **Fix the sample size before probing** (D-178's
-     lesson): this is a *confirmation* of a deterministic code path, not a nondeterminism
-     measurement — the empty-pool branch involves no model call at all — so **n=3** is enough and
-     more would be theatre. Keep a control that still fires (any question the reranked path answers
-     with a hint), because a run where nothing fires proves nothing.
-     One caveat to state in the result: the empty-pool branch is **embedding-dependent**, so local
-     agreement does not settle staging. D-174 measured the two corpora identical, which makes this a
-     confirmation rather than an open question.
+  0. **✅ Nothing owed.** D-180 is landed (PR #114, `dee6f07`), deployed (run 30967028354,
+     `learning-api:65` / `chat-api:64`, both `gha-dee6f07c0bc1`) and its live row was taken — and the
+     row came back **vacuous**, which is recorded rather than quietly dropped: the target question is
+     classified `out_of_scope` on the deployed stack, so the probe never runs and the `null` proves
+     nothing about the fix. AUD-C-26 was re-argued P2 → P3 as a result. **The only thing left from
+     it is a rule, not a task** (see item 4).
+     **If someone wants the live confirmation anyway**, it needs an *in-scope* question that
+     retrieval fails to answer, has no non-public chunk within 0.60, and matches two or more
+     non-public audiences lexically. The probe fixture holds exactly one empty-pool case whose
+     keyword arm fires and live it is out of scope, so constructing one means measuring the live
+     corpus first. Low value now — the fix is shipped and costs nothing — but that is the shape of
+     the missing evidence.
   1. **✅ AUD-C-26 closed in D-180** (your call: silence on ambiguity). Nothing carried forward from
      it except item 0's live row. Worth keeping in mind if the keyword arm comes up again: it now
      contributes **no hints at all** on the measured fixture, so if a future session wants the arm
@@ -1477,8 +1493,19 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      or is sign-out-and-back-in acceptable until real auth replaces the dev login; (e) is
      `[redacted-email]` in escalation drafts acceptable long-term, or should escalation eventually
      carry a structured (consented) contact field.
-  4. **Notes that survive, plus one earned in D-179:**
-     **⚠️ New — a measurement that omits a branch reports that branch as its most flattering
+  4. **Notes that survive, plus two earned in D-179/D-180:**
+     **⚠️ New and the most expensive one — measure the defect live *before* deploying its fix, or
+     accept that you never will.** D-175 got this right (6/10 measured first, fix chosen against
+     that number). D-180 got it backwards: the fix shipped, the live look came after, the pre-fix
+     behaviour was gone, and *"did this ever reach a user?"* is now permanently unanswerable for
+     AUD-C-26 — which is why its severity dropped to P3 on an argument rather than on evidence.
+     Cost of the right order: one probe run before the merge instead of after.
+     **⚠️ Related — enumerate the ways a live probe can be vacuous, before running it.** D-180
+     pre-registered two (probe silent vs. turn answered from public content) and was caught by a
+     third: `scope=out_of_scope` routes to `refuse` and skips the probe entirely, so `access_hint:
+     null` meant "never asked". Always read `scope` and `citations` alongside the hint, and keep a
+     control that fires.
+     **⚠️ A measurement that omits a branch reports that branch as its most flattering
      outcome.** Here an unmodelled fallback was scored as silence, i.e. as a correct refusal, for
      four sessions. When a table justifies a constant, check that the table calls the code: the
      `SHIPPED probe_access` row is the only row in that file that does, and the rest are marked `0+`
