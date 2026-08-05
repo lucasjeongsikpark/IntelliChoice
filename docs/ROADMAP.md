@@ -1540,9 +1540,16 @@ requested directly. Coverage gap, not a break.
    off-native tier would draw another skill's math forms — the shape pipeline is untouched.
    ⚠️ `review_cli.rerun_with_edit` now carries `skill_id` from the superseded row; re-deriving it
    would have silently swapped the skill on the first multi-tier re-run.
-3. **✅ Ran and landed 2026-08-05 (D-188 found the blocker, D-189 removed it).** The run produced
-   eight items covering 7 of 11 pairs; **five are approved and active**, one per skill at its native
-   tier. Serving them was the blocker and is now built: `build_variant_row` copies an authored
+3. **⏸ Ran 2026-08-05. The pipeline works and serving is built (D-188, D-189); the content is still
+   not anywhere but one laptop.** The run produced eight items covering 7 of 11 pairs, five of which
+   passed review — but approving them exists only as a row update in whatever database the pipeline
+   was pointed at. CI proved it: the suite went green locally with them approved and **failed on CI**,
+   whose database is seeded by `load_curriculum_and_templates` and therefore has none of them.
+   **Authored content has no versioned home**, so there is no path by which a reviewed item reaches
+   staging or production. That is the track's next step, ahead of authoring more, and it is a design
+   question rather than a chore: export approved items into a versioned file the loader reads, run
+   the pipeline per environment and review per environment, or promote rows between databases.
+   Serving them was the previous blocker and is now built: `build_variant_row` copies an authored
    template's canonical variant into a runtime row instead of rendering a shape it does not have.
    The post-exam **knowingly repeats** an authored item — SPEC §5.13.2 forbids reusing the same
    *variant* and a new row is still minted, the generated path already had this as a rare fallback,
@@ -1554,8 +1561,8 @@ requested directly. Coverage gap, not a break.
    "no distractor also matches" arm); the judge scored 8–9 against 1–5 thresholds so the
    hint-quality gate **never fired**; and the seed formula made a second run collide with the first,
    which would have discarded the whole batch at commit. Spend: 24.8¢ across four runs.
-   **⚠️ Multi-tier is still not met, and it is now the track's only remaining gap.** The bank is one
-   tier per skill and D-169's rule 2 stays inert. Eight items covered 7 of 11 pairs, but the tiers
+   **⚠️ Multi-tier is still not met either.** The bank is one tier per skill and D-169's rule 2
+   stays inert. Eight items covered 7 of 11 pairs, but the tiers
    differed by label more than substance (`2x + 5 = 19` at tier 1 vs `2x + 7 = 19` at tier 2)
    because `AuthoredGeneratorPayload` carries no per-candidate variation and no rubric for what a
    tier *means*. **Another paid run without that rubric produces the same result** — fix the

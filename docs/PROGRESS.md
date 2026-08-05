@@ -5,15 +5,30 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
-- **✅ D-189: authored content is served, and five items are live in the bank (2026-08-05, fifth
-  session that day; PROGRESS.md's own post-D-188 pointer, items 0 and 1 — you chose to merge #124
-  and chose "accept repetition for authored items").** `make lint` clean, `pyright` 0, **918 passed
-  / 2 skipped** — up 3, the new serving tests, with the prior 915 unchanged. **Nothing was spent**
-  (no Bedrock call; the content was already produced by D-188). **D-188 merged as `f38225c`**, so
-  `main` carries both.
-  **✅ The claim D-188 could not make: the suite is green *with* authored templates approved and
-  active.** Five approved, one per skill at its native tier, 5 skill/tier pairs. The 34 failures are
-  gone because the defect is fixed, not because the approvals were rolled back.
+- **⏸ D-189: authored content can now be served — and CI proved the content itself lives nowhere but
+  one laptop (2026-08-05, fifth session that day; PROGRESS.md's own post-D-188 pointer, items 0 and
+  1 — you chose to merge #124 and chose "accept repetition for authored items").** `make lint`
+  clean, `pyright` 0, **918 passed / 2 skipped** — up 3, the new serving tests, with the prior 915
+  unchanged, against a **clean bank**, which is what CI runs. **Nothing was spent** (no Bedrock
+  call). **D-188 merged as `f38225c`.**
+  **✅ The serving defect D-188 found is fixed, and verified against real approved content.**
+  Transiently: five templates were approved, the suite ran green, and the built exam's third item
+  was `2x + 7 = 19` (6/8/9/13) — an authored item served from its canonical variant, the exact thing
+  that used to raise. Durably: `test_authored_serving.py` proves the same property from its own
+  rollback-scoped fixtures, in every environment, with no database state anyone has to remember to
+  create.
+  **⛔ Content did not land, and the reason is structural.** Approving locally made the suite green;
+  **CI failed**, because CI's database is seeded by `load_curriculum_and_templates`, which loads the
+  hand-authored *shape* bank and nothing else. The five approved items existed only in my Postgres —
+  not in the repo, not in CI, not on staging. **Authored content has no versioned home:** the
+  pipeline writes into whatever database it is pointed at and approval is a row update, so there is
+  no path by which a reviewed item reaches staging or production at all. The local approvals were
+  rolled back so local and CI agree.
+  **⚠️ I encoded that local state into the repo before CI caught it.** Re-pinning
+  `_PINNED_PRE_EXAM_AT_SEED` and raising the statement budgets to 8 made *my* database the baseline.
+  Both reverted. The lesson is narrow and worth keeping: a green suite that depends on rows only one
+  machine has is not evidence, and the tests that got this right — the new ones — did so by creating
+  their own fixtures inside a rollback session.
   **✅ Serving reads the content instead of computing it.** `renders_from_canonical_variant` is
   keyed on the **shape registry**, not `authoring_mode`, so it stays a statement about what can
   actually be rendered; `build_variant_row` copies the canonical `QuestionVariant` into a runtime
@@ -36,13 +51,12 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   would have started returning an arbitrary *student's* rendering in place of the reviewed content,
   silently and more often the more the item is used. Now filtered to canonical. The dev DB holds
   **86** runtime servings of authored templates after one suite run.
-  **⚠️ A pinned fixture was re-pinned, and that needs to stay deliberate.**
-  `test_pre_exam_content_matches_the_pre_refactor_capture` changed because the candidate pool went
-  from 10 to 11 per difficulty. It guards *refactors*, not the bank's contents — but a fixture
-  re-pinned casually decays into a value someone edits until the test passes, so the reason is in
-  the comment and the old capture is at `c736dc6`. The new third row is `2x + 7 = 19` (6/8/9/13) —
-  an authored item, served, which is the exact thing that used to raise.
-  **⚠️ Still not multi-tier, and it is now the track's only remaining gap.** One tier per skill,
+  **⚠️ The bank cannot change without moving `_PINNED_PRE_EXAM_AT_SEED`**, because the candidate
+  pool size decides what a seeded `rng.sample()` picks. Demonstrated rather than reasoned about this
+  session. It guards *refactors*, not contents, so a genuine content change legitimately re-pins it
+  — deliberately, with the reason recorded, or it decays into a value someone edits until the test
+  passes.
+  **⚠️ Still not multi-tier either.** One tier per skill,
   D-169's rule 2 still inert. Cause is unchanged from D-188 §6: no per-candidate variation and no
   rubric for what a tier means. **Another paid run without that rubric produces the same result.**
 
@@ -1920,7 +1934,20 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      `learning.intellichoice.org` is still serving pre-D-188 code and has **no authored content**.
      `gh workflow run deploy-staging.yml --ref main`, verify by pinned run id or head SHA, and
      expect `make tfvars-floor-check` to fail afterwards.
-  1. **The generator rubric is the only thing left in A6-C, and it gates any further spend.**
+  1. **⛔ Authored content has no versioned home, and that now blocks A6-C ahead of everything
+     else.** The pipeline writes into whatever database it is pointed at and approval is a row
+     update, so a reviewed item cannot reach staging or production at all — CI proved it by failing
+     on exactly the state my laptop had. Five reviewed items are parked at `pending` waiting on
+     this. It is a design question, not a chore, and the three candidates are: **(a)** export
+     approved items into a versioned file the loader reads, alongside
+     `packages/curriculum/templates/` — most consistent with how the shape bank already reaches
+     every environment, and it makes review a repo artifact; **(b)** run the pipeline per
+     environment and review per environment — pays the model cost and the human review cost N times
+     and gives different students different content; **(c)** promote rows between databases —
+     no versioning, no review trail, and it needs a mechanism that does not exist. **My
+     recommendation is (a).** Note it also means content changes become PRs, which is what makes
+     the `_PINNED_PRE_EXAM_AT_SEED` churn reviewable rather than mysterious.
+  2. **Then the generator rubric, which gates any further authoring spend.**
      `AuthoredGeneratorPayload` carries no per-candidate variation and no statement of what a
      difficulty tier *means*, so the model writes the same item and relabels it — five of eleven
      pairs lost to duplicate stems, and the tiers that did land differ by label rather than
@@ -1929,18 +1956,23 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      so both are explicit: a per-tier rubric describing what makes tier N harder than tier N−1, and
      a list of already-authored stems for this (skill, tier) to avoid. Then re-run with
      `--seed-offset` past the existing range and review.
-  2. **Only then is multi-tier reachable.** D-169's rule 2 stays inert until a skill has content at
+  3. **Only then is multi-tier reachable.** D-169's rule 2 stays inert until a skill has content at
      more than one tier, and `test_study_plan_difficulty_routing.py:132`'s canary still passes,
      correctly. The two unauthored topics (`fraction_operations`, `place_value`) are the larger
      K-12 gap and need taxonomy work first — they are not in `TOPIC_SKILL_DIFFICULTIES` at all.
-  3. **⚠️ Watch the two fixtures that content changes now touch.** Approving templates re-pins
+  4. **⚠️ Watch the two fixtures that content changes now touch.** Approving templates re-pins
      `_PINNED_PRE_EXAM_AT_SEED` (candidate pool size changes what a seed samples) and can move the
      exam statement budgets. Both are legitimate content-driven changes, but re-pin them
      deliberately with the reason recorded — that fixture is worthless the moment it is edited until
      the test passes.
-  4. **⚠️ `terraform.tfvars` will go stale again, and it is gitignored.** `make tfvars-floor-check`
+  5. **⚠️ `terraform.tfvars` will go stale again, and it is gitignored.** `make tfvars-floor-check`
      before every apply.
-  5. **Notes that survive, plus one earned in D-189:**
+  6. **Notes that survive, plus two earned in D-189:**
+     **⚠️ New — a green suite that depends on rows only one machine has is not evidence.** I
+     approved content locally, watched the suite go green, and re-pinned two fixtures to match
+     before CI failed on the state my laptop had. The tests that got this right created their own
+     fixtures inside a rollback session; the ones that did not were asserting against a database
+     nobody else has.
      **⚠️ New — when a thing becomes reachable, re-read every query that assumed it was not.**
      `get_variant_for_template`'s `limit(1)` was correct only while authored templates were never
      served; serving them made it return an arbitrary student's rendering instead of the reviewed
@@ -6655,12 +6687,13 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
-### S66 (unnumbered) — authored content is served, and the first five items go live: D-189 (2026-08-05) ✅
+### S66 (unnumbered) — authored content can be served, and CI proved the content lives nowhere but one laptop: D-189 (2026-08-05) ⏸ partial
 
 - **Scope: PROGRESS.md's own post-D-188 pointer, items 0 and 1** — no numbered roadmap block
-  (D-152). Both are done: #124 merged as `f38225c`, and the serving path D-188 identified as the
-  blocker is built. Judged ✅ because the thing D-188 could not do — have a green suite with
-  authored templates approved and active — now holds.
+  (D-152). Item 0 is done (#124 merged as `f38225c`) and item 1's serving path is built and tested.
+  **⏸ rather than ✅** because the goal underneath it — reviewed content in the bank — is not met
+  anywhere but locally, and the local version was rolled back: authored content has no versioned
+  home, so a reviewed item cannot reach CI, staging or production at all.
 - **Built:** `renders_from_canonical_variant` + the static branch in `build_variant_row`;
   `StaticVariantUnavailableError` so a missing canonical variant raises instead of serving a blank;
   `QuestionRepository.get_canonical_variants` (batched, read before the sampling loop so the RNG
@@ -6668,13 +6701,17 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   `static_variant_repeats_rendering` log; the approval guard narrowed to "no shape *and* no
   canonical variant"; `test_authored_serving.py` building a deliberately mixed exam.
 - **Verification:** `ruff` clean, `pyright` 0, **918 passed / 2 skipped** (up 3, prior 915
-  unchanged), green **with** the five templates approved and active. Statement budgets 7 → 8 with
-  the eighth skipped for pure-shape topics. Nothing spent.
-- **Carry-over:** the generator rubric (gates any further authoring spend); multi-tier still not
-  met; the two unauthored topics need taxonomy work; **no deploy has happened for D-188 or D-189**,
-  so staging has no authored content.
-- **Decisions:** D-189. ROADMAP's A6-C step 3 marked ✅ with multi-tier called out as the only
-  remaining gap.
+  unchanged) against a **clean bank**, which is what CI runs. Serving was also verified transiently
+  against five really-approved templates before they were rolled back. Nothing spent.
+- **Correction made mid-session:** re-pinning `_PINNED_PRE_EXAM_AT_SEED` and raising the exam
+  statement budgets to 8 encoded local-only database state into the repo. CI caught it; both
+  reverted.
+- **Carry-over:** versioning authored content (now the track's first blocker; recommendation is to
+  export approved items into a loader-read file); the generator rubric; multi-tier still not met;
+  the two unauthored topics need taxonomy work; **no deploy has happened for D-188 or D-189**, so
+  staging runs pre-D-188 code and has no authored content.
+- **Decisions:** D-189. ROADMAP's A6-C step 3 marked ⏸ with content versioning named as the next
+  step ahead of authoring more.
 
 ### S65 (unnumbered) — A6-C step 3: the authoring run works, and the content still cannot be served: D-188 (2026-08-05) ⏸ partial
 

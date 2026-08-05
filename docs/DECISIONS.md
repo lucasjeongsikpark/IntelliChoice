@@ -12823,7 +12823,7 @@ approvals were rolled back, not because the defect was fixed.
 **Revert:** the five code changes are independent. Reverting §5's guard restores the ability to
 approve an unservable template; reverting §1 restores a pipeline that cannot generate at all.
 
-## D-189 — authored templates are served from their canonical variant, and the post-exam knowingly repeats them (accepted, 2026-08-05)
+## D-189 — authored templates are served from their canonical variant, the post-exam knowingly repeats them, and content turns out to have no versioned home (accepted, 2026-08-05)
 
 **Context.** D-188 §5 found that approving authored content broke exam building: every served
 question went through `generate_variant(shape_key=template.solution_function)` and an authored
@@ -12888,28 +12888,49 @@ D-188's `review_cli.approve` refused every template with no registered shape. It
 those with no shape **and** no canonical variant — the case that is still genuinely unservable.
 Fail-closed (rule 5) is preserved; what changed is that the servable case exists.
 
-### 6. Content landed, and the fixture that had to be re-pinned
+### 6. Content did **not** land, and CI is what proved it
 
-Five authored items are **approved and active**, one per skill at its native tier (the review policy
-from D-188 §6). `test_pre_exam_content_matches_the_pre_refactor_capture` was re-pinned: the
-candidate pool at each difficulty went from 10 to 11, so a seeded `rng.sample()` legitimately picks
-differently. **That fixture guards refactors, not the bank's contents** — a content change re-pins
-it, but only deliberately and with the reason recorded, or it decays into a value someone edits
-until the test passes. The new capture's third row is `2x + 7 = 19` (options 6/8/9/13) —
-`authored-linear_equations-d2-9200`, served from its canonical variant, which is the exact thing
-that raised before this change.
+The five items were approved locally, the suite went green, the fixtures were re-pinned to match —
+and **CI failed**, because CI's database is seeded by `load_curriculum_and_templates`, which loads
+the hand-authored *shape* bank and nothing else. The five approved templates existed only in one
+developer's Postgres. Not in the repository, not in CI, not on staging.
 
-**⚠️ Still not multi-tier.** The bank remains one tier per skill; D-169's rule 2 stays inert.
-D-188 §6's cause is unchanged — `AuthoredGeneratorPayload` carries no per-candidate variation and no
-rubric for what a tier means.
+So the re-pinned capture and the raised statement budgets were **encoding one machine's database
+state into the repo**, and they were reverted. A clean bank is the correct baseline for those
+fixtures; the local approvals were rolled back too, so local and CI agree again.
+
+**The gap this exposes is the real one: authored content has no versioned home.** The shape bank
+lives in `packages/curriculum/templates/` and is loaded into every environment; authored items are
+produced by a paid pipeline directly into whatever database it was pointed at, and approval is a row
+update. There is currently no path by which a reviewed authored item reaches staging or production
+at all. That is the next step for A6-C, ahead of authoring more content — and it is a design
+question (export approved items into a versioned file the loader reads? run the pipeline per
+environment and review per environment? promote rows between databases?) rather than a chore.
+
+A related property, worth stating because it was demonstrated rather than reasoned about: **the bank
+cannot change without moving `_PINNED_PRE_EXAM_AT_SEED`**, since the candidate pool size decides what
+a seeded `rng.sample()` picks. That fixture guards *refactors*, not contents, so a genuine content
+change legitimately re-pins it — but only deliberately and with the reason recorded, or it decays
+into a value someone edits until the test passes.
+
+**⚠️ Still not multi-tier either.** One tier per skill; D-169's rule 2 stays inert. D-188 §6's cause
+is unchanged — `AuthoredGeneratorPayload` carries no per-candidate variation and no rubric for what
+a tier means.
 
 ### 7. Verification
 
 `ruff` clean, `pyright` 0, **918 passed / 2 skipped** — up 3, the new serving tests, with the prior
-915 unchanged. The suite is green **with the five authored templates approved and active**, which
-is the claim D-188 could not make. `test_authored_serving.py` builds a deliberately *mixed* exam
-(difficulty 1 authored, 2-5 shape) so both rendering paths are exercised in one build.
+915 unchanged, against a **clean bank** (no approved authored templates), which is what CI runs.
+
+The serving path is nonetheless verified against real approved content, twice over. Transiently:
+five templates were approved, the suite ran green, and the built exam's third item was
+`2x + 7 = 19` (options 6/8/9/13) — `authored-linear_equations-d2-9200` served from its canonical
+variant, the exact thing that raised before this change. Durably: `test_authored_serving.py` builds
+a deliberately *mixed* exam (difficulty 1 authored, 2-5 shape) from **its own rollback-scoped
+fixtures**, so it proves the same property in every environment without depending on database state
+anyone has to remember to create. That is the pattern the transient check should have used from the
+start.
 
 **Revert:** remove the static branch in `build_variant_row` and the two `get_canonical_variants`
-calls, restore the statement budgets to 7, re-pin the capture from `c736dc6`, and set the five
-templates back to `pending` — they become unservable again the moment the branch is gone.
+calls, and restore `get_variant_for_template`'s unfiltered `limit(1)`. Nothing needs re-pinning —
+the fixtures were never changed in the landed state.
