@@ -11983,3 +11983,44 @@ change on a live user path, so it needs a deploy, and the honest live row is a p
 `access_hint: null` where local reproduced `parent`. The empty-pool branch is embedding-dependent,
 so local agreement does not settle staging; D-174 measured the two corpora identical, which makes
 this a confirmation rather than an open question, but it is still owed.
+
+### 5. The live row was taken, and it is vacuous — plus the process error that made it unfixable
+
+Appended after the deploy (run 30967028354, `learning-api:65` / `chat-api:64`, both
+`gha-dee6f07c0bc1`, rollouts COMPLETED). Sample size fixed before the run at n=3 target / n=2
+control, on the stated reasoning that this branch makes no model call and is therefore
+deterministic.
+
+    target  ("How do I get or delete my kid's school records?")  x3 -> null, citations=0, scope=out_of_scope
+    control ("...attendance hasn't been recorded yet?")          x2 -> parent, scope=in_scope
+
+**The target returns `null` for the wrong reason.** `_route_after_scope_guard` sends
+`scope != "in_scope"` straight to `refuse`, so the turn never reaches `answer_document_qa`,
+never reaches `explain_access`, and never calls `probe_access`. The scope classifier rules this
+question out of scope, 3/3. So the 0/3 is not the probe staying silent — it is the probe never
+running, which is the same class of vacuity as an answered turn, and a *third* mode beyond the
+two that were pre-registered. The control firing 2/2 with `scope=in_scope` proves the instrument
+works and isolates the difference to the scope decision.
+
+**What this does and does not establish, restated because AUD-C-26's own text overstates it:**
+
+- *Verified:* `probe_access` produces the false hint given that candidate and keyword state.
+  Local, deterministic, no model call — the measurement stands on its own.
+- *Verified:* this particular question does not reach the probe on the deployed stack.
+- *Not verified, and now hard to verify:* whether **any** in-scope question reaches the
+  empty-pool branch with two or more lexically matching audiences. The probe fixture offers
+  exactly one empty-pool case whose keyword arm fires, and live that case is out of scope.
+
+So the finding's line *"a caller is told to authenticate for public information"* is true of the
+function and **unproven of the product**. Severity is re-argued from P2 to **P3** on the finding
+itself: a real gap in a stated rule (AUD-C-22's principle unenforced on one arm) with no
+demonstrated user exposure. The fix still stands on its own merits — it removes a wrong-instruction
+path, costs nothing measured, and the scope guard is a filter rather than a guarantee — but it was
+not the P2 emergency the row claimed.
+
+**The process error, which is the part worth carrying forward.** D-175 measured the defect live
+*first* (6/10), then the fix was chosen against that number. Here I shipped the fix and then went
+looking for the defect live — and by then the pre-fix behaviour was no longer observable, so the
+question "did this ever reach a user?" is permanently unanswerable for this finding. **Measure the
+defect live before deploying its fix, or accept that you never will.** The cost of getting this
+right was one probe run, before the merge instead of after.
