@@ -716,6 +716,12 @@ which stop the line.
 > renumbering is owed. A mechanical "no id appears twice" check flags it; that is the check being
 > imprecise, not the file.
 >
+> **⚠️ The `awk` reads the status positionally, so keep `|` out of the first four cells.** Four rows
+> already carry an extra pipe (AUD-C-14, C-15, L-16, F-16 — 8 fields where the norm is 7); checked in
+> D-178, all four still have their real status in `$5` because the stray pipe sits in the *description*
+> cell, after it. A pipe in the id, area, severity or status cell would shift `$5` and silently
+> miscount that finding — the fourth way this count could go wrong, after the three already recorded.
+>
 > **⚠️ A naive `grep -i open` over this file now over-counts, and the fix is to anchor on the status
 > column.** Several rows carry their own history *inside* the status cell — AUD-F-16's reads
 > "✅ fixed … ; this row read `Open — before the gate` until 2026-08-04" — so the word appears in rows
