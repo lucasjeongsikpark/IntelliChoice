@@ -18,7 +18,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 import pytest
-from intellichoice_curriculum import review_cli
+from intellichoice_curriculum import ai_pipeline, review_cli
 from intellichoice_curriculum.ai_pipeline import PipelineConfigError, generate_authored_candidate
 from intellichoice_curriculum.content import load_curriculum
 from intellichoice_db.engine import create_engine
@@ -615,5 +615,150 @@ def test_review_cli_edit_and_rerun_supersedes_and_bumps_version() -> None:
             assert new_template is not None
             assert new_template.version == original.version + 1
             assert new_template.validation_status == "pending"
+
+    asyncio.run(run())
+
+
+# --- D-186: multi-tier-per-skill authoring ------------------------------------------
+#
+# The middle skills carry their native tier ±1 so that D-169's rule 2 has something to
+# choose between. Until content exists at those tiers the *selector* stays inert - these
+# tests are about the pipeline being able to produce it, which is the part that was
+# structurally impossible before: the skill was derived *from* the difficulty, so no
+# number of runs could ever yield two tiers for one skill.
+
+
+def test_the_two_skill_maps_agree_on_every_native_tier() -> None:
+    """The native ladder and the authoring plan are separate maps, so they can drift.
+
+    `TOPIC_DIFFICULTY_SKILLS` (tier -> skill) is still the default when no skill is named;
+    `TOPIC_SKILL_DIFFICULTIES` (skill -> tiers) says where content should exist. A skill
+    whose native tier fell out of its planned list would be generatable by derivation and
+    rejected when named explicitly - the two paths would disagree about the same slot.
+    """
+    for topic_id, difficulty_skills in ai_pipeline.TOPIC_DIFFICULTY_SKILLS.items():
+        planned = ai_pipeline.TOPIC_SKILL_DIFFICULTIES[topic_id]
+        for native_tier, skill_id in difficulty_skills.items():
+            assert skill_id in planned, f"{skill_id} has no authoring plan"
+            assert native_tier in planned[skill_id], (
+                f"{skill_id}'s native tier {native_tier} is missing from its planned tiers"
+            )
+        # And nothing is planned for a skill the taxonomy does not place in this topic.
+        assert set(planned) == set(difficulty_skills.values())
+
+
+def test_the_plan_keeps_every_tier_inside_what_a_student_can_be_recommended() -> None:
+    """`mastery_bootstrap` anchors `recommended_difficulty` at the modal assessed tier ±1
+    and clamps to 1-5, so a skill authored further than one tier from its native home
+    could never be selected - content nothing can serve is worse than no content.
+    """
+    for topic_id, difficulty_skills in ai_pipeline.TOPIC_DIFFICULTY_SKILLS.items():
+        native_of = {skill: tier for tier, skill in difficulty_skills.items()}
+        for skill_id, tiers in ai_pipeline.TOPIC_SKILL_DIFFICULTIES[topic_id].items():
+            for tier in tiers:
+                assert 1 <= tier <= 5
+                assert abs(tier - native_of[skill_id]) <= 1, (
+                    f"{skill_id} planned at {tier}, unreachable from native "
+                    f"{native_of[skill_id]}"
+                )
+
+
+def test_a_middle_skill_generates_at_a_tier_that_is_not_its_native_one() -> None:
+    """The point of the whole change: `linear_two_step` is native to tier 2, and this
+    authors it at tier 3 - a (skill, tier) pair the derived-from-difficulty path could
+    not express, because tier 3 derives to `linear_neg_frac_coeff`.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(),
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=3,
+                seed=771001,
+                session_spend_cents=0.0,
+                skill_id="linear_two_step",
+            )
+            assert outcome.status == "pending"
+            assert outcome.question_template_id is not None
+
+            repo = QuestionRepository(session)
+            template = await repo.get_template(outcome.question_template_id)
+            assert template is not None
+            # Both halves matter: the tier the reviewer asked for, and the skill that
+            # would have been silently overwritten by the old derivation.
+            assert template.difficulty_label == 3
+            assert template.skill_id == "linear_two_step"
+            assert template.skill_id != ai_pipeline.TOPIC_DIFFICULTY_SKILLS["linear_equations"][3]
+
+    asyncio.run(run())
+
+
+def test_omitting_the_skill_still_derives_it_from_the_tier() -> None:
+    """The 1:1 default is unchanged - every existing caller passes no `skill_id`."""
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(),
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=3,
+                seed=771002,
+                session_spend_cents=0.0,
+            )
+            assert outcome.question_template_id is not None
+            repo = QuestionRepository(session)
+            template = await repo.get_template(outcome.question_template_id)
+            assert template is not None
+            assert template.skill_id == "linear_neg_frac_coeff"
+
+    asyncio.run(run())
+
+
+def test_an_unplanned_skill_tier_pair_is_a_config_error_rather_than_content() -> None:
+    """`linear_one_step` is planned at tier 1 only. Asking for it at 4 is a mistake, and
+    generating it anyway would spend money on an item no student could ever be served -
+    the recommendation range cannot reach it.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            with pytest.raises(PipelineConfigError, match="not planned at difficulty_label"):
+                await generate_authored_candidate(
+                    session=session,
+                    gateway=_ScriptedAuthoredGateway(),
+                    curriculum=curriculum,
+                    topic_id="linear_equations",
+                    difficulty_label=4,
+                    seed=771003,
+                    session_spend_cents=0.0,
+                    skill_id="linear_one_step",
+                )
+
+    asyncio.run(run())
+
+
+def test_an_unknown_skill_is_a_config_error() -> None:
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            with pytest.raises(PipelineConfigError, match="no registered skill"):
+                await generate_authored_candidate(
+                    session=session,
+                    gateway=_ScriptedAuthoredGateway(),
+                    curriculum=curriculum,
+                    topic_id="linear_equations",
+                    difficulty_label=2,
+                    seed=771004,
+                    session_spend_cents=0.0,
+                    skill_id="fraction_add_sub_like",
+                )
 
     asyncio.run(run())

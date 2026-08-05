@@ -108,6 +108,11 @@ async def edit_and_rerun(
             seed=rerun_seed,
             session_spend_cents=0.0,
             version=old.version + 1,
+            # D-186: carried from the superseded row rather than re-derived from the tier.
+            # The docstring above promises "the same topic/skill/difficulty", and once a
+            # tier is shared by two skills, deriving from the tier silently returns the
+            # other one - a re-run that quietly changes which skill the slot belongs to.
+            skill_id=old.skill_id,
         )
     except (BedrockGatewayError, PipelineConfigError) as exc:
         await session.rollback()

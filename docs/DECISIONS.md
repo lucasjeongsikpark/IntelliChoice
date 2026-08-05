@@ -12526,3 +12526,95 @@ them. Whoever wires grade-based topic selection must reconcile the two.
 
 **Revert:** re-accept grade-band 6-7 as the launch scope and return the other two topics to D-060's
 "future content work" framing.
+
+## D-186 — A6-C step 1 and 2: multi-tier for the middle skills, and the authored pipeline can finally produce it (accepted, 2026-08-05)
+
+**Context.** D-185 made K-12 curriculum coverage a launch requirement and put a decision ahead of
+the authoring: content written 1:1 skill↔difficulty keeps D-169's rule 2 latent for the *new* topics
+too, and adding tiers afterwards means re-authoring rather than extending. The user's call:
+**multi-tier from the start, for the middle-difficulty skills.**
+
+### 1. The plan, and why it is not uniform
+
+`TOPIC_SKILL_DIFFICULTIES` (`ai_pipeline.py`) is the authoring plan — topic → skill → tiers:
+
+| skill | native tier | planned tiers |
+|---|---|---|
+| `linear_one_step` | 1 | 1 |
+| `linear_two_step` | 2 | 1, 2, 3 |
+| `linear_neg_frac_coeff` | 3 | 2, 3, 4 |
+| `linear_both_sides` | 4 | 3, 4, 5 |
+| `linear_distribute` | 5 | 5 |
+
+**Native ±1 and no wider, because that is the whole reachable range.** `mastery_bootstrap.py:130-148`
+anchors `recommended_difficulty` on the modal assessed tier ±1 and clamps to 1-5, so a skill authored
+two tiers from home could never be recommended — that content would be unservable by construction.
+A test pins this (`test_the_plan_keeps_every_tier_inside_what_a_student_can_be_recommended`), so the
+plan cannot quietly grow past what the selector can reach.
+
+**The ladder ends stay single-tier.** The clamp means tier 1 has no neighbour below and tier 5 none
+above, and the user's decision named the middle skills. 5 (skill, tier) pairs become **11**.
+
+### 2. Two maps, deliberately, with the invariant pinned
+
+`TOPIC_DIFFICULTY_SKILLS` (tier → skill) is **unchanged** and remains the native ladder: still the
+default when no skill is named, still 1:1, still what the shape pipeline uses. `TOPIC_SKILL_DIFFICULTIES`
+is the authoring plan layered on top. Two maps can drift — a skill whose native tier fell out of its
+planned list would be generatable by derivation and *rejected* when named explicitly, two paths
+disagreeing about one slot — so `test_the_two_skill_maps_agree_on_every_native_tier` asserts both
+directions, including that nothing is planned for a skill the topic does not contain.
+
+### 3. Authored mode only, and that is a correctness boundary rather than a scope cut
+
+`run_pipeline` (shape mode) is untouched. `DIFFICULTY_SHAPES` is keyed by **tier alone**, so a skill
+generated at an off-native tier would be handed another skill's math forms — `linear_two_step` at
+tier 3 would draw from `frac_coeff`/`neg_coeff`, which are not two-step equations. The shape pipeline
+cannot do multi-tier without new per-skill shapes, which is authoring judgement, not a code change.
+Authored mode has no shape allowlist — it generates a real stem from the skill and tier — so
+multi-tier lives there.
+
+### 4. What actually changed, and the hazard the change created
+
+- **`generate_authored_candidate` gained `skill_id: str | None = None`.** Omitted → derive from the
+  tier exactly as before (every existing caller). Given → validated against the plan. An unplanned
+  (skill, tier) pair raises `PipelineConfigError` rather than generating: spending on an item no
+  student can be served is worse than refusing.
+- **`run_authored_pipeline` iterates (skill, tier) pairs** instead of tiers, and passes `skill_id`
+  explicitly. The old loop derived the skill *from* the tier, so **no number of runs could ever have
+  produced two tiers for one skill** — that is the structural reason this needed code before content.
+  Seeds gained a skill term; without it two skills at tier 3 would propose the same seed and
+  therefore the same template id. Note `candidates_per_difficulty` is now per *pair*, so the same
+  value asks for more items than it used to.
+- **⚠️ `review_cli.rerun_with_edit` now carries `skill_id=old.skill_id`.** This is a hazard the change
+  itself introduced and it would have been silent: the function's docstring promises a re-run of "the
+  same topic/skill/difficulty", but it re-derived the skill from the tier — so the first time a
+  reviewer re-ran a multi-tier template, the replacement would have belonged to a *different skill*
+  at the same tier, with no error anywhere.
+
+### 5. What this does **not** do
+
+**No content was authored, so rule 2 is still inert and the live bank is unchanged.** The 50
+templates are still 5 skills × 1 tier, `_closest_to_recommended` still returns the full pool on every
+branch, and `test_study_plan_difficulty_routing.py:132`'s canary still passes — correctly. This
+decision removed the structural blocker and set the target; step 3 (author + human review, D-026
+forbids self-approval) and step 4 (reconcile `grade_topic_candidates` against `topics.ts`) are the
+remaining A6-C work.
+
+**Expect the judge to push back on off-native tiers, and that is the gate working.**
+`ai_pipeline.py` rejects a >±1 disagreement between the judge's rated difficulty and the proposed one
+and flags exactly-1 as `review_priority="high"`. A deliberately hard `linear_two_step` proposed at
+tier 3 lives in precisely that regime, so a higher rejection and high-priority rate on the new pairs
+is expected rather than a regression — the thresholds are D-059 placeholders and stay uncalibrated
+against real Bedrock (D-025 posture).
+
+### 6. Verification
+
+`ruff` clean, `pyright` 0, **895 passed / 2 skipped** — up exactly 6, the new tests, with the prior
+889 unchanged. The decisive one is
+`test_a_middle_skill_generates_at_a_tier_that_is_not_its_native_one`: `linear_two_step` authored at
+tier 3, asserting both the tier *and* that the skill is not what the tier derives to. Nothing was
+spent — the scripted gateway test double, no Bedrock call.
+
+**Revert:** delete `TOPIC_SKILL_DIFFICULTIES` and the `skill_id` parameter, restore
+`run_authored_pipeline`'s tier-only loop and `review_cli`'s derived skill. The 1:1 ladder is intact
+and untouched, so the revert is a deletion rather than a migration.

@@ -88,6 +88,36 @@ TOPIC_DIFFICULTY_SKILLS: dict[str, dict[int, str]] = {
     }
 }
 
+# topic_id -> skill_id -> the difficulty tiers that skill should carry content at.
+#
+# D-186: the authoring plan, and the reason it is a *second* map rather than an inversion
+# of the one above. `TOPIC_DIFFICULTY_SKILLS` stays the **native** ladder - each skill's
+# home tier, the default when no skill is named, and still 1:1. This map says which tiers
+# each skill should additionally be authored at, and it is deliberately not uniform:
+#
+#   - The three middle skills carry their native tier ±1. `mastery_bootstrap` anchors
+#     `recommended_difficulty` on the modal assessed tier ±1 and clamps to 1-5, so T±1 is
+#     the entire range a skill can ever be recommended at - a fourth tier could not be
+#     selected by any student.
+#   - The ladder ends (`linear_one_step` at 1, `linear_distribute` at 5) stay single-tier.
+#     The clamp means tier 1's neighbour below and tier 5's neighbour above do not exist,
+#     and the user's call was multi-tier "for the middle skills".
+#
+# **Authored mode only.** The shape pipeline picks from `DIFFICULTY_SHAPES`, which is keyed
+# by tier alone, so a skill generated at an off-native tier would be handed another skill's
+# math forms (`linear_two_step` at tier 3 would get `frac_coeff`/`neg_coeff`). Authored mode
+# has no shape allowlist - it generates a real stem from the skill and tier - which is why
+# multi-tier lives there and `run_pipeline` is untouched.
+TOPIC_SKILL_DIFFICULTIES: dict[str, dict[str, list[int]]] = {
+    "linear_equations": {
+        "linear_one_step": [1],
+        "linear_two_step": [1, 2, 3],
+        "linear_neg_frac_coeff": [2, 3, 4],
+        "linear_both_sides": [3, 4, 5],
+        "linear_distribute": [5],
+    }
+}
+
 # topic_id -> difficulty_label -> shape keys the Generator Agent may choose among.
 DIFFICULTY_SHAPES: dict[str, dict[int, list[str]]] = {
     "linear_equations": {
@@ -599,6 +629,7 @@ async def generate_authored_candidate(
     seed: int,
     session_spend_cents: float,
     version: int = 1,
+    skill_id: str | None = None,
 ) -> PipelineOutcome:
     """Runs one candidate through the S20 *authored* pipeline (plan §7): a real
     hand-quality stem/hint-ladder/solution instead of a parameterized shape (see this
@@ -613,12 +644,30 @@ async def generate_authored_candidate(
     see the model's own docstring for why), satisfying ROADMAP S20's "rejected with
     persisted reasons" done-when criterion.
     """
-    skill_id = TOPIC_DIFFICULTY_SKILLS.get(topic_id, {}).get(difficulty_label)
+    # D-186: an explicit `skill_id` is how a skill gets authored at an off-native tier.
+    # Deriving from the tier is still the default and still correct for the 1:1 ladder, but
+    # it *cannot* express multi-tier - once two skills share a tier the derivation has no
+    # way to know which was meant, so the caller has to say. Validated against the authoring
+    # plan rather than accepted verbatim: an unplanned (skill, tier) pair is a config error,
+    # not a licence to generate content nothing will ever select.
     if skill_id is None:
-        raise PipelineConfigError(
-            f"no registered skill for topic_id={topic_id!r} "
-            f"difficulty_label={difficulty_label!r}"
-        )
+        skill_id = TOPIC_DIFFICULTY_SKILLS.get(topic_id, {}).get(difficulty_label)
+        if skill_id is None:
+            raise PipelineConfigError(
+                f"no registered skill for topic_id={topic_id!r} "
+                f"difficulty_label={difficulty_label!r}"
+            )
+    else:
+        planned = TOPIC_SKILL_DIFFICULTIES.get(topic_id, {}).get(skill_id)
+        if planned is None:
+            raise PipelineConfigError(
+                f"no registered skill for topic_id={topic_id!r} skill_id={skill_id!r}"
+            )
+        if difficulty_label not in planned:
+            raise PipelineConfigError(
+                f"skill_id={skill_id!r} is not planned at difficulty_label="
+                f"{difficulty_label!r} (planned: {planned})"
+            )
     topic = next((t for t in curriculum.topics if t.topic_id == topic_id), None)
     skill = next((s for s in curriculum.skills if s.skill_id == skill_id), None)
     if topic is None or skill is None:
