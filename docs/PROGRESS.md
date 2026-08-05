@@ -11,6 +11,10 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   `pyright` 0, **889 passed / 2 skipped** — unchanged from the session-start baseline, because no
   Python behaviour changed. **Nothing was spent.** Every number below came from `describe-alarm-history`,
   `get-metric-statistics` and `get-metric-data`, all read-only, plus one free `escalate: true` probe.
+  **✅ Landed** — PR #120 (`7809048`), all 8 checks green. **No deploy, and none needed:** the alarms are
+  CloudWatch resources applied through Terraform rather than image content, so staging was already
+  running the fix before the merge — which is why landing it promptly mattered (main and the live
+  alarms disagreed until then, so a `terraform apply` from a fresh checkout would have reverted it).
   **✅ The mechanism, and it was recorded all along.** The scale-in alarm sets
   `treat_missing_data = "breaching"` on ALB `TargetResponseTime`, which publishes **nothing** at zero
   traffic. So an idle service enters ALARM with **15 evaluated datapoints and a value on none of
