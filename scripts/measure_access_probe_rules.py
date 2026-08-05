@@ -80,6 +80,7 @@ so `--budget-cents` actually binds - it did not before: every call passed
 
 import argparse
 import asyncio
+import gzip
 import json
 import math
 import os
@@ -1325,8 +1326,22 @@ def _detail(args: argparse.Namespace, rows: list[_Row]) -> None:
         )
 
 
+def _open_text(path: Path, mode: str):
+    """`.gz` transparently, so a dump can be committed at ~9% of its size.
+
+    D-179's dumps are the only free way to re-score an access-probe rule change
+    (`--load ... --shipped`), and for four sessions they lived only in session scratchpads
+    - one cleanup away from turning every future rule question back into a ~43-cent
+    Bedrock run. The committed pair under
+    `apps/chat-api/tests/fixtures/probe_measurements/` is 128 KB.
+    """
+    if path.suffix == ".gz":
+        return gzip.open(path, mode + "t", encoding="utf-8")
+    return path.open(mode, encoding="utf-8")
+
+
 def _dump_rows(rows: list[_Row], path: Path) -> None:
-    path.write_text(
+    payload = (
         json.dumps(
             [
                 {
@@ -1348,6 +1363,8 @@ def _dump_rows(rows: list[_Row], path: Path) -> None:
             ]
         )
     )
+    with _open_text(path, "w") as handle:
+        handle.write(payload)
 
 
 def _load_rows(path: Path) -> list[_Row]:
@@ -1372,8 +1389,13 @@ def _load_rows(path: Path) -> list[_Row]:
             # Older dumps predate --stability; treat them as "no repeats measured".
             rerank_repeats=raw.get("rerank_repeats", []),
         )
-        for raw in json.loads(path.read_text())
+        for raw in _load_raw_rows(path)
     ]
+
+
+def _load_raw_rows(path: Path) -> list[dict]:
+    with _open_text(path, "r") as handle:
+        return json.loads(handle.read())
 
 
 async def _run(args: argparse.Namespace) -> int:

@@ -7,7 +7,7 @@ from intellichoice_shared.auth import Audience, TokenClaims, account_refusal_rea
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.profiles import ProfileAdapter
-from intellichoice_shared.rate_limit import InMemoryRateLimiter
+from intellichoice_shared.rate_limit import RateLimiter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from chat_api.config import get_settings
@@ -84,7 +84,7 @@ def get_mcp_registry(request: Request) -> McpToolRegistry:
     return request.app.state.mcp_registry
 
 
-def get_email_rate_limiter(request: Request) -> InMemoryRateLimiter:
+def get_email_rate_limiter(request: Request) -> RateLimiter:
     return request.app.state.email_rate_limiter
 
 

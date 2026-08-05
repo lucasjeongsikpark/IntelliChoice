@@ -228,3 +228,48 @@ def test_a_replay_without_a_database_fails_loudly_instead_of_scoring_a_silence(
 
     with pytest.raises(RuntimeError, match="no database session"):
         asyncio.run(harness._shipped_hint(row, row.rerank, None))
+
+
+def test_the_committed_dumps_load_and_still_carry_what_a_rescore_needs(
+    harness: Any,
+) -> None:
+    """The dumps under `fixtures/probe_measurements/` are what makes an access-probe rule
+    change free to measure, and D-180's decision was taken against them rather than against
+    a paid run. Until this session they lived only in session scratchpads.
+
+    So this asserts the two ways they could quietly stop being usable: the gzip reader
+    breaking, and a dump losing a field `_load_rows` needs (`rerank_repeats` was already
+    added after the first dumps, and `_load_rows` tolerates its absence - anything else
+    going missing must not be tolerated silently).
+    """
+    directory = Path(__file__).resolve().parent / "fixtures" / "probe_measurements"
+    for name, expected_field in (
+        ("probe_run_corpus.json.gz", "query"),
+        ("probe_run_human.json.gz", "human_query"),
+    ):
+        rows = harness._load_rows(directory / name)
+
+        assert len(rows) == 58, f"{name} lost cases"
+        # `_load_cases` normalizes the selected field into `case["query"]` at collection
+        # time, so a replay cannot tell the arms apart from the flag - only the README's
+        # table records which is which, and a dump with no query text records neither.
+        assert all(row.case["query"] for row in rows), f"{name} has a case with no query"
+        assert any(row.semantic for row in rows), f"{name} has no candidate pools"
+        assert any(row.rerank for row in rows), f"{name} has no rerank scores"
+        assert any(row.kw_legacy for row in rows), f"{name} has no lexical counts"
+        del expected_field  # documented in the README; not derivable from the dump
+
+
+def test_a_gzipped_dump_round_trips(harness: Any, tmp_path: Path) -> None:
+    """`--dump foo.json.gz` and `--load foo.json.gz` have to agree, or the next session's
+    dump is written in a format nothing reads back.
+    """
+    row = _row(harness, [("parent", 0.90, 0.10)], "round-trip")
+    path = tmp_path / "dump.json.gz"
+
+    harness._dump_rows([row], path)
+    restored = harness._load_rows(path)
+
+    assert len(restored) == 1
+    assert restored[0].case["id"] == row.case["id"]
+    assert restored[0].rerank == row.rerank

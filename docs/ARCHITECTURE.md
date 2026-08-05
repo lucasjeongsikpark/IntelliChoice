@@ -721,7 +721,10 @@ visible in the diagram below as edges that did not exist:
   asking one. chat-web's "Ask an administrator" button on a refusal is what sets it, replacing
   text that told the user to try rephrasing. The rate limit, the `interrupt()` approval, the
   audit row and the deterministic draft are all untouched — nothing here sends an email without
-  a human seeing it first. An access hint suppresses the offer (`escalation_recommended` stays
+  a human seeing it first. **That rate limit counts in Postgres, not in process memory**
+  (AUD-C-27/D-181): it is keyed on the caller rather than the session, and skipping
+  `scope_guard` also means this path makes *no* Bedrock call, which is what makes it free to
+  probe against the deployed system. An access hint suppresses the offer (`escalation_recommended` stays
   False), because emailing a human about content that already exists helps nobody.
 
 **D-165 then made the probe itself able to match.** The routing fix above was necessary and not
@@ -872,7 +875,7 @@ flowchart TB
     SG -->|"out_of_scope"| REFUSE["refuse (S13)<br/>§5.19.4 verbatim message"]
     SG -->|"in_scope,<br/>intent=clarification"| UNAVAIL["unavailable_intent (S13)<br/>generic rephrase message"]
     SG -->|"in_scope,<br/>intent=document_qa"| DOCQA["answer_document_qa (S13)"]
-    SG -->|"in_scope,<br/>intent=admin_contact"| PREP["prepare_admin_escalation (S14)<br/>rate limit + deterministic<br/>draft (no LLM call)"]
+    SG -->|"in_scope,<br/>intent=admin_contact"| PREP["prepare_admin_escalation (S14)<br/>rate limit (shared counter,<br/>AUD-C-27) + deterministic<br/>draft (no LLM call)"]
     SG -->|"in_scope,<br/>intent=calendar"| CEXT["calendar_extract (S14)<br/>retrieve() + BedrockTask.<br/>CALENDAR_EXTRACTION"]
     SG -->|"in_scope,<br/>intent=branch_locator"| BLC{{"branch_locator_consent<br/>interrupt() (S15)<br/>§5.1.3 notice, no location<br/>read yet"}}
     SG -->|"BedrockGatewayError<br/>(D-155, AUD-C-08)"| SVCDOWN["service_unavailable (D-155)<br/>§5.29 user-safe message<br/>— fail-closed like refuse,<br/>but claims nothing about<br/>the question/corpus/calendar"]

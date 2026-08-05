@@ -5,6 +5,65 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ D-181: the escalation rate limit was 8 per hour where it said 5, measured on the deployed
+  system before the fix shipped — and the fix's own test-suite side effect is the part to remember
+  (2026-08-04, no numbered session; PROGRESS.md's own pointer, item 3(c), your call from four
+  options).** `make lint` clean, `pyright` 0, **889 passed / 2 skipped** (878 at start, +11).
+  **The approved 40¢ went unspent** — the escalation path makes no Bedrock call
+  (`escalate: true` skips `scope_guard` and reaches a deterministic template) and
+  `FakeEmailTransport` is wired unconditionally, so the live probe was free and sent no mail.
+  **⚠️ Uncommitted at the time of writing** — written the day of the work, per the D-174/D-175
+  lesson. **The post-deploy re-probe is owed** (item 0 below).
+  **✅ Measured live first, which is D-180's lesson applied rather than restated: 8 accepted, then
+  blocked, against a configured 5.** Anonymous, one source IP, **a fresh session per attempt** —
+  attempts 1–8 returned `pending_interrupt` with `intent: "admin_contact"`, attempts 9–11 returned
+  `RATE_LIMITED_MESSAGE`. All four pre-registered vacuity modes resolved: fresh sessions avoided the
+  `_reject_if_paused` 409; the escalation path was confirmed *positively* (`intent` +
+  `pending_interrupt`, not the absence of a block); single-task routing is moot because the ceiling
+  *exceeded* the cap, which nothing but a per-process count produces; and a `None` `client_ip` would
+  have been stricter, not weaker. Cost of doing it in this order: nothing at all, versus the
+  permanently unanswerable "did this reach a user?" D-180 accepted.
+  **✅ Filed as AUD-C-27 and fixed the same session — same defect class as AUD-X-08, and the fix is
+  its sibling.** A limit enforced from state other callers cannot see is not a limit; there the
+  invisible state was an uncommitted row, here another task's memory. So: `rate_limit_events`, a
+  `RateLimitRepository` holding a session **factory** (the request session commits after the
+  response, which would make every attempt invisible within its own window), and
+  `pg_advisory_xact_lock` around count-prune-insert. Postgres over Redis because the volume is 5/hour
+  and new infrastructure for that is burden with nothing to show; **no env flag**, because a flag
+  between tested and deployed behaviour is the shape of this defect rather than a guard against it.
+  **✅ The key is stored as an HMAC, and the test that should have required that now does.** An
+  anonymous caller's key is a client IP, and before this table no client IP was in Postgres at all.
+  `test_schema_purity`'s denylist had names, emails and addresses but **no IP-shaped column names** —
+  nothing would have failed if the fix had stored `client_ip` raw. Fixed both ways: the column holds
+  `hmac(signing_secret, "rate-limit-caller-key-v1|" + key)` (HMAC, not `sha256` — an unsalted digest
+  of an IPv4 is reversible by exhausting 2^32), and `ip`/`ip_address`/`client_ip`/`remote_addr` are
+  on the denylist.
+  **⚠️ The fix has a test-suite consequence, and it is the kind that reads as a regression.** The cap
+  is now persistent and every `TestClient` request shares the caller key `testclient`, so on the
+  shared dev Postgres the **third suite run inside an hour** would have started failing on a real
+  5/hour limit. An autouse `reset_escalation_rate_limit` fixture clears that one key. The global
+  middleware's own comment had already worried about exactly this hazard back when it could not bite.
+  **⚠️ Left per-task on purpose:** the global per-IP cap (6000/min, both apps). A DB write per request
+  costs more than the imprecision it removes, and S34 chose 6000 as ~3× a measured legitimate burst
+  rather than as a precise threshold; the WAF (S50 A7) is the precise control. What *was* wrong there
+  is its docstring — it justified single-process storage with "`desired_count` defaults to 1
+  (D-084)", untrue since autoscaling landed. **And one user-visible line:** `RATE_LIMITED_MESSAGE`
+  said *"from this session"*, which the probe disproved by getting blocked on fresh sessions every
+  time — the key is the caller, so the old wording told a blocked caller that opening a new chat
+  would help.
+  **✅ Bundled: the probe dumps are committed, so re-scoring stays free.**
+  `apps/chat-api/tests/fixtures/probe_measurements/*.json.gz` — 128 KB for the pair (~9% of 1.4 MB),
+  with `.gz` handled transparently by `_dump_rows`/`_load_rows`. Re-scored from the committed copies
+  through the real rule: **corpus 26 | 0 | 12 | 0 | 0**, **human 27 | 0 | 11 | 0 | 0**, matching
+  D-180 exactly at zero spend. Plus two guards (both dumps still load and still carry what
+  `_load_rows` needs; a gzip round-trip) and a README, which records the one confusing thing:
+  **under `--load` the `--query-field` flag selects nothing** — `_load_cases` normalizes the chosen
+  field into `case["query"]` at collection time — so the header can mislabel an arm without changing
+  a number.
+  **Open count: 1** — `AUD-F-33` only, confirmed with ROADMAP's anchored `awk`. AUD-C-27 was filed
+  and closed in the same session, so it never sat open; the index invariant (every `###` section has
+  a row) re-checked at 0 exceptions.
+
 - **⚠️ D-180: AUD-C-26 fixed by extending AUD-C-22's silence rule to the unscored keyword arm —
   and measuring the four candidates first refuted one of them (2026-08-04, S63 third decision — no numbered
   session; PROGRESS.md's own pointer, item 1, the user's product call).** `make lint` clean,
@@ -1465,7 +1524,73 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-180):**
+- **Next session, in order (2026-08-04, post-D-181):**
+  0. **⚠️ Owed: land, deploy, and re-probe the escalation cap.** D-181's work is **uncommitted** as
+     written. After deploy, re-run the probe (free — no Bedrock call, no mail) and confirm the
+     ceiling is **5, not 8**, from one IP with a fresh session per attempt. That is the post-fix half
+     of the only measurement this session took, and unlike D-180's owed row it cannot come back
+     vacuous: the escalate path skips `scope_guard`, so there is no `out_of_scope` route to swallow
+     it. The probe script is in this session's scratchpad
+     (`probe_escalation_ceiling.py`, with the four vacuity modes in its header).
+     **Note the migration:** `a3f81c62b904` creates `rate_limit_events`, so this deploy carries a
+     schema change — the second since S32 (D-159 was the first). It applied, downgraded and
+     re-applied cleanly locally.
+  1. **AUD-F-33** (P2, autoscaling) remains deferred by your call — detection exists, mechanism
+     unknown. Note that D-181 measured the thing F-33 is about from the other side: task count is
+     what multiplied the cap, so anything else sized per-process is worth a second look.
+  2. **The product decisions still unanswered, unchanged except that (c) is now half done:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent
+     by choice; (b) should the access hint be able to say "this is covered in parent *and*
+     branch-manager materials" instead of going silent; (c) **the `InMemoryRateLimiter` half is
+     fixed (D-181)**, but escalation still carries **no way to reply to the person who asked**
+     (D-164's scoped-out half) — that one is untouched; (d) does a multi-child parent need an in-app
+     switcher, or is sign-out-and-back-in acceptable until real auth replaces the dev login; (e) is
+     `[redacted-email]` in escalation drafts acceptable long-term, or should escalation eventually
+     carry a structured (consented) contact field.
+  3. **Notes that survive, plus two earned in D-181:**
+     **⚠️ New — check whether a defect is free to measure before deciding it is expensive.** The
+     escalation ceiling had sat in the pointer as "the real ceiling is N× the configured one" with N
+     unmeasured, and reading two files showed the probe cost nothing: no Bedrock call on that path
+     and a fake email transport. 40¢ was approved and 0¢ spent. The same question is worth asking of
+     anything else parked for cost.
+     **⚠️ New — a limiter's *number* is a promise; storage decides whether it is kept.** Per-process
+     state is fine where the number is a bound (the 6000/min stopgap) and not fine where it is a
+     control (the 5/hour escalation cap). D-181 split them on that line rather than making both
+     shared.
+     **⚠️ Measure the defect live *before* deploying its fix, or accept that you never will**
+     (D-180's lesson; D-181 followed it and it cost nothing).
+     **⚠️ Enumerate the ways a live probe can be vacuous, before running it.** D-180 was caught by a
+     third mode (`scope=out_of_scope` → `refuse`, so the probe never ran). Always read `scope` and
+     `citations` alongside the result, and keep a control that fires.
+     **⚠️ A measurement that omits a branch reports that branch as its most flattering outcome.**
+     Only the `SHIPPED probe_access` row calls the code; the rest are marked `0+`.
+     **✅ The dumps are no longer at risk** — committed under
+     `apps/chat-api/tests/fixtures/probe_measurements/`, 128 KB, with load guards and a README.
+     Deleting the old scratchpad copies is now safe.
+     **Counting findings:** ROADMAP's anchored `awk` returns **1** today: F-33 only.
+     **Sample size has a direction** (D-178): 0/10 refutes a 60% rate at p=0.01% but bounds a
+     residual only at <26% (one-sided 95%). Do not upgrade D-178's 0/10 to "never".
+     **⚠️ `aws` credentials expire** — `aws configure export-credentials` failed with "session has
+     expired" mid-session (D-181), so the task-count read that would have named the exact multiplier
+     was not taken. Re-authenticate before any staging read.
+     **Reading staging's database:** `aws ecs run-task` with a `containerOverrides` command on
+     `intellichoice-staging-ops-task` reads RDS directly for a few Fargate seconds, read-only by
+     construction if the command is a `SELECT`.
+     **Probing the deployed chat API:** base path **`/chat/...`**, edge
+     `d222glidpp4azv.cloudfront.net` (learning is `d35dfnjzmgrm01`); `POST /chat/sessions` then
+     `POST /chat/sessions/{id}/messages` with `{"query": ...}`, anonymous, ~1.25¢/turn — **except the
+     `escalate: true` path, which is free** (D-181).
+     **Paid eval:** `CHAT_EVAL_RUN_BUDGET_CENTS=<n>` enforces an approved figure (tighten-only); a
+     full unfiltered run is **52.5¢ / 5m33s** as of D-178 (76.7¢ at S37).
+     **Re-scoring probe rules is free:** `--load <dump> --query-field <field> --shipped`, and the
+     dumps now ship with the repo.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"`
+     **and export `AWS_REGION=us-east-1`** — the exported credentials carry no region, and
+     `AWS_PROFILE` alone does not work for the paid eval (D-164). Not needed for anonymous probes.
+
+- **Superseded — pointer as of post-D-180 (2026-08-04). Item 3(c)'s rate-limiter half is done in
+  D-181 (AUD-C-27); the dump-preservation note in item 4 is done; the rest carry up:**
   0. **✅ Nothing owed.** D-180 is landed (PR #114, `dee6f07`), deployed (run 30967028354,
      `learning-api:65` / `chat-api:64`, both `gha-dee6f07c0bc1`) and its live row was taken — and the
      row came back **vacuous**, which is recorded rather than quietly dropped: the target question is

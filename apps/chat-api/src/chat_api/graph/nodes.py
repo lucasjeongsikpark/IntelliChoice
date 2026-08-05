@@ -43,7 +43,7 @@ from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.maps import GeocodeQuery
 from intellichoice_shared.mcp import McpToolError, McpToolRegistry
 from intellichoice_shared.profiles import ProfileAdapter
-from intellichoice_shared.rate_limit import InMemoryRateLimiter
+from intellichoice_shared.rate_limit import RateLimiter
 from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 from pydantic import ValidationError
@@ -129,9 +129,13 @@ SCOPE_AND_INTENT_SYSTEM_PROMPT = (
     "administrator' -> in_scope, admin_contact."
 )
 
+# AUD-C-27: "from this session" was wrong, and the probe that found the cap's real ceiling
+# is what showed it - every attempt used a *fresh* session and the block still arrived,
+# because the key is the caller (external id, else client IP), never the session. A message
+# that misdescribes its own scope tells a blocked caller that opening a new chat will help.
 RATE_LIMITED_MESSAGE = (
-    "Too many escalation requests from this session recently - please try again "
-    "later, or contact your branch manager directly."
+    "Too many escalation requests recently - please try again later, or contact your "
+    "branch manager directly."
 )
 EMAIL_SENT_MESSAGE = "Your message has been sent to an administrator."
 EMAIL_DECLINED_MESSAGE = "Okay, the message was not sent."
@@ -180,7 +184,7 @@ class TurnContext:
     mcp_registry: McpToolRegistry
     mcp_call_repo: McpToolCallRepository
     org_event_repo: OrgEventRepository
-    rate_limiter: InMemoryRateLimiter
+    rate_limiter: RateLimiter
     admin_escalation_email: str
     query: str | None = None
     candidate_limit: int = 30
@@ -617,7 +621,7 @@ async def prepare_admin_escalation(state: QAState, runtime: Runtime[TurnContext]
     """
     ctx = _ctx(runtime)
     key = _caller_external_id(ctx) or ctx.client_ip or "anonymous"
-    if not ctx.rate_limiter.allow(key):
+    if not await ctx.rate_limiter.allow(key):
         return {"rate_limited": True}
 
     assert state.standalone_query is not None

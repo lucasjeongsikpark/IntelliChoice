@@ -21,7 +21,7 @@ from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.pii_redaction import redact_free_text
 from intellichoice_shared.profiles import ProfileAdapter
-from intellichoice_shared.rate_limit import InMemoryRateLimiter
+from intellichoice_shared.rate_limit import RateLimiter
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command, Interrupt, StateSnapshot
 from pydantic import BaseModel, Field
@@ -296,7 +296,7 @@ def _turn_context(
     db: AsyncSession,
     bedrock_gateway: BedrockGateway,
     mcp_registry: McpToolRegistry,
-    rate_limiter: InMemoryRateLimiter,
+    rate_limiter: RateLimiter,
     query: str | None = None,
     client_ip: str | None = None,
 ) -> TurnContext:
@@ -340,7 +340,7 @@ async def post_message(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
-    rate_limiter: Annotated[InMemoryRateLimiter, Depends(get_email_rate_limiter)],
+    rate_limiter: Annotated[RateLimiter, Depends(get_email_rate_limiter)],
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> MessageResponse:
@@ -403,7 +403,7 @@ async def respond_to_interrupt(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
-    rate_limiter: Annotated[InMemoryRateLimiter, Depends(get_email_rate_limiter)],
+    rate_limiter: Annotated[RateLimiter, Depends(get_email_rate_limiter)],
     graph: Annotated[QAGraph, Depends(get_graph)],
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> RespondResponse:

@@ -17,6 +17,7 @@ from intellichoice_adapters.fake_maps import FakeMapsProvider
 from intellichoice_adapters.mysql_profile_adapter import MySQLProfileAdapter
 from intellichoice_db.engine import create_engine, create_session_factory
 from intellichoice_db.repositories.rag import RagRepository
+from intellichoice_db.repositories.rate_limit import RateLimitRepository
 from intellichoice_observability.langsmith_config import configure_langsmith
 from intellichoice_observability.logging_config import configure_logging
 from intellichoice_observability.metrics import install_http_metrics_middleware, render_metrics
@@ -41,10 +42,7 @@ from intellichoice_shared.email import EmailMessage
 from intellichoice_shared.maps import GeocodeQuery, RouteQuery
 from intellichoice_shared.mcp import McpTool, McpToolRegistry
 from intellichoice_shared.org_time import log_org_time_convention
-from intellichoice_shared.rate_limit import (
-    InMemoryRateLimiter,
-    install_global_rate_limit_middleware,
-)
+from intellichoice_shared.rate_limit import install_global_rate_limit_middleware
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from opentelemetry.instrumentation.utils import suppress_instrumentation
 from pydantic import BaseModel
@@ -57,6 +55,7 @@ from chat_api.routers.events import router as events_router
 from chat_api.routers.meta import router as meta_router
 from chat_api.routers.sessions import router as sessions_router
 from chat_api.routers.stream import router as stream_router
+from chat_api.services.escalation_rate_limit import PostgresRateLimiter
 from chat_api.services.session_events import ChatSessionEventBus
 
 logger = logging.getLogger(__name__)
@@ -124,12 +123,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     )
 
-    # SPEC §5.24.2 anonymous-email rate limiting - scoped to the admin-escalation send.
-    app.state.email_rate_limiter = InMemoryRateLimiter(
-        max_per_window=settings.email_rate_limit_max_per_window,
-        window_s=settings.email_rate_limit_window_s,
-    )
-
     # Bedrock Gateway (SPEC §5.25.1) - env-selected provider (D-002's pattern), one
     # instance for the app's lifetime so its circuit-breaker state persists (D-007).
     # `MockBedrockProvider` implements both `raw_generate` and `raw_embed`, so it
@@ -163,6 +156,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_engine(settings.database_url)
     app.state.db_engine = engine
     app.state.db_session_factory = create_session_factory(engine)
+
+    # SPEC §5.24.2 anonymous-email rate limiting - scoped to the admin-escalation send.
+    # AUD-C-27: on a shared counter, not in process memory, and therefore constructed
+    # here rather than above the gateway - it needs the session factory. The repository
+    # deliberately takes the *factory*: an attempt written on the request's session would
+    # not commit until after the response, so concurrent callers could not see it.
+    app.state.email_rate_limiter = PostgresRateLimiter(
+        repository=RateLimitRepository(app.state.db_session_factory),
+        max_per_window=settings.email_rate_limit_max_per_window,
+        window_s=settings.email_rate_limit_window_s,
+        key_secret=settings.jwt_signing_secret,
+    )
 
     if _otel_provider is not None:
         instrument_sqlalchemy_engines(engine, adapter.engine, provider=_otel_provider)
