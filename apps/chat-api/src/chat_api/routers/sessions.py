@@ -19,6 +19,7 @@ from intellichoice_db.repositories.rag import RagRepository
 from intellichoice_shared.auth import TokenClaims
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.mcp import McpToolRegistry
+from intellichoice_shared.pii_redaction import redact_free_text
 from intellichoice_shared.profiles import ProfileAdapter
 from intellichoice_shared.rate_limit import InMemoryRateLimiter
 from langchain_core.runnables import RunnableConfig
@@ -344,6 +345,15 @@ async def post_message(
     events: Annotated[ChatSessionEventBus, Depends(get_session_events)],
 ) -> MessageResponse:
     await _reject_if_paused(graph, chat_session_id, claims)
+    # AUD-C-24 (D-072's "How to apply" clause): the caller's typed text is redacted here,
+    # at the request boundary - the only place free text enters this graph - before it
+    # reaches `TurnContext`, the checkpointed `QAState`, or any Bedrock payload
+    # (`standalone_query`, `RerankPayload.query`, `RagAnswerPayload.query`,
+    # `CalendarExtractionPayload.query`). Same seam and same floor as learning-api's
+    # `send_chat_message`; escalation forwards the redacted text too, which is consistent
+    # with D-164 (escalation already carries no reply channel, so a stripped email
+    # address was never actionable there).
+    query = redact_free_text(body.query)
     ctx = _turn_context(
         claims=claims,
         profile_adapter=profile_adapter,
@@ -351,11 +361,11 @@ async def post_message(
         bedrock_gateway=bedrock_gateway,
         mcp_registry=mcp_registry,
         rate_limiter=rate_limiter,
-        query=body.query,
+        query=query,
         client_ip=request.client.host if request.client else None,
     )
     result = await graph.ainvoke(
-        AskInput(session_id=chat_session_id, query=body.query, escalate=body.escalate),
+        AskInput(session_id=chat_session_id, query=query, escalate=body.escalate),
         config=_graph_config(chat_session_id),
         context=ctx,
     )

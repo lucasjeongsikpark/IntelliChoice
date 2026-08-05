@@ -690,8 +690,10 @@ which stop the line.
 > is empty again.** **AUD-F-22** (child resolves at login — the user picked "at login" over "at
 > dashboard entry" when the recorded wording supported both) and **AUD-L-08** (declared item count
 > as the denominator, out-of-range flagged `unmeasurable_out_of_range`, never clamped) are closed
-> with tests. The backlog is now **3 open**: AUD-C-23 and AUD-C-24 (each waiting on a user
-> decision) and AUD-F-33 (deferred by the user's call).
+> with tests. **D-177 (2026-08-04) then closed AUD-C-23 (floor 0.9 + pre-floor tier margin, chosen
+> by re-measurement; live 10-probe re-verification owed after deploy) and AUD-C-24 (chat free text
+> redacted at the request boundary), so the backlog is now 1 open**: AUD-F-33 (deferred by the
+> user's call).
 >
 > **⚠️ How to recount, corrected 2026-08-04 (D-174) — the previous instruction here was the one that
 > produced a wrong number.** It said "derive the count from the table, never carry it forward",
@@ -720,8 +722,8 @@ which stop the line.
 >   docs/AUDIT_FINDINGS.md | sort -u
 > ```
 >
-> That returns **3** as of 2026-08-04 (D-176): AUD-C-23, AUD-C-24, AUD-F-33. (It returned 6 when
-> this instruction was written, 5 after D-175.) **Do not "correct" the count to whatever a looser
+> That returns **1** as of 2026-08-04 (D-177): AUD-F-33. (It returned 6 when
+> this instruction was written, 5 after D-175, 3 after D-176.) **Do not "correct" the count to whatever a looser
 > grep reports** without checking where the word sits — that is the same class of error twice over.
 >
 > Note also that *Open* and *Decided* are different piles: a finding whose fix has been decided but

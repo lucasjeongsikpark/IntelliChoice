@@ -85,7 +85,7 @@ import math
 import os
 import sys
 from collections.abc import Awaitable, Callable, Iterable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from fractions import Fraction
 from pathlib import Path
@@ -175,6 +175,11 @@ class _Row:
     rerank: dict[str, float] = field(default_factory=dict)
     hyde_semantic: list[_Candidate] = field(default_factory=list)
     hyde_rerank: dict[str, float] = field(default_factory=dict)
+    # AUD-C-23/D-175: N additional reranks of the *same* candidate set, same query. The
+    # live 6-in-10 flip is a property of rerank score noise, so a rule chosen off one
+    # rerank per case is chosen off a single sample of the noisy variable. Only populated
+    # for cases named with --stability.
+    rerank_repeats: list[dict[str, float]] = field(default_factory=list)
 
 
 _LEX = text("SELECT unnest(tsvector_to_array(to_tsvector('english', :q))) AS lex")
@@ -528,6 +533,35 @@ def rerank_margin_hint(
     return _hint({a: AudienceMatch(count=counts[a], score=s) for a, s in best.items()})
 
 
+def rerank_prefloor_margin_hint(row: _Row, floor: float, margin: float, cut: float = 1.0):
+    """AUD-C-23's second measured lesson: `rerank_margin_hint` computes the margin only
+    over audiences that already cleared the floor, so a runner-up sitting just *under*
+    the floor is invisible to it - raise the floor and the rule starts naming the winner
+    of a race the margin was supposed to call too close (measured: corpus-arm
+    probe-parent-013, branch_manager 0.95 vs parent 0.90, floor 0.9 names the wrong
+    tier 3/10). Here the margin is computed over the *pre-floor* per-audience bests; the
+    floor then decides whether the undisputed winner is relevant enough to name.
+    """
+    pool = _under(row.semantic, cut)
+    best: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    for candidate in pool:
+        score = row.rerank.get(candidate.chunk_id)
+        if score is None:
+            continue
+        best[candidate.audience] = max(best.get(candidate.audience, 0.0), score)
+        counts[candidate.audience] = counts.get(candidate.audience, 0) + 1
+    if not best:
+        return None
+    ordered = sorted(best.items(), key=lambda kv: kv[1], reverse=True)
+    winner, winner_score = ordered[0]
+    if winner_score <= floor:
+        return None
+    if len(ordered) > 1 and winner_score - ordered[1][1] < margin:
+        return None
+    return _hint({winner: AudienceMatch(count=counts[winner], score=winner_score)})
+
+
 def rerank_only_hint(row: _Row, floor: float, hyde: bool = False):
     """No cosine ceiling at all: the reranker's relevance score is the hint/silence gate, the
     way `retrieve` already uses `score > 0` as its keep/drop filter. This is the variant that
@@ -709,6 +743,26 @@ async def _collect(args: argparse.Namespace, gateway: BedrockGateway, spend: _Sp
         )
         for row, scores in zip(rows, hyde_scores, strict=True):
             row.hyde_rerank = scores
+
+    stability_ids = set(args.stability or [])
+    if stability_ids:
+        unknown = stability_ids - {row.case["id"] for row in rows}
+        if unknown:
+            print(f"  --stability ids not in this run: {sorted(unknown)}", file=sys.stderr)
+        for row in rows:
+            if row.case["id"] not in stability_ids:
+                continue
+            row.rerank_repeats = await _gather_limited(
+                [
+                    (
+                        lambda r=row: _rerank(
+                            gateway, r.case["query"], r.semantic[:RERANK_TOP_K], spend
+                        )
+                    )
+                    for _ in range(args.stability_repeats)
+                ],
+                args.concurrency,
+            )
     return rows
 
 
@@ -877,6 +931,15 @@ def _report(args: argparse.Namespace, rows: list[_Row], skipped: list[str], spen
                 f"rr <={cut:.2f} >{floor:.1f} m0.10",
                 lambda r, c=cut, f=floor: rerank_margin_hint(r, f, 0.1, cut=c),
             )
+    print("-" * (len(hdr) - 1))
+    for floor in (0.8, 0.85, 0.9):
+        for margin in (0.05, 0.1):
+            line(
+                f"pf >{floor:.2f} m{margin:.2f}",
+                lambda r, f=floor, m=margin: rerank_prefloor_margin_hint(
+                    r, f, m, cut=0.60
+                ),
+            )
     if args.hyde:
         for cut in (0.60, 0.65):
             for margin in (0.1, 0.2):
@@ -905,7 +968,61 @@ _RULES: dict[str, Any] = {
     "rr_margin20": lambda r: rerank_margin_hint(r, 0.3, 0.2),
     # D-168's shipped rule: ceiling 0.60 prefilter, rerank floor 0.8, tier margin 0.10.
     "chosen": lambda r: rerank_margin_hint(r, 0.8, 0.1, cut=0.60),
+    # AUD-C-23 tightening candidates: same shape as "chosen", one knob moved at a time,
+    # plus the two-knob combination. The stability section scores each against repeated
+    # reranks, which is the axis the original table never measured.
+    "chosen_f085": lambda r: rerank_margin_hint(r, 0.85, 0.1, cut=0.60),
+    "chosen_f09": lambda r: rerank_margin_hint(r, 0.9, 0.1, cut=0.60),
+    "chosen_m02": lambda r: rerank_margin_hint(r, 0.8, 0.2, cut=0.60),
+    "chosen_m03": lambda r: rerank_margin_hint(r, 0.8, 0.3, cut=0.60),
+    "chosen_f09_m02": lambda r: rerank_margin_hint(r, 0.9, 0.2, cut=0.60),
+    # Pre-floor margin family (see rerank_prefloor_margin_hint's docstring).
+    "pf_f08_m01": lambda r: rerank_prefloor_margin_hint(r, 0.8, 0.1, cut=0.60),
+    "pf_f085_m01": lambda r: rerank_prefloor_margin_hint(r, 0.85, 0.1, cut=0.60),
+    "pf_f09_m005": lambda r: rerank_prefloor_margin_hint(r, 0.9, 0.05, cut=0.60),
+    "pf_f09_m01": lambda r: rerank_prefloor_margin_hint(r, 0.9, 0.1, cut=0.60),
 }
+
+
+def _stability(rows: list[_Row]) -> None:
+    """AUD-C-23/D-175: the live flip is nondeterminism in the rerank scores, so print
+    (a) the raw evidence - per-repeat best score per audience - and (b) each candidate
+    rule's hint rate over the repeats. A rule is only a fix if its hint rate on the
+    unanswerable case is 0/N *and* its hint on the gated control keeps naming the right
+    tier at close to the single-shot rate.
+    """
+    repeated = [row for row in rows if row.rerank_repeats]
+    if not repeated:
+        return
+    print("\nstability over repeated reranks (same query, same candidate set):")
+    for row in repeated:
+        n = len(row.rerank_repeats)
+        expected = row.case["expected_required_role"]
+        print(
+            f"\n  {row.case['id']} ({row.case['category']}, expected="
+            f"{expected}) x{n} repeats"
+        )
+        by_chunk_audience = {c.chunk_id: c.audience for c in row.semantic}
+        for index, scores in enumerate(row.rerank_repeats):
+            best: dict[str, float] = {}
+            for chunk_id, score in scores.items():
+                audience = by_chunk_audience.get(chunk_id)
+                if audience is not None:
+                    best[audience] = max(best.get(audience, 0.0), score)
+            ranked = sorted(best.items(), key=lambda kv: kv[1], reverse=True)
+            summary = "  ".join(f"{a}={s:.2f}" for a, s in ranked) or "(rerank failed)"
+            print(f"    repeat {index:>2}: {summary}")
+        print(f"    {'rule':>26} | hint rate | roles named")
+        for name, rule in _RULES.items():
+            if not name.startswith(("chosen", "pf_")):
+                continue
+            named: list[str] = []
+            for scores in row.rerank_repeats:
+                hint = rule(replace(row, rerank=scores))
+                if hint is not None:
+                    named.append(hint.required_role)
+            roles = ", ".join(sorted(set(named))) if named else "-"
+            print(f"    {name:>26} | {len(named):>4}/{n:<4} | {roles}")
 
 
 def _detail(args: argparse.Namespace, rows: list[_Row]) -> None:
@@ -957,6 +1074,7 @@ def _dump_rows(rows: list[_Row], path: Path) -> None:
                     "rerank": row.rerank,
                     "hyde_semantic": [vars(c) for c in row.hyde_semantic],
                     "hyde_rerank": row.hyde_rerank,
+                    "rerank_repeats": row.rerank_repeats,
                 }
                 for row in rows
             ]
@@ -983,6 +1101,8 @@ def _load_rows(path: Path) -> list[_Row]:
             rerank=raw["rerank"],
             hyde_semantic=[_Candidate(**c) for c in raw["hyde_semantic"]],
             hyde_rerank=raw["hyde_rerank"],
+            # Older dumps predate --stability; treat them as "no repeats measured".
+            rerank_repeats=raw.get("rerank_repeats", []),
         )
         for raw in json.loads(path.read_text())
     ]
@@ -1003,6 +1123,7 @@ async def _run(args: argparse.Namespace) -> int:
             _dump_rows(rows, Path(args.dump))
             print(f"measurements written to {args.dump}", file=sys.stderr)
     _report(args, rows, skipped, spend)
+    _stability(rows)
     if args.detail:
         _detail(args, rows)
     return 0
@@ -1039,6 +1160,15 @@ def main() -> int:
         help="Also measure HyDE variants (one extra generation and embedding per case).",
     )
     parser.add_argument("--dump", help="Write this run's raw measurements to a JSON file.")
+    parser.add_argument(
+        "--stability",
+        action="append",
+        help="Case id to rerank --stability-repeats extra times (repeatable). AUD-C-23: "
+        "the live flip is rerank noise, so a candidate rule must be scored against the "
+        "score *distribution*, not one sample. Sample size is chosen here, before the "
+        "run, per D-175's rule.",
+    )
+    parser.add_argument("--stability-repeats", type=int, default=10)
     parser.add_argument(
         "--load",
         help="Re-score a dumped run instead of calling Bedrock. Free, and the only way to "

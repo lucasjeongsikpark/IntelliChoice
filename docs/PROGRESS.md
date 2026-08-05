@@ -5,6 +5,38 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ D-177: the last two decision-gated findings implemented — AUD-C-23 (re-measured, and the
+  re-measurement moved the fix off the knob the fork named) and AUD-C-24 (chat free text redacted
+  at the boundary) (2026-08-04, S62 — no numbered session; PROGRESS.md's own pointer, items 1
+  and 2, both user decisions taken at session start).** `make lint` clean, `pyright` 0,
+  **869 passed / 2 skipped** (865 at start, +4). **⚠️ Uncommitted and not deployed** — owed: PR,
+  deploy, and the live row (below). Written the day of the work, on purpose (the D-174/D-175
+  close-out lesson).
+  **✅ AUD-C-24 closed as decided: redact at the boundary.** `redact_free_text(body.query)` in
+  chat-api's `post_message` — the only place free text enters the QA graph (`/respond`'s free text
+  is location data, geocoded and purged per AUD-C-03; `/stream` takes no input) — so all four
+  Bedrock payloads, the checkpointed `QAState`, and the escalation draft carry redacted text. Two
+  HTTP tests assert the raw email absent from the draft **and** from serializer-decoded
+  `checkpoint_writes` (the AUD-C-03 lesson), and that an email-bearing in-scope question still
+  classifies and answers. Accepted knowingly: escalation emails show `[redacted-email]` —
+  consistent with D-164, which ships escalation with no reply channel anyway.
+  **✅ AUD-C-23 closed, and the fork's own framing was wrong in an instructive way.** The user chose
+  re-measure-and-tighten; the new `--stability` mode (10 reranks per case per arm, sample size
+  fixed before the run per D-175's rule) showed the **tier margin never applied** to the failing
+  case — the winner's rerank score straddles the 0.8 **floor** (0.75–0.90 over 22 samples,
+  runner-up at 0.2–0.3). And raising the floor alone resurrects AUD-C-22: with floor-first
+  filtering at 0.9, the corpus-phrasing attendance control (bm 0.95 / parent 0.90) loses its
+  runner-up before the margin runs and names the **wrong tier 3/10**. So the fix is two coupled
+  edits: `ACCESS_PROBE_RERANK_MIN_SCORE` 0.8 → **0.9**, and `probe_access` computes the margin over
+  **pre-floor** per-audience bests. Both arms: 0 wrong tiers, 0 false hints on both negative
+  classes, **0/40 stability fires**; cost, 2–3 of 38 hints become silences (the trade AUD-C-22
+  priced). **The paid eval's `wrong_role_hints` assertion — red since D-168 — passed**, `no_answer`
+  8/8 including the finding's case. Paid spend 55.04¢ of the approved 100¢; both dumps re-score
+  free via `--load`. Knife edges recorded in `access_probe_policy` so nobody re-trips them: 0.85
+  still leaks (a 0.90 sample exists), and margin 0.05 only "passed" through binary float error.
+  **Open count: 1** — `AUD-F-33` (deferred by the user's call), confirmed with ROADMAP's anchored
+  `awk`. Arithmetic: 3 at start, −C-23, −C-24.
+
 - **✅ D-176: D-175 landed and its live rows measured, then the two decided findings implemented —
   AUD-F-22 (child resolves at login) and AUD-L-08 (declared-count denominator, flag never clamp)
   (2026-08-04, S61 — no numbered session; PROGRESS.md's own pointer, items 0 and 3).** `make lint`
@@ -1286,7 +1318,51 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-176):**
+- **Next session, in order (2026-08-04, post-D-177):**
+  0. **Owed: land and deploy D-177, then take its live row.** Application changes on both live
+     surfaces (chat-api's boundary redaction; the probe rule in `intellichoice_knowledge` +
+     `intellichoice_shared`), so this needs a PR and deploy. The one thing to verify live that a
+     test cannot see: **10 anonymous probes** (sample size fixed in D-177, before anyone runs
+     them) of *"What happens to a student who misses three sessions in a row?"* against the
+     deployed chat edge — expected **0/10** `access_hint`, where D-175 measured 6/10 with
+     `required_role: "branch_manager"`. Keep the control from D-173: a question known to trigger
+     a hint should still return `required_role: "parent"` (a run where the control goes silent
+     proves nothing). Base path `/chat/...`, ~1.25¢/turn, expect the latency scale-out alarm to
+     move (AUD-F-38 is fixed; not a deploy signal).
+  1. **Optional, cheap to decide later: a full unfiltered real-Bedrock eval run.** This session's
+     narrowed run asserted `wrong_role_hints` (the invariant that means the same thing on a
+     subset); the containment/coverage invariants were **not** asserted post-rule-change. A full
+     run re-asserts them and re-baselines the reported rates under the 0.9 floor.
+  2. **AUD-F-33** (P2, autoscaling) remains deferred by your call — detection exists, mechanism
+     unknown.
+  3. **The product decisions still unanswered, unchanged and none of them mine to make:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent
+     by choice; (b) should the access hint be able to say "this is covered in parent *and*
+     branch-manager materials" instead of going silent — still the same margin AUD-C-23 just
+     retuned, and the retune makes silence *more* common on two-tier questions, so this question
+     is now slightly more live than before; (c) escalation carries no way to reply to the person
+     who asked (D-164's scoped-out half), and `InMemoryRateLimiter` is per-process so the real
+     ceiling is N× the configured one. From D-176, low stakes: does a multi-child parent need an
+     in-app switcher, or is sign-out-and-back-in acceptable until real auth replaces the dev
+     login. New from D-177, same register: is `[redacted-email]` in escalation drafts acceptable
+     long-term, or should escalation eventually carry a structured (consented) contact field.
+  4. **Notes that survive from the post-D-176 pointer:**
+     **Counting findings:** ROADMAP's anchored `awk` (status is the 5th pipe field, a real open
+     finding *starts* with `Open`) returns **1** today: F-33.
+     **Reading staging's database:** `aws ecs run-task` with a `containerOverrides` command on
+     `intellichoice-staging-ops-task` reads RDS directly for a few Fargate seconds, read-only by
+     construction if the command is a `SELECT`.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+     **Note on `aws`:** `eval "$(aws configure export-credentials --profile jeongsik-staging-admin --format env)"`
+     **and export `AWS_REGION=us-east-1`** — the exported credentials carry no region. (Not needed
+     for anonymous edge probes, which are ordinary HTTPS.)
+     **Re-scoring the probe measurements costs nothing:** the two dumps from D-177's sweep are in
+     the session scratchpad (`probe_run_human.json`, `probe_run_corpus.json`) — copy them
+     somewhere durable if a future rule question comes up, or re-run the sweep (~43¢ for both
+     arms with 10 stability repeats).
+
+- **Superseded — pointer as of post-D-176 (2026-08-04). Items 1 and 2 (the AUD-C-23 and AUD-C-24
+  decisions) were taken and implemented in D-177; items 3–5 carry up unchanged:**
   0. **✅ Nothing owed.** D-176's work is landed (PR #109, `c3aef7d`), deployed (run 30957318802,
      `learning-api:63` / `chat-api:62`), and staging-verified (the three parent journeys, 3/3
      against the deployed stack with the build identity pinned to this commit).
@@ -5426,6 +5502,43 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S62 (unnumbered) — AUD-C-23 re-measured and retuned off the knob the fork named, AUD-C-24 redacted at the boundary (2026-08-04) ⏸ (code ✅, land/deploy/live-row owed)
+
+- **Scope: PROGRESS.md's own "Next session" pointer (post-D-176), items 1 and 2** — no numbered
+  roadmap block (D-152). Both items were decision-gated; both decisions taken by the user at
+  session start (AUD-C-23: re-measure and tighten; AUD-C-24: redact at the boundary), plus a 100¢
+  cap approved for the paid measurement. Baseline verified first: lint clean, pyright 0,
+  **865 passed / 2 skipped**, tree clean.
+- **✅ AUD-C-24 (P2) closed.** One call — `redact_free_text(body.query)` — at chat-api's
+  `post_message`, the single free-text entry to the QA graph (checked: one `AskInput(` constructor
+  call in the repo; `/respond` free text is location data, purged per AUD-C-03; `/stream` takes no
+  input). Covers the four Bedrock payloads, checkpointed `QAState`, and the escalation draft. 2
+  HTTP tests: raw email absent from the draft and from serializer-decoded `checkpoint_writes`;
+  an email-bearing in-scope question still classifies and answers.
+- **✅ AUD-C-23 (P2) closed, with the mechanism finally *measured* rather than inferred.**
+  `measure_access_probe_rules.py` grew `--stability CASE_ID` (N extra reranks of the same
+  candidate set, N=10 fixed pre-run per D-175's rule) and dumps carry per-repeat scores. Findings:
+  the failing case's winner straddles the 0.8 **floor** (0.75–0.90, 22 samples) with the runner-up
+  at 0.2–0.3 — **the tier margin never applied**, so "tighten the margin" was the wrong knob-name;
+  and floor-first filtering at 0.9 names the wrong tier 3/10 on the corpus-arm attendance control
+  (bm 0.95 / parent 0.90 truncated before the margin ran). Shipped as two coupled edits: floor
+  0.8 → **0.9** (`access_probe_policy`, table + knife edges rewritten in place) and **pre-floor
+  margin** in `probe_access` (`intellichoice_knowledge/retrieval.py`). Both arms 0 wrong / 0 FP,
+  0/40 stability fires; 2–3 rights become silences. One existing probe test's contract updated
+  (returned set is now provably the winner alone at these constants), two regression tests added
+  with values straight from the stability tables.
+- **✅ The paid eval's `wrong_role_hints` assertion — red since D-168, the finding's original
+  filing — passed:** `CHAT_EVAL_CATEGORIES=no_answer,role_gated_question`, `no_answer` **8/8**
+  (incl. `no-answer-missed-1`), the one `role_gated_question` miss is a silence (reported, not
+  asserted). The narrowed run is the file's own documented use for exactly this check.
+- **Verification:** lint clean, pyright 0, **869 passed / 2 skipped** (+4). Paid spend **55.04¢**
+  of 100¢ (21.42 + 21.12 sweep arms, 12.5 eval). **Not landed, not deployed** — owed next session:
+  PR, deploy, then **10 anonymous live probes** of the AUD-C-23 question (expected 0/10 vs
+  D-175's 6/10, with D-173's positive control).
+- Decisions: D-177. Register: AUD-C-23 and AUD-C-24 rows + sections closed (C-23 annotated with
+  the owed live row), summary block and ROADMAP recount notes updated, open count **1** (F-33)
+  re-derived with the anchored `awk`.
 
 ### S61 (unnumbered) — D-175 landed with its 404 rows measured, and the two decided findings implemented: AUD-F-22 and AUD-L-08 (2026-08-04) ✅
 
