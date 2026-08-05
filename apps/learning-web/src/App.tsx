@@ -3,7 +3,7 @@ import "./App.css";
 import * as api from "./api/client";
 import { useLearningSession } from "./hooks/useLearningSession";
 import { useNarrativeGate } from "./hooks/useNarrativeGate";
-import type { ChildCandidate, Role, SessionSnapshot } from "./types";
+import type { ChildCandidate, Role, SessionSnapshot, TopicOption } from "./types";
 import logoUrl from "../../../packages/ui-brand/assets/logo.png";
 import { DevLoginScreen } from "./screens/DevLoginScreen";
 import { StartScreen } from "./screens/StartScreen";
@@ -80,6 +80,40 @@ function App() {
       cancelled = true;
     };
   }, [token, role, rememberStudent]);
+
+  // D-187: the topic picker's contents, fetched once the session has a bound student
+  // (which is exactly when the picker renders). `null` is "not loaded"; a failed fetch
+  // leaves it null rather than substituting a guess, because the guess is what this
+  // replaced - a stale hard-coded list is how a contentless topic gets offered.
+  const [topics, setTopics] = useState<TopicOption[] | null>(null);
+  // Tracked separately from `topics` because a failed fetch and an in-flight one are both
+  // "no list yet" and must not look the same: leaving the screen on "Loading topics…"
+  // forever is a spinner that lies about what is happening.
+  const [topicsFailed, setTopicsFailed] = useState(false);
+  const topicPhase = snapshot?.phase === "student_selected";
+  const topicSessionId = topicPhase ? (snapshot?.learning_session_id ?? null) : null;
+
+  useEffect(() => {
+    if (!token || !topicSessionId) return;
+    let cancelled = false;
+    setTopicsFailed(false);
+    api
+      .getTopics(token, topicSessionId)
+      .then((result) => {
+        if (!cancelled) setTopics(result.topics);
+      })
+      .catch(() => {
+        // No hard-coded fallback list on purpose - substituting a guess is what D-187
+        // removed, and a stale guess is how a contentless topic gets offered.
+        if (!cancelled) {
+          setTopics(null);
+          setTopicsFailed(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, topicSessionId]);
 
   const [streak, setStreak] = useState(0);
   const [counts, setCounts] = useState({ hint: 0, solution: 0, video: 0 });
@@ -344,6 +378,8 @@ function App() {
       if (snapshot.phase === "student_selected") {
         return (
           <TopicSelectScreen
+            topics={topics}
+            loadFailed={topicsFailed}
             busy={session.busy}
             error={session.error}
             onSelect={(topicId) => void session.chooseTopic(topicId)}

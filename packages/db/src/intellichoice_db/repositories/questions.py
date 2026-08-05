@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_db.models.questions import (
@@ -123,6 +123,39 @@ class QuestionRepository:
         for template in result.scalars().all():
             grouped[template.difficulty_label].append(template)
         return grouped
+
+    async def count_active_questions_by_topic(self) -> dict[str, dict[int, int]]:
+        """`{topic_id: {difficulty_label: count}}` over active+approved templates, in one
+        query for the whole bank (D-187).
+
+        Exists so "can this topic be offered?" can be answered without reading the
+        templates themselves: the topic list is rendered before any exam is built, and
+        pulling every row of every topic to take five lengths would be a table scan's worth
+        of ORM objects for five integers.
+
+        Same `active`/`approved` filter as `get_active_questions` above, deliberately - a
+        count that used a looser filter would advertise a topic the exam builder then
+        refuses to build (the failure D-187 exists to prevent). Difficulties absent from a
+        topic are absent from its inner dict, so callers must read them with a default
+        rather than assume every tier is present.
+        """
+        stmt = (
+            select(
+                QuestionTemplate.topic_id,
+                QuestionTemplate.difficulty_label,
+                func.count(QuestionTemplate.question_template_id),
+            )
+            .where(
+                QuestionTemplate.active_status == "active",
+                QuestionTemplate.validation_status == "approved",
+            )
+            .group_by(QuestionTemplate.topic_id, QuestionTemplate.difficulty_label)
+        )
+        result = await self._session.execute(stmt)
+        counts: dict[str, dict[int, int]] = {}
+        for topic_id, difficulty_label, count in result.all():
+            counts.setdefault(topic_id, {})[difficulty_label] = count
+        return counts
 
     async def get_active_questions_for_skill(self, skill_id: str) -> list[QuestionTemplate]:
         """Same active/approved filter as `get_active_questions`, scoped by skill instead

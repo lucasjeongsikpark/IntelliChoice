@@ -5,6 +5,52 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-187: A6-C step 4 — topic availability now comes from the template bank, the grade map is
+  read at last, and D-186 landed and deployed on the way (2026-08-05, third session that day;
+  PROGRESS.md's own post-D-186 pointer, items 0 and 1's step 4 — you chose the scope and chose to
+  defer the paid authoring run).** `make lint` clean, `pyright` 0, **909 passed / 2 skipped** — up
+  14, the new tests, with the prior 895 unchanged. `tsc --noEmit` and `oxlint` clean for
+  `learning-web`; `make e2e-typecheck` clean. **Nothing was spent** (no Bedrock, no authoring run).
+  **✅ D-186 was not on `main` and the pointer did not say so.** It sat in **open PR #122** while
+  `origin/main` was still at D-184; all nine checks were green, so it squash-merged as `8bfbb14`.
+  A session that ends with an open PR reads as "landed" in the log and is not.
+  **✅ Staging deployed, verified by pinned id *and* by the artifact.** Run **31032643136**, head
+  SHA `8bfbb14`, success at 18:20:20Z, every step green including the CloudFront smoke test. Then
+  the check that does not depend on the workflow's own opinion: the live bundle
+  `assets/index-Dwu8ySO1.js` contains `Switch child`, so D-184's switcher is genuinely on the
+  distribution. Not done: a signed-in click-through (needs the staging token secret).
+  **✅ The reconciliation, and the measurement that justifies its shape.** `GET
+  /learning/sessions/{id}/topics` derives `available` from the bank by **importing**
+  `assessment_builder`'s own `DIFFICULTIES`/`QUESTIONS_PER_DIFFICULTY`, so the offer and the build
+  cannot drift into a 503. `recommended_for_grade` is conjunctive with `available` — and that is
+  not a hypothetical guard: **every seeded student's band candidate is an empty topic today**
+  (`student-ext-4`, grade 4 → `fraction_operations`, zero templates; grade 3 resolves to no band at
+  all). Confirmed live against the real fixtures.
+  **✅ Step 3's real blocker was a test, and it is gone.** `test_loader.py` asserted
+  `len(active) == 10`, making the loader's contract a claim about *everything* approved at that
+  tier — so approving one authored template broke the suite, exactly as S20's live verification
+  found. It now asserts identity of the ten deterministically-named hand-authored ids. A sweep
+  confirmed every other active-bank assertion is membership-based already, so step 3 can now
+  approve into the shared dev DB without a cleanup ritual.
+  **⚠️ The paid authoring run was priced but deliberately not run (your call).** 4 LLM calls +
+  1 embedding per candidate, each capped at 2000 in / 400 out; 11 (skill, tier) pairs × 2 =
+  22 items → **~$1.06 worst case at the placeholder sonnet rates, ~$0.35 at haiku**. Money is not
+  the constraint; **human review of up to 22 items (D-026) is**. Two prerequisites stand:
+  `CURRICULUM_BEDROCK_PROVIDER` defaults to `mock`, `.env.example` has **no `CURRICULUM_` entries
+  at all**, and the default `anthropic.claude-sonnet-5` is not this account's invocable id (D-084's
+  is `us.anthropic.claude-haiku-4-5-20251001-v1:0`).
+  **⚠️ The suggestion badge has never rendered in a browser** — no seeded student is in grade 6-7,
+  the only band with content. Unit-tested at both levels; visible the first time either a 6-7
+  fixture exists or the other two topics are authored.
+  **⚠️ A 409 branch on both topic routes is unreachable by the obvious path.** A session with no
+  checkpointed state 404s in `_get_state_values` before "select a student before a topic" is ever
+  consulted — my test asserted 409 and was wrong, not the code. Pinned as 404 now.
+  **⚠️ Two exit-code traps in one session, and the second is new.** I hit D-183's `PIPESTATUS`
+  family again by reading `$?` after a pipe (`npx tsc … | tail; echo $?` reports *tail*). Then a
+  `gh` CI watcher exited immediately on a false green: a queued check reports
+  `conclusion: ""`, **not null**, so `.conclusion // "PENDING"` never fires. Test `.status` for
+  `QUEUED`/`IN_PROGRESS`, not `.conclusion` for emptiness.
+
 - **✅ D-186: A6-C steps 1 and 2 — multi-tier for the middle skills is decided, and the authored
   pipeline can finally produce it (2026-08-05, same day, continuing from D-185).** `make lint`
   clean, `pyright` 0, **895 passed / 2 skipped** — up exactly 6, the new tests, with the prior 889
@@ -1769,7 +1815,56 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-05, post-D-186):**
+- **Next session, in order (2026-08-05, post-D-187):**
+  0. **Nothing is owed: D-187 is merged and deployed** (see the status entry above for the run id
+     and the artifact check). The one habit that survives: **`make tfvars-floor-check` before any
+     apply**, and expect it to fail after a deploy that did not bump the floor (fifth occurrence).
+  1. **A6-C step 3 is the only remaining step, and it is now unblocked in every sense.** Steps 1, 2
+     and 4 are done (D-186, D-187), and `test_loader.py` no longer breaks when a template is
+     approved. What is left is **author + human-review**: `make question-gen-authored` then
+     `make question-review`. Before running it, two things need your answer because I will not
+     touch `.env`: **(a)** which provider/model — `CURRICULUM_BEDROCK_PROVIDER` defaults to `mock`,
+     `.env.example` has no `CURRICULUM_` entries, and the default `anthropic.claude-sonnet-5` is
+     not this account's invocable id (D-084's is `us.anthropic.claude-haiku-4-5-20251001-v1:0`);
+     **(b)** `--candidates-per-difficulty`, which is now **per (skill, tier) pair** — 2 asks for 22
+     items. Priced: ~$1.06 worst case at sonnet rates, ~$0.35 at haiku. **The cost is the human
+     review, not the money** (D-026 forbids self-approval), so pick a number you will actually
+     review in one sitting. Expect a higher rejection and `review_priority="high"` rate on the six
+     new pairs — the judge rejects a >±1 difficulty disagreement, which is exactly where a
+     deliberately hard easy-skill item sits. That is the gate working (D-186 §5).
+     Then the two unauthored topics themselves, which is the bulk of the K-12 gap.
+  2. **The remaining product decisions, still two, unchanged from post-D-186.** (b) the
+     multi-audience access hint — **my recommendation is still no**: an access hint suppresses the
+     escalation offer, so converting silences into hints removes the "ask an administrator" button
+     from exactly those turns, and the four sentences are not composable as written. Declined once
+     already in D-181. (c)+(e) escalation has no reply path and drafts carry `[redacted-email]` —
+     **one decision, not two**: D-177 accepted stripping the address *because* D-164 had no channel
+     for it. Cheapest real improvement is `user_external_id` in the draft body (~1-2 h, legal,
+     already computed at `nodes.py:599-600`), but `test_chat_endpoints.py:130-131` **pins "no
+     identity" on purpose**, so it needs an explicit call. It does not help the anonymous asker,
+     which is (e)'s real content.
+  3. **Two small things D-187 left behind, neither blocking.** The `recommended_for_grade` badge has
+     never rendered in a browser (no seeded student is in grade 6-7, the only band with content) —
+     a 6-7 fixture student would fix that, but it shifts seed data several tests count, so it is a
+     decision rather than a chore. And `StudentDashboardScreen` still names historical topics from
+     a label map in `topics.ts`, because it renders outside any session; losing that map means a
+     topic-name field on the history endpoint.
+  4. **⚠️ `terraform.tfvars` will go stale again, and it is gitignored.** `make tfvars-floor-check`
+     before every apply.
+  5. **Notes that survive, plus two earned in D-187:**
+     **⚠️ New — when two places disagree about a fact, find the one that *decides* it.** Topic
+     availability had a frontend flag and a grade map, and the answer was neither: it is whether
+     `build_pre_exam` could build an exam. Importing that module's own threshold rather than
+     restating it is what makes the drift impossible instead of merely unlikely.
+     **⚠️ New — a queued GitHub check reports `conclusion: ""`, not null.** A watcher written as
+     `.conclusion // "PENDING"` exits instantly on a false green. Test `.status` for
+     `QUEUED`/`IN_PROGRESS`. (Same family as D-183's `PIPESTATUS`, which I also hit again today by
+     reading `$?` after a pipe.)
+     **⚠️ Everything below carries up from post-D-186 unchanged.**
+
+- **Superseded — pointer as of post-D-186 (2026-08-05). Item 1's step 4 is done (D-187), and the
+  deploy it asked for happened (run 31032643136). Item 1's step 3 and the two product decisions
+  carry up:**
   0. **⚠️ Staging has not been deployed, and this is the first session in a while where that
      matters.** D-184's switcher is **image content**, unlike D-182's Terraform alarms which were
      live before their PR merged — so it is on `main` and *not* on `learning.intellichoice.org`.

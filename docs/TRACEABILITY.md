@@ -556,7 +556,7 @@ Six sections use it, and each one names its enforcing mechanism below.
 | section | implementation | test |
 |---|---|---|
 | **§5.0** Design principles | this *is* CLAUDE.md's ten non-negotiable rules | tranche 1, all ten traced |
-| **§5.7** Curriculum taxonomy | `content.py:1` — "loads the internal curriculum taxonomy (SPEC §5.7.2)" | `test_content.py`, `test_loader.py` |
+| **§5.7** Curriculum taxonomy | `content.py:1` — "loads the internal curriculum taxonomy (SPEC §5.7.2)"; **§5.7.3's grade→topic candidates** are now read at runtime by `content.topics_for_grade` via `topic_availability.build_topic_options` (D-187) — before that the map was loaded and never consulted, i.e. this row's .3 half was traced to a *parse*, not to a behavior | `test_content.py`, `test_loader.py`, `test_topic_availability.py`, `test_topics_endpoint.py` |
 | **§5.10** Mastery estimation | `mastery_bootstrap.py:1,43,120` — cites §5.10.1, §5.10.2's routing, §5.10.3; "pure deterministic scoring — no LLM" | `test_mastery_bootstrap.py` |
 | **§5.11** Study + HITL | `study_plan.py:1,20` (§5.11.1–.2, §5.11.7 retry), `tutor.py` (§5.11.4–.5) | `test_study_outcomes.py`, `test_tutor_service.py`, `test_hint_ladders.py` |
 | **§5.12** Tutor agent | `tutor.py:9,165` — §5.12.2's "verify calculations with tools", where a mismatch is treated as a failure rather than trusted; `tutor_chat.py:18` routes safety signals through an approved path rather than improvising | `test_tutor_service.py`, `test_learning_chat.py`, `test_numeric_grounding.py` |
