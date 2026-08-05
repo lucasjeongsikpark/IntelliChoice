@@ -206,6 +206,21 @@ _ALIGNMENT_SYSTEM_PROMPT = (
 
 _MAX_TOKENS = 400
 
+# S20 authored mode's responses are far larger than S9's shape-mode ones, and the single
+# shared ceiling above made authored generation *impossible* rather than merely tight -
+# silently, because nothing exercised it under a real model until now. Measured against
+# real Bedrock (Haiku 4.5, 2026-08-05): a complete `AuthoredGeneratedItemResponse` runs
+# 631 output tokens at tier 1 and 954 at tier 5, so 400 truncated every candidate at the
+# generator stage, before the deterministic gate ever ran. Sized with headroom above the
+# measured worst case rather than at it - the ceiling is a runaway guard, not a budget,
+# since output tokens bill by actual use.
+_AUTHORED_ITEM_MAX_TOKENS = 1600
+# Solver and judge responses are a few small fields plus a free-text `reasoning` (the
+# generator's ran ~660 characters at tier 5, i.e. well inside 400 on its own). Not observed
+# truncating, but a judge truncated by this ceiling discards a candidate that has already
+# paid for four calls, so they get modest headroom for the same reason.
+_AUTHORED_REVIEW_MAX_TOKENS = 800
+
 # --- S20 authored generation mode (plan §7) -----------------------------------------
 
 _AUTHORED_GENERATOR_SYSTEM_PROMPT = (
@@ -217,13 +232,30 @@ _AUTHORED_GENERATOR_SYSTEM_PROMPT = (
     "without ever stating the final answer, a worked canonical solution whose final "
     "answer matches the correct option exactly, and a misconception tag per distractor. "
     "Follow the style of the exemplars provided. Never leak the answer in the stem or "
-    "any hint."
+    "any hint. "
+    # The deterministic gate re-solves `answer_expression` and compares it to the
+    # options' own text, so an option that does not parse as a value cannot be confirmed
+    # correct. The first real run lost six of eleven candidates to exactly this - correct
+    # answers written as "x = 7" or with a typographic minus - so the format is stated
+    # rather than left implied. `_normalize_math_text` now also repairs both cases at the
+    # parse site; asking here as well keeps the item text itself clean, since the stored
+    # option text is what students and downstream text checks actually see.
+    "When answer_expression is given, write each option as a bare value with no variable "
+    "and no equals sign ('7', not 'x = 7'), and use the ASCII hyphen '-' for negatives, "
+    "never a typographic minus."
 )
 _JUDGE_SYSTEM_PROMPT = (
     "You are an independent judge reviewing one authored K-12 math question for "
     "difficulty fit, ambiguity, curriculum alignment, age-appropriateness, and the "
     "quality of its hint ladder. Be strict: a genuinely ambiguous, misaligned, or "
-    "unsafe question must be flagged."
+    "unsafe question must be flagged. "
+    # Left unstated until 2026-08-05, when the first real run showed the judge inventing a
+    # 1-10 scale and scoring 8-9 on every item - which sits above both thresholds below,
+    # so the hint-quality gate silently never fired. The schema now bounds the field too;
+    # this states the same contract in the place the model is most likely to follow it.
+    "Score hint_quality_score on a scale of 1 to 5, where 1 is a ladder that misleads or "
+    "gives the answer away, 3 is usable but shallow, and 5 is a genuinely progressive "
+    "ladder that guides without revealing. Do not use any other scale."
 )
 
 # Small, fixed set of hand-written few-shot exemplars (this project has no pre-authored
@@ -284,11 +316,18 @@ async def _call(
     payload: BaseModel,
     response_model: type[BaseModel],
     session_spend_cents: float,
+    max_output_tokens: int = _MAX_TOKENS,
 ) -> tuple[BaseModel | None, float, str | None]:
     """Thin wrapper: returns (value, cost_cents, error) instead of raising, so the
     pipeline can record *why* a candidate was rejected instead of crashing the batch run
     (SPEC §5.29-style failure handling, applied to an offline pipeline instead of a
     request path).
+
+    `max_output_tokens` is per call site rather than per `BedrockTask` on purpose: the
+    authored solvers deliberately reuse the shape pipeline's `QUESTION_GENERATION` and
+    `QUESTION_REVIEW` task slots so they resolve to two different models, so the task
+    alone cannot say how large a response to expect. The default keeps every shape-mode
+    call at the value it has always used.
     """
     try:
         result = await gateway.generate_structured(
@@ -296,7 +335,7 @@ async def _call(
             system_prompt=system_prompt,
             payload=payload,
             response_model=response_model,
-            max_output_tokens=_MAX_TOKENS,
+            max_output_tokens=max_output_tokens,
             session_spend_cents=session_spend_cents,
         )
     except BedrockGatewayError as exc:
@@ -710,6 +749,7 @@ async def generate_authored_candidate(
         payload=gen_payload,
         response_model=AuthoredGeneratedItemResponse,
         session_spend_cents=spend,
+        max_output_tokens=_AUTHORED_ITEM_MAX_TOKENS,
     )
     _spend(cost)
     if error is not None or item is None:
@@ -773,6 +813,7 @@ async def generate_authored_candidate(
         payload=solver_payload,
         response_model=SolverResponse,
         session_spend_cents=spend,
+        max_output_tokens=_AUTHORED_REVIEW_MAX_TOKENS,
     )
     _spend(cost)
     if error is not None:
@@ -784,6 +825,7 @@ async def generate_authored_candidate(
         payload=solver_payload,
         response_model=SolverResponse,
         session_spend_cents=spend,
+        max_output_tokens=_AUTHORED_REVIEW_MAX_TOKENS,
     )
     _spend(cost)
     if error is not None:
@@ -822,6 +864,7 @@ async def generate_authored_candidate(
         payload=judge_payload,
         response_model=QuestionJudgeResponse,
         session_spend_cents=spend,
+        max_output_tokens=_AUTHORED_REVIEW_MAX_TOKENS,
     )
     _spend(cost)
     if error is not None:

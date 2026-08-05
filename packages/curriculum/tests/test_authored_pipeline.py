@@ -18,8 +18,12 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 import pytest
-from intellichoice_curriculum import ai_pipeline, review_cli
-from intellichoice_curriculum.ai_pipeline import PipelineConfigError, generate_authored_candidate
+from intellichoice_curriculum import ai_pipeline, pipeline_cli, review_cli
+from intellichoice_curriculum.ai_pipeline import (
+    TOPIC_SKILL_DIFFICULTIES,
+    PipelineConfigError,
+    generate_authored_candidate,
+)
 from intellichoice_curriculum.content import load_curriculum
 from intellichoice_db.engine import create_engine
 from intellichoice_db.models.questions import QuestionValidationRun
@@ -37,7 +41,7 @@ from intellichoice_shared.bedrock import (
     SolverPayload,
     SolverResponse,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -147,6 +151,10 @@ class _ScriptedAuthoredGateway:
         self._judge = judge
         self._embedding_vector = embedding_vector
         self._last_item: AuthoredGeneratedItemResponse | None = None
+        # response_model name -> the ceiling that stage was called with. Recorded rather
+        # than asserted here so one test can state the whole per-stage sizing (see
+        # `test_authored_stages_get_ceilings_above_the_measured_response_size`).
+        self.ceilings: dict[str, int] = {}
 
     async def generate_structured[T: BaseModel](
         self,
@@ -159,6 +167,7 @@ class _ScriptedAuthoredGateway:
         session_spend_cents: float,
     ) -> BedrockGenerationResult[T]:
         name = response_model.__name__
+        self.ceilings[name] = max_output_tokens
         if name == "AuthoredGeneratedItemResponse":
             assert isinstance(payload, AuthoredGeneratorPayload)
             if self._item_factory is not None:
@@ -258,6 +267,153 @@ def test_passing_candidate_lands_pending_then_activates_to_active() -> None:
             assert outcome.question_template_id in {t.question_template_id for t in active_after}
             for_skill = await repo.get_active_questions_for_skill(template.skill_id)
             assert outcome.question_template_id in {t.question_template_id for t in for_skill}
+
+    asyncio.run(run())
+
+
+def test_authored_stages_get_ceilings_above_the_measured_response_size() -> None:
+    """The whole first real-Bedrock authoring run failed on this, silently and completely.
+
+    Every authored call shared `_MAX_TOKENS = 400` with S9's shape mode, whose responses
+    are a fraction of the size. Measured against real Bedrock (Haiku 4.5, 2026-08-05), a
+    complete `AuthoredGeneratedItemResponse` runs 631 output tokens at tier 1 and 954 at
+    tier 5, so the generator hit the ceiling before emitting a usable item on 11 of 11
+    candidates - and the gateway correctly refuses to retry under an unchanged ceiling, so
+    no amount of re-running would have produced content.
+
+    The assertion is against the *measured* worst case rather than the constant's current
+    value: the point is that the ceiling stays above what a real model actually emits, not
+    that it equals any particular number. Solver and judge share the item's call path and
+    are the stages where a truncation throws away a candidate that has already paid for
+    four calls, so they are pinned above shape mode's default too.
+    """
+    measured_worst_case_output_tokens = 954
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        gateway = _ScriptedAuthoredGateway()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=gateway,
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=918274,
+                session_spend_cents=0.0,
+            )
+            # A passing candidate is what visits every stage - a rejection would leave
+            # later stages unrecorded and quietly weaken this test.
+            assert outcome.status == "pending"
+
+        assert gateway.ceilings["AuthoredGeneratedItemResponse"] > measured_worst_case_output_tokens
+        assert gateway.ceilings["SolverResponse"] > ai_pipeline._MAX_TOKENS
+        assert gateway.ceilings["QuestionJudgeResponse"] > ai_pipeline._MAX_TOKENS
+
+    asyncio.run(run())
+
+
+def test_authored_seeds_are_distinct_within_a_run_and_across_a_seed_offset() -> None:
+    """A duplicate seed is a duplicate template id, and that is a batch-level failure.
+
+    `pipeline_cli.main` commits once after the whole run, so a single primary-key
+    collision discards every candidate in it - including the ones that passed and were
+    paid for. Two ways to collide: within one run (two skills sharing a tier, D-186's
+    multi-tier plan), or across runs (the seed is a pure function of (skill, tier, index),
+    so a second run at the same settings re-proposes the first run's ids). The first is
+    covered by the skill term; the second is why `--seed-offset` exists.
+    """
+    plan = TOPIC_SKILL_DIFFICULTIES["linear_equations"]
+    candidates_per_pair = 2
+
+    def seeds_for(seed_offset: int) -> list[int]:
+        return [
+            pipeline_cli.authored_seed(
+                skill_index=skill_index,
+                difficulty_label=difficulty_label,
+                index=i,
+                seed_offset=seed_offset,
+            )
+            for skill_index, (_, difficulty_labels) in enumerate(sorted(plan.items()))
+            for difficulty_label in sorted(difficulty_labels)
+            for i in range(candidates_per_pair)
+        ]
+
+    first_run = seeds_for(pipeline_cli.DEFAULT_SEED_OFFSET)
+    assert len(set(first_run)) == len(first_run)
+
+    # The default offset is the collision this flag exists to prevent - a re-run without
+    # one must be identical, or the flag would be solving a problem that isn't there.
+    assert seeds_for(pipeline_cli.DEFAULT_SEED_OFFSET) == first_run
+
+    # An offset clear of one run's span gives a following run an id range of its own.
+    second_run = seeds_for(100_000)
+    assert not set(second_run) & set(first_run)
+
+
+def test_judge_hint_quality_score_is_bounded_to_the_scale_its_thresholds_assume() -> None:
+    """An unbounded score is what made the hint-quality gate unreachable in practice.
+
+    `_HINT_QUALITY_REJECT_BELOW` and `_HINT_QUALITY_BORDERLINE_AT` are 2 and 3 on a
+    documented 1-5 scale. The first real-Bedrock run (2026-08-05) had the judge score 8-9
+    on every candidate against a scale it invented, so neither threshold could fire and
+    eight items passed a check that never ran. The bound is asserted against the
+    thresholds rather than against the literal numbers, so a future retune of either
+    cannot leave the scale and the gate disagreeing again.
+    """
+    with pytest.raises(ValidationError):
+        QuestionJudgeResponse(
+            difficulty_label=3,
+            is_ambiguous=False,
+            is_aligned=True,
+            is_age_appropriate=True,
+            hint_quality_score=9,
+        )
+
+    schema = QuestionJudgeResponse.model_json_schema()["properties"]["hint_quality_score"]
+    # The model only complies if it is told, and the tool schema is how it is told - the
+    # gateway sends `model_json_schema()` as the tool's inputSchema.
+    assert schema["minimum"] <= ai_pipeline._HINT_QUALITY_REJECT_BELOW
+    assert schema["maximum"] > ai_pipeline._HINT_QUALITY_BORDERLINE_AT
+
+
+def test_approving_an_unservable_authored_template_is_refused() -> None:
+    """Approving authored content breaks exam building today, so review refuses it.
+
+    Found by doing it: five authored templates were approved on 2026-08-05 and 34 tests
+    failed with `VariantGenerationError: unknown shape 'authored'` - the runtime renders
+    every served question through `generate_variant(shape_key=template.solution_function)`
+    and there is no `"authored"` shape. The pipeline has been able to *produce* authored
+    items since S20; nothing had ever approved one into the active bank, so the gap
+    between producing and serving them had never been exercised.
+
+    The refusal is keyed on the shape registry rather than on `authoring_mode`, so
+    building authored serving is what lifts it - not editing this test.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(),
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=918275,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "pending"
+            assert outcome.question_template_id is not None
+
+            with pytest.raises(review_cli.UnservableTemplateError):
+                await review_cli.approve(session, outcome.question_template_id)
+
+            # Still pending, not half-approved: the refusal happens before the flip.
+            repo = QuestionRepository(session)
+            template = await repo.get_template(outcome.question_template_id)
+            assert template is not None
+            assert template.validation_status == "pending"
 
     asyncio.run(run())
 
@@ -548,7 +704,12 @@ def test_review_cli_approve_reject_and_rerun() -> None:
                 session_spend_cents=0.0,
             )
             assert approve_outcome.status == "pending"
-            await review_cli.approve(session, approve_outcome.question_template_id)  # type: ignore[arg-type]
+            # Activated through the repository rather than `review_cli.approve`, which now
+            # refuses authored templates outright because the runtime cannot render them
+            # (see `test_approving_an_unservable_authored_template_is_refused`). What this
+            # test is about is the pending -> approved transition and the "only pending can
+            # move" invariants below, which are the repository's to enforce.
+            await repo.activate_template(approve_outcome.question_template_id)  # type: ignore[arg-type]
             approved = await repo.get_template(approve_outcome.question_template_id)  # type: ignore[arg-type]
             assert approved is not None
             assert approved.validation_status == "approved"

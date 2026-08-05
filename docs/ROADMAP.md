@@ -1540,7 +1540,28 @@ requested directly. Coverage gap, not a break.
    off-native tier would draw another skill's math forms — the shape pipeline is untouched.
    ⚠️ `review_cli.rerun_with_edit` now carries `skill_id` from the superseded row; re-deriving it
    would have silently swapped the skill on the first multi-tier re-run.
-3. **Author, then human-review — the remaining work.** D-026 forbids self-approval, so every item goes through
+3. **⛔ Ran 2026-08-05 (D-188). The pipeline works now; the content cannot be served, and that is
+   the blocker.** Five items were approved, one per skill at its native tier, and **34 tests
+   failed**: `variant_persistence.build_variant_row` renders every served question through
+   `generate_variant(shape_key=template.solution_function)`, and an authored template carries
+   `solution_function="authored"`, which `SHAPES` has no entry for. Any student who draws one gets a
+   failed exam build. The approvals were rolled back to `pending` and `review_cli.approve` now
+   refuses templates the runtime cannot render. **The next step in this track is authored *serving*,
+   not more authoring** — and it needs a product decision first: the post-exam is a *parallel form*
+   of the pre-exam (`avoid_rendered_question`, SPEC §5.13.1) and an authored template has exactly
+   one canonical rendering to give.
+   Four defects found by running it, all invisible against `MockBedrockProvider`, all fixed:
+   the shared 400-token ceiling made authored generation **impossible** (measured: 631 tokens at
+   tier 1, 954 at tier 5); the SymPy gate rejected correct answers written as `'x = 7'` or with a
+   typographic minus, and was **quieter** for it (an unparseable distractor was exempt from the
+   "no distractor also matches" arm); the judge scored 8–9 against 1–5 thresholds so the
+   hint-quality gate **never fired**; and the seed formula made a second run collide with the first,
+   which would have discarded the whole batch at commit. Spend: 24.8¢ across four runs.
+   **⚠️ Multi-tier is still not met.** Eight items covered 7 of 11 pairs, but the tiers differed by
+   label more than substance (`2x + 5 = 19` at tier 1 vs `2x + 7 = 19` at tier 2) because
+   `AuthoredGeneratorPayload` carries no per-candidate variation and no rubric for what a tier
+   *means*. D-169's rule 2 stays inert; the bank is still one tier per skill.
+   *Original scope, retained:* D-026 forbids self-approval, so every item goes through
    `review_cli.py` — that is the cost driver, not model spend. Two gates push back on off-nominal
    tiers (reject a >±1 judge/proposed difficulty disagreement, flag exactly-1 as
    `review_priority="high"`), which is exactly the regime "a hard version of an easy skill" lives

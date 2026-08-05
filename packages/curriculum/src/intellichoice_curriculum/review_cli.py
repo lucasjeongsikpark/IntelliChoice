@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.ai_pipeline import PipelineConfigError, generate_authored_candidate
 from intellichoice_curriculum.content import load_curriculum
+from intellichoice_curriculum.generation import SHAPES
 from intellichoice_curriculum.pipeline_cli import _build_gateway
 from intellichoice_curriculum.settings import get_pipeline_settings
 
@@ -72,8 +73,44 @@ def render_item(
     return "\n".join(lines)
 
 
+class UnservableTemplateError(Exception):
+    """Approving this template would put content in the active bank that the runtime
+    cannot render - see `approve`.
+    """
+
+
 async def approve(session: AsyncSession, question_template_id: str) -> str:
+    """Approval is a human action (D-026) and this is the documented way in, so it is
+    also where "would this content actually serve?" has to be answered.
+
+    Measured 2026-08-05, by approving five authored templates and running the suite: it
+    would not. `variant_persistence.build_variant_row` renders every served question
+    through `generation.generate_variant(shape_key=template.solution_function)`, and an
+    authored template carries `solution_function="authored"`, which `SHAPES` has no entry
+    for - so `build_pre_exam` raises `VariantGenerationError` for any student who draws
+    one. 34 tests failed on exactly that, and the failure is an exception on the serving
+    path rather than a degradation.
+
+    Refusing here is the fail-closed direction (CLAUDE.md rule 5): a reviewer working
+    through `make question-review` cannot silently brick exam building for real students.
+    It is deliberately not a repository-level guard - `intellichoice_db` importing
+    `intellichoice_curriculum`'s shape registry would invert the dependency (curriculum
+    already imports the repositories).
+
+    Lifting this needs more than a branch in `build_variant_row`. The post-exam is meant
+    to be a *parallel form* of the pre-exam (`avoid_rendered_question`, SPEC §5.13.1), and
+    an authored template has exactly one canonical rendering to give, so what a post-exam
+    should serve for authored content is a product decision that has not been made.
+    """
     repo = QuestionRepository(session)
+    template = await repo.get_template(question_template_id)
+    if template is not None and template.solution_function not in SHAPES:
+        raise UnservableTemplateError(
+            f"{question_template_id} has solution_function="
+            f"{template.solution_function!r}, which the runtime variant generator has no "
+            f"shape for - approving it would make exam building raise for any student who "
+            f"draws it. Authored-template serving is not built yet."
+        )
     await repo.activate_template(question_template_id)
     await session.commit()
     return f"approved {question_template_id}"

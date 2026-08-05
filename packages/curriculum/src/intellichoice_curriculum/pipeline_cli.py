@@ -43,6 +43,36 @@ _SEED_BASE = 1000  # Well clear of the S4 hand-authored bank's seeds (0-9 per di
 # pipeline run against the same topic/difficulty never propose colliding template ids.
 _AUTHORED_SEED_BASE = 5000
 
+# Seeds are a pure function of (skill, tier, index), and a template id is a pure function
+# of the seed - so a second run at the same settings re-proposes ids the first run's
+# surviving candidates already hold. That is not merely wasteful: `main` commits once
+# after the whole batch, so a single primary-key collision would discard every candidate
+# in the run, including the ones that passed. `--seed-offset` is how a follow-up run
+# claims a fresh id range; it is the caller's job to pick one, deliberately, rather than
+# a timestamp, so runs stay reproducible (D-013's determinism posture).
+DEFAULT_SEED_OFFSET = 0
+
+
+def authored_seed(
+    *, skill_index: int, difficulty_label: int, index: int, seed_offset: int
+) -> int:
+    """The (skill, tier, index) -> seed mapping, as a pure function so its one real
+    invariant is testable without a gateway or a database: distinct inputs must produce
+    distinct seeds, because a seed determines a template id and a duplicate id discards
+    the entire batch at commit time.
+
+    The skill term is what keeps seeds distinct now that a tier can be visited by more
+    than one skill (D-186) - without it, two skills at tier 3 would propose the same seed
+    and therefore the same template id.
+    """
+    return (
+        _AUTHORED_SEED_BASE
+        + seed_offset
+        + skill_index * 1000
+        + difficulty_label * 100
+        + index
+    )
+
 
 @dataclass
 class RunSummary:
@@ -58,6 +88,7 @@ async def run_pipeline(
     *,
     candidates_per_difficulty: int = 2,
     run_budget_cents: float = 1000.0,
+    seed_offset: int = DEFAULT_SEED_OFFSET,
 ) -> RunSummary:
     curriculum = load_curriculum()
     summary = RunSummary()
@@ -69,7 +100,7 @@ async def run_pipeline(
                 if spend >= run_budget_cents:
                     print(f"run budget of {run_budget_cents} cents reached - stopping early")
                     return summary
-                seed = _SEED_BASE + difficulty_label * 100 + i
+                seed = _SEED_BASE + seed_offset + difficulty_label * 100 + i
                 outcome: PipelineOutcome = await generate_candidate(
                     session=session,
                     gateway=gateway,
@@ -95,6 +126,7 @@ async def run_authored_pipeline(
     *,
     candidates_per_difficulty: int = 2,
     run_budget_cents: float = 1000.0,
+    seed_offset: int = DEFAULT_SEED_OFFSET,
 ) -> RunSummary:
     """S20 (plan §7) counterpart to `run_pipeline` above, driving
     `generate_authored_candidate` - authored mode has no shape allowlist to iterate.
@@ -122,11 +154,11 @@ async def run_authored_pipeline(
                     if spend >= run_budget_cents:
                         print(f"run budget of {run_budget_cents} cents reached - stopping early")
                         return summary
-                    # The skill term is what keeps seeds distinct now that a tier can be
-                    # visited by more than one skill - without it, two skills at tier 3
-                    # would propose the same seed and therefore the same template id.
-                    seed = (
-                        _AUTHORED_SEED_BASE + skill_index * 1000 + difficulty_label * 100 + i
+                    seed = authored_seed(
+                        skill_index=skill_index,
+                        difficulty_label=difficulty_label,
+                        index=i,
+                        seed_offset=seed_offset,
                     )
                     outcome: PipelineOutcome = await generate_authored_candidate(
                         session=session,
@@ -189,6 +221,15 @@ async def main() -> None:
         default=2,
         help="Candidates to attempt per topic/difficulty pair (default: 2)",
     )
+    parser.add_argument(
+        "--seed-offset",
+        type=int,
+        default=DEFAULT_SEED_OFFSET,
+        help="Shifts every seed, and therefore every proposed template id, by this much. "
+        "A follow-up run against a topic that already has candidates needs a fresh offset "
+        "- otherwise it re-proposes ids the earlier run's survivors hold, and the "
+        "resulting collision discards the whole batch (default: 0)",
+    )
     args = parser.parse_args()
 
     settings = get_pipeline_settings()
@@ -204,6 +245,7 @@ async def main() -> None:
                     gateway,
                     candidates_per_difficulty=args.candidates_per_difficulty,
                     run_budget_cents=settings.bedrock_run_budget_cents,
+                    seed_offset=args.seed_offset,
                 )
             except CostBudgetExceededError as exc:
                 print(f"run budget exceeded: {exc}")
