@@ -7,6 +7,14 @@ interface Props {
   onLogout: () => void;
   busy: boolean;
   error: string | null;
+  /**
+   * True only for a parent with more than one linked child. The switcher lives here, on
+   * the one screen where no learning session is in flight: `nodes.bind()` refuses to move
+   * an existing session to a different student (AUD-X-01), so the parent's route to a
+   * second child is a second session, and this is where a second session starts.
+   */
+  canSwitchChild?: boolean;
+  onSwitchChild?: () => void;
 }
 
 export function StartScreen({
@@ -18,6 +26,8 @@ export function StartScreen({
   onLogout,
   busy,
   error,
+  canSwitchChild = false,
+  onSwitchChild,
 }: Props) {
   return (
     <div className="panel">
@@ -32,6 +42,11 @@ export function StartScreen({
       {studentId && (
         <button className="secondary" onClick={onViewDashboard}>
           View progress dashboard
+        </button>
+      )}
+      {canSwitchChild && onSwitchChild && (
+        <button className="link" disabled={busy} onClick={onSwitchChild}>
+          Switch child
         </button>
       )}
       <button className="link" onClick={onLogout}>

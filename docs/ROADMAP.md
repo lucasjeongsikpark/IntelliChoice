@@ -1495,9 +1495,52 @@ on prod config, runbook updated for the integrated topology); S51 pilot start + 
 rollout (allowlist → single-branch pilot → all branches → public chat).
 
 **Dependency spine:** S35 → the four audits → stabilization → **gate** → discovery (S42) →
-adapter → auth → consent/scoping → integration testing. Parallel: A6 real content (3 of 23
-knowledge docs are real; curriculum is `linear_equations`-only authored, D-060) gates the
-*pilot*; A7 gates *public* chat promotion, not the pilot; §6.1 legal docs gate the pilot.
+adapter → auth → consent/scoping → integration testing. Parallel: A6 real content — the
+*knowledge* half (3 of 23 docs real) gates the *pilot*, but the **curriculum half now gates launch
+(D-185, 2026-08-05)**, so it has its own track above and this parenthetical no longer states its
+own scope; A7 gates *public* chat promotion, not the pilot; §6.1 legal docs gate the pilot.
+
+### Parallel track (coding + authoring) — A6-C curriculum coverage *(D-185, 2026-08-05)*
+
+> **⚠️ Promoted to a launch requirement by the user (D-185).** It previously lived as a
+> parenthetical in the dependency spine ("curriculum is `linear_equations`-only authored, D-060")
+> that gated only the *pilot*. It now gates launch.
+
+**The measured position, counted 2026-08-05 — recount rather than carry forward:**
+
+```bash
+.venv/bin/python -c "
+from collections import Counter
+from intellichoice_curriculum.templates.linear_equations import LINEAR_EQUATIONS_TEMPLATES as T
+print(Counter((t.skill_id, t.difficulty_label) for t in T))"
+```
+
+3 topics and 10 skills in the taxonomy; **50 templates, all `linear_equations`** (5 skills × 1 tier
+× 10). `fraction_operations` and `place_value` have **zero**. Via `grade_topic_mapping.yaml` that is
+**grade band 6-7 only**, on a K-12 product.
+
+**Not a live defect:** `apps/learning-web/src/topics.ts` marks both unauthored topics
+`available: false`, and the server degrades to `phase: "error"` rather than crashing if one is
+requested directly. Coverage gap, not a break.
+
+**Order of work, because the pipeline cannot produce this content as written:**
+
+1. **Unblock the generator first.** `TOPIC_DIFFICULTY_SKILLS` (`ai_pipeline.py:78-90`) is
+   `topic → {tier: one skill}`; the skill is *derived from* the difficulty (`:294`, `:616`) and both
+   runners loop one skill per tier (`pipeline_cli.py:66-68`, `:107-109`). `generate_authored_candidate`
+   raises `PipelineConfigError` outside that map by design (D-060). One map plus four call sites.
+2. **Answer the rule-2 question (product decision (a)) *before* authoring, not after** — content
+   authored 1:1 skill↔difficulty keeps D-169's rule 2 latent for the new topics too, and adding
+   tiers afterwards means re-authoring. `test_study_plan_difficulty_routing.py:132` is the canary
+   that fails the day a second tier appears; it is meant to fail.
+3. **Author, then human-review.** D-026 forbids self-approval, so every item goes through
+   `review_cli.py` — that is the cost driver, not model spend. Two gates push back on off-nominal
+   tiers (`ai_pipeline.py:475-480`, `:790-793` reject >±1 difficulty disagreement), which is exactly
+   the regime "a hard version of an easy skill" lives in.
+4. **Reconcile the two availability sources.** `grade_topic_candidates` is loaded
+   (`content.py:36, 79`) and **never read at runtime**; the frontend's hardcoded `TOPICS` list is
+   what actually gates availability. Wiring grade-based topic selection without reconciling them
+   would offer contentless topics (D-185 §4).
 
 ### Parallel track (any time, non-coding) — Phase 0 legal & policy docs (§6.1)
 Privacy Notice, AI Use Notice, product Learning Notice, retention policy, etc. Drafting can

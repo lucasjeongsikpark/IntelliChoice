@@ -128,3 +128,71 @@ test("parent reaches the progress dashboard with zero sessions and generates a r
   }
   await expectNotBlank(page);
 });
+
+// D-184: the switcher AUD-F-22/D-176 deliberately excluded. "At login" was chosen over
+// "at dashboard entry" for one resolution point rather than two, and the accepted cost was
+// that a multi-child parent switched children by signing out and back in. This journey
+// asserts the cost is gone without the resolution point moving: the login-time ask is
+// unchanged (the first journey above still passes), and the switch is a *second* choice
+// offered only where no session is in flight.
+//
+// The gate is not cosmetic. `nodes.bind()` refuses to move an existing session to a
+// different student (AUD-X-01), so a mid-session switcher would be an button that raises;
+// the start screen is where a second session begins, which is the parent's real route to a
+// second child.
+test("a multi-child parent switches children without signing out", async ({ page, audit }) => {
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.parentTwoChildren);
+
+  const prompt = page.getByRole("heading", { name: /who's learning today/i });
+  await expect(prompt).toBeVisible({ timeout: 60_000 });
+
+  const candidates = page.locator(".card-list button");
+  await expect(candidates).toHaveCount(2, { timeout: 20_000 });
+  const firstChild = (await candidates.first().innerText()).split("\n")[0];
+  const secondChild = (await candidates.nth(1).innerText()).split("\n")[0];
+  audit.note(`children offered at login: ${firstChild}, ${secondChild}`);
+  await stableClick(candidates.first());
+
+  await expect(page.getByRole("heading", { name: /ready to learn/i })).toBeVisible({
+    timeout: 60_000,
+  });
+  const dashboardButton = page.getByRole("button", { name: /view progress dashboard/i });
+  await expect(dashboardButton.first()).toBeVisible();
+
+  // The switcher is offered, and only to a parent who has somewhere to switch to.
+  const switchButton = page.getByRole("button", { name: /switch child/i });
+  await expect(switchButton).toBeVisible({ timeout: 20_000 });
+  await stableClick(switchButton);
+
+  // Cancelling must leave the *current* child bound rather than unbind - the dashboard
+  // button vanishing here is the AUD-F-22 regression this screen could reintroduce.
+  await expect(page.getByRole("heading", { name: /switch child/i })).toBeVisible({
+    timeout: 20_000,
+  });
+  await stableClick(page.getByRole("button", { name: /^cancel$/i }));
+  await expect(page.getByRole("heading", { name: /ready to learn/i })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(dashboardButton.first()).toBeVisible();
+  audit.note("cancel left the original child bound");
+
+  // And the real switch: pick the other child, land back on a resolved start screen.
+  await stableClick(switchButton);
+  await expect(page.getByRole("heading", { name: /switch child/i })).toBeVisible({
+    timeout: 20_000,
+  });
+  await stableClick(page.locator(".card-list button").nth(1));
+  await expect(page.getByRole("heading", { name: /ready to learn/i })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(dashboardButton.first()).toBeVisible();
+  audit.note(`switched to ${secondChild} with no sign-out`);
+
+  // The switched-to child is the one the dashboard reads. Authorization for this needed no
+  // backend change: `authorization.py` re-derives the parent→child link per request and
+  // already accepted any linked child on the same token.
+  await stableClick(dashboardButton.first());
+  await expectNotBlank(page);
+  await expectNotStuck(page, /loading/i);
+  await expect(page.locator(".panel").first()).toBeVisible({ timeout: 60_000 });
+});

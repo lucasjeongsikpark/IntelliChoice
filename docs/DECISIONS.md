@@ -12385,3 +12385,144 @@ which half of the cycle is synthetic.
 **A committed instrument's exit code can disagree with the system it measures** when its window
 holds history from before a fix. Read the rows against the pinned boundary; do not edit the
 instrument to hurry its verdict, and do not read its FAIL as the system's.
+
+## D-184 — a multi-child parent switches children in-app, reversing D-176's deliberate exclusion (accepted, 2026-08-05)
+
+**Context.** D-176 §2 chose "resolve the child at login" over "resolve at dashboard entry" for one
+resolution point rather than two, and accepted a named cost: *"a multi-child parent switches
+children by signing out and back in. A persistent switcher is new UI, which the decision explicitly
+excluded."* That cost was carried as an open product question from D-176 through D-183 and marked
+**low stakes**. The user resolved it this session: build the switcher.
+
+### 1. Why the cost was worth paying down, and why it was cheap
+
+Two facts made this much smaller than "new UI" suggests, and both were verified rather than assumed.
+
+**No backend change at all.** `authorization.py:38-45` re-derives the parent→child link on **every
+request** and already accepts *any* linked child on the same token — `TokenClaims`
+(`packages/shared/.../auth.py:26-36`) carries no child claim, so there is nothing to re-issue. The
+property was already pinned by tests predating this decision:
+`test_auth_and_attendance.py:89-98` and `:111-121` read two *different* children with the *same*
+parent token. `GET /learning/parents/me/children` already existed (D-020, live MySQL, no PII
+persisted). So the "switch" is a client-side rebind of an id the server re-authorizes anyway.
+
+**The screen already existed.** `ChildSelectionScreen` is the same component the login-time
+resolution and the in-session `child_selection` interrupt both use. It gained an optional `title`
+and an optional `onCancel`; the two paths that must resolve a child before anything else can happen
+pass neither, because there is nothing to go back *to* on either.
+
+### 2. The one real constraint, and it is a gate rather than a feature
+
+`nodes.bind()` (`apps/learning-api/.../graph/nodes.py:216-240`, AUD-X-01) **refuses** to move an
+existing session to a different student, and its docstring already stated the intended shape:
+*"the parent's route to a second child is a second session."* A mid-session switcher would
+therefore be a button that raises. The switcher is offered **only on the start screen**, where no
+session is in flight and where a second session begins — so the constraint is respected by
+construction rather than by a runtime check that could drift. `ResultsScreen` deliberately does not
+get the button: "Done" ends the session and lands on the start screen, which already has it.
+
+### 3. The change that was not cosmetic
+
+`App.tsx`'s children-fetch effect bailed on `session.studentId`, so the candidate list was fetched
+*only while unresolved* and discarded the moment a child was bound — there was nothing left to
+offer a switcher, and a refresh with a child already in `sessionStorage` never fetched at all. The
+effect is now keyed on `[token, role]`: the list is always populated for a parent, and the
+*auto-resolve* is what stays conditional. Cost is one extra `GET /learning/parents/me/children` per
+parent page load (one indexed MySQL read); re-binding an already-bound single child is a same-value
+`setState` and a no-op.
+
+**Cancel leaves the current child bound** rather than unbinding — unbinding here would make the
+dashboard button vanish, which is precisely AUD-F-22, so the switcher had a way to reintroduce the
+finding it sits next to. The e2e journey asserts the cancel path for that reason.
+
+### 4. Verification
+
+`e2e/tests/learning/journey-parent.spec.ts` — **4 passed** against the local stack (Postgres +
+MySQL + both APIs + both web servers), including the three pre-existing journeys, so login-time
+resolution did not regress. The new journey's evidence is in the access log rather than only in the
+green check: journey 3 (first child selected) reads `/learning/students/student-ext-2/...`, journey
+4 (after switching) reads `/learning/students/student-ext-3/...` — a genuinely different child
+bound with no sign-out, and the dashboard served it. `tsc --noEmit` clean for both `learning-web`
+and `e2e`; `oxlint` clean; Python untouched (`ruff` clean, `pyright` 0, **889 passed / 2 skipped**,
+unchanged).
+
+### 5. Undocumented behaviour found while investigating, and left alone deliberately
+
+**A second browser tab already acted as a switcher.** The token/sub/role live in `localStorage`
+(shared across tabs, `App.tsx:19-21`) while the bound child lives in `sessionStorage` (per-tab,
+`useLearningSession.ts:8`), so a fresh tab on the same origin has a valid login and no bound child,
+re-runs the resolution effect, and offers the chooser. This was an unintended consequence of the
+storage split, appears in no decision, and made D-176's accepted cost milder than it read. It is
+**not** being "fixed": per-tab child binding is a coherent behaviour (two children open side by
+side), and it is now the *documented* second route rather than an accident.
+
+**Revert:** drop `canSwitchChild`/`onSwitchChild` from `StartScreen`, the `switchingChild` branch in
+`App.tsx`, and `title`/`onCancel` from `ChildSelectionScreen`; restore the `session.studentId` guard
+on the fetch effect. Sign-out-and-back-in returns as the only in-app route.
+
+## D-185 — K-12 curriculum coverage is a launch requirement, which re-scopes D-060's "future content work" and reframes the rule-2 question (accepted, 2026-08-05)
+
+**Context.** Open product question (a) asked whether multi-tier-per-skill content was wanted before
+launch or whether D-169's rule 2 should stay latent by choice. Investigating it surfaced a larger
+fact that had never been stated as a launch question, so it was put to the user instead: **the bank
+covers one topic and one grade band.** The user's answer: **K-12 coverage is needed before launch.**
+
+### 1. The measured content position, so the gap is a number rather than an impression
+
+Counted this session, not carried forward:
+
+- **Taxonomy:** 3 topics, 10 skills (`curriculum/internal_math/topics.yaml`, `skills.yaml`).
+- **Content:** 50 templates, all in `linear_equations` — 5 skills × 1 tier × 10 templates.
+  `fraction_operations` (3 skills) and `place_value` (2 skills) have **zero**.
+- **Grade bands reached:** `grade_topic_mapping.yaml` maps 6-7 → `linear_equations`, 4-5 →
+  `fraction_operations`, 1-2 → `place_value`. So authored content serves **grade band 6-7 only**,
+  and the §5.7.3 table has 12 bands of which 3 are even mapped.
+
+**This is not a live defect, and that was checked.** `apps/learning-web/src/topics.ts` lists the two
+unauthored topics as `available: false` — "disabled rather than silently hidden" — so the UI cannot
+route a student into them, and the server degrades to `phase: "error"` (via `AssessmentBuildError`
+at `nodes.py:379-380`) rather than crashing if one is requested directly. It is a coverage gap, not
+a break.
+
+### 2. What the decision changes
+
+**D-060 said** authoring the other two topics is *"future content work, not a gap in this session's
+pipeline code."* That framing stands as an accurate statement about S20's pipeline and is now
+**superseded as a scheduling statement**: the work is scheduled, and it gates launch rather than
+only the pilot. ROADMAP's dependency spine already carried "A6 real content … gates the *pilot*";
+curriculum coverage is promoted out of that parenthetical into its own track.
+
+**The pipeline cannot produce it as written, and that is the first task, not the content.**
+`TOPIC_DIFFICULTY_SKILLS` (`ai_pipeline.py:78-90`) is `topic → {tier: one skill}` — the skill is
+*derived from* the difficulty at `ai_pipeline.py:294` and `:616`, and both runners in
+`pipeline_cli.py:66-68, :107-109` loop one skill per tier. `generate_authored_candidate` raises
+`PipelineConfigError` for any topic outside that map, by design (D-060). So the map and its four
+call sites are the unblocking change; the volume is the cost.
+
+**The real cost driver is human review, not model spend.** D-026 forbids self-approval, so every
+generated item needs a human pass through `review_cli.py`. Two automatic gates will also push back
+on off-nominal tiers (`ai_pipeline.py:475-480`, `:790-793` reject a >±1 difficulty disagreement),
+which is exactly the regime "a hard version of an easy skill" lives in.
+
+### 3. Question (a) is reframed, not answered — and it must be answered *before* the authoring, not after
+
+Rule 2 is inert today only because the bank is 1:1 skill↔difficulty; `_closest_to_recommended`
+returns the full pool on every branch, which
+`test_study_plan_difficulty_routing.py:132` pins as a canary that fails the day a second tier
+appears. **Authoring new topics is the moment that decision gets made whether or not anyone makes
+it**: content authored 1:1 keeps rule 2 latent for the new topics too, and the cost of adding tiers
+later is re-authoring. So (a) stays open but is now **a prerequisite of the content track rather
+than a standalone question**, and it carries a pedagogical component no pipeline answers — what a
+tier-3 `linear_one_step` question actually is.
+
+### 4. A latent trap recorded while measuring
+
+`grade_topic_candidates` is loaded into `CurriculumContent` (`content.py:36, 79`) and **never read
+at runtime** — its only other references are one test. Nothing offers topics by grade today; the
+frontend's hardcoded `TOPICS` list is what gates availability. The moment anything starts using the
+mapping to offer topics by grade, it will offer two topics with no content, and the `available:
+false` flag that currently protects the journey lives in a different file with no link between
+them. Whoever wires grade-based topic selection must reconcile the two.
+
+**Revert:** re-accept grade-band 6-7 as the launch scope and return the other two topics to D-060's
+"future content work" framing.
