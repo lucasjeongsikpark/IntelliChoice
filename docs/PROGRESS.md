@@ -14,11 +14,15 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **✅ D-186 was not on `main` and the pointer did not say so.** It sat in **open PR #122** while
   `origin/main` was still at D-184; all nine checks were green, so it squash-merged as `8bfbb14`.
   A session that ends with an open PR reads as "landed" in the log and is not.
-  **✅ Staging deployed, verified by pinned id *and* by the artifact.** Run **31032643136**, head
-  SHA `8bfbb14`, success at 18:20:20Z, every step green including the CloudFront smoke test. Then
-  the check that does not depend on the workflow's own opinion: the live bundle
-  `assets/index-Dwu8ySO1.js` contains `Switch child`, so D-184's switcher is genuinely on the
-  distribution. Not done: a signed-in click-through (needs the staging token secret).
+  **✅ Two staging deploys, both verified by pinned id *and* by the artifact.** D-186's:
+  run **31032643136**, head SHA `8bfbb14`, success 18:20:20Z — and the live bundle
+  `assets/index-Dwu8ySO1.js` contained `Switch child`, so D-184's switcher is genuinely on the
+  distribution. D-187's, after PR #123 merged as `0eefb77`: run **31042681232**, head SHA
+  `0eefb77`, success **20:27:26Z**, including the workflow's own **deployed-version gate** ("verify
+  the running image is this commit") and the CloudFront smoke test. Artifact check on the new
+  bundle `assets/index-BOqCUtrf.js`: `Loading topics`, `Suggested for your grade` and the
+  load-failure copy are all present, so the backend-driven picker is live and not merely built.
+  Not done in either case: a signed-in click-through (needs the staging token secret).
   **✅ The reconciliation, and the measurement that justifies its shape.** `GET
   /learning/sessions/{id}/topics` derives `available` from the bank by **importing**
   `assessment_builder`'s own `DIFFICULTIES`/`QUESTIONS_PER_DIFFICULTY`, so the offer and the build
@@ -1816,9 +1820,11 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   e2e exercises it.
 
 - **Next session, in order (2026-08-05, post-D-187):**
-  0. **Nothing is owed: D-187 is merged and deployed** (see the status entry above for the run id
-     and the artifact check). The one habit that survives: **`make tfvars-floor-check` before any
-     apply**, and expect it to fail after a deploy that did not bump the floor (fifth occurrence).
+  0. **Nothing is owed: D-187 is merged (`0eefb77`, PR #123) and deployed** (run 31042681232, the
+     deployed-version gate green, artifact-checked — see the status entry above). The one habit
+     that survives: **`make tfvars-floor-check` before any apply**, and expect it to fail after a
+     deploy that did not bump the floor (fifth occurrence). Not run this session — no apply was
+     made, only image/bundle deploys.
   1. **A6-C step 3 is the only remaining step, and it is now unblocked in every sense.** Steps 1, 2
      and 4 are done (D-186, D-187), and `test_loader.py` no longer breaks when a template is
      approved. What is left is **author + human-review**: `make question-gen-authored` then
