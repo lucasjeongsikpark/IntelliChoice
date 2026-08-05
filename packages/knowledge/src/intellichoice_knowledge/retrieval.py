@@ -94,11 +94,20 @@ async def probe_access(
         per-audience bests (see the inline comment at the scoring loop), and the floor is
         0.9 - `access_probe_policy` carries the measured table for both.
 
-    Measured (AUD-C-23 re-measurement, 2026-08-04): 27/38 (blind-rewrite phrasing) and 26/38
-    (corpus phrasing) correct audiences, **zero wrong tiers, zero false hints on both negative
-    classes in both arms**, and 0/40 fires across the repeated-rerank stability probes of the
-    two cases rerank noise flips. The rule this replaces measured 29 right but flipped a false
-    branch_manager hint on a question nothing answers, 2-3 times in 10.
+    Measured (AUD-C-23 re-measurement, 2026-08-04; the negative-class columns corrected by
+    AUD-C-25/D-179): 27/38 (blind-rewrite phrasing) and 26/38 (corpus phrasing) correct
+    audiences, **zero wrong tiers in both arms**, and 0/40 fires across the repeated-rerank
+    stability probes of the two cases rerank noise flips. The rule this replaces measured 29
+    right but flipped a false branch_manager hint on a question nothing answers, 2-3 times in
+    10.
+
+    **One false hint survives, and it is on the path below that this rule never touches**
+    (AUD-C-25/D-179 measured it; D-177 recorded zero because its harness restated the rule
+    instead of calling it). When nothing is within `candidate_max_distance` this function
+    returns at the `if not candidates` branch - no reranker, no floor, no margin - and the
+    keyword arm answers alone. That happens on 18 of 58 measured cases, and on one of them a
+    question the **public** corpus answers is told `required_role: "parent"`. Tuning the three
+    constants cannot fix it; only the fallback's own shape can.
 
     **Degradation is the point of the fallback, not an afterthought.** This runs *because* the
     turn already failed to answer, so nothing here may raise: no embedding (the caller's
@@ -127,6 +136,17 @@ async def probe_access(
     if not candidates:
         # Nothing near enough to be worth a model call, so don't make one. Not degraded: the
         # lexical arm below is the *other* signal, not a downgrade of this one.
+        #
+        # **⚠️ This is the probe's least-measured branch and it holds a known false hint**
+        # (AUD-C-25/D-179). It is reached on 18 of 58 measured cases - "no candidate within
+        # 0.60" is common, not exceptional - and here the keyword arm decides alone, with no
+        # relevance floor and no tier margin in front of it, so `build_access_hint` falls back
+        # to tier *priority*, which is the rule AUD-C-22 was filed against. Measured instance:
+        # "How do I get or delete my kid's school records?" -> `required_role: "parent"` for an
+        # answer the public Privacy Notice carries. Any fix here is a product decision, because
+        # the arm exists deliberately (D-165: `MockBedrockProvider`'s embeddings are hash
+        # vectors, so this is the only arm the mock-backed suite can exercise, and deleting it
+        # makes the probe structurally unobservable in every offline test).
         return AccessProbeResult(
             matches=await _lexical_only(repo, probe_filters, query), cost_cents=0.0
         )

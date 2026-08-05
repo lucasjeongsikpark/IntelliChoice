@@ -151,15 +151,18 @@ corrected and the correction is marked in it.
 | AUD-F-35 | Personalization correctness | P2 | ✅ Fixed 2026-08-01 (D-150) | `promote_if_eligible` applies no evidence bar, so plan §9's stability rule is enforced at creation and bypassed on the next reconfirmation |
 | AUD-F-36 | Launch journey / interrupts | P2 | ✅ Fixed 2026-08-01 (D-145), deployed; criterion 3 re-met behind it (D-147) | The parent's child-selection interrupt hangs forever when `/respond` beats the SSE subscription |
 | AUD-F-37 | Deploy pipeline | P2 | ✅ Fixed 2026-08-03 (D-158) | Nothing verified that the deployed code is the code that was built |
-| **AUD-C-25** | **Audit integrity / measurement harness** | **P2** | **Open — filed 2026-08-04 (D-178)** | **`measure_access_probe_rules.py` does not measure the rule it is used to choose.** Every access-probe constant since D-165 was set from this script's tables, and the script **reimplements** the rule (`rerank_prefloor_margin_hint`) rather than calling `probe_access`. The reimplementation differs from production in two ways, and no test compares them. **(i) The branch order is reversed:** the harness checks the floor first (line 558) then the margin; `probe_access` checks the margin first ([retrieval.py:187](../packages/knowledge/src/intellichoice_knowledge/retrieval.py#L187)) then the floor. **(ii) The harness has no lexical arm at all** — neither `_lexical_only` nor `count_matching_by_audience` appears in it — so where production falls through to a keyword match that *can* return a hint, the harness returns `None` and scores it as silence. The two disagree exactly when `winner ≤ floor` **and** `winner − runner_up ≥ margin`, which is **AUD-C-23's own failing case** (winner 0.75–0.90 against the 0.9 floor, runner-up 0.2–0.3). So D-177's headline "0 wrong tiers, 0 false hints, 0/40 stability fires" is a true statement about the harness's rule that **does not cover** production's composed path on the decisive question. **Bounded, and the bound is why this is P2 not P1:** D-178's 10 live probes measured the composed path directly at **0/10 hints with a 3/3 control**, so no user-facing damage exists today, and the lexical arm was separately measured clean on both negative classes. The exposure is the *instrument*: the next rule decision will be made on tables that model a rule nobody ships. Same class as AUD-F-16 (a harness measuring something other than what it claimed) and as D-175's config-parity gap — whose `ast` guard checks the harness passes the same `Settings` **fields** as the route, while nothing checks the rule has the same **structure**. **Two candidate fixes, neither costing a paid re-measurement:** have the harness call `probe_access` with an injected score map, or add a parity test that runs both over the saved dumps and asserts identical hints per case. Also unresolved and cheap to settle from the same dumps: production's pre-floor margin now **gates** the lexical arm (two audiences at `0.0` → `matches={}`, `lexical_calls=0`, verified), which the "strictly additive, gets the last word" comment at [retrieval.py:196](../packages/knowledge/src/intellichoice_knowledge/retrieval.py#L196) no longer describes, and which plausibly accounts for part of the 29→27 drop D-177 attributed to the floor raise |
+| **AUD-C-26** | **Product correctness — access hint** | **P2** | **Open — filed 2026-08-04 (D-179), needs a product decision** | **A question the public corpus answers is told to log in as a parent, on the probe branch no rule table ever modelled.** Found by AUD-C-25's fix on its first run, at zero cost. When *nothing* is within `ACCESS_PROBE_CANDIDATE_MAX_DISTANCE`, `probe_access` returns at its `if not candidates` branch — no reranker call, **no relevance floor and no tier margin** — and `_lexical_only` decides alone. With no score to rank by, `build_access_hint` falls back to tier **priority**, which is the exact rule AUD-C-22 was filed against; the D-165/D-168/D-177 constants are not implicated because none of them runs on this path. **Not a knife edge, and not rare:** the branch is reached on **18 of 58** cases in the human-phrasing arm (11 public, 4 unanswerable, 3 gated) and 17 of 58 in the corpus arm — "no candidate within 0.60" is the ordinary case for a question phrased unlike the corpus. The keyword arm is quiet across almost all of it (1 fire in 35 empty-pool cases over both arms), and the one fire is wrong: **`probe-public-025`**, *"How do I get or delete my kid's school records?"*, nearest non-public chunk at distance **0.7251** against the 0.60 ceiling, keyword arm returning `{parent: 1, student: 3}` → **`required_role: "parent"`** for an answer the **public** Privacy Notice carries. So a caller is told to authenticate for public information. **Severity P2, argued both ways:** milder than AUD-C-22's wrong tier on gated content (the user probably *is* a parent) but the same defect class — a user-visible instruction that cannot help, on a negative class the recorded table showed as clean. **Why it needs a decision rather than a patch:** the obvious fix (skip the lexical arm when the candidate pool is empty) collides with D-165's reason for keeping the arm at all — `MockBedrockProvider`'s embeddings are hash-seeded vectors with no semantic content, so this is the **only** arm the entire mock-backed suite can exercise, and removing it makes the probe structurally unobservable offline. Candidate fixes: (a) require ≥2 matched audiences to disagree before the priority fallback names one, (b) give the keyword arm a minimum-match bar (`probe-public-025` fires on a single chunk), (c) keep the arm for tests but gate the *hint* on a scored signal, (d) accept and record it. All four are measurable for free with `--shipped` |
+| **AUD-C-25** | **Audit integrity / measurement harness** | **P2** | ✅ **fixed 2026-08-04 (D-179) — and it found AUD-C-26 on its first run** | **`measure_access_probe_rules.py` does not measure the rule it is used to choose.** Every access-probe constant since D-165 was set from this script's tables, and the script **reimplements** the rule (`rerank_prefloor_margin_hint`) rather than calling `probe_access`. The reimplementation differs from production in two ways, and no test compares them. **(i) The branch order is reversed:** the harness checks the floor first (line 558) then the margin; `probe_access` checks the margin first ([retrieval.py:187](../packages/knowledge/src/intellichoice_knowledge/retrieval.py#L187)) then the floor. **(ii) The harness has no lexical arm at all** — neither `_lexical_only` nor `count_matching_by_audience` appears in it — so where production falls through to a keyword match that *can* return a hint, the harness returns `None` and scores it as silence. The two disagree exactly when `winner ≤ floor` **and** `winner − runner_up ≥ margin`, which is **AUD-C-23's own failing case** (winner 0.75–0.90 against the 0.9 floor, runner-up 0.2–0.3). So D-177's headline "0 wrong tiers, 0 false hints, 0/40 stability fires" is a true statement about the harness's rule that **does not cover** production's composed path on the decisive question. **Bounded, and the bound is why this is P2 not P1:** D-178's 10 live probes measured the composed path directly at **0/10 hints with a 3/3 control**, so no user-facing damage exists today, and the lexical arm was separately measured clean on both negative classes. The exposure is the *instrument*: the next rule decision will be made on tables that model a rule nobody ships. Same class as AUD-F-16 (a harness measuring something other than what it claimed) and as D-175's config-parity gap — whose `ast` guard checks the harness passes the same `Settings` **fields** as the route, while nothing checks the rule has the same **structure**. **Two candidate fixes, neither costing a paid re-measurement:** have the harness call `probe_access` with an injected score map, or add a parity test that runs both over the saved dumps and asserts identical hints per case. Also unresolved and cheap to settle from the same dumps: production's pre-floor margin now **gates** the lexical arm (two audiences at `0.0` → `matches={}`, `lexical_calls=0`, verified), which the "strictly additive, gets the last word" comment at [retrieval.py:196](../packages/knowledge/src/intellichoice_knowledge/retrieval.py#L196) no longer describes, and which plausibly accounts for part of the 29→27 drop D-177 attributed to the floor raise **✅ Fixed 2026-08-04 (D-179), arm (a) — the harness now calls `probe_access` instead of restating it.** `--shipped` replays the real function per case: rerank scores come from the dump (the paid, nondeterministic input, and `--load`'s whole purpose is comparing rules against identical model output), while the **lexical arm is real**, delegated to `RagRepository.count_matching_by_audience` against local Postgres — it takes no embedding, so it is faithful offline even with mock vectors stored, which is exactly why it could have been modelled for free at any point and never was. The table gains a `SHIPPED probe_access` row and a parity section against `pf_f09_m01`, its transcription. **It paid for itself immediately:** the first run reported **FP public 1** where D-177 recorded 0, and the parity section named the one disagreeing case out of 58 — now filed as **AUD-C-26**. **My own prediction on this row was wrong in two ways, which is why the fix and not the reasoning is what closed it:** the divergence that bites is the *empty candidate pool* branch, not the sub-floor one (reached on 18 of 58 cases, at distance 0.72 against a 0.60 cut — nowhere near a knife edge), and the unmodelled arm *adds* false hints as well as costing recall. 7 regression tests in `test_access_probe_harness_parity.py`, one per branch, including one that fails if the shipped column is ever re-transcribed and one asserting the replay errors rather than returning `{}` when it cannot reach the lexical arm — returning an empty match set there would be this finding, reintroduced by its own fix |
 | **AUD-C-24** | **Minors / PII floor — chat free text** | **P2** | ✅ fixed 2026-08-04 (D-177) | **The chat app sends the user's typed question to Bedrock unredacted, and no decision ever covered that surface.** `redact_free_text` has **exactly one call site in the repository** — learning-api's chat router, at the request boundary (D-072) — while chat-api has none, so a question typed into `chat.intellichoice.org` reaches four payloads verbatim: `ScopeAndIntentPayload.standalone_query`, `RerankPayload.query`, `RagAnswerPayload.query`, `CalendarExtractionPayload.query`. D-072's own "How to apply" clause requires the pass for "any future free-text-accepting Bedrock task". **Bounded, and the bound is what holds it at P2**: chat queries are **not persisted** — there is no chat-message table (`chat_suggestions.prompt_text` is hand-authored seed content, checked), so this is the wire and traces, not storage or backups. **Not an accepted risk, an unexamined one**: D-018's prompt-injection scope call names chat-api's surface deliberately and defers PII to "S24/D-072 already judged that surface", which judged the *learning* surface. Needs a decision (redact at the chat request boundary as learning-api does, vs. accept and write the acceptance down), not just a patch — a minor typing "my mum's email is …, when is class?" is the realistic case **✅ Fixed 2026-08-04 (D-177), as the user decided: redact at the boundary.** `redact_free_text(body.query)` in chat-api's `post_message` — the one place free text enters the graph (`/respond`'s free text is location data that goes to geocoding and is purged per AUD-C-03; `/stream` takes no input) — so the four payloads, the checkpointed `QAState`, **and** the escalation email draft all carry the redacted text. Two HTTP tests: the raw email absent from the escalation draft and from serializer-decoded `checkpoint_writes` (the AUD-C-03 lesson), and an email-bearing in-scope question still classifies and answers. D-072's "How to apply" clause now holds on both apps |
 
 **Open findings, counted from both halves of the Index (2026-08-04, D-174; recounted D-175,
-D-176, D-177 and D-178): 2.** Arithmetic, written out because this line has now been wrong three
-times: 1 open after D-177, **plus** AUD-C-25 (filed in D-178, while landing D-177's own work) =
-**2**. Confirmed by running ROADMAP's anchored `awk`, not by counting the sentence
+D-176, D-177, D-178 and D-179): 2.** Arithmetic, written out because this line has now been wrong
+three times: 1 open after D-177, **plus** AUD-C-25 (filed in D-178 while landing D-177's work),
+**minus** AUD-C-25 (fixed in D-179), **plus** AUD-C-26 (filed in D-179, found *by* that fix on its
+first run) = **2**. Confirmed by running ROADMAP's anchored `awk`, not by counting the sentence
 below. `Open`: **AUD-F-33** (deferred by the user's call — detection exists, mechanism unknown)
-and **AUD-C-25** (the access-probe measurement harness does not measure the rule it chooses).
+and **AUD-C-26** (a public-corpus question told to log in as a parent, on the probe branch no rule
+table modelled — needs a product decision, all four candidate fixes measurable for free).
 **AUD-L-01, AUD-L-05, L-08, L-16, C-14, C-15, C-23, C-24 and F-22
 are now fixed** — C-14/C-15/L-16 in D-174, L-01/L-05 in D-175, L-08/F-22 in D-176, C-23/C-24 in
 D-177 (C-23 live-verified in D-178: 0/10 hints, control 3/3). **AUD-F-16 is
@@ -2022,7 +2025,77 @@ is recorded as the mitigation for a related concern (D-093-era), and AUD-F-13 es
 floor has to be re-established per store rather than inherited — so "the trace is clean" needs its own
 check and does not follow from this entry.
 
-### AUD-C-25 — `measure_access_probe_rules.py` does not measure the rule it is used to choose (P2, filed 2026-08-04, D-178)
+### AUD-C-26 — A public-corpus question is told to log in as a parent, on the probe branch no rule table modelled (P2, filed 2026-08-04, D-179)
+
+- **Severity:** P2. A user-visible instruction that cannot help, on a negative class every
+  recorded table showed as clean. Milder than AUD-C-22's wrong tier on gated material — the
+  caller here probably *is* a parent — but the same defect class, and the corpus it gatekeeps is
+  **public**, so the instruction is not merely unhelpful, it is backwards.
+- **Area:** chat product correctness. `intellichoice_knowledge.retrieval.probe_access`'s
+  `if not candidates` branch, `_lexical_only`, `role_access.build_access_hint`.
+- **Found by:** AUD-C-25's fix, on its first run, at zero cost. Not by review — three sessions
+  of careful reading of this rule missed it, because the instrument they were reading agreed
+  with them.
+
+**The path.** `probe_access` fetches candidates within `ACCESS_PROBE_CANDIDATE_MAX_DISTANCE`
+(0.60). When that pool is **empty** it returns immediately — deliberately, to avoid paying for a
+model call that has nothing to score — and `_lexical_only` answers alone. Nothing on that path
+applies a relevance floor or a tier margin, so `build_access_hint` has no score to rank by and
+falls back to its fixed tier **priority**: the precise rule AUD-C-22 was filed against. None of
+the D-165/D-168/D-177 constants is implicated, because none of them executes here.
+
+**It is neither rare nor marginal.** Measured over D-177's dumps with `--shipped`:
+
+| arm | empty pool | public | unanswerable | gated | lexical arm fires |
+|---|---|---|---|---|---|
+| human phrasing | **18 of 58** | 11 | 4 | 3 | 1 |
+| corpus phrasing | 17 of 58 | 11 | 4 | 2 | 0 |
+
+"No candidate within 0.60" is the *ordinary* outcome for a question phrased unlike the corpus,
+which is how real users phrase questions (D-166's own finding). The reassuring half is that the
+keyword arm is quiet across almost all of it — 1 fire in 35 empty-pool cases across both arms,
+because `websearch_to_tsquery` ANDs every content word. The unreassuring half is that the one
+fire is wrong:
+
+```
+probe-public-025   category=public   expected_required_role=null
+  query   : "How do I get or delete my kid's school records?"   (human phrasing)
+  nearest non-public chunk : distance 0.7251   (ceiling 0.60 -> 0 candidates)
+  lexical arm             : {parent: 1 chunk, student: 3 chunks}
+  build_access_hint       : required_role = "parent"      <- FALSE HINT
+  source of the answer    : Privacy Notice, audience=public
+```
+
+**Why this is a decision and not a patch.** The obvious fix — do not consult the keyword arm
+when the candidate pool is empty — collides with the reason the arm exists. D-165 kept it
+because `MockBedrockProvider`'s embeddings are hash-seeded vectors with no semantic content, so
+the keyword arm is the **only** arm the entire mock-backed suite can exercise; delete it and the
+probe becomes structurally unobservable in every offline test, which is D-163's trap wearing
+different clothes. Four candidates, all measurable for free with `--shipped` over the existing
+dumps:
+
+- **(a) Require disagreement before priority decides.** Name a tier only when exactly one
+  audience matches lexically; `probe-public-025` has two (`parent`, `student`), so priority is
+  doing the deciding and that is the thing AUD-C-22 established it must not do.
+- **(b) A minimum-match bar.** The false hint rests on a **single** chunk. `count >= 2` would
+  drop it; needs checking against how many true positives the arm contributes at all (measured:
+  1 and 3 across the two phrasings, so the margin here is thin).
+- **(c) Keep the arm for retrieval, gate the hint on a scored signal.** Most faithful to
+  AUD-C-22's principle — no score, no named tier — and it costs the arm's entire live
+  contribution while keeping the mock suite observable.
+- **(d) Accept and record it.** Defensible at 1 case in 58: the caller is over-directed toward
+  authentication for public content, which is annoying rather than harmful.
+
+Recommendation is **(a)**: it targets the actual mechanism (priority deciding an ambiguous
+match) rather than the symptom, keeps the arm's single-audience true positives, and leaves the
+mock suite exercising the same code path.
+
+**A note on the instrument, since it is the second lesson here.** This finding was invisible for
+as long as the rule table was a transcription, and it became visible on the first run after the
+table started calling the code. The generalizable form: *a measurement that omits a branch will
+report that branch as its most flattering outcome* — here, silence scored as a correct refusal.
+
+### AUD-C-25 — `measure_access_probe_rules.py` does not measure the rule it is used to choose (P2, filed 2026-08-04, D-178; ✅ fixed 2026-08-04, D-179)
 
 - **Severity:** P2. No user-facing damage exists today — D-178's live probes measured production's
   composed path at 0/10 hints with a 3/3 control — so this is not P1. It is held *at* P2 rather than
