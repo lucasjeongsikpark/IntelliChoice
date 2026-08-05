@@ -11655,3 +11655,78 @@ edges. **The staging half closed the same session** (this paragraph originally e
 not yet verified", reconciled in the docs follow-up): PR #109 (`c3aef7d`) deployed by run
 30957318802 (`learning-api:63` / `chat-api:62`), and the three parent journeys passed **3/3
 against the deployed staging stack**, `[build-identity] … sha=c3aef7d78d65` on both APIs.
+
+## D-177 — AUD-C-23's re-measurement moved the fix off the knob the fork named, and AUD-C-24 redacted at the boundary (accepted, 2026-08-04)
+
+Scope: PROGRESS.md's post-D-176 pointer, items 1 and 2 — both gated on user decisions, both taken
+this session: **AUD-C-23 = re-measure and tighten** (over accept-and-name), **AUD-C-24 = redact at
+the chat request boundary** (over accept-and-write-it-down). No numbered roadmap block (D-152).
+Baseline verified before editing: lint clean, pyright 0, **865 passed / 2 skipped**. Paid
+measurement budget approved at 100¢; actual spend **55.04¢** (21.42 human arm, 21.12 corpus arm,
+12.5 eval re-run).
+
+### 1. AUD-C-24 first: `redact_free_text(body.query)` in chat-api's `post_message`
+
+One call site, mirroring learning-api's D-072 seam. `post_message` is the only place free text
+enters the QA graph (`AskInput` has exactly one constructor call; `/respond`'s free-text fields
+are location data that goes to geocoding and is purged per AUD-C-03; `/stream` takes no input), so
+redacting there covers the four Bedrock payloads the finding lists, the checkpointed `QAState`,
+and the escalation email draft. **The escalation consequence is accepted knowingly:** an admin
+reading an escalated question sees `[redacted-email]` where the asker typed an address —
+consistent with D-164, which already ships escalation with no reply channel, so an embedded email
+address was never actionable there.
+
+Two HTTP tests, both written against the artifacts rather than the call: the raw email must be
+absent from the escalation draft *and* from `checkpoint_writes` decoded with LangGraph's own
+serializer (AUD-C-03's lesson — `CAST(blob AS text)` certified a database full of coordinates as
+clean), and an email-bearing in-scope question still classifies `in_scope`/`document_qa` and takes
+the normal escalation-offer path (redaction must not cost the caller their turn).
+
+### 2. AUD-C-23: the margin was never the knob — the floor was, and raising the floor alone would have resurrected AUD-C-22
+
+The fork was recorded as "tighten the **margin** vs. accept and name". The re-measurement the user
+required before any tune is what caught the misnomer. `measure_access_probe_rules.py` grew a
+`--stability CASE_ID` mode (N extra reranks of the same candidate set; N=10 fixed before the run,
+per D-175's sample-size rule) and the dumps now carry per-repeat scores, so any future rule is
+scored against the score *distribution*, not one sample of it:
+
+- **On the failing case** (*"What happens to a student who misses three sessions in a row?"*,
+  nothing answers it): best branch_manager passage scores **0.75–0.90 across 22 samples** —
+  rerank noise straddling the 0.8 floor — while the runner-up audience sits at 0.2–0.3. The tier
+  margin **never applied**; `chosen_m02`/`m03` (margins 0.2/0.3) still fire 2–3/10. Mechanism
+  confirmed, not inferred: D-175's "LLM score near a threshold" hypothesis, with the threshold
+  being the floor.
+- **Raising the floor alone is a trap, measured:** corpus-phrasing *"how do I fix an attendance
+  error for my child"* scores branch_manager 0.95 / parent 0.90. The old rule shape filtered on
+  the floor *before* computing the margin, so at floor 0.9 the parent passage vanishes and the
+  wrong tier is named **3/10 repeats** — AUD-C-22's exact damage, reintroduced by its own fix's
+  neighbouring constant.
+- **The shipped change is therefore two coupled edits:** `ACCESS_PROBE_RERANK_MIN_SCORE` 0.8 →
+  **0.9**, and `probe_access` computes the tier margin over **pre-floor** per-audience bests (the
+  floor then gates only the undisputed winner). At floor 0.9 + margin 0.10 the returned set is
+  provably the winner alone (two audiences above 0.9 are always within 0.10), so
+  `build_access_hint` keeps its selector role unchanged.
+- **Both arms, single-shot:** this rule 27/38 and 26/38 right, **0 wrong tiers, 0 false hints on
+  both negative classes**; old rule 29/38 with 1 wrong tier + 1 FP-unanswerable (human arm).
+  **Stability: 0/40 fires** across every repeat of both probed cases. The 2–3 lost rights are
+  silences, which is the trade AUD-C-22's own argument prices: a wrong tier is worse than silence.
+- **Knife edges recorded so nobody re-trips them:** the unanswerable case's winner hit **0.90 once
+  in 22 samples**, so a 0.85 floor still leaks and 0.9 has exactly one quantization step of
+  headroom (the reranker emits 0.05 steps); margin 0.05 only ever "passed" the 0.95-vs-0.90 case
+  through binary float error (`0.95 - 0.90 < 0.05` is True), so the margin must not be lowered to
+  the score grid.
+
+**The paid eval's `wrong_role_hints` assertion — red since D-168, AUD-C-23's original filing —
+passed**: `no_answer` **8/8** (the failing case included), `role_gated_question` 2/3 where the
+one miss is a *silence* on the tutor case, reported not asserted. 12.5¢,
+`CHAT_EVAL_CATEGORIES=no_answer,role_gated_question` (the file's own comment blesses the narrowed
+run for exactly this check, which is asserted before the partial-run return).
+
+### 3. What was measured vs. inferred
+
+Verified: lint clean, pyright 0, **869 passed / 2 skipped** (+4: 2 chat-redaction HTTP tests, 2
+probe regression tests with values straight from the stability tables). Both measurement dumps are
+reproducible offline (`--load`) at zero cost. **Not yet verified: the live edge.** The deployed
+system still runs the 0.8/post-floor rule until the next deploy; the owed live row is **10
+anonymous probes** (sample size fixed now, before anyone runs them) of the AUD-C-23 question
+against `chat.intellichoice.org`, expected 0/10 hints where D-175 measured 6/10.

@@ -90,10 +90,15 @@ async def probe_access(
         reranker rates highly - which is the normal case for attendance, where the parent
         handbook and the branch-manager procedure genuinely both answer - naming either one is
         a coin flip, and a wrong tier is worse than silence. So it stays silent and the
-        no-source message stands.
+        no-source message stands. Since AUD-C-23 the margin is computed over the *pre-floor*
+        per-audience bests (see the inline comment at the scoring loop), and the floor is
+        0.9 - `access_probe_policy` carries the measured table for both.
 
-    Measured 29/38 (blind-rewrite phrasing) and 28/38 (corpus phrasing) correct audiences with
-    **zero wrong tiers on either**, against 23/38 with 1 and 4 wrong for the rule it replaces.
+    Measured (AUD-C-23 re-measurement, 2026-08-04): 27/38 (blind-rewrite phrasing) and 26/38
+    (corpus phrasing) correct audiences, **zero wrong tiers, zero false hints on both negative
+    classes in both arms**, and 0/40 fires across the repeated-rerank stability probes of the
+    two cases rerank noise flips. The rule this replaces measured 29 right but flipped a false
+    branch_manager hint on a question nothing answers, 2-3 times in 10.
 
     **Degradation is the point of the fallback, not an afterthought.** This runs *because* the
     turn already failed to answer, so nothing here may raise: no embedding (the caller's
@@ -165,12 +170,17 @@ async def probe_access(
         )
 
     score_by_index = {s.candidate_index: s.relevance_score for s in rerank_result.value.scores}
+    # AUD-C-23's second measured lesson: the per-audience bests are collected *before* the
+    # floor is applied. The previous shape filtered on `min_score` first, so a runner-up
+    # sitting just under the floor was invisible to the tier margin - raise the floor and
+    # the rule starts naming the winner of a race the margin was supposed to call too
+    # close (measured: corpus-phrasing "how do I fix an attendance error for my child",
+    # branch_manager 0.95 vs parent 0.90 - a floor-first rule at 0.9 names the wrong tier
+    # 3 times in 10 repeated reranks; this shape, zero in 40).
     best: dict[str, float] = {}
     counts: dict[str, int] = {}
     for index, chunk in enumerate(candidates):
         score = score_by_index.get(index, 0.0)
-        if score <= min_score:
-            continue
         best[chunk.audience] = max(best.get(chunk.audience, 0.0), score)
         counts[chunk.audience] = counts.get(chunk.audience, 0) + 1
     ordered = sorted(best.values(), reverse=True)
@@ -179,8 +189,8 @@ async def probe_access(
         # lexical arm is deliberately *not* consulted here - it has no relevance scale, so it
         # would resolve the ambiguity by tier priority, which is the exact rule AUD-C-22 is.
         return AccessProbeResult(matches={}, cost_cents=rerank_result.cost_cents)
-    if not best:
-        # The reranker read the passages and found none of them an answer. The lexical arm is
+    if not ordered or ordered[0] <= min_score:
+        # The reranker read the passages and rated none of them an answer. The lexical arm is
         # a different question - "does a gated chunk use these exact words" - and is measured
         # clean: 1 and 3 correct audiences across the two phrasings, zero wrong, zero false
         # hits on either negative class. Strictly additive, so it gets the last word here.
@@ -188,10 +198,16 @@ async def probe_access(
             matches=await _lexical_only(repo, probe_filters, query),
             cost_cents=rerank_result.cost_cents,
         )
+    # Only audiences above the floor are worth naming. At the shipped floor (0.9) and
+    # margin (0.10) this is provably the winner alone - two audiences above 0.9 are
+    # always within 0.10 of each other, so the margin would already have gone silent -
+    # but the selector contract stays "every qualifying audience", and
+    # `role_access.build_access_hint` remains the one place that picks.
     return AccessProbeResult(
         matches={
             audience: AudienceMatch(count=counts[audience], score=score)
             for audience, score in best.items()
+            if score > min_score
         },
         cost_cents=rerank_result.cost_cents,
     )

@@ -39,38 +39,54 @@ from dataclasses import dataclass
 # when the reranker is unavailable. The live rule is the three constants below.
 ACCESS_PROBE_MAX_DISTANCE = 0.45
 
-# D-168/AUD-C-22, and these three are one rule - none of them means anything alone.
+# D-168/AUD-C-22, retuned by AUD-C-23 - and these three are one rule; none of them means
+# anything alone.
 #
-# The probe now mirrors the real retrieval pipeline instead of paraphrasing it: candidates
+# The probe mirrors the real retrieval pipeline instead of paraphrasing it: candidates
 # under `CANDIDATE_MAX_DISTANCE`, reranked by the same `BedrockTask.RERANK` model `retrieve`
-# uses, an audience kept only if its best passage scores above `RERANK_MIN_SCORE`, and a tier
-# named only if it beats the runner-up tier by `TIER_MARGIN`. The model scores *passages*; the
-# passage -> audience -> fixed message mapping stays deterministic (CLAUDE.md #3).
+# uses, a tier named only if it beats the runner-up tier by `TIER_MARGIN` **computed over the
+# pre-floor per-audience bests**, and only if the winner scores above `RERANK_MIN_SCORE`. The
+# model scores *passages*; the passage -> audience -> fixed message mapping stays
+# deterministic (CLAUDE.md #3).
+#
+# **AUD-C-23 (2026-08-04) is why the floor is 0.9 and the margin is pre-floor.** The live
+# system told 6 of 10 anonymous askers of a question *nothing* answers to log in as a branch
+# manager. Repeated-rerank measurement (10x per arm, sample size fixed before the run per
+# D-175's rule) found the mechanism: on that question the best branch_manager passage scores
+# 0.75-0.90 - rerank noise straddling the old 0.8 floor - while the runner-up sits at 0.2-0.3,
+# so the tier margin never applied. The floor was the operative knob, but raising it alone
+# resurrects AUD-C-22: with a floor-first rule at 0.9, corpus-phrasing "how do I fix an
+# attendance error for my child" scores branch_manager 0.95 / parent 0.90, the parent passage
+# is truncated *before* the margin can see it, and the wrong tier is named 3/10. Hence both
+# changes together: floor 0.9 gates only the winner; the margin sees every audience.
 #
 # Measured by `scripts/measure_access_probe_rules.py` over both phrasings of the same 38
-# gated / 12 public / 8 unanswerable cases (blind-rewrite `human_query`, and the
-# corpus-derived `query`):
+# gated / 12 public / 8 unanswerable cases, single-shot table plus 10x stability reranks of
+# the two noise-flipped cases (`no-answer-missed-1`, `probe-parent-013`):
 #
 #   rule                                  | right | wrong tier | FP public | FP unanswerable
-#   PRIORITY <=0.45  (D-166, human)       | 23/38 |     1      |     0     |       0
-#   PRIORITY <=0.45  (D-166, corpus)      | 23/38 |     4      |     0     |       0
-#   this rule                    (human)  | 29/38 |   **0**    |     0     |       0
-#   this rule                    (corpus) | 28/38 |   **0**    |     0     |       1
+#   floor .8, post-floor margin (human)   | 29/38 |     1      |     0     |       1
+#   floor .8, post-floor margin (corpus)  | 29/38 |     0      |     0     |       0*
+#   this rule                    (human)  | 27/38 |   **0**    |     0     |     **0**
+#   this rule                    (corpus) | 26/38 |   **0**    |     0     |     **0**
 #
-# **The margin is what buys the zero.** Without it, reranking alone gets 33-36 right but 2-5
-# wrong tiers: on attendance questions the parent handbook and the branch-manager procedure
-# both genuinely answer, and *something* has to lose. AUD-C-22's whole argument is that a
-# wrong tier is worse than silence - a parent told to log in as a branch manager cannot act on
-# it at all - so when the reranker cannot separate two tiers this stays silent and the honest
-# no-source message (plus its escalation offer) stands. Every remaining miss in the table
-# above is a silence, not a misdirection.
+#   * flips run to run: the old rule fired on the unanswerable case 2/10 (human arm) and
+#     3/10 (corpus arm) stability repeats; this rule 0/40 across every repeat of both cases.
 #
-# Two negative results, so nobody re-proposes them: **HyDE** (generate a hypothetical answer,
-# embed that) was measured and is not better - 28/0 human, 31/0 corpus with a false public
-# hint - for one extra generation per refusal. And a **floor of 0.9** is unstable across the
-# two phrasings (24 right vs 28), which is the reranker's own scoring noise, not a signal.
+# **The margin is what buys the zero wrong tiers; the floor is what buys the zero false
+# hints.** AUD-C-22's argument stands: a wrong tier is worse than silence, and every miss
+# this rule adds over the old one is a silence, not a misdirection. The remaining knife
+# edges, so nobody re-trips them: the unanswerable case's winning score reached **0.90** once
+# in 22 samples, so a 0.85 floor still leaks and 0.9 has exactly one quantization step of
+# headroom (the reranker emits 0.05 steps); and a margin of 0.05 only ever "worked" through
+# float error (0.95 - 0.90 < 0.05 is True in binary), so do not lower it to the score grid.
+#
+# Two older negative results, still standing: **HyDE** measured no better for one extra
+# generation per refusal, and a floor of 0.9 **with the post-floor margin** is worse than
+# either rule here (wrong tiers 3/10 on the stability control) - the floor raise is only
+# safe because the margin moved in front of it.
 ACCESS_PROBE_CANDIDATE_MAX_DISTANCE = 0.60
-ACCESS_PROBE_RERANK_MIN_SCORE = 0.8
+ACCESS_PROBE_RERANK_MIN_SCORE = 0.9
 ACCESS_PROBE_TIER_MARGIN = 0.10
 # Candidates sent to the reranker. `retrieve` uses 30; the probe needs far fewer because it
 # only has to decide *which audience*, and every candidate is a passage the caller may not

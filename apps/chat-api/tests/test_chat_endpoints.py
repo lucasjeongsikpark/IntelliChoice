@@ -132,6 +132,59 @@ def test_post_message_with_escalate_pauses_for_email_approval() -> None:
     assert body["pending_interrupt"]["email_subject"].startswith("IntelliChoice Q&A escalation")
 
 
+def test_post_message_redacts_typed_pii_before_the_graph() -> None:
+    """AUD-C-24: the typed question is redacted at the request boundary - the one place
+    free text enters this graph - so nothing downstream ever holds the raw text: not the
+    escalation draft a human is shown, and not the checkpointed `QAState`. Asserted on
+    the escalate path because its email draft is the most human-visible artifact built
+    from the query, and on the raw checkpoint writes because that is where AUD-C-03
+    taught us redaction claims go to die (decode with LangGraph's own serializer, not
+    `CAST(blob AS text)`).
+    """
+    raw_email = "zqxv.parent@example.com"
+    question = f"My mum's email is {raw_email}, when is the next class?"
+    serde = JsonPlusSerializer()
+
+    with TestClient(app) as client:
+        session_id = client.post("/chat/sessions").json()["chat_session_id"]
+        response = client.post(
+            f"/chat/sessions/{session_id}/messages",
+            json={"query": question, "escalate": True},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["pending_interrupt"]["interrupt_type"] == "email_approval"
+    assert "[redacted-email]" in body["pending_interrupt"]["email_body"]
+    assert raw_email not in body["pending_interrupt"]["email_body"]
+
+    rows = asyncio.run(_checkpoint_writes_for_thread(session_id))
+    assert rows, "expected checkpoint writes for the thread - wrong thread id?"
+    decoded = " ".join(repr(serde.loads_typed((type_, blob))) for _, type_, blob in rows)
+    assert raw_email not in decoded
+    assert "[redacted-email]" in decoded
+
+
+def test_post_message_with_pii_still_classifies_and_answers_normally() -> None:
+    """AUD-C-24's other half: redaction must not cost the caller their turn. An
+    email-bearing but otherwise in-scope question still classifies and takes the normal
+    no-source escalation-offer path (learning-api already proves an answer survives the
+    pass; this is the same property at chat-api's boundary).
+    """
+    with TestClient(app) as client:
+        session_id = client.post("/chat/sessions").json()["chat_session_id"]
+        response = client.post(
+            f"/chat/sessions/{session_id}/messages",
+            json={"query": "zqxvchunk handbook contact zqxv.parent@example.com please"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["scope"] == "in_scope"
+    assert body["intent"] == "document_qa"
+    assert body["escalation_recommended"] is True
+
+
 def test_post_message_includes_deterministic_followups() -> None:
     """SPEC §18-C3: `suggested_followups` are picked from `chat_suggestions`, never the
     LLM. Seeds one marker row via a committing session - `TestClient`'s own lifespan

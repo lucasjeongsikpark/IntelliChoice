@@ -431,9 +431,13 @@ def test_probe_scores_every_qualifying_audience_so_the_selector_can_rank_them() 
     """AUD-C-22 in one test: the branch_manager passage outranks the parent one by tier and
     must lose on relevance. Under the rule this replaces, the parent could not win at all.
 
-    The probe deliberately returns *both* audiences rather than the winner - picking is
-    `role_access.build_access_hint`'s job and there is exactly one place that does it. What
-    this asserts is that the scores it hands over say parent, unambiguously.
+    The probe returns every audience above the floor rather than hard-coding a winner -
+    picking is `role_access.build_access_hint`'s job and there is exactly one place that
+    does it. At the shipped floor (0.9) and margin (0.10) that set is provably the winner
+    alone: two audiences above 0.9 are always within 0.10 of each other, so the margin
+    would already have gone silent. The branch_manager score here (0.85) is below the
+    floor and must not be handed to the selector at all - under the pre-AUD-C-23 floor
+    (0.8) it was, and the selector had to out-score it.
     """
 
     async def run() -> None:
@@ -452,13 +456,77 @@ def test_probe_scores_every_qualifying_audience_so_the_selector_can_rank_them() 
 
         result = await _probe(repo, gateway)
 
-        assert set(result.matches) == {"parent", "branch_manager"}
+        assert set(result.matches) == {"parent"}
         assert result.matches["parent"].score == pytest.approx(0.98)
-        assert result.matches["branch_manager"].score == pytest.approx(0.85)
-        best = max(result.matches.items(), key=lambda item: item[1].score or 0.0)
-        assert best[0] == "parent"
         assert result.degraded is False
         assert repo.fallback_calls == 0
+
+    asyncio.run(run())
+
+
+def test_probe_margin_sees_a_runner_up_below_the_floor() -> None:
+    """AUD-C-23's second measured lesson, values straight from the corpus-arm stability
+    table ("how do I fix an attendance error for my child": branch_manager 0.95, parent
+    0.90). A floor-first rule truncates the parent passage before the margin runs, names
+    branch_manager on a parent question 3/10 repeats, and resurrects exactly the wrong
+    hint AUD-C-22 was filed about. The margin must be computed over the pre-floor bests:
+    0.95 - 0.90 is inside the 0.10 margin, so this stays silent.
+    """
+
+    async def run() -> None:
+        repo = _FakeRepo(
+            [
+                _chunk("bm-1", "attendance marking procedure", audience="branch_manager"),
+                _chunk("p-1", "if attendance is unknown", audience="parent"),
+            ]
+        )
+        gateway = _FakeGateway(
+            scores=[
+                RerankedScore(candidate_index=0, relevance_score=0.95),
+                RerankedScore(candidate_index=1, relevance_score=0.90),
+            ]
+        )
+
+        result = await _probe(repo, gateway)
+
+        assert result.matches == {}
+        assert result.degraded is False
+        # Ambiguity is answered with silence, never with the lexical arm's tier priority.
+        assert repo.fallback_calls == 0
+
+    asyncio.run(run())
+
+
+def test_probe_stays_silent_on_the_measured_unanswerable_noise_ceiling() -> None:
+    """AUD-C-23's headline case: a question nothing answers, where the nearest gated
+    passage is branch_manager material rerank noise scores at 0.75-0.90 (22 samples, max
+    0.90 - the value asserted here). Under the old 0.8 floor this fired "log in as a
+    branch manager" on 2-3 of 10 repeats, live 6 of 10. With the floor at 0.9 the winner
+    fails the floor, and the turn falls through to the lexical arm - which has no match
+    either - so the honest no-source message stands.
+    """
+
+    async def run() -> None:
+        repo = _FakeRepo(
+            [
+                _chunk("bm-1", "escalation contact procedure", audience="branch_manager"),
+                _chunk("p-1", "program overview for parents", audience="parent"),
+            ]
+        )
+        gateway = _FakeGateway(
+            scores=[
+                RerankedScore(candidate_index=0, relevance_score=0.90),
+                RerankedScore(candidate_index=1, relevance_score=0.30),
+            ]
+        )
+
+        result = await _probe(repo, gateway)
+
+        assert result.matches == {}
+        assert result.degraded is False
+        # Not the margin path: the winner simply is not relevant enough to name, and the
+        # lexical arm gets its measured-clean last word.
+        assert repo.fallback_calls == 1
 
     asyncio.run(run())
 
