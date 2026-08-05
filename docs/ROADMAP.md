@@ -710,6 +710,12 @@ which stop the line.
 > own status**, and the status wins: D-174 §3a lost time to a "not yet checked" bullet that was
 > never struck when D-112 closed the finding.
 >
+> **One benign duplicate, so nobody re-investigates it (checked in D-178):** `### AUD-C-16` appears
+> twice, and it is *one* finding with two sections — the original, plus a later
+> `### AUD-C-16 (settled) …` that escalates it P3 → P1. Unlike the `AUD-L-17` collision, no
+> renumbering is owed. A mechanical "no id appears twice" check flags it; that is the check being
+> imprecise, not the file.
+>
 > **⚠️ A naive `grep -i open` over this file now over-counts, and the fix is to anchor on the status
 > column.** Several rows carry their own history *inside* the status cell — AUD-F-16's reads
 > "✅ fixed … ; this row read `Open — before the gate` until 2026-08-04" — so the word appears in rows
