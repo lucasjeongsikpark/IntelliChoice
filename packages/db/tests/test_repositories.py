@@ -26,6 +26,7 @@ from intellichoice_db.models.mcp import McpToolCall
 from intellichoice_db.models.memory import LearningEvent, SemanticMemory
 from intellichoice_db.models.org import OrgBranch, OrgEvent, OrgTeamMember
 from intellichoice_db.models.questions import (
+    VARIANT_ORIGIN_CANONICAL,
     QuestionTemplate,
     QuestionValidationRun,
     QuestionVariant,
@@ -276,9 +277,30 @@ def test_question_repository_authored_helpers() -> None:
             )
             await questions.create_variant(
                 QuestionVariant(
+                    # The authoring pipeline declares this explicitly, because the column
+                    # default is "runtime" - and as of D-189 the distinction is what the
+                    # serving path reads, so the fixture has to match production.
+                    origin=VARIANT_ORIGIN_CANONICAL,
                     question_template_id=authored.question_template_id,
                     random_seed=1,
                     rendered_question="What is 2 + 2?",
+                    option_a="4",
+                    option_b="5",
+                    option_c="6",
+                    option_d="3",
+                    correct_option="a",
+                    parameter_values={},
+                )
+            )
+            # A serving of the same template, which is what D-189 made possible and what
+            # `get_variant_for_template` used to be able to return by accident: it took any
+            # row with `limit(1)`, so the reviewed content and an arbitrary student's
+            # rendering were interchangeable to it.
+            await questions.create_variant(
+                QuestionVariant(
+                    question_template_id=authored.question_template_id,
+                    random_seed=2,
+                    rendered_question="a runtime serving of the same authored template",
                     option_a="4",
                     option_b="5",
                     option_c="6",
@@ -296,6 +318,11 @@ def test_question_repository_authored_helpers() -> None:
             )
             assert fetched_variant is not None
             assert fetched_variant.rendered_question == "What is 2 + 2?"
+
+            batched = await questions.get_canonical_variants([authored.question_template_id])
+            assert batched[authored.question_template_id].question_variant_id == (
+                fetched_variant.question_variant_id
+            )
 
             assert await questions.stem_near_duplicate_exists(
                 chain.topic_id, embedding, threshold=0.01

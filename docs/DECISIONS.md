@@ -12822,3 +12822,94 @@ approvals were rolled back, not because the defect was fixed.
 
 **Revert:** the five code changes are independent. Reverting §5's guard restores the ability to
 approve an unservable template; reverting §1 restores a pipeline that cannot generate at all.
+
+## D-189 — authored templates are served from their canonical variant, and the post-exam knowingly repeats them (accepted, 2026-08-05)
+
+**Context.** D-188 §5 found that approving authored content broke exam building: every served
+question went through `generate_variant(shape_key=template.solution_function)` and an authored
+template carries `solution_function="authored"`, which `SHAPES` has no entry for. 34 tests failed.
+The pipeline had been able to *produce* authored items since S20, but nothing had ever approved
+one, so producing-vs-serving had never been exercised. This closes that.
+
+### 1. Serving reads the content instead of computing it
+
+`renders_from_canonical_variant(template)` is the predicate — keyed on the **shape registry**, not
+on `authoring_mode`, so it stays a statement about what can actually be rendered. When true,
+`build_variant_row` copies the template's canonical `QuestionVariant` into a fresh
+`VARIANT_ORIGIN_RUNTIME` row instead of generating one. Missing canonical variant raises
+`StaticVariantUnavailableError` rather than serving an empty question: `build_variant_row` is the
+pure half (AUD-F-31) and cannot read the database, so a caller that forgets to supply it would
+otherwise be one `None` away from a blank item in front of a student.
+
+The RNG is still drawn from on the static path, so a caller's per-item consumption does not depend
+on which kind of template it happened to sample.
+
+### 2. The canonical read is batched, and conditional
+
+`QuestionRepository.get_canonical_variants` is one query over the whole candidate pool, issued
+*before* the sampling loop. Sampling first and then reading would batch more tightly but would
+reorder the RNG draws — `rng.sample` and `build_variant_row` interleave per difficulty, and that
+order is what makes a fixed seed reproduce a fixed exam (CLAUDE.md non-negotiable #2). The
+per-sampled-template alternative would be an N+1 of exactly the kind AUD-F-31 measured and removed.
+
+Both exam paths go from 7 statements to **8**, and the eighth is skipped entirely for a topic with
+no statically-rendered templates. `_PRE_EXAM_SHAPE_BUDGET` now asserts `SELECT question_variants: 2`
+— the count that used to be ten is the one worth pinning.
+
+### 3. The post-exam repeats an authored item, deliberately (the user's call)
+
+SPEC §5.13.2 asks the post-exam for a rendering that is not the pre-exam's, and an authored
+template has exactly one to give. Three things make serving it again the right trade rather than a
+silent regression, and the alternatives were weighed against them:
+
+- §5.13.2 forbids reusing the same question **variant**, and a new row is still minted per serving.
+- The generated path **already** had this behaviour as a rare fallback: `build_variant_row` retries
+  a bounded number of times and then returns the colliding rendering anyway. What changes is the
+  frequency, not the guarantee.
+- The alternatives all cost more than the problem. Pairing by (skill, tier) family needs ≥2 authored
+  items per pair, which the generator cannot reliably produce (D-188 §6 — five of eleven pairs lost
+  to duplicate stems). Authoring N renderings per template is a schema change plus N× the human
+  review. Excluding authored content from exams contradicts A6-C's purpose.
+
+`_static_variant_row` logs `static_variant_repeats_rendering` on each repeat, so the rate is
+**measurable rather than assumed** — that is the condition under which accepting it is honest.
+
+### 4. A latent defect this would have tripped
+
+`get_variant_for_template` took any variant with `limit(1)`, correct only while authored templates
+were never served. Serving mints a runtime row per showing, so it would have started returning an
+arbitrary *student's* rendering in place of the reviewed content — silently, and more often the more
+the item is used. Now filtered to `VARIANT_ORIGIN_CANONICAL`. The dev database has **86** runtime
+servings of authored templates after one suite run, so this was not a distant risk.
+
+### 5. The approval guard narrows rather than disappears
+
+D-188's `review_cli.approve` refused every template with no registered shape. It now refuses only
+those with no shape **and** no canonical variant — the case that is still genuinely unservable.
+Fail-closed (rule 5) is preserved; what changed is that the servable case exists.
+
+### 6. Content landed, and the fixture that had to be re-pinned
+
+Five authored items are **approved and active**, one per skill at its native tier (the review policy
+from D-188 §6). `test_pre_exam_content_matches_the_pre_refactor_capture` was re-pinned: the
+candidate pool at each difficulty went from 10 to 11, so a seeded `rng.sample()` legitimately picks
+differently. **That fixture guards refactors, not the bank's contents** — a content change re-pins
+it, but only deliberately and with the reason recorded, or it decays into a value someone edits
+until the test passes. The new capture's third row is `2x + 7 = 19` (options 6/8/9/13) —
+`authored-linear_equations-d2-9200`, served from its canonical variant, which is the exact thing
+that raised before this change.
+
+**⚠️ Still not multi-tier.** The bank remains one tier per skill; D-169's rule 2 stays inert.
+D-188 §6's cause is unchanged — `AuthoredGeneratorPayload` carries no per-candidate variation and no
+rubric for what a tier means.
+
+### 7. Verification
+
+`ruff` clean, `pyright` 0, **918 passed / 2 skipped** — up 3, the new serving tests, with the prior
+915 unchanged. The suite is green **with the five authored templates approved and active**, which
+is the claim D-188 could not make. `test_authored_serving.py` builds a deliberately *mixed* exam
+(difficulty 1 authored, 2-5 shape) so both rendering paths are exercised in one build.
+
+**Revert:** remove the static branch in `build_variant_row` and the two `get_canonical_variants`
+calls, restore the statement budgets to 7, re-pin the capture from `c736dc6`, and set the five
+templates back to `pending` — they become unservable again the moment the branch is gone.

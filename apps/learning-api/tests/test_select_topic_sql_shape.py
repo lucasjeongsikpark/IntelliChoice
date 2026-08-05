@@ -287,8 +287,18 @@ async def _build_and_view(
 # 47 before, and the 47 reconciled with the staging X-Ray profile's 51 (the missing four are
 # the router's `SELECT topics`, the attendance gate's MySQL-side read, and two
 # connection-level statements, none of which this test drives).
-_PRE_EXAM_PATH_BUDGET = 7
-_POST_EXAM_BUILD_BUDGET = 7
+# Both were 7 until D-189 made authored templates servable. The eighth statement is the
+# canonical-variant read: an authored template's content lives on its variant rather than
+# in a shape function, so a build whose candidate pool contains one has to fetch it.
+#
+# **It is one statement, not one per item, and that is the property being guarded here.**
+# The read is issued once before the sampling loop, over the whole candidate pool - the
+# obvious alternative (fetch per sampled template) would be an N+1 of exactly the kind
+# AUD-F-31 measured and removed. It is also skipped entirely when a topic has no
+# statically-rendered templates, so these numbers are a function of the seeded bank: they
+# return to 7 for a topic that is pure shape content.
+_PRE_EXAM_PATH_BUDGET = 8
+_POST_EXAM_BUILD_BUDGET = 8
 
 # Every statement shape the exam build issues, and how many round-trips each may take. The
 # point of asserting per shape rather than only on the total: a total can be met while one
@@ -296,6 +306,10 @@ _POST_EXAM_BUILD_BUDGET = 7
 _PRE_EXAM_SHAPE_BUDGET = {
     "INSERT INTO assessment_sessions": 1,
     "SELECT question_templates": 1,
+    # One for D-189's canonical-variant read, one for `items_view` reading back what it
+    # just wrote. Asserted now that there are two, because "how many times do we read
+    # variants" is exactly the count that used to be ten.
+    "SELECT question_variants": 2,
     "INSERT INTO question_variants": 1,
     "INSERT INTO assessment_items": 1,
     "INSERT INTO assessment_item_state": 1,
@@ -412,21 +426,33 @@ def _content(views: list[flow.QuestionItemView]) -> list[tuple[str, str, str, st
     ]
 
 
-# Captured from the unbatched builder before AUD-F-31's refactor, at `SEED`, so the
-# refactor is held to producing the *same exam*, not merely a valid one. A batching change
-# that reorders the template list a seeded `rng.sample()` consumes would still build ten
-# well-formed questions - these literals are what makes that failure visible.
+# Captured at `SEED`, so a refactor is held to producing the *same exam*, not merely a
+# valid one. A batching change that reorders the template list a seeded `rng.sample()`
+# consumes would still build ten well-formed questions - these literals are what makes
+# that failure visible.
+#
+# **Re-pinned 2026-08-05 (D-189), and the reason matters:** the first five authored
+# templates were approved, so the candidate pool at each difficulty went from 10 to 11 and
+# a seeded `rng.sample()` legitimately picks differently. This fixture guards *refactors*,
+# not the bank's contents, so a content change re-pins it - but only deliberately, and
+# only with the reason recorded, or it degrades into a value someone updates until the
+# test passes. The original capture is in git history at `c736dc6`.
+#
+# The third row is the tell that this is a content change rather than a reordering:
+# `2x + 7 = 19` with options 6/8/9/13 is `authored-linear_equations-d2-9200`, an authored
+# item served from its canonical variant - the exact thing that raised
+# `VariantGenerationError` before D-189.
 _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
-    ("Solve for x: -3x = 9", "-2", "3", "-5", "-3"),
-    ("Solve for x: x - 2 = 3", "3", "-5", "5", "4"),
-    ("Solve for x: 9x + 8 = 35", "6", "-3", "3", "4"),
-    ("Solve for x: 8x + 12 = 60", "-6", "8", "6", "5"),
-    ("Solve for x: x/5 + 2 = 0", "10", "-15", "-10", "-11"),
-    ("Solve for x: -8x + 9 = 73", "-8", "-11", "8", "-9"),
-    ("Solve for x: 8x - 9 = 2x + 45", "-9", "14", "10", "9"),
-    ("Solve for x: -4x + 9 = 10x + 51", "-2", "-3", "3", "-5"),
-    ("Solve for x: 4(x + 15) + 4x = 44", "-2", "-1", "3", "2"),
-    ("Solve for x: 4(x + 2) + -1x = 23", "5", "7", "-5", "4"),
+    ("Solve for x: 11x = -33", "-2", "3", "-5", "-3"),
+    ("Solve for x: x + 11 = 16", "3", "-5", "5", "4"),
+    ("Solve for x: 2x + 7 = 19", "6", "8", "9", "13"),
+    ("Solve for x: -3x + 15 = -3", "10", "6", "-6", "5"),
+    ("Solve for x: -3x + 6 = -15", "11", "-7", "8", "7"),
+    ("Solve for x: -6x + 20 = 8", "3", "-3", "-2", "2"),
+    ("Solve for x: 8x + 17 = -9x + 0", "1", "4", "0", "-1"),
+    ("Solve for x: 5x + 4 = 6x + -4", "9", "8", "5", "-8"),
+    ("Solve for x: 4(x - 7) = -36", "-2", "-5", "2", "-1"),
+    ("Solve for x: -5(x - 2) = -15", "5", "7", "-5", "4"),
 )
 
 

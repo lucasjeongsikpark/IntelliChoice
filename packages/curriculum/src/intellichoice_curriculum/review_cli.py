@@ -83,34 +83,31 @@ async def approve(session: AsyncSession, question_template_id: str) -> str:
     """Approval is a human action (D-026) and this is the documented way in, so it is
     also where "would this content actually serve?" has to be answered.
 
-    Measured 2026-08-05, by approving five authored templates and running the suite: it
-    would not. `variant_persistence.build_variant_row` renders every served question
-    through `generation.generate_variant(shape_key=template.solution_function)`, and an
-    authored template carries `solution_function="authored"`, which `SHAPES` has no entry
-    for - so `build_pre_exam` raises `VariantGenerationError` for any student who draws
-    one. 34 tests failed on exactly that, and the failure is an exception on the serving
-    path rather than a degradation.
+    D-188 measured what happens without this, by approving five authored templates and
+    running the suite: 34 tests failed with `VariantGenerationError: unknown shape
+    'authored'`, because every served question went through
+    `generation.generate_variant(shape_key=template.solution_function)` and an authored
+    template has no shape. D-189 built the serving path, so the question is no longer
+    "does this render?" but "is there anything to serve?" - a template with no shape is
+    served from its canonical variant, and one with neither is unservable.
 
     Refusing here is the fail-closed direction (CLAUDE.md rule 5): a reviewer working
     through `make question-review` cannot silently brick exam building for real students.
     It is deliberately not a repository-level guard - `intellichoice_db` importing
     `intellichoice_curriculum`'s shape registry would invert the dependency (curriculum
     already imports the repositories).
-
-    Lifting this needs more than a branch in `build_variant_row`. The post-exam is meant
-    to be a *parallel form* of the pre-exam (`avoid_rendered_question`, SPEC §5.13.1), and
-    an authored template has exactly one canonical rendering to give, so what a post-exam
-    should serve for authored content is a product decision that has not been made.
     """
     repo = QuestionRepository(session)
     template = await repo.get_template(question_template_id)
     if template is not None and template.solution_function not in SHAPES:
-        raise UnservableTemplateError(
-            f"{question_template_id} has solution_function="
-            f"{template.solution_function!r}, which the runtime variant generator has no "
-            f"shape for - approving it would make exam building raise for any student who "
-            f"draws it. Authored-template serving is not built yet."
-        )
+        canonical_variant = await repo.get_variant_for_template(question_template_id)
+        if canonical_variant is None:
+            raise UnservableTemplateError(
+                f"{question_template_id} has solution_function="
+                f"{template.solution_function!r}, which the runtime variant generator has "
+                f"no shape for, and no canonical variant to serve instead - approving it "
+                f"would make exam building raise for any student who draws it."
+            )
     await repo.activate_template(question_template_id)
     await session.commit()
     return f"approved {question_template_id}"
