@@ -5,6 +5,42 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⚠️ D-180: AUD-C-26 fixed by extending AUD-C-22's silence rule to the unscored keyword arm —
+  and measuring the four candidates first refuted one of them (2026-08-04, S65 — no numbered
+  session; PROGRESS.md's own pointer, item 1, the user's product call).** `make lint` clean,
+  `pyright` 0, **876 passed / 2 skipped**. **No paid measurement** — all four options were scored
+  through the real `probe_access` over D-177's dumps for free, using the `--shipped` replay D-179
+  built. **⚠️ Uncommitted and not deployed at the time of writing**, and this one **does** need a
+  deploy: `_lexical_only` is live-path production code.
+  **⚠️ Measuring before choosing changed the decision twice.** (b) `count >= 2` — which AUD-C-26's
+  own row had floated as plausible because the false hint rests on one chunk — **does not work**:
+  it drops the single `parent` chunk, keeps the three `student` ones, and the case re-emerges as a
+  `student` hint. It relabels the defect (the AUD-L-05 shape). And (c) "scored only" was
+  understated: `test_role_access.py`'s docstring records the unscored-priority fallback as *"the
+  path every mock-backed test takes"* **and** *"the path a semantic-arm failure degrades to"*
+  (D-168's deliberate "worse guidance, still honest, never a 500"), so (c) would have silenced the
+  degraded path for no gain over (a). **The decisive number:** through production's composed path
+  the keyword arm contributes **zero** correct hints and one wrong one — the record's "1 and 3
+  correct audiences" was measured on the *old standalone* lexical rule, not through
+  `probe_access`, where the reranked path already wins every case the arm would have gotten right.
+  **✅ Fixed as decided: `_lexical_only` returns `{}` unless exactly one audience matched.** Two
+  lines, applying AUD-C-22's own principle — ambiguity is answered with silence — to the one arm it
+  never reached. Verified through the real path: `SHIPPED probe_access` **FP public 1 → 0** in the
+  human arm, right/wrong/silent unchanged, corpus arm unchanged at 26/0/12/0/0.
+  **The cost was a recorded expectation, not a test.** `role-gated-priority` (mock-only) existed to
+  pin the tier-priority tie-break — two seeds with *identical* text, expecting `branch_manager`.
+  Its own construction is the argument against it: with identical text there is nothing to choose,
+  so it was pinning a coin flip. Renamed `role-gated-ambiguous-tie`, now expects **silence**, kept
+  rather than deleted so `wrong_role_hints` fails if a hint ever returns on it — the guard the old
+  expectation could not be. Mock-backed `role_gated` **80% → 100% (5/5)**.
+  **⚠️ Do not misread the parity line now.** With the arm silenced it reports the same outcome on
+  all 58 cases, which is **not** evidence the transcription models production — it still models no
+  lexical arm, and agreement only means the arm is silent wherever the transcription is. The
+  `--shipped` output says so in two lines, because AUD-C-25's lesson is easy to undo by reading one
+  green summary, which is how this three-session sequence started.
+  **Open count: 1** — `AUD-F-33` only, confirmed with ROADMAP's anchored `awk`. Arithmetic: 2 at
+  start, −C-26.
+
 - **⚠️ D-179: the access-probe rule table now calls the rule instead of restating it — and the
   first run found a false hint the restatement had been reporting as a correct refusal
   (2026-08-04, S64 — no numbered session; PROGRESS.md's own pointer, item 1).** `make lint` clean,
@@ -1413,27 +1449,23 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-179):**
-  0. **Owed: land D-179.** No deploy — the only production-code edits are comments and docstrings
-     (`retrieval.py`, `access_probe_policy.py`); the behaviour change is in a script and a test file.
-     Confirm that before skipping the deploy, because it is the kind of claim that is true until it
-     isn't.
-  1. **AUD-C-26 needs your decision — a product call, and the last open finding with a fork.** A
-     question the **public** Privacy Notice answers is told `required_role: "parent"`, because when
-     no candidate is within 0.60 the probe consults the keyword arm alone and `build_access_hint`
-     falls back to tier priority with no score to rank by. Four candidates on the finding's row,
-     **all measurable for free** with `--shipped` over the D-177 dumps: (a) require exactly one
-     lexically matching audience before priority names a tier — **recommended**, it targets the
-     mechanism rather than the symptom; (b) a minimum-match bar (the false hint rests on a single
-     chunk, but the arm's true positives are only 1 and 3, so the margin is thin); (c) keep the arm
-     for retrieval and gate the *hint* on a scored signal — most faithful to AUD-C-22, costs the
-     arm's whole live contribution; (d) accept and record it, defensible at 1 case in 58.
-     **Do not simply delete the keyword arm:** D-165 kept it because `MockBedrockProvider`'s
-     embeddings are hash vectors, so it is the only arm the mock-backed suite can exercise, and
-     removing it makes the probe structurally unobservable offline.
-     **One cheap thing owed alongside it:** the empty-pool path is embedding-dependent, so the live
-     corpus could differ from local. D-174 measured the two corpora identical, but no live probe of
-     this question was taken — ~1.25¢ to confirm, worth doing when the fix is chosen.
+- **Next session, in order (2026-08-04, post-D-180):**
+  0. **Owed: land and deploy D-180, then take its live row.** Unlike D-179 this **is** a production
+     behaviour change on a live user path (`_lexical_only` in `intellichoice_knowledge`), so it needs
+     a PR, a deploy, and one live probe: *"How do I get or delete my kid's school records?"*
+     anonymously against the deployed chat edge, expecting **`access_hint: null`** where local
+     reproduced `required_role: "parent"`. ~1.25¢. **Fix the sample size before probing** (D-178's
+     lesson): this is a *confirmation* of a deterministic code path, not a nondeterminism
+     measurement — the empty-pool branch involves no model call at all — so **n=3** is enough and
+     more would be theatre. Keep a control that still fires (any question the reranked path answers
+     with a hint), because a run where nothing fires proves nothing.
+     One caveat to state in the result: the empty-pool branch is **embedding-dependent**, so local
+     agreement does not settle staging. D-174 measured the two corpora identical, which makes this a
+     confirmation rather than an open question.
+  1. **✅ AUD-C-26 closed in D-180** (your call: silence on ambiguity). Nothing carried forward from
+     it except item 0's live row. Worth keeping in mind if the keyword arm comes up again: it now
+     contributes **no hints at all** on the measured fixture, so if a future session wants the arm
+     to earn its place, that is the number to move — not the constants.
   2. **AUD-F-33** (P2, autoscaling) remains deferred by your call — detection exists, mechanism
      unknown.
   3. **The product decisions still unanswered, unchanged and none of them mine to make:**
@@ -1455,7 +1487,7 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
      free to measure *only* while `probe_run_{human,corpus}.json` survive. They are in two session
      scratchpads (`…/2a3304c0-…/` and `…/80fe2941-…/`), 1.4 MB the pair, 128 KB gzipped. Commit them
      or copy them forward; otherwise deciding AUD-C-26 costs ~43¢ instead of nothing.
-     **Counting findings:** ROADMAP's anchored `awk` returns **2** today: F-33 and C-26.
+     **Counting findings:** ROADMAP's anchored `awk` returns **1** today: F-33 only.
      **Sample size has a direction** (D-178): 0/10 refutes a 60% rate at p=0.01% but bounds a
      residual only at <26% (one-sided 95%). Do not upgrade D-178's 0/10 to "never".
      **Reading staging's database:** `aws ecs run-task` with a `containerOverrides` command on

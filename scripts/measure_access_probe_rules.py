@@ -1215,7 +1215,16 @@ def _parity(rows: list[_Row], against: str = "pf_f09_m01") -> None:
             diffs.append((row, theirs, mine))
     print(f"\nparity: shipped probe_access vs {against} (the transcription of it)")
     if not diffs:
-        print(f"  identical on all {len(rows)} cases")
+        # Deliberately not phrased as "the transcription is correct". It models no lexical arm
+        # at all, so agreement here means only that the arm produced no *different outcome* on
+        # this fixture - which is what AUD-C-26's fix arranged, by making the arm silent
+        # wherever the transcription is. The structural gap AUD-C-25 named is still there, and
+        # a future corpus can expose it again. Read the `SHIPPED` row, not this line.
+        print(f"  same outcome on all {len(rows)} cases")
+        print(
+            "  (agreement on outcomes only - the transcription still models no lexical arm,\n"
+            "   so this is not evidence that it would agree on a different corpus)"
+        )
         return
     print(f"  ⚠️  {len(diffs)} of {len(rows)} cases disagree")
     print(f"    {'case':<28} {'category':<14} {against:>12} -> {'shipped':<14} pre-floor bests")

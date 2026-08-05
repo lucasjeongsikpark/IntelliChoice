@@ -734,8 +734,10 @@ which stop the line.
 >   docs/AUDIT_FINDINGS.md | sort -u
 > ```
 >
-> That returns **2** as of 2026-08-04 (D-179): AUD-F-33 and AUD-C-26 — C-25 was fixed in D-179 and
-> C-26 is what that fix found. (It returned 6 when
+> That returns **1** as of 2026-08-04 (D-180): AUD-F-33 only. The three entries before it are worth
+> reading together — D-178 filed C-25, D-179's fix for C-25 found C-26, D-180 fixed C-26 — because
+> the count went **up twice on the way down**, and each step came from building an instrument rather
+> than from reading the code more carefully. (It returned 6 when
 > this instruction was written, 5 after D-175, 3 after D-176, 1 after D-177.) **Do not "correct" the count to whatever a looser
 > grep reports** without checking where the word sits — that is the same class of error twice over.
 >
