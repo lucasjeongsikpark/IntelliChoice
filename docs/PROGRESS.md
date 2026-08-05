@@ -5,6 +5,59 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-188: A6-C step 3 — the first real authoring run works, and it found the thing that blocks
+  the track (2026-08-05, fourth session that day; PROGRESS.md's own post-D-187 pointer, item 1 —
+  you chose Haiku 4.5 and `--candidates-per-difficulty 1`, then chose the gate fix and the
+  one-per-skill approval policy).** `make lint` clean, `pyright` 0, **915 passed / 2 skipped** — up
+  6, the new tests, with the prior 909 unchanged. **Spent 24.8¢** across four runs and two probes.
+  **⏸ Partial, and the suite is green for the wrong reason.** The five approvals were rolled back;
+  the serving defect below is *not* fixed. **PR [#124](https://github.com/lucasjeongsikpark/IntelliChoice/pull/124)
+  is open with all nine checks green and is NOT merged** — `origin/main` is still at `c736dc6`
+  (D-187 close-out). This is D-187's own lesson repeating: an open PR reads as landed and is not.
+  **⛔ The blocker, and it is the whole point of the track: authored content cannot be served.**
+  Approving five items — one per skill at its native tier — failed **34 tests** with
+  `VariantGenerationError: unknown shape 'authored'`. `variant_persistence.build_variant_row`
+  renders every served question through `generate_variant(shape_key=template.solution_function)`,
+  and an authored template carries `solution_function="authored"`, which `SHAPES` has no entry for.
+  An exception on the serving path, not a degradation. The pipeline has been able to *produce*
+  authored items since S20; nothing had ever approved one, so producing-vs-serving had never been
+  exercised. **D-187's "unblocked in every sense" was wrong** — it read the symptom (approving broke
+  the suite) as `test_loader.py`'s size assertion, a real but separate defect.
+  **⚠️ Lifting it needs a product decision, not a branch.** The post-exam is a *parallel form* of
+  the pre-exam (`avoid_rendered_question`, SPEC §5.13.1) and an authored template has exactly one
+  canonical rendering to give. `review_cli.approve` now refuses any template whose
+  `solution_function` has no registered shape — keyed on the shape registry, so building serving is
+  what lifts the guard rather than editing the test.
+  **✅ Four defects found only by running it, none visible against `MockBedrockProvider`.**
+  (1) The shared `_MAX_TOKENS = 400` made authored generation **impossible**, not tight — measured
+  **631 output tokens at tier 1, 954 at tier 5**; 11 of 11 failed at the generator stage for 4.09¢
+  and the gateway correctly refuses to retry under an unchanged ceiling, so no re-run could ever
+  have worked. Ceilings are now per call site, because the authored solvers deliberately reuse
+  `QUESTION_GENERATION`/`QUESTION_REVIEW` and the task cannot say how large a response to expect.
+  (2) The SymPy gate rejected **mathematically correct** items on formatting (`'x = 7'`, U+2212
+  minus) — six of seven rejections — and was **quieter** for it: an unparseable option was exempt
+  from the "no distractor also matches" arm, and the run produced exactly such an item.
+  (3) The judge scored `hint_quality_score` **8–9** against thresholds of 2 and 3 on a documented
+  **1–5** scale, so the hint-quality gate **never fired**. Now `Field(ge=1, le=5)`, which reaches
+  the model as `minimum`/`maximum` in the tool JSON schema, plus the scale stated in the prompt;
+  re-judging returned **4s and 5s with no repair retry**.
+  (4) Seeds are a pure function of (skill, tier, index) with no run index, so a second run collides
+  with the first — and `main` commits **once per batch**, so one collision discards every candidate
+  including the ones that passed. `--seed-offset` added, `authored_seed()` extracted; the batch
+  runner had **no test coverage at all**, which is why this went unnoticed.
+  **⚠️ Multi-tier is still not met, and the reason is upstream of content.** Eight items covered
+  **7 of 11 pairs**, all correct on independent check, but tiers differed by **label more than
+  substance** (`2x + 5 = 19` at tier 1 vs `2x + 7 = 19` at tier 2). `AuthoredGeneratorPayload`
+  carries no per-candidate variation and no rubric for what a tier *means*, which is also why five
+  pairs were lost to duplicate stems. D-169's rule 2 stays inert; the bank is still one tier/skill.
+  **⚠️ D-059's thresholds are still placeholders.** The same item was judged difficulty 3 before the
+  fix and 4 after, on a change that touched only the hint scale — the judge's difficulty signal is
+  noisy at exactly the ±1 granularity the gate acts on.
+  **⚠️ Repo Python cannot use the AWS profile at all.** `boto3` with `AWS_PROFILE` raises
+  `MissingDependencyException ... botocore[crt]`; the CLI bundles crt, the venv does not. So
+  `eval "$(aws --profile <p> configure export-credentials --format env)"` is the *only* option for
+  any Python that calls AWS, and the ~30-min expiry applies to it.
+
 - **✅ D-187: A6-C step 4 — topic availability now comes from the template bank, the grade map is
   read at last, and D-186 landed and deployed on the way (2026-08-05, third session that day;
   PROGRESS.md's own post-D-186 pointer, items 0 and 1's step 4 — you chose the scope and chose to
@@ -1819,7 +1872,47 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-05, post-D-187):**
+- **Next session, in order (2026-08-05, post-D-188):**
+  0. **⛔ Owed first: merge PR #124.** All nine checks green, `origin/main` still at `c736dc6`.
+     Nothing in this pointer is on `main` until that happens, and the branch is
+     `d188-authoring-run-fixes`. Second occurrence of this exact miss — D-186 sat in an open PR too.
+  1. **The A6-C track's next step is authored *serving*, not more authoring, and it needs your
+     product answer before any code.** `build_variant_row` renders every served question through
+     `generate_variant(shape_key=template.solution_function)` and there is no `"authored"` shape,
+     so approving authored content raises for any student who draws it (34 tests, D-188 §5).
+     The branch in `build_variant_row` is the easy half — an authored template already has its
+     canonical `QuestionVariant` persisted, so serving it means *using* that row rather than
+     generating one. **The hard half is the question you have to answer:** the post-exam is a
+     *parallel form* of the pre-exam (`avoid_rendered_question`, SPEC §5.13.1) and an authored
+     template has exactly one rendering. Options are (a) authored items are pre-exam-only,
+     (b) authored items are excluded from the parallel-form guarantee and may repeat, (c) authoring
+     produces N renderings per template. (c) is the only one that preserves the current contract and
+     is also the most expensive. **Five reviewed items sit at `pending` waiting on this** — they are
+     good content, independently checked, and `review_cli.approve` refuses them by design.
+  2. **If you want multi-tier content, the generator needs a rubric before it needs another run.**
+     `AuthoredGeneratorPayload` carries no per-candidate variation and no statement of what a tier
+     *means*, so the model writes the same item and relabels it: 7 of 11 pairs covered, five lost to
+     duplicate stems, and the tiers that did land differ by label rather than substance (D-188 §6).
+     Another paid run without this produces the same result. This is what makes D-169's rule 2 real;
+     it is currently inert and correctly so.
+  3. **Two things the run priced for you, if authoring resumes.** `--seed-offset` must exceed one
+     run's own span (~4500) or it aliases onto another pair's seed instead of escaping it. And
+     `.env.example` now documents every `CURRICULUM_*` var, so the two questions that blocked the
+     start of this session are answered in the repo rather than in a pointer.
+  4. **⚠️ `terraform.tfvars` will go stale again, and it is gitignored.** `make tfvars-floor-check`
+     before every apply. Not run this session — no apply, no deploy.
+  5. **Notes that survive, plus two earned in D-188:**
+     **⚠️ New — a pipeline that has never had its output *accepted* has never been tested.** S20's
+     authored pipeline shipped, was tested, and produced items for months; the first approval broke
+     34 tests. The untested seam was not generation but the handoff from generation to serving.
+     **⚠️ New — a bound that a threshold assumes must be enforced where the value is produced.**
+     The 1–5 hint scale lived in a code comment; the judge invented 1–10 and both gate arms went
+     silently unreachable. Constraints belong in the schema the model is handed, not in prose.
+     **⚠️ Everything below carries up from post-D-187 unchanged.**
+
+- **Superseded — pointer as of post-D-187 (2026-08-05). Item 1 (A6-C step 3) ran and is recorded
+  above: the pipeline works, the content cannot be served, and the track's next step changed as a
+  result. Items 2 and 3 carry up unchanged; item 0's "nothing is owed" no longer holds (PR #124):**
   0. **Nothing is owed: D-187 is merged (`0eefb77`, PR #123) and deployed** (run 31042681232, the
      deployed-version gate green, artifact-checked — see the status entry above). The one habit
      that survives: **`make tfvars-floor-check` before any apply**, and expect it to fail after a
@@ -6484,6 +6577,29 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### S65 (unnumbered) — A6-C step 3: the authoring run works, and the content still cannot be served: D-188 (2026-08-05) ⏸ partial
+
+- **Scope: PROGRESS.md's own post-D-187 pointer, item 1** — no numbered roadmap block (D-152), so
+  no "Done when" list to check against. Judged against the pointer's own goal — "author +
+  human-review", producing content for the 11 planned (skill, tier) pairs — this is **partial**:
+  the pipeline was made capable of it, eight items were produced and reviewed, and **none of them
+  can enter the active bank** until authored serving exists.
+- **Built:** per-call-site output ceilings (`_AUTHORED_ITEM_MAX_TOKENS`, `_AUTHORED_REVIEW_MAX_TOKENS`);
+  `_normalize_math_text` at the SymPy parse site plus the option format stated in the generator
+  prompt; `Field(ge=1, le=5)` on `hint_quality_score` plus the scale stated in the judge prompt;
+  `--seed-offset` and the extracted pure `authored_seed()`; `review_cli.UnservableTemplateError`
+  guarding approval; `CURRICULUM_*` documented in `.env.example`.
+- **Verification:** `ruff` clean, `pyright` 0, **915 passed / 2 skipped** (up 6, prior 909
+  unchanged). PR #124, nine CI checks green, **open, not merged**. The 34-failure state was real and
+  is the session's main finding; the suite is green because the approvals were rolled back, not
+  because the defect was fixed. Real Bedrock throughout (Haiku 4.5 + Titan v2), **24.8¢**.
+- **Carry-over:** authored serving + its product decision (parallel-form vs one rendering); the
+  generator rubric/variation needed before multi-tier content is worth paying for; D-059's judge
+  thresholds still uncalibrated and now measured as ±1-noisy; five reviewed items parked at
+  `pending`.
+- **Decisions:** D-188. ROADMAP's A6-C step 3 rewritten to record the blocker and re-point the
+  track at serving.
 
 ### S64 (unnumbered) — a rate limit that meant 8 where it said 5, measured before it was fixed: D-181 (2026-08-04) ✅
 
