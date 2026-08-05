@@ -5921,6 +5921,83 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
+### S64 (unnumbered) — a rate limit that meant 8 where it said 5, measured before it was fixed: D-181 (2026-08-04) ✅
+
+- **Scope: PROGRESS.md's post-D-180 pointer, item 3(c)** — no numbered roadmap block (D-152).
+  The pointer had carried `InMemoryRateLimiter` as "per-process so the real ceiling is N× the
+  configured one" for several sessions with **N never measured**. Chosen by the user from four
+  offered directions as the only remaining item that was an engineering defect rather than a
+  preference. Bundled with item 4's dump-preservation note.
+- **✅ D-181 / AUD-C-27 — the SPEC §5.24.2 escalation cap counted in one process's dict, and a
+  process is one ECS task.** The control it defeats is the only one on an anonymous caller's
+  ability to mail the org's administrator. Fixed with the sibling of AUD-X-08's remedy:
+  `rate_limit_events`, a `RateLimitRepository` holding a session **factory** (the request session
+  commits after the response, so its writes would be invisible inside the window being enforced),
+  and `pg_advisory_xact_lock` around count-prune-insert. Postgres over Redis at 5 attempts/hour;
+  **no env flag**, because a flag between tested and deployed behaviour is the shape of this defect
+  rather than a guard against it.
+- **✅ Measured live BEFORE the fix shipped — 8 accepted against a configured 5.** This is the one
+  thing the session was organized around, because D-180's most expensive lesson was shipping a fix
+  and *then* looking for the defect. Anonymous, one source IP, a fresh session per attempt; all four
+  vacuity modes pre-registered and resolved. **The probe is free and sends nothing:**
+  `escalate: true` skips `scope_guard` and reaches a deterministic template (no Bedrock call) and
+  `FakeEmailTransport` is wired unconditionally — so **the approved 40¢ went entirely unspent**, and
+  the lesson generalizes: check whether a defect is free to measure before deciding it is expensive.
+- **✅ The post-fix row needed a second instrument, and that is the session's most useful methodology
+  note.** The re-probe returned the configured **5, blocked at 6** — but chat-api had autoscaled to
+  **1 task** by then, and on one task a per-process limiter returns 5 as well. So the front-door
+  number was *consistent without discriminating*. Settled by reading the store instead of the edge,
+  one read-only statement through the ops task: `admin_escalation | 5 attempts | 03:28:05Z →
+  03:28:09Z`, `DISTINCT_CALLERS: 1`, `KEY_LEN: 64`. Three properties in one row — the deployed
+  process really writes to the shared counter, a refusal consumes no attempt in production either
+  (8 requests, 5 rows), and the stored value is a digest rather than an address, i.e. SPEC §5.30
+  verified on the deployed system instead of only in a unit test.
+- **✅ And the multiplier stopped being "N".** `RunningTaskCount` for chat-api was **2** during the
+  pre-fix probe, so 8 accepted lies inside the 5–10 two tasks permit and is impossible on one — the
+  two rows are the same instrument at two task counts, not two confounded measurements. The
+  autoscaling history states the defect better than any multiplier: desired count moved
+  **2 → 3 → 1 → 2 → 3 → 2 → 1** across one evening, so **the effective cap wandered between 5 and 15
+  with nobody touching configuration.**
+- **✅ Two things the finding caught on the way, neither of them the finding.** `RATE_LIMITED_MESSAGE`
+  said *"from this session"* — disproved by the probe, which was blocked on fresh sessions every
+  time, because the key is the caller; the old wording told a blocked caller that opening a new chat
+  would help. And `test_schema_purity`'s denylist had **no IP-shaped column names**, so nothing would
+  have failed had the fix stored a raw `client_ip` — which would have been the first identifying
+  value in Postgres. Keys are stored as an HMAC (not a bare digest: an unsalted `sha256` of an IPv4
+  is reversible by exhausting 2³²), and `ip`/`ip_address`/`client_ip`/`remote_addr` are on the
+  denylist now.
+- **⚠️ Left per-task deliberately:** the global 6000/min per-IP cap. A DB write per request costs more
+  than the imprecision it removes, and S34 chose that number as ~3× a measured legitimate burst
+  rather than a precise threshold; the WAF (S50 A7) is the precise control. What *was* wrong there
+  was its docstring, which justified single-process storage with "`desired_count` defaults to 1
+  (D-084)" — untrue since autoscaling landed. TRACEABILITY's WAF row now records the measured
+  ceiling too.
+- **⚠️ The fix created one hazard and it is the kind that reads as a regression.** The cap is now
+  persistent and every `TestClient` request shares the caller key `testclient`, so on the shared dev
+  Postgres the **third suite run inside an hour** would have failed on a real 5/hour limit. An
+  autouse `reset_escalation_rate_limit` fixture clears that one key. The global middleware's own
+  comment had worried about exactly this hazard back when it could not bite.
+- **✅ Bundled: the probe dumps are committed, so re-scoring stays free.** D-177's pair existed only
+  in two session scratchpads under `/private/tmp` — 1.4 MB, and the only free way to score an
+  access-probe rule change. Now `apps/chat-api/tests/fixtures/probe_measurements/*.json.gz` at
+  **128 KB** with `.gz` handled transparently, two load guards and a README. Re-scored from the
+  committed copies through the real rule: **corpus 26 | 0 | 12 | 0 | 0**, **human 27 | 0 | 11 | 0 |
+  0** — D-180's numbers exactly, at zero spend. The README records the one confusing thing: under
+  `--load` the `--query-field` flag selects nothing, so the header can mislabel an arm without
+  changing a number.
+- Verification: `make lint` clean, `pyright` 0 errors, **889 passed / 2 skipped** (878 at session
+  start, +11). Migration `a3f81c62b904` applied, downgraded and re-applied cleanly locally, and CI's
+  `lint-typecheck-test` re-ran it from an empty database on both PRs. Deploy run 30971390686
+  success — `learning-api:66` / `chat-api:65`, both `gha-70100623148d`, rollouts COMPLETED (2/2 and
+  1/1), Alembic exit 0, canary bake clean, smoke test green. PRs #117 and #118 merged, tree clean.
+  **Paid spend: 0¢** (40¢ approved, 0 used — the escalation path makes no model call).
+- **⚠️ One process deviation, recorded rather than rewritten:** the first close-out commit
+  (`b18c952`) went straight to `main` instead of through a PR. Corrected for the second (#118).
+- Decisions: D-181 (with §7 extended twice — the post-deploy row, then the live confirmation).
+  Register: AUD-C-27 filed **and** closed in the same session, so it never sat open; open count
+  unchanged at **1** (F-33) via the anchored `awk`, and the index invariant re-checked at 0
+  exceptions.
+
 ### S63 (unnumbered) — three decisions in one session, because each fix found the next finding: D-178, D-179, D-180 (2026-08-04) ✅
 
 - **Departure from this log's pattern, stated up front:** every entry before this one is one
