@@ -679,9 +679,11 @@ which stop the line.
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 
 > **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
-> cheap P2s" (below); the rest were never dispositioned. **5 findings are open** in
-> [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) — **AUD-L-08, C-23, C-24, F-22, F-33** (updated 2026-08-04,
-> D-175: AUD-L-01 and AUD-L-05 fixed, AUD-C-24 newly filed) — and **none are integration-blocked**;
+> cheap P2s" (below); the rest were never dispositioned. **1 finding is open** in
+> [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) — **AUD-F-33** only, as of D-181 (2026-08-04); this line
+> read "5 open — AUD-L-08, C-23, C-24, F-22, F-33" until then, and the paragraph below it had already
+> been corrected twice, which is the argument for deriving the number with the `awk` rather than
+> reading either sentence — and **none are integration-blocked**;
 > they are exactly what D-152's "finish and test this codebase against the dev fakes first" points at.
 > With S43–S47 frozen, post-gate sessions run out of this backlog under PROGRESS.md's "Next session"
 > pointer rather than under a numbered block.
@@ -734,11 +736,17 @@ which stop the line.
 >   docs/AUDIT_FINDINGS.md | sort -u
 > ```
 >
-> That returns **1** as of 2026-08-04 (D-180): AUD-F-33 only. The three entries before it are worth
-> reading together — D-178 filed C-25, D-179's fix for C-25 found C-26, D-180 fixed C-26 — because
-> the count went **up twice on the way down**, and each step came from building an instrument rather
-> than from reading the code more carefully. (It returned 6 when
-> this instruction was written, 5 after D-175, 3 after D-176, 1 after D-177.) **Do not "correct" the count to whatever a looser
+> That returns **1** as of 2026-08-04 (D-181): AUD-F-33 only. The four entries before it are worth
+> reading together — D-178 filed C-25, D-179's fix for C-25 found C-26, D-180 fixed C-26, and D-181
+> filed *and* closed C-27 in one session — because the count went **up twice on the way down**, and
+> each step came from building or running an instrument rather than from reading the code more
+> carefully. (It returned 6 when
+> this instruction was written, 5 after D-175, 3 after D-176, 1 after D-177.)
+>
+> **A finding can also be filed and closed without ever appearing in this count** (AUD-C-27, D-181).
+> That is not the count hiding work: the row and the detail section both exist, and the arithmetic
+> line in AUDIT_FINDINGS.md carries the `+1 −1` explicitly. Do not "reconcile" a same-session finding
+> by deleting its row. **Do not "correct" the count to whatever a looser
 > grep reports** without checking where the word sits — that is the same class of error twice over.
 >
 > Note that the count can go **up** without anything regressing: AUD-C-25 was filed by D-178 while
