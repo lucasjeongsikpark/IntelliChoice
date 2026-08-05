@@ -12133,5 +12133,24 @@ at collection time), so the header line can mislabel an arm without changing a s
 ### 7. Verification
 
 `make lint` clean, `pyright` 0 errors, **889 passed / 2 skipped** (878 at session start, +11).
-Migration `a3f81c62b904` applied, downgraded and re-applied cleanly against the dev database. The
-live pre-fix row is §1; the post-deploy re-probe is owed and is the first item of the next session.
+Migration `a3f81c62b904` applied, downgraded and re-applied cleanly against the dev database.
+Landed as PR #117 (`7010062`); deploy run 30971390686 success, `learning-api:66` / `chat-api:65`,
+both `gha-70100623148d`, rollouts COMPLETED (2/2 and 1/1), Alembic exit code 0, canary bake clean.
+
+**The post-fix row, and what it does not settle.** The re-probe returned **5 accepted, blocked at
+6** — the configured cap, against 8 before. But chat-api is running **one** task, and on one task a
+per-process limiter returns 5 as well, so that row is *consistent with* the fix without
+discriminating it. Recorded that way deliberately: D-180's lesson was about a vacuous live row, and
+the way to not repeat it is to name the ambiguity rather than let the number read as proof.
+
+What the evidence does establish is a chain with one open link: the deployed image is this commit
+(deployed-version gate on `gha-70100623148d`), this commit wires `PostgresRateLimiter` (enforced by
+`test_the_app_wires_the_shared_escalation_limiter`, which fails on the in-memory one), and
+`rate_limit_events` exists on staging RDS (migration exit 0). The open link is "the deployed process
+really writes there", and it closes with one read-only statement through
+`intellichoice-staging-ops-task` — `SELECT count(*), max(created_at) FROM rate_limit_events WHERE
+scope = 'admin_escalation'`. Not taken because the AWS session expired mid-session; it is item 0 of
+the next pointer.
+
+**The generalizable form:** a per-caller limit cannot be distinguished from a per-process one while
+only one process is running. Read the running task count *before* choosing what a probe can prove.

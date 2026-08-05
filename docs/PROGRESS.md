@@ -12,8 +12,21 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   **The approved 40¢ went unspent** — the escalation path makes no Bedrock call
   (`escalate: true` skips `scope_guard` and reaches a deterministic template) and
   `FakeEmailTransport` is wired unconditionally, so the live probe was free and sent no mail.
-  **⚠️ Uncommitted at the time of writing** — written the day of the work, per the D-174/D-175
-  lesson. **The post-deploy re-probe is owed** (item 0 below).
+  **✅ Landed and deployed** — PR #117 (`7010062`), deploy run 30971390686 success,
+  `learning-api:66` / `chat-api:65`, both `gha-70100623148d`, rollouts COMPLETED (2/2 and 1/1),
+  Alembic exit code 0 on `a3f81c62b904`, canary bake clean, smoke test green.
+  **✅ The post-deploy re-probe: 5 accepted, blocked at 6 — the configured cap exactly** (pre-fix:
+  8). **⚠️ And it is consistent rather than decisive, which is worth saying out loud.** chat-api is
+  running **1 task** right now (`rollout COMPLETED (1/1)`), and on a single task a per-process
+  limiter yields 5 too — so this row cannot by itself tell the fix from the defect. That is the
+  mirror image of D-180's vacuity problem and it was foreseen here rather than discovered
+  afterwards. What the evidence *does* establish, as a chain: the deployed image is this commit
+  (deployed-version gate, `gha-70100623148d`), this commit wires `PostgresRateLimiter` (enforced by
+  `test_the_app_wires_the_shared_escalation_limiter`, which fails on the in-memory one), and
+  `rate_limit_events` exists on staging RDS (migration exit 0). The one unclosed link is "the
+  deployed process really writes to that table", and the decisive check is one `SELECT count(*)
+  FROM rate_limit_events` through `intellichoice-staging-ops-task` — **not taken because the AWS
+  session expired mid-session**. Cheap, read-only, and the first thing to do next.
   **✅ Measured live first, which is D-180's lesson applied rather than restated: 8 accepted, then
   blocked, against a configured 5.** Anonymous, one source IP, **a fresh session per attempt** —
   attempts 1–8 returned `pending_interrupt` with `intent: "admin_contact"`, attempts 9–11 returned
@@ -1525,16 +1538,20 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   e2e exercises it.
 
 - **Next session, in order (2026-08-04, post-D-181):**
-  0. **⚠️ Owed: land, deploy, and re-probe the escalation cap.** D-181's work is **uncommitted** as
-     written. After deploy, re-run the probe (free — no Bedrock call, no mail) and confirm the
-     ceiling is **5, not 8**, from one IP with a fresh session per attempt. That is the post-fix half
-     of the only measurement this session took, and unlike D-180's owed row it cannot come back
-     vacuous: the escalate path skips `scope_guard`, so there is no `out_of_scope` route to swallow
-     it. The probe script is in this session's scratchpad
-     (`probe_escalation_ceiling.py`, with the four vacuity modes in its header).
-     **Note the migration:** `a3f81c62b904` creates `rate_limit_events`, so this deploy carries a
-     schema change — the second since S32 (D-159 was the first). It applied, downgraded and
-     re-applied cleanly locally.
+  0. **⚠️ Owed, and it is one read-only SQL statement: confirm the deployed process writes to
+     `rate_limit_events`.** D-181 is landed (PR #117, `7010062`) and deployed (run 30971390686,
+     `learning-api:66` / `chat-api:65`, both `gha-70100623148d`, Alembic exit 0), and the re-probe
+     came back at the configured **5, blocked at 6** (pre-fix 8). But chat-api is at **1 task**, and
+     on one task a per-process limiter also yields 5 — so that row is consistent with the fix
+     without discriminating it. Close it with:
+     `SELECT count(*), max(created_at) FROM rate_limit_events WHERE scope = 'admin_escalation';`
+     through `intellichoice-staging-ops-task` (read-only by construction). A non-zero count dated
+     after the deploy is the whole proof. **The AWS session expired mid-session (D-181)**, so
+     re-authenticate first. The probe script is in that session's scratchpad
+     (`probe_escalation_ceiling.py`, four vacuity modes in its header) and costs nothing to re-run.
+     **⚠️ Note the shape of this gap for next time:** a per-caller limit cannot be told from a
+     per-process one while only one process is running. If a future session needs that
+     distinction from the outside, check the running task count *before* choosing the probe.
   1. **AUD-F-33** (P2, autoscaling) remains deferred by your call — detection exists, mechanism
      unknown. Note that D-181 measured the thing F-33 is about from the other side: task count is
      what multiplied the cap, so anything else sized per-process is worth a second look.
