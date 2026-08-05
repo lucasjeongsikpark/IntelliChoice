@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.ai_pipeline import (
     DIFFICULTY_SHAPES,
-    TOPIC_DIFFICULTY_SKILLS,
+    TOPIC_SKILL_DIFFICULTIES,
     PipelineOutcome,
     generate_authored_candidate,
     generate_candidate,
@@ -97,36 +97,54 @@ async def run_authored_pipeline(
     run_budget_cents: float = 1000.0,
 ) -> RunSummary:
     """S20 (plan §7) counterpart to `run_pipeline` above, driving
-    `generate_authored_candidate` over the same `TOPIC_DIFFICULTY_SKILLS` map instead of
-    `DIFFICULTY_SHAPES` - authored mode has no shape allowlist to iterate.
+    `generate_authored_candidate` - authored mode has no shape allowlist to iterate.
+
+    D-186: iterates **(skill, tier) pairs** from `TOPIC_SKILL_DIFFICULTIES` rather than
+    tiers alone from `TOPIC_DIFFICULTY_SKILLS`, which is what makes multi-tier-per-skill
+    content reachable at all. The old loop derived the skill *from* the tier, so it could
+    only ever produce the 1:1 ladder no matter how many times it ran. `skill_id` is now
+    passed explicitly for the same reason - once two skills share a tier, derivation has
+    nothing to derive from.
+
+    `candidates_per_difficulty` is now per (skill, tier) pair, so the same value asks for
+    more items than it used to: `linear_equations` went from 5 pairs to 11.
     """
     curriculum = load_curriculum()
     summary = RunSummary()
     spend = 0.0
 
-    for topic_id, difficulty_skills in sorted(TOPIC_DIFFICULTY_SKILLS.items()):
-        for difficulty_label in sorted(difficulty_skills):
-            for i in range(candidates_per_difficulty):
-                if spend >= run_budget_cents:
-                    print(f"run budget of {run_budget_cents} cents reached - stopping early")
-                    return summary
-                seed = _AUTHORED_SEED_BASE + difficulty_label * 100 + i
-                outcome: PipelineOutcome = await generate_authored_candidate(
-                    session=session,
-                    gateway=gateway,
-                    curriculum=curriculum,
-                    topic_id=topic_id,
-                    difficulty_label=difficulty_label,
-                    seed=seed,
-                    session_spend_cents=spend,
-                )
-                spend += outcome.cost_cents
-                summary.total_cost_cents += outcome.cost_cents
-                if outcome.status == "pending":
-                    summary.pending += 1
-                else:
-                    summary.rejected += 1
-                    summary.rejections.append((topic_id, difficulty_label, outcome.reasons))
+    for topic_id, skill_difficulties in sorted(TOPIC_SKILL_DIFFICULTIES.items()):
+        for skill_index, (skill_id, difficulty_labels) in enumerate(
+            sorted(skill_difficulties.items())
+        ):
+            for difficulty_label in sorted(difficulty_labels):
+                for i in range(candidates_per_difficulty):
+                    if spend >= run_budget_cents:
+                        print(f"run budget of {run_budget_cents} cents reached - stopping early")
+                        return summary
+                    # The skill term is what keeps seeds distinct now that a tier can be
+                    # visited by more than one skill - without it, two skills at tier 3
+                    # would propose the same seed and therefore the same template id.
+                    seed = (
+                        _AUTHORED_SEED_BASE + skill_index * 1000 + difficulty_label * 100 + i
+                    )
+                    outcome: PipelineOutcome = await generate_authored_candidate(
+                        session=session,
+                        gateway=gateway,
+                        curriculum=curriculum,
+                        topic_id=topic_id,
+                        difficulty_label=difficulty_label,
+                        seed=seed,
+                        session_spend_cents=spend,
+                        skill_id=skill_id,
+                    )
+                    spend += outcome.cost_cents
+                    summary.total_cost_cents += outcome.cost_cents
+                    if outcome.status == "pending":
+                        summary.pending += 1
+                    else:
+                        summary.rejected += 1
+                        summary.rejections.append((topic_id, difficulty_label, outcome.reasons))
     return summary
 
 

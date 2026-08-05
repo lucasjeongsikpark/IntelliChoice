@@ -1525,18 +1525,31 @@ requested directly. Coverage gap, not a break.
 
 **Order of work, because the pipeline cannot produce this content as written:**
 
-1. **Unblock the generator first.** `TOPIC_DIFFICULTY_SKILLS` (`ai_pipeline.py:78-90`) is
-   `topic → {tier: one skill}`; the skill is *derived from* the difficulty (`:294`, `:616`) and both
-   runners loop one skill per tier (`pipeline_cli.py:66-68`, `:107-109`). `generate_authored_candidate`
-   raises `PipelineConfigError` outside that map by design (D-060). One map plus four call sites.
-2. **Answer the rule-2 question (product decision (a)) *before* authoring, not after** — content
-   authored 1:1 skill↔difficulty keeps D-169's rule 2 latent for the new topics too, and adding
-   tiers afterwards means re-authoring. `test_study_plan_difficulty_routing.py:132` is the canary
-   that fails the day a second tier appears; it is meant to fail.
-3. **Author, then human-review.** D-026 forbids self-approval, so every item goes through
+1. **✅ Answer the rule-2 question (product decision (a)) — done 2026-08-05, D-186.** The user's
+   call: **multi-tier from the start, for the middle-difficulty skills.** `TOPIC_SKILL_DIFFICULTIES`
+   records the plan — the three middle skills carry their native tier ±1, the ladder ends stay
+   single-tier, and ±1 is the *whole* reachable range because `mastery_bootstrap` anchors
+   `recommended_difficulty` at the modal tier ±1 and clamps to 1-5. 5 (skill, tier) pairs → **11**.
+   It had to be answered first: authoring 1:1 would have kept rule 2 latent for the new topics too,
+   and adding tiers afterwards is re-authoring rather than extending.
+2. **✅ Unblock the generator — done 2026-08-05, D-186.** `generate_authored_candidate` takes an
+   optional `skill_id` (omitted → derive from the tier as before; given → validated against the
+   plan), and `run_authored_pipeline` iterates **(skill, tier) pairs**. The old loop derived the
+   skill *from* the tier, so no number of runs could ever have produced two tiers for one skill.
+   **Authored mode only:** `DIFFICULTY_SHAPES` is keyed by tier alone, so a skill generated at an
+   off-native tier would draw another skill's math forms — the shape pipeline is untouched.
+   ⚠️ `review_cli.rerun_with_edit` now carries `skill_id` from the superseded row; re-deriving it
+   would have silently swapped the skill on the first multi-tier re-run.
+3. **Author, then human-review — the remaining work.** D-026 forbids self-approval, so every item goes through
    `review_cli.py` — that is the cost driver, not model spend. Two gates push back on off-nominal
-   tiers (`ai_pipeline.py:475-480`, `:790-793` reject >±1 difficulty disagreement), which is exactly
-   the regime "a hard version of an easy skill" lives in.
+   tiers (reject a >±1 judge/proposed difficulty disagreement, flag exactly-1 as
+   `review_priority="high"`), which is exactly the regime "a hard version of an easy skill" lives
+   in — so **expect a higher rejection and high-priority rate on the six new pairs, as the gate
+   working rather than a regression** (D-186 §5). Note `candidates_per_difficulty` is now per
+   (skill, tier) pair, so the same value asks for more items than it used to.
+   **⚠️ No content is authored yet, so rule 2 is still inert:** the bank is still 5 skills × 1 tier
+   and `test_study_plan_difficulty_routing.py:132`'s canary still passes, correctly. D-186 removed
+   the structural blocker and set the target; it did not move the bank.
 4. **Reconcile the two availability sources.** `grade_topic_candidates` is loaded
    (`content.py:36, 79`) and **never read at runtime**; the frontend's hardcoded `TOPICS` list is
    what actually gates availability. Wiring grade-based topic selection without reconciling them

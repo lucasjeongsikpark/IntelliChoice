@@ -5,6 +5,43 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-186: A6-C steps 1 and 2 — multi-tier for the middle skills is decided, and the authored
+  pipeline can finally produce it (2026-08-05, same day, continuing from D-185).** `make lint`
+  clean, `pyright` 0, **895 passed / 2 skipped** — up exactly 6, the new tests, with the prior 889
+  unchanged. **Nothing was spent** (scripted gateway double, no Bedrock call).
+  **✅ The decision, yours: multi-tier from the start, for the middle-difficulty skills.**
+  `TOPIC_SKILL_DIFFICULTIES` records it — `linear_two_step` [1,2,3], `linear_neg_frac_coeff`
+  [2,3,4], `linear_both_sides` [3,4,5]; the ladder ends stay single-tier. **Native ±1 and no wider
+  is not conservatism — it is the whole reachable range:** `mastery_bootstrap` anchors
+  `recommended_difficulty` at the modal assessed tier ±1 and clamps to 1-5, so a skill authored two
+  tiers from home could never be recommended. A test pins that, so the plan cannot quietly grow
+  past what the selector can reach. 5 (skill, tier) pairs → **11**.
+  **✅ The structural blocker is gone, and it really was structural.** `run_authored_pipeline`
+  derived the skill *from* the tier, so **no number of runs could ever have produced two tiers for
+  one skill** — this needed code before it could need content. It now iterates (skill, tier) pairs
+  and passes `skill_id` explicitly; `generate_authored_candidate` takes it as optional (omitted →
+  derive as before, so every existing caller is unchanged; given → validated against the plan, and
+  an unplanned pair raises rather than spending on an item no student can be served).
+  **⚠️ The change introduced a hazard and it would have been silent.** `review_cli.rerun_with_edit`
+  promises a re-run of "the same topic/skill/difficulty" but re-derived the skill from the tier —
+  the first multi-tier re-run would have produced a template belonging to a *different skill*, with
+  no error anywhere. It now carries `skill_id` from the superseded row.
+  **⚠️ Authored mode only, and that is correctness rather than a scope cut.** `DIFFICULTY_SHAPES` is
+  keyed by tier alone, so a skill generated at an off-native tier would draw another skill's math
+  forms (`linear_two_step` at tier 3 → `frac_coeff`/`neg_coeff`, which are not two-step equations).
+  The shape pipeline is untouched.
+  **⚠️ Two maps now, deliberately, with the invariant pinned.** `TOPIC_DIFFICULTY_SKILLS` is
+  unchanged and stays the native 1:1 ladder (the default, and what shape mode uses). Drift between
+  them would mean one slot generatable by derivation and *rejected* when named explicitly, so a
+  test asserts both directions.
+  **⚠️ Nothing is authored yet, so rule 2 is still inert — and that is correct.** The bank is still
+  5 skills × 1 tier, and `test_study_plan_difficulty_routing.py:132`'s canary still passes. D-186
+  set the target and removed the blocker; it did not move the bank.
+  **⚠️ Expect the judge to reject more on the six new pairs.** It rejects a >±1 judge/proposed
+  difficulty disagreement and flags exactly-1 as `review_priority="high"` — a deliberately hard
+  `linear_two_step` at tier 3 lives in exactly that regime. That is the gate working, not a
+  regression, and the thresholds are D-059 placeholders still uncalibrated against real Bedrock.
+
 - **✅ D-184 + D-185: the multi-child switcher is built and browser-verified, and K-12 curriculum
   coverage became a launch requirement (2026-08-05, no numbered session; PROGRESS.md's own
   post-D-183 pointer, item 1's product decisions — you picked (d) to build, and answered the
@@ -1732,7 +1769,49 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-05, post-D-185):**
+- **Next session, in order (2026-08-05, post-D-186):**
+  0. **⚠️ Staging has not been deployed, and this is the first session in a while where that
+     matters.** D-184's switcher is **image content**, unlike D-182's Terraform alarms which were
+     live before their PR merged — so it is on `main` and *not* on `learning.intellichoice.org`.
+     `gh workflow run deploy-staging.yml --ref main` (manual by deliberate choice; the `push`
+     trigger is commented out and enabling it is an untaken decision). **Verify by pinning the run
+     id or head SHA, never "the latest run is green"** — a watcher once matched the previous run.
+     Expect `make tfvars-floor-check` to fail afterwards (fifth occurrence).
+  1. **A6-C, and only step 3 is left before content exists.** Steps 1 and 2 are done (D-186:
+     multi-tier decided for the middle skills, pipeline unblocked). Remaining:
+     **(3) author + human-review** — `make question-gen-authored` then `make question-review`;
+     D-026 forbids self-approval so every item needs a human pass, and that is the cost driver
+     rather than model spend. Expect a higher rejection/high-priority rate on the six new
+     (skill, tier) pairs — the judge rejects >±1 difficulty disagreement, which is exactly where a
+     deliberately hard easy-skill item sits. **Note `candidates_per_difficulty` is now per pair**,
+     so the same number asks for more items than it used to, and **the run costs real money** —
+     price it before running. **(4) reconcile `grade_topic_candidates`** (loaded, never read)
+     against `topics.ts`'s hardcoded availability list before anything offers topics by grade.
+     Then the two unauthored topics themselves, which is the bulk of the K-12 gap.
+  2. **The remaining product decisions, now two.** (b) the multi-audience access hint — **my
+     recommendation is still no**: an access hint suppresses the escalation offer, so converting
+     silences into hints removes the "ask an administrator" button from exactly those turns, and
+     the four sentences are not composable as written. It was declined once already in D-181.
+     (c)+(e) escalation has no reply path and drafts carry `[redacted-email]` — **one decision, not
+     two**: D-177 accepted stripping the address *because* D-164 had no channel for it. Cheapest
+     real improvement is `user_external_id` in the draft body (~1-2 h, legal, already computed at
+     `nodes.py:599-600`), but `test_chat_endpoints.py:130-131` **pins "no identity" on purpose**, so
+     it needs an explicit call. It does not help the anonymous asker, which is (e)'s real content.
+  3. **⚠️ `terraform.tfvars` will go stale again, and it is gitignored.** `make tfvars-floor-check`
+     before every apply.
+  4. **Notes that survive, plus two earned in D-186:**
+     **⚠️ New — when a loop derives B from A, no amount of running it produces a second B for one
+     A.** The multi-tier gap read as a content backlog; it was a data-model constraint. The tell was
+     that the *generator* could not express the thing the *selector* already supported (D-169).
+     **⚠️ New — widening a relation silently breaks every place that inverted it.**
+     `review_cli.rerun_with_edit` re-derived the skill from the tier and promised "the same skill";
+     once a tier has two skills that promise is quietly false. Grep for the inverse lookup before
+     widening, not after.
+     **⚠️ Everything below carries up from post-D-185 unchanged.**
+
+- **Superseded — pointer as of post-D-185 (2026-08-05). Item 1's A6-C ordering is answered: steps 1
+  and 2 are done (D-186). The deploy note is new (D-184 is image content and is not live). The
+  product decisions are down to two:**
   0. **Nothing is owed and nothing is broken.** Audit backlog still **0**. The one optional free
      run for the record: `make scaling-evidence` can exit 0 with `DAYS=1` after 2026-08-06T02:23Z
      or with the default window after 2026-08-13T02:23Z — a window holding no transitions exits
