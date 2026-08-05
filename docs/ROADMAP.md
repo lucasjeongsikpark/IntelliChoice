@@ -678,15 +678,15 @@ which stop the line.
 
 ### Sessions 40–41 (elastic) — Phase 0B stabilization *(INTEGRATION_PLAN §2.5)*
 
-> **⚠️ Phase 0B is not finished, and after D-152 it is the active track.** S40–S41 took "all P1s +
-> cheap P2s" (below); the rest were never dispositioned. **1 finding is open** in
-> [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) — **AUD-F-33** only, as of D-181 (2026-08-04); this line
-> read "5 open — AUD-L-08, C-23, C-24, F-22, F-33" until then, and the paragraph below it had already
+> **✅ Phase 0B's audit backlog is empty as of D-183 (2026-08-05).** S40–S41 took "all P1s +
+> cheap P2s" (below); the rest were dispositioned or fixed session by session. **0 findings are
+> open** in [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) as of D-183 (2026-08-05); this line read
+> "1 open — AUD-F-33" from D-181 until then, and "5 open — AUD-L-08, C-23, C-24, F-22, F-33"
+> before that, and the paragraph below it had already
 > been corrected twice, which is the argument for deriving the number with the `awk` rather than
-> reading either sentence — and **none are integration-blocked**;
-> they are exactly what D-152's "finish and test this codebase against the dev fakes first" points at.
-> With S43–S47 frozen, post-gate sessions run out of this backlog under PROGRESS.md's "Next session"
-> pointer rather than under a numbered block.
+> reading any sentence, this one included.
+> With S43–S47 frozen and the backlog empty, post-gate sessions run out of PROGRESS.md's
+> "Next session" pointer (product decisions and carry-overs) rather than under a numbered block.
 >
 > **The two decided-and-awaiting findings are implemented (2026-08-04, D-176), so the decided pile
 > is empty again.** **AUD-F-22** (child resolves at login — the user picked "at login" over "at
@@ -699,8 +699,12 @@ which stop the line.
 > session**: the scale-in alarm reached ALARM through `treat_missing_data` with no metric *value*, so
 > Auto Scaling refused every invocation and created no scaling activity, which is why two earlier
 > sessions read the activity list and found nothing. Deterministic at 46 invocations, 0 exceptions.
-> It stays **open** because one row is owed — Auto Scaling has not yet been observed *accepting* the
-> new metric-math alarm — and `make scaling-evidence` is the one command that closes it.
+> It stayed **open** because one row was owed — Auto Scaling had not yet been observed *accepting*
+> the new metric-math alarm. **D-183 (2026-08-05) read that row on both services and closed it**:
+> `set-alarm-state` → OK put each alarm one evaluation from a real re-entry, CloudWatch's own
+> evaluation returned both to ALARM on the live `FILL(m1, 0)` series, and both invocations read
+> `Successfully executed action` with `with_value 15` — the FILL signature (pre-fix acceptances
+> never carried more than 3 values). $0 spent; services untouched at their floors.
 >
 > **⚠️ How to recount, corrected 2026-08-04 (D-174) — the previous instruction here was the one that
 > produced a wrong number.** It said "derive the count from the table, never carry it forward",
@@ -741,15 +745,18 @@ which stop the line.
 >   docs/AUDIT_FINDINGS.md | sort -u
 > ```
 >
-> That returns **1** as of 2026-08-04 (D-182, unchanged from D-181): AUD-F-33 only — and D-182 is the
-> case to remember for *why the count did not move*: it found the mechanism and shipped the fix, and
-> the finding still counts as open because its decisive live row has not been read. **Diagnosing a
-> finding does not close it, and neither does shipping a fix whose verification is owed.** The four entries before it are worth
+> That returns **0** as of 2026-08-05 (D-183; it returned 1 from D-181 through D-182) — the Phase 0B
+> audit backlog is empty. D-182→D-183 is the case to remember for *how a finding actually closes*:
+> D-182 found the mechanism and shipped the fix and the count did not move, because the decisive
+> live row had not been read; D-183 read it (Auto Scaling accepted the metric-math alarm on both
+> services, `with_value 15`, forced for $0 with `set-alarm-state`) and only then did the count go to
+> 0. **Diagnosing a finding does not close it, and neither does shipping a fix whose verification is
+> owed.** The four entries before it are worth
 > reading together — D-178 filed C-25, D-179's fix for C-25 found C-26, D-180 fixed C-26, and D-181
 > filed *and* closed C-27 in one session — because the count went **up twice on the way down**, and
 > each step came from building or running an instrument rather than from reading the code more
 > carefully. (It returned 6 when
-> this instruction was written, 5 after D-175, 3 after D-176, 1 after D-177.)
+> this instruction was written, 5 after D-175, 3 after D-176, 1 after D-177, 0 after D-183.)
 >
 > **A finding can also be filed and closed without ever appearing in this count** (AUD-C-27, D-181).
 > That is not the count hiding work: the row and the detail section both exist, and the arithmetic

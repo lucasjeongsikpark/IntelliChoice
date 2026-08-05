@@ -5,6 +5,58 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-183: AUD-F-33 closed — Application Auto Scaling accepts the metric-math alarm, observed on
+  both services, and the wait was skipped for $0 with `set-alarm-state` (2026-08-05, no numbered
+  session; PROGRESS.md's own pointer, item 0; skipping the wait was your call — "do we really have
+  to wait?" — the mechanism was mine).** `make lint` clean, `pyright` 0, **889 passed / 2 skipped**
+  at session start — unchanged, and no Python changed: docs only, plus one scratchpad watcher.
+  **Nothing was spent.** **Open count: 0** by ROADMAP's anchored `awk` — the Phase 0B audit backlog
+  is empty for the first time since the audit began.
+  **⚠️ The first read looked like the fix had failed, and the lesson is to pin the boundary before
+  interpreting.** `make scaling-evidence` showed three refusals late on 2026-08-04/early 2026-08-05,
+  after D-182's apply date. The alarms' `ConfigurationUpdate` history — the record nobody had
+  queried, again — pinned the apply at **2026-08-05T04:33:56Z**: every refusal predates it, and the
+  close-out merge (05:00Z) is 27 minutes *after* the apply, so neither session dates nor commit
+  times are the boundary. Zero transitions had occurred in the ~50 post-apply minutes; the pointer's
+  own warning ("still ALARM, no new row ≠ failure") was the situation exactly.
+  **✅ The owed row, twice, and forcing it was free.** `set-alarm-state` → OK (OKActions confirmed
+  empty on both alarms first) put each alarm one evaluation from a real re-entry: the live
+  `FILL(m1, 0)` series is all 0.0 while idle, so CloudWatch's own next evaluation snapped both back
+  — learning-api at **06:26:30Z**, 22 s after its forced OK, chat-api at **06:27:41Z** — and both
+  invocations read **`Successfully executed action`**. The instrument shows both rows as
+  `evaluated 15 / with_value 15 / OK`, and **15/15 is the FILL signature**: pre-fix acceptances
+  never carried more than 3 values. Both StateReasons now read `Threshold Crossed: 15 datapoints
+  were less than the threshold (1.0)` with real 0.0s, replacing `no datapoints were received`.
+  Services untouched at their floors throughout (learning-api 2/2, chat-api 1/1 — an accepted
+  scale-in at floor changes nothing, which is why the probe was safe).
+  **⚠️ What is synthetic and what is not, so the close survives scrutiny:** the `→ OK` half of each
+  cycle was forced; the `→ ALARM` re-entry, its evaluated data, and the acceptance are the system's
+  own — an invocation cannot see why the previous state was OK, and D-182's owed question was only
+  "does Auto Scaling accept a metric-math alarm for step scaling". Yes, once per service. The
+  re-application path stays *consistent-with* only (unchanged from D-182; its refusals leave no
+  record anywhere).
+  **⚠️ The committed instrument still says FAIL, on purpose, and it was left unchanged.** Its window
+  has no fix-timestamp cutoff, so 26 pre-fix refusals keep the exit non-zero (tally 26 refused / 22
+  accepted, still 0 exceptions). No `--since` flag was added: the instrument's value is that nothing
+  changed between demonstrating the defect and verifying the fix. `DAYS=1` can go green after
+  **2026-08-06T02:23Z**, the default window after **2026-08-13T02:23Z** — and a window with no
+  transitions exits INVALID rather than green (guard 1), so a quiet day means "widen", not "works".
+  **⚠️ Operational discovery, the session's second real product: exported staging credentials die in
+  ~30 minutes.** The first background monitor was killed mid-watch by botocore's *"Credentials were
+  refreshed, but the refreshed credentials are still expired"*. `jeongsik-staging-admin` is an
+  **`aws login`** source (TYPE `login` in `aws configure list`), so `export-credentials` snapshots
+  carry an `AWS_CREDENTIAL_EXPIRATION` ~30 min out (measured: exported ~05:33Z, dead 06:04:07Z).
+  This **corrects D-182's "static IAM user and does not expire"** — true of the user, false of any
+  snapshot. One-shot `eval` targets are fine; long-running processes must call `aws --profile` per
+  invocation, which is how the replacement monitor survived to deliver the rows (D-183 §3).
+  **⚠️ Two of my own readings corrected mid-session, in the house tradition:** (a) an `EXIT: 0`
+  I printed came from bash's `PIPESTATUS` in a zsh shell (it silently read `sed`'s exit) — the true
+  exits are script 1 / make 2, captured properly afterwards; (b) my first green-date arithmetic said
+  2026-08-11 for the default window — the last pre-fix refusal is 2026-08-05T02:22Z, so 8 days puts
+  it at 2026-08-13T02:23Z, and the docs carry the corrected date. Also: `--query 'Metrics[0]'`
+  returned `math: null` for learning-api and it was my indexing, not a missing fix — metric-math
+  entry order is not guaranteed, and the `e1` entry carries the expression.
+
 - **⚠️ D-182: AUD-F-33's mechanism found for $0 in read-only alarm history, and the fix applied the
   same session — a service that goes idle cannot scale in (2026-08-04, no numbered session;
   PROGRESS.md's own pointer, items 1 and 3, your call from three options).** `make lint` clean,
@@ -1622,7 +1674,74 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   wording, what the student does next, late-marking recovery, and seeding an unmarked student so
   e2e exercises it.
 
-- **Next session, in order (2026-08-04, post-D-182):**
+- **Next session, in order (2026-08-05, post-D-183):**
+  0. **Nothing is owed.** AUD-F-33 is closed (D-183) and the audit backlog is **0** by ROADMAP's
+     anchored `awk`. One optional free run for the record: `make scaling-evidence` can exit 0 with
+     `DAYS=1` after 2026-08-06T02:23Z, or with the default window after 2026-08-13T02:23Z — a
+     window holding no transitions exits INVALID rather than green, so a quiet day means "widen
+     the window", not failure. It confirms nothing the Action rows have not already said.
+  1. **The product decisions are now the only open track, unchanged from post-D-181:**
+     (a) is multi-tier-per-skill content wanted before launch, or does D-169's rule 2 stay latent
+     by choice; (b) should the access hint be able to say "this is covered in parent *and*
+     branch-manager materials" instead of going silent; (c) escalation still carries **no way to
+     reply to the person who asked** (D-164's scoped-out half — the `InMemoryRateLimiter` half was
+     fixed in D-181 and is not this); (d) does a multi-child parent need an in-app switcher, or is
+     sign-out-and-back-in acceptable until real auth replaces the dev login; (e) is
+     `[redacted-email]` in escalation drafts acceptable long-term, or should escalation eventually
+     carry a structured (consented) contact field.
+  2. **⚠️ `terraform.tfvars` will go stale again, and it is gitignored.** Unchanged habit:
+     **`make tfvars-floor-check` before every apply**, and expect it to fail after any deploy that
+     did not bump the floor (fourth occurrence as of D-182).
+  3. **Notes that survive, plus three earned in D-183:**
+     **⚠️ New — pin the configuration-change boundary before interpreting history.** Three
+     pre-apply refusals read as "the fix failed" until `ConfigurationUpdate` history put the apply
+     after them (2026-08-05T04:33:56Z). Session dates and commit times are not the boundary; the
+     system records the real one.
+     **⚠️ New — an alarm already in its target state never transitions, but the missing transition
+     can be manufactured for $0:** `set-alarm-state` to the opposite state and let evaluation snap
+     it back — valid when the metric series already satisfies the target state; check the forced
+     state's actions are empty first, and record which half of the cycle is synthetic.
+     **⚠️ New — a committed instrument's exit code can lag the system it measures** when its window
+     holds pre-fix history. Read the rows against the pinned boundary; do not add a flag to hurry
+     its verdict, and do not read its FAIL as the system's.
+     **⚠️ Corrected — `aws` credentials:** `jeongsik-staging-admin` is an **`aws login`** source,
+     not a plain static key pair. `aws` CLI with `--profile` refreshes itself; **exported
+     snapshots** (`eval "$(aws configure export-credentials ...)"`, needed by boto3 and Terraform)
+     **expire in ~30 minutes**, so they are fine for one-shot make targets and fatal for
+     long-running processes — those must shell out to `aws --profile` per call. When the login
+     session itself lapses, only an interactive `aws login` fixes it. `export AWS_REGION=us-east-1`
+     still applies for boto3/Terraform.
+     **⚠️ Before designing an experiment, check whether the system already records the answer**
+     (D-182), and **when the question is what a component decided on, read what it recorded.**
+     **⚠️ `-target` pulls in dependencies — read the resolved action list** (D-182).
+     **⚠️ Diagnosing a finding does not close it, and neither does shipping a fix whose
+     verification is owed** — D-182 held the count at 1 through both; D-183 moved it to 0 only on
+     the decisive row.
+     **⚠️ A limiter's *number* is a promise; storage decides whether it is kept** (D-181), and a
+     service that cannot scale in holds the task-count multiplier at its maximum (D-182) — the two
+     defects compounded, and both are now fixed and live-verified.
+     **⚠️ Measure the defect live *before* deploying its fix** (D-180; followed by D-181, D-182 and
+     D-183 at $0 each). **Enumerate the ways a live probe can be vacuous before running it**, and
+     remember **a measurement that omits a branch reports that branch as its most flattering
+     outcome** (the re-application path stays consistent-with only).
+     **Counting findings:** ROADMAP's anchored `awk` returns **0** as of 2026-08-05 (D-183).
+     **Sample size has a direction** (D-178): do not upgrade D-178's 0/10 to "never".
+     **The probe dumps are committed** under `apps/chat-api/tests/fixtures/probe_measurements/`:
+     `--load <dump> --query-field <field> --shipped`.
+     **Reading staging's database:** `aws ecs run-task` with a `containerOverrides` command on
+     `intellichoice-staging-ops-task`, read-only by construction if the command is a `SELECT`.
+     **Probing the deployed chat API:** base path **`/chat/...`**, edge
+     `d222glidpp4azv.cloudfront.net` (learning is `d35dfnjzmgrm01`); `POST /chat/sessions` returns
+     **`chat_session_id`**, then `POST /chat/sessions/{id}/messages` with `{"query": ...}`,
+     ~1.25¢/turn — the `escalate: true` path is free, ~0.175 s (D-181/D-182).
+     **Paid eval:** `CHAT_EVAL_RUN_BUDGET_CENTS=<n>` enforces an approved figure (tighten-only); a
+     full unfiltered run is **52.5¢ / 5m33s** as of D-178.
+     **Note on `uv`:** never bare `uv sync` — `uv sync --all-packages`.
+
+- **Superseded — pointer as of post-D-182 (2026-08-04). Item 0 is done: the owed row arrived on
+  both services and AUD-F-33 is closed (D-183, 2026-08-05, $0). The product decisions and the
+  tfvars habit carry up unchanged; the credentials note in item 3 is corrected by D-183 §3 (the
+  profile is `aws login`, exported snapshots expire in ~30 min):**
   0. **One thing owed, and it is one command.** Run `make scaling-evidence`. **Exit 0 closes
      AUD-F-33** — it means Application Auto Scaling accepted the new metric-math alarm and every
      ALARM transition carried a value it could act on. **A refusal with the *same* message means the

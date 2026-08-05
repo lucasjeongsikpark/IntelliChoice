@@ -12312,3 +12312,76 @@ the resolved action list before applying a `-target`ed plan, rather than trustin
 
 **AUD-F-33 stays `Open` and the count stays 1.** Diagnosing a finding does not close it, and neither
 does shipping a fix whose decisive row has not been read.
+
+## D-183 — AUD-F-33 closed: the owed row read on both services, forced for $0 with `set-alarm-state` (accepted, 2026-08-05)
+
+**Context.** The post-D-182 pointer owed one thing: observe Application Auto Scaling *accepting* the
+new metric-math scale-in alarm. The session's first `make scaling-evidence` run looked alarming —
+three refusals late on 2026-08-04/early 2026-08-05 — until the alarms' `ConfigurationUpdate` history
+pinned the apply at **2026-08-05T04:33:56Z**: every refusal in the window predated it, and zero
+transitions had occurred in the ~50 minutes since. Neither PROGRESS nor D-182 had recorded the apply
+minute; the history type that always records it did.
+
+### 1. The forcing move, and why its evidence is real
+
+Waiting was the plan (chat-api transitions several times a day) until the user asked whether waiting
+was necessary. It was not, and neither was the ~1.25¢ chat turn D-182 had priced: **`set-alarm-state`
+→ OK puts an idle alarm exactly one evaluation away from a real re-entry.** The `FILL(m1, 0)` series
+is all 0.0 while idle — below the 1 s threshold — so CloudWatch's own next evaluation returns the
+alarm to ALARM through the normal path and invokes the real policy. `OKActions` was confirmed empty
+on both alarms before firing, and both services sat at their capacity floors, so an accepted
+invocation could not change capacity.
+
+**The honesty split, recorded here as it is in the finding:** the `→ OK` half of each cycle is
+synthetic; the `→ ALARM` re-entry, the evaluated data it carried, and the acceptance are the
+system's own. The invocation cannot see why the previous state was OK, and the owed question was
+exactly and only whether Auto Scaling accepts a metric-math alarm for step scaling.
+
+**Result: yes, twice.** learning-api re-entered ALARM at `2026-08-05T06:26:30Z` — 22 s after its
+forced OK — and chat-api at `06:27:41Z`; both Action-history entries read `Successfully executed
+action`. The committed instrument shows both rows as `evaluated 15 / with_value 15 / OK`, and 15/15
+is the FILL signature — pre-fix acceptances never carried more than 3 values. Both alarms'
+`StateReason` now reads `Threshold Crossed: 15 datapoints were less than the threshold (1.0)`,
+replacing the pre-fix `no datapoints were received`. ECS confirmed 2/2 and 1/1 throughout. The
+anchored `awk` returns **0 open findings** — the Phase 0B audit backlog is empty.
+
+### 2. The instrument is left unchanged, and its exit code lags on purpose
+
+`make scaling-evidence` still exits non-zero: its window has no fix-timestamp cutoff, so the 26
+pre-fix refusals keep the FAIL until they age out (`DAYS=1` can go green after 2026-08-06T02:23Z,
+the default window after 2026-08-13T02:23Z; a window with no transitions exits INVALID, not green).
+**No `--since` flag was added.** The instrument's value is that nothing about it changed between
+demonstrating the defect and verifying the fix; the finding closes on the rows it printed, and the
+clean exit arrives by itself as the window slides. Changing a committed instrument to make its exit
+code agree sooner is the wrong direction of travel.
+
+### 3. Operational discovery: the staging profile's exported credentials expire in ~30 minutes
+
+The first background monitor died mid-watch with botocore's *"Credentials were refreshed, but the
+refreshed credentials are still expired."* Diagnosis: `jeongsik-staging-admin` is an **`aws login`**
+source (`aws configure list` TYPE `login`), not a shared-credentials key pair — the IAM user is
+static, but `aws configure export-credentials` emits a session token with an
+`AWS_CREDENTIAL_EXPIRATION` roughly 30 minutes out (measured: exported ~05:33Z, expired 06:04:07Z).
+This corrects the D-182 note "the profile itself is a static IAM user and does not expire" — true of
+the user, false of any exported snapshot. **Practice:** one-shot `eval` scripts (`make
+scaling-evidence`, `make tfvars-floor-check`) are fine — each eval mints a fresh snapshot; anything
+long-running must shell out to `aws --profile` per call (the CLI refreshes the login session
+itself), and when the login session itself lapses, only an interactive `aws login` fixes it. The
+replacement monitor ran on per-call CLI credentials and survived to deliver the decisive rows.
+
+### 4. Transferable lessons
+
+**Pin the configuration-change boundary before interpreting history.** The 8-day table's three late
+refusals read as "the fix is not working" until `ConfigurationUpdate` history put the apply *after*
+them. Same shape as D-182's own lesson — the system records the boundary; query it rather than
+inferring it from session dates or commit times (the close-out merge landed 27 minutes after the
+apply, and neither is the other).
+
+**An alarm already in its target state never transitions — but the missing transition can be
+manufactured for $0** when the metric series already satisfies the target state: force the opposite
+state and let evaluation snap it back. Check the forced state's actions are empty first, and record
+which half of the cycle is synthetic.
+
+**A committed instrument's exit code can disagree with the system it measures** when its window
+holds history from before a fix. Read the rows against the pinned boundary; do not edit the
+instrument to hurry its verdict, and do not read its FAIL as the system's.
