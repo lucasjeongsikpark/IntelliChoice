@@ -6,7 +6,7 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 ## Current status
 
 - **⚠️ D-180: AUD-C-26 fixed by extending AUD-C-22's silence rule to the unscored keyword arm —
-  and measuring the four candidates first refuted one of them (2026-08-04, S65 — no numbered
+  and measuring the four candidates first refuted one of them (2026-08-04, S63 third decision — no numbered
   session; PROGRESS.md's own pointer, item 1, the user's product call).** `make lint` clean,
   `pyright` 0, **876 passed / 2 skipped**. **No paid measurement** — all four options were scored
   through the real `probe_access` over D-177's dumps for free, using the `--shipped` replay D-179
@@ -59,7 +59,7 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 - **⚠️ D-179: the access-probe rule table now calls the rule instead of restating it — and the
   first run found a false hint the restatement had been reporting as a correct refusal
-  (2026-08-04, S64 — no numbered session; PROGRESS.md's own pointer, item 1).** `make lint` clean,
+  (2026-08-04, S63 second decision — no numbered session; PROGRESS.md's own pointer, item 1).** `make lint` clean,
   `pyright` 0, **876 passed / 2 skipped** (869 at start, +7). **No paid measurement** — every number
   below came from re-scoring D-177's two dumps offline, which is what made arm (a) worth doing now
   instead of deferring it. **⚠️ Uncommitted at the time of writing** — written the day of the work,
@@ -99,7 +99,7 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 - **✅ D-178: D-177 landed, deployed and live-verified at 0/10, the full eval re-baselined under the
   new floor — and the harness that chose every access-probe constant turned out not to implement the
-  rule it measures (2026-08-04, S63 — no numbered session; PROGRESS.md's own pointer, items 0 and 1,
+  rule it measures (2026-08-04, S63 first decision — no numbered session; PROGRESS.md's own pointer, items 0 and 1,
   the second opted into by the user).** `make lint` clean, `pyright` 0, **869 passed / 2 skipped** at
   baseline, matching D-177's recorded numbers exactly — so the uncommitted work was the work that had
   been measured. **✅ Landed and deployed** — PR #111 (`e1ab0ad`), deploy run 30962420370 success,
@@ -5775,7 +5775,77 @@ _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded th
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
 
-### S62 (unnumbered) — AUD-C-23 re-measured and retuned off the knob the fork named, AUD-C-24 redacted at the boundary (2026-08-04) ⏸ (code ✅, land/deploy/live-row owed)
+### S63 (unnumbered) — three decisions in one session, because each fix found the next finding: D-178, D-179, D-180 (2026-08-04) ✅
+
+- **Departure from this log's pattern, stated up front:** every entry before this one is one
+  session, one decision. This session produced **three** (D-178, D-179, D-180) and it was not
+  planned that way — D-178's landing work exposed AUD-C-25, D-179's fix for AUD-C-25 exposed
+  AUD-C-26 on its first run, and D-180 fixed that. The status block above labels them "S63 first /
+  second / third decision" rather than S63/S64/S65, because inventing two extra sessions would
+  misreport what happened.
+- **Scope: PROGRESS.md's post-D-177 pointer, items 0 and 1** — no numbered roadmap block (D-152).
+  Item 0 was owed work (land, deploy, live-row D-177); item 1 (the full unfiltered paid eval) was
+  optional and the user opted in, with a 150¢ cap. Baseline verified first: lint clean, pyright 0,
+  **869 passed / 2 skipped**, matching D-177's recorded figures exactly — so the uncommitted work
+  was the work that had been measured.
+- **✅ D-178 — the owed live row, and it is the session's cleanest result.** PR #111 (`e1ab0ad`),
+  deploy run 30962420370, `learning-api:64` / `chat-api:63` on `gha-e1ab0adbacb4`. **0 of 10**
+  anonymous probes of AUD-C-23's question returned an `access_hint` (D-175 measured 6/10
+  `branch_manager`), with the control firing **3/3** `parent` — three rather than D-173's one,
+  because this rule turns 2–3 of 38 hints into silences and a single silent control could not be
+  told from a control the rule legitimately retired. Recorded with its own limit: 0/10 refutes the
+  60% rate at p=0.01% but bounds the residual only at **<26% (one-sided 95%)**, so the sample size
+  adequate to *detect* a high rate does not *certify* a low one. Full unfiltered eval **52.5¢** of
+  150¢, every assertion live including the containment/coverage invariants D-177's narrowed run
+  could not assert; `correct_refusal_rate` **97.3%** re-baselined. `CHAT_EVAL_RUN_BUDGET_CENTS`
+  added, tighten-only (`9999` → 400, verified), so an approved figure is enforced rather than
+  checked by hand.
+- **✅ D-179 — AUD-C-25 fixed, arm (a): the rule table now calls `probe_access`.** The harness had
+  been *restating* the rule (`rerank_prefloor_margin_hint`) with a reversed branch order and no
+  lexical arm at all, so every constant chosen since D-165 came from a table describing a function
+  nobody ships. `--shipped` replays the real function: rerank scores from the dump (the paid,
+  nondeterministic input), lexical arm **real** via `count_matching_by_audience` against local
+  Postgres — it takes no embedding, which is why it was free to model all along and never was. It
+  paid for itself on the first run: **FP public 1** where D-177 recorded 0. 7 regression tests,
+  one per branch, including one that fails if the column is ever re-transcribed and one asserting
+  the replay *raises* rather than returning `{}` when it cannot reach the lexical arm.
+- **✅ D-180 — AUD-C-26 fixed, the user's product call (silence on ambiguity).** All four candidates
+  were **measured before being chosen**, free: (b) `count >= 2` **does not work** (drops the single
+  `parent` chunk, keeps three `student` ones, relabels the hint — the AUD-L-05 shape), and (c)
+  "scored only" would have silenced D-168's deliberate degraded fallback. Decisive number: through
+  production's composed path the keyword arm contributes **zero** correct hints and one wrong one.
+  Fix is two lines in `_lexical_only`. Cost was a *recorded expectation*, not a test:
+  `role-gated-priority` (mock-only) existed to pin the tier-priority tie-break on two seeds with
+  identical text — a coin flip — so it is renamed `role-gated-ambiguous-tie`, now expects silence,
+  and kept so `wrong_role_hints` guards it. Mock `role_gated` **80% → 100%**.
+- **⚠️ D-180's live row came back vacuous, which is the session's most useful failure.** Target n=3
+  returned `null` with `citations=0` — and **`scope=out_of_scope`** on all three.
+  `_route_after_scope_guard` sends anything not `in_scope` to `refuse`, so the probe never ran:
+  `null` meant *never asked*. A **third** vacuity mode past the two pre-registered before the run.
+  The control firing `parent` 2/2 with `scope=in_scope` is what made the two distinguishable.
+  **AUD-C-26 re-argued P2 → P3** as a result: the defect is verified of `probe_access` as a
+  function and was never demonstrated of the product.
+- **⚠️ The one unrecoverable mistake, recorded as a rule.** D-175 measured its defect live *first*
+  (6/10) and chose the fix against that number. Here the fix shipped and the live look came after,
+  by which time the pre-fix behaviour was gone — so *"did this ever reach a user?"* is permanently
+  unanswerable for AUD-C-26. **Measure the defect live before deploying its fix, or accept that you
+  never will.** Cost of the right order: one probe run before the merge instead of after.
+- **Three of my own claims were refuted by measurement rather than review**, each corrected where it
+  was made: that D-177's tables were measured with the shipped code (they used a reimplementation);
+  that AUD-C-25's divergence would be the sub-floor branch (it is the empty-pool branch, 18 of 58
+  cases); and that `count >= 2` would fix AUD-C-26.
+- **Verification:** lint clean, pyright 0, **878 passed / 2 skipped** (869 → +9). Two deploys
+  verified by their own gates (`gha-e1ab0adbacb4`, then `gha-dee6f07c0bc1` —
+  `learning-api:65` / `chat-api:64`). PRs #111–#115, all merged, tree clean. Paid spend ≈ **75¢**
+  (52.5 eval + ~16 the 13-probe row + ~6 the 5-probe row), all within approved caps; every
+  probe-rule measurement was free via `--load`.
+- Decisions: D-178, D-179, D-180 (D-180 carries an appended §5 for the live row and the process
+  error). Register: AUD-C-25 filed and closed, AUD-C-26 filed, closed and re-graded; open count
+  back to **1** (F-33) via the anchored `awk`, after going 1 → 2 → 1 → 2 → 1. ROADMAP notes the
+  count can rise without a regression, plus two `awk` hazards found while checking it (the benign
+  `AUD-C-16` duplicate, and status being read positionally).
+
+### S62 (unnumbered) — AUD-C-23 re-measured and retuned off the knob the fork named, AUD-C-24 redacted at the boundary (2026-08-04) ✅ (was ⏸; landed, deployed and live-verified by S63/D-178 — 0/10 hints, control 3/3)
 
 - **Scope: PROGRESS.md's own "Next session" pointer (post-D-176), items 1 and 2** — no numbered
   roadmap block (D-152). Both items were decision-gated; both decisions taken by the user at
@@ -5805,9 +5875,15 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   (incl. `no-answer-missed-1`), the one `role_gated_question` miss is a silence (reported, not
   asserted). The narrowed run is the file's own documented use for exactly this check.
 - **Verification:** lint clean, pyright 0, **869 passed / 2 skipped** (+4). Paid spend **55.04¢**
-  of 100¢ (21.42 + 21.12 sweep arms, 12.5 eval). **Not landed, not deployed** — owed next session:
-  PR, deploy, then **10 anonymous live probes** of the AUD-C-23 question (expected 0/10 vs
-  D-175's 6/10, with D-173's positive control).
+  of 100¢ (21.42 + 21.12 sweep arms, 12.5 eval). **✅ Landed, deployed and live-verified in
+  S63/D-178** — PR #111 (`e1ab0ad`), deploy run 30962420370, `learning-api:64` / `chat-api:63` on
+  `gha-e1ab0adbacb4`; the owed 10 anonymous probes returned **0/10** hints with the control firing
+  **3/3** `parent`, against D-175's 6/10. *This bullet read "Not landed, not deployed" until the
+  next session picked it up.*
+  **⚠️ One claim in this entry is corrected by S63/D-179 (AUD-C-25):** the measured tables above
+  were produced by `measure_access_probe_rules.py`'s *reimplementation* of the rule, not by
+  `probe_access`, and the two differed on this finding's own failing case. The outcomes stand — the
+  live 0/10 measured the composed path directly — but the tables did not prove what they appeared to.
 - Decisions: D-177. Register: AUD-C-23 and AUD-C-24 rows + sections closed (C-23 annotated with
   the owed live row), summary block and ROADMAP recount notes updated, open count **1** (F-33)
   re-derived with the anchored `awk`.

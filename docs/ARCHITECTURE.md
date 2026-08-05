@@ -790,23 +790,51 @@ probe_access`, with the audience allowlist inverted into `ChunkFilters.exclude_a
 
     candidates under 0.60, non-accessible audiences only
       → rerank (BedrockTask.RERANK — the same task, schema and prompt `retrieve` uses)
-      → keep audiences whose best passage scores > 0.8
-      → name one only if it beats the runner-up tier by > 0.10
+      → tier margin over the PRE-FLOOR per-audience bests: silent unless the winner beats
+        the runner-up tier by > 0.10                                     (AUD-C-23, D-177)
+      → then the floor: name the winner only if it scores > 0.9          (AUD-C-23, D-177)
       → build_access_hint maps that audience to its fixed message
+
+    …and the branch this pipeline does *not* cover, which is where the residual defects were:
+    if nothing is within 0.60 there are no candidates, so no rerank runs and no floor or
+    margin applies — the keyword arm answers alone, and since AUD-C-26/D-180 it returns a
+    match only when exactly one audience matched (two unscored matches leave
+    `build_access_hint` deciding by tier priority, the rule AUD-C-22 exists to prevent).
 
 | rule | right | wrong tier | FP public | FP unanswerable |
 |---|---|---|---|---|
 | ceiling 0.45 + tier priority (D-166), human phrasing | 23/38 | 1 | 0 | 0 |
 | ceiling 0.45 + tier priority (D-166), corpus phrasing | 23/38 | **4** | 0 | 0 |
-| **this rule**, human phrasing | **29/38** | **0** | 0 | 0 |
-| **this rule**, corpus phrasing | **28/38** | **0** | 0 | 1 |
+| floor 0.8 + post-floor margin (D-168), human phrasing | 29/38 | 1 | 0+ | 1 |
+| floor 0.8 + post-floor margin (D-168), corpus phrasing | 29/38 | **0** | 0+ | 0 |
+| **shipped rule** (D-177 + D-180), human phrasing | 27/38 | **0** | **0** | **0** |
+| **shipped rule** (D-177 + D-180), corpus phrasing | 26/38 | **0** | **0** | **0** |
 
-**The margin is the architectural point, not a tuning knob.** Reranking alone reaches 33–36 right
-but keeps 2–5 wrong tiers, because on attendance questions the parent handbook and the
+**Three corrections to how this table used to read, all from D-177–D-180 and all measured:**
+the D-168 rows are the ones that were bolded here as "this rule" until 2026-08-04; the floor,
+not the margin, was the knob that mattered on the failing case (its winner straddled 0.8 while
+the runner-up sat at 0.2–0.3, so the margin never applied); and the `0+` marks are a *lower
+bound* rather than a zero, because every row except the shipped one was produced by a
+reimplementation of the rule that models no keyword arm (AUD-C-25). Only `--shipped` calls
+`probe_access` itself. The live behaviour behind the shipped row was measured at **0 hints in
+10 anonymous probes** of a question nothing answers, against 6/10 before (D-178).
+
+**Silence-on-ambiguity is the architectural point, not a tuning knob.** Reranking alone reaches
+33–36 right but keeps 2–5 wrong tiers, because on attendance questions the parent handbook and the
 branch-manager procedure both genuinely answer and something has to lose. A wrong tier is worse
 than silence — a parent told to log in as a branch manager cannot act on it, where the no-source
-message at least carries an escalation offer — so when the reranker cannot separate two tiers the
-probe says nothing. Every remaining miss above is a silence, not a misdirection.
+message at least carries an escalation offer — so when the probe cannot separate two tiers it says
+nothing. Every remaining miss above is a silence, not a misdirection.
+
+**The principle now holds on all three paths, which took three attempts to notice.** D-165/D-168
+enforced it where the reranker produces scores (`tier_margin`). D-177 found that ordering matters:
+filtering on the floor first hid a sub-floor runner-up from the margin, so raising the floor alone
+re-created AUD-C-22's wrong tier 3 times in 10. D-180 found the third path — when no candidate is
+within 0.60 there is no rerank, no floor and no margin, and the unscored keyword arm was handing two
+audiences to `build_access_hint`, which had nothing to rank them by and fell back to the fixed tier
+priority AUD-C-22 was filed against. Each gap was found by measurement, and the third only after
+`scripts/measure_access_probe_rules.py --shipped` began calling `probe_access` instead of restating
+it (AUD-C-25) — a rule table that omits a branch reports that branch as its most flattering outcome.
 
 **Two boundaries are worth stating precisely.** The model scores *passages*; the passage →
 `audience` → fixed message mapping stays deterministic and backend-authored, so no LLM names a role
@@ -854,7 +882,7 @@ flowchart TB
     EMBED -->|"BedrockGatewayError<br/>(D-155, AUD-C-07)"| SVCDOWN
     EMBED --> HYBRID["RagRepository.hybrid_search<br/>FTS + pgvector + RRF (S13)"]
     HYBRID --> RERANK["BedrockTask.RERANK (S13)<br/>top-30 → top 5-8,<br/>score=0 dropped (D-052)"]
-    RERANK -->|"chunks empty"| ACCESS["explain_access (S19)<br/>retrieval.probe_access (D-168):<br/>candidates ≤0.60 → RERANK →<br/>score >0.8 → tier margin 0.10<br/>model ranks passages, code<br/>names the tier — role-gated only"]
+    RERANK -->|"chunks empty"| ACCESS["explain_access (S19)<br/>retrieval.probe_access (D-168):<br/>candidates ≤0.60 → RERANK →<br/>pre-floor tier margin 0.10 →<br/>floor >0.9 (D-177)<br/>no candidates → keyword arm alone,<br/>one audience or silence (D-180)<br/>model ranks passages, code<br/>names the tier — role-gated only"]
     NOANS -->|"no_source_refusal<br/>(D-164, AUD-C-06)"| ACCESS
     RERANK -->|"chunks non-empty"| SYNTH["synthesize_answer (S13/S19)<br/>BedrockTask.RAG_ANSWER,<br/>untrusted context, never<br/>a system instruction (§5.30.4)"]
     SYNTH --> VERIFY{"qa.answer_question (S13)<br/>quote a real substring?<br/>confidence ≥ threshold?<br/>sources_conflict?"}
