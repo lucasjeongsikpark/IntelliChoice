@@ -14083,3 +14083,59 @@ fifteen, and it is exactly the stage whose job is arithmetic.
 That is the next experiment - author stays Mistral on a forced single call, and the *design* stage
 gets the calculator and the cache, on a model that can use both. It is untested, and stated here as
 the next thing to try rather than as a claim.
+
+## D-205 — split the design model from the author, and the yield doubled (accepted, 2026-08-06)
+
+D-204 found the two models were near-opposites: Mistral emits the fifteen-field authoring schema
+reliably and cannot use tools at all; Haiku uses tools well and fails that schema 9 times in 11. The
+mistake was treating "author" as one role. It is two, and they want opposite things.
+
+`BedrockTask.EQUATION_DESIGN` splits them. The design stage is a **six**-field schema whose entire
+job is arithmetic, so it gets the calculator *and* a model that can use one; authoring stays a
+single forced call on the model that emits its schema reliably.
+
+**Probed before running, this time.** Haiku on the design schema with the calculator: **6 of 6 valid,
+6 of 6 passing the deterministic solver**, and each structure correct for its skill -
+`10 + 3m = 22 + m` for both-sides, `4(n + 3) + 8 = 44` for distribution, `40 - 4x = 8` for a negative
+coefficient.
+
+### Result: 7 of 11, from 3
+
+```
+design model: us.anthropic.claude-haiku-4-5 (+calculator)
+generator:    mistral.mistral-large-3-675b-instruct
+solver A:     qwen.qwen3-32b-v1:0      solver B: mistral.mistral-large-3-675b-instruct
+judge:        openai.gpt-oss-120b-1:0
+
+7 accepted of 11 processed (64%), 83.24 cents
+  rejected: generator=0 design=0 validation=0 dedup=0 solver=3 judge=1 difficulty=0
+```
+
+| run | accepted | generator failures |
+|---|---|---|
+| Mistral author, one role | 3 / 11 | 2 |
+| Haiku author + calculator | 3 / 11 | 6 |
+| Haiku author, no calculator | 1 / 11 | 9 |
+| **split: Haiku designs, Mistral authors** | **7 / 11** | **0** |
+
+**generator=0 and design=0.** Every candidate that was designed was authored, and every one that
+was authored had a verified equation behind it.
+
+**And tier 3, 4 and 5 all passed for the first time** in seven runs - `Eq(5x - 12, 3x + 4)`,
+`Eq(24 + 3m, 6 + 5m)`, `Eq(60 - 3m, 2m)`, `Eq(3(x + 5) + 2x, 35)`. D-200's judge rubric made those
+tiers reachable; this made them producible.
+
+### Verified by hand, because the gate is gone
+
+D-202 removed `validate_authored_item` from the pipeline, so the accepted set was re-checked
+independently: SymPy solve of each stored equation against the declared answer and the correct
+option's text, option uniqueness, and hint-ladder length. **7 of 7 pass all three.** Removing the
+gate did not let a defective item through in this run - which is evidence for one run, not a proof,
+and the checks it used to do still have no mechanical owner.
+
+### Cost went up, and that is the honest trade
+
+83.24¢ against 42.56¢. Two reasons, both structural: seven candidates now reach every stage and get
+persisted where three did before, and the design stage runs a tool loop. Per *accepted* item the
+direction reverses - **11.9¢ against 14.2¢** - which is the number that matters if the goal is
+questions rather than attempts.

@@ -1366,12 +1366,17 @@ async def _design_equation(
         )
         value, cost, error = await _call(
             gateway,
-            task=BedrockTask.AUTHORED_QUESTION_GENERATION,
+            task=BedrockTask.EQUATION_DESIGN,
             system_prompt=_EQUATION_DESIGN_SYSTEM_PROMPT,
             payload=payload,
             response_model=EquationDesignResponse,
             session_spend_cents=spend + total,
             max_output_tokens=_EQUATION_DESIGN_MAX_TOKENS,
+            # D-205: the calculator belongs here, not on the authoring call. Probed 6 of 6
+            # valid and 6 of 6 passing the deterministic gate on this six-field schema,
+            # against 9 of 11 structured-output failures when the same model authored the
+            # fifteen-field one. Arithmetic is this stage's whole job.
+            tools=[SOLVE_EQUATION_TOOL],
         )
         total += cost
         if error is not None or value is None:

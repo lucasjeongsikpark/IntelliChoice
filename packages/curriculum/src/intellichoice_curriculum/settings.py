@@ -23,6 +23,9 @@ class CurriculumPipelineSettings(BaseSettings):
     # deliberately reuse the two slots above instead of adding a third (see ai_pipeline's
     # module docstring) so they resolve to two different models without a new setting.
     bedrock_authored_generation_model_id: str = "anthropic.claude-sonnet-5"
+    # D-205. Defaults to the authoring model, so an unset environment behaves exactly as
+    # before and splitting the two is a deliberate act.
+    bedrock_equation_design_model_id: str = ""
     bedrock_judge_model_id: str = "anthropic.claude-sonnet-5"
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"
     bedrock_call_timeout_s: float = 20.0

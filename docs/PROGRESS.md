@@ -5,6 +5,20 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-205: split the design model from the author — 7 of 11 (2026-08-06).**
+  `ruff` clean, `pyright` 0, **1002 passed / 2 skipped**. 83.24¢.
+  - **"Author" was two roles.** Design is a 6-field schema whose job is arithmetic → gets the
+    calculator and a model that can use one (Haiku). Authoring is a 15-field forced schema → stays
+    on the model that emits it reliably (Mistral). New `BedrockTask.EQUATION_DESIGN`.
+  - **Probed before running this time:** 6/6 valid, 6/6 passing the solver, structures correct
+    per skill.
+  - **7 accepted of 11 (64%)**, up from 3/11. `generator=0 design=0 validation=0` — every designed
+    candidate was authored, every authored one had a verified equation.
+  - **tier 3, 4 and 5 all passed for the first time** in seven runs.
+  - **Re-checked by hand** (the gate is gone): 7/7 pass an independent SymPy solve, option
+    uniqueness and hint-count check.
+  - **Cost per accepted item fell** — 11.9¢ vs 14.2¢ — even though the run cost more.
+
 - **⏸ D-204: the calculator works, the roster change did not (2026-08-06).**
   `ruff` clean, `pyright` 0, **1002 passed / 2 skipped**. Three 11-slot runs, ~86¢ total.
   - **Mistral author 3/11 @ 42.56¢ · Haiku+cache+calculator 3/11 @ 25.05¢ · Haiku+cache alone

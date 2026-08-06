@@ -42,6 +42,12 @@ class BedrockTask(StrEnum):
     QUESTION_GENERATION = "question_generation"
     QUESTION_REVIEW = "question_review"
     AUTHORED_QUESTION_GENERATION = "authored_question_generation"
+    # D-205: its own task so the stage that *designs* the mathematics can run on a
+    # different model from the one that writes the item up. Measured reason: the two jobs
+    # want opposite things. Design is a six-field schema and wants a model that can call a
+    # calculator; authoring is a fifteen-field forced schema and wants a model that emits
+    # it reliably, and on this account no single model is good at both.
+    EQUATION_DESIGN = "equation_design"
     QUESTION_JUDGE = "question_judge"
     PARENT_REPORT = "parent_report"
     RAG_ANSWER = "rag_answer"

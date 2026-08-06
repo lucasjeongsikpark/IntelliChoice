@@ -494,6 +494,14 @@ class PreflightReport:
     failures: tuple[str, ...]
 
 
+def _design_model(settings: CurriculumPipelineSettings) -> str:
+    """Which model designs the equation - the authoring model unless split (D-205)."""
+    return (
+        settings.bedrock_equation_design_model_id
+        or settings.bedrock_authored_generation_model_id
+    )
+
+
 def _repair_cost_note(plan: GenerationPlan) -> str:
     """How much a repair setting could cost, in the units the reader is deciding in.
 
@@ -568,6 +576,8 @@ async def preflight(
         f"mode:                  {plan.mode}",
         f"provider:              {settings.bedrock_provider}",
         f"generator model:       {generator_model}",
+        f"design model:          {_design_model(settings)}"
+        f"{' (+calculator)' if plan.design_attempts else ''}",
         f"solver A model:        {solver_a}",
         f"solver B model:        {solver_b}",
         f"judge model:           {settings.bedrock_judge_model_id}",
@@ -617,6 +627,10 @@ def _build_gateway(settings: CurriculumPipelineSettings) -> ResilientBedrockGate
             BedrockTask.QUESTION_GENERATION: settings.bedrock_generation_model_id,
             BedrockTask.QUESTION_REVIEW: settings.bedrock_review_model_id,
             BedrockTask.AUTHORED_QUESTION_GENERATION: settings.bedrock_authored_generation_model_id,
+            BedrockTask.EQUATION_DESIGN: (
+                settings.bedrock_equation_design_model_id
+                or settings.bedrock_authored_generation_model_id
+            ),
             BedrockTask.QUESTION_JUDGE: settings.bedrock_judge_model_id,
             BedrockTask.EMBEDDING: settings.bedrock_embedding_model_id,
         },

@@ -181,6 +181,10 @@ class _ScriptedAuthoredGateway:
         response_model: type[T],
         max_output_tokens: int,
         session_spend_cents: float,
+        # A fake gateway should tolerate options it does not implement - D-205 passes
+        # `tools`/`tool_executor` on the design call, and a double that refused them would
+        # be asserting something about its own signature rather than about the pipeline.
+        **_options: object,
     ) -> BedrockGenerationResult[T]:
         name = response_model.__name__
         self.ceilings[name] = max_output_tokens
