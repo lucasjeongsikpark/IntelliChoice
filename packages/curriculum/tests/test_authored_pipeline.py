@@ -570,61 +570,6 @@ def test_unregistered_topic_raises_pipeline_config_error() -> None:
 # --- Golden bad-item fixtures (ROADMAP S20 "Done when") ----------------------------
 
 
-def test_two_correct_options_rejected_with_persisted_reasons() -> None:
-    async def run() -> None:
-        curriculum = load_curriculum()
-        async with _rollback_session() as session:
-            gateway = _ScriptedAuthoredGateway(item_factory=lambda _: _good_item(option_b="4"))
-            outcome = await generate_authored_candidate(
-                session=session,
-                gateway=gateway,
-                curriculum=curriculum,
-                topic_id="linear_equations",
-                difficulty_label=1,
-                seed=1001,
-                session_spend_cents=0.0,
-            )
-            assert outcome.status == "rejected"
-            assert outcome.question_template_id is None
-            assert any("unique" in r or "exactly one option" in r for r in outcome.reasons)
-
-            run_row = await _latest_validation_run(session)
-            assert run_row.outcome == "rejected"
-            assert run_row.question_template_id is None
-            assert run_row.reasons == outcome.reasons
-
-    asyncio.run(run())
-
-
-def test_leaked_answer_rejected_with_persisted_reasons() -> None:
-    async def run() -> None:
-        curriculum = load_curriculum()
-        async with _rollback_session() as session:
-            leaked_item = _good_item(
-                hint_ladder=[
-                    "The answer is 4, but think about why.",
-                    "Try counting up from 2 by 2 more.",
-                    "Add the two numbers together directly.",
-                ]
-            )
-            gateway = _ScriptedAuthoredGateway(item=leaked_item)
-            outcome = await generate_authored_candidate(
-                session=session,
-                gateway=gateway,
-                curriculum=curriculum,
-                topic_id="linear_equations",
-                difficulty_label=1,
-                seed=1002,
-                session_spend_cents=0.0,
-            )
-            assert outcome.status == "rejected"
-            assert any("leak" in r for r in outcome.reasons)
-
-            run_row = await _latest_validation_run(session)
-            assert run_row.outcome == "rejected"
-            assert run_row.question_template_id is None
-
-    asyncio.run(run())
 
 
 def test_disagreeing_solver_rejected_with_persisted_reasons() -> None:
@@ -747,30 +692,6 @@ def test_the_judge_and_solver_decide_after_they_reason_not_before() -> None:
     assert "no_option_matches" in solver_fields
     assert "is_unambiguous" in solver_fields
 
-
-def test_off_grade_wording_rejected_with_persisted_reasons() -> None:
-    async def run() -> None:
-        curriculum = load_curriculum()
-        async with _rollback_session() as session:
-            item = _good_item(stem="This is a dumb question: what is 2 + 2?")
-            gateway = _ScriptedAuthoredGateway(item=item)
-            outcome = await generate_authored_candidate(
-                session=session,
-                gateway=gateway,
-                curriculum=curriculum,
-                topic_id="linear_equations",
-                difficulty_label=1,
-                seed=1004,
-                session_spend_cents=0.0,
-            )
-            assert outcome.status == "rejected"
-            assert any("disallowed wording" in r for r in outcome.reasons)
-
-            run_row = await _latest_validation_run(session)
-            assert run_row.outcome == "rejected"
-            assert run_row.question_template_id is None
-
-    asyncio.run(run())
 
 
 def test_near_duplicate_rejected_with_persisted_reasons() -> None:
@@ -1748,21 +1669,22 @@ async def _reject_and_fetch(
     return outcome, await _latest_validation_run(session)
 
 
-def test_a_validation_stage_rejection_persists_the_whole_candidate() -> None:
+def test_a_gated_rejection_persists_the_whole_candidate() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
             # Candidate 2's defect: an equation that restates arithmetic instead of
             # modelling the question, so the deterministic gate rejects before any solver.
             gateway = _ScriptedAuthoredGateway(
-                item=_good_item(equation="Eq((20 - 3) / 2, (25 - 7) / 2)", proposed_difficulty=2)
+                item=_good_item(equation="Eq((20 - 3) / 2, (25 - 7) / 2)", proposed_difficulty=2),
+                solver_objection=dict(_SOLVER_OBJECTION),
             )
             outcome, run_row = await _reject_and_fetch(session, gateway, seed=501001)
-            assert outcome.rejected_at == "validation"  # type: ignore[attr-defined]
+            assert outcome.rejected_at == "solver"  # type: ignore[attr-defined]
             snapshot = run_row.stage_results["candidate_snapshot"]
             assert snapshot["equation"] == "Eq((20 - 3) / 2, (25 - 7) / 2)"
             # The stage evidence is still there - the snapshot is an addition, not a
             # replacement. A reviewer needs the content *and* the reading that rejected it.
-            assert run_row.stage_results["deterministic_gate"]["passed"] is False
+            assert run_row.stage_results["solver_a"]["no_option_matches"] is True
             assert run_row.reasons
 
     asyncio.run(run())
@@ -1863,7 +1785,8 @@ def test_the_rejected_snapshot_carries_every_student_visible_field() -> None:
             gateway = _ScriptedAuthoredGateway(
                 item=_good_item(
                     context_block="A class is planning a trip.", equation="Eq(x, 2 + 3)"
-                )
+                ),
+                solver_objection=dict(_SOLVER_OBJECTION),
             )
             _, run_row = await _reject_and_fetch(session, gateway, seed=501006)
             snapshot = run_row.stage_results["candidate_snapshot"]
@@ -1884,7 +1807,8 @@ def test_rejected_inspection_renders_the_content_and_cannot_approve() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
             gateway = _ScriptedAuthoredGateway(
-                item=_good_item(stem="Two robots collect crystals.", equation="Eq(x, 2 + 3)")
+                item=_good_item(stem="Two robots collect crystals.", equation="Eq(x, 2 + 3)"),
+                solver_objection=dict(_SOLVER_OBJECTION),
             )
             await _reject_and_fetch(session, gateway, seed=501007)
 
@@ -1908,11 +1832,16 @@ def test_rejected_inspection_can_be_narrowed_to_one_planned_id() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
             bad_equation = _good_item(equation="Eq(4, 4)")
+            objection = dict(_SOLVER_OBJECTION)
             await _reject_and_fetch(
-                session, _ScriptedAuthoredGateway(item=bad_equation), seed=501008
+                session,
+                _ScriptedAuthoredGateway(item=bad_equation, solver_objection=objection),
+                seed=501008,
             )
             await _reject_and_fetch(
-                session, _ScriptedAuthoredGateway(item=bad_equation), seed=501009
+                session,
+                _ScriptedAuthoredGateway(item=bad_equation, solver_objection=objection),
+                seed=501009,
             )
             rendered = await review_cli.show_rejected(
                 session, limit=10, planned_id="authored-linear_equations-d2-501009"
@@ -1933,7 +1862,9 @@ def test_rejection_evidence_never_reaches_the_served_bank() -> None:
         from intellichoice_curriculum.export_cli import build_bank_file, render_bank_file
 
         async with _rollback_session() as session:
-            gateway = _ScriptedAuthoredGateway(item=_good_item(equation="Eq(4, 4)"))
+            gateway = _ScriptedAuthoredGateway(
+                item=_good_item(equation="Eq(4, 4)"), solver_objection=dict(_SOLVER_OBJECTION)
+            )
             _, run_row = await _reject_and_fetch(session, gateway, seed=501010)
             assert "candidate_snapshot" in run_row.stage_results
 
@@ -2142,8 +2073,17 @@ class _RepairAwareGateway(_ScriptedAuthoredGateway):
     crossed the boundary rather than only what `repair_feedback` returned in isolation.
     """
 
-    def __init__(self, *, bad: AuthoredGeneratedItemResponse, **kwargs: object) -> None:
+    def __init__(
+        self,
+        *,
+        bad: AuthoredGeneratedItemResponse,
+        object_until_repaired: bool = True,
+        **kwargs: object,
+    ) -> None:
         self.repairs: list[object] = []
+        # Off when the test wants a *later* stage to do the rejecting - a difficulty
+        # disagreement cannot be observed if a solver objects first.
+        self._object_until_repaired = object_until_repaired
         super().__init__(  # type: ignore[arg-type]
             item_factory=lambda payload: (
                 self._record(payload) or (_good_item(proposed_difficulty=payload.target_difficulty))
@@ -2156,10 +2096,28 @@ class _RepairAwareGateway(_ScriptedAuthoredGateway):
     def _record(self, payload: AuthoredGeneratorPayload) -> None:
         self.repairs.append(payload.repair)
 
+    async def generate_structured(self, **kwargs: object) -> object:
+        # Objects until a repair has actually been handed to the author, so attempt 1 fails
+        # at the solver (the rejection that survives D-202) and attempt 2 passes.
+        model = kwargs.get("response_model")
+        if (
+            self._object_until_repaired
+            and getattr(model, "__name__", "") == "SolverResponse"
+            and not self.repairs
+        ):
+            self._solver_objection = dict(_SOLVER_OBJECTION)
+        else:
+            self._solver_objection = {}
+        return await super().generate_structured(**kwargs)  # type: ignore[arg-type]
+
+
+# D-202 removed the deterministic gate, so "an item that will certainly be rejected" is no
+# longer a badly-formed equation - nothing between the author and the solvers looks at it.
+# The reliable, still-repairable rejection is a solver that cannot find the answer.
+_SOLVER_OBJECTION: dict[str, object] = {"no_option_matches": True, "is_unambiguous": False}
+
 
 def _bad_equation_item() -> AuthoredGeneratedItemResponse:
-    # Candidate 2 of the very first pilot: an equation that restates arithmetic instead of
-    # modelling the question. Rejected by the deterministic gate, which is repairable.
     return _good_item(equation="Eq(4, 4)")
 
 
@@ -2307,6 +2265,7 @@ def test_a_difficulty_rejection_ends_the_loop_without_paying_for_a_retry() -> No
         async with _rollback_session() as session:
             gateway = _RepairAwareGateway(
                 bad=_good_item(proposed_difficulty=4),
+                object_until_repaired=False,
                 judge=QuestionJudgeResponse(
                     reasoning="straightforward",
                     reviewed_difficulty=2,

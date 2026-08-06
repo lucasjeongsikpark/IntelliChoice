@@ -74,7 +74,6 @@ from intellichoice_curriculum.authored_validation import (
     _sympify,
     _values_equal,
     derive_answer,
-    validate_authored_item,
 )
 from intellichoice_curriculum.content import CurriculumContent
 from intellichoice_curriculum.generation import VariantGenerationError, generate_variant
@@ -580,6 +579,16 @@ _JUDGE_SYSTEM_PROMPT = (
     # 1-10 scale and scoring 8-9 on every item - which sits above both thresholds below,
     # so the hint-quality gate silently never fired. The schema now bounds the field too;
     # this states the same contract in the place the model is most likely to follow it.
+    # D-202: taken over from a deterministic check that could not distinguish a stated
+    # answer from a coincidence of digits. The instruction is about *function*, not about
+    # characters, which is exactly what a rule could not express.
+    "Set `hint_reveals_answer` true only if a hint actually GIVES the student the answer - "
+    "states it, or reduces the problem to reading it off. A hint that repeats a number "
+    "already printed in the question does NOT reveal anything: if the question says a "
+    "4-pack and the answer happens to be 4, a hint mentioning the 4-pack is fine, because "
+    "the student is already looking at that number. Judge what the hint does for a student "
+    "who has read the question, not which digits appear in it. Explain your call in "
+    "`hint_reveals_answer_reason`. "
     "Score hint_quality_score on a scale of 1 to 5, where 1 is a ladder that misleads or "
     "gives the answer away, 3 is usable but shallow, and 5 is a genuinely progressive "
     "ladder that guides without revealing. Do not use any other scale. "
@@ -827,6 +836,7 @@ async def _call(
     response_model: type[BaseModel],
     session_spend_cents: float,
     max_output_tokens: int = _MAX_TOKENS,
+    tools: list[dict] | None = None,
 ) -> tuple[BaseModel | None, float, str | None]:
     """Thin wrapper: returns (value, cost_cents, error) instead of raising, so the
     pipeline can record *why* a candidate was rejected instead of crashing the batch run
@@ -839,6 +849,11 @@ async def _call(
     alone cannot say how large a response to expect. The default keeps every shape-mode
     call at the value it has always used.
     """
+    # Forwarded only when asked for, so the `BedrockGateway` Protocol stays as narrow as it
+    # was and every scripted test double keeps working unchanged (D-202).
+    extra: dict = (
+        {"tools": tools, "tool_executor": execute_pipeline_tool} if tools else {}
+    )
     try:
         result = await gateway.generate_structured(
             task=task,
@@ -847,6 +862,7 @@ async def _call(
             response_model=response_model,
             max_output_tokens=max_output_tokens,
             session_spend_cents=session_spend_cents,
+            **extra,
         )
     except BedrockGatewayError as exc:
         return None, exc.cost_cents, str(exc)
@@ -1161,6 +1177,60 @@ async def generate_candidate(
     )
 
 
+# D-202: the SymPy check the deterministic gate used to run *after* generation, offered to
+# the model *during* it instead. Same solver, same `derive_answer`, different moment - the
+# author can now ask "what does this equation actually come to?" while it still has the
+# option to change the numbers, rather than being told afterwards that a candidate it had
+# already finished writing was wrong.
+SOLVE_EQUATION_TOOL: dict = {
+    "toolSpec": {
+        "name": "solve_equation",
+        "description": (
+            "Solve a one-unknown equation exactly, with SymPy. Use this to check your own "
+            "arithmetic before you commit to an answer, and to check that each distractor "
+            "is the value a specific mistake really produces. Returns the exact solution, "
+            "whether it is a whole number, and any error."
+        ),
+        "inputSchema": {
+            "json": {
+                "type": "object",
+                "properties": {
+                    "equation": {
+                        "type": "string",
+                        "description": (
+                            "One equation with exactly one unknown letter, e.g. "
+                            "'Eq(8 + 2*m, 18 + m)' or '8 + 2*m = 18 + m'."
+                        ),
+                    }
+                },
+                "required": ["equation"],
+            }
+        },
+    }
+}
+
+
+def execute_pipeline_tool(name: str, arguments: dict) -> dict:
+    """Run a tool the model asked for, here in our process (D-202).
+
+    Deliberately tiny and total: it never raises, because a tool error is information the
+    model should get back and reason about, not an exception that kills a paid call
+    mid-conversation.
+    """
+    if name != "solve_equation":
+        return {"error": f"unknown tool {name!r}"}
+    equation = str(arguments.get("equation", ""))
+    solved, error = derive_answer(equation)
+    if solved is None:
+        return {"equation": equation, "error": error or "could not be solved"}
+    return {
+        "equation": equation,
+        "solution": str(solved),
+        "is_whole_number": bool(solved.is_Integer),
+        "is_positive": solved.is_positive is True,
+    }
+
+
 _EQUATION_DESIGN_SYSTEM_PROMPT = (
     "You are choosing the mathematics for ONE K-12 word problem, before anyone writes it "
     "up. Output only the skeleton: a one-sentence scenario sketch, what the unknown "
@@ -1305,7 +1375,12 @@ async def _design_equation(
         )
         total += cost
         if error is not None or value is None:
-            previous.append(f"call failed: {error}")
+            # A provider failure is not a design failure. Recorded with the marker so the
+            # caller can tell "the model proposed equations that would not divide" from
+            # "the model was unreachable" - D-199 learned this on the generator stage, and
+            # an AWS `ServiceUnavailableException` outage promptly proved the design stage
+            # needed it too by reporting `design=8` when nothing had been designed.
+            previous.append(f"{_CIRCUIT_OPEN_MARKER}: call failed: {error}")
             continue
         assert isinstance(value, EquationDesignResponse)
         failures = validate_equation_design(value, target_difficulty=difficulty_label)
@@ -1687,10 +1762,18 @@ async def _attempt_authored_candidate(
     # --- 2. Deterministic gate (schema/markdown safety, SymPy solve, exactly-one- --
     # --- correct, leakage, hint-ladder monotonicity, hint/solution/answer          -
     # --- agreement, wordlist/readability - see authored_validation.py) ------------
-    gate = validate_authored_item(difficulty_label, item)
-    stage_results: dict = {"deterministic_gate": {"passed": gate.passed, "failures": gate.failures}}
-    if not gate.passed:
-        return await _reject(gate.failures, stage_results, "validation")
+    # D-202: the deterministic gate is gone. It ran here, between generation and the
+    # solvers, and its checks now live in two better places - the SymPy solve is a tool the
+    # author can call *while writing* (`SOLVE_EQUATION_TOOL`), and the content judgements
+    # are the solvers' and judge's, which read the item as a student would.
+    #
+    # Recorded plainly because it is a real reduction in coverage, taken deliberately: the
+    # solvers see only stem and options, so nothing mechanical now checks hint-ladder
+    # length, hint monotonicity, whether the worked solution agrees with the answer key, or
+    # sentence length. The judge sees the hints and the final answer and is asked about all
+    # of it, but it is a model reading prose, not a rule. If items start reaching review
+    # with four hints or a contradictory solution, this is the reason.
+    stage_results: dict = {"deterministic_gate": {"skipped": "removed in D-202"}}
 
     if await repo.rendered_question_exists(rendered_question):
         stage_results["deduplication"] = {"passed": False, "reason": "exact text duplicate"}
@@ -1822,6 +1905,10 @@ async def _attempt_authored_candidate(
     if not judge.is_internally_consistent:
         judge_reasons.append(
             f"judge flagged the answer as impossible in the situation described: {judge.reasoning}"
+        )
+    if judge.hint_reveals_answer:
+        judge_reasons.append(
+            f"judge found a hint gives the answer away: {judge.hint_reveals_answer_reason}"
         )
     if judge.hint_quality_score < _HINT_QUALITY_REJECT_BELOW:
         judge_reasons.append(f"judge rated hint quality {judge.hint_quality_score}, too low")
@@ -1994,6 +2081,9 @@ async def generate_authored_candidate(
                 max_attempts=design_attempts,
             )
             spent += design_cost
+            provider_only = all(
+                f.startswith(_CIRCUIT_OPEN_MARKER) for f in design_failures
+            ) and bool(design_failures)
             if design is None:
                 # Cheap failure, and it stays cheap: nothing was authored around a
                 # skeleton that could not be made to divide evenly, and no repair is
@@ -2004,7 +2094,12 @@ async def generate_authored_candidate(
                     stage_results={
                         "equation_design": {"passed": False, "attempts": design_failures}
                     },
-                    reasons=[f"equation design failed after {design_attempts} attempts"],
+                    reasons=[
+                        "equation design never reached a model: "
+                        + "; ".join(design_failures[-1:])
+                        if provider_only
+                        else f"equation design failed after {design_attempts} attempts"
+                    ],
                     cost_cents=spent,
                 )
                 await QuestionRepository(session).create_validation_run(run)
@@ -2012,7 +2107,7 @@ async def generate_authored_candidate(
                     status="rejected",
                     reasons=list(run.reasons),
                     cost_cents=spent,
-                    rejected_at="design",
+                    rejected_at="circuit_open" if provider_only else "design",
                     stage_results=dict(run.stage_results),
                 )
 

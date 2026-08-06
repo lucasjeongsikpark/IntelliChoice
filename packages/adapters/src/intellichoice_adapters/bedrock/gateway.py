@@ -12,7 +12,8 @@ import asyncio
 import json
 import logging
 import time
-from typing import TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from intellichoice_observability.tracing import traced_span
 from intellichoice_shared.bedrock import (
@@ -178,6 +179,8 @@ class ResilientBedrockGateway:
         response_model: type[T],
         max_output_tokens: int,
         session_spend_cents: float,
+        tools: list[dict] | None = None,
+        tool_executor: Callable[[str, dict], dict] | None = None,
     ) -> BedrockGenerationResult[T]:
         with traced_span("bedrock.generate_structured", task=task.value):
             started_at = time.monotonic()
@@ -224,6 +227,9 @@ class ResilientBedrockGateway:
             json_schema = response_model.model_json_schema()
             json_schema.setdefault("title", response_model.__name__)
 
+            tool_kwargs: dict[str, Any] = (
+                {"tools": tools, "tool_executor": tool_executor} if tools else {}
+            )
             raw_text: str | None = None
             truncated = False
             stop_reason = ""
@@ -240,6 +246,10 @@ class ResilientBedrockGateway:
                             user_message=user_message,
                             json_schema=json_schema,
                             max_output_tokens=capped_max_tokens,
+                            # Only forwarded when the caller asked for tools, so the
+                            # `BedrockProvider` Protocol - and every fake implementing it -
+                            # stays exactly as narrow as it was (D-202).
+                            **tool_kwargs,
                         ),
                         timeout=self._call_timeout_s,
                     )

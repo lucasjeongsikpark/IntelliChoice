@@ -5,6 +5,25 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-202: the deterministic gate removed, SymPy became a tool (2026-08-06).**
+  `ruff` clean, `pyright` 0, **1001 passed / 2 skipped**. Branch `d200-judge-rubric-and-verified-equation`.
+  - **`validate_authored_item` is out of the pipeline** (user's call). It still guards the approved
+    YAML file. **Coverage genuinely lost:** 21 of 42 gate failures this session were gate-only —
+    hint-ladder length, hint monotonicity, solution-vs-key agreement, wording safety, sentence
+    length. The judge is asked about all of it but is prose, not a rule.
+  - **Leak detection moved to the judge** (`hint_reveals_answer`) — a regex cannot tell "the answer
+    is 4" from "a 4-pack"; a reader can.
+  - **SymPy is now a tool the author calls while writing**, via a bounded Converse tool loop in the
+    provider. Shared Protocol left narrow so 112 test doubles were untouched.
+  - **⚠️ Mistral Large 3 cannot use tools.** With `toolChoice: auto` it writes `emit_result{...}` as
+    plain text. The pipeline only ever worked because tool choice was forced.
+  - **✅ Haiku 4.5 can** — 11 calculator calls in one authoring call, deriving distractors from
+    mistakes it actually computed (`5t − 2t = 27 + 12` → 13 → option b).
+  - **Carry-over — roster change needed:** Haiku is currently Solver A and cannot both author and
+    independently solve. Needs author=Haiku, solver A=Qwen, solver B=untested, judge=GPT-OSS.
+  - **Carry-over:** tool use raised input tokens ~3.2k → ~24.7k per authoring call. Measure before
+    enabling for a full run.
+
 - **⏸ D-201: an answer that coincides with a given quantity is not a leak (2026-08-06).**
   `ruff` clean, `pyright` 0, **1001 passed / 2 skipped** — fully green.
   - `answer_text_leaked` destroyed **four correct items** this session. It cannot distinguish

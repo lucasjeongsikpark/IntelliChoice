@@ -595,6 +595,13 @@ class QuestionJudgeResponse(BaseModel):
     # `model_json_schema()`), and an out-of-range score now fails validation into the
     # repair retry and then rejection, which is the fail-closed direction (SPEC §5.25.3).
     hint_quality_score: int = Field(ge=1, le=5)
+    # D-202. This was a regex (`answer_text_leaked`) and a regex cannot do it: it cannot
+    # tell "the answer is 4" from "he buys a 4-pack", because they are the same characters.
+    # It destroyed four correct items before being replaced. A reader can tell instantly,
+    # so the judge is asked instead - it already has the hints and the answer in front of
+    # it, and it is the only reviewer that reads both.
+    hint_reveals_answer: bool = False
+    hint_reveals_answer_reason: str = ""
 
 
 # --- SPEC §5.19 Q&A graph, §5.21.7-5.21.8 (S13) ------------------------------------

@@ -13919,3 +13919,72 @@ substring, and that is not a distinction worth resting on a message.
   Mistral reports truncation that way, D-115's `truncated` flag cannot see it and the gateway will
   spend a repair retry on a fragment. Not confirmed - one observation, and the two later calls came
   in well under - but worth a look before raising the ceiling.
+
+## D-202 — the deterministic gate is gone, and the solver became a tool (accepted, 2026-08-06)
+
+Three changes the user directed, and one measured consequence that changes the model roster.
+
+### 1. `validate_authored_item` is no longer in the generation pipeline
+
+Removed from `_attempt_authored_candidate`. The function survives - `test_authored_bank.py` still
+runs it over the approved YAML, which is a different job: guarding a hand-editable file, not gating
+a model.
+
+**Recorded plainly, because it is a real reduction in coverage.** The solvers see only stem and
+options. Nothing mechanical now checks hint-ladder length, hint monotonicity, whether the worked
+solution agrees with the answer key, disallowed wording, or sentence length. Measured against this
+session's evidence, **21 of 42 gate failures were things only the gate could catch**, including a
+`canonical_solution.final_answer '50 cups'` disagreeing with a correct option of `'38 cups'` - the
+worked solution a student sees after answering, contradicting the key. The judge is asked about all
+of it and reads the hints and the answer, but it is a model reading prose, not a rule. If items
+start reaching review with four hints or a contradictory solution, this is why.
+
+### 2. Answer leakage moved from a regex to the judge
+
+`answer_text_leaked` could not tell "the answer is 4" from "he buys a 4-pack" - the same characters -
+and destroyed four correct items. `QuestionJudgeResponse` gains `hint_reveals_answer` and
+`hint_reveals_answer_reason`, and the prompt asks about *function*: does a hint give the student the
+answer, or merely repeat a number already printed in the question? That distinction is trivial for a
+reader and impossible for a rule, which is the whole argument for moving it.
+
+### 3. SymPy became a tool the author can call while writing
+
+`SOLVE_EQUATION_TOOL` + `execute_pipeline_tool` expose the same `derive_answer` the gate used to run
+*after* generation. `AnthropicBedrockProvider.raw_generate` now runs a bounded Converse loop when
+tools are passed: the model may call a tool, we execute it in-process, and it continues, until it
+emits the structured result or `max_tool_rounds` is reached and `emit_result` is forced.
+
+Threading this through cost one design decision. Widening the shared `BedrockGateway` Protocol broke
+**112** call sites - every scripted test double - so the Protocol stays as narrow as it was and tools
+are forwarded only when a caller asks for them, via `**extra`. One `type: ignore`-free kwargs splat
+against 112 edits to fakes that will never use tools.
+
+### The measured consequence: Mistral Large 3 cannot use tools
+
+With `toolChoice: {"auto": {}}`, Mistral Large 3 does not emit a `toolUse` block at all. It emits
+**plain text** beginning `emit_result{"hint_ladder": [...`, writing the tool call as prose. The whole
+pipeline has worked to date only because the original code forced `toolChoice: {"tool": ...}`, which
+needs no tool-use ability whatsoever.
+
+Claude Haiku 4.5, on the same prompt and schema, called the calculator **11 times** in one authoring
+call - and not only to check its answer:
+
+```
+solve('Eq(12 + 5*t, 27 + 2*t)') -> 5        the answer, verified
+solve('Eq(5*t - 2*t, 27 + 12)') -> 13       a sign mistake -> became option b
+solve('Eq(5*t + 2*t, 27 + 12)') -> 39/7     a fraction, so discarded
+solve('Eq(27 - 12, 0)')         -> error    tried a malformed equation and was told
+```
+
+It derived its distractors from mistakes it had actually computed, rather than guessing plausible
+wrong numbers. That is what the misconception tags have always claimed and never verifiably had.
+
+**This implies a roster change that is not yet made.** Haiku is currently Solver A, and one model
+cannot both author an item and independently solve it. A configuration where the calculator is
+usable would be roughly: author Haiku, solver A Qwen3-32B, solver B (untested - Mistral or Nova 2
+Lite), judge GPT-OSS 120B. Solver B needs a contract test before that is more than a suggestion, and
+`--design-attempts` may become redundant once the author can verify its own arithmetic inline.
+
+**Cost note:** tool use resends the conversation each round, so input tokens rose to ~24.7k for one
+authoring call against ~3.2k without. Input is the cheap direction, but the ratio is worth measuring
+before turning this on for a full run.
