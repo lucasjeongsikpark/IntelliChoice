@@ -13248,3 +13248,74 @@ says the table is a placeholder.
 
 **Revert:** delete `smoke_cli.py` and drop `stop_reason` from `RawGeneration`/`BedrockGenerationResult`.
 No behaviour on the serving path depends on either.
+
+## D-195 §5 — a rejected candidate keeps its content (accepted, 2026-08-06)
+
+**Context.** The first four-candidate pilot (D-195 above) rejected all four candidates, which is
+the pipeline working. But the whole point of a four-candidate pilot is to *read* what a new
+generator produces, and afterwards the content could not be read at all. `_reject` persisted
+`stage_results`, `reasons` and `cost_cents` — never the stem, options, hints, or solution. The
+reasons said *that* `hint_ladder[2] leaks the correct answer text verbatim`; they could not say
+which hint, or what answer. Two of the four candidates were reconstructable only by inference from
+the judge's and solvers' own reasoning, and two were not reconstructable at all.
+
+**Decision.** Every rejection that happens *after* the Generator has returned an item persists a
+complete `candidate_snapshot` under the existing `question_validation_runs.stage_results` JSON
+column.
+
+- **No new table.** The column is already JSON, the shape is evidence a human reads rather than
+  something queried by column, and one nullable key is a far smaller commitment than a migration
+  for data whose fields move whenever the Generator contract does.
+- **A closure variable, not a threaded parameter.** `_reject` reads a `snapshot` set once after the
+  Generator returns. Threading it through ten call sites would have been ten chances to forget it
+  on the one path that mattered.
+- **Taken after `shuffle_options`**, so the snapshot is the item the gates actually judged. A
+  pre-shuffle snapshot would record option labels that disagree with the solvers' recorded picks.
+- **Additive.** The snapshot is one more key beside the stage evidence, never a replacement.
+- **Generator-stage failures snapshot nothing.** No item exists, so none is invented: what is
+  recorded is `generator_request` — the planned id, slot, seed, task, token ceiling, and the
+  provider's exact error string. "The model refused us" and "the model answered off-contract"
+  arrive as the same string type and are opposite problems.
+
+**Read path.** `review_cli --rejected` (`make question-review-rejected`), read-only by
+construction: it returns before a gateway is built, so the one paid path in that CLI cannot be
+reached, and it has no approve branch. Rejected candidates are evidence for rewriting the
+Generator, not items awaiting a second opinion.
+
+**A defect found by running it against the real rows.** Both a Generator failure and a pre-D-195
+run lack a snapshot, and the first renderer printed "no candidate was generated" for both. For the
+eleven rejections already in the database that is *false* — those candidates were generated, judged,
+and rejected on their merits. The two cases are now distinguished by the presence of
+`generator_request`, and `test_a_pre_d195_rejection_is_not_reported_as_a_generator_failure` pins it.
+
+### Generator hardening, from the pilot's own measured failures
+
+Each change below traces to one observed defect, not to a guess.
+
+| Pilot defect | Change |
+|---|---|
+| C1: four hints where the contract says three | `hint_ladder` bounded in the **schema** (`min_length=3, max_length=3`), so the rule reaches the model in the tool's `inputSchema` and a violation costs a repair retry instead of the candidate. Required, not defaulted. |
+| C2: `Eq((20 - 3) / 2, (25 - 7) / 2)` — no unknown, and *false* besides (8.5 ≠ 9) | Already rejected by `derive_answer`. No second implementation; tests added against the real string, including the true-tautology and false-tautology routes. |
+| C2: a hint containing the answer verbatim | Already rejected. Prompt now states the ladder's three levels explicitly and that hint 3 "ends where the arithmetic begins". |
+| C2: `"The question is adjusted to ask for..."` in the stem | **New** `check_no_meta_commentary`. Caught before only incidentally, as a 30-word sentence; a shorter one would have shipped model-to-itself narration to a child. Phrase matching on the act of authoring, so "the recipe was adjusted to serve 4" survives — pinned by its own test. |
+| C4: an under-specified stem, caught only by the solvers | Not deterministically checkable — a stem with a missing premise is well-formed text. Prompt asks the model to reread the stem alone before finishing. The solver panel remains the real check. |
+| C3: an 8 cm × 18 cm "garden" nothing flagged | Not deterministically checkable either. Prompt asks for quantities plausible at the scale of the thing named. |
+
+**The difficulty gate is unchanged.** Candidate 3 was mathematically correct and lost to
+`|proposed − reviewed| = 2`. That is a real unresolved disagreement between two independent
+readings, which is what the gate is for — weakening it on one item would trade a false negative for
+the false positives D-193 was built to stop. The generator and judge were each off by one in
+opposite directions; the item's true tier is ~3, and at a requested tier of 3 it would have passed.
+
+**Also unchanged, deliberately:** solver schemas, `no_option_matches`, the ambiguity escape hatch,
+reasoning-first field order, judge model, difficulty thresholds, per-candidate transactions, the
+circuit breaker, preflight, seed generation, model configuration, and the run budget.
+
+**Next step:** one identical four-candidate repeat — same models, same seed offset `400000`, which
+remains reusable because no planned template id was created. If that repeat again yields 0 of 4,
+stop using Mistral Large 3 as Generator and obtain additional model access; it is currently the
+only accessible model that passes the generator contract, so there is no better one to switch to.
+
+**Revert:** drop the `candidate_snapshot` key and the `--rejected` flag. Nothing on the serving path
+reads either, and the export path cannot see them — `build_bank_file` reads approved
+`QuestionTemplate` rows, which a rejected candidate never becomes.

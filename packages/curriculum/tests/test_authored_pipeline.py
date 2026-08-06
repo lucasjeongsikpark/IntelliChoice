@@ -16,6 +16,7 @@ import hashlib
 import random
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from typing import NoReturn
 
 import pytest
 from intellichoice_curriculum import ai_pipeline, pipeline_cli, review_cli
@@ -32,6 +33,7 @@ from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_shared.bedrock import (
     AuthoredGeneratedItemResponse,
     AuthoredGeneratorPayload,
+    BedrockGatewayError,
     BedrockGenerationResult,
     BedrockTask,
     EmbeddingResult,
@@ -1670,3 +1672,280 @@ def test_run_summary_separates_processed_from_scheduled() -> None:
     assert "50 scheduled" in rendered
     assert "solver=17" in rendered
     assert "budget=16" in rendered
+
+
+# --- D-195: a rejected candidate keeps its content -----------------------------------
+# The first four-candidate pilot rejected all four and left nothing to read: the reasons
+# said *that* a hint leaked the answer, never which hint or what answer. These tests pin
+# the fix at every stage that can reject after the Generator has returned an item.
+
+_STUDENT_VISIBLE_SNAPSHOT_KEYS = (
+    "stem",
+    "context_block",
+    "option_a",
+    "option_b",
+    "option_c",
+    "option_d",
+    "correct_option",
+    "hint_ladder",
+    "canonical_solution",
+    "equation",
+)
+
+
+class _FailingGeneratorGateway(_ScriptedAuthoredGateway):
+    """Generator call raises the way a real access denial does - the pilot's first run
+    hit `AccessDeniedException` on all four candidates.
+    """
+
+    async def generate_structured(self, **kwargs: object) -> NoReturn:
+        raise BedrockGatewayError("AccessDeniedException: no access to model", cost_cents=0.0)
+
+
+async def _reject_and_fetch(
+    session: AsyncSession, gateway: object, *, seed: int, difficulty: int = 2
+) -> tuple[object, QuestionValidationRun]:
+    outcome = await generate_authored_candidate(
+        session=session,
+        gateway=gateway,  # type: ignore[arg-type]
+        curriculum=load_curriculum(),
+        topic_id="linear_equations",
+        difficulty_label=difficulty,
+        seed=seed,
+        session_spend_cents=0.0,
+    )
+    assert outcome.status == "rejected", outcome
+    return outcome, await _latest_validation_run(session)
+
+
+def test_a_validation_stage_rejection_persists_the_whole_candidate() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            # Candidate 2's defect: an equation that restates arithmetic instead of
+            # modelling the question, so the deterministic gate rejects before any solver.
+            gateway = _ScriptedAuthoredGateway(
+                item=_good_item(equation="Eq((20 - 3) / 2, (25 - 7) / 2)", proposed_difficulty=2)
+            )
+            outcome, run_row = await _reject_and_fetch(session, gateway, seed=501001)
+            assert outcome.rejected_at == "validation"  # type: ignore[attr-defined]
+            snapshot = run_row.stage_results["candidate_snapshot"]
+            assert snapshot["equation"] == "Eq((20 - 3) / 2, (25 - 7) / 2)"
+            # The stage evidence is still there - the snapshot is an addition, not a
+            # replacement. A reviewer needs the content *and* the reading that rejected it.
+            assert run_row.stage_results["deterministic_gate"]["passed"] is False
+            assert run_row.reasons
+
+    asyncio.run(run())
+
+
+def test_a_solver_stage_rejection_persists_the_whole_candidate() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            # Candidate 4's defect: an under-specified stem. One solver reporting
+            # `no_option_matches` is enough, which is the D-193 escape hatch.
+            gateway = _ScriptedAuthoredGateway(
+                solver_objection={"no_option_matches": True, "is_unambiguous": False}
+            )
+            outcome, run_row = await _reject_and_fetch(session, gateway, seed=501002)
+            assert outcome.rejected_at == "solver"  # type: ignore[attr-defined]
+            assert "candidate_snapshot" in run_row.stage_results
+            assert run_row.stage_results["solver_a"]["no_option_matches"] is True
+
+    asyncio.run(run())
+
+
+def test_a_judge_stage_rejection_persists_the_whole_candidate() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _ScriptedAuthoredGateway(
+                judge=QuestionJudgeResponse(
+                    reasoning="the stem admits two readings",
+                    reviewed_difficulty=2,
+                    difficulty_reasoning="scripted judge difficulty reasoning, long enough",
+                    is_ambiguous=True,
+                    is_aligned=True,
+                    is_age_appropriate=True,
+                    hint_quality_score=5,
+                )
+            )
+            outcome, run_row = await _reject_and_fetch(session, gateway, seed=501003)
+            assert outcome.rejected_at == "judge"  # type: ignore[attr-defined]
+            assert "candidate_snapshot" in run_row.stage_results
+            assert run_row.stage_results["judge"]["is_ambiguous"] is True
+
+    asyncio.run(run())
+
+
+def test_a_difficulty_stage_rejection_persists_the_candidate_and_both_readings() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            # Candidate 3 exactly: a mathematically correct item lost to a two-tier
+            # disagreement. It is the case where keeping the content matters most - the
+            # item is the evidence for whether the gate or the generator was wrong.
+            gateway = _ScriptedAuthoredGateway(
+                item=_good_item(proposed_difficulty=4),
+                judge=QuestionJudgeResponse(
+                    reasoning="straightforward for the tier",
+                    reviewed_difficulty=2,
+                    difficulty_reasoning="one step, no rearrangement required of the student",
+                    is_ambiguous=False,
+                    is_aligned=True,
+                    is_age_appropriate=True,
+                    hint_quality_score=5,
+                ),
+            )
+            outcome, run_row = await _reject_and_fetch(
+                session, gateway, seed=501004, difficulty=4
+            )
+            assert outcome.rejected_at == "difficulty"  # type: ignore[attr-defined]
+            snapshot = run_row.stage_results["candidate_snapshot"]
+            # Test 10: all three difficulty readings are recoverable from one row.
+            assert snapshot["proposed_difficulty"] == 4
+            assert snapshot["requested_difficulty"] == 4
+            assert snapshot["difficulty_rationale"]
+            difficulty = run_row.stage_results["difficulty"]
+            assert difficulty["judge_reviewed_difficulty"] == 2
+            assert difficulty["decision"] == "rejected"
+
+    asyncio.run(run())
+
+
+def test_a_generator_failure_records_the_request_and_error_without_inventing_content() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            outcome, run_row = await _reject_and_fetch(
+                session, _FailingGeneratorGateway(), seed=501005
+            )
+            assert outcome.rejected_at == "generator"  # type: ignore[attr-defined]
+            # No item existed, so none is fabricated - the honest half of the fix.
+            assert "candidate_snapshot" not in run_row.stage_results
+            request = run_row.stage_results["generator_request"]
+            assert request["planned_template_id"] == "authored-linear_equations-d2-501005"
+            assert request["seed"] == 501005
+            assert "AccessDeniedException" in request["provider_error"]
+
+    asyncio.run(run())
+
+
+def test_the_rejected_snapshot_carries_every_student_visible_field() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _ScriptedAuthoredGateway(
+                item=_good_item(
+                    context_block="A class is planning a trip.", equation="Eq(x, 2 + 3)"
+                )
+            )
+            _, run_row = await _reject_and_fetch(session, gateway, seed=501006)
+            snapshot = run_row.stage_results["candidate_snapshot"]
+            for key in _STUDENT_VISIBLE_SNAPSHOT_KEYS:
+                assert key in snapshot, f"{key} missing from the rejected candidate snapshot"
+            assert snapshot["context_block"] == "A class is planning a trip."
+            assert len(snapshot["hint_ladder"]) == 3
+            assert snapshot["canonical_solution"]["final_answer"]
+            # Provenance: which model wrote it, and which slot it was written for.
+            assert snapshot["generator_model_id"] == "test"
+            assert snapshot["topic_id"] == "linear_equations"
+            assert snapshot["skill_id"]
+
+    asyncio.run(run())
+
+
+def test_rejected_inspection_renders_the_content_and_cannot_approve() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _ScriptedAuthoredGateway(
+                item=_good_item(stem="Two robots collect crystals.", equation="Eq(x, 2 + 3)")
+            )
+            await _reject_and_fetch(session, gateway, seed=501007)
+
+            rendered = await review_cli.show_rejected(session, limit=5, planned_id=None)
+            assert "Two robots collect crystals." in rendered
+            assert "REJECTED authored-linear_equations-d2-501007" in rendered
+            assert "rejection reasons:" in rendered
+
+            # Read-only, structurally: the inspection path holds no repository write and
+            # offers no decision. Approval remains `review_cli.approve`, which this never
+            # reaches - and nothing in the pending bank moved.
+            template = await QuestionRepository(session).get_template(
+                "authored-linear_equations-d2-501007"
+            )
+            assert template is None
+
+    asyncio.run(run())
+
+
+def test_rejected_inspection_can_be_narrowed_to_one_planned_id() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            bad_equation = _good_item(equation="Eq(4, 4)")
+            await _reject_and_fetch(
+                session, _ScriptedAuthoredGateway(item=bad_equation), seed=501008
+            )
+            await _reject_and_fetch(
+                session, _ScriptedAuthoredGateway(item=bad_equation), seed=501009
+            )
+            rendered = await review_cli.show_rejected(
+                session, limit=10, planned_id="authored-linear_equations-d2-501009"
+            )
+            assert "501009" in rendered
+            assert "501008" not in rendered
+
+    asyncio.run(run())
+
+
+def test_rejection_evidence_never_reaches_the_served_bank() -> None:
+    """The snapshot is authoring evidence, and the export path must not be able to carry
+    it into content students see. Structural, not incidental: `build_bank_file` reads
+    approved `QuestionTemplate` rows, and a rejected candidate never becomes one.
+    """
+
+    async def run() -> None:
+        from intellichoice_curriculum.export_cli import build_bank_file, render_bank_file
+
+        async with _rollback_session() as session:
+            gateway = _ScriptedAuthoredGateway(item=_good_item(equation="Eq(4, 4)"))
+            _, run_row = await _reject_and_fetch(session, gateway, seed=501010)
+            assert "candidate_snapshot" in run_row.stage_results
+
+            exported = await build_bank_file(
+                session,
+                topic_id="linear_equations",
+                curriculum_version=load_curriculum().curriculum_version,
+            )
+            rendered = render_bank_file(exported)
+            assert "candidate_snapshot" not in rendered
+            assert "501010" not in rendered
+
+    asyncio.run(run())
+
+
+def test_a_pre_d195_rejection_is_not_reported_as_a_generator_failure() -> None:
+    """Found by running the new command against the real pilot rows.
+
+    Both a Generator failure and a pre-D-195 run lack a `candidate_snapshot`, and the
+    first version of the renderer printed "no candidate was generated" for both. For the
+    eleven rejections already in the database that is simply false - those candidates were
+    generated, judged, and rejected on their merits, and the stage evidence below the
+    header proves it. A reviewer opening the oldest rejections first would have been told
+    the opposite of what happened.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = QuestionRepository(session)
+            await repo.create_validation_run(
+                QuestionValidationRun(
+                    question_template_id=None,
+                    outcome="rejected",
+                    # Exactly the shape D-193/D-194 wrote: stage evidence, no snapshot.
+                    stage_results={"deterministic_gate": {"passed": False, "failures": ["x"]}},
+                    reasons=["x"],
+                    cost_cents=1.0,
+                )
+            )
+            rendered = await review_cli.show_rejected(session, limit=1, planned_id=None)
+            assert "no candidate was generated" not in rendered
+            assert "content not retained" in rendered
+            assert "predates D-195" in rendered
+
+    asyncio.run(run())

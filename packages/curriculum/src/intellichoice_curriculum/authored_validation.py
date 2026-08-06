@@ -60,6 +60,41 @@ _LEAK_PHRASES = (
     "the correct option is",
 )
 _HTML_OR_LINK_RE = re.compile(r"<[^>]+>|https?://|www\.")
+# Phrases in which the model talks about *authoring the item* inside content a student
+# reads (D-195). Not hypothetical: the first four-candidate pilot produced a stem
+# containing "The question is adjusted to ask for the number of rides after...", which the
+# gate caught only incidentally, as a 30-word sentence. A shorter sentence would have
+# shipped model-to-itself narration to a child.
+#
+# Phrase matching, not single words, and every phrase names the *act of authoring*
+# ("adjusted to", "revised to") rather than a bare verb. "The recipe was adjusted to serve
+# eight people" is a legitimate math scenario and must survive; "the question was adjusted"
+# never is. The judge remains the check for subtler drift - this catches the blatant form
+# for free, before any model is paid to read it.
+_META_COMMENTARY_PHRASES = (
+    "the question is adjusted",
+    "the question was adjusted",
+    "the question has been adjusted",
+    "the problem is adjusted",
+    "the problem was adjusted",
+    "the question is revised",
+    "the question was revised",
+    "the problem was revised",
+    "this version asks",
+    "this version of the question",
+    "as requested",
+    "as instructed",
+    "per the instructions",
+    "the prompt asks",
+    "i have generated",
+    "i have created",
+    "i have written",
+    "note to the reviewer",
+    "note for the reviewer",
+)
+_META_COMMENTARY_RE = re.compile(
+    "|".join(re.escape(phrase) for phrase in _META_COMMENTARY_PHRASES), re.IGNORECASE
+)
 # Heuristic readability ceiling (§5.8.5 "age-appropriate wording") - a rough proxy only;
 # real nuance is the LLM judge's job (plan §7 step 3), not this deterministic gate's.
 _MAX_WORDS_PER_SENTENCE = 30
@@ -462,6 +497,22 @@ def check_age_appropriate_wording(
                 )
 
 
+def check_no_meta_commentary(
+    item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
+) -> None:
+    """§5.8.5 "student-facing content is a finished question": reject text in which the
+    model narrates its own authoring (D-195). Scoped to `_text_fields`, which is exactly
+    the student-visible surface - `difficulty_rationale` and `reasoning` are written *for
+    the reviewer* and are allowed, indeed expected, to discuss the authoring.
+    """
+    for text in _text_fields(item):
+        for match in _META_COMMENTARY_RE.finditer(text):
+            result.fail(
+                f"student-facing text contains authoring commentary: {match.group(0).lower()!r} "
+                f"- the stem must read as a finished question written to a student"
+            )
+
+
 def validate_authored_item(
     difficulty_label: int, item: AuthoredGeneratedItemResponse
 ) -> AuthoredValidationResult:
@@ -478,4 +529,5 @@ def validate_authored_item(
     check_hint_solution_answer_agreement(item, result)
     check_difficulty_rubric_compliance(difficulty_label, item, result)
     check_age_appropriate_wording(item, result)
+    check_no_meta_commentary(item, result)
     return result

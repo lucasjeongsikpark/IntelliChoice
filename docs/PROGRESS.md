@@ -5,6 +5,33 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-195 §5: a rejected candidate keeps its content, and the Generator is hardened from the
+  pilot's own failures (2026-08-06).** `ruff` clean, `pyright` 0, **970 passed / 2 skipped** — up 21.
+  **Nothing was spent**; no paid model call, no pilot rerun. Branch
+  `d195-rejected-evidence-generator-hardening`.
+  - **The first four-candidate pilot produced 0 pending items and that was correct.** All four
+    candidates were defective and every gate caught its own: validation×2, solver×1, difficulty×1.
+    No planned template id was created, so **seed offset `400000` remains reusable**.
+  - **The blocker was that rejected content was unrecoverable.** `_reject` kept reasons and cost but
+    never the stem, options, hints, or solution — so a pilot whose entire purpose is manual content
+    review left nothing to review. Every post-Generator rejection now persists a complete
+    `candidate_snapshot` in the existing `stage_results` JSON column; no new table.
+  - **Generator-stage failures snapshot nothing** and record `generator_request` plus the provider's
+    exact error instead. Nothing is invented where no item existed.
+  - **Read path:** `make question-review-rejected`, read-only by construction — it returns before a
+    gateway is built, so the CLI's one paid path is unreachable, and it has no approve branch.
+  - **Hardening is measured, not guessed:** `hint_ladder` bounded in the schema (C1), a new
+    `check_no_meta_commentary` (C2's `"The question is adjusted to ask..."` stem), and prompt rules
+    for the two defects no deterministic check can catch — an under-specified stem (C4) and an
+    8 cm × 18 cm "garden" (C3).
+  - **The difficulty gate is unchanged.** C3 was mathematically correct and lost to a genuine
+    two-tier disagreement; its true tier is ~3, and at a requested tier of 3 it would have passed.
+  - **Found by running the new command against the real rows:** the renderer reported pre-D-195
+    rejections as "no candidate was generated", which is false — they were generated and judged.
+    Fixed and pinned by a test.
+  - **Next:** one identical four-candidate repeat (same models, same seed offset). If it again
+    yields 0 of 4, stop using Mistral Large 3 as Generator and obtain additional model access.
+
 - **⏸ D-195: the gateway was never Anthropic-specific, and four non-Anthropic models prove it
   (2026-08-06).** `ruff` clean, `pyright` 0, **949 passed / 2 skipped**. Branch
   `d195-non-anthropic-models`, PR #128. Discovery spend ~12¢ of a 20¢ ceiling.

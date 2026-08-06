@@ -431,6 +431,53 @@ _AUTHORED_GENERATOR_SYSTEM_PROMPT = (
     "mistake. Never pad with a value no plausible reasoning reaches. Exactly one option "
     "may be defensible: if a second reading of your own stem makes another option "
     "arguable, rewrite the stem. "
+    # Everything from here to the difficulty block was written against the first
+    # four-candidate pilot's measured output (D-195), one sentence per observed failure.
+    # The rules were all implicit before, and each was broken anyway - the gate caught
+    # every one, but only after the item had been generated and paid for.
+    #
+    # Candidate 1 emitted four hints where the contract says three. The schema now bounds
+    # the field, so this sentence is the same rule told to the model in words as well.
+    "Write EXACTLY three hints - not two, not four. "
+    # Candidate 2's third hint contained the answer verbatim. "Never leak the answer" was
+    # already stated above and was still read as applying only to the stem, so the hint
+    # ladder is spelled out here as its own progression with an explicit final level.
+    "No hint may contain the final answer, the correct option's letter, or a value equal "
+    "to the answer - not even the last one. Hint 1 orients the student in the situation, "
+    "hint 2 names the relationship to write down, hint 3 sets up the equation and stops "
+    "there. The third hint ends where the arithmetic begins. "
+    # Candidate 2's stem contained "The question is adjusted to ask for the number of
+    # rides after...". A deterministic check now rejects the blatant forms; this stops it
+    # being written at all, which is cheaper than rejecting the whole candidate for it.
+    "Student-facing text - stem, context, options, hints, solution steps - must read as a "
+    "finished question written directly to a student. Never mention the question's own "
+    "construction: no 'the question was adjusted', 'this version asks', 'as requested', "
+    "no notes to a reviewer, no description of your own process. Explain your choices in "
+    "`difficulty_rationale` and `reasoning`, which the student never sees. "
+    # Candidate 4 described two people saving money without ever giving their starting
+    # amounts or rates. Both solvers reported the item unanswerable and one set
+    # `no_option_matches`. No deterministic check can catch this - a stem with a missing
+    # premise is well-formed text - so the requirement is stated where it can still help.
+    "The situation must contain EVERY number needed to reach one unique answer. Before "
+    "you finish, reread the stem alone, as a student who cannot see your solution: if any "
+    "starting amount, rate, or total is missing, the item is unanswerable - add it. "
+    # Candidate 2's `equation` was `Eq((20 - 3) / 2, (25 - 7) / 2)`: no unknown, and false
+    # besides (8.5 != 9). The gate rejects both, and the substitution check below is the
+    # habit that prevents them.
+    "The equation must model the story and contain EXACTLY ONE unknown, written as a "
+    "letter. It is the relationship the scenario describes, never a restatement of the "
+    "answer: `Eq(8 + 2*m, 18 + m)` is an equation, `Eq(17, 17)` and `Eq((20-3)/2, 9)` are "
+    "not - they contain no unknown to solve for. Then verify: substitute your final "
+    "answer back into the equation and confirm both sides are genuinely equal. If they "
+    "are not, your item is wrong - fix it before emitting it. Confirm too that the answer "
+    "appears exactly once among the four options. "
+    # Nothing rejected the pilot's 8 cm by 18 cm "garden" - the judge was asked about
+    # internal consistency and correctly said there was none to violate. Plausibility is
+    # not deterministically checkable, so the only place to ask for it is here.
+    "Use quantities and units a person would actually encounter: a garden is measured in "
+    "metres, a pencil in centimetres, a journey in kilometres or minutes. An 8 cm by 18 cm "
+    "'garden' is a seed tray - check that your numbers make sense at the scale of the "
+    "thing you named. "
     # D-194. The tier is supplied as a target, so `proposed_difficulty` is anchored by it
     # and is not evidence on its own - the independent number comes from the judge, which
     # never sees either. What this field genuinely buys is the rationale: a model that has
@@ -1001,8 +1048,16 @@ async def _generate_authored_item(
     skill: object,
     difficulty_label: int,
     spend: float,
-) -> tuple[BaseModel | None, float, str | None]:
-    """Stage 1 of authored mode: the one call that invents the question."""
+) -> tuple[AuthoredGeneratedItemResponse | None, float, str | None, str]:
+    """Stage 1 of authored mode: the one call that invents the question.
+
+    Returns the model id as a fourth element rather than going through `_call`, which
+    discards it. It is wanted for the rejection evidence (D-195): "which model wrote this"
+    is the first question asked of a rejected candidate, and with several models now
+    configurable per role it cannot be inferred from the code. Empty string on failure -
+    the `BedrockGateway` Protocol has no way to name the model for a call that never
+    succeeded, and inventing one would be worse than admitting it is unknown.
+    """
     payload = AuthoredGeneratorPayload(
         topic_name=topic.name,  # type: ignore[attr-defined]
         skill_name=skill.name,  # type: ignore[attr-defined]
@@ -1010,15 +1065,74 @@ async def _generate_authored_item(
         target_difficulty=difficulty_label,
         exemplars=_AUTHORED_FEW_SHOT_EXEMPLARS,
     )
-    return await _call(
-        gateway,
-        task=BedrockTask.AUTHORED_QUESTION_GENERATION,
-        system_prompt=_AUTHORED_GENERATOR_SYSTEM_PROMPT,
-        payload=payload,
-        response_model=AuthoredGeneratedItemResponse,
-        session_spend_cents=spend,
-        max_output_tokens=_AUTHORED_ITEM_MAX_TOKENS,
-    )
+    try:
+        result = await gateway.generate_structured(
+            task=BedrockTask.AUTHORED_QUESTION_GENERATION,
+            system_prompt=_AUTHORED_GENERATOR_SYSTEM_PROMPT,
+            payload=payload,
+            response_model=AuthoredGeneratedItemResponse,
+            max_output_tokens=_AUTHORED_ITEM_MAX_TOKENS,
+            session_spend_cents=spend,
+        )
+    except BedrockGatewayError as exc:
+        return None, exc.cost_cents, str(exc), ""
+    return result.value, result.cost_cents, None, result.model_id
+
+
+def candidate_snapshot(
+    item: AuthoredGeneratedItemResponse,
+    *,
+    topic_id: str,
+    skill_id: str,
+    requested_difficulty: int,
+    seed: int,
+    generator_model_id: str,
+    planned_template_id: str,
+) -> dict:
+    """The complete generated candidate, recorded as authoring evidence (D-195).
+
+    A rejected candidate never becomes a `QuestionTemplate` row, so before this its content
+    existed only inside the function that rejected it. The first four-candidate pilot made
+    the cost concrete: four rejections, and afterwards the stems, options, hints and
+    solutions could not be read back at all - the reasons said *that* a hint leaked the
+    answer, never *which* hint or *what* answer. A pilot whose whole purpose is manual
+    content review cannot discard the content.
+
+    Deliberately a plain dict in the existing `stage_results` JSON column rather than a new
+    table: the shape is authoring evidence read by a human, not something queried by
+    column, and one nullable JSON key is a far smaller commitment than a schema migration
+    for data whose fields will move as the Generator contract does.
+
+    Taken **after** `shuffle_options` on purpose, so it is the item the gates actually
+    judged - snapshotting the pre-shuffle order would record option labels that disagree
+    with the solvers' recorded picks, which is exactly the confusion this exists to end.
+
+    This is evidence, never content: nothing reads it back into a candidate, and the served
+    YAML bank is exported from approved `QuestionTemplate` rows, which this never becomes.
+    """
+    return {
+        "planned_template_id": planned_template_id,
+        "topic_id": topic_id,
+        "skill_id": skill_id,
+        "requested_difficulty": requested_difficulty,
+        "seed": seed,
+        "generator_model_id": generator_model_id,
+        "stem": item.stem,
+        "context_block": item.context_block,
+        "option_a": item.option_a,
+        "option_b": item.option_b,
+        "option_c": item.option_c,
+        "option_d": item.option_d,
+        "correct_option": item.correct_option,
+        "equation": item.equation,
+        "hint_ladder": list(item.hint_ladder),
+        "canonical_solution": item.canonical_solution.model_dump(),
+        "proposed_difficulty": item.proposed_difficulty,
+        "difficulty_rationale": item.difficulty_rationale,
+        "required_prerequisites": list(item.required_prerequisites),
+        "misconception_tags": list(item.misconception_tags),
+        "estimated_time_seconds": item.estimated_time_seconds,
+    }
 
 
 async def generate_authored_candidate(
@@ -1084,15 +1198,29 @@ async def generate_authored_candidate(
         total_cost += cost
 
     repo = QuestionRepository(session)
+    template_id = f"authored-{topic_id}-d{difficulty_label}-{seed}"
+
+    # Set once the Generator has returned an item, and read by every later `_reject`
+    # (D-195). Threading it through ten call sites would have meant ten chances to forget
+    # it on the one path that mattered; a closure variable makes "every rejection after the
+    # Generator succeeded carries the candidate" true by construction rather than by
+    # discipline.
+    snapshot: dict | None = None
 
     async def _reject(
         reasons: list[str], stage_results: dict, stage: RejectionStage
     ) -> PipelineOutcome:
+        # Copied, then added to: the snapshot is one more key beside the stage evidence,
+        # never a replacement for it. A reviewer needs both the content and the readings
+        # that rejected it.
+        evidence = dict(stage_results)
+        if snapshot is not None:
+            evidence["candidate_snapshot"] = snapshot
         await repo.create_validation_run(
             QuestionValidationRun(
                 question_template_id=None,
                 outcome="rejected",
-                stage_results=stage_results,
+                stage_results=evidence,
                 reasons=reasons,
                 cost_cents=total_cost,
             )
@@ -1102,14 +1230,41 @@ async def generate_authored_candidate(
         )
 
     # --- 1. Authored Generator Agent --------------------------------------------
-    item, cost, error = await _generate_authored_item(
+    item, cost, error, generator_model_id = await _generate_authored_item(
         gateway, topic=topic, skill=skill, difficulty_label=difficulty_label, spend=spend
     )
     _spend(cost)
     if error is not None or item is None:
-        return await _reject([f"authored generator call failed: {error}"], {}, "generator")
-    assert isinstance(item, AuthoredGeneratedItemResponse)
+        # No item exists, so there is nothing to snapshot and nothing is invented. What is
+        # persisted instead is the request that failed and the provider's exact words -
+        # enough to tell "the model refused us" from "the model answered off-contract",
+        # which are the same string to the caller and opposite problems (D-195).
+        return await _reject(
+            [f"authored generator call failed: {error}"],
+            {
+                "generator_request": {
+                    "planned_template_id": template_id,
+                    "topic_id": topic_id,
+                    "skill_id": skill_id,
+                    "requested_difficulty": difficulty_label,
+                    "seed": seed,
+                    "task": BedrockTask.AUTHORED_QUESTION_GENERATION.value,
+                    "max_output_tokens": _AUTHORED_ITEM_MAX_TOKENS,
+                    "provider_error": error,
+                }
+            },
+            "generator",
+        )
     item = shuffle_options(item, seed=seed)  # D-191's position-bias fix.
+    snapshot = candidate_snapshot(
+        item,
+        topic_id=topic_id,
+        skill_id=skill_id,
+        requested_difficulty=difficulty_label,
+        seed=seed,
+        generator_model_id=generator_model_id,
+        planned_template_id=template_id,
+    )
 
     rendered_question = f"{item.context_block}\n\n{item.stem}" if item.context_block else item.stem
 
@@ -1263,7 +1418,9 @@ async def generate_authored_candidate(
         review_priority = "high"
 
     # --- 6. Persist as pending (never auto-approved - see module docstring) -----
-    template_id = f"authored-{topic_id}-d{difficulty_label}-{seed}"
+    # `template_id` is computed once at the top of the function: the rejection evidence
+    # needs the id the plan reserved for this candidate, and a second identical f-string
+    # here would be two places to change the id format.
     template = await repo.create_template(
         QuestionTemplate(
             question_template_id=template_id,
