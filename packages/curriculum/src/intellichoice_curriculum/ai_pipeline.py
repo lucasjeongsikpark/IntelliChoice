@@ -56,6 +56,8 @@ from intellichoice_shared.bedrock import (
     BedrockTask,
     DifficultyReviewPayload,
     DifficultyReviewResponse,
+    EquationDesignPayload,
+    EquationDesignResponse,
     GeneratedTemplateResponse,
     GeneratorPayload,
     QuestionJudgePayload,
@@ -67,7 +69,12 @@ from intellichoice_shared.bedrock import (
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from intellichoice_curriculum.authored_validation import validate_authored_item
+from intellichoice_curriculum.authored_validation import (
+    _sympify,
+    _values_equal,
+    derive_answer,
+    validate_authored_item,
+)
 from intellichoice_curriculum.content import CurriculumContent
 from intellichoice_curriculum.generation import VariantGenerationError, generate_variant
 from intellichoice_curriculum.templates.model import QuestionTemplateDef
@@ -369,6 +376,9 @@ _MAX_TOKENS = 400
 # the old ceiling was calibrated on content the pipeline no longer produces. Still a
 # runaway guard rather than a budget - output tokens bill by actual use.
 _AUTHORED_ITEM_MAX_TOKENS = 2500
+# The design call emits a sketch, an equation and a number - it does not need the item's
+# budget, and keeping it small is most of why retrying here is affordable (D-200).
+_EQUATION_DESIGN_MAX_TOKENS = 700
 # Solver and judge responses are a few small fields plus a free-text `reasoning` (the
 # generator's ran ~660 characters at tier 5, i.e. well inside 400 on its own). Not observed
 # truncating, but a judge truncated by this ceiling discards a candidate that has already
@@ -503,10 +513,22 @@ _AUTHORED_GENERATOR_SYSTEM_PROMPT = (
     # item's own equation does not produce, and the tempting cheap fix - relabel the
     # correct option to whatever the equation happens to give - is called out explicitly,
     # because it converts a wrong answer into a wrong *question* that passes the gate.
+    # D-200. The instruction is deliberately absolute: the numbers arriving here have
+    # already been solved deterministically, so any "improvement" to them is a regression
+    # to the defect the stage was added to remove.
+    "IF a `verified_design` block is present, its equation and answer have ALREADY been "
+    "checked by an automatic solver. Build the question around them EXACTLY: use that "
+    "equation, make `correct_option` the option whose text is that answer, and put that "
+    "answer in `canonical_solution.final_answer`. Do NOT change the numbers, do NOT "
+    "'improve' the arithmetic, and do NOT round anything. Your job is the writing - the "
+    "scenario, the four options with a real mistake behind each distractor, the three "
+    "hints, the worked solution, and the difficulty rationale. "
     "IF a `repair` block is present, you are correcting a specific earlier attempt, not "
     "writing a new question. Keep whatever was sound about it - the scenario, the "
     "characters, the shape of the mathematics - and fix exactly what the defects "
     "describe. Do not start over with an unrelated topic. "
+    "If a `verified_design` is also present during a repair, its equation and answer are "
+    "NOT the defect and must not change - fix only what the defect list describes. "
     "When a defect says your answer does not match your equation, the fix is to decide "
     "which one is right and correct the other, then recheck by substitution. Do NOT simply "
     "relabel the correct option to whatever the equation produces: if that value is a "
@@ -515,6 +537,30 @@ _AUTHORED_GENERATOR_SYSTEM_PROMPT = (
     "Re-verify everything before emitting, not only the part that was flagged - a repair "
     "that fixes one defect and introduces another is a wasted attempt."
 )
+# The 1-5 tier scale, stated once and used by BOTH the equation designer and the judge
+# (D-200). One definition on purpose: before this, the judge rated on an implicit absolute
+# scale (15 of 17 items scored "2") while the generator aimed at the requested tier, so the
+# two were measuring different things and every tier-4/5 item was rejected by arithmetic.
+# Handing the same anchors to the stage that *builds* the equation and the stage that
+# *rates* it is what makes the comparison mean anything.
+#
+# Anchored on the structure of the equation, not the wrapping: every item here is a word
+# problem (D-191 made the scenario mandatory), so "it is a word problem" is a constant, and
+# a constant cannot discriminate. A first draft that used it rated a one-step item 3.
+# These mirror the skill ladder in `TOPIC_DIFFICULTY_SKILLS`, which is where the tiers came
+# from in the first place.
+DIFFICULTY_ANCHORS: dict[int, str] = {
+    1: "one operation undoes the equation (x + 8 = 20, or 4x = 20)",
+    2: "two operations, the variable on one side only, whole-number coefficients "
+    "(18 + 6w = 60)",
+    3: "a negative or fractional coefficient appears (60 - 4x = 12, or x/3 + 5 = 11)",
+    4: "the variable appears on BOTH sides, so terms must be collected before the equation "
+    "can be solved at all (8 + 2m = 18 + m)",
+    5: "distribution is required before like terms can be combined (5(c + 2) + 12 = 42), or "
+    "the situation needs two coupled relationships set up together",
+}
+
+
 _JUDGE_SYSTEM_PROMPT = (
     "You are an independent judge reviewing one authored K-12 math question for "
     "difficulty fit, ambiguity, curriculum alignment, age-appropriateness, and the "
@@ -552,7 +598,41 @@ _JUDGE_SYSTEM_PROMPT = (
     "one from the request - judge what the item demands. In `difficulty_reasoning`, name "
     "the reasoning operations required (translating a scenario into an equation, a "
     "variable on both sides, distribution before combining like terms, negative or "
-    "fractional coefficients, the number of distinct steps), not how hard it feels."
+    "fractional coefficients, the number of distinct steps), not how hard it feels. "
+    # D-200, and the highest-leverage sentence in this prompt. Measured across six paid
+    # runs: `reviewed_difficulty` was 2 in **15 of 17** items - distribution {1:1, 2:15,
+    # 3:1} - while the generator's proposals spanned 1-5 and tracked the request sensibly.
+    # A rater told to use a 1-5 scale and never told what the numbers *mean* falls back on
+    # an absolute "how hard is mathematics" reading, and on that reading all of grade 6-7
+    # linear algebra is a 2. The consequence was arithmetic, not a tendency: requested
+    # tier 4 gives |4 - 2| = 2 and tier 5 gives 3, both at or over the rejection
+    # threshold, so **no tier-4 or tier-5 item could ever pass, however good it was**. Six
+    # runs, zero survivors above tier 2.
+    #
+    # The fix is a scale, not a hint: the anchors below describe structural features
+    # visible in the item, and the judge is still never told which tier was requested, so
+    # the reading stays independent (D-194) - it is now independent *and* calibrated
+    # rather than independent and constant.
+    "The 1-5 scale is RELATIVE TO THE GRADE BAND YOU ARE GIVEN, not to mathematics as a "
+    "whole. A 2 does not mean 'easy for an adult'; it means 'the second-easiest thing a "
+    "student at this grade band is asked to do'. Almost every item you see will be routine "
+    "for you and that tells you nothing - rate the work the item demands of a student in "
+    "that band, using these anchors: "
+    # Anchored on the STRUCTURE OF THE EQUATION, deliberately. The first draft of this
+    # rubric made tier 3 "the student must build the equation from the situation", and the
+    # judge promptly rated a one-step item 3 - correctly, by that wording. Every item in
+    # this bank is a word problem (D-191 made the scenario mandatory), so "it is a word
+    # problem" is a constant and a constant cannot discriminate. These anchors mirror the
+    # skill ladder in `TOPIC_DIFFICULTY_SKILLS` - one-step, two-step, negative/fractional
+    # coefficients, variables on both sides, distribution - which is the ladder the tiers
+    # were defined by in the first place.
+    "Rate the EQUATION the student must solve, not the wrapping. Every item here is set in "
+    "a story; that is the house style and it does NOT by itself raise the tier. A short "
+    "preliminary calculation to get a number out of the scenario does not either. "
+    + " ".join(f"{tier} = {text}." for tier, text in sorted(DIFFICULTY_ANCHORS.items()))
+    + " "
+    "Use the whole range. If an item genuinely sits between two anchors, choose the higher "
+    "one when the extra step is structural and the lower one when it is only arithmetic."
 )
 
 # Small, fixed set of hand-written few-shot exemplars (this project has no pre-authored
@@ -702,6 +782,11 @@ RejectionStage = Literal[
     # the two independent readings of how hard it is cannot both be right. Merging them
     # would make the run summary's largest bucket uninterpretable.
     "difficulty",
+    # D-200: the cheap pre-stage could not produce an equation that solves to a positive
+    # whole number. Its own bucket because it is the one rejection that costs almost
+    # nothing - conflating it with `generator` would hide the fact that the run failed
+    # early and cheaply rather than late and expensively.
+    "design",
     "budget",
     "unsupported_shape",
 ]
@@ -1068,6 +1153,124 @@ async def generate_candidate(
     )
 
 
+_EQUATION_DESIGN_SYSTEM_PROMPT = (
+    "You are choosing the mathematics for ONE K-12 word problem, before anyone writes it "
+    "up. Output only the skeleton: a one-sentence scenario sketch, what the unknown "
+    "stands for, the equation that models it, and the answer. "
+    "The equation must contain EXACTLY ONE unknown, written as a single letter, and it "
+    "must match the difficulty anchor you are given - that anchor describes the STRUCTURE "
+    "the equation must have, and an equation of the wrong structure is the wrong answer to "
+    "this task however neat it is. "
+    # The measured defect this whole stage exists for. Across six paid runs the commonest
+    # failure by far was a declared answer the item's own equation does not produce -
+    # 21/5, 62/7, 12/5, -10/3, 50/13, 8/3 - i.e. the model picked numbers that do not
+    # divide and then wrote down the answer it wanted instead of the one it had built.
+    "CHOOSE NUMBERS THAT COME OUT EVEN. Solve your own equation before you answer, and if "
+    "the solution is a fraction, a negative, or zero, CHANGE YOUR NUMBERS and solve again. "
+    "The answer must be a positive whole number, because it will be counted in a real "
+    "situation - trips to a shop, weeks of saving, cards swapped. Nobody makes 2.4 trips. "
+    "Work the arithmetic in `reasoning` first, then state `final_answer` as a bare number "
+    "with no units and no variable ('7', never 'x = 7' or '7 weeks'); put any unit in "
+    "`answer_units`. "
+    "If you are shown previous attempts, they FAILED the automatic solver for the reason "
+    "given. Do not repeat those numbers - change the quantities so the arithmetic divides."
+)
+
+
+class EquationDesignError(Exception):
+    """The design stage could not produce a usable equation within its attempt budget."""
+
+
+def validate_equation_design(
+    design: EquationDesignResponse, *, target_difficulty: int
+) -> list[str]:
+    """Deterministic gate on the skeleton, before anything is written around it (D-200).
+
+    This is the same `derive_answer` check the full item already faces, moved to where it
+    is cheap. Measured across six runs: it was rejecting roughly half of all candidates
+    *after* a ~2500-token authoring call had been paid for, and the design call it now
+    guards is ~150 tokens. Nothing is weakened - the full item still faces every gate,
+    including this one.
+
+    The positive-integer rule is scope-limited and deliberately strict. Every observed
+    failure of this kind produced a fraction in a scenario that counts discrete things
+    (12/5 games, 8/3 swaps, -2 hours). A future topic with genuinely continuous answers
+    would need this to become a parameter rather than a constant, and that is a change to
+    make when such a topic exists, not before.
+    """
+    failures: list[str] = []
+    solved, error = derive_answer(design.equation)
+    if solved is None:
+        return [error or f"equation {design.equation!r} could not be solved"]
+
+    declared = _sympify(design.final_answer)
+    if declared is None:
+        failures.append(f"final_answer {design.final_answer!r} is not a bare number")
+    elif not _values_equal(declared, solved):
+        failures.append(
+            f"equation solves to {solved}, but final_answer says {design.final_answer!r} - "
+            f"the numbers do not divide evenly, so change the quantities"
+        )
+    if not solved.is_Integer:
+        failures.append(
+            f"equation solves to {solved}, which is not a whole number - a student cannot "
+            f"count a fraction of a thing, so change the quantities"
+        )
+    elif solved.is_positive is not True:
+        failures.append(
+            f"equation solves to {solved}; the answer must be a positive whole number"
+        )
+    return failures
+
+
+async def _design_equation(
+    gateway: BedrockGateway,
+    *,
+    topic: object,
+    skill: object,
+    difficulty_label: int,
+    spend: float,
+    max_attempts: int,
+) -> tuple[EquationDesignResponse | None, float, list[str]]:
+    """Cheap loop: propose a skeleton, check it deterministically, retry with the reason.
+
+    Retrying *here* is the point. The same retry after a full authoring call costs an order
+    of magnitude more, which is why the pipeline previously threw the whole candidate away
+    instead.
+    """
+    total = 0.0
+    previous: list[str] = []
+    anchor = DIFFICULTY_ANCHORS.get(difficulty_label, "")
+    for _ in range(max_attempts):
+        payload = EquationDesignPayload(
+            topic_name=topic.name,  # type: ignore[attr-defined]
+            skill_name=skill.name,  # type: ignore[attr-defined]
+            grade_band=topic.grade_band,  # type: ignore[attr-defined]
+            target_difficulty=difficulty_label,
+            difficulty_anchor=anchor,
+            previous_attempts=previous,
+        )
+        value, cost, error = await _call(
+            gateway,
+            task=BedrockTask.AUTHORED_QUESTION_GENERATION,
+            system_prompt=_EQUATION_DESIGN_SYSTEM_PROMPT,
+            payload=payload,
+            response_model=EquationDesignResponse,
+            session_spend_cents=spend + total,
+            max_output_tokens=_EQUATION_DESIGN_MAX_TOKENS,
+        )
+        total += cost
+        if error is not None or value is None:
+            previous.append(f"call failed: {error}")
+            continue
+        assert isinstance(value, EquationDesignResponse)
+        failures = validate_equation_design(value, target_difficulty=difficulty_label)
+        if not failures:
+            return value, total, []
+        previous.append(f"equation {value.equation!r} rejected: {'; '.join(failures)}")
+    return None, total, previous
+
+
 async def _generate_authored_item(
     gateway: BedrockGateway,
     *,
@@ -1076,6 +1279,7 @@ async def _generate_authored_item(
     difficulty_label: int,
     spend: float,
     repair: RepairContext | None = None,
+    verified_design: EquationDesignResponse | None = None,
 ) -> tuple[AuthoredGeneratedItemResponse | None, float, str | None, str]:
     """Stage 1 of authored mode: the one call that invents the question.
 
@@ -1093,6 +1297,7 @@ async def _generate_authored_item(
         target_difficulty=difficulty_label,
         exemplars=_AUTHORED_FEW_SHOT_EXEMPLARS,
         repair=repair,
+        verified_design=verified_design,
     )
     try:
         result = await gateway.generate_structured(
@@ -1284,6 +1489,7 @@ async def _attempt_authored_candidate(
     skill_id: str | None = None,
     attempt: int = 1,
     repair: RepairContext | None = None,
+    design: EquationDesignResponse | None = None,
 ) -> PipelineOutcome:
     """One pass: generate an item and run it through every gate (D-198 split this out of
     `generate_authored_candidate`, which is now the bounded repair loop around it).
@@ -1387,6 +1593,7 @@ async def _attempt_authored_candidate(
         difficulty_label=difficulty_label,
         spend=spend,
         repair=repair,
+        verified_design=design,
     )
     _spend(cost)
     if error is not None or item is None:
@@ -1673,6 +1880,10 @@ async def _attempt_authored_candidate(
 # Repair is off unless asked for, so every existing caller keeps one-shot behaviour and
 # turning it on is a deliberate, costed act (D-198).
 DEFAULT_MAX_REPAIR_ATTEMPTS = 0
+# D-200: on by default, unlike repair. Repair adds cost to buy a second chance; the design
+# stage adds a ~150-token call that *removes* the ~2500-token calls that were being thrown
+# away - roughly half of them, measured. Turning it off is the deliberate act here.
+DEFAULT_DESIGN_ATTEMPTS = 3
 
 
 async def generate_authored_candidate(
@@ -1688,6 +1899,7 @@ async def generate_authored_candidate(
     skill_id: str | None = None,
     max_repair_attempts: int = DEFAULT_MAX_REPAIR_ATTEMPTS,
     budget_ceiling_cents: float | None = None,
+    design_attempts: int = DEFAULT_DESIGN_ATTEMPTS,
 ) -> PipelineOutcome:
     """One slot, with a bounded repair loop: when a candidate is rejected for something a
     rewrite could fix, the Generator is told what was wrong and tries again (D-198).
@@ -1714,6 +1926,43 @@ async def generate_authored_candidate(
     attempt = 1
     spent = 0.0
     repair: RepairContext | None = None
+    design: EquationDesignResponse | None = None
+
+    if design_attempts > 0:
+        topic = next((t for t in curriculum.topics if t.topic_id == topic_id), None)
+        resolved_skill = skill_id or TOPIC_DIFFICULTY_SKILLS.get(topic_id, {}).get(difficulty_label)
+        skill = next((s for s in curriculum.skills if s.skill_id == resolved_skill), None)
+        if topic is not None and skill is not None:
+            design, design_cost, design_failures = await _design_equation(
+                gateway,
+                topic=topic,
+                skill=skill,
+                difficulty_label=difficulty_label,
+                spend=session_spend_cents,
+                max_attempts=design_attempts,
+            )
+            spent += design_cost
+            if design is None:
+                # Cheap failure, and it stays cheap: nothing was authored around a
+                # skeleton that could not be made to divide evenly, and no repair is
+                # attempted because there is no item to repair.
+                run = QuestionValidationRun(
+                    question_template_id=None,
+                    outcome="rejected",
+                    stage_results={
+                        "equation_design": {"passed": False, "attempts": design_failures}
+                    },
+                    reasons=[f"equation design failed after {design_attempts} attempts"],
+                    cost_cents=spent,
+                )
+                await QuestionRepository(session).create_validation_run(run)
+                return PipelineOutcome(
+                    status="rejected",
+                    reasons=list(run.reasons),
+                    cost_cents=spent,
+                    rejected_at="design",
+                    stage_results=dict(run.stage_results),
+                )
 
     while True:
         outcome = await _attempt_authored_candidate(
@@ -1728,6 +1977,11 @@ async def generate_authored_candidate(
             skill_id=skill_id,
             attempt=attempt,
             repair=repair,
+            # Designed once, before the loop: the skeleton was already verified, so
+            # re-designing per repair would pay again for the same check *and* hand the
+            # repair a different equation - contradicting "keep what was sound and fix
+            # the defect", which is the whole instruction a repair is given.
+            design=design,
         )
         spent += outcome.cost_cents
         # Every attempt's spend counts, including the failed ones: the caller is paying for

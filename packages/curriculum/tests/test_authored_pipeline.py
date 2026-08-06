@@ -16,7 +16,6 @@ import hashlib
 import random
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from typing import NoReturn
 
 import pytest
 from intellichoice_curriculum import ai_pipeline, pipeline_cli, review_cli
@@ -37,6 +36,7 @@ from intellichoice_shared.bedrock import (
     BedrockGenerationResult,
     BedrockTask,
     EmbeddingResult,
+    EquationDesignResponse,
     QuestionJudgePayload,
     QuestionJudgeResponse,
     SolutionResponse,
@@ -165,6 +165,7 @@ class _ScriptedAuthoredGateway:
         # than asserted here so one test can state the whole per-stage sizing (see
         # `test_authored_stages_get_ceilings_above_the_measured_response_size`).
         self.ceilings: dict[str, int] = {}
+        self.design_calls = 0
 
     async def generate_structured[T: BaseModel](
         self,
@@ -178,10 +179,23 @@ class _ScriptedAuthoredGateway:
     ) -> BedrockGenerationResult[T]:
         name = response_model.__name__
         self.ceilings[name] = max_output_tokens
-        if name == "AuthoredGeneratedItemResponse":
+        if name == "EquationDesignResponse":
+            # D-200's cheap pre-stage. The double always returns a skeleton that passes the
+            # deterministic check, so every existing test still exercises the behaviour it
+            # was written for; a test that wants the design stage to fail scripts it
+            # explicitly (see `_FailingDesignGateway`).
+            self.design_calls += 1
+            value: BaseModel = EquationDesignResponse(
+                reasoning="scripted design",
+                scenario_sketch="Two friends combine what they have.",
+                unknown_meaning="the number of items to add",
+                equation="Eq(x, 2 + 2)",
+                final_answer="4",
+            )
+        elif name == "AuthoredGeneratedItemResponse":
             assert isinstance(payload, AuthoredGeneratorPayload)
             if self._item_factory is not None:
-                value: BaseModel = self._item_factory(payload)
+                value = self._item_factory(payload)
             elif self._item is not None:
                 value = self._item
             else:
@@ -1698,8 +1712,13 @@ class _FailingGeneratorGateway(_ScriptedAuthoredGateway):
     hit `AccessDeniedException` on all four candidates.
     """
 
-    async def generate_structured(self, **kwargs: object) -> NoReturn:
-        raise BedrockGatewayError("AccessDeniedException: no access to model", cost_cents=0.0)
+    async def generate_structured(self, **kwargs: object) -> object:
+        # Fails only the authoring call, so the test still exercises the *generator*
+        # rejection path rather than D-200's cheap design stage in front of it.
+        model = kwargs.get("response_model")
+        if getattr(model, "__name__", "") == "AuthoredGeneratedItemResponse":
+            raise BedrockGatewayError("AccessDeniedException: no access to model", cost_cents=0.0)
+        return await super().generate_structured(**kwargs)  # type: ignore[arg-type]
 
 
 async def _reject_and_fetch(
@@ -2302,3 +2321,144 @@ def test_a_difficulty_rejection_ends_the_loop_without_paying_for_a_retry() -> No
             assert gateway.repairs == [], "a difficulty rejection must not be retried"
 
     asyncio.run(run())
+
+
+# --- D-200: the numbers are fixed before anything is written around them --------------
+
+
+def test_the_design_gate_rejects_an_answer_that_is_not_a_whole_number() -> None:
+    """Every observed instance of this defect was a fraction in a counting scenario -
+    12/5 games, 8/3 swaps, 62/7 weeks. The check exists where it is cheap.
+    """
+    design = EquationDesignResponse(
+        reasoning="picked numbers that do not divide",
+        scenario_sketch="Two players swap cards.",
+        unknown_meaning="swaps",
+        equation="Eq(15 + 3*g, 27 - 2*g)",  # solves to 12/5
+        final_answer="12/5",
+    )
+    failures = ai_pipeline.validate_equation_design(design, target_difficulty=4)
+    assert any("not a whole number" in f for f in failures)
+
+
+def test_the_design_gate_rejects_an_answer_the_equation_does_not_produce() -> None:
+    design = EquationDesignResponse(
+        reasoning="declared what I wanted, not what it solves to",
+        scenario_sketch="Saving for a skateboard.",
+        unknown_meaning="weeks",
+        equation="Eq(23 + 7*w, 85)",  # solves to 62/7
+        final_answer="9",
+    )
+    failures = ai_pipeline.validate_equation_design(design, target_difficulty=3)
+    assert any("do not divide evenly" in f for f in failures)
+
+
+def test_the_design_gate_rejects_a_negative_answer() -> None:
+    # The cyclist nobody can catch: Eq(3*t, 15*t + 24) solves to -2 because she never
+    # catches him. The mathematics is saying the scenario is impossible.
+    design = EquationDesignResponse(
+        reasoning="scenario cannot happen",
+        scenario_sketch="Walker chases a faster cyclist who is ahead.",
+        unknown_meaning="hours",
+        equation="Eq(3*t, 15*t + 24)",
+        final_answer="-2",
+    )
+    failures = ai_pipeline.validate_equation_design(design, target_difficulty=3)
+    assert any("positive whole number" in f for f in failures)
+
+
+def test_a_clean_design_passes() -> None:
+    design = EquationDesignResponse(
+        reasoning="18 = 2w so w = 9, a whole number",
+        scenario_sketch="Two swimmers with different starting laps and rates.",
+        unknown_meaning="weeks",
+        equation="Eq(28 + 3*w, 10 + 5*w)",
+        final_answer="9",
+    )
+    assert ai_pipeline.validate_equation_design(design, target_difficulty=4) == []
+
+
+def test_the_design_stage_runs_before_the_author_and_is_handed_to_it() -> None:
+    """The author must build around a verified skeleton, not invent its own numbers."""
+
+    class _Recording(_ScriptedAuthoredGateway):
+        seen_design: object = None
+
+        async def generate_structured(self, **kwargs: object) -> object:
+            payload = kwargs.get("payload")
+            if isinstance(payload, AuthoredGeneratorPayload):
+                self.seen_design = payload.verified_design
+            return await super().generate_structured(**kwargs)  # type: ignore[arg-type]
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _Recording()
+            await generate_authored_candidate(
+                session=session,
+                gateway=gateway,  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=1001001,
+                session_spend_cents=0.0,
+            )
+            assert gateway.design_calls == 1, "the design stage must run before authoring"
+            assert gateway.seen_design is not None, "the author was not given the design"
+            assert gateway.seen_design.equation == "Eq(x, 2 + 2)"  # type: ignore[attr-defined]
+
+    asyncio.run(run())
+
+
+def test_a_design_that_never_solves_cleanly_fails_cheaply_and_never_authors() -> None:
+    class _BadDesign(_ScriptedAuthoredGateway):
+        authored = 0
+
+        async def generate_structured(self, **kwargs: object) -> object:
+            model = kwargs.get("response_model")
+            name = getattr(model, "__name__", "")
+            if name == "EquationDesignResponse":
+                return BedrockGenerationResult(
+                    value=EquationDesignResponse(  # type: ignore[arg-type]
+                        reasoning="does not divide",
+                        scenario_sketch="x",
+                        unknown_meaning="y",
+                        equation="Eq(15 + 3*g, 27 - 2*g)",
+                        final_answer="12/5",
+                    ),
+                    input_tokens=1, output_tokens=1, cost_cents=0.01,
+                    model_id="test", repaired=False,
+                )
+            if name == "AuthoredGeneratedItemResponse":
+                self.authored += 1
+            return await super().generate_structured(**kwargs)  # type: ignore[arg-type]
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _BadDesign()
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=gateway,  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=1001002,
+                session_spend_cents=0.0,
+            )
+            assert outcome.rejected_at == "design"
+            # The whole economic argument: no full-size authoring call was ever made.
+            assert gateway.authored == 0
+
+    asyncio.run(run())
+
+
+def test_the_generator_and_the_judge_are_given_the_same_tier_scale() -> None:
+    """One definition of the 1-5 scale, used by the stage that builds the equation and the
+    stage that rates it. Before D-200 the judge rated on an implicit absolute scale (2 in
+    15 of 17 items) while the generator aimed at the requested tier, so the two numbers the
+    difficulty gate compares were not measuring the same thing.
+    """
+    for tier, anchor in ai_pipeline.DIFFICULTY_ANCHORS.items():
+        assert 1 <= tier <= 5
+        assert anchor in ai_pipeline._JUDGE_SYSTEM_PROMPT, f"tier {tier} missing from judge"
+    assert "BOTH sides" in ai_pipeline.DIFFICULTY_ANCHORS[4]
+    assert "distribution" in ai_pipeline.DIFFICULTY_ANCHORS[5].lower()

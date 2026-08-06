@@ -13682,3 +13682,100 @@ and `repaired_to_pending` exist to answer exactly that.
 
 **Revert:** default `max_repair_attempts=0` means deleting the flag restores prior behaviour; the
 loop is one function around an unchanged attempt path.
+
+## D-200 — the judge had no scale, and the numbers were chosen too late (accepted, 2026-08-06)
+
+Two blockers, both identified from six runs of stored evidence rather than from intuition.
+
+### Blocker 1: the difficulty gate was measuring a constant
+
+Across every judged item in the database, `reviewed_difficulty` was:
+
+```
+{1: 1, 2: 15, 3: 1}          # judge
+{1: 1, 2: 3, 3: 3, 4: 7, 5: 1}  # generator's proposal, for comparison
+```
+
+**15 of 17 items scored "2".** The generator's proposals spanned the range and tracked the request;
+the judge's did not vary at all. The consequence was arithmetic, not a tendency: a requested tier of
+4 gives `|4 - 2| = 2` and tier 5 gives 3, both at or over the rejection threshold. **No tier-4 or
+tier-5 item could ever pass, however good it was** - which is exactly what six runs showed, with
+zero survivors above tier 2.
+
+The cause: the judge was told to use a 1-5 scale and never told what the numbers *mean*. A rater
+without anchors falls back on an absolute reading, and on that reading all of grade 6-7 linear
+algebra is a 2.
+
+**Fix:** anchor the scale. `DIFFICULTY_ANCHORS` is defined once and used by **both** the judge and
+the new design stage, so the number that gets built and the number that rates it are finally on the
+same scale - the comparison the difficulty gate performs never meant anything otherwise. The judge
+is still not told the requested tier, so the reading stays independent (D-194); it is now
+independent *and* calibrated rather than independent and constant.
+
+The anchors describe the **structure of the equation**, not the wrapping. A first draft anchored
+tier 3 on "the student must build the equation from the situation", and the judge promptly rated a
+one-step item 3 - correctly, by that wording, because D-191 made every item a word problem, so that
+property is a constant and a constant cannot discriminate. The anchors now mirror the skill ladder
+in `TOPIC_DIFFICULTY_SKILLS`, which is where the tiers came from.
+
+**Measured, against items this judge had previously rated 2:**
+
+| structural tier | before | after |
+|---|---|---|
+| one-step | 2 | **1** |
+| two-step | 2 | **2** |
+| variable both sides | 2 | **4** |
+| distribution required | 2 | **5** |
+
+4 of 4 exact. Tier 4 and 5 are reachable for the first time.
+
+### Blocker 2: the numbers were chosen at the end of a 2500-token call
+
+The commonest defect across six runs was a declared answer the item's own equation does not
+produce - 21/5, 62/7, 12/5, −10/3, 50/13, 8/3 - roughly half of all rejections. Nearly all are
+**non-integer**: the model picks quantities that do not divide, then writes down the answer it
+wanted instead of the one it built.
+
+**Fix:** an equation-design stage in front of the author. A ~150-token call proposes a scenario
+sketch plus the equation and answer; `validate_equation_design` solves it deterministically and
+requires a **positive whole number**; a failure retries the *cheap* call with the reason. Only a
+verified skeleton reaches the author, which is told to build around it exactly and change nothing.
+
+The economics are the argument: the same check was already rejecting ~half of all candidates, but
+only after a ~2500-token authoring call had been paid for. Three design retries cost less than one
+wasted authoring call.
+
+**This is not D-192 returning.** That design generated an equation and had a story written to dress
+it, and *nothing verified that the story encoded the equation*. Two things differ: the sketch and
+the equation are produced together so they are coupled from the start, and the D-193 solver panel -
+which did not exist then - is what verifies story→equation afterwards. It caught exactly this class
+of error in D-197's streaming-plan item.
+
+The stage also addresses the "skill name is decoration" finding: the design payload carries the
+tier's structural anchor, so a tier-4 slot asks for an equation with the variable on both sides
+rather than hoping the author infers it from a skill name.
+
+**Designed once per slot, not once per repair attempt.** The skeleton is verified; re-designing per
+repair would pay again for the same check and hand the repair a different equation, contradicting
+the instruction a repair is given ("keep what was sound, fix the defect").
+
+### What is verified and what is not
+
+- **Verified against the live model:** the judge rubric, 4/4 exact on items previously rated 2.
+- **Verified deterministically:** the design gate, eight unit tests using the real failing equations
+  from earlier runs.
+- **NOT verified:** whether Mistral actually produces clean equations when asked this way. The one
+  paid attempt died on `ExpiredTokenException` - the AWS login session lapsed mid-session, and only
+  an interactive `aws login` restores it. **The design stage's model-facing half is unmeasured.**
+
+### Recorded, not fixed
+
+- `test_preflight_fails_when_the_two_solvers_are_one_model` fails on any dev database holding the
+  approved bank: at seed offset 0 three planned ids collide with real approved templates. It passes
+  in CI's clean database and fails on `main` too, so it is pre-existing and environment-dependent,
+  not caused by this work.
+- `answer_text_leaked` still fires when the answer coincides with a quantity given in the stem
+  ("4-pack" vs an answer of 4). Third instance of this check destroying a correct item. The
+  principled fix - do not flag a value the stem already shows the student - is a product judgement
+  about whether such an item is good in the first place, so it is left for a decision rather than
+  taken unilaterally.

@@ -5,6 +5,29 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-200: the judge had no scale, and the numbers were chosen too late (2026-08-06).**
+  `ruff` clean, `pyright` 0, **995 passed / 2 skipped**. Branch `d200-judge-rubric-and-verified-equation`.
+  - **The difficulty gate was measuring a constant.** `reviewed_difficulty` was 2 in **15 of 17**
+    items across six runs, so tier 4 (`|4-2|=2`) and tier 5 (`|5-2|=3`) were rejected by
+    arithmetic regardless of quality. The judge was told to use 1-5 and never told what the
+    numbers mean.
+  - **Fixed with anchored tiers, shared by the judge and the new design stage** so the number
+    built and the number rated are on one scale. Measured on items previously rated 2:
+    one-step→1, two-step→2, both-sides→4, distribution→5. **4/4 exact.**
+  - **An equation-design stage now fixes the numbers before authoring.** ~150-token call,
+    deterministic solve, must be a positive whole number, cheap retries. The same check was
+    already rejecting ~half of candidates but only after a ~2500-token call had been paid for.
+  - **Not D-192 returning:** sketch and equation are produced together, and the D-193 solver panel
+    (absent then) verifies story→equation afterwards.
+  - **⚠️ Unverified:** whether the model produces clean equations this way. The one paid attempt
+    died on `ExpiredTokenException` — **the AWS login session lapsed and only an interactive
+    `aws login` restores it.**
+  - **Carry-over:** `answer_text_leaked` still flags an answer that coincides with a given quantity
+    ("4-pack" vs answer 4) — third correct item destroyed. Fix needs a product call.
+  - **Carry-over:** `test_preflight_fails_when_the_two_solvers_are_one_model` fails on any dev DB
+    holding the approved bank (3 id collisions at seed offset 0). Pre-existing, fails on `main`,
+    passes in CI.
+
 - **⏸ D-198: rejection-driven repair loop (2026-08-06).** `ruff` clean, `pyright` 0,
   **989 passed / 2 skipped** — up 12. **Nothing spent**; no paid run exercised it.
   Branch `d198-rejection-repair-loop`.

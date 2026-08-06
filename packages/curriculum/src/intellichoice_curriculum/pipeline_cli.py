@@ -97,6 +97,9 @@ class RunSummary:
     # more. Its own bucket because it is not the same finding as a judge rejection -
     # the question may be perfectly good and still land here.
     rejected_difficulty: int = 0
+    # D-200: the cheap pre-stage could not build an equation that solves evenly. Its own
+    # bucket because it is the one rejection that costs almost nothing.
+    rejected_design: int = 0
     # D-198. Two separate facts, because one number would hide the thing worth knowing:
     # how many Generator calls the run actually paid for, and how many candidates only
     # became publishable *because* a repair ran. A repair loop that fixes nothing still
@@ -153,6 +156,7 @@ class RunSummary:
             f"processed ({yield_rate:.0f}%), {self.scheduled} scheduled, "
             f"{self.total_cost_cents:.2f} cents spent.\n"
             f"  rejected: generator={self.rejected_generator} "
+            f"design={self.rejected_design} "
             f"validation={self.rejected_validation} dedup={self.rejected_dedup} "
             f"solver={self.rejected_solver} judge={self.rejected_judge} "
             f"difficulty={self.rejected_difficulty}\n"
@@ -236,6 +240,7 @@ class GenerationPlan:
     # D-198. Defaulted, and last, so every existing construction site keeps one-shot
     # behaviour without naming it.
     max_repair_attempts: int = 0
+    design_attempts: int = 3
 
     @property
     def template_ids(self) -> tuple[str, ...]:
@@ -260,6 +265,7 @@ def build_plan(
     seed_offset: int = DEFAULT_SEED_OFFSET,
     run_budget_cents: float = 1000.0,
     max_repair_attempts: int = 0,
+    design_attempts: int = 3,
 ) -> GenerationPlan:
     """Turn CLI arguments into the exact list of candidates a run would attempt.
 
@@ -369,6 +375,7 @@ def build_plan(
         slots=tuple(slots),
         candidates_per_slot=candidates_per_slot,
         max_repair_attempts=max_repair_attempts,
+        design_attempts=design_attempts,
         seed_offset=seed_offset,
         run_budget_cents=run_budget_cents,
         topic_ids=tuple(sorted(plan_by_topic)),
@@ -409,6 +416,7 @@ async def run_plan(
                     session_spend_cents=spend,
                     skill_id=slot.skill_id,
                     max_repair_attempts=plan.max_repair_attempts,
+                    design_attempts=plan.design_attempts,
                     # The slot may not spend past the run's own ceiling; without this the
                     # between-slot check only notices after the money is gone.
                     budget_ceiling_cents=plan.run_budget_cents,
@@ -564,6 +572,8 @@ async def preflight(
         f"difficulties:          {', '.join(str(d) for d in plan.difficulties)}",
         f"candidates per slot:   {plan.candidates_per_slot}",
         f"max repair attempts:   {plan.max_repair_attempts}{_repair_cost_note(plan)}",
+        f"equation design:       {plan.design_attempts} attempts per candidate"
+        f"{' (disabled)' if not plan.design_attempts else ''}",
         f"scheduled candidates:  {len(plan.slots)}",
         f"seed offset:           {plan.seed_offset}",
         f"planned template ids:  {len(plan.template_ids)} "
@@ -676,6 +686,15 @@ def build_parser() -> argparse.ArgumentParser:
         "back is relabeling, not repair",
     )
     parser.add_argument(
+        "--design-attempts",
+        type=int,
+        default=3,
+        help="Cheap equation-design attempts before authoring (default: 3, 0 disables). "
+        "Each is a small call whose equation must solve to a positive whole number, which "
+        "is the check roughly half of all candidates used to fail after a full-size "
+        "authoring call had already been paid for",
+    )
+    parser.add_argument(
         "--seed-offset",
         type=int,
         default=DEFAULT_SEED_OFFSET,
@@ -733,6 +752,7 @@ async def main() -> None:
             difficulties=args.difficulty,
             candidates_per_slot=candidates_per_slot,
             max_repair_attempts=args.max_repair_attempts,
+            design_attempts=args.design_attempts,
             seed_offset=args.seed_offset,
             run_budget_cents=(
                 args.run_budget_cents
