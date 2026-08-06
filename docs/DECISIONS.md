@@ -13683,6 +13683,202 @@ and `repaired_to_pending` exist to answer exactly that.
 **Revert:** default `max_repair_attempts=0` means deleting the flag restores prior behaviour; the
 loop is one function around an unchanged attempt path.
 
+## D-200 — the judge had no scale, and the numbers were chosen too late (accepted, 2026-08-06)
+
+Two blockers, both identified from six runs of stored evidence rather than from intuition.
+
+### Blocker 1: the difficulty gate was measuring a constant
+
+Across every judged item in the database, `reviewed_difficulty` was:
+
+```
+{1: 1, 2: 15, 3: 1}          # judge
+{1: 1, 2: 3, 3: 3, 4: 7, 5: 1}  # generator's proposal, for comparison
+```
+
+**15 of 17 items scored "2".** The generator's proposals spanned the range and tracked the request;
+the judge's did not vary at all. The consequence was arithmetic, not a tendency: a requested tier of
+4 gives `|4 - 2| = 2` and tier 5 gives 3, both at or over the rejection threshold. **No tier-4 or
+tier-5 item could ever pass, however good it was** - which is exactly what six runs showed, with
+zero survivors above tier 2.
+
+The cause: the judge was told to use a 1-5 scale and never told what the numbers *mean*. A rater
+without anchors falls back on an absolute reading, and on that reading all of grade 6-7 linear
+algebra is a 2.
+
+**Fix:** anchor the scale. `DIFFICULTY_ANCHORS` is defined once and used by **both** the judge and
+the new design stage, so the number that gets built and the number that rates it are finally on the
+same scale - the comparison the difficulty gate performs never meant anything otherwise. The judge
+is still not told the requested tier, so the reading stays independent (D-194); it is now
+independent *and* calibrated rather than independent and constant.
+
+The anchors describe the **structure of the equation**, not the wrapping. A first draft anchored
+tier 3 on "the student must build the equation from the situation", and the judge promptly rated a
+one-step item 3 - correctly, by that wording, because D-191 made every item a word problem, so that
+property is a constant and a constant cannot discriminate. The anchors now mirror the skill ladder
+in `TOPIC_DIFFICULTY_SKILLS`, which is where the tiers came from.
+
+**Measured, against items this judge had previously rated 2:**
+
+| structural tier | before | after |
+|---|---|---|
+| one-step | 2 | **1** |
+| two-step | 2 | **2** |
+| variable both sides | 2 | **4** |
+| distribution required | 2 | **5** |
+
+4 of 4 exact. Tier 4 and 5 are reachable for the first time.
+
+### Blocker 2: the numbers were chosen at the end of a 2500-token call
+
+The commonest defect across six runs was a declared answer the item's own equation does not
+produce - 21/5, 62/7, 12/5, −10/3, 50/13, 8/3 - roughly half of all rejections. Nearly all are
+**non-integer**: the model picks quantities that do not divide, then writes down the answer it
+wanted instead of the one it built.
+
+**Fix:** an equation-design stage in front of the author. A ~150-token call proposes a scenario
+sketch plus the equation and answer; `validate_equation_design` solves it deterministically and
+requires a **positive whole number**; a failure retries the *cheap* call with the reason. Only a
+verified skeleton reaches the author, which is told to build around it exactly and change nothing.
+
+The economics are the argument: the same check was already rejecting ~half of all candidates, but
+only after a ~2500-token authoring call had been paid for. Three design retries cost less than one
+wasted authoring call.
+
+**This is not D-192 returning.** That design generated an equation and had a story written to dress
+it, and *nothing verified that the story encoded the equation*. Two things differ: the sketch and
+the equation are produced together so they are coupled from the start, and the D-193 solver panel -
+which did not exist then - is what verifies story→equation afterwards. It caught exactly this class
+of error in D-197's streaming-plan item.
+
+The stage also addresses the "skill name is decoration" finding: the design payload carries the
+tier's structural anchor, so a tier-4 slot asks for an equation with the variable on both sides
+rather than hoping the author infers it from a skill name.
+
+**Designed once per slot, not once per repair attempt.** The skeleton is verified; re-designing per
+repair would pay again for the same check and hand the repair a different equation, contradicting
+the instruction a repair is given ("keep what was sound, fix the defect").
+
+### What is verified and what is not
+
+- **Verified against the live model:** the judge rubric, 4/4 exact on items previously rated 2.
+- **Verified deterministically:** the design gate, eight unit tests using the real failing equations
+  from earlier runs.
+- **NOT verified:** whether Mistral actually produces clean equations when asked this way. The one
+  paid attempt died on `ExpiredTokenException` - the AWS login session lapsed mid-session, and only
+  an interactive `aws login` restores it. **The design stage's model-facing half is unmeasured.**
+
+### Recorded, not fixed
+
+- `test_preflight_fails_when_the_two_solvers_are_one_model` fails on any dev database holding the
+  approved bank: at seed offset 0 three planned ids collide with real approved templates. It passes
+  in CI's clean database and fails on `main` too, so it is pre-existing and environment-dependent,
+  not caused by this work.
+- `answer_text_leaked` still fires when the answer coincides with a quantity given in the stem
+  ("4-pack" vs an answer of 4). Third instance of this check destroying a correct item. The
+  principled fix - do not flag a value the stem already shows the student - is a product judgement
+  about whether such an item is good in the first place, so it is left for a decision rather than
+  taken unilaterally.
+
+### D-200 follow-up — the design stage must be told the skill, not only the tier
+
+Measured on the first production run of D-200: `linear_both_sides` and `linear_distribute`, both at
+tier 5, were handed the **identical** equation `Eq(3*(x + 4) + 10, 34)`. Both slots had been told
+only "tier 5 = distribution is required", and neither had been told which skill it was authoring
+for - so the both-sides slot got an equation with the variable on one side, which is the one thing
+that skill is defined by. `linear_both_sides` at tier 3 had the same problem.
+
+The tier anchors alone made this worse than before: previously the author at least saw `skill_name`
+and could ignore it; now a wrong-shaped equation arrived pre-verified and the author was told to
+build around it exactly.
+
+**Fix:** `SKILL_STRUCTURES` names the structural requirement of each authorable skill, and the design
+payload carries it *ahead of* the tier anchor with an explicit precedence rule - the skill fixes the
+shape, the tier says how demanding the numbers inside it should be, and the skill wins when they
+disagree. D-186 authors a skill at its native tier ±1, so the two genuinely can disagree by design.
+
+A test asserts every skill in `TOPIC_SKILL_DIFFICULTIES` has a structure, so adding an authorable
+skill without one fails rather than silently falling back to the tier.
+
+**Verified against the live model:** `linear_both_sides` now returns `20 + 15w = 120 - 5w` at tier 5
+and `3x + 12 = 5x - 8` at tier 3 - variable on both sides in each, both solving to whole numbers.
+
+### What the first D-200 production run measured
+
+Same 11 slots as D-197, 42.56¢ (D-197: 42.88¢ - the design stage paid for itself).
+
+| stage | D-197 | D-200 |
+|---|---|---|
+| **difficulty** | **2** | **0** |
+| validation | 4 | 2 |
+| design | - | 0 |
+| solver | 1 | 2 |
+| judge | 0 | 2 |
+| generator | 1 | 2 |
+| accepted | 3 | 3 |
+
+- **The answer≠equation defect is gone.** Not one occurrence, where it had been roughly half of all
+  rejections. Every designed equation solved to a whole number: 21, 12, 7, 4, 18.
+- **The judge rubric works in production.** A tier-4 item was rated **4** and passed the difficulty
+  gate, then failed for a real reason (ambiguity, internal inconsistency). Difficulty rejections
+  went 2 → 0.
+- **The defects moved later, not away.** Solver and judge rejections rose as validation fell -
+  with the arithmetic guaranteed, what remains is whether the *story* encodes the equation, which
+  is precisely what the solver panel exists to check. This is the predicted cost of designing the
+  equation first, and it is contained rather than unnoticed (the D-192 failure mode was that
+  nothing checked it at all).
+- **Still 3 of 11 accepted, all tier 1-2.** The headline did not move. What moved is *why* items
+  fail, from "the mathematics is wrong" to "the writing does not match the mathematics" and "our
+  own gate misfires".
+- **`answer_text_leaked` is now the largest single defect** (2 of 8 rejections): the answer 4 and
+  the `+ 4` inside `Eq(3*(x + 4) + 10, 34)` are the same character. Fourth instance of this check
+  destroying a correct item, and still awaiting a product decision.
+- **Mistral returned no `tool_use` block on 2 of 11 slots**, and 3 times consecutively in a
+  follow-up probe. Intermittent, not prompt-related (the same prompt succeeds), and the gateway's
+  bounded retry is what absorbs it.
+
+## D-201 — an answer that coincides with a given quantity is not a leak (accepted, 2026-08-06)
+
+`answer_text_leaked` destroyed **four correct items** across this session's runs. It cannot tell
+"the answer is 4" from "he buys a 4-pack" - they are the same characters - so no amount of regex
+work fixes it:
+
+| item | answer | what the check matched |
+|---|---|---|
+| juice boxes, `Eq(3 + 4*t, 19)` | 4 | the "4-pack" in its own stem |
+| two tier-5 items, `Eq(3*(x + 4) + 10, 34)` | 4 | the `+ 4` inside their own equation |
+| park run, `Eq(1.2 - 0.1*m, 0.8 - 0.05*m)` | 8 | the "8" in "0.8 km" (D-196, fixed separately) |
+
+**Product decision (user, 2026-08-06):** an item whose answer coincides with one of its given
+quantities is a normal item, not a defect.
+
+**Rule:** a hint may repeat a value the question already shows the student. They are holding that
+number already; repeating it hands over nothing. `answer_leaked_beyond_the_question` checks the hint
+against the answer *and* the answer against the stem+context, and only fails when the value is new.
+
+**What this deliberately does not weaken.** `leak_phrase_present` still catches an explicit
+"the answer is 4" anywhere, checked separately and unconditionally - the exemption cannot be used to
+announce the answer. What remains uncaught is a hint naming a value that is both the answer and a
+given without saying which; that is ambiguous to a human reader too, and the hint-quality judge sees
+the whole ladder.
+
+`question_text` is stem + context block and **never the options** - the correct option's text *is*
+the answer, so passing them would disable the check entirely.
+
+**Applied to the runtime path too**, not only authoring. `tutor.py` ran the same primitive against
+personalised hints and had `TutorContext.question` available all along, so the same false positive
+was silently discarding good personalised hints - falling back to canonical content - for any
+question whose answer coincided with one of its givens. Fixing only the gate that had visible
+evidence would have left the serving path quietly degraded.
+
+### A correction to an earlier claim in this session
+
+`test_preflight_fails_when_the_two_solvers_are_one_model` was reported as a pre-existing
+environment-dependent failure because it fails on `main`. It does - but **because of data this
+session created**: the test hardcoded `seed_offset=810_000`, and the D-198 comparison run picked
+exactly that offset and consumed the ids. The test was fragile (any real run could take its range)
+and a real run did. It now uses a reserved offset, `990_000_000`, that no authoring run would
+choose. The earlier "pre-existing, not mine" reading was wrong.
 ## D-199 — a circuit-breaker refusal is not a verdict on a question (accepted, 2026-08-06)
 
 Deferred as a carry-over in D-195, prioritised when it misdirected a live diagnosis.
@@ -13723,3 +13919,223 @@ substring, and that is not a distinction worth resting on a message.
   Mistral reports truncation that way, D-115's `truncated` flag cannot see it and the gateway will
   spend a repair retry on a fragment. Not confirmed - one observation, and the two later calls came
   in well under - but worth a look before raising the ceiling.
+
+## D-202 — the deterministic gate is gone, and the solver became a tool (accepted, 2026-08-06)
+
+Three changes the user directed, and one measured consequence that changes the model roster.
+
+### 1. `validate_authored_item` is no longer in the generation pipeline
+
+Removed from `_attempt_authored_candidate`. The function survives - `test_authored_bank.py` still
+runs it over the approved YAML, which is a different job: guarding a hand-editable file, not gating
+a model.
+
+**Recorded plainly, because it is a real reduction in coverage.** The solvers see only stem and
+options. Nothing mechanical now checks hint-ladder length, hint monotonicity, whether the worked
+solution agrees with the answer key, disallowed wording, or sentence length. Measured against this
+session's evidence, **21 of 42 gate failures were things only the gate could catch**, including a
+`canonical_solution.final_answer '50 cups'` disagreeing with a correct option of `'38 cups'` - the
+worked solution a student sees after answering, contradicting the key. The judge is asked about all
+of it and reads the hints and the answer, but it is a model reading prose, not a rule. If items
+start reaching review with four hints or a contradictory solution, this is why.
+
+### 2. Answer leakage moved from a regex to the judge
+
+`answer_text_leaked` could not tell "the answer is 4" from "he buys a 4-pack" - the same characters -
+and destroyed four correct items. `QuestionJudgeResponse` gains `hint_reveals_answer` and
+`hint_reveals_answer_reason`, and the prompt asks about *function*: does a hint give the student the
+answer, or merely repeat a number already printed in the question? That distinction is trivial for a
+reader and impossible for a rule, which is the whole argument for moving it.
+
+### 3. SymPy became a tool the author can call while writing
+
+`SOLVE_EQUATION_TOOL` + `execute_pipeline_tool` expose the same `derive_answer` the gate used to run
+*after* generation. `AnthropicBedrockProvider.raw_generate` now runs a bounded Converse loop when
+tools are passed: the model may call a tool, we execute it in-process, and it continues, until it
+emits the structured result or `max_tool_rounds` is reached and `emit_result` is forced.
+
+Threading this through cost one design decision. Widening the shared `BedrockGateway` Protocol broke
+**112** call sites - every scripted test double - so the Protocol stays as narrow as it was and tools
+are forwarded only when a caller asks for them, via `**extra`. One `type: ignore`-free kwargs splat
+against 112 edits to fakes that will never use tools.
+
+### The measured consequence: Mistral Large 3 cannot use tools
+
+With `toolChoice: {"auto": {}}`, Mistral Large 3 does not emit a `toolUse` block at all. It emits
+**plain text** beginning `emit_result{"hint_ladder": [...`, writing the tool call as prose. The whole
+pipeline has worked to date only because the original code forced `toolChoice: {"tool": ...}`, which
+needs no tool-use ability whatsoever.
+
+Claude Haiku 4.5, on the same prompt and schema, called the calculator **11 times** in one authoring
+call - and not only to check its answer:
+
+```
+solve('Eq(12 + 5*t, 27 + 2*t)') -> 5        the answer, verified
+solve('Eq(5*t - 2*t, 27 + 12)') -> 13       a sign mistake -> became option b
+solve('Eq(5*t + 2*t, 27 + 12)') -> 39/7     a fraction, so discarded
+solve('Eq(27 - 12, 0)')         -> error    tried a malformed equation and was told
+```
+
+It derived its distractors from mistakes it had actually computed, rather than guessing plausible
+wrong numbers. That is what the misconception tags have always claimed and never verifiably had.
+
+**This implies a roster change that is not yet made.** Haiku is currently Solver A, and one model
+cannot both author an item and independently solve it. A configuration where the calculator is
+usable would be roughly: author Haiku, solver A Qwen3-32B, solver B (untested - Mistral or Nova 2
+Lite), judge GPT-OSS 120B. Solver B needs a contract test before that is more than a suggestion, and
+`--design-attempts` may become redundant once the author can verify its own arithmetic inline.
+
+**Cost note:** tool use resends the conversation each round, so input tokens rose to ~24.7k for one
+authoring call against ~3.2k without. Input is the cheap direction, but the ratio is worth measuring
+before turning this on for a full run.
+
+## D-203 — prompt caching, because the tool loop resends everything (accepted, 2026-08-06)
+
+D-202's tool loop is a Converse conversation, and Converse resends the whole conversation every
+round. One authoring call went from ~3.2k input tokens to ~24.7k. The prefix being resent is
+identical each time, which is exactly what prompt caching is for.
+
+**Two cache points, at the two prefixes that actually repeat:**
+
+- **after `system`** - identical for every candidate in a run, so an 11-slot batch writes it once
+  and reads it ten times;
+- **after the first user message** - identical for every round of one candidate's tool loop, which
+  is where the loop's cost lives.
+
+**Measured on Haiku 4.5**, same call three ways:
+
+```
+no cache      in=4188   cacheWrite=0      cacheRead=0
+first call    in=3      cacheWrite=4185   cacheRead=0
+later call    in=3      cacheWrite=0      cacheRead=4185
+```
+
+A cache read bills at roughly a tenth of normal input. Across three consecutive tool-using
+authoring calls: **53,673 raw input tokens became ~26,682 effective - a 50% saving**, and one
+candidate that hit a warm cache saved 80%. The ratio improves with batch size, since a run writes
+the shared prefix once and reads it for every remaining candidate.
+
+**Gated by model family, not probed.** An unsupported `cachePoint` is a `ValidationException` - a
+failed paid call - and a prefix check tells us the same thing for free. `_supports_prompt_caching`
+lists only what was measured on this account (`anthropic.`), so Mistral, Qwen and GPT-OSS are left
+exactly as they were. A test pins that list.
+
+**Cache tokens are carried separately** on `RawGeneration` rather than folded into `input_tokens`.
+They bill at different rates in both directions - a read is cheaper, a write dearer - so collapsing
+them would make a cached run look wrong either way. Nothing costs off them yet; they exist so the
+saving is measurable rather than assumed.
+
+**Unrelated observation while measuring:** one Haiku authoring call returned a malformed tool call,
+with `hint_ladder` as a string containing `<parameter name="hint_...` - XML-ish parameter syntax
+leaking into the JSON. The gateway's repair retry is what handles this in the real pipeline; a bare
+provider call has no such protection. Worth knowing that Haiku's structured output is not perfect
+either, on the same shape of failure Mistral shows.
+
+## D-204 — the calculator works, the roster change did not (accepted, 2026-08-06)
+
+Three runs of the same 11 slots, and the honest ordering is not the one I expected.
+
+| roster | accepted | cost | generator failures |
+|---|---|---|---|
+| Mistral author, no cache, no tools | **3 / 11** | 42.56¢ | 2 |
+| Haiku author, cache, calculator | 3 / 11 | 25.05¢ | **6** |
+| Haiku author, cache, no calculator | **1 / 11** | 17.76¢ | **9** |
+
+### What is true
+
+**The calculator genuinely works.** Haiku called it 11 times in one authoring call and used it to
+*derive distractors from mistakes it had actually computed* - `5t - 2t = 27 + 12` gave 13, which
+became option b, while `5t + 2t = 27 + 12` gave 39/7 and was discarded. That is what the
+misconception tags have always claimed and never verifiably had.
+
+**Prompt caching works and is kept.** 4188 billed input tokens became 3 billed + 4185 cache-read;
+across three consecutive calls, 53,673 raw input tokens became ~26,682 effective. Gated to
+`anthropic.` models, which is also why it only helps a roster that uses one.
+
+**But Haiku is a bad author for this schema, with or without tools.** Nine of eleven candidates
+failed as `structured output still invalid after one repair retry` on the plain forced-tool path -
+worse than the six failures it had *with* the calculator, and far worse than Mistral's two. The
+tool loop was never the cause; a 15-field forced schema is.
+
+So the two models are near-opposites: **Mistral emits this schema reliably and cannot use tools at
+all** (it writes `emit_result{...}` as plain text under `toolChoice: auto`); **Haiku uses tools
+well and emits this schema badly.**
+
+### The mistake, recorded
+
+I changed the roster on one good signal - Haiku's tool use - without checking the property the role
+actually depends on, which is reliable structured output. Two paid runs and two failed attempts to
+patch the emit path followed. The second patch was worse than the first (1 of 5, then 0 of 5), and
+the last one violated a Converse rule outright: a `toolUse` must be followed by a matching
+`toolResult`, so appending a plain text nudge after an emit attempt is invalid.
+
+**Reverted:** the calculator is not passed to the authoring call, and the recommended author is
+Mistral Large 3 again. The tool machinery, its tests and the caching stay - they are correct, and
+one of them is measurably valuable.
+
+### Where the calculator should go instead
+
+The pattern across every probe was schema size: the one call that succeeded made a single tool call,
+and every failure made 4 to 11 - more tool rounds, longer conversation, worse emission of a large
+object. The design stage's `EquationDesignResponse` has **six** fields against the authoring model's
+fifteen, and it is exactly the stage whose job is arithmetic.
+
+That is the next experiment - author stays Mistral on a forced single call, and the *design* stage
+gets the calculator and the cache, on a model that can use both. It is untested, and stated here as
+the next thing to try rather than as a claim.
+
+## D-205 — split the design model from the author, and the yield doubled (accepted, 2026-08-06)
+
+D-204 found the two models were near-opposites: Mistral emits the fifteen-field authoring schema
+reliably and cannot use tools at all; Haiku uses tools well and fails that schema 9 times in 11. The
+mistake was treating "author" as one role. It is two, and they want opposite things.
+
+`BedrockTask.EQUATION_DESIGN` splits them. The design stage is a **six**-field schema whose entire
+job is arithmetic, so it gets the calculator *and* a model that can use one; authoring stays a
+single forced call on the model that emits its schema reliably.
+
+**Probed before running, this time.** Haiku on the design schema with the calculator: **6 of 6 valid,
+6 of 6 passing the deterministic solver**, and each structure correct for its skill -
+`10 + 3m = 22 + m` for both-sides, `4(n + 3) + 8 = 44` for distribution, `40 - 4x = 8` for a negative
+coefficient.
+
+### Result: 7 of 11, from 3
+
+```
+design model: us.anthropic.claude-haiku-4-5 (+calculator)
+generator:    mistral.mistral-large-3-675b-instruct
+solver A:     qwen.qwen3-32b-v1:0      solver B: mistral.mistral-large-3-675b-instruct
+judge:        openai.gpt-oss-120b-1:0
+
+7 accepted of 11 processed (64%), 83.24 cents
+  rejected: generator=0 design=0 validation=0 dedup=0 solver=3 judge=1 difficulty=0
+```
+
+| run | accepted | generator failures |
+|---|---|---|
+| Mistral author, one role | 3 / 11 | 2 |
+| Haiku author + calculator | 3 / 11 | 6 |
+| Haiku author, no calculator | 1 / 11 | 9 |
+| **split: Haiku designs, Mistral authors** | **7 / 11** | **0** |
+
+**generator=0 and design=0.** Every candidate that was designed was authored, and every one that
+was authored had a verified equation behind it.
+
+**And tier 3, 4 and 5 all passed for the first time** in seven runs - `Eq(5x - 12, 3x + 4)`,
+`Eq(24 + 3m, 6 + 5m)`, `Eq(60 - 3m, 2m)`, `Eq(3(x + 5) + 2x, 35)`. D-200's judge rubric made those
+tiers reachable; this made them producible.
+
+### Verified by hand, because the gate is gone
+
+D-202 removed `validate_authored_item` from the pipeline, so the accepted set was re-checked
+independently: SymPy solve of each stored equation against the declared answer and the correct
+option's text, option uniqueness, and hint-ladder length. **7 of 7 pass all three.** Removing the
+gate did not let a defective item through in this run - which is evidence for one run, not a proof,
+and the checks it used to do still have no mechanical owner.
+
+### Cost went up, and that is the honest trade
+
+83.24¢ against 42.56¢. Two reasons, both structural: seven candidates now reach every stage and get
+persisted where three did before, and the design stage runs a tool loop. Per *accepted* item the
+direction reverses - **11.9¢ against 14.2¢** - which is the number that matters if the goal is
+questions rather than attempts.

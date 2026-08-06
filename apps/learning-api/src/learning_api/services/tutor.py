@@ -21,7 +21,7 @@ this module).
 import logging
 
 from intellichoice_curriculum.authored_validation import (
-    answer_text_leaked,
+    answer_leaked_beyond_the_question,
     leak_phrase_present,
 )
 from intellichoice_shared.bedrock import (
@@ -237,8 +237,14 @@ async def generate_personalized_hint(
     if response.answer_revealed:
         logger.warning("hint personalization set answer_revealed; using canonical content")
         return _canonical_as_response(canonical_hint_text), result.cost_cents, False
-    if leak_phrase_present(response.hint_text) or answer_text_leaked(
-        response.hint_text, correct_answer_text
+    # Same rule as the authoring gate (D-201): a value the question already shows the
+    # student is not leaked by a hint repeating it. Without this the runtime suppresses a
+    # perfectly good personalised hint - and falls back to the canonical one - for any
+    # question whose answer coincides with one of its own given quantities.
+    if leak_phrase_present(response.hint_text) or answer_leaked_beyond_the_question(
+        hint_text=response.hint_text,
+        correct_answer_text=correct_answer_text,
+        question_text=context.question,
     ):
         logger.warning("hint personalization leaked the answer; using canonical content")
         return _canonical_as_response(canonical_hint_text), result.cost_cents, False

@@ -42,6 +42,12 @@ class BedrockTask(StrEnum):
     QUESTION_GENERATION = "question_generation"
     QUESTION_REVIEW = "question_review"
     AUTHORED_QUESTION_GENERATION = "authored_question_generation"
+    # D-205: its own task so the stage that *designs* the mathematics can run on a
+    # different model from the one that writes the item up. Measured reason: the two jobs
+    # want opposite things. Design is a six-field schema and wants a model that can call a
+    # calculator; authoring is a fifteen-field forced schema and wants a model that emits
+    # it reliably, and on this account no single model is good at both.
+    EQUATION_DESIGN = "equation_design"
     QUESTION_JUDGE = "question_judge"
     PARENT_REPORT = "parent_report"
     RAG_ANSWER = "rag_answer"
@@ -372,6 +378,44 @@ class AlignmentReviewResponse(BaseModel):
 # simplification for this mode, not a schema this session reuses from S9.
 
 
+class EquationDesignPayload(BaseModel):
+    """Input to the equation-design stage (D-200) - the cheap call that fixes the numbers
+    before anything expensive is written around them.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    topic_name: str
+    skill_name: str
+    grade_band: str
+    target_difficulty: int
+    difficulty_anchor: str
+    previous_attempts: list[str] = []
+
+
+class EquationDesignResponse(BaseModel):
+    """The mathematical skeleton of an item, before it is written up.
+
+    Deliberately small. It exists so the *deterministic* check that has been catching the
+    commonest defect - a declared answer the item's own equation does not produce - can run
+    on a ~150-token call instead of after a ~2500-token one (D-200).
+
+    `scenario_sketch` is here, rather than the equation alone, because D-192 generated an
+    equation and then had a story written to dress it, and nothing verified that the story
+    encoded that equation. Asking for both together keeps them coupled from the start; the
+    D-193 solver panel, which did not exist then, is what verifies the coupling later.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    reasoning: str
+    scenario_sketch: str
+    unknown_meaning: str
+    equation: str
+    final_answer: str
+    answer_units: str | None = None
+
+
 class RepairContext(BaseModel):
     """One prior rejected attempt, handed back to the Generator so it can fix the item
     rather than re-roll a fresh one (D-198).
@@ -422,6 +466,10 @@ class AuthoredGeneratorPayload(BaseModel):
     # type: the repair call is the same task with one more input, and a second schema would
     # mean a second prompt drifting away from this one.
     repair: RepairContext | None = None
+    # A skeleton that has already passed the deterministic solver (D-200). When present the
+    # author must build the item around it rather than inventing its own numbers - that is
+    # what removes the commonest defect, an answer the item's own equation does not produce.
+    verified_design: EquationDesignResponse | None = None
 
 
 class AuthoredGeneratedItemResponse(BaseModel):
@@ -553,6 +601,13 @@ class QuestionJudgeResponse(BaseModel):
     # `model_json_schema()`), and an out-of-range score now fails validation into the
     # repair retry and then rejection, which is the fail-closed direction (SPEC §5.25.3).
     hint_quality_score: int = Field(ge=1, le=5)
+    # D-202. This was a regex (`answer_text_leaked`) and a regex cannot do it: it cannot
+    # tell "the answer is 4" from "he buys a 4-pack", because they are the same characters.
+    # It destroyed four correct items before being replaced. A reader can tell instantly,
+    # so the judge is asked instead - it already has the hints and the answer in front of
+    # it, and it is the only reviewer that reads both.
+    hint_reveals_answer: bool = False
+    hint_reveals_answer_reason: str = ""
 
 
 # --- SPEC §5.19 Q&A graph, §5.21.7-5.21.8 (S13) ------------------------------------

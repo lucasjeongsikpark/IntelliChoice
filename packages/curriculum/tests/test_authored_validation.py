@@ -4,6 +4,7 @@ Postgres needed, unlike `test_authored_pipeline.py`'s end-to-end tests.
 
 import pytest
 from intellichoice_curriculum.authored_validation import (
+    answer_leaked_beyond_the_question,
     answer_text_leaked,
     validate_authored_item,
 )
@@ -481,4 +482,85 @@ def test_the_repeat_pilots_correct_item_now_survives_the_gate() -> None:
         ),
     )
     result = validate_authored_item(3, item)
+    assert result.passed, result.failures
+
+
+# --- D-201: an answer that coincides with a given quantity is not a leak ---------------
+# Four correct items were destroyed by this before the rule existed. `answer_text_leaked`
+# cannot tell "the answer is 4" from "he buys a 4-pack" - they are the same characters -
+# so the rule is about what the student can already see.
+
+
+def test_a_hint_repeating_a_number_the_stem_already_shows_is_not_a_leak() -> None:
+    # The real juice-box item: Eq(3 + 4*t, 19) -> t = 4, and the stem says "4-pack".
+    assert not answer_leaked_beyond_the_question(
+        hint_text="Leo starts with 3 and adds 4 every trip, so after t trips he has 3 + 4t.",
+        correct_answer_text="4",
+        question_text="Leo has 3 juice boxes. He buys a 4-pack every trip. He wants 19 in total.",
+    )
+
+
+def test_a_hint_stating_an_answer_the_question_never_shows_is_still_a_leak() -> None:
+    assert answer_leaked_beyond_the_question(
+        hint_text="After working it through you will find it takes 7 weeks.",
+        correct_answer_text="7",
+        question_text="Mia has $18 and saves $6 each week. The bike costs $60.",
+    )
+
+
+def test_the_explicit_phrase_check_is_not_weakened_by_the_exemption() -> None:
+    # "the answer is 4" must still fail even though 4 is a given - the exemption is about
+    # repeating a visible value, never about being allowed to announce the answer.
+    result = validate_authored_item(
+        1,
+        _good_item(
+            stem="Liam buys a 4-pack of pens. What is 2 + 2?",
+            hint_ladder=[
+                "Think about combining two small groups.",
+                "Try counting up from 2 by 2 more.",
+                "The answer is 4, so pick that option.",
+            ],
+        ),
+    )
+    assert not result.passed
+    assert any("explicit answer-leak phrase" in f for f in result.failures)
+
+
+def test_the_real_item_this_gate_destroyed_now_passes() -> None:
+    """`Eq(3*(x + 4) + 10, 34)` solves to 4, and the `+ 4` is inside its own equation.
+
+    Two tier-5 candidates were rejected for this in one run - the fourth and fifth items
+    lost to a check firing on a number the student is already looking at.
+    """
+    item = _good_item(
+        stem="A club packs 3 boxes, each holding x badges plus 4 stickers, and adds 10 "
+        "loose badges. Altogether there are 34 items. How many badges are in each box?",
+        option_a="4",
+        option_b="6",
+        option_c="8",
+        option_d="12",
+        correct_option="a",
+        equation="Eq(3*(x + 4) + 10, 34)",
+        hint_ladder=[
+            "How many items are in one box, if a box holds x badges?",
+            "Each box holds x + 4 items, and there are 3 boxes plus 10 loose badges.",
+            "Multiply out the bracket first, then gather the x terms.",
+        ],
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Distribute, then collect like terms.",
+                    expression="3*(x + 4) + 10 = 34",
+                )
+            ],
+            final_answer="4",
+        ),
+        proposed_difficulty=5,
+        difficulty_rationale=(
+            "A bracket must be distributed before like terms can be combined, and the "
+            "student must first decide that a box holds x + 4 items rather than x."
+        ),
+    )
+    result = validate_authored_item(5, item)
     assert result.passed, result.failures

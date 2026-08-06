@@ -5,6 +5,111 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **✅ D-205: split the design model from the author — 7 of 11 (2026-08-06).**
+  `ruff` clean, `pyright` 0, **1002 passed / 2 skipped**. 83.24¢.
+  - **"Author" was two roles.** Design is a 6-field schema whose job is arithmetic → gets the
+    calculator and a model that can use one (Haiku). Authoring is a 15-field forced schema → stays
+    on the model that emits it reliably (Mistral). New `BedrockTask.EQUATION_DESIGN`.
+  - **Probed before running this time:** 6/6 valid, 6/6 passing the solver, structures correct
+    per skill.
+  - **7 accepted of 11 (64%)**, up from 3/11. `generator=0 design=0 validation=0` — every designed
+    candidate was authored, every authored one had a verified equation.
+  - **tier 3, 4 and 5 all passed for the first time** in seven runs.
+  - **Re-checked by hand** (the gate is gone): 7/7 pass an independent SymPy solve, option
+    uniqueness and hint-count check.
+  - **Cost per accepted item fell** — 11.9¢ vs 14.2¢ — even though the run cost more.
+
+- **⏸ D-204: the calculator works, the roster change did not (2026-08-06).**
+  `ruff` clean, `pyright` 0, **1002 passed / 2 skipped**. Three 11-slot runs, ~86¢ total.
+  - **Mistral author 3/11 @ 42.56¢ · Haiku+cache+calculator 3/11 @ 25.05¢ · Haiku+cache alone
+    1/11 @ 17.76¢.** Haiku failed 9 of 11 on `structured output still invalid` *without* tools —
+    so the tool loop was never the cause; a 15-field forced schema is.
+  - **The two models are near-opposites.** Mistral emits this schema reliably and cannot use tools
+    at all; Haiku uses tools well (11 calculator calls, distractors derived from computed mistakes)
+    and emits this schema badly.
+  - **My mistake:** changed the roster on one good signal without checking the property the role
+    depends on. Two paid runs and two failed patches followed; the second violated Converse's rule
+    that a `toolUse` must be followed by a `toolResult`.
+  - **Reverted** to Mistral as author, calculator off. Tool machinery, tests and caching kept.
+  - **Next:** give the calculator to the *design* stage instead — six fields against fifteen, and
+    arithmetic is its job. Untested.
+
+- **⏸ D-203: prompt caching for the tool loop (2026-08-06).** `ruff` clean, `pyright` 0,
+  **1002 passed / 2 skipped**.
+  - D-202's tool loop resends the whole conversation each round (~3.2k → ~24.7k input tokens per
+    call). Two cache points — after `system` (shared across every candidate in a run) and after the
+    first user message (shared across a candidate's tool rounds).
+  - **Measured on Haiku 4.5:** 4188 billed input → 3 billed + 4185 cache-read. Across three
+    consecutive tool-using calls, **53,673 raw input tokens → ~26,682 effective, a 50% saving**;
+    one warm-cache candidate saved 80%. Improves with batch size.
+  - **Gated by model family, not probed** — an unsupported `cachePoint` is a failed paid call, and
+    a prefix check is free. Only `anthropic.` is enabled, pinned by a test.
+  - **Carry-over:** cache tokens are recorded but not yet priced; the rate table is still a
+    placeholder.
+
+- **⏸ D-202: the deterministic gate removed, SymPy became a tool (2026-08-06).**
+  `ruff` clean, `pyright` 0, **1001 passed / 2 skipped**. Branch `d200-judge-rubric-and-verified-equation`.
+  - **`validate_authored_item` is out of the pipeline** (user's call). It still guards the approved
+    YAML file. **Coverage genuinely lost:** 21 of 42 gate failures this session were gate-only —
+    hint-ladder length, hint monotonicity, solution-vs-key agreement, wording safety, sentence
+    length. The judge is asked about all of it but is prose, not a rule.
+  - **Leak detection moved to the judge** (`hint_reveals_answer`) — a regex cannot tell "the answer
+    is 4" from "a 4-pack"; a reader can.
+  - **SymPy is now a tool the author calls while writing**, via a bounded Converse tool loop in the
+    provider. Shared Protocol left narrow so 112 test doubles were untouched.
+  - **⚠️ Mistral Large 3 cannot use tools.** With `toolChoice: auto` it writes `emit_result{...}` as
+    plain text. The pipeline only ever worked because tool choice was forced.
+  - **✅ Haiku 4.5 can** — 11 calculator calls in one authoring call, deriving distractors from
+    mistakes it actually computed (`5t − 2t = 27 + 12` → 13 → option b).
+  - **Carry-over — roster change needed:** Haiku is currently Solver A and cannot both author and
+    independently solve. Needs author=Haiku, solver A=Qwen, solver B=untested, judge=GPT-OSS.
+  - **Carry-over:** tool use raised input tokens ~3.2k → ~24.7k per authoring call. Measure before
+    enabling for a full run.
+
+- **⏸ D-201: an answer that coincides with a given quantity is not a leak (2026-08-06).**
+  `ruff` clean, `pyright` 0, **1001 passed / 2 skipped** — fully green.
+  - `answer_text_leaked` destroyed **four correct items** this session. It cannot distinguish
+    "the answer is 4" from "a 4-pack" — same characters — so the rule is now about what the
+    student can already see: a hint may repeat a value the stem or context already shows.
+  - **Product call (user):** an item whose answer equals one of its givens is a normal item.
+  - **Not weakened:** `leak_phrase_present` still catches an explicit "the answer is 4",
+    unconditionally. `question_text` excludes the options, whose correct entry *is* the answer.
+  - **Applied to the runtime hint path too** (`tutor.py`), which had `TutorContext.question`
+    available and was silently discarding good personalised hints for the same reason.
+  - **Correction:** `test_preflight_fails_when_the_two_solvers_are_one_model` was reported as
+    pre-existing. It failed because the **D-198 run consumed the `seed_offset=810_000` the test
+    hardcoded**. Now uses a reserved offset. The earlier "not mine" reading was wrong.
+
+- **⏸ D-200: the judge had no scale, and the numbers were chosen too late (2026-08-06).**
+  `ruff` clean, `pyright` 0, **995 passed / 2 skipped**. Branch `d200-judge-rubric-and-verified-equation`.
+  - **The difficulty gate was measuring a constant.** `reviewed_difficulty` was 2 in **15 of 17**
+    items across six runs, so tier 4 (`|4-2|=2`) and tier 5 (`|5-2|=3`) were rejected by
+    arithmetic regardless of quality. The judge was told to use 1-5 and never told what the
+    numbers mean.
+  - **Fixed with anchored tiers, shared by the judge and the new design stage** so the number
+    built and the number rated are on one scale. Measured on items previously rated 2:
+    one-step→1, two-step→2, both-sides→4, distribution→5. **4/4 exact.**
+  - **An equation-design stage now fixes the numbers before authoring.** ~150-token call,
+    deterministic solve, must be a positive whole number, cheap retries. The same check was
+    already rejecting ~half of candidates but only after a ~2500-token call had been paid for.
+  - **Not D-192 returning:** sketch and equation are produced together, and the D-193 solver panel
+    (absent then) verifies story→equation afterwards.
+  - **✅ Now verified in production** (11 slots, 42.56¢ vs D-197's 42.88¢): **zero** answer≠equation
+    rejections, where that had been ~half of all failures. Every designed equation solved to a whole
+    number. Difficulty rejections **2 → 0**; a tier-4 item was rated 4 by the judge and passed the
+    gate for the first time.
+  - **Regression found and fixed in the same run:** the design stage was told the tier but not the
+    skill, so `linear_both_sides` and `linear_distribute` at tier 5 got the *identical* equation.
+    `SKILL_STRUCTURES` now fixes the shape per skill with the tier modulating difficulty within it;
+    verified live (`20 + 15w = 120 - 5w` for both-sides tier 5).
+  - **Still 3 of 11, all tier 1-2.** The headline did not move; *why* items fail did — from "the
+    mathematics is wrong" to "the writing does not match the mathematics".
+  - **Carry-over:** `answer_text_leaked` still flags an answer that coincides with a given quantity
+    ("4-pack" vs answer 4) — third correct item destroyed. Fix needs a product call.
+  - **Carry-over:** `test_preflight_fails_when_the_two_solvers_are_one_model` fails on any dev DB
+    holding the approved bank (3 id collisions at seed offset 0). Pre-existing, fails on `main`,
+    passes in CI.
+
 - **⏸ D-198: rejection-driven repair loop (2026-08-06).** `ruff` clean, `pyright` 0,
   **989 passed / 2 skipped** — up 12. **Nothing spent**; no paid run exercised it.
   Branch `d198-rejection-repair-loop`.
