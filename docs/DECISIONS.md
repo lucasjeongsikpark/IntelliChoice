@@ -13436,3 +13436,75 @@ designed on something no deterministic rule could see.
 **The snapshot is what made all of this readable.** Every judgement above was made from
 `make question-review-rejected` output, on candidates that under the previous code would have left
 nothing but a reason string.
+
+## D-196 §2 — the solvers and the judge were reading half the question (accepted, 2026-08-06)
+
+The second repeat (fresh seed offset `410000`, same models, 14.47¢) produced the **first accepted
+candidates this pipeline has ever generated from a paid run: 2 of 4.** The `answer_text_leaked` fix
+is what unblocked it. Both accepted items were verified by hand:
+
+| id | equation | solves to | declared | check |
+|---|---|---|---|---|
+| `d3-415300` | `Eq(20 + 5*d, 32 + 3*d)` | d = 6 | d) 6 | at d=6 both read 50 pages ✓ |
+| `d3-415301` | `Eq(120 - 5*w, 5*w)` | w = 12 | c) 12 | at w=12 both hold 60 cards ✓ |
+
+Both are `pending`, `review_priority=high`, `difficulty_confidence=0.5`. **Neither was approved.**
+
+### The defect
+
+Candidate `d4-415401` was rejected on solver disagreement and is **correct**:
+`Eq(50 + 3*t, 30 + 5*t)` → t = 10, declared b) 10. Its stem is:
+
+> After how many hours will both barrels contain the same amount of water?
+
+Every number — 50 L, 3 L/hour, 30 L, 5 L/hour — is in its `context_block`. And the pipeline sent
+**`item.stem` alone** to both solvers and the judge, while serving `context_block + stem` to the
+student:
+
+```python
+rendered_question = f"{item.context_block}\n\n{item.stem}" if item.context_block else item.stem
+...
+solver_payload = SolverPayload(rendered_question=item.stem, ...)   # <- the wrong variable
+judge_payload  = QuestionJudgePayload(rendered_question=item.stem, ...)
+```
+
+The correct value was computed forty lines earlier, named for exactly this, and not used. Solver A
+reported *"the problem statement is incomplete ... I cannot solve this problem mathematically"* and
+was **right about what it had been shown**. The shape pipeline passes `variant.rendered_question`
+at every equivalent call site; this was authored-mode only.
+
+**The judge half is the more serious one.** The judge is the gate that clears content for a student
+on ambiguity, alignment and age-appropriateness. Judging the stem alone means those verdicts were
+reached about text that is not what gets served — an item could be cleared on a fragment and then
+served with a context block the judge never read. That is a hole in the approval path, not just a
+false-rejection nuisance.
+
+**Fix:** pass `rendered_question` at both call sites. The test drives the real barrel item through
+and asserts both payloads contain "50 litres"; it fails against the previous code.
+
+**Probably explains an earlier "model failure".** The first pilot's candidate 4 (Javier and Elena,
+rejected because both solvers said the stem lacked starting amounts and rates) has the same
+signature. Its content was not retained — that run predates D-195 — so this is **likely but
+unproven**, and it is recorded as such.
+
+### The scoreboard, honestly
+
+Three of this session's four "generator failures" across two repeats were **ours**:
+
+| candidate | attributed to | actually |
+|---|---|---|
+| `d3-405301` (park) | model leaked the answer | our decimal-boundary bug — item correct |
+| `d4-415401` (barrels) | model wrote an under-specified stem | our dropped context block — item correct |
+| `d3-405300` (chasing a cyclist) | model | **model** — impossible premise, t = −2 |
+| `d4-415400` (swapping cans) | model | **model** — 8/3 swaps rounded to "2.7" |
+
+**Mistral Large 3 is not the problem it appeared to be.** Its real failure mode is narrow and
+consistent: **coefficients that do not divide evenly in a discrete scenario** — 12/5 games, 8/3
+swaps, and the −2 hours that is the same carelessness about whether an answer can exist. That is one
+addressable prompt weakness, not a model that cannot write questions. The D-195 §5 plan to change
+generator after two 0/4 runs is **withdrawn** — the second run was 2/4, and the generator's true
+error rate was never what the counters said.
+
+**Carry-over, unchanged:** the tier-4 slot still looks miscalibrated (no tier-4 candidate has ever
+survived; both difficulty rejections were `linear_both_sides` at tier 4 with the judge rating 2), and
+nothing checks whether a solution is possible in its own situation.

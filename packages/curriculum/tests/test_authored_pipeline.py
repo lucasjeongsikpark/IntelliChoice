@@ -1949,3 +1949,64 @@ def test_a_pre_d195_rejection_is_not_reported_as_a_generator_failure() -> None:
             assert "predates D-195" in rendered
 
     asyncio.run(run())
+
+
+# --- D-196: the solvers and the judge must see what the student sees ------------------
+
+
+def test_solvers_and_judge_receive_the_context_block_not_just_the_stem() -> None:
+    """Measured on the real barrel item, which was correct and rejected anyway.
+
+    Its stem is "After how many hours will both barrels contain the same amount of water?"
+    and every number - 50 L, 3 L/hour, 30 L, 5 L/hour - lives in the context block. The
+    pipeline sent `item.stem` to the solvers and the judge while serving
+    `context_block + stem` to the student, so Solver A reported "the problem statement is
+    incomplete" and was right about what it had been shown.
+
+    The judge half is the more serious one: it clears content for a student on ambiguity,
+    alignment and age-appropriateness, and it was reaching those verdicts about a fragment
+    of the item that actually gets served.
+    """
+
+    class _RecordingGateway(_ScriptedAuthoredGateway):
+        def __init__(self, **kwargs: object) -> None:
+            super().__init__(**kwargs)  # type: ignore[arg-type]
+            self.seen: dict[str, str] = {}
+
+        async def generate_structured[T: BaseModel](self, **kwargs: object) -> object:
+            payload = kwargs["payload"]
+            if isinstance(payload, SolverPayload | QuestionJudgePayload):
+                self.seen[type(payload).__name__] = payload.rendered_question
+            return await super().generate_structured(**kwargs)  # type: ignore[arg-type]
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _RecordingGateway(
+                item=_good_item(
+                    stem="After how many hours will both barrels hold the same amount?",
+                    context_block=(
+                        "Barrel X holds 50 litres and fills at 3 litres per hour. "
+                        "Barrel Y holds 30 litres and fills at 5 litres per hour."
+                    ),
+                    equation="Eq(x, 2 + 2)",
+                )
+            )
+            await generate_authored_candidate(
+                session=session,
+                gateway=gateway,  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=601001,
+                session_spend_cents=0.0,
+            )
+
+            assert gateway.seen, "neither solver nor judge was called"
+            for payload_name, seen in gateway.seen.items():
+                assert "50 litres" in seen, (
+                    f"{payload_name} was shown a question with no numbers in it - "
+                    f"the context block was dropped"
+                )
+                assert "same amount" in seen, f"{payload_name} lost the stem"
+
+    asyncio.run(run())
