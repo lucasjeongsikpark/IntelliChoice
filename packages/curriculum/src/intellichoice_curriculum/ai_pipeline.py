@@ -54,6 +54,7 @@ from intellichoice_shared.bedrock import (
     BedrockGateway,
     BedrockGatewayError,
     BedrockTask,
+    CircuitOpenError,
     DifficultyReviewPayload,
     DifficultyReviewResponse,
     GeneratedTemplateResponse,
@@ -703,6 +704,13 @@ RejectionStage = Literal[
     # would make the run summary's largest bucket uninterpretable.
     "difficulty",
     "budget",
+    # D-199: the circuit breaker refused the call, so no model ever saw this candidate.
+    # Its own bucket for the same reason "budget" has one - it is a *skip*, not a verdict
+    # on a question. Measured cost of not having it: a run reported `generator=11` when
+    # two candidates had actually been attempted and nine were refused after the breaker
+    # opened, and the run read as "the model cannot produce anything" when it meant "the
+    # model failed twice and the breaker did its job".
+    "circuit_open",
     "unsupported_shape",
 ]
 
@@ -1068,6 +1076,11 @@ async def generate_candidate(
     )
 
 
+# Prefix on the error string a circuit-open generator failure carries, so the one place
+# that classifies the rejection does not have to match on the breaker's wording (D-199).
+_CIRCUIT_OPEN_MARKER = "circuit_open"
+
+
 async def _generate_authored_item(
     gateway: BedrockGateway,
     *,
@@ -1103,6 +1116,11 @@ async def _generate_authored_item(
             max_output_tokens=_AUTHORED_ITEM_MAX_TOKENS,
             session_spend_cents=spend,
         )
+    except CircuitOpenError as exc:
+        # Distinguished from every other gateway failure before it is flattened to a
+        # string: the caller has to tell "we asked and it went wrong" from "we never
+        # asked", and by the time it is a message that distinction is a substring match.
+        return None, exc.cost_cents, f"{_CIRCUIT_OPEN_MARKER}: {exc}", ""
     except BedrockGatewayError as exc:
         return None, exc.cost_cents, str(exc), ""
     return result.value, result.cost_cents, None, result.model_id
@@ -1408,7 +1426,7 @@ async def _attempt_authored_candidate(
                     "provider_error": error,
                 }
             },
-            "generator",
+            "circuit_open" if (error or "").startswith(_CIRCUIT_OPEN_MARKER) else "generator",
         )
     item = shuffle_options(item, seed=seed)  # D-191's position-bias fix.
     snapshot = candidate_snapshot(
