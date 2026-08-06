@@ -3,7 +3,8 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import pytest
-from intellichoice_curriculum.loader import load_curriculum_and_templates
+from intellichoice_curriculum.authored_bank import load_authored_bank
+from intellichoice_curriculum.loader import TEMPLATE_BANKS, load_curriculum_and_templates
 from intellichoice_db.engine import create_engine
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.questions import QuestionRepository
@@ -56,6 +57,17 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _expected_template_count() -> int:
+    """Everything `load_curriculum_and_templates` is responsible for: the hand-authored
+    shape banks plus the approved authored items exported to `curriculum/internal_math/
+    authored/` (D-190). Reads the same sources the loader does, so content changes move
+    both together.
+    """
+    shape = sum(len(templates) for templates in TEMPLATE_BANKS.values())
+    authored = sum(len(templates) for templates in load_authored_bank().values())
+    return shape + authored
+
+
 def test_loading_curriculum_produces_the_expected_final_state() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
@@ -65,7 +77,15 @@ def test_loading_curriculum_produces_the_expected_final_state() -> None:
             # them already loaded (e.g. from a prior `make curriculum-load` run
             # against this same dev DB) depends on prior state - what must always
             # hold is the created+skipped total and the resulting data shape.
-            assert summary.templates_created + summary.templates_skipped_existing == 50
+            #
+            # Derived from the banks rather than written as a literal (D-190). It was 50,
+            # and adding five authored items broke it - the third time in this file that a
+            # count coupled the loader's contract to how much content exists. The loader
+            # promises to load *its banks*; how big they are is content's business.
+            assert (
+                summary.templates_created + summary.templates_skipped_existing
+                == _expected_template_count()
+            )
 
             curriculum_repo = CurriculumRepository(session)
             topic = await curriculum_repo.get_topic("linear_equations")
@@ -95,7 +115,7 @@ def test_loader_is_idempotent() -> None:
             assert second.topics_created == 0
             assert second.skills_created == 0
             assert second.templates_created == 0
-            assert second.templates_skipped_existing == 50
+            assert second.templates_skipped_existing == _expected_template_count()
 
     asyncio.run(run())
 

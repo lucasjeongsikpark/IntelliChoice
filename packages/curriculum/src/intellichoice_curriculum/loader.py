@@ -23,6 +23,13 @@ from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from intellichoice_curriculum.authored_bank import (
+    AUTHORED_MODE,
+    AUTHORED_SOLUTION_FUNCTION,
+    AuthoredTemplateDef,
+    load_authored_bank,
+)
+from intellichoice_curriculum.authored_validation import validate_authored_item
 from intellichoice_curriculum.content import CurriculumContent, load_curriculum
 from intellichoice_curriculum.generation import generate_variant
 from intellichoice_curriculum.templates.linear_equations import LINEAR_EQUATIONS_TEMPLATES
@@ -153,12 +160,105 @@ async def _load_templates(
         summary.variants_created += 1
 
 
+async def _load_authored_templates(
+    session: AsyncSession,
+    curriculum: CurriculumContent,
+    templates: list[AuthoredTemplateDef],
+    summary: LoadSummary,
+) -> None:
+    """Load approved authored items from their versioned file (D-190).
+
+    Two differences from `_load_templates` above, both following from what an authored
+    item *is*. There is no rendering to generate - the content is the artifact, so the
+    canonical variant is written from the file rather than recomputed from a seed. And the
+    validation run is `validate_authored_item`, the same §5.8.5 gate the pipeline applied,
+    because this file is hand-editable YAML that is loaded into every environment
+    including production. A file whose options no longer agree with its answer fails the
+    load rather than reaching a student.
+
+    Skip-by-id, like the shape bank: a re-run is a no-op. **An edit to an item already in
+    a database therefore does not propagate** - same limitation the shape bank has always
+    had, and the reason `review_cli`'s edit-and-rerun mints a new id with a bumped version
+    rather than mutating a row.
+    """
+    repo = QuestionRepository(session)
+
+    for template_def in templates:
+        if await repo.get_template(template_def.question_template_id) is not None:
+            summary.templates_skipped_existing += 1
+            continue
+
+        result = validate_authored_item(
+            template_def.difficulty_label, template_def.to_generated_item()
+        )
+        if not result.passed:
+            raise CurriculumLoadError(
+                f"authored template {template_def.question_template_id} failed validation: "
+                f"{result.failures}"
+            )
+
+        template = await repo.create_template(
+            QuestionTemplate(
+                question_template_id=template_def.question_template_id,
+                curriculum_version=curriculum.curriculum_version,
+                topic_id=template_def.topic_id,
+                skill_id=template_def.skill_id,
+                grade_band=template_def.grade_band,
+                difficulty_label=template_def.difficulty_label,
+                difficulty_confidence=template_def.difficulty_confidence,
+                question_type="multiple_choice",
+                parameter_schema={},
+                solution_function=AUTHORED_SOLUTION_FUNCTION,
+                correct_option_generator=AUTHORED_SOLUTION_FUNCTION,
+                distractor_generators=[],
+                common_error_tags=template_def.common_error_tags,
+                estimated_time_seconds=template_def.estimated_time_seconds,
+                generator_model=template_def.generator_model,
+                review_model_versions=template_def.review_model_versions,
+                validation_status="approved",
+                active_status="active",
+                authoring_mode=AUTHORED_MODE,
+                stem=template_def.stem,
+                context_block=template_def.context_block,
+                answer_expression=template_def.answer_expression,
+                hint_ladder=template_def.hint_ladder,
+                canonical_solution=template_def.canonical_solution,
+                # Not exported - see `authored_bank`'s module docstring. Nothing on the
+                # serving path reads it; authoring environments re-embed.
+                stem_embedding=None,
+                review_priority=template_def.review_priority,
+                version=template_def.version,
+            )
+        )
+        summary.templates_created += 1
+
+        await repo.create_variant(
+            QuestionVariant(
+                # The item's own rendering, which is what `build_variant_row` serves from
+                # (D-189) - an authored template has no shape to render.
+                origin=VARIANT_ORIGIN_CANONICAL,
+                question_template_id=template.question_template_id,
+                random_seed=template_def.random_seed,
+                rendered_question=template_def.rendered_question,
+                option_a=template_def.option_a,
+                option_b=template_def.option_b,
+                option_c=template_def.option_c,
+                option_d=template_def.option_d,
+                correct_option=template_def.correct_option,
+                parameter_values={},
+            )
+        )
+        summary.variants_created += 1
+
+
 async def load_curriculum_and_templates(session: AsyncSession) -> LoadSummary:
     curriculum = load_curriculum()
     summary = LoadSummary()
     await _load_taxonomy(session, curriculum, summary)
     for topic_id, templates in TEMPLATE_BANKS.items():
         await _load_templates(session, curriculum, topic_id, templates, summary)
+    for authored_templates in load_authored_bank().values():
+        await _load_authored_templates(session, curriculum, authored_templates, summary)
     return summary
 
 
