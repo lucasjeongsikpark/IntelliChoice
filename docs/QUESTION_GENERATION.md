@@ -130,9 +130,13 @@ provider, all five resolved model ids, selected topic/skills/difficulties, candi
 scheduled count, planned and already-used template ids, seed offset, budget ceiling and estimated
 maximum calls.
 
-It **fails** on: Solver A and B resolving to the same model id; planned ids that already exist; a
-requested budget above the configured hard cap. Planning failures — unknown topic, a skill outside
-it, a difficulty off the 1–5 scale, a filter matching no slots — raise before the engine is created.
+It **fails** on: Solver A and B resolving to the same *underlying model*; planned ids that already
+exist; a requested budget above the configured hard cap. Bedrock's `us.` / `global.` / `eu.` /
+`apac.` inference-profile prefixes are stripped before that comparison — they are routing aliases
+for the same weights, and comparing raw strings let two spellings of one model report PASS.
+
+Planning failures — unknown topic, a skill outside it, a difficulty off the 1–5 scale, a filter
+matching no slots — raise before the engine is created.
 
 **A paid run refuses to start when preflight fails.** A mock run continues and says so.
 `--allow-preflight-failure` is the documented override, because a single-model solver pair is the
@@ -152,6 +156,30 @@ Intended paid configuration:
 | Solver A | lower-cost Anthropic | independence matters more than capability here |
 | Solver B | **a different** lower-cost Anthropic model | two solvers that are one model agree by construction |
 | Judge | lower-cost or mid-tier Anthropic | reads a finished item against a rubric |
+
+### Measured availability (account 320503430250, us-east-1, 2026-08-05)
+
+Read from `bedrock get-foundation-model-availability` and `cloudwatch list-metrics` — no invocation.
+Only **two** Anthropic models have an available agreement:
+
+| model | agreement | ever invoked | usable |
+|---|---|---|---|
+| `us.anthropic.claude-haiku-4-5-20251001-v1:0` | AVAILABLE | yes (S32 onward) | **verified** |
+| `us.anthropic.claude-sonnet-5` | AVAILABLE | no | indicated, unproven |
+| Opus 4.1 / 4.5 / 5, Sonnet 4 / 4.5, Claude 3 Haiku | NOT_AVAILABLE | no | no |
+
+Two consequences worth knowing before configuring a run:
+
+1. **The shipped code default `anthropic.claude-sonnet-5` is not invocable as written.** Every ACTIVE
+   Anthropic model in this region is `INFERENCE_PROFILE` only, so the bare id has no on-demand
+   throughput and the call fails. Use the `us.`-prefixed inference profile id, as `.env.example`
+   already does.
+2. **There is no second low-cost model to give Solver B.** With two accessible models, a
+   premium-generator configuration forces Solver B onto the generator's own model. That passes the
+   diversity gate but weakens it: the same weights re-reading their own question fail in correlated
+   ways. Solver A stays genuinely independent, so a generator error it catches still rejects — the
+   weakness is asymmetric, not fatal. Enabling model access for one more low-cost Anthropic model
+   is what makes a clean three-model setup possible.
 
 Solver A and B **must** be different model ids. They currently are not: both slots default to the
 same value, so every "independent solver agreement" recorded before D-194 was one opinion counted

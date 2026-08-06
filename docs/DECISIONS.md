@@ -13151,6 +13151,24 @@ judge, non-MCQ question types, cross-provider integration. Student response data
 model-estimated difficulty stays the long-term plan; `difficulty_confidence` is the field it will
 land in.
 
+### 8. Follow-up: the diversity check compared strings, not models
+
+Found the same day, while establishing which Bedrock models the account can actually invoke. Only
+**two** Anthropic models have an available agreement there, so the obvious way to give Solver A and
+Solver B "different model ids" is to pick a different *inference profile* of the same model — and
+the check reported PASS for exactly that:
+
+```
+solver A model:        us.anthropic.claude-haiku-4-5-20251001-v1:0
+solver B model:        global.anthropic.claude-haiku-4-5-20251001-v1:0
+solver diversity:      PASS
+```
+
+`us.`, `global.`, `apac.`, `eu.` and the bare id are routing aliases for one set of weights.
+`underlying_model()` strips the prefix before comparing. A safety check that answers permissively is
+worse than no check, because its report gets read as evidence — and this one would have certified the
+precise configuration it exists to prevent. 946 passed / 2 skipped.
+
 **Revert:** drop the three response fields and `judge_difficulty`, restore `proposed_difficulty` on
 the judge payload and the inline `abs(...) > 1` check, and replace `run_plan`/`build_plan` with the
 two per-mode loops. The CLI flags are additive and can stay.
