@@ -1408,6 +1408,44 @@ def test_preflight_fails_when_the_two_solvers_are_one_model() -> None:
     asyncio.run(run())
 
 
+def test_two_inference_profiles_for_one_model_are_not_two_solvers() -> None:
+    """A string comparison answers the wrong question, and answers it permissively.
+
+    Bedrock's `us.` / `global.` / bare ids are routing aliases for the same weights, so two
+    solvers configured that way agree by construction while the check meant to catch that
+    reports PASS. Found while preparing a pilot in an account with exactly two accessible
+    Anthropic models, which is the situation that makes reaching for an alias the obvious
+    move rather than a contrived one.
+    """
+    haiku = "anthropic.claude-haiku-4-5-20251001-v1:0"
+    assert pipeline_cli.underlying_model(f"us.{haiku}") == haiku
+    assert pipeline_cli.underlying_model(f"global.{haiku}") == haiku
+    assert pipeline_cli.underlying_model(haiku) == haiku
+    # A genuinely different model is still different.
+    assert pipeline_cli.underlying_model("us.anthropic.claude-sonnet-5") != haiku
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            plan = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=870_000)
+            report = await pipeline_cli.preflight(
+                session,
+                _settings(solver_a=f"us.{haiku}", solver_b=f"global.{haiku}"),
+                plan,
+            )
+            assert not report.ok
+            assert any("two inference profiles for one model" in f for f in report.failures)
+
+            # And two real models still pass, prefixes and all.
+            report = await pipeline_cli.preflight(
+                session,
+                _settings(solver_a=f"us.{haiku}", solver_b="us.anthropic.claude-sonnet-5"),
+                plan,
+            )
+            assert report.ok, report.failures
+
+    asyncio.run(run())
+
+
 def test_preflight_sees_a_taken_id_before_the_run_pays_for_it() -> None:
     async def run() -> None:
         curriculum = load_curriculum()

@@ -422,6 +422,29 @@ async def run_plan(
     return summary
 
 
+# Bedrock's cross-region inference profiles are routing aliases, not models: `us.`,
+# `global.` and the bare id all reach the same weights. Stripped before the solver-diversity
+# comparison because otherwise that check reads two spellings of one model as two models -
+# measured, not theorised, while preparing a pilot in an account with only two accessible
+# Anthropic models, where reaching for an alias is the obvious move.
+_INFERENCE_PROFILE_PREFIXES = ("us-gov.", "global.", "apac.", "us.", "eu.")
+
+
+def underlying_model(model_id: str) -> str:
+    """The model an id actually reaches, with any inference-profile prefix removed.
+
+    A string comparison is the wrong test for "are these two different models", and it
+    fails in the permissive direction: `us.anthropic.claude-haiku-4-5-20251001-v1:0` and
+    `global.anthropic.claude-haiku-4-5-20251001-v1:0` are different strings and one model,
+    so two solvers configured that way would agree by construction and the check that
+    exists to catch exactly that would report PASS.
+    """
+    for prefix in _INFERENCE_PROFILE_PREFIXES:
+        if model_id.startswith(prefix):
+            return model_id[len(prefix) :]
+    return model_id
+
+
 @dataclass(frozen=True)
 class PreflightReport:
     text: str
@@ -462,14 +485,18 @@ async def preflight(
     )
     solver_a = settings.bedrock_generation_model_id
     solver_b = settings.bedrock_review_model_id
-    solvers_differ = solver_a != solver_b
+    solvers_differ = underlying_model(solver_a) != underlying_model(solver_b)
     max_calls = len(plan.slots) * _MODEL_CALLS_PER_AUTHORED_CANDIDATE
 
     failures: list[str] = []
     if not solvers_differ:
+        detail = (
+            f"both resolve to {solver_a!r}"
+            if solver_a == solver_b
+            else f"{solver_a!r} and {solver_b!r} are two inference profiles for one model"
+        )
         failures.append(
-            f"Solver A and Solver B both resolve to {solver_a!r} - their agreement would be "
-            f"one opinion counted twice"
+            f"Solver A and Solver B {detail} - their agreement would be one opinion counted twice"
         )
     if taken:
         failures.append(
