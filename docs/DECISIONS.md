@@ -14030,3 +14030,56 @@ with `hint_ladder` as a string containing `<parameter name="hint_...` - XML-ish 
 leaking into the JSON. The gateway's repair retry is what handles this in the real pipeline; a bare
 provider call has no such protection. Worth knowing that Haiku's structured output is not perfect
 either, on the same shape of failure Mistral shows.
+
+## D-204 — the calculator works, the roster change did not (accepted, 2026-08-06)
+
+Three runs of the same 11 slots, and the honest ordering is not the one I expected.
+
+| roster | accepted | cost | generator failures |
+|---|---|---|---|
+| Mistral author, no cache, no tools | **3 / 11** | 42.56¢ | 2 |
+| Haiku author, cache, calculator | 3 / 11 | 25.05¢ | **6** |
+| Haiku author, cache, no calculator | **1 / 11** | 17.76¢ | **9** |
+
+### What is true
+
+**The calculator genuinely works.** Haiku called it 11 times in one authoring call and used it to
+*derive distractors from mistakes it had actually computed* - `5t - 2t = 27 + 12` gave 13, which
+became option b, while `5t + 2t = 27 + 12` gave 39/7 and was discarded. That is what the
+misconception tags have always claimed and never verifiably had.
+
+**Prompt caching works and is kept.** 4188 billed input tokens became 3 billed + 4185 cache-read;
+across three consecutive calls, 53,673 raw input tokens became ~26,682 effective. Gated to
+`anthropic.` models, which is also why it only helps a roster that uses one.
+
+**But Haiku is a bad author for this schema, with or without tools.** Nine of eleven candidates
+failed as `structured output still invalid after one repair retry` on the plain forced-tool path -
+worse than the six failures it had *with* the calculator, and far worse than Mistral's two. The
+tool loop was never the cause; a 15-field forced schema is.
+
+So the two models are near-opposites: **Mistral emits this schema reliably and cannot use tools at
+all** (it writes `emit_result{...}` as plain text under `toolChoice: auto`); **Haiku uses tools
+well and emits this schema badly.**
+
+### The mistake, recorded
+
+I changed the roster on one good signal - Haiku's tool use - without checking the property the role
+actually depends on, which is reliable structured output. Two paid runs and two failed attempts to
+patch the emit path followed. The second patch was worse than the first (1 of 5, then 0 of 5), and
+the last one violated a Converse rule outright: a `toolUse` must be followed by a matching
+`toolResult`, so appending a plain text nudge after an emit attempt is invalid.
+
+**Reverted:** the calculator is not passed to the authoring call, and the recommended author is
+Mistral Large 3 again. The tool machinery, its tests and the caching stay - they are correct, and
+one of them is measurably valuable.
+
+### Where the calculator should go instead
+
+The pattern across every probe was schema size: the one call that succeeded made a single tool call,
+and every failure made 4 to 11 - more tool rounds, longer conversation, worse emission of a large
+object. The design stage's `EquationDesignResponse` has **six** fields against the authoring model's
+fifteen, and it is exactly the stage whose job is arithmetic.
+
+That is the next experiment - author stays Mistral on a forced single call, and the *design* stage
+gets the calculator and the cache, on a model that can use both. It is untested, and stated here as
+the next thing to try rather than as a claim.

@@ -5,6 +5,21 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-204: the calculator works, the roster change did not (2026-08-06).**
+  `ruff` clean, `pyright` 0, **1002 passed / 2 skipped**. Three 11-slot runs, ~86¢ total.
+  - **Mistral author 3/11 @ 42.56¢ · Haiku+cache+calculator 3/11 @ 25.05¢ · Haiku+cache alone
+    1/11 @ 17.76¢.** Haiku failed 9 of 11 on `structured output still invalid` *without* tools —
+    so the tool loop was never the cause; a 15-field forced schema is.
+  - **The two models are near-opposites.** Mistral emits this schema reliably and cannot use tools
+    at all; Haiku uses tools well (11 calculator calls, distractors derived from computed mistakes)
+    and emits this schema badly.
+  - **My mistake:** changed the roster on one good signal without checking the property the role
+    depends on. Two paid runs and two failed patches followed; the second violated Converse's rule
+    that a `toolUse` must be followed by a `toolResult`.
+  - **Reverted** to Mistral as author, calculator off. Tool machinery, tests and caching kept.
+  - **Next:** give the calculator to the *design* stage instead — six fields against fifteen, and
+    arithmetic is its job. Untested.
+
 - **⏸ D-203: prompt caching for the tool loop (2026-08-06).** `ruff` clean, `pyright` 0,
   **1002 passed / 2 skipped**.
   - D-202's tool loop resends the whole conversation each round (~3.2k → ~24.7k input tokens per
