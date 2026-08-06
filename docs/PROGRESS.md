@@ -29,6 +29,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
   - **Found by running the new command against the real rows:** the renderer reported pre-D-195
     rejections as "no candidate was generated", which is false — they were generated and judged.
     Fixed and pinned by a test.
+  - **The long-standing `test_hint_reflects_the_students_actual_wrong_option` "flake" was diagnosed,
+    not re-recorded.** Its helper hard-coded the shape templates' tag list, which stopped being
+    universal when D-189/D-191 made authored templates servable; it failed whenever an authored item
+    landed at `study_items[0]`. Root cause proven against the real rows — the CI failure string is
+    verbatim `authored-linear_equations-d1-108100`'s first tag. The helper now reads the template's
+    own `common_error_tags`, as the production resolver does. Does **not** explain the pre-D-189
+    instances; those had another cause.
   - **Next:** one identical four-candidate repeat (same models, same seed offset). If it again
     yields 0 of 4, stop using Mistral Large 3 as Generator and obtain additional model access.
 

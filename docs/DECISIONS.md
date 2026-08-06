@@ -13319,3 +13319,41 @@ only accessible model that passes the generator contract, so there is no better 
 **Revert:** drop the `candidate_snapshot` key and the `--rejected` flag. Nothing on the serving path
 reads either, and the export path cannot see them — `build_bank_file` reads approved
 `QuestionTemplate` rows, which a rejected candidate never becomes.
+
+### D-195 §5 addendum — the "flaky" hint test was not flaky, it was wrong
+
+CI failed `test_hint_reflects_the_students_actual_wrong_option` on this branch:
+
+```
+assert 'sign_error' in 'Hint L1, addressing Adding both numbers instead of subtracting: ...'
+```
+
+That test has been recorded as an unexplained flake since D-097 and was noted again, undiagnosed,
+in D-193. It is diagnosable, and this is the diagnosis — with the root cause proven rather than
+inferred.
+
+`topic_resolver.resolve_misconception_tag` maps the student's wrong option to
+`template.common_error_tags` by ordinal rank. The test's `topic_resolver_expected_tag` helper
+mirrored that mapping but hard-coded `["sign_error", "off_by_one", "magnitude_error"]` — the list
+**every hand-authored shape template shares**. True when written; false since D-189/D-191 made
+approved *authored* templates servable, because those carry their own `misconception_tags`. The
+study pool is now mixed:
+
+```
+shape      linear_equations-d4-35              ['sign_error', 'off_by_one', 'magnitude_error']
+authored   authored-linear_equations-d1-108100 ['Adding both numbers instead of subtracting', ...]
+```
+
+The test answers `study_items[0]` with the first non-correct option — ordinal rank 0. When that
+item is the authored `d1-108100`, the expected tag is its first tag, which is *exactly* the string
+in the CI failure. The test passes or fails on which kind of template lands first, which is why it
+read as nondeterministic rather than as a wrong assumption.
+
+**Fix:** the helper now reads `common_error_tags` from the template the test actually answered,
+which is what the production resolver does. The expectation tracks the content instead of restating
+an assumption about it, and is correct for both template kinds.
+
+**Not claimed:** that this explains every historical instance. Records at D-097 and D-115 predate
+authored templates being servable, so the earlier failures had at least one other cause. What is
+established is that *this* failure had a real, reproducible root cause and the test was asserting
+something untrue.

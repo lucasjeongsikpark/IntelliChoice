@@ -1565,7 +1565,9 @@ def test_hint_reflects_the_students_actual_wrong_option() -> None:
         wrong_variant_id = study_items[0]["question_variant_id"]
         wrong_correct = _correct_options([wrong_variant_id])[wrong_variant_id]
         wrong_option = _other_option(wrong_correct)
-        expected_tag = topic_resolver_expected_tag(wrong_correct, wrong_option)
+        expected_tag = topic_resolver_expected_tag(
+            wrong_variant_id, wrong_correct, wrong_option
+        )
 
         client.post(
             f"/learning/sessions/{session_id}/answers",
@@ -1587,13 +1589,39 @@ def test_hint_reflects_the_students_actual_wrong_option() -> None:
     assert expected_tag in hint_text
 
 
-def topic_resolver_expected_tag(correct_option: str, selected_option: str) -> str:
-    """Mirrors `topic_resolver.resolve_misconception_tag`'s ordinal-rank mapping for the
-    fixed `_COMMON_ERROR_TAGS` list every hand-authored `linear_equations` template
-    shares, so this test's expectation is derived the same way the production code
-    computes it rather than hard-coded per option letter.
+def topic_resolver_expected_tag(variant_id: str, correct_option: str, selected_option: str) -> str:
+    """Mirrors `topic_resolver.resolve_misconception_tag`'s ordinal-rank mapping, reading
+    the tags from the template the test actually answered.
+
+    This used to hard-code `["sign_error", "off_by_one", "magnitude_error"]` - the list
+    every hand-authored `linear_equations` shape template shares. That was true when it was
+    written and stopped being true at D-189/D-191, which made approved *authored* templates
+    servable; those carry their own `misconception_tags`, so the study set now mixes two
+    kinds. The test failed only when an authored template happened to land at
+    `study_items[0]`, which is why it looked flaky rather than wrong - it failed in CI here
+    with `assert 'sign_error' in '...addressing Adding both numbers instead of
+    subtracting...'`, an authored template's tag.
+
+    Reading the real `common_error_tags` is what the production resolver does, so the
+    expectation now tracks the content instead of restating a assumption about it.
     """
-    tags = ["sign_error", "off_by_one", "magnitude_error"]
+
+    async def fetch() -> list[str]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                repo = QuestionRepository(session)
+                variant = await repo.get_variant(variant_id)
+                assert variant is not None
+                template = await repo.get_template(variant.question_template_id)
+                assert template is not None
+                return list(template.common_error_tags or [])
+        finally:
+            await engine.dispose()
+
+    tags = asyncio.run(fetch())
+    assert tags, f"template behind {variant_id} has no common_error_tags to resolve"
     wrong_labels = [label for label in ("a", "b", "c", "d") if label != correct_option]
     return tags[wrong_labels.index(selected_option)]
 
