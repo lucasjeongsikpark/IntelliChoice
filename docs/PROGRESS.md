@@ -5,6 +5,20 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-201: an answer that coincides with a given quantity is not a leak (2026-08-06).**
+  `ruff` clean, `pyright` 0, **1001 passed / 2 skipped** — fully green.
+  - `answer_text_leaked` destroyed **four correct items** this session. It cannot distinguish
+    "the answer is 4" from "a 4-pack" — same characters — so the rule is now about what the
+    student can already see: a hint may repeat a value the stem or context already shows.
+  - **Product call (user):** an item whose answer equals one of its givens is a normal item.
+  - **Not weakened:** `leak_phrase_present` still catches an explicit "the answer is 4",
+    unconditionally. `question_text` excludes the options, whose correct entry *is* the answer.
+  - **Applied to the runtime hint path too** (`tutor.py`), which had `TutorContext.question`
+    available and was silently discarding good personalised hints for the same reason.
+  - **Correction:** `test_preflight_fails_when_the_two_solvers_are_one_model` was reported as
+    pre-existing. It failed because the **D-198 run consumed the `seed_offset=810_000` the test
+    hardcoded**. Now uses a reserved offset. The earlier "not mine" reading was wrong.
+
 - **⏸ D-200: the judge had no scale, and the numbers were chosen too late (2026-08-06).**
   `ruff` clean, `pyright` 0, **995 passed / 2 skipped**. Branch `d200-judge-rubric-and-verified-equation`.
   - **The difficulty gate was measuring a constant.** `reviewed_difficulty` was 2 in **15 of 17**

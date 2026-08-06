@@ -49,6 +49,9 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 _EMBEDDING_DIM = 1024
+# Deliberately absurd, so no real authoring run would ever choose it and consume the ids
+# these tests assert are free (D-201).
+_TEST_RESERVED_SEED_OFFSET = 990_000_000
 
 
 def _postgres_skip_reason() -> str | None:
@@ -1409,7 +1412,13 @@ def test_preflight_fails_when_the_two_solvers_are_one_model() -> None:
 
     async def run() -> None:
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=810_000)
+            # A reserved offset no real run uses. The previous value, 810_000, was a
+            # perfectly ordinary one for a pilot to pick - and a pilot did pick it, which
+            # made this test fail on any machine whose database had seen that run. A test
+            # asserting "these ids are free" must claim a range nothing else will.
+            plan = pipeline_cli.build_plan(
+                "authored", candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET
+            )
             report = await pipeline_cli.preflight(
                 session, _settings(solver_a="model-x", solver_b="model-x"), plan
             )

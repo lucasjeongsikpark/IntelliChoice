@@ -13836,3 +13836,46 @@ Same 11 slots as D-197, 42.56¢ (D-197: 42.88¢ - the design stage paid for itse
 - **Mistral returned no `tool_use` block on 2 of 11 slots**, and 3 times consecutively in a
   follow-up probe. Intermittent, not prompt-related (the same prompt succeeds), and the gateway's
   bounded retry is what absorbs it.
+
+## D-201 — an answer that coincides with a given quantity is not a leak (accepted, 2026-08-06)
+
+`answer_text_leaked` destroyed **four correct items** across this session's runs. It cannot tell
+"the answer is 4" from "he buys a 4-pack" - they are the same characters - so no amount of regex
+work fixes it:
+
+| item | answer | what the check matched |
+|---|---|---|
+| juice boxes, `Eq(3 + 4*t, 19)` | 4 | the "4-pack" in its own stem |
+| two tier-5 items, `Eq(3*(x + 4) + 10, 34)` | 4 | the `+ 4` inside their own equation |
+| park run, `Eq(1.2 - 0.1*m, 0.8 - 0.05*m)` | 8 | the "8" in "0.8 km" (D-196, fixed separately) |
+
+**Product decision (user, 2026-08-06):** an item whose answer coincides with one of its given
+quantities is a normal item, not a defect.
+
+**Rule:** a hint may repeat a value the question already shows the student. They are holding that
+number already; repeating it hands over nothing. `answer_leaked_beyond_the_question` checks the hint
+against the answer *and* the answer against the stem+context, and only fails when the value is new.
+
+**What this deliberately does not weaken.** `leak_phrase_present` still catches an explicit
+"the answer is 4" anywhere, checked separately and unconditionally - the exemption cannot be used to
+announce the answer. What remains uncaught is a hint naming a value that is both the answer and a
+given without saying which; that is ambiguous to a human reader too, and the hint-quality judge sees
+the whole ladder.
+
+`question_text` is stem + context block and **never the options** - the correct option's text *is*
+the answer, so passing them would disable the check entirely.
+
+**Applied to the runtime path too**, not only authoring. `tutor.py` ran the same primitive against
+personalised hints and had `TutorContext.question` available all along, so the same false positive
+was silently discarding good personalised hints - falling back to canonical content - for any
+question whose answer coincided with one of its givens. Fixing only the gate that had visible
+evidence would have left the serving path quietly degraded.
+
+### A correction to an earlier claim in this session
+
+`test_preflight_fails_when_the_two_solvers_are_one_model` was reported as a pre-existing
+environment-dependent failure because it fails on `main`. It does - but **because of data this
+session created**: the test hardcoded `seed_offset=810_000`, and the D-198 comparison run picked
+exactly that offset and consumed the ids. The test was fragile (any real run could take its range)
+and a real run did. It now uses a reserved offset, `990_000_000`, that no authoring run would
+choose. The earlier "pre-existing, not mine" reading was wrong.

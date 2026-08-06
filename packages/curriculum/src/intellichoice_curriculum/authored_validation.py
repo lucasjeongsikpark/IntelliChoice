@@ -427,6 +427,37 @@ def answer_text_leaked(text: str, correct_answer_text: str) -> bool:
     return bool(pattern.search(text))
 
 
+def answer_leaked_beyond_the_question(
+    *, hint_text: str, correct_answer_text: str, question_text: str
+) -> bool:
+    """True when a hint states the answer AND the question does not already show it.
+
+    `answer_text_leaked` alone cannot tell "the answer is 4" from "he buys a 4-pack", and
+    that is not a fixable ambiguity in a text match - the two are the same characters. It
+    destroyed four correct items before this existed: a juice-box question whose answer
+    equalled the pack size, an item whose answer was the `+ 4` inside its own
+    `Eq(3*(x + 4) + 10, 34)`, and two others.
+
+    The rule that resolves it is about what the student can see. A value already printed in
+    the question is one they are holding; a hint repeating it hands over nothing new, and
+    an item whose answer happens to coincide with one of its given quantities is a normal
+    item, not a defect (product call, 2026-08-06).
+
+    **What this deliberately does not weaken.** `leak_phrase_present` still catches an
+    explicit "the answer is 4" wherever it appears, and it is checked separately and
+    unconditionally - so the escape hatch here cannot be used to state the answer outright.
+    What remains uncaught is a hint that names a value which is both the answer and a given,
+    without saying it is the answer; that is genuinely ambiguous to a reader too, and the
+    hint-quality judge sees the whole ladder.
+
+    Note `question_text` must be the stem and context block only. Passing the options would
+    disable the check entirely, since the correct option's text *is* the answer.
+    """
+    if not answer_text_leaked(hint_text, correct_answer_text):
+        return False
+    return not answer_text_leaked(question_text, correct_answer_text)
+
+
 def hint_ladder_monotonicity_violations(hint_ladder: list[str]) -> list[int]:
     """SPEC §5.8.5/plan §7: an earlier hint level must not already contain a later
     level's more-revealing content - checked as substring containment, matching the
@@ -457,8 +488,12 @@ def check_no_answer_leakage(
             result.fail(f"{field_name} contains an explicit answer-leak phrase")
     # A hint should never simply state the correct option's exact text outright - the
     # solution is where the final answer is meant to be revealed, not the hint ladder.
+    # Stem and context only - never the options, whose correct entry *is* the answer.
+    question_text = f"{item.context_block or ''}\n{item.stem}"
     for i, level in enumerate(item.hint_ladder, start=1):
-        if answer_text_leaked(level, correct_text):
+        if answer_leaked_beyond_the_question(
+            hint_text=level, correct_answer_text=correct_text, question_text=question_text
+        ):
             result.fail(f"hint_ladder[{i}] leaks the correct answer text verbatim")
 
 
