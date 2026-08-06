@@ -2,12 +2,14 @@
 Postgres needed, unlike `test_authored_pipeline.py`'s end-to-end tests.
 """
 
+import pytest
 from intellichoice_curriculum.authored_validation import validate_authored_item
 from intellichoice_shared.bedrock import (
     AuthoredGeneratedItemResponse,
     SolutionResponse,
     SolutionStep,
 )
+from pydantic import ValidationError
 
 
 def _good_item(**overrides: object) -> AuthoredGeneratedItemResponse:
@@ -257,7 +259,17 @@ def test_html_or_link_rejected() -> None:
 
 
 def test_wrong_hint_ladder_length_rejected() -> None:
-    item = _good_item(hint_ladder=["only one hint"])
+    # D-195 bounded `hint_ladder` in the schema, so a wrong-length ladder from a *model*
+    # is now refused at construction (see the three schema tests at the end of this file)
+    # and this fixture can no longer be built normally. The validator check is still
+    # wanted and still tested, because the schema only guards items the Generator
+    # produces: an item rebuilt from the YAML bank by `authored_bank.to_generated_item`
+    # takes a different route in. `model_construct` skips validation, which is exactly the
+    # "arrived without passing the model contract" case this second layer exists for.
+    # `model_copy`, not `model_construct(**model_dump())`: dumping turns the nested
+    # `canonical_solution` into a plain dict and the validator then trips over it, which
+    # would make this test fail for a reason that has nothing to do with hints.
+    item = _good_item().model_copy(update={"hint_ladder": ["only one hint"]})
     result = validate_authored_item(1, item)
     assert not result.passed
     assert any("hint_ladder has" in f for f in result.failures)
@@ -267,3 +279,128 @@ def test_out_of_range_difficulty_rejected() -> None:
     result = validate_authored_item(9, _good_item())
     assert not result.passed
     assert any("difficulty_label" in f for f in result.failures)
+
+
+# --- D-195: the hint-ladder contract is structural, not only downstream --------------
+# The first four-candidate pilot lost a candidate to a 4-level ladder *after* paying for
+# the whole item. Bounding the field in the schema puts the rule in the tool's
+# `inputSchema`, so a violation costs a bounded repair retry instead of the candidate.
+
+
+def test_hint_ladder_accepts_exactly_three_levels() -> None:
+    item = _good_item()
+    assert len(item.hint_ladder) == 3
+
+
+def test_hint_ladder_rejects_two_levels() -> None:
+    with pytest.raises(ValidationError) as exc:
+        _good_item(hint_ladder=["Only one hint.", "And a second."])
+    assert "hint_ladder" in str(exc.value)
+
+
+def test_hint_ladder_rejects_four_levels() -> None:
+    # Candidate 1 of the first pilot, exactly: four hints where the contract says three.
+    with pytest.raises(ValidationError) as exc:
+        _good_item(
+            hint_ladder=[
+                "Think about combining two small groups.",
+                "Try counting up from 2 by 2 more.",
+                "Add the two numbers together directly.",
+                "One more level than the contract allows.",
+            ]
+        )
+    assert "hint_ladder" in str(exc.value)
+
+
+# --- D-195: §6 checks, tested against the pilot's own defective content ---------------
+# Each of these checks already existed. What was missing was a test proving it fires on
+# the shape a real model actually produced, rather than on a hand-made counterexample.
+
+
+def test_a_constant_equation_with_no_unknown_is_rejected() -> None:
+    # Candidate 2's real equation. It has no variable to solve for, so nothing about the
+    # student's answer can be derived from it - the "independent solve" would be a
+    # comparison of the generator against itself, which is the hole D-191 closed.
+    result = validate_authored_item(3, _good_item(equation="Eq((20 - 3) / 2, (25 - 7) / 2)"))
+    assert not result.passed
+    assert any("restates the answer" in f for f in result.failures)
+
+
+def test_a_false_constant_equation_is_rejected() -> None:
+    # The same candidate's equation is not merely unsolvable, it is false: 8.5 != 9.
+    # SymPy collapses it to BooleanFalse, which is not an `Equality` either, so the same
+    # check catches both - worth pinning, since a *true* tautology and a *false* one
+    # arrive by different routes.
+    result = validate_authored_item(3, _good_item(equation="Eq(2 + 2, 5)"))
+    assert not result.passed
+    assert any("restates the answer" in f for f in result.failures)
+
+
+def test_an_equation_with_two_unknowns_is_rejected() -> None:
+    result = validate_authored_item(3, _good_item(equation="Eq(a + b, 4)"))
+    assert not result.passed
+    assert any("unknowns, expected exactly one" in f for f in result.failures)
+
+
+def test_a_canonical_answer_that_does_not_satisfy_the_equation_is_rejected() -> None:
+    # The equation solves to 9 while the declared correct option and the canonical answer
+    # both say 4. The item is internally consistent *except* against its own equation,
+    # which is the only place the discrepancy can surface - and the reason the equation is
+    # solved independently rather than trusted (D-191).
+    result = validate_authored_item(3, _good_item(equation="Eq(x, 4 + 5)"))
+    assert not result.passed
+    assert any("does not match declared correct option" in f for f in result.failures)
+
+
+def test_a_canonical_answer_disagreeing_with_the_correct_option_is_rejected() -> None:
+    # The neighbouring failure, kept separate because a different check catches it: here
+    # the equation and the options agree on 4 and only `canonical_solution.final_answer`
+    # dissents, so the worked solution a student would be shown contradicts the key.
+    result = validate_authored_item(
+        1,
+        _good_item(
+            canonical_solution=SolutionResponse(
+                steps=[SolutionStep(step_number=1, explanation="Add.", expression="2 + 2")],
+                final_answer="5",
+            )
+        ),
+    )
+    assert not result.passed
+    assert any("does not match the declared correct option" in f for f in result.failures)
+
+
+def test_a_hint_leaking_the_answer_is_rejected() -> None:
+    # Candidate 2's third hint contained the answer verbatim.
+    result = validate_authored_item(
+        3,
+        _good_item(
+            hint_ladder=[
+                "Think about combining two small groups of objects.",
+                "Try counting up from 2 by 2 more.",
+                "The answer is 4, so pick that option.",
+            ]
+        ),
+    )
+    assert not result.passed
+    assert any("hint_ladder[3]" in f for f in result.failures)
+
+
+def test_a_stem_narrating_its_own_authoring_is_rejected() -> None:
+    # Candidate 2's stem contained "The question is adjusted to ask for the number of
+    # rides after...". It was caught only incidentally, as a 30-word sentence; a shorter
+    # one would have shipped model-to-itself narration to a child.
+    result = validate_authored_item(
+        3, _good_item(stem="The question is adjusted to ask what 2 + 2 is.")
+    )
+    assert not result.passed
+    assert any("authoring commentary" in f for f in result.failures)
+
+
+def test_an_ordinary_adjustment_in_a_scenario_still_passes() -> None:
+    # The counterexample that keeps the phrase list honest: a *recipe* being adjusted is
+    # a legitimate math scenario, and matching the bare verb would have rejected it. The
+    # phrases name the act of authoring, not the word "adjusted".
+    result = validate_authored_item(
+        1, _good_item(stem="The recipe was adjusted to serve 4 people. What is 2 + 2?")
+    )
+    assert result.passed, result.failures

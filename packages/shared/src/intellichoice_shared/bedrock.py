@@ -422,7 +422,15 @@ class AuthoredGeneratedItemResponse(BaseModel):
     # here rather than asserted by the model that wrote the question. Still persisted to
     # the `answer_expression` column, which is not worth a migration to rename.
     equation: str | None = None
-    hint_ladder: list[str] = []
+    # Exactly three levels, enforced structurally rather than only downstream (D-195).
+    # `authored_validation` has always rejected a wrong-length ladder, but that is one
+    # paid Generator call too late: the first four-candidate pilot lost a candidate to a
+    # 4-level ladder after the model had already been billed for the whole item. Stated in
+    # the schema, the bound travels in the tool's `inputSchema`, so the model is told the
+    # rule while it writes and a violation costs a bounded repair retry instead of the
+    # candidate. Required, not defaulted - an item with no hints is a contract violation,
+    # and a `[]` default would let one through the *model* contract silently.
+    hint_ladder: list[str] = Field(min_length=3, max_length=3)
     canonical_solution: SolutionResponse
     misconception_tags: list[str] = []
     estimated_time_seconds: int

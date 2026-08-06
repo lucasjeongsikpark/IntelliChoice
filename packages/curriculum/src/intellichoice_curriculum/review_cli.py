@@ -73,6 +73,100 @@ def render_item(
     return "\n".join(lines)
 
 
+def render_rejected_run(run: QuestionValidationRun) -> str:
+    """Render one rejected candidate from its validation-run evidence alone (D-195).
+
+    Separate from `render_item` because it has a different source: `render_item` reads a
+    `QuestionTemplate` row, and a rejected candidate never becomes one. Everything here
+    comes out of `stage_results["candidate_snapshot"]`, which is why that snapshot exists -
+    the first four-candidate pilot rejected all four, and afterwards no stem, option or
+    hint could be read back at all.
+
+    Pure rendering, and that is the whole safety argument for this path: it has no session,
+    no repository, and no decision prompt, so there is no code here that could approve
+    anything. A rejected candidate is evidence for rewriting the Generator, not an item
+    awaiting a second opinion.
+    """
+    stages = run.stage_results or {}
+    snapshot = stages.get("candidate_snapshot")
+    request = stages.get("generator_request")
+    if snapshot:
+        header = snapshot.get("planned_template_id", "?")
+    elif request:
+        header = request.get("planned_template_id", "?")
+    else:
+        header = "(content not retained)"
+    lines = [f"--- REJECTED {header} (run={run.question_validation_run_id}) ---"]
+
+    if snapshot is None and request is not None:
+        # A Generator-stage failure: there is no item, and none is invented. What the
+        # pipeline could record is the request and the provider's exact words.
+        lines.append("no candidate was generated - the Generator call itself failed")
+        for key, value in request.items():
+            lines.append(f"  {key}: {value}")
+    elif snapshot is None:
+        # A run from before D-195. The candidate *was* generated - the stage evidence
+        # below proves it, since a deterministic gate or a solver had something to read -
+        # but the content was discarded. Saying "no candidate was generated" here would be
+        # a false report of what happened, and these rows are exactly the ones a reviewer
+        # is most likely to open first.
+        lines.append(
+            "content not retained - this run predates D-195, which is why the snapshot "
+            "exists; the evidence below is all that was kept"
+        )
+    else:
+        lines.extend(
+            [
+                f"topic={snapshot.get('topic_id')} skill={snapshot.get('skill_id')} "
+                f"requested_difficulty={snapshot.get('requested_difficulty')} "
+                f"seed={snapshot.get('seed')}",
+                f"generator model: {snapshot.get('generator_model_id') or 'unknown'}",
+                f"stem: {snapshot.get('stem')}",
+            ]
+        )
+        if snapshot.get("context_block"):
+            lines.append(f"context: {snapshot['context_block']}")
+        for label in ("a", "b", "c", "d"):
+            marker = "*" if label == snapshot.get("correct_option") else " "
+            lines.append(f"  {marker} {label}) {snapshot.get(f'option_{label}')}")
+        for i, level in enumerate(snapshot.get("hint_ladder") or [], start=1):
+            lines.append(f"hint {i}: {level}")
+        solution = snapshot.get("canonical_solution") or {}
+        lines.append(f"equation: {snapshot.get('equation')}")
+        lines.append(f"solution final_answer: {solution.get('final_answer')}")
+        lines.append(
+            f"proposed_difficulty: {snapshot.get('proposed_difficulty')} - "
+            f"{snapshot.get('difficulty_rationale')}"
+        )
+        lines.append(f"prerequisites: {snapshot.get('required_prerequisites')}")
+        lines.append(f"misconception_tags: {snapshot.get('misconception_tags')}")
+        lines.append(f"estimated_time_seconds: {snapshot.get('estimated_time_seconds')}")
+
+    for stage in ("deterministic_gate", "deduplication", "solver_a", "solver_b", "judge",
+                  "difficulty"):
+        if stage in stages:
+            lines.append(f"{stage}: {stages[stage]}")
+    lines.append(f"rejection reasons: {run.reasons}")
+    lines.append(f"cost_cents: {run.cost_cents}")
+    return "\n".join(lines)
+
+
+async def show_rejected(session: AsyncSession, *, limit: int, planned_id: str | None) -> str:
+    """Read-only: fetches rejected runs and renders them. No write of any kind."""
+    repo = QuestionRepository(session)
+    runs = await repo.list_rejected_validation_runs(limit=limit)
+    if planned_id is not None:
+        runs = [
+            run
+            for run in runs
+            if (run.stage_results or {}).get("candidate_snapshot", {}).get("planned_template_id")
+            == planned_id
+        ]
+    if not runs:
+        return "No rejected candidates found."
+    return "\n\n".join(render_rejected_run(run) for run in runs)
+
+
 class UnservableTemplateError(Exception):
     """Approving this template would put content in the active bank that the runtime
     cannot render - see `approve`.
@@ -166,7 +260,33 @@ def _seed_from_template_id(question_template_id: str) -> int:
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Review pending authored question-bank items")
     parser.add_argument("--topic", default=None, help="Restrict to one topic_id (default: all)")
+    parser.add_argument(
+        "--rejected",
+        action="store_true",
+        help="Read-only: print rejected candidates with their full content and evidence",
+    )
+    parser.add_argument(
+        "--planned-id",
+        default=None,
+        help="With --rejected, show only the candidate planned for this template id",
+    )
+    parser.add_argument(
+        "--limit", type=int, default=20, help="With --rejected, how many runs to show"
+    )
     args = parser.parse_args()
+
+    if args.rejected:
+        # Returns before a gateway is built, which is the point: inspecting a rejection
+        # must not be able to spend money, and the only paid path in this CLI
+        # (edit-and-rerun) needs the gateway that this branch never creates.
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                print(await show_rejected(session, limit=args.limit, planned_id=args.planned_id))
+        finally:
+            await engine.dispose()
+        return
 
     settings = get_pipeline_settings()
     gateway = _build_gateway(settings)

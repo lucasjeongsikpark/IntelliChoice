@@ -285,6 +285,26 @@ class QuestionRepository:
         result = await self._session.execute(stmt)
         return result.scalars().first()
 
+    async def list_rejected_validation_runs(
+        self, *, limit: int = 20
+    ) -> list[QuestionValidationRun]:
+        """Rejected runs, newest first - the read side of D-195's rejection evidence.
+
+        No filter argument: a rejected run has `question_template_id=None` by construction
+        (see the model's docstring), and the topic/skill/planned-id it *does* carry live
+        inside the `stage_results` JSON, where filtering would need a JSON-path predicate
+        with different syntax on SQLite and Postgres. Callers filter in Python instead -
+        a review batch is a handful of candidates, not a table scan worth optimising.
+        """
+        stmt = (
+            select(QuestionValidationRun)
+            .where(QuestionValidationRun.outcome == "rejected")
+            .order_by(QuestionValidationRun.created_at.desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_variant_for_template(
         self, question_template_id: str
     ) -> QuestionVariant | None:

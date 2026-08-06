@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-gen-preflight question-review question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence tfvars-floor-check
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-gen-preflight question-review question-review-rejected question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence tfvars-floor-check
 
 up:
 	docker compose up -d
@@ -45,6 +45,14 @@ question-gen-preflight:
 
 question-review:
 	uv run python -m intellichoice_curriculum.review_cli
+
+# D-195: read-only. Prints rejected candidates with the content that was rejected, which
+# before D-195 was discarded - a pilot that rejects every candidate otherwise leaves
+# nothing to review. Has no approve path and builds no gateway, so it cannot spend.
+# Narrow with QUESTION_REVIEW_ARGS='--planned-id authored-linear_equations-d4-400400'.
+QUESTION_REVIEW_ARGS ?=
+question-review-rejected:
+	uv run python -m intellichoice_curriculum.review_cli --rejected $(QUESTION_REVIEW_ARGS)
 
 # D-190: the last step of the authoring workflow. Until this runs and its diff is
 # committed, approval exists only as a row in whatever database was reviewed against, and

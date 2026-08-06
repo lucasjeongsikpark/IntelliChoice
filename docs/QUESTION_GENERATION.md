@@ -113,6 +113,11 @@ uv run python -m intellichoice_curriculum.pipeline_cli --mode authored --dry-run
 
 make question-review     # human approval, item by item
 make question-export     # approved rows → curriculum/internal_math/authored/<topic>.yaml
+
+# Free and read-only: what a rejected candidate actually said, and which gate stopped it.
+# Builds no gateway, so it cannot spend; has no approve path, so it cannot promote.
+make question-review-rejected
+make question-review-rejected QUESTION_REVIEW_ARGS="--planned-id authored-linear_equations-d4-400400"
 ```
 
 `--skill-id` and `--difficulty` repeat. `--candidates-per-difficulty` still works as the old name for
@@ -201,7 +206,15 @@ assumes Anthropic's tool-use contract (`model_json_schema()` as the tool input s
 - **Bounded scales.** Every 1–5 field carries `ge`/`le`, so the bound reaches the model in the tool
   schema. An unbounded one was invented into a 1–10 scale and silently disabled the gate reading it.
 - **Strict schemas.** `extra="forbid"` on payloads and on the authored response; a drifted model
-  fails into a bounded repair retry, then rejection.
+  fails into a bounded repair retry, then rejection. `hint_ladder` is bounded to exactly three
+  entries in the schema itself (D-195 §5), so the rule reaches the model rather than only the gate.
+- **A rejected candidate keeps its content.** Every rejection after the Generator returned an item
+  persists a complete `candidate_snapshot` — stem, context, options, declared answer, hints,
+  solution, equation, proposed difficulty and its rationale, prerequisites, misconception tags,
+  estimated time, plus the slot, seed and generator model id. Taken *after* `shuffle_options`, so it
+  is the item the gates actually judged. Read it with `make question-review-rejected`.
+- **Nothing is invented where no item existed.** A Generator-stage failure records
+  `generator_request` and the provider's exact error instead of a snapshot.
 
 ## 8. Run metrics
 
@@ -222,7 +235,6 @@ Not built. Each waits on evidence from a real pilot rather than on a schedule.
 | Verifier router beyond the SymPy check | a second topic whose mathematics SymPy does not model |
 | Separate engagement judge | evidence that the current judge misses dull-but-correct items |
 | Non-MCQ types (proof, open response) | a serving path. Grading is deterministic option matching today, so generating them would create content the app cannot show |
-| Cross-provider solvers | measured evidence that two Anthropic models are not independent enough |
 | Auto-approval for a narrow slice | a near-zero human rejection rate over a real sample |
 | Resume | an interrupted run that a fresh seed offset could not recover |
 
@@ -232,4 +244,30 @@ The bank holds 5 approved authored items (`curriculum/internal_math/authored/lin
 and 50 hand-authored shape templates. Twelve authored candidates sit at `pending` as the pilot's
 human-review comparison set; eight equation-first candidates were retired in D-193.
 
-**No paid pilot has been run.**
+### The first paid pilot (D-195, 2026-08-06)
+
+Four candidates, seed offset `400000`, 13.21¢. **0 accepted, and that was the correct outcome** —
+all four were defective and each was caught by a different gate.
+
+| # | stage | defect |
+|---|---|---|
+| 1 | validation | four hints where the contract says three |
+| 2 | validation | equation with no unknown *and false* (8.5 ≠ 9); a hint leaking the answer; `"The question is adjusted to ask for..."` in the student-facing stem |
+| 3 | difficulty | mathematically correct; generator proposed 4, blind judge reviewed 2, requested 4 |
+| 4 | solver | stem gave no starting amounts or rates; both solvers objected, one set `no_option_matches` |
+
+What the pilot established, beyond the four rejections:
+
+- **The gates work, including the ones that cost money.** The deterministic gate cannot see an
+  under-specified stem (#4) — only the solver panel caught it. The solver panel cannot see an
+  implausible scale (#3's 8 cm × 18 cm "garden") — nothing caught it.
+- **Candidate 3 is the case to understand before touching the difficulty policy.** It was correct,
+  well-built, and lost to a genuine two-tier disagreement between two independent readings. Its true
+  tier is ~3; the generator and judge were each off by one in opposite directions. At a requested
+  tier of 3 it would have passed. The gate is doing its job, not misfiring.
+- **No planned template id was created**, so seed offset `400000` remains reusable.
+
+**Next:** one identical four-candidate repeat — same models, same seed offset, with D-195 §5's
+snapshot in place so the content can actually be read this time. If it again yields 0 of 4, stop
+using Mistral Large 3 as Generator and obtain additional model access: it is the only accessible
+model that passes the generator contract, so there is no better one to switch to.
