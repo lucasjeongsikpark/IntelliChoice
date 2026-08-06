@@ -2462,3 +2462,24 @@ def test_the_generator_and_the_judge_are_given_the_same_tier_scale() -> None:
         assert anchor in ai_pipeline._JUDGE_SYSTEM_PROMPT, f"tier {tier} missing from judge"
     assert "BOTH sides" in ai_pipeline.DIFFICULTY_ANCHORS[4]
     assert "distribution" in ai_pipeline.DIFFICULTY_ANCHORS[5].lower()
+
+
+def test_every_authorable_skill_has_a_required_equation_structure() -> None:
+    """The design stage must be told the skill, not only the tier.
+
+    Measured: the first design run handed `linear_both_sides` and `linear_distribute` at
+    tier 5 the *identical* equation `Eq(3*(x + 4) + 10, 34)`, because both were told only
+    "tier 5 = distribution required" and neither was told which skill it was authoring for.
+    The both-sides slot got an equation with the variable on one side - the one thing that
+    skill is defined by.
+    """
+    authorable = {
+        skill
+        for skills in ai_pipeline.TOPIC_SKILL_DIFFICULTIES.values()
+        for skill in skills
+    }
+    missing = authorable - set(ai_pipeline.SKILL_STRUCTURES)
+    assert missing == set(), f"skills with no required equation structure: {missing}"
+    # The two that collided must now demand different shapes.
+    assert "BOTH sides" in ai_pipeline.SKILL_STRUCTURES["linear_both_sides"]
+    assert "distributed" in ai_pipeline.SKILL_STRUCTURES["linear_distribute"]

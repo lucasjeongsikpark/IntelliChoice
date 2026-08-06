@@ -19,9 +19,16 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
     already rejecting ~half of candidates but only after a ~2500-token call had been paid for.
   - **Not D-192 returning:** sketch and equation are produced together, and the D-193 solver panel
     (absent then) verifies story→equation afterwards.
-  - **⚠️ Unverified:** whether the model produces clean equations this way. The one paid attempt
-    died on `ExpiredTokenException` — **the AWS login session lapsed and only an interactive
-    `aws login` restores it.**
+  - **✅ Now verified in production** (11 slots, 42.56¢ vs D-197's 42.88¢): **zero** answer≠equation
+    rejections, where that had been ~half of all failures. Every designed equation solved to a whole
+    number. Difficulty rejections **2 → 0**; a tier-4 item was rated 4 by the judge and passed the
+    gate for the first time.
+  - **Regression found and fixed in the same run:** the design stage was told the tier but not the
+    skill, so `linear_both_sides` and `linear_distribute` at tier 5 got the *identical* equation.
+    `SKILL_STRUCTURES` now fixes the shape per skill with the tier modulating difficulty within it;
+    verified live (`20 + 15w = 120 - 5w` for both-sides tier 5).
+  - **Still 3 of 11, all tier 1-2.** The headline did not move; *why* items fail did — from "the
+    mathematics is wrong" to "the writing does not match the mathematics".
   - **Carry-over:** `answer_text_leaked` still flags an answer that coincides with a given quantity
     ("4-pack" vs answer 4) — third correct item destroyed. Fix needs a product call.
   - **Carry-over:** `test_preflight_fails_when_the_two_solvers_are_one_model` fails on any dev DB

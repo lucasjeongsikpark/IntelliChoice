@@ -13779,3 +13779,60 @@ the instruction a repair is given ("keep what was sound, fix the defect").
   principled fix - do not flag a value the stem already shows the student - is a product judgement
   about whether such an item is good in the first place, so it is left for a decision rather than
   taken unilaterally.
+
+### D-200 follow-up — the design stage must be told the skill, not only the tier
+
+Measured on the first production run of D-200: `linear_both_sides` and `linear_distribute`, both at
+tier 5, were handed the **identical** equation `Eq(3*(x + 4) + 10, 34)`. Both slots had been told
+only "tier 5 = distribution is required", and neither had been told which skill it was authoring
+for - so the both-sides slot got an equation with the variable on one side, which is the one thing
+that skill is defined by. `linear_both_sides` at tier 3 had the same problem.
+
+The tier anchors alone made this worse than before: previously the author at least saw `skill_name`
+and could ignore it; now a wrong-shaped equation arrived pre-verified and the author was told to
+build around it exactly.
+
+**Fix:** `SKILL_STRUCTURES` names the structural requirement of each authorable skill, and the design
+payload carries it *ahead of* the tier anchor with an explicit precedence rule - the skill fixes the
+shape, the tier says how demanding the numbers inside it should be, and the skill wins when they
+disagree. D-186 authors a skill at its native tier ±1, so the two genuinely can disagree by design.
+
+A test asserts every skill in `TOPIC_SKILL_DIFFICULTIES` has a structure, so adding an authorable
+skill without one fails rather than silently falling back to the tier.
+
+**Verified against the live model:** `linear_both_sides` now returns `20 + 15w = 120 - 5w` at tier 5
+and `3x + 12 = 5x - 8` at tier 3 - variable on both sides in each, both solving to whole numbers.
+
+### What the first D-200 production run measured
+
+Same 11 slots as D-197, 42.56¢ (D-197: 42.88¢ - the design stage paid for itself).
+
+| stage | D-197 | D-200 |
+|---|---|---|
+| **difficulty** | **2** | **0** |
+| validation | 4 | 2 |
+| design | - | 0 |
+| solver | 1 | 2 |
+| judge | 0 | 2 |
+| generator | 1 | 2 |
+| accepted | 3 | 3 |
+
+- **The answer≠equation defect is gone.** Not one occurrence, where it had been roughly half of all
+  rejections. Every designed equation solved to a whole number: 21, 12, 7, 4, 18.
+- **The judge rubric works in production.** A tier-4 item was rated **4** and passed the difficulty
+  gate, then failed for a real reason (ambiguity, internal inconsistency). Difficulty rejections
+  went 2 → 0.
+- **The defects moved later, not away.** Solver and judge rejections rose as validation fell -
+  with the arithmetic guaranteed, what remains is whether the *story* encodes the equation, which
+  is precisely what the solver panel exists to check. This is the predicted cost of designing the
+  equation first, and it is contained rather than unnoticed (the D-192 failure mode was that
+  nothing checked it at all).
+- **Still 3 of 11 accepted, all tier 1-2.** The headline did not move. What moved is *why* items
+  fail, from "the mathematics is wrong" to "the writing does not match the mathematics" and "our
+  own gate misfires".
+- **`answer_text_leaked` is now the largest single defect** (2 of 8 rejections): the answer 4 and
+  the `+ 4` inside `Eq(3*(x + 4) + 10, 34)` are the same character. Fourth instance of this check
+  destroying a correct item, and still awaiting a product decision.
+- **Mistral returned no `tool_use` block on 2 of 11 slots**, and 3 times consecutively in a
+  follow-up probe. Intermittent, not prompt-related (the same prompt succeeds), and the gateway's
+  bounded retry is what absorbs it.

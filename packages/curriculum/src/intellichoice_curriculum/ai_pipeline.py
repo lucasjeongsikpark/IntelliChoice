@@ -1223,6 +1223,29 @@ def validate_equation_design(
     return failures
 
 
+# What each skill's equation must STRUCTURALLY contain, regardless of the tier the slot
+# asks for (D-200 follow-up). The tier anchors alone were not enough and made things worse:
+# the first design run handed `linear_both_sides` and `linear_distribute` at tier 5 the
+# *identical* equation `Eq(3*(x + 4) + 10, 34)`, because both were told only "tier 5 =
+# distribution required" and neither was told which skill it was authoring for. The
+# both-sides slot got an equation with the variable on one side.
+#
+# The skill is what the slot exists for - D-186 lets a skill be authored at its native tier
+# +/-1, so the tier modulates how hard the numbers are while the skill fixes the shape. When
+# the two disagree, the skill wins.
+SKILL_STRUCTURES: dict[str, str] = {
+    "linear_one_step": "exactly one operation to undo, e.g. Eq(x + 8, 20) or Eq(4*x, 20)",
+    "linear_two_step": "two operations, the variable on ONE side only, e.g. Eq(18 + 6*w, 60)",
+    "linear_neg_frac_coeff": "a negative or fractional coefficient on the variable, "
+    "e.g. Eq(60 - 4*x, 12) or Eq(x/3 + 5, 11)",
+    "linear_both_sides": "the variable MUST appear on BOTH sides of the equals sign, "
+    "e.g. Eq(8 + 2*m, 18 + m) - an equation with the variable on one side is wrong for "
+    "this skill however hard it is otherwise",
+    "linear_distribute": "a bracket that MUST be distributed before like terms can be "
+    "combined, e.g. Eq(5*(c + 2) + 12, 42)",
+}
+
+
 async def _design_equation(
     gateway: BedrockGateway,
     *,
@@ -1240,7 +1263,20 @@ async def _design_equation(
     """
     total = 0.0
     previous: list[str] = []
-    anchor = DIFFICULTY_ANCHORS.get(difficulty_label, "")
+    # Skill first, tier second: the skill fixes the shape of the equation and the tier says
+    # how demanding the numbers inside it should be. Handing over only the tier is what
+    # produced two different skills with one identical equation.
+    structure = SKILL_STRUCTURES.get(getattr(skill, "skill_id", ""), "")
+    tier_anchor = DIFFICULTY_ANCHORS.get(difficulty_label, "")
+    anchor = (
+        f"REQUIRED STRUCTURE for this skill: {structure}. "
+        f"For reference, tier {difficulty_label} on the shared 1-5 scale means: {tier_anchor}. "
+        f"If the two ever seem to disagree, the required structure wins - it is what this "
+        f"slot exists to teach - and the tier tells you only how demanding to make the "
+        f"numbers within that structure."
+        if structure
+        else tier_anchor
+    )
     for _ in range(max_attempts):
         payload = EquationDesignPayload(
             topic_name=topic.name,  # type: ignore[attr-defined]
