@@ -855,17 +855,35 @@ def test_difficulty_recommendation_reaches_template_selection(
             headers=headers,
             json={"topic_id": "linear_equations"},
         ).json()["items"]
-        pre_correct = _correct_options([i["question_variant_id"] for i in pre_items])
+        pre_variant_ids = [i["question_variant_id"] for i in pre_items]
+        pre_correct = _correct_options(pre_variant_ids)
+        pre_skills = _skills_for(pre_variant_ids)
 
-        # Same setup as the retry-ladder test: fail both difficulty-2 items (indices 2,3) so
-        # `linear_two_step` is the weakest skill and is routed first.
-        for index, item in enumerate(pre_items):
+        # Same setup as the retry-ladder test, and fixed the same way (D-207): fail the
+        # `linear_two_step` items **by skill** so it is the weakest skill and is routed
+        # first. This said "indices 2,3" too, and was the second of the two tests carrying
+        # D-206's already-disposed-of premise - it is the one that failed the first local
+        # full-suite run of this change with `assert 2 == 1`, because a draw where
+        # `linear_two_step` did not own both tier-2 slots leaves its mastery, and therefore
+        # its recommended difficulty, somewhere else entirely.
+        wrong_variant_ids = {
+            variant_id
+            for variant_id, skill_id in pre_skills.items()
+            if skill_id == "linear_two_step"
+        }
+        if not wrong_variant_ids:
+            pytest.skip(
+                "this pre-exam draw served no linear_two_step item "
+                f"(skills drawn: {sorted(set(pre_skills.values()))})"
+            )
+
+        for item in pre_items:
             variant_id = item["question_variant_id"]
             correct = pre_correct[variant_id]
-            selected = _other_option(correct) if index in (2, 3) else correct
+            selected = _other_option(correct) if variant_id in wrong_variant_ids else correct
             client.post(
                 f"/learning/sessions/{session_id}/answers",
-                headers={**headers, "Idempotency-Key": f"recdiff-pre-{index}"},
+                headers={**headers, "Idempotency-Key": f"recdiff-pre-{variant_id}"},
                 json={
                     "question_variant_id": variant_id,
                     "selected_option": selected,

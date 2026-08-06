@@ -14402,10 +14402,70 @@ not from the loader). And the loader is **skip-by-id**: editing the YAML does no
 already in a database, so correcting these is `review_cli`'s edit-and-rerun path - a new id, a bumped
 version, re-review - which is a content decision about material shown to minors, not a text edit.
 
+### D-207 addendum — D-206 dispositioned one of two tests with the same broken premise
+
+CI failed on `test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite` with
+`assert 1 == 4`, and on the re-run with `assert 0 == 4`. **Same code, fresh database, different
+number** - which is the whole diagnosis: a deterministic regression does not change its answer.
+
+It is not a D-207 regression, and that was established rather than assumed. The test passes in
+isolation on either arm; run 12 times against a deliberately dirtied database it fails 12 of 12 on
+*both* `6cd47ab` and this branch, identically. What it actually depends on is its own comment:
+
+```
+# Items are ordered by difficulty (2 per level); indices 2,3 are difficulty 2 =
+# skill `linear_two_step`. Fail exactly those so it becomes the weakest skill.
+```
+
+Items are still ordered by difficulty. **Which skill carries a given tier is not fixed** - it is
+whatever the exam builder drew from the bank, and D-206 grew that bank from 5 authored items to 48.
+This is word for word the premise D-206 already wrote down for the sibling test:
+
+> "Answering by tier instead was tried and fails the same way, because which skills carry tier-2
+> items also varies per exam."
+
+D-206 dispositioned `test_identical_inputs_reproduce_identical_routing_and_scores` and **missed that
+a second test rested on the same assumption**. It has been a coin flip since 2026-08-05; `main`
+passed by winning its flips.
+
+**Fixed rather than xfailed**, because unlike the determinism test's premise, this one can be made
+true without a product change: the §5.11.7 retry ladder is real behaviour worth covering, and the
+test only needed to stop *inferring* the skill from a position. `_skills_for()` resolves each served
+variant's actual `skill_id`, and the test now fails the `linear_two_step` items by skill. A draw
+containing none of them skips, naming the skills it did draw, rather than asserting vacuously.
+
+Measured on freshly-created databases, one per run:
+
+| test | index-based (before) | skill-based (after) |
+| --- | --- | --- |
+| `test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite` | 13 pass / 2 fail | **15 / 0** |
+| `test_difficulty_recommendation_reaches_template_selection` | flaky (see below) | **12 / 0** |
+
+**And there were two of them, not one.** Grepping for the assumption rather than stopping at the
+test CI happened to name found `test_difficulty_recommendation_reaches_template_selection` carrying
+it verbatim - *"Same setup as the retry-ladder test: fail both difficulty-2 items (indices 2,3)"*.
+That is the test that failed the **first** local full-suite run of this change with `assert 2 == 1`,
+which at the time looked like unexplained suite flakiness. It is the same bug: a draw where
+`linear_two_step` does not own both tier-2 slots leaves its mastery, and therefore its recommended
+difficulty, somewhere else entirely. So D-206's premise had actually leaked into **three** tests, and
+two of them were still live.
+
+**A note on the harness, because it produced two wrong answers before it produced a right one.**
+Pointing only `DATABASE_URL` at a scratch database splits the run: the test helpers follow it, the
+FastAPI app follows `LEARNING_DATABASE_URL`, and the two then disagree about which database holds
+the seeded content - which reads exactly like a code failure. `LEARNING_DATABASE_URL` and
+`CHAT_DATABASE_URL` have to be set with it. And `git stash` is a no-op once the work is committed,
+so a "with vs without" comparison built on stashing silently compares a branch with itself; use a
+detached checkout of the parent commit.
+
 ### Test-suite note
 
 `make test` is **flaky before this change and after it**: measured 2 green out of 5 baseline runs,
 with `test_difficulty_recommendation_reaches_template_selection` and the strict-xfail determinism
 test alternating. Both are mastery-dependent and the suite shares one dev Postgres. Confirmed by
-stashing every change and re-running - the flakiness is pre-existing, not introduced here. The final
-sweep on this branch was green: **1027 passed, 2 skipped, 1 xfailed**.
+stashing every change and re-running - the flakiness is pre-existing, not introduced here.
+
+`pytest-randomly` is **not** installed, so collection order is deterministic; the varying results
+come from state accumulating in the shared dev Postgres across runs, not from shuffling. (An earlier
+note in this session assumed the opposite and was wrong.) The final sweep on this branch was green:
+**1028 passed, 2 skipped, 1 xfailed**.

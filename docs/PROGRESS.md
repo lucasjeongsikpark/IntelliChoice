@@ -44,15 +44,25 @@ real-sync preflight checks **shape only** rather than asserting an id from memor
 2. **Seven items restate the stem in their context block** (>65% word overlap; `d3-415301` is 94%),
    so the student reads the same problem twice. The new paragraph split makes this visible rather
    than hiding it — which is what a human reviewing the bank wants.
-3. **`make test` is flaky before *and* after this change** — 2 green in 5 baseline runs, alternating
+3. **D-206's disposed-of premise had leaked into three tests, and two were still live.**
+   Both `test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite` and
+   `test_difficulty_recommendation_reaches_template_selection` assumed "indices 2,3 are difficulty 2
+   = `linear_two_step`" — but which skill carries a tier varies per draw once the bank is 48 items.
+   The first failed CI at `1 == 4`, then `0 == 4` on a re-run of the same code; the second is what
+   failed this change's first local full-suite run at `assert 2 == 1`. **Both fixed here** by
+   resolving the real `skill_id` (13/15 → 15/15 and 12/12 across fresh databases). Found by grepping
+   for the assumption rather than stopping at the test CI named — worth doing again if a
+   position-based assumption shows up elsewhere.
+4. **`make test` is flaky before *and* after this change** — 2 green in 5 baseline runs, alternating
    between `test_difficulty_recommendation_reaches_template_selection` and the strict-xfail
    determinism test. Both are mastery-dependent and the suite shares one dev Postgres. Confirmed
-   pre-existing by stashing every change and re-running.
-4. **The LangGraph checkpoint warning is still there** — `Deserializing unregistered type
+   pre-existing by stashing every change and re-running. `pytest-randomly` is **not** installed —
+   the variation is accumulated database state, not shuffled order.
+5. **The LangGraph checkpoint warning is still there** — `Deserializing unregistered type
    learning_api.graph.build.EntryInput … will be blocked in a future version`. Silencing it means
    switching the serializer from permissive to an explicit allowlist, whose failure mode is "live
    sessions cannot deserialize". Deliberately not done to remove a warning.
-5. **The video path is ready but empty.** `check_real_sync_preflight` will refuse clearly until
+6. **The video path is ready but empty.** `check_real_sync_preflight` will refuse clearly until
    `YOUTUBE_YOUTUBE_API_KEY` and a real `UC...` `YOUTUBE_CHANNEL_ID` are set; the sync is still not
    a deploy step, so staging stays at zero rows until it is run.
 
