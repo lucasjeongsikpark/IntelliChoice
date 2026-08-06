@@ -5,6 +5,26 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-196 §2: 2 of 4 accepted, and the solvers were reading half the question (2026-08-06).**
+  `ruff` clean, `pyright` 0, **977 passed / 2 skipped** — up 1. Second repeat spend **14.47¢**, seed
+  offset `410000`. Branch `d196-solvers-see-the-whole-question`.
+  - **The first accepted candidates this pipeline has produced from a paid run: 2 of 4.** Both
+    verified by hand — `Eq(20 + 5*d, 32 + 3*d)` → d = 6, and `Eq(120 - 5*w, 5*w)` → w = 12. Both
+    sit at `pending`, `review_priority=high`. **Neither approved.**
+  - **The defect:** the solvers and the judge were sent `item.stem` while the student is served
+    `context_block + stem`. A correct barrel item whose numbers all lived in the context block was
+    rejected because Solver A was shown a question with no numbers in it. The judge half is worse —
+    it clears content for students on ambiguity and age-appropriateness, and was judging a fragment
+    of what gets served.
+  - **Three of four "generator failures" this session were ours**, not the model's: the decimal
+    leak bug, the dropped context block, and only two genuine model errors.
+  - **The plan to change generator is withdrawn.** Mistral Large 3's real failure mode is narrow —
+    coefficients that do not divide evenly in a discrete scenario (12/5 games, 8/3 swaps, t = −2
+    hours). One addressable prompt weakness, not an unusable model.
+  - **Carry-over:** no tier-4 candidate has ever survived; both difficulty rejections were
+    `linear_both_sides` at tier 4 with the judge rating 2. Investigate the slot, not the gate.
+  - **Carry-over:** nothing checks whether a solution is possible in its own situation.
+
 - **⏸ D-196: the repeat pilot, and a gate that was destroying correct content (2026-08-06).**
   `ruff` clean, `pyright` 0, **976 passed / 2 skipped** — up 6. Repeat pilot spend **13.81¢**.
   Branch `d195-decimal-leak-false-positive`.

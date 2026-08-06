@@ -1308,7 +1308,16 @@ async def generate_authored_candidate(
     # --- 4. Independent Solver Agents A and B, routed through two already- -------
     # --- distinct task/model slots so they resolve to different models -----------
     solver_payload = SolverPayload(
-        rendered_question=item.stem,
+        # `rendered_question`, not `item.stem` (D-196). These were the stem alone, while
+        # the student is served `context_block + stem` - so a generator that puts the
+        # numbers in the context block and asks the question in the stem gave the solvers
+        # an unanswerable fragment. Measured: the barrel item, whose stem is "After how
+        # many hours will both barrels contain the same amount of water?" and whose 50 L /
+        # 3 L-per-hour / 30 L / 5 L-per-hour all live in the context. Solver A reported
+        # "the problem statement is incomplete" and was right about what it was shown; the
+        # item itself is correct. The value was already computed above for exactly this
+        # text and simply was not used here.
+        rendered_question=rendered_question,
         option_a=item.option_a,
         option_b=item.option_b,
         option_c=item.option_c,
@@ -1356,7 +1365,12 @@ async def generate_authored_candidate(
     # --- 5. Judge: difficulty fit, ambiguity, alignment, age-appropriateness, ----
     # --- hint quality, all from one independent model call -----------------------
     judge_payload = QuestionJudgePayload(
-        rendered_question=item.stem,
+        # Same fix as the solvers, and the more serious half of it (D-196). The judge is
+        # the gate that clears content for a student on ambiguity, alignment and
+        # age-appropriateness - so judging the stem alone meant those verdicts were reached
+        # about text that is not what gets served. An item could be approved on a fragment
+        # and served with a context block the judge never read.
+        rendered_question=rendered_question,
         option_a=item.option_a,
         option_b=item.option_b,
         option_c=item.option_c,
