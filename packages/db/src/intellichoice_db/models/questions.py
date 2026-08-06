@@ -51,7 +51,10 @@ class QuestionTemplate(Base):
     # the existing "shape" pipeline's rows are unaffected. `authoring_mode` picks which
     # column group a template actually uses - "shape" rows keep using
     # `parameter_schema`/`solution_function`/the generator registry; "authored" rows use
-    # the fields below instead and always get exactly one static `QuestionVariant`.
+    # the fields below instead, plus exactly one *canonical* `QuestionVariant` holding the
+    # options. D-189 made those servable, so an authored template also accumulates one
+    # `VARIANT_ORIGIN_RUNTIME` variant per showing, the same as a shape template - the
+    # canonical one is no longer the only variant it ever has.
     authoring_mode: Mapped[str] = mapped_column(String, nullable=False, default="shape")
     stem: Mapped[str | None] = mapped_column(String, nullable=True)
     context_block: Mapped[str | None] = mapped_column(String, nullable=True)

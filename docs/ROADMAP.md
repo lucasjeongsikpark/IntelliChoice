@@ -1540,16 +1540,33 @@ requested directly. Coverage gap, not a break.
    off-native tier would draw another skill's math forms — the shape pipeline is untouched.
    ⚠️ `review_cli.rerun_with_edit` now carries `skill_id` from the superseded row; re-deriving it
    would have silently swapped the skill on the first multi-tier re-run.
-3. **⛔ Ran 2026-08-05 (D-188). The pipeline works now; the content cannot be served, and that is
-   the blocker.** Five items were approved, one per skill at its native tier, and **34 tests
-   failed**: `variant_persistence.build_variant_row` renders every served question through
-   `generate_variant(shape_key=template.solution_function)`, and an authored template carries
-   `solution_function="authored"`, which `SHAPES` has no entry for. Any student who draws one gets a
-   failed exam build. The approvals were rolled back to `pending` and `review_cli.approve` now
-   refuses templates the runtime cannot render. **The next step in this track is authored *serving*,
-   not more authoring** — and it needs a product decision first: the post-exam is a *parallel form*
-   of the pre-exam (`avoid_rendered_question`, SPEC §5.13.1) and an authored template has exactly
-   one canonical rendering to give.
+3. **⏸ Ran 2026-08-05. The pipeline works and serving is built (D-188, D-189); the content is still
+   not anywhere but one laptop.** The run produced eight items covering 7 of 11 pairs, five of which
+   passed review — but approving them exists only as a row update in whatever database the pipeline
+   was pointed at. CI proved it: the suite went green locally with them approved and **failed on CI**,
+   whose database is seeded by `load_curriculum_and_templates` and therefore has none of them.
+   **Authored content has no versioned home**, so there is no path by which a reviewed item reaches
+   staging or production. That is the track's next step, ahead of authoring more, and it is a design
+   question rather than a chore: export approved items into a versioned file the loader reads, run
+   the pipeline per environment and review per environment, or promote rows between databases.
+   Serving them was the previous blocker and is now built: `build_variant_row` copies an authored
+   template's canonical variant into a runtime row instead of rendering a shape it does not have.
+   The post-exam **knowingly repeats** an authored item — SPEC §5.13.2 forbids reusing the same
+   *variant* and a new row is still minted, the generated path already had this as a rare fallback,
+   and each repeat is logged so the rate is measurable (D-189 §3).
+   Four defects found by running it, all invisible against `MockBedrockProvider`, all fixed:
+   the shared 400-token ceiling made authored generation **impossible** (measured: 631 tokens at
+   tier 1, 954 at tier 5); the SymPy gate rejected correct answers written as `'x = 7'` or with a
+   typographic minus, and was **quieter** for it (an unparseable distractor was exempt from the
+   "no distractor also matches" arm); the judge scored 8–9 against 1–5 thresholds so the
+   hint-quality gate **never fired**; and the seed formula made a second run collide with the first,
+   which would have discarded the whole batch at commit. Spend: 24.8¢ across four runs.
+   **⚠️ Multi-tier is still not met either.** The bank is one tier per skill and D-169's rule 2
+   stays inert. Eight items covered 7 of 11 pairs, but the tiers
+   differed by label more than substance (`2x + 5 = 19` at tier 1 vs `2x + 7 = 19` at tier 2)
+   because `AuthoredGeneratorPayload` carries no per-candidate variation and no rubric for what a
+   tier *means*. **Another paid run without that rubric produces the same result** — fix the
+   generator before spending again.
    Four defects found by running it, all invisible against `MockBedrockProvider`, all fixed:
    the shared 400-token ceiling made authored generation **impossible** (measured: 631 tokens at
    tier 1, 954 at tier 5); the SymPy gate rejected correct answers written as `'x = 7'` or with a

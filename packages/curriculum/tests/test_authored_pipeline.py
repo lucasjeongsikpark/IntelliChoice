@@ -26,7 +26,7 @@ from intellichoice_curriculum.ai_pipeline import (
 )
 from intellichoice_curriculum.content import load_curriculum
 from intellichoice_db.engine import create_engine
-from intellichoice_db.models.questions import QuestionValidationRun
+from intellichoice_db.models.questions import QuestionTemplate, QuestionValidationRun
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_shared.bedrock import (
     AuthoredGeneratedItemResponse,
@@ -377,23 +377,21 @@ def test_judge_hint_quality_score_is_bounded_to_the_scale_its_thresholds_assume(
     assert schema["maximum"] > ai_pipeline._HINT_QUALITY_BORDERLINE_AT
 
 
-def test_approving_an_unservable_authored_template_is_refused() -> None:
-    """Approving authored content breaks exam building today, so review refuses it.
+def test_approving_an_authored_template_now_succeeds_but_still_needs_something_to_serve() -> None:
+    """D-188 refused every authored approval; D-189 built serving, so the bar moved.
 
-    Found by doing it: five authored templates were approved on 2026-08-05 and 34 tests
-    failed with `VariantGenerationError: unknown shape 'authored'` - the runtime renders
-    every served question through `generate_variant(shape_key=template.solution_function)`
-    and there is no `"authored"` shape. The pipeline has been able to *produce* authored
-    items since S20; nothing had ever approved one into the active bank, so the gap
-    between producing and serving them had never been exercised.
-
-    The refusal is keyed on the shape registry rather than on `authoring_mode`, so
-    building authored serving is what lifts it - not editing this test.
+    The original refusal was measured, not theoretical: approving five authored templates
+    failed 34 tests with `VariantGenerationError: unknown shape 'authored'`, because every
+    served question went through `generate_variant(shape_key=template.solution_function)`.
+    Serving now reads the canonical variant instead, so a normally-produced authored
+    template is approvable - and the guard narrows to the case that is still unservable,
+    a template with neither a shape nor a canonical variant to fall back on.
     """
 
     async def run() -> None:
         curriculum = load_curriculum()
         async with _rollback_session() as session:
+            repo = QuestionRepository(session)
             outcome = await generate_authored_candidate(
                 session=session,
                 gateway=_ScriptedAuthoredGateway(),
@@ -406,14 +404,43 @@ def test_approving_an_unservable_authored_template_is_refused() -> None:
             assert outcome.status == "pending"
             assert outcome.question_template_id is not None
 
-            with pytest.raises(review_cli.UnservableTemplateError):
-                await review_cli.approve(session, outcome.question_template_id)
+            await review_cli.approve(session, outcome.question_template_id)
+            approved = await repo.get_template(outcome.question_template_id)
+            assert approved is not None
+            assert approved.validation_status == "approved"
 
-            # Still pending, not half-approved: the refusal happens before the flip.
-            repo = QuestionRepository(session)
-            template = await repo.get_template(outcome.question_template_id)
-            assert template is not None
-            assert template.validation_status == "pending"
+            # Same content, no canonical variant behind it - nothing to render and
+            # nothing to serve, so the guard still fires and fires before the flip.
+            orphan = await repo.create_template(
+                QuestionTemplate(
+                    question_template_id="authored-orphan-no-variant",
+                    curriculum_version=approved.curriculum_version,
+                    topic_id=approved.topic_id,
+                    skill_id=approved.skill_id,
+                    grade_band=approved.grade_band,
+                    difficulty_label=approved.difficulty_label,
+                    question_type="multiple_choice",
+                    parameter_schema={},
+                    solution_function="authored",
+                    correct_option_generator="authored",
+                    distractor_generators=[],
+                    common_error_tags=[],
+                    estimated_time_seconds=30,
+                    generator_model="test",
+                    review_model_versions={},
+                    stem="Solve: an authored template with no variant behind it.",
+                    hint_ladder=["a", "b", "c"],
+                    canonical_solution={"steps": [], "final_answer": "4"},
+                    authoring_mode="authored",
+                    validation_status="pending",
+                    active_status="active",
+                )
+            )
+            with pytest.raises(review_cli.UnservableTemplateError):
+                await review_cli.approve(session, orphan.question_template_id)
+            still_pending = await repo.get_template(orphan.question_template_id)
+            assert still_pending is not None
+            assert still_pending.validation_status == "pending"
 
     asyncio.run(run())
 

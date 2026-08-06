@@ -935,10 +935,11 @@ async def generate_authored_candidate(
     )
     persisted_variant = await repo.create_variant(
         QuestionVariant(
-            # The newly authored template's defining rendering (D-106). An
-            # `authoring_mode="authored"` template has exactly this one variant and never
-            # gains runtime ones, but it is still declared explicitly rather than left to
-            # the column default, which is "runtime".
+            # The newly authored template's defining rendering (D-106), declared
+            # explicitly rather than left to the column default, which is "runtime".
+            # It used to be true that such a template "never gains runtime ones"; D-189
+            # made it servable, so it now gains one row per showing and this flag is what
+            # separates the reviewed content from an arbitrary student's rendering.
             origin=VARIANT_ORIGIN_CANONICAL,
             question_template_id=template.question_template_id,
             random_seed=seed,

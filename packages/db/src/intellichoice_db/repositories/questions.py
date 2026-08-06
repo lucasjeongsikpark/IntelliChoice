@@ -288,17 +288,45 @@ class QuestionRepository:
     async def get_variant_for_template(
         self, question_template_id: str
     ) -> QuestionVariant | None:
-        """Authored templates always get exactly one static variant (plan §7) - this is
-        the lookup `review_cli.py` uses to render it, without relying on lazy-loading
+        """The authored template's one *canonical* variant (plan §7) - the lookup
+        `review_cli.py` uses to render it for review, without relying on lazy-loading
         `QuestionTemplate.variants` across an async session.
+
+        The `origin` filter is load-bearing as of D-189. This used to take any row with
+        `limit(1)`, which was correct only while authored templates were never served:
+        serving one mints a `VARIANT_ORIGIN_RUNTIME` row per student per showing, and an
+        unfiltered `limit(1)` would then start returning an arbitrary *serving* instead of
+        the reviewed content - silently, and more often the more the item is used.
         """
         stmt = (
             select(QuestionVariant)
             .where(QuestionVariant.question_template_id == question_template_id)
+            .where(QuestionVariant.origin == VARIANT_ORIGIN_CANONICAL)
             .limit(1)
         )
         result = await self._session.execute(stmt)
         return result.scalars().first()
+
+    async def get_canonical_variants(
+        self, question_template_ids: Sequence[str]
+    ) -> dict[str, QuestionVariant]:
+        """The batch form of `get_variant_for_template`, keyed by *template* id.
+
+        Exists for the serving path (D-189): a statically-rendered template carries its
+        content on its canonical variant rather than in a shape function, so building an
+        exam that contains one has to read it. Batched for the same reason as
+        `get_templates`/`get_variants` (AUD-F-31) - the per-item form would reintroduce
+        the N+1 that the `select_topic` path was measured and fixed for.
+        """
+        if not question_template_ids:
+            return {}
+        stmt = (
+            select(QuestionVariant)
+            .where(QuestionVariant.question_template_id.in_(list(question_template_ids)))
+            .where(QuestionVariant.origin == VARIANT_ORIGIN_CANONICAL)
+        )
+        result = await self._session.execute(stmt)
+        return {v.question_template_id: v for v in result.scalars().all()}
 
     async def get_pending_authored_by_priority(
         self, topic_id: str | None = None

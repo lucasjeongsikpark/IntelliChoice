@@ -16,7 +16,10 @@ from intellichoice_db.repositories.assessment import AssessmentRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 
 from learning_api.services import exam_policy
-from learning_api.services.variant_persistence import build_variant_row
+from learning_api.services.variant_persistence import (
+    build_variant_row,
+    renders_from_canonical_variant,
+)
 
 DIFFICULTIES = (1, 2, 3, 4, 5)
 QUESTIONS_PER_DIFFICULTY = 2
@@ -93,6 +96,19 @@ async def build_pre_exam(
     templates_by_difficulty = await question_repo.get_active_questions_by_difficulty(
         topic_id, DIFFICULTIES
     )
+    # Read before the loop, from the whole candidate pool rather than the sampled subset
+    # (D-189). Sampling first and then reading would batch more tightly but would reorder
+    # the RNG draws - `rng.sample` and `build_variant_row` interleave per difficulty, and
+    # that order is what makes a fixed seed reproduce a fixed exam. A topic with no
+    # statically-rendered templates issues no extra statement at all.
+    canonical_variants = await question_repo.get_canonical_variants(
+        [
+            template.question_template_id
+            for templates in templates_by_difficulty.values()
+            for template in templates
+            if renders_from_canonical_variant(template)
+        ]
+    )
     variant_rows = []
     for difficulty in DIFFICULTIES:
         templates = templates_by_difficulty[difficulty]
@@ -102,7 +118,13 @@ async def build_pre_exam(
                 f"approved templates, need {QUESTIONS_PER_DIFFICULTY}"
             )
         for template in rng.sample(templates, QUESTIONS_PER_DIFFICULTY):
-            variant_rows.append(build_variant_row(template=template, rng=rng))
+            variant_rows.append(
+                build_variant_row(
+                    template=template,
+                    rng=rng,
+                    canonical_variant=canonical_variants.get(template.question_template_id),
+                )
+            )
 
     stored_variants = await question_repo.create_variants(variant_rows)
     await _store_items(
@@ -151,18 +173,29 @@ async def build_post_exam(
         [variant.question_template_id for variant in pre_variants.values()]
     )
 
+    canonical_variants = await question_repo.get_canonical_variants(
+        [
+            template.question_template_id
+            for template in templates.values()
+            if renders_from_canonical_variant(template)
+        ]
+    )
     variant_rows = []
     for pre_item in pre_items:
         pre_variant = pre_variants.get(pre_item.question_variant_id)
         assert pre_variant is not None
         template = templates.get(pre_variant.question_template_id)
         assert template is not None
-        # SPEC §5.13.2: same template family, a rendering that isn't the pre-exam's.
+        # SPEC §5.13.2: same template family, a rendering that isn't the pre-exam's -
+        # except for a statically-rendered template, which has only the one rendering and
+        # therefore repeats it here by design (D-189). `_static_variant_row` logs each
+        # such repeat so the rate is measurable.
         variant_rows.append(
             build_variant_row(
                 template=template,
                 rng=rng,
                 avoid_rendered_question=pre_variant.rendered_question,
+                canonical_variant=canonical_variants.get(template.question_template_id),
             )
         )
 

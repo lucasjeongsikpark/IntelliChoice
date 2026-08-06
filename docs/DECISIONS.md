@@ -12822,3 +12822,115 @@ approvals were rolled back, not because the defect was fixed.
 
 **Revert:** the five code changes are independent. Reverting §5's guard restores the ability to
 approve an unservable template; reverting §1 restores a pipeline that cannot generate at all.
+
+## D-189 — authored templates are served from their canonical variant, the post-exam knowingly repeats them, and content turns out to have no versioned home (accepted, 2026-08-05)
+
+**Context.** D-188 §5 found that approving authored content broke exam building: every served
+question went through `generate_variant(shape_key=template.solution_function)` and an authored
+template carries `solution_function="authored"`, which `SHAPES` has no entry for. 34 tests failed.
+The pipeline had been able to *produce* authored items since S20, but nothing had ever approved
+one, so producing-vs-serving had never been exercised. This closes that.
+
+### 1. Serving reads the content instead of computing it
+
+`renders_from_canonical_variant(template)` is the predicate — keyed on the **shape registry**, not
+on `authoring_mode`, so it stays a statement about what can actually be rendered. When true,
+`build_variant_row` copies the template's canonical `QuestionVariant` into a fresh
+`VARIANT_ORIGIN_RUNTIME` row instead of generating one. Missing canonical variant raises
+`StaticVariantUnavailableError` rather than serving an empty question: `build_variant_row` is the
+pure half (AUD-F-31) and cannot read the database, so a caller that forgets to supply it would
+otherwise be one `None` away from a blank item in front of a student.
+
+The RNG is still drawn from on the static path, so a caller's per-item consumption does not depend
+on which kind of template it happened to sample.
+
+### 2. The canonical read is batched, and conditional
+
+`QuestionRepository.get_canonical_variants` is one query over the whole candidate pool, issued
+*before* the sampling loop. Sampling first and then reading would batch more tightly but would
+reorder the RNG draws — `rng.sample` and `build_variant_row` interleave per difficulty, and that
+order is what makes a fixed seed reproduce a fixed exam (CLAUDE.md non-negotiable #2). The
+per-sampled-template alternative would be an N+1 of exactly the kind AUD-F-31 measured and removed.
+
+Both exam paths go from 7 statements to **8**, and the eighth is skipped entirely for a topic with
+no statically-rendered templates. `_PRE_EXAM_SHAPE_BUDGET` now asserts `SELECT question_variants: 2`
+— the count that used to be ten is the one worth pinning.
+
+### 3. The post-exam repeats an authored item, deliberately (the user's call)
+
+SPEC §5.13.2 asks the post-exam for a rendering that is not the pre-exam's, and an authored
+template has exactly one to give. Three things make serving it again the right trade rather than a
+silent regression, and the alternatives were weighed against them:
+
+- §5.13.2 forbids reusing the same question **variant**, and a new row is still minted per serving.
+- The generated path **already** had this behaviour as a rare fallback: `build_variant_row` retries
+  a bounded number of times and then returns the colliding rendering anyway. What changes is the
+  frequency, not the guarantee.
+- The alternatives all cost more than the problem. Pairing by (skill, tier) family needs ≥2 authored
+  items per pair, which the generator cannot reliably produce (D-188 §6 — five of eleven pairs lost
+  to duplicate stems). Authoring N renderings per template is a schema change plus N× the human
+  review. Excluding authored content from exams contradicts A6-C's purpose.
+
+`_static_variant_row` logs `static_variant_repeats_rendering` on each repeat, so the rate is
+**measurable rather than assumed** — that is the condition under which accepting it is honest.
+
+### 4. A latent defect this would have tripped
+
+`get_variant_for_template` took any variant with `limit(1)`, correct only while authored templates
+were never served. Serving mints a runtime row per showing, so it would have started returning an
+arbitrary *student's* rendering in place of the reviewed content — silently, and more often the more
+the item is used. Now filtered to `VARIANT_ORIGIN_CANONICAL`. The dev database has **86** runtime
+servings of authored templates after one suite run, so this was not a distant risk.
+
+### 5. The approval guard narrows rather than disappears
+
+D-188's `review_cli.approve` refused every template with no registered shape. It now refuses only
+those with no shape **and** no canonical variant — the case that is still genuinely unservable.
+Fail-closed (rule 5) is preserved; what changed is that the servable case exists.
+
+### 6. Content did **not** land, and CI is what proved it
+
+The five items were approved locally, the suite went green, the fixtures were re-pinned to match —
+and **CI failed**, because CI's database is seeded by `load_curriculum_and_templates`, which loads
+the hand-authored *shape* bank and nothing else. The five approved templates existed only in one
+developer's Postgres. Not in the repository, not in CI, not on staging.
+
+So the re-pinned capture and the raised statement budgets were **encoding one machine's database
+state into the repo**, and they were reverted. A clean bank is the correct baseline for those
+fixtures; the local approvals were rolled back too, so local and CI agree again.
+
+**The gap this exposes is the real one: authored content has no versioned home.** The shape bank
+lives in `packages/curriculum/templates/` and is loaded into every environment; authored items are
+produced by a paid pipeline directly into whatever database it was pointed at, and approval is a row
+update. There is currently no path by which a reviewed authored item reaches staging or production
+at all. That is the next step for A6-C, ahead of authoring more content — and it is a design
+question (export approved items into a versioned file the loader reads? run the pipeline per
+environment and review per environment? promote rows between databases?) rather than a chore.
+
+A related property, worth stating because it was demonstrated rather than reasoned about: **the bank
+cannot change without moving `_PINNED_PRE_EXAM_AT_SEED`**, since the candidate pool size decides what
+a seeded `rng.sample()` picks. That fixture guards *refactors*, not contents, so a genuine content
+change legitimately re-pins it — but only deliberately and with the reason recorded, or it decays
+into a value someone edits until the test passes.
+
+**⚠️ Still not multi-tier either.** One tier per skill; D-169's rule 2 stays inert. D-188 §6's cause
+is unchanged — `AuthoredGeneratorPayload` carries no per-candidate variation and no rubric for what
+a tier means.
+
+### 7. Verification
+
+`ruff` clean, `pyright` 0, **918 passed / 2 skipped** — up 3, the new serving tests, with the prior
+915 unchanged, against a **clean bank** (no approved authored templates), which is what CI runs.
+
+The serving path is nonetheless verified against real approved content, twice over. Transiently:
+five templates were approved, the suite ran green, and the built exam's third item was
+`2x + 7 = 19` (options 6/8/9/13) — `authored-linear_equations-d2-9200` served from its canonical
+variant, the exact thing that raised before this change. Durably: `test_authored_serving.py` builds
+a deliberately *mixed* exam (difficulty 1 authored, 2-5 shape) from **its own rollback-scoped
+fixtures**, so it proves the same property in every environment without depending on database state
+anyone has to remember to create. That is the pattern the transient check should have used from the
+start.
+
+**Revert:** remove the static branch in `build_variant_row` and the two `get_canonical_variants`
+calls, and restore `get_variant_for_template`'s unfiltered `limit(1)`. Nothing needs re-pinning —
+the fixtures were never changed in the landed state.
