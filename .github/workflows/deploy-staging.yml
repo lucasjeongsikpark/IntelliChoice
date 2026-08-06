@@ -189,6 +189,30 @@ jobs:
           echo "Migration exit code: $EXIT_CODE"
           test "$EXIT_CODE" = "0"
 
+      # D-206: the deploy ran migrations but never loaded the question bank, so approved
+      # content committed to `curriculum/internal_math/authored/*.yaml` reached the image
+      # and stopped there - staging kept serving whatever was in its database from the last
+      # time someone ran the loader by hand. Found by deploying 48 approved authored items
+      # and discovering the UI would still have shown 5. The loader validates every item
+      # against the §5.8.5 suite before inserting and is idempotent by design
+      # (`test_loading_is_idempotent_and_lands_approved_and_servable`), so running it on
+      # every deploy is a no-op when nothing changed.
+      - name: Load the curriculum and approved question bank
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --task-definition intellichoice-staging-ops-task \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$PRIVATE_SUBNET],securityGroups=[$ECS_TASKS_SG],assignPublicIp=DISABLED}" \
+            --overrides '{"containerOverrides":[{"name":"ops-task","command":["sh","-c","python -m intellichoice_curriculum.loader"]}]}' \
+            --query 'tasks[0].taskArn' --output text)
+          echo "Curriculum load task: $TASK_ARN"
+          aws ecs wait tasks-stopped --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+          EXIT_CODE=$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "Curriculum load exit code: $EXIT_CODE"
+          test "$EXIT_CODE" = "0"
+
       # AUD-F-20: attendance fixtures are written for current_week_key() at seed time,
       # so a staging seeded in week N returns phase=blocked for every learning journey
       # in week N+1 (the gate failing closed on aged-out data, correctly). Re-seeding on

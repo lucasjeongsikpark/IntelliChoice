@@ -14198,3 +14198,31 @@ argument written down rather than deleted or quietly weakened.
 `The job was not acquired by Runner of type hosted`. GitHub's status page reports **Actions:
 major_outage**. CI on PR #135 failed the same way, which is why that PR was merged on local
 verification (`ruff` clean, `pyright` 0, 1001 passed) with the gap recorded rather than hidden.
+
+### D-206 addendum — the deploy never loaded the question bank
+
+The staging deploy ran Alembic migrations, re-seeded MySQL fixtures, re-embedded the RAG corpus and
+seeded chat suggestions - and **never loaded the curriculum or the question bank**. Approved content
+committed to `curriculum/internal_math/authored/*.yaml` reached the image and stopped there; staging
+kept serving whatever was in its database from the last time someone ran the loader by hand.
+
+Found by deploying 48 approved authored items and asking the obvious question: the deployed-version
+gate said `serving gha-d7136d79b3d5, rollout COMPLETED`, and the UI would still have shown 5 items.
+
+Loaded manually first, via the same ops-task mechanism the migration step uses:
+
+```
+Loaded curriculum: 0 topics, 0 skills, 48 templates created (50 already existed), 48 sample variants
+```
+
+Then added as a permanent step, between migrations and the service deploys. The loader validates
+every item against the §5.8.5 suite before inserting and is idempotent by design, so it is a no-op
+when nothing changed.
+
+**Two notes for whoever runs an ops task next.** `uv` is not on the container's PATH - the first
+attempt exited 127 - so commands are plain `python -m ...`, matching how the migration step calls
+`alembic` directly. And `make load-staging-learning` is a k6 **load test**, not a content load; the
+name cost a minute of confusion and is worth renaming.
+
+**Staging verified after the load:** `/healthz` → 200, `POST /learning/sessions` → 401 (auth
+enforced, which is the correct answer to an unauthenticated call).
