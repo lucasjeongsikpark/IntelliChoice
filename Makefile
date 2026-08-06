@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence tfvars-floor-check
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-gen-preflight question-review question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence tfvars-floor-check
 
 up:
 	docker compose up -d
@@ -21,11 +21,27 @@ seed:
 curriculum-load:
 	uv run python -m intellichoice_curriculum.loader
 
+# Extra CLI arguments go through QUESTION_GEN_ARGS rather than by editing these targets
+# (D-194), e.g. to author three candidates for one skill at two tiers in a fresh id range:
+#
+#   make question-gen-authored QUESTION_GEN_ARGS="\
+#     --topic-id linear_equations --skill-id linear_both_sides \
+#     --difficulty 3 --difficulty 4 --candidates-per-slot 3 \
+#     --seed-offset 40000 --run-budget-cents 100"
+QUESTION_GEN_ARGS ?=
+
 question-gen-run:
-	uv run python -m intellichoice_curriculum.pipeline_cli
+	uv run python -m intellichoice_curriculum.pipeline_cli $(QUESTION_GEN_ARGS)
 
 question-gen-authored:
-	uv run python -m intellichoice_curriculum.pipeline_cli --mode authored
+	uv run python -m intellichoice_curriculum.pipeline_cli --mode authored $(QUESTION_GEN_ARGS)
+
+# Free: says which models a run would use, which slots and template ids it would claim,
+# and its spend ceiling - calling nothing and writing nothing. Run before every paid batch;
+# a paid run now refuses to start if it fails. Add --dry-run to list every planned slot.
+question-gen-preflight:
+	uv run python -m intellichoice_curriculum.pipeline_cli --mode authored --preflight \
+		$(QUESTION_GEN_ARGS)
 
 question-review:
 	uv run python -m intellichoice_curriculum.review_cli

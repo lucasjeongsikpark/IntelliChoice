@@ -22,6 +22,10 @@ deployed apps sharing auth from the existing `go.intellichoice.org` system:
 - [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md) — the practical runbook for a real
   incident (leaked credential, auth bypass, cost anomaly, etc.), grounded in this project's own
   real incidents (S32/D-084, S33/D-085).
+- [docs/QUESTION_GENERATION.md](docs/QUESTION_GENERATION.md) — the as-built design of the offline
+  AI question-generation pipeline: authored-first only, how difficulty is proposed and independently
+  reviewed, how to run a batch, and what preflight refuses. Read before changing anything in
+  `packages/curriculum`'s pipeline.
 - [docs/S42_DISCOVERY.md](docs/S42_DISCOVERY.md) — what the **existing** `go.intellichoice.org`
   system actually does, read from its own source (D-151). Read this before assuming anything about
   production's schema, roles, attendance, or login contract.

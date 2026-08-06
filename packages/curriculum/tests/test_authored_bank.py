@@ -89,7 +89,7 @@ def _item(**overrides: object) -> AuthoredTemplateDef:
             ],
             "final_answer": "4",
         },
-        answer_expression="7 - 3",
+        answer_expression="Eq(x + 3, 7)",
         random_seed=1,
         rendered_question="Solve for x: x + 3 = 7",
         option_a="4",
@@ -206,7 +206,7 @@ def test_an_edited_item_whose_answer_no_longer_matches_fails_the_load() -> None:
             broken = _item(
                 question_template_id="authored-bank-test-broken",
                 # Options still say 4; the expression now solves to 5.
-                answer_expression="8 - 3",
+                answer_expression="Eq(x + 3, 8)",
             )
             with pytest.raises(CurriculumLoadError) as excinfo:
                 await _load_authored_templates(session, curriculum, [broken], LoadSummary())

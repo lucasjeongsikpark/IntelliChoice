@@ -353,16 +353,12 @@ def test_payload_field_set_matches_allowlist_exactly(
     assert set(model_cls.model_fields) == allowed_fields
 
 
-@pytest.mark.parametrize(
-    "model_cls", [pytest.param(k, id=k.__name__) for k in _PII_ALLOWLISTS]
-)
+@pytest.mark.parametrize("model_cls", [pytest.param(k, id=k.__name__) for k in _PII_ALLOWLISTS])
 def test_payload_has_no_denylisted_pii_field_name(model_cls: type[BaseModel]) -> None:
     assert set(model_cls.model_fields) & _PII_DENYLIST == set()
 
 
-@pytest.mark.parametrize(
-    "model_cls", [pytest.param(k, id=k.__name__) for k in _PII_ALLOWLISTS]
-)
+@pytest.mark.parametrize("model_cls", [pytest.param(k, id=k.__name__) for k in _PII_ALLOWLISTS])
 def test_payload_forbids_extra_fields(model_cls: type[BaseModel]) -> None:
     """`extra="forbid"` is what makes the allowlist above binding at runtime rather than
     merely descriptive: without it an unexpected field is accepted and forwarded.

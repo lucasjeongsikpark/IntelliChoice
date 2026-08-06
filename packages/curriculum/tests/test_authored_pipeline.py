@@ -25,6 +25,7 @@ from intellichoice_curriculum.ai_pipeline import (
     generate_authored_candidate,
 )
 from intellichoice_curriculum.content import load_curriculum
+from intellichoice_curriculum.settings import CurriculumPipelineSettings
 from intellichoice_db.engine import create_engine
 from intellichoice_db.models.questions import QuestionTemplate, QuestionValidationRun
 from intellichoice_db.repositories.questions import QuestionRepository
@@ -108,20 +109,23 @@ def _good_item(**overrides: object) -> AuthoredGeneratedItemResponse:
         option_c="6",
         option_d="3",
         correct_option="a",
-        answer_expression="2 + 2",
+        equation="Eq(x, 2 + 2)",
         hint_ladder=[
             "Think about combining two small groups of objects.",
             "Try counting up from 2 by 2 more.",
             "Add the two numbers together directly.",
         ],
         canonical_solution=SolutionResponse(
-            steps=[
-                SolutionStep(step_number=1, explanation="Add the numbers.", expression="2 + 2")
-            ],
+            steps=[SolutionStep(step_number=1, explanation="Add the numbers.", expression="2 + 2")],
             final_answer="4",
         ),
         misconception_tags=["off_by_one"],
         estimated_time_seconds=30,
+        proposed_difficulty=1,
+        difficulty_rationale=(
+            "One addition with single-digit whole numbers and no equation to rearrange."
+        ),
+        required_prerequisites=["single-digit addition"],
     )
     base.update(overrides)
     return AuthoredGeneratedItemResponse(**base)  # type: ignore[arg-type]
@@ -141,6 +145,7 @@ class _ScriptedAuthoredGateway:
         | None = None,
         solver_a_option: str | None = None,
         solver_b_option: str | None = None,
+        solver_objection: dict[str, object] | None = None,
         judge: QuestionJudgeResponse | None = None,
         embedding_vector: list[float] | None = None,
     ) -> None:
@@ -148,6 +153,9 @@ class _ScriptedAuthoredGateway:
         self._item_factory = item_factory
         self._solver_a_option = solver_a_option
         self._solver_b_option = solver_b_option
+        # Applied to solver A only, so a test can check that *one* objecting solver is
+        # enough - the whole point of the flags is that they don't need a second vote.
+        self._solver_objection = solver_objection or {}
         self._judge = judge
         self._embedding_vector = embedding_vector
         self._last_item: AuthoredGeneratedItemResponse | None = None
@@ -172,21 +180,61 @@ class _ScriptedAuthoredGateway:
             assert isinstance(payload, AuthoredGeneratorPayload)
             if self._item_factory is not None:
                 value: BaseModel = self._item_factory(payload)
+            elif self._item is not None:
+                value = self._item
             else:
-                value = self._item or _good_item()
+                # A real generator is told the target tier and normally proposes it, so the
+                # default double does too. Without this every default fixture proposed 1
+                # while the slot asked for 3, and D-194's slot gate correctly rejected it -
+                # the double was modelling a generator that ignores its instructions.
+                value = _good_item(proposed_difficulty=payload.target_difficulty)
             self._last_item = value  # type: ignore[assignment]
         elif name == "SolverResponse":
             assert isinstance(payload, SolverPayload)
             assert self._last_item is not None
-            if task == BedrockTask.QUESTION_GENERATION:
-                selected = self._solver_a_option or self._last_item.correct_option
+            # Read the options *as presented*, which is what a real solver does and what
+            # the pipeline now requires: options are shuffled after generation (D-191), so
+            # the generated item's own `correct_option` letter no longer names the same
+            # option the solver is shown. Answering from the pre-shuffle letter made this
+            # double disagree with itself.
+            generated = {
+                "a": self._last_item.option_a,
+                "b": self._last_item.option_b,
+                "c": self._last_item.option_c,
+                "d": self._last_item.option_d,
+            }
+            correct_text = generated[self._last_item.correct_option]
+            presented = {
+                "a": payload.option_a,
+                "b": payload.option_b,
+                "c": payload.option_c,
+                "d": payload.option_d,
+            }
+            as_presented = next(
+                (label for label, text in presented.items() if text == correct_text),
+                self._last_item.correct_option,
+            )
+            is_solver_a = task == BedrockTask.QUESTION_GENERATION
+            if is_solver_a:
+                selected = self._solver_a_option or as_presented
             else:
-                selected = self._solver_b_option or self._last_item.correct_option
-            value = SolverResponse(selected_option=selected)  # type: ignore[arg-type]
+                selected = self._solver_b_option or as_presented
+            value = SolverResponse(
+                reasoning="scripted solver",
+                selected_option=selected,  # type: ignore[arg-type]
+                **(self._solver_objection if is_solver_a else {}),  # type: ignore[arg-type]
+            )
         elif name == "QuestionJudgeResponse":
             assert isinstance(payload, QuestionJudgePayload)
+            assert self._last_item is not None
             value = self._judge or QuestionJudgeResponse(
-                difficulty_label=payload.proposed_difficulty,
+                reasoning="scripted judge",
+                # The judge no longer receives a proposed difficulty (D-194), so the
+                # double cannot echo one. Agreeing with the item's own proposal is what
+                # makes the default path "the two readings agree"; a test that wants a
+                # disagreement passes `judge=`.
+                reviewed_difficulty=self._last_item.proposed_difficulty,
+                difficulty_reasoning="scripted judge difficulty reasoning, long enough",
                 is_ambiguous=False,
                 is_aligned=True,
                 is_age_appropriate=True,
@@ -363,7 +411,9 @@ def test_judge_hint_quality_score_is_bounded_to_the_scale_its_thresholds_assume(
     """
     with pytest.raises(ValidationError):
         QuestionJudgeResponse(
-            difficulty_label=3,
+            reasoning="out-of-range score fixture",
+            reviewed_difficulty=3,
+            difficulty_reasoning="a rationale long enough to clear the length floor",
             is_ambiguous=False,
             is_aligned=True,
             is_age_appropriate=True,
@@ -443,6 +493,39 @@ def test_approving_an_authored_template_now_succeeds_but_still_needs_something_t
             assert still_pending.validation_status == "pending"
 
     asyncio.run(run())
+
+
+def test_option_shuffling_moves_the_correct_answer_without_changing_it() -> None:
+    """Six of six correct answers landed on option `b` in the first scenario run.
+
+    "Always answer b" would have scored 100%. Nothing caught it, and nothing could: the
+    bias is a property of the *set*, so no check that looks at one item can see it, and
+    the two solvers and the judge each look at one item. Fixed deterministically because
+    "vary the correct position" is an instruction a model follows unreliably.
+    """
+    item = _good_item()
+    correct_text = {"a": item.option_a, "b": item.option_b, "c": item.option_c}[item.correct_option]
+
+    # The same seed rebuilds the same item - the whole pipeline is seed-reproducible.
+    assert ai_pipeline.shuffle_options(item, seed=7) == ai_pipeline.shuffle_options(item, seed=7)
+
+    positions = set()
+    for seed in range(40):
+        shuffled = ai_pipeline.shuffle_options(item, seed=seed)
+        options = {
+            "a": shuffled.option_a,
+            "b": shuffled.option_b,
+            "c": shuffled.option_c,
+            "d": shuffled.option_d,
+        }
+        # The declared correct option still names the same answer text.
+        assert options[shuffled.correct_option] == correct_text
+        # And the four options are the same four, only reordered.
+        assert sorted(options.values()) == sorted(
+            [item.option_a, item.option_b, item.option_c, item.option_d]
+        )
+        positions.add(shuffled.correct_option)
+    assert positions == {"a", "b", "c", "d"}, positions
 
 
 def test_unregistered_topic_raises_pipeline_config_error() -> None:
@@ -551,6 +634,99 @@ def test_disagreeing_solver_rejected_with_persisted_reasons() -> None:
     asyncio.run(run())
 
 
+def test_a_solver_that_cannot_find_its_answer_rejects_even_though_both_agree() -> None:
+    """The gap that let a wrong item through, closed (D-193).
+
+    `narrative-linear_equations-d4-23000` reached `pending` with the wrong answer: the
+    story's answer was 4, no option offered 4, and both solvers - unable to say so through
+    a closed `selected_option` literal - picked the same wrong option. The agreement arm
+    then read that as independent confirmation, which is the worst possible reading of it.
+
+    So the fixture here is deliberately one where **agreement holds**: both solvers select
+    the declared correct option, and the rejection comes only from solver A's
+    `no_option_matches`. If the flag were ignored, this candidate would pass.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            gateway = _ScriptedAuthoredGateway(
+                item=_good_item(stem="Solve: missing-answer fixture, what is 2 + 2?"),
+                solver_objection={"no_option_matches": True},
+            )
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=gateway,
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=1,
+                seed=1013,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "rejected"
+            assert outcome.rejected_at == "solver"
+            assert any("not among the options" in r for r in outcome.reasons)
+            # Not a disagreement - saying so would send a reviewer looking for the wrong
+            # defect entirely.
+            assert not any("disagreement" in r for r in outcome.reasons)
+
+            run_row = await _latest_validation_run(session)
+            assert run_row.stage_results["solver_a"]["no_option_matches"] is True
+            assert run_row.stage_results["solver_b"]["no_option_matches"] is False
+
+    asyncio.run(run())
+
+
+def test_one_solver_flagging_ambiguity_is_enough_to_reject() -> None:
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            gateway = _ScriptedAuthoredGateway(
+                item=_good_item(stem="Solve: ambiguity fixture, what is 2 + 2?"),
+                solver_objection={
+                    "is_unambiguous": False,
+                    "ambiguity_reasons": ["the broth may or may not count as soup"],
+                },
+            )
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=gateway,
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=1,
+                seed=1014,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "rejected"
+            assert outcome.rejected_at == "solver"
+            assert any("broth" in r for r in outcome.reasons)
+
+    asyncio.run(run())
+
+
+def test_the_judge_and_solver_decide_after_they_reason_not_before() -> None:
+    """Field order is the mechanism, so it is what gets asserted.
+
+    A model emits JSON in the order the tool's schema declares (the gateway sends
+    `model_json_schema()`), so a verdict field ahead of `reasoning` is decided before any
+    reasoning exists and cannot be revised by it. That is not a theory: the judge on
+    `narrative-linear_equations-d4-23000` worked out that the stated answer was wrong,
+    wrote so, and had already emitted `is_internally_consistent: true`.
+
+    Asserting on the schema rather than on a model's behaviour is deliberate - this is a
+    property of what we send, which is the only part we control.
+    """
+    for model in (QuestionJudgeResponse, SolverResponse):
+        fields = list(model.model_json_schema()["properties"])
+        assert fields[0] == "reasoning", f"{model.__name__} decides before it reasons"
+
+    # And the escape hatches exist at all, since a prompt asking for them is useless if
+    # the schema has nowhere to put the answer.
+    solver_fields = SolverResponse.model_json_schema()["properties"]
+    assert "no_option_matches" in solver_fields
+    assert "is_unambiguous" in solver_fields
+
+
 def test_off_grade_wording_rejected_with_persisted_reasons() -> None:
     async def run() -> None:
         curriculum = load_curriculum()
@@ -630,7 +806,9 @@ def test_judge_flags_reject_and_borderline_score_sets_high_priority() -> None:
         curriculum = load_curriculum()
         async with _rollback_session() as session:
             ambiguous_judge = QuestionJudgeResponse(
-                difficulty_label=1,
+                reasoning="scripted judge",
+                reviewed_difficulty=1,
+                difficulty_reasoning="a rationale long enough to clear the length floor",
                 is_ambiguous=True,
                 is_aligned=True,
                 is_age_appropriate=True,
@@ -653,7 +831,9 @@ def test_judge_flags_reject_and_borderline_score_sets_high_priority() -> None:
 
         async with _rollback_session() as session:
             borderline_judge = QuestionJudgeResponse(
-                difficulty_label=1,
+                reasoning="scripted judge",
+                reviewed_difficulty=1,
+                difficulty_reasoning="a rationale long enough to clear the length floor",
                 is_ambiguous=False,
                 is_aligned=True,
                 is_age_appropriate=True,
@@ -846,8 +1026,7 @@ def test_the_plan_keeps_every_tier_inside_what_a_student_can_be_recommended() ->
             for tier in tiers:
                 assert 1 <= tier <= 5
                 assert abs(tier - native_of[skill_id]) <= 1, (
-                    f"{skill_id} planned at {tier}, unreachable from native "
-                    f"{native_of[skill_id]}"
+                    f"{skill_id} planned at {tier}, unreachable from native {native_of[skill_id]}"
                 )
 
 
@@ -950,3 +1129,544 @@ def test_an_unknown_skill_is_a_config_error() -> None:
                 )
 
     asyncio.run(run())
+
+
+def test_generator_schema_accepts_and_rejects_difficulty_metadata() -> None:
+    """The difficulty fields are only worth having if the schema enforces them, because
+    the schema is what the model is shown - `model_json_schema()` is the tool's input
+    contract, so a bound written here reaches the model as `minimum`/`maximum` and a
+    missing one lets it invent a scale (which it did, on the first real run).
+    """
+    assert _good_item(proposed_difficulty=5).proposed_difficulty == 5
+
+    for invalid in (0, 6, -1):
+        with pytest.raises(ValidationError):
+            _good_item(proposed_difficulty=invalid)
+
+    schema = AuthoredGeneratedItemResponse.model_json_schema()["properties"]
+    assert schema["proposed_difficulty"]["minimum"] == 1
+    assert schema["proposed_difficulty"]["maximum"] == 5
+
+    # "This is difficulty 3" is not a rationale, and neither is the empty string. A length
+    # floor cannot force a good one; it can refuse the degenerate ones, and the judge is
+    # what actually tests the claim.
+    for empty in ("", "   ", "hard"):
+        with pytest.raises(ValidationError):
+            _good_item(difficulty_rationale=empty)
+
+    # And the response is closed: a drifted model that invents a field fails into the
+    # repair retry rather than having the extra silently dropped.
+    with pytest.raises(ValidationError):
+        _good_item(confidence=0.9)
+
+
+def test_difficulty_agreement_accepts_disagreement_flags_and_wide_gaps_reject() -> None:
+    """The whole policy, as arithmetic on two numbers - no gateway and no database.
+
+    Acceptability is computed rather than asked of the judge, deliberately: a judge blind
+    to the proposal cannot say whether it is acceptable, and a judge shown the proposal is
+    no longer independent, so the only coherent answer is the one arithmetic gives.
+    """
+    rationale = "a rationale long enough to clear the length floor"
+
+    agreed = ai_pipeline.judge_difficulty(
+        proposed=3,
+        proposed_rationale=rationale,
+        reviewed=3,
+        reviewed_rationale=rationale,
+        requested=3,
+    )
+    assert agreed.decision == "accepted"
+    assert agreed.proposal_gap == 0
+    assert agreed.reasons == []
+
+    one_off = ai_pipeline.judge_difficulty(
+        proposed=3,
+        proposed_rationale=rationale,
+        reviewed=4,
+        reviewed_rationale=rationale,
+        requested=3,
+    )
+    assert one_off.decision == "flagged"
+    assert one_off.reasons == []
+
+    two_off = ai_pipeline.judge_difficulty(
+        proposed=2,
+        proposed_rationale=rationale,
+        reviewed=4,
+        reviewed_rationale=rationale,
+        requested=3,
+    )
+    assert two_off.decision == "rejected"
+    assert any("difficulty disagreement" in r for r in two_off.reasons)
+
+    # The second gate: the two models can agree with each other and still both be far from
+    # the tier the slot asked for. Storing that item at the requested tier would offer it
+    # to students who have earned a different one, so it is rejected on its own terms.
+    wrong_slot = ai_pipeline.judge_difficulty(
+        proposed=1,
+        proposed_rationale=rationale,
+        reviewed=1,
+        reviewed_rationale=rationale,
+        requested=5,
+    )
+    assert wrong_slot.decision == "rejected"
+    assert any("too far from the requested tier" in r for r in wrong_slot.reasons)
+
+    # Both numbers and both rationales survive into the evidence whatever the outcome.
+    evidence = two_off.as_evidence()
+    assert evidence["generator_proposed_difficulty"] == 2
+    assert evidence["judge_reviewed_difficulty"] == 4
+    assert evidence["proposal_vs_review_difference"] == 2
+    assert evidence["decision"] == "rejected"
+
+
+def test_one_level_difficulty_disagreement_keeps_the_item_at_high_priority() -> None:
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(
+                    item=_good_item(
+                        stem="Solve: one-level disagreement fixture, what is 2 + 2?",
+                        proposed_difficulty=1,
+                    ),
+                    judge=QuestionJudgeResponse(
+                        reasoning="scripted judge",
+                        reviewed_difficulty=2,
+                        difficulty_reasoning="one more step than a bare sum, on reflection",
+                        is_ambiguous=False,
+                        is_aligned=True,
+                        is_age_appropriate=True,
+                        hint_quality_score=5,
+                    ),
+                ),
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=1,
+                seed=1021,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "pending"
+            template = await QuestionRepository(session).get_template(
+                outcome.question_template_id or ""
+            )
+            assert template is not None
+            assert template.review_priority == "high"
+            assert template.difficulty_confidence == 0.5
+
+            run_row = await _latest_validation_run(session)
+            evidence = run_row.stage_results["difficulty"]
+            assert evidence["generator_proposed_difficulty"] == 1
+            assert evidence["judge_reviewed_difficulty"] == 2
+            assert evidence["decision"] == "flagged"
+            assert run_row.stage_results["prerequisites"] == ["single-digit addition"]
+
+    asyncio.run(run())
+
+
+def test_two_level_difficulty_disagreement_rejects_with_both_rationales_persisted() -> None:
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(
+                    item=_good_item(
+                        stem="Solve: two-level disagreement fixture, what is 2 + 2?",
+                        proposed_difficulty=1,
+                        difficulty_rationale="a single addition with no equation to rearrange",
+                    ),
+                    judge=QuestionJudgeResponse(
+                        reasoning="scripted judge",
+                        reviewed_difficulty=3,
+                        difficulty_reasoning=(
+                            "reads as multi-step with a negative coefficient, to me"
+                        ),
+                        is_ambiguous=False,
+                        is_aligned=True,
+                        is_age_appropriate=True,
+                        hint_quality_score=5,
+                    ),
+                ),
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=1,
+                seed=1022,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "rejected"
+            assert outcome.rejected_at == "difficulty"
+            assert any("difficulty disagreement" in r for r in outcome.reasons)
+
+            run_row = await _latest_validation_run(session)
+            evidence = run_row.stage_results["difficulty"]
+            assert evidence["generator_difficulty_rationale"].startswith("a single addition")
+            assert evidence["judge_difficulty_reasoning"].startswith("reads as multi-step")
+            assert evidence["proposal_vs_review_difference"] == 2
+
+    asyncio.run(run())
+
+
+def test_the_judge_is_not_told_what_difficulty_was_asked_for() -> None:
+    """Blindness is the premise the whole comparison rests on, so it is asserted on the
+    payload's own schema rather than trusted to a prompt sentence.
+    """
+    fields = set(QuestionJudgePayload.model_fields)
+    assert "proposed_difficulty" not in fields
+    assert not any("difficulty" in name for name in fields), fields
+    assert not any("rationale" in name for name in fields), fields
+
+
+def _settings(*, solver_a: str = "model-x", solver_b: str = "model-y", cap: float = 1000.0):
+    return CurriculumPipelineSettings(
+        bedrock_generation_model_id=solver_a,
+        bedrock_review_model_id=solver_b,
+        bedrock_run_budget_cents=cap,
+    )
+
+
+def test_the_plan_the_preflight_reports_is_the_plan_the_runner_executes() -> None:
+    """One structure drives both, and this is what says so.
+
+    D-193 built the preflight to recompute ids independently, on the theory that a shared
+    derivation could not catch a divergence. Filtering (D-194) changed the balance: a
+    `--skill-id` the report understood and the loop ignored would generate content nobody
+    asked for, which is worse than the divergence the duplication guarded against. So the
+    plan is shared and the agreement is asserted here instead.
+    """
+    plan = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=0)
+    ids = plan.template_ids
+    assert len(ids) == len(set(ids)), "a run cannot claim the same id twice"
+    assert len(ids) == sum(
+        len(tiers) for topic in TOPIC_SKILL_DIFFICULTIES.values() for tiers in topic.values()
+    )
+    for slot in plan.slots:
+        assert slot.difficulty_label in TOPIC_SKILL_DIFFICULTIES[slot.topic_id][slot.skill_id]
+        assert slot.question_template_id.endswith(str(slot.seed))
+
+    # A fresh offset must claim an entirely disjoint range - that is what it is for.
+    shifted = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=400_000)
+    assert not set(ids) & set(shifted.template_ids)
+
+
+def test_cli_filters_generate_only_the_requested_skills_and_difficulties() -> None:
+    plan = pipeline_cli.build_plan(
+        "authored",
+        topic_id="linear_equations",
+        skill_ids=["linear_both_sides"],
+        difficulties=[3, 4],
+        candidates_per_slot=3,
+        seed_offset=40_000,
+    )
+    assert {slot.skill_id for slot in plan.slots} == {"linear_both_sides"}
+    assert {slot.difficulty_label for slot in plan.slots} == {3, 4}
+    assert len(plan.slots) == 2 * 3  # two tiers, three candidates each
+
+    # Narrowing must not move the seeds. The skill index is enumerated over the whole
+    # topic precisely so that a filtered run and a full run propose the *same* ids for the
+    # slots they share - otherwise narrowing a run would silently make it collide with an
+    # earlier full one.
+    full = pipeline_cli.build_plan("authored", candidates_per_slot=3, seed_offset=40_000)
+    assert set(plan.template_ids) <= set(full.template_ids)
+
+
+def test_unsupported_requested_skill_or_difficulty_fails_before_anything_is_called() -> None:
+    with pytest.raises(pipeline_cli.PlanError, match="outside the 1-5 scale"):
+        pipeline_cli.build_plan("authored", difficulties=[7])
+    with pytest.raises(pipeline_cli.PlanError, match="not in the selected topic"):
+        pipeline_cli.build_plan("authored", skill_ids=["fraction_add_sub_like"])
+    with pytest.raises(pipeline_cli.PlanError, match="no registered generation plan"):
+        pipeline_cli.build_plan("authored", topic_id="place_value")
+    # A pair that is individually valid but is not in the authoring plan: tier 1 exists and
+    # `linear_distribute` exists, but D-186 only plans that skill at tier 5.
+    with pytest.raises(pipeline_cli.PlanError, match="no generation slots match"):
+        pipeline_cli.build_plan("authored", skill_ids=["linear_distribute"], difficulties=[1])
+
+
+def test_preflight_fails_when_the_two_solvers_are_one_model() -> None:
+    """Solver A and B read `bedrock_generation_model_id` and `bedrock_review_model_id`,
+    which carry the *same default* - so the shipped configuration gives two solvers that
+    are one model, and their agreement is one opinion counted twice.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            plan = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=810_000)
+            report = await pipeline_cli.preflight(
+                session, _settings(solver_a="model-x", solver_b="model-x"), plan
+            )
+            assert not report.ok
+            assert any("one opinion counted twice" in f for f in report.failures)
+            assert "solver diversity:      FAIL" in report.text
+
+            report = await pipeline_cli.preflight(session, _settings(), plan)
+            assert report.ok, report.failures
+            assert "solver diversity:      PASS" in report.text
+
+    asyncio.run(run())
+
+
+def test_two_inference_profiles_for_one_model_are_not_two_solvers() -> None:
+    """A string comparison answers the wrong question, and answers it permissively.
+
+    Bedrock's `us.` / `global.` / bare ids are routing aliases for the same weights, so two
+    solvers configured that way agree by construction while the check meant to catch that
+    reports PASS. Found while preparing a pilot in an account with exactly two accessible
+    Anthropic models, which is the situation that makes reaching for an alias the obvious
+    move rather than a contrived one.
+    """
+    haiku = "anthropic.claude-haiku-4-5-20251001-v1:0"
+    assert pipeline_cli.underlying_model(f"us.{haiku}") == haiku
+    assert pipeline_cli.underlying_model(f"global.{haiku}") == haiku
+    assert pipeline_cli.underlying_model(haiku) == haiku
+    # A genuinely different model is still different.
+    assert pipeline_cli.underlying_model("us.anthropic.claude-sonnet-5") != haiku
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            plan = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=870_000)
+            report = await pipeline_cli.preflight(
+                session,
+                _settings(solver_a=f"us.{haiku}", solver_b=f"global.{haiku}"),
+                plan,
+            )
+            assert not report.ok
+            assert any("two inference profiles for one model" in f for f in report.failures)
+
+            # And two real models still pass, prefixes and all.
+            report = await pipeline_cli.preflight(
+                session,
+                _settings(solver_a=f"us.{haiku}", solver_b="us.anthropic.claude-sonnet-5"),
+                plan,
+            )
+            assert report.ok, report.failures
+
+    asyncio.run(run())
+
+
+def test_preflight_sees_a_taken_id_before_the_run_pays_for_it() -> None:
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            plan = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=900_000)
+            report = await pipeline_cli.preflight(session, _settings(), plan)
+            assert report.ok, "a fresh offset should be clear"
+
+            # Claim one of the ids this plan would use, then ask again. Taken from the plan
+            # itself rather than rebuilt by hand: hand-rebuilding is how an earlier version
+            # of this test claimed a (skill, tier) pair the plan never visits, then "proved"
+            # the preflight saw nothing by handing it nothing.
+            first = plan.slots[0]
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(
+                    item=_good_item(
+                        stem="Solve: preflight fixture, what is 2 + 2?",
+                        # The slot decides the tier, so the fixture's proposal has to
+                        # follow it or D-194's slot gate rejects a candidate this test is
+                        # only using to occupy an id.
+                        proposed_difficulty=first.difficulty_label,
+                    )
+                ),
+                curriculum=curriculum,
+                topic_id=first.topic_id,
+                difficulty_label=first.difficulty_label,
+                seed=first.seed,
+                session_spend_cents=0.0,
+                skill_id=first.skill_id,
+            )
+            assert outcome.status == "pending"
+            assert outcome.question_template_id == first.question_template_id
+
+            report = await pipeline_cli.preflight(session, _settings(), plan)
+            assert not report.ok
+            assert any("already exist" in f for f in report.failures)
+            assert "id availability:       FAIL" in report.text
+
+            # And the documented remedy works without deleting anything.
+            fresh = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=950_000)
+            assert (await pipeline_cli.preflight(session, _settings(), fresh)).ok
+
+    asyncio.run(run())
+
+
+def test_preflight_refuses_a_budget_above_the_configured_hard_cap() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            plan = pipeline_cli.build_plan(
+                "authored", candidates_per_slot=1, seed_offset=820_000, run_budget_cents=500.0
+            )
+            report = await pipeline_cli.preflight(session, _settings(cap=100.0), plan)
+            assert not report.ok
+            assert any("exceeds the configured hard ceiling" in f for f in report.failures)
+
+    asyncio.run(run())
+
+
+def test_preflight_and_dry_run_make_no_provider_call() -> None:
+    """The claim `--preflight` and `--dry-run` rest on, asserted rather than assumed.
+
+    A gateway that raises on any use is the only way to prove a code path did not call one;
+    counting calls would pass a version that made a call and discarded the result.
+    """
+
+    class _ExplodingGateway:
+        async def generate_structured(self, **kwargs: object) -> object:
+            raise AssertionError("preflight made a model call")
+
+        async def embed(self, **kwargs: object) -> object:
+            raise AssertionError("preflight made an embedding call")
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            plan = pipeline_cli.build_plan("authored", candidates_per_slot=2, seed_offset=830_000)
+            report = await pipeline_cli.preflight(session, _settings(), plan)
+            assert report.text  # it produced a report...
+            # ...and the gateway it never touched still refuses to be touched.
+            with pytest.raises(AssertionError):
+                await _ExplodingGateway().generate_structured()
+
+            # Nothing was written either: the ids the plan names still do not exist.
+            existing = (
+                (
+                    await session.execute(
+                        select(QuestionTemplate.question_template_id).where(
+                            QuestionTemplate.question_template_id.in_(plan.template_ids)
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert existing == []
+
+    asyncio.run(run())
+
+
+def test_preflight_reports_every_field_a_paid_decision_needs() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            plan = pipeline_cli.build_plan(
+                "authored",
+                topic_id="linear_equations",
+                skill_ids=["linear_both_sides"],
+                difficulties=[4],
+                candidates_per_slot=2,
+                seed_offset=840_000,
+            )
+            report = await pipeline_cli.preflight(session, _settings(), plan)
+            for expected in [
+                "provider:",
+                "generator model:",
+                "solver A model:",
+                "solver B model:",
+                "judge model:",
+                "embedding model:",
+                "topic:                 linear_equations",
+                "skills:                linear_both_sides",
+                "difficulties:          4",
+                "candidates per slot:   2",
+                "scheduled candidates:  2",
+                "planned template ids:",
+                "already-used ids:      0",
+                "seed offset:           840000",
+                "run budget ceiling:",
+                "estimated max calls:   10",
+                "estimated max spend:",
+                "solver diversity:",
+                "id availability:",
+            ]:
+                assert expected in report.text, expected
+
+    asyncio.run(run())
+
+
+def test_per_candidate_settlement_survives_a_duplicate_id() -> None:
+    """D-193's property, re-asserted now that one loop serves both modes: the candidate
+    that collides is lost and the ones already committed are not.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            plan = pipeline_cli.build_plan(
+                "authored",
+                skill_ids=["linear_one_step"],
+                difficulties=[1],
+                candidates_per_slot=1,
+                seed_offset=860_000,
+            )
+            slot = plan.slots[0]
+            # Take the id first, so the run's only candidate is guaranteed to collide.
+            await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(
+                    item=_good_item(stem="Solve: collision fixture, what is 2 + 2?")
+                ),
+                curriculum=curriculum,
+                topic_id=slot.topic_id,
+                difficulty_label=slot.difficulty_label,
+                seed=slot.seed,
+                session_spend_cents=0.0,
+                skill_id=slot.skill_id,
+            )
+            await session.commit()
+
+            summary = await pipeline_cli.run_plan(
+                session,
+                _ScriptedAuthoredGateway(
+                    item=_good_item(stem="Solve: collision rerun, what is 2 + 2?")
+                ),
+                plan,
+            )
+            assert summary.skipped_duplicate_id == 1
+            assert summary.pending == 0
+            # The already-committed row is untouched by the collision.
+            assert (
+                await QuestionRepository(session).get_template(slot.question_template_id)
+            ) is not None
+
+    asyncio.run(run())
+
+
+def test_run_summary_separates_processed_from_scheduled() -> None:
+    """A 50-candidate run quoted two denominators as if they were one (D-192).
+
+    It reported "8 of 50" and "stopped at 34 of 50" together: 16 candidates never reached a
+    model - the gateway refused them on budget - and were counted as rejections, so the
+    yield read 16% when the number that says whether the mode works is 8/34. A budget skip
+    is not a quality signal and must not sit in the same bucket as a solver disagreement.
+    """
+    summary = pipeline_cli.RunSummary()
+    summary.scheduled = 50
+    for _ in range(8):
+        summary.record(ai_pipeline.PipelineOutcome(status="pending", cost_cents=1.0))
+    stages: list[tuple[ai_pipeline.RejectionStage, int]] = [
+        ("solver", 17),
+        ("judge", 3),
+        ("validation", 5),
+        ("dedup", 1),
+    ]
+    for stage, count in stages:
+        for _ in range(count):
+            summary.record(
+                ai_pipeline.PipelineOutcome(status="rejected", rejected_at=stage, cost_cents=0.5)
+            )
+    for _ in range(16):
+        summary.record(
+            ai_pipeline.PipelineOutcome(status="rejected", rejected_at="budget", cost_cents=0.0)
+        )
+
+    assert summary.processed == 34
+    assert summary.skipped_budget == 16
+    assert summary.rejected == 26
+    # The budget skips are outside `rejected` entirely, so the quality denominator is the
+    # 34 candidates a model actually saw.
+    assert summary.pending / summary.processed == pytest.approx(8 / 34)
+    rendered = summary.format("authored")
+    assert "8 accepted of 34 processed (24%)" in rendered
+    assert "50 scheduled" in rendered
+    assert "solver=17" in rendered
+    assert "budget=16" in rendered

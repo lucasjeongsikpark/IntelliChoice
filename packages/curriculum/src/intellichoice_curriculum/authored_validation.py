@@ -19,10 +19,40 @@ from dataclasses import dataclass, field
 
 import sympy
 from intellichoice_shared.bedrock import AuthoredGeneratedItemResponse
+from sympy.parsing.sympy_parser import (
+    implicit_multiplication_application,
+    parse_expr,
+    standard_transformations,
+)
 
 _OPTION_LABELS = ("a", "b", "c", "d")
 _REQUIRED_HINT_LEVELS = 3
-_DISALLOWED_WORDING = ("kill", "die", "stupid", "dumb")
+# Substring matching made this check reject correct, harmless questions, and the words it
+# hit are ones a math item is *likely* to contain: "skill" contains "kill", "studies"
+# contains "die", and so do "medium", "diet", "audience". Measured on the first scenario
+# run (D-191), which lost a question about rolling a die - the singular of dice, a math
+# object, not a word about death.
+#
+# So: word-boundary matching, and "die" is deliberately not on the list. The concern is
+# violence and insult, which the unambiguous forms below carry; "a die" does not. The
+# boundary assertions mirror `answer_text_leaked`'s, which was fixed for the same class of
+# bug (a `\b` that could never fire) - see its docstring.
+_DISALLOWED_WORDING = (
+    "kill",
+    "kills",
+    "killed",
+    "killing",
+    "died",
+    "dying",
+    "death",
+    "deaths",
+    "stupid",
+    "dumb",
+)
+_DISALLOWED_WORDING_RE = re.compile(
+    r"(?<![0-9A-Za-z])(?:" + "|".join(_DISALLOWED_WORDING) + r")(?![0-9A-Za-z])",
+    re.IGNORECASE,
+)
 _LEAK_PHRASES = (
     "the answer is",
     "correct answer is",
@@ -114,8 +144,12 @@ _MATH_TEXT_SUBSTITUTIONS = {
 _ASSIGNMENT_PREFIX_RE = re.compile(r"^\s*[A-Za-z]\w*\s*=\s*")
 
 
-def _normalize_math_text(text: str) -> str:
+def _normalize_math_text(text: str, *, strip_assignment: bool = True) -> str:
     """Make human-written math text parseable without changing what it asserts.
+
+    `strip_assignment` is off for equations. Stripping `x =` from an *option* recovers the
+    value it names; stripping it from an *equation* deletes half the relation, which is
+    the thing being solved.
 
     Both transformations were found by the first real authoring run against Bedrock
     (2026-08-05), where they cost six of eleven candidates: the model wrote correct
@@ -131,12 +165,43 @@ def _normalize_math_text(text: str) -> str:
     """
     for character, replacement in _MATH_TEXT_SUBSTITUTIONS.items():
         text = text.replace(character, replacement)
+    if not strip_assignment:
+        return text
     return _ASSIGNMENT_PREFIX_RE.sub("", text, count=1)
 
 
+# A trailing unit ("12 minutes", "40 cm", "2/3 of a cup") or a leading currency symbol.
+# Both are how a *word problem's* answer naturally reads, which is why they matter: the
+# bare-equation items the pipeline produced never needed them, so the gap only appears
+# once questions get more interesting (D-191).
+_TRAILING_UNIT_RE = re.compile(r"\s*[A-Za-z]{2}[A-Za-z.\s]*$")
+_LEADING_CURRENCY_RE = re.compile(r"^\s*[$€£¥₩]\s*")
+
+
 def _sympify(text: str) -> sympy.Basic | None:
+    """Parse human-written answer text as a value, trying the literal form first.
+
+    The unit-stripping fallback runs **only after a direct parse has already failed**, so
+    it cannot change the result for anything that parses today. That ordering is what
+    makes it safe: `'2x'` is not silently read as `2`, because two-letter minimum keeps a
+    single-letter variable from looking like a unit, and anything that does parse is never
+    rewritten at all.
+
+    Stripping a unit does not weaken the check it feeds. `check_sympy_independent_solve`
+    still re-solves the expression and compares values, so `'12 minutes'` and
+    `'15 minutes'` remain different answers - what changes is that both are now comparable
+    instead of both being unparseable and therefore silently exempt.
+    """
+    normalized = _normalize_math_text(text)
     try:
-        return sympy.sympify(_normalize_math_text(text))
+        return sympy.sympify(normalized)
+    except (sympy.SympifyError, TypeError, ValueError, AttributeError):
+        pass
+    stripped = _TRAILING_UNIT_RE.sub("", _LEADING_CURRENCY_RE.sub("", normalized)).strip()
+    if not stripped or stripped == normalized:
+        return None
+    try:
+        return sympy.sympify(stripped)
     except (sympy.SympifyError, TypeError, ValueError, AttributeError):
         return None
 
@@ -148,20 +213,99 @@ def _values_equal(a: sympy.Basic, b: sympy.Basic) -> bool:
     return bool(a.equals(b))  # type: ignore[attr-defined]
 
 
+# One `=` that is not part of `==`, `<=`, `>=` or `!=`.
+_RELATION_SPLIT_RE = re.compile(r"(?<![<>!=])=(?!=)")
+_PARSE_TRANSFORMS = standard_transformations + (implicit_multiplication_application,)
+
+
+def _parse_side(text: str) -> sympy.Basic:
+    return parse_expr(text, transformations=_PARSE_TRANSFORMS, evaluate=True)
+
+
+def derive_answer(equation: str) -> tuple[sympy.Basic | None, str | None]:
+    """Solve the equation that models the question, returning `(value, error)`.
+
+    This is the check that was missing rather than merely weak. `answer_expression` was
+    documented as the thing SymPy solves "independently of the generator's own claim", but
+    the generator wrote the *answer* into it - all five items from the first real run had
+    `answer_expression: '7'`, `'4'`, `'-4'`, `'8'`, `'6'`. `sympify('7')` returns 7, so the
+    gate confirmed the correct option said 7, which the generator had also said. It could
+    not have caught a wrong answer, and never did (D-191).
+
+    Requiring a *relation* is what makes it independent: `Eq(2*x + 5, x + 12)` is a claim
+    about the situation, and the answer is derived from it here rather than accepted. A
+    generator that models the question wrong now produces a value that disagrees with its
+    own options, which is exactly the failure we want surfaced.
+
+    Implicit multiplication is accepted (`2x + 5` as well as `2*x + 5`) because a model
+    writing mathematics naturally omits the star, and rejecting that would be the same
+    formatting-over-substance mistake the unit and typographic-minus fixes corrected.
+
+    **What this cannot check.** It verifies equation -> answer, never situation ->
+    equation. A model that equates two robots' *rates* instead of their *totals* gets a
+    faithfully-solved wrong answer. That step is what the two independent solver agents
+    exist for: they read the scenario blind and must land on the same option.
+    """
+    normalized = _normalize_math_text(equation, strip_assignment=False)
+    try:
+        if "Eq(" in normalized:
+            relation = _parse_side(normalized)
+        else:
+            sides = _RELATION_SPLIT_RE.split(normalized)
+            if len(sides) != 2:
+                return None, (
+                    f"equation {equation!r} is not a single equation - model the question "
+                    f"as one relation with one unknown, e.g. 'Eq(3 + 7*m, 4 + 4*m)'"
+                )
+            relation = sympy.Eq(_parse_side(sides[0]), _parse_side(sides[1]))
+    except (sympy.SympifyError, SyntaxError, TypeError, ValueError, AttributeError):
+        return None, f"equation {equation!r} did not parse with SymPy"
+
+    if not isinstance(relation, sympy.Equality):
+        # `Eq(4, 4)` collapses to `BooleanTrue`, and a bare value parses to a Number -
+        # both are the tautology this check exists to stop accepting.
+        return None, (
+            f"equation {equation!r} is not a solvable equation - it restates the answer "
+            f"instead of deriving it"
+        )
+    unknowns = sorted(relation.free_symbols, key=str)
+    if len(unknowns) != 1:
+        return None, (
+            f"equation {equation!r} has {len(unknowns)} unknowns, expected exactly one"
+        )
+    try:
+        solutions = sympy.solve(relation, unknowns[0])
+    except (NotImplementedError, TypeError, ValueError):
+        return None, f"equation {equation!r} could not be solved by SymPy"
+    if len(solutions) != 1:
+        return None, (
+            f"equation {equation!r} has {len(solutions)} solutions, expected exactly one"
+        )
+    return solutions[0], None
+
+
 def check_sympy_independent_solve(
     item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
 ) -> None:
-    """SPEC §5.8.5: when `answer_expression` parses, solve it independently of the
-    generator's own claim and confirm it matches the declared correct option (and that
-    no distractor also matches it) - the same "recompute, don't trust" posture the shape
-    pipeline's `check_exactly_one_correct_answer` already has, applied to free-form
-    authored content instead of a registered shape function.
+    """SPEC §5.8.5: derive the answer from the item's own equation and confirm it matches
+    the declared correct option (and that no distractor also matches) - the same
+    "recompute, don't trust" posture the shape pipeline's `check_exactly_one_correct_answer`
+    has, applied to free-form authored content instead of a registered shape function.
+
+    The equation is **required** as of D-191. It used to be optional, which meant a
+    generator that omitted it skipped verification entirely - a hole that costs nothing to
+    close and that a model would eventually find, since omitting a field is easier than
+    getting one right.
     """
-    if not item.answer_expression:
+    if not item.equation:
+        result.fail(
+            "equation is missing - every item must model its question as a solvable "
+            "equation so the answer can be derived rather than taken on trust"
+        )
         return
-    solved = _sympify(item.answer_expression)
+    solved, error = derive_answer(item.equation)
     if solved is None:
-        result.fail(f"answer_expression {item.answer_expression!r} did not parse with SymPy")
+        result.fail(error or f"equation {item.equation!r} could not be solved")
         return
 
     options = _options(item)
@@ -307,10 +451,8 @@ def check_age_appropriate_wording(
     item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
 ) -> None:
     for text in _text_fields(item):
-        lowered = text.lower()
-        for word in _DISALLOWED_WORDING:
-            if word in lowered:
-                result.fail(f"disallowed wording found: {word!r}")
+        for match in _DISALLOWED_WORDING_RE.finditer(text):
+            result.fail(f"disallowed wording found: {match.group(0).lower()!r}")
         for sentence in re.split(r"[.!?]", text):
             word_count = len(sentence.split())
             if word_count > _MAX_WORDS_PER_SENTENCE:

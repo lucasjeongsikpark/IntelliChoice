@@ -197,8 +197,12 @@ class LearningChatIntentPayload(BaseModel):
 
 class LearningChatIntentResponse(BaseModel):
     intent: Literal[
-        "question_help", "request_hint", "request_solution", "request_video",
-        "why_wrong", "off_topic",
+        "question_help",
+        "request_hint",
+        "request_solution",
+        "request_video",
+        "why_wrong",
+        "off_topic",
     ]
     reasoning: str = ""
 
@@ -284,8 +288,30 @@ class SolverPayload(BaseModel):
 
 
 class SolverResponse(BaseModel):
+    """Field order is load-bearing, and so is `no_option_matches` - see D-193.
+
+    `reasoning` comes first because the gateway sends `model_json_schema()` and a model
+    emits its JSON in schema order: a `selected_option` declared first is chosen *before*
+    the model has worked anything out, and the reasoning that follows can only rationalise
+    it. Reasoning first makes the field what it is named after.
+    """
+
+    reasoning: str
+    # A solver that has computed an answer absent from the options used to have no way to
+    # say so - `selected_option` is a closed literal, so it was forced to name one of four
+    # wrong answers. `narrative-linear_equations-d4-23000` is what that costs: the story's
+    # answer was 4, no option offered 4, and both solvers picked the same wrong option and
+    # were recorded as *agreeing*. Agreement manufactured by the schema is worse than no
+    # check, because the pipeline reports it as independent confirmation.
+    no_option_matches: bool = False
+    # Distinct from `no_option_matches`: there the solver has one answer and cannot find
+    # it, here it cannot settle on one answer at all. Fail-closed either way, but the
+    # rejection reason should say which happened.
+    is_unambiguous: bool = True
+    ambiguity_reasons: list[str] = Field(default_factory=list)
+    # Still required, still a closed literal: a solver must commit to its best option even
+    # when it flags one of the above, so the disagreement arm keeps working unchanged.
     selected_option: Literal["a", "b", "c", "d"]
-    reasoning: str = ""
 
 
 class DifficultyReviewPayload(BaseModel):
@@ -358,11 +384,29 @@ class AuthoredGeneratorPayload(BaseModel):
     topic_name: str
     skill_name: str
     grade_band: str
-    difficulty_label: int
+    # Renamed from `difficulty_label` (D-194) to say what it is: the tier this slot is
+    # *asking* for, not a fact about the item. The generator answers with its own
+    # `proposed_difficulty`, which is normally this number - being told the target
+    # anchors it, and that is precisely why the anchored proposal is not the check. The
+    # judge never sees this field (see `QuestionJudgePayload`).
+    target_difficulty: int
     exemplars: list[str]
 
 
 class AuthoredGeneratedItemResponse(BaseModel):
+    """What the Generator returns: a complete student-facing MCQ *plus* its own claim
+    about how hard the item is and why (D-194).
+
+    `extra="forbid"` here and not on the older response models on purpose. A stray field
+    in a generated question is a signal that the model has drifted from the contract, and
+    the failure path is the good one - schema violation, bounded repair retry, then
+    rejection (SPEC §5.25.3). The cost is that a candidate can be lost to a formatting
+    slip rather than to bad math, which is the trade this project has already chosen
+    everywhere else content reaches a student.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
     stem: str
     context_block: str | None = None
     option_a: str
@@ -370,11 +414,35 @@ class AuthoredGeneratedItemResponse(BaseModel):
     option_c: str
     option_d: str
     correct_option: Literal["a", "b", "c", "d"]
-    answer_expression: str | None = None
+    # The equation that models the question, e.g. `Eq(3 + 7*m, 4 + 4*m)` for two robots
+    # collecting at different rates from different starting amounts. Named for what it is:
+    # this was `answer_expression`, and the generator filled it with the answer (`'7'`),
+    # which made the "independent solve" a comparison of the generator against itself
+    # (D-191). `authored_validation.derive_answer` solves it, so the answer is derived
+    # here rather than asserted by the model that wrote the question. Still persisted to
+    # the `answer_expression` column, which is not worth a migration to rename.
+    equation: str | None = None
     hint_ladder: list[str] = []
     canonical_solution: SolutionResponse
     misconception_tags: list[str] = []
     estimated_time_seconds: int
+    # The Generator's own difficulty claim (D-194). Bounded to the 1-5 scale the whole
+    # system uses, for the reason `hint_quality_score` is bounded: an unbounded field
+    # reached the model as a free integer and it invented its own scale, which silently
+    # disabled the gate reading it. The bound travels in the tool's JSON schema.
+    proposed_difficulty: int = Field(ge=1, le=5)
+    # Deliberately `min_length`, not just required. "This is difficulty 3" and "moderately
+    # difficult" restate the label and say nothing a reviewer can check; what earns the
+    # label is the reasoning the item demands - translating a scenario into an equation,
+    # a variable on both sides, distribution before combining like terms. A length floor
+    # does not force a *good* rationale, but it does stop the empty string, and the judge
+    # is what actually tests the claim.
+    difficulty_rationale: str = Field(min_length=20)
+    # Curriculum concepts a student needs before this item is fair. Recorded as evidence
+    # for the human reviewer rather than gated on: there is no prerequisite graph to check
+    # them against yet, and inventing one from a model's free text would be worse than
+    # admitting they are unvalidated.
+    required_prerequisites: list[str] = []
     reasoning: str = ""
 
 
@@ -382,6 +450,14 @@ class QuestionJudgePayload(BaseModel):
     """A single combined judge call replacing S9's three separate reviewers for this
     mode (difficulty fit + ambiguity + curriculum alignment + age-appropriateness +
     hint-ladder quality, all from one independent model call).
+
+    **It no longer carries `proposed_difficulty` (D-194), and that omission is the point.**
+    The judge used to be told the tier being asked for and then asked to rate difficulty,
+    so "the judge agreed" meant a model had been shown a number and returned it. The
+    comparison that gates the candidate is only worth making if the second number was
+    reached independently, so the judge sees what a teacher would see: the question, the
+    options, the hint ladder, the answer, and the topic/skill/grade it is meant for.
+    Neither the Generator's proposal nor its rationale reaches here.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -396,14 +472,39 @@ class QuestionJudgePayload(BaseModel):
     topic_name: str
     skill_name: str
     grade_band: str
-    proposed_difficulty: int
 
 
 class QuestionJudgeResponse(BaseModel):
-    difficulty_label: int
+    """`reasoning` first, for the reason given on `SolverResponse` - and here there is a
+    measured failure to point at (D-193).
+
+    On `narrative-linear_equations-d4-23000` this judge derived the story's true answer,
+    wrote "the canonical solution is mathematically incorrect", and closed with "I must
+    flag this as internally inconsistent" - while the `is_internally_consistent` it had
+    already emitted said `true`. The judge was not wrong about the question; it was asked
+    for its verdict before it was allowed to think, and nothing in a JSON response can be
+    revised once written. Every boolean below is now decided after the prose.
+    """
+
+    reasoning: str
+    # Renamed from `difficulty_label` (D-194): this is the judge's *own* rating, reached
+    # without seeing what was proposed, and the old name read like the item's settled
+    # difficulty rather than one of two opinions about it. Bounded for the same reason
+    # `hint_quality_score` is.
+    reviewed_difficulty: int = Field(ge=1, le=5)
+    # Separate from `reasoning`, which covers the whole review. This one has to name the
+    # reasoning operations the item demands - the same standard the Generator's
+    # `difficulty_rationale` is held to - so the two rationales are comparable when a
+    # human reads the disagreement.
+    difficulty_reasoning: str = Field(min_length=20)
     is_ambiguous: bool
     is_aligned: bool
     is_age_appropriate: bool
+    # Separate from `is_ambiguous` because the failure is not ambiguity: the question is
+    # perfectly clear, its algebra is right, and its answer is impossible in the world it
+    # describes. Overloading an existing flag would have made the rejection reason lie
+    # about what was wrong (D-191).
+    is_internally_consistent: bool = True
     # Bounded because an unbounded score silently disabled the gate that reads it. The
     # first real-Bedrock authoring run (2026-08-05) had the judge score every item 8 or 9
     # on its own invented 1-10 scale, while `ai_pipeline`'s thresholds reject below 2 and
@@ -413,7 +514,6 @@ class QuestionJudgeResponse(BaseModel):
     # `model_json_schema()`), and an out-of-range score now fails validation into the
     # repair retry and then rejection, which is the fail-closed direction (SPEC §5.25.3).
     hint_quality_score: int = Field(ge=1, le=5)
-    reasoning: str = ""
 
 
 # --- SPEC §5.19 Q&A graph, §5.21.7-5.21.8 (S13) ------------------------------------
@@ -439,9 +539,7 @@ class ScopeAndIntentResponse(BaseModel):
     """
 
     in_scope: bool
-    intent: Literal[
-        "document_qa", "branch_locator", "calendar", "admin_contact", "clarification"
-    ]
+    intent: Literal["document_qa", "branch_locator", "calendar", "admin_contact", "clarification"]
     reasoning: str = ""
 
 

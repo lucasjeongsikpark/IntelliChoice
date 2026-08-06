@@ -5,6 +5,36 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-194: the Generator proposes a difficulty, a blind judge reviews it, and authoring becomes a
+  repeatable command (2026-08-05).** `ruff` clean, `pyright` 0, **945 passed / 2 skipped** — up 11.
+  **Nothing was spent**; the only runs were `--preflight` and `--dry-run`, and a test asserts those
+  paths never touch a provider. Branch `d194-authored-generation-cli`, not merged.
+  - **Authored-first is the only AI-authored mode.** D-192's equation-first narrative mode was
+    retired in D-193 and is not coming back — it guaranteed the *equation's* answer, not that the
+    story encoded that equation, and nothing downstream could see the difference.
+  - **The judge is now blind to the proposed difficulty.** It used to be told the tier and then
+    asked to rate it, so "the judge agreed" measured anchoring. Three values now exist — the slot's
+    `requested`, the Generator's anchored `proposed`, the judge's independent `reviewed` — and two
+    gates read them: a gap of ≥2 between proposal and review rejects (two readers cannot both be
+    right), and a gap of ≥2 between review and the slot rejects (the item does not belong where it
+    would be stored). A gap of 1 keeps the item at `review_priority="high"`. Both numbers, both
+    rationales and the decision are persisted as validation evidence.
+  - **Generation is a command now**: `--topic-id`, repeatable `--skill-id` / `--difficulty`,
+    `--candidates-per-slot`, `--run-budget-cents`, `--dry-run`, and `QUESTION_GEN_ARGS` on the
+    Makefile targets. One `build_plan` drives both the run and the preflight.
+  - **Preflight is authoritative and a paid run refuses to start when it fails.** Against real
+    settings it fails both live checks: all four model slots resolve to `anthropic.claude-sonnet-5`,
+    so Solver A and B are one model; and 4 of 22 ids at offset 0 are taken.
+  - **⛔ Blockers before a 10–12 candidate paid pilot**, all configuration rather than code:
+    Bedrock access for a premium generator model id (`CURRICULUM_BEDROCK_AUTHORED_GENERATION_MODEL_ID`),
+    and two *different* lower-cost ids for Solver A/B (`CURRICULUM_BEDROCK_GENERATION_MODEL_ID` /
+    `CURRICULUM_BEDROCK_REVIEW_MODEL_ID`). Recommended `--seed-offset 400000` (verified disjoint from
+    every existing id) and a `--run-budget-cents 120` ceiling.
+  - **Carry-over:** `test_hint_reflects_the_students_actual_wrong_option` failed once in a full-suite
+    run under D-193 and has passed every run since; not reproduced, not diagnosed.
+  - **The 12 pending authored baseline items are untouched** — still `pending`, still the pilot's
+    human-review comparison set.
+
 - **⏸ D-189: authored content can now be served — and CI proved the content itself lives nowhere but
   one laptop (2026-08-05, fifth session that day; PROGRESS.md's own post-D-188 pointer, items 0 and
   1 — you chose to merge #124 and chose "accept repetition for authored items").** `make lint`

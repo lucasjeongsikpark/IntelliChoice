@@ -12934,3 +12934,241 @@ start.
 **Revert:** remove the static branch in `build_variant_row` and the two `get_canonical_variants`
 calls, and restore `get_variant_for_template`'s unfiltered `limit(1)`. Nothing needs re-pinning —
 the fixtures were never changed in the landed state.
+
+---
+
+## D-193 — the reviewer panel is asked for its verdict before it is allowed to think, and equation-first authoring is retired (accepted, 2026-08-05)
+
+**Context.** D-192 built an inverted authoring mode: generate the equation from a registered shape
+first, then ask the model only to dress it in a story. The claim was that this makes the answer
+correct by construction. Twenty candidates from three runs sat at `pending`, unreviewed, so before
+building anything further every one of them was read and re-solved by hand.
+
+### 1. What the audit found
+
+`narrative-linear_equations-d4-23000` reached `pending` **with the wrong answer.** Its story — a
+console with `x` games, another with `x + 8`, buy `2x` more for the first — resolves to `x + 8 = 3x`,
+so `x = 4`. The shape's equation was `2x + 8 = 6x`, so `x = 2`, and `2 games` was marked correct.
+Four was not among the four options.
+
+It passed the deterministic gate, both solver agents, and the judge. Two mechanisms, both confirmed
+in code rather than inferred:
+
+1. **`reasoning` was the last field** of `SolverResponse` and `QuestionJudgeResponse`. The gateway
+   sends `model_json_schema()`, so a model emits its fields in schema order and every verdict was
+   decided before a word of reasoning existed. The judge's stored `reasoning` derives the true
+   answer, states "the canonical solution is mathematically incorrect", and ends "I must flag this
+   as internally inconsistent" — beside the `is_internally_consistent: true` it had already written.
+   It was not wrong about the question. It was asked in the wrong order.
+2. **`selected_option` was a closed literal with no escape hatch.** A solver that computes an answer
+   absent from the options must still name one of four. Both did, both named the same one, and the
+   agreement arm reported that as independent confirmation. Agreement manufactured by the schema is
+   worse than no check at all.
+
+### 2. Equation-first is retired as a generation mode
+
+Equation-first guarantees the *equation's* answer, not that **the story encodes that equation** —
+and that gap is structurally invisible downstream, because every later stage inherits the
+pre-chosen answer. The measured quality gap points the same way. Of the 8 narrative candidates:
+8/8 carried a negative distractor in a counting context (`-6 stickers`, `-7 raffle tickets`), 6/8
+starred "Marcus", the singular/plural bug was visible (`1 notebooks`), and one was degenerate. Of
+the 12 model-first candidates, 11 were verified correct by hand and 1 was ambiguous
+(`d3-307300`: a pot of *broth* filled with *soup*, where 12 and 16 are both defensible and both on
+offer). Their settings were a movie theatre, pizza toppings, sunflower rows, a café mixing cold
+brew, two filling water tanks.
+
+So the positivity filter, the story-friendly seed search, the substituted distractors and the 14
+structurally unreachable templates all go with it. They were patches over this defect. The counters,
+`RejectionStage` and `--seed-offset` that D-192 also brought are mode-independent and stay.
+
+**This reverses the direction of D-192, not its findings.** Its commit is kept in history.
+
+### 3. What replaced it
+
+- `reasoning` is the **first** field on both response models, and required. Asserted on the schema
+  (`test_the_judge_and_solver_decide_after_they_reason_not_before`), because field order in what we
+  send is the part we control.
+- `SolverResponse` gains `no_option_matches`, `is_unambiguous` and `ambiguity_reasons`.
+  `solver_objections()` gates on all three, checking them **before** agreement, and **either**
+  solver objecting is enough — fail-closed, and requiring two independent readers to notice the same
+  defect would set the bar above what one careful reader catches.
+- **Per-candidate commit** (`_settle`). The runners previously held a whole batch in one transaction
+  and `main` committed after the loop, which made one duplicate template id discard every candidate
+  in the run *including the paid, passing ones*. A collision now costs one candidate, and an
+  interrupted run keeps everything up to the interruption.
+- **`--preflight`**, free and calling nothing: resolved model ids, spend ceiling, whether the two
+  solvers are actually two models, and whether the ids this run would claim are still available.
+  `planned_template_ids` recomputes the plan from `(skill, tier, index)` rather than sharing the
+  runners' loop, so a divergence is *possible* and therefore testable; the first version of its test
+  hand-rebuilt an id for a `(skill, tier)` pair the plan never visits and "proved" the check saw
+  nothing by handing it nothing.
+
+Run against real settings, it fails both checks immediately: all four model slots resolve to
+`anthropic.claude-sonnet-5` (the shipped defaults), and 4 of 22 ids at offset 0 are taken. Printed
+as a warning rather than enforced — a single-model pair is right for a mock smoke test, and offset 0
+against an empty topic is a legitimate first run. What must not happen is spending without saying
+which of those it is.
+
+### 4. Verification
+
+`ruff` clean, `pyright` 0, **934 passed / 2 skipped**. Six new tests: the two solver escape hatches,
+the field-order property, and three preflight tests. The 8 narrative candidates are `rejected` in
+the dev database; the 12 authored ones stay `pending` as the pilot's human-review baseline.
+
+One caveat recorded rather than smoothed over: `test_hint_reflects_the_students_actual_wrong_option`
+failed once in a full-suite run and passed in the next full-suite run, in isolation, and in a
+targeted pair. Not reproduced, not diagnosed, and not obviously related to anything here — noted so
+the next occurrence is the second data point rather than the first.
+
+**Revert:** move `reasoning` back to last and drop the three solver fields (the prompts degrade
+harmlessly); replace `_settle`'s body with `summary.record`; delete `preflight`. Restoring narrative
+mode means reverting this commit's deletions — its own commit is still in history.
+
+---
+
+## D-194 — the Generator proposes a difficulty and the judge, now blind, reviews it; authoring becomes a repeatable command (accepted, 2026-08-05)
+
+**Context.** D-193 retired equation-first generation, leaving authored-first as the only AI-authored
+mode. What it did not fix: the pipeline could only run the *whole* authoring plan at default
+settings, and difficulty was a number the pipeline told the judge and then congratulated itself when
+the judge repeated it.
+
+### 1. The judge was never independent about difficulty
+
+`QuestionJudgePayload` carried `proposed_difficulty`, and the gate compared the judge's rating to it.
+A model shown a number and asked to rate the same thing will mostly return that number, so "the judge
+agreed the difficulty was right" carried close to no information — and the ±1 threshold that read it
+was measuring anchoring, not agreement.
+
+`proposed_difficulty` is gone from that payload. The judge now sees what a teacher would see: the
+question, its options, the hint ladder, the answer, and the topic/skill/grade band it is meant for.
+Neither the Generator's proposal nor its rationale reaches it.
+
+### 2. Three numbers, two gates
+
+Difficulty now has three values that answer different questions, which is why one gate cannot cover
+them:
+
+| value | source | what it is |
+|---|---|---|
+| `requested` | the slot | an instruction — decides where the item is stored and what its id says |
+| `proposed` | the Generator | anchored, because the Generator is told the target; the *rationale* is the part worth reading |
+| `reviewed` | the judge | the only independent reading |
+
+`judge_difficulty()` computes both gaps. `|proposed − reviewed| ≥ 2` rejects: two readers cannot both
+be right and nothing can tell which is wrong. `|reviewed − requested| ≥ 2` also rejects: an item both
+models call tier 1, stored in the tier-5 slot, would be offered to students who have earned tier 5,
+which is worse than a wasted candidate. A gap of 1 on either keeps the item and sets
+`review_priority="high"`. Rejections get their own `rejected_at="difficulty"` bucket — a judge
+rejection says the question is bad, this one says the question may be fine.
+
+Both numbers, both rationales, both gaps and the decision are persisted to
+`question_validation_runs.stage_results["difficulty"]` whatever the outcome, so a reviewer reading a
+rejection sees the two readings that disagreed rather than a verdict. Prerequisites land beside them.
+
+**Acceptability is computed, not asked of the model.** The brief asked the judge to report whether the
+proposed difficulty is acceptable. A judge blind to the proposal *cannot* answer that, and a judge
+shown the proposal is the thing this decision just removed — so the only coherent form of the question
+is arithmetic on two numbers, which is also the answer that cannot be argued out of (CLAUDE.md rule 2).
+
+### 3. The Generator writes more, and is held to it
+
+`AuthoredGeneratedItemResponse` gains `proposed_difficulty` (bounded 1–5, so the bound travels in the
+tool schema — the same fix `hint_quality_score` needed after the model invented a 1–10 scale),
+`difficulty_rationale` (`min_length=20`; "moderately difficult" restates the label and says nothing a
+reviewer can check) and `required_prerequisites` (recorded, not gated — there is no prerequisite graph
+to check them against, and inventing one from free text would be worse than admitting they are
+unvalidated). The response is now `extra="forbid"`: a drifted model fails into the bounded repair
+retry rather than having stray fields silently dropped.
+
+The prompt now also requires distractors to be the value a *named* student mistake produces, and every
+few-shot exemplar demonstrates the whole contract — options with the error each encodes, a three-level
+ladder, the solution, a rationale naming reasoning operations, prerequisites. A field shown in every
+exemplar is filled far more consistently than one only described. All three exemplars' arithmetic was
+checked with SymPy rather than by eye.
+
+`AuthoredTemplateDef.to_generated_item()` reconstructs the two new fields rather than restoring them —
+the served YAML bank does not carry authoring evidence — and the placeholder rationale says so in
+words instead of inventing one. Neither field is read by the §5.8.5 gate it feeds.
+
+### 4. One plan drives the run and the preflight
+
+`build_plan()` turns CLI arguments into the exact list of candidates a run would attempt, and
+`run_plan()` iterates it. This **reverses D-193's deliberate duplication**, where the preflight
+recomputed ids so a divergence could be caught. Filtering changed the balance: a `--skill-id` the
+report understood and the loop ignored would generate content nobody asked for, which is worse than
+the divergence the duplication guarded against. The agreement is now asserted by test instead.
+
+New flags: `--topic-id`, repeatable `--skill-id`, repeatable `--difficulty`, `--candidates-per-slot`
+(with `--candidates-per-difficulty` kept working), `--run-budget-cents`, `--dry-run`,
+`--allow-preflight-failure`. Extra arguments reach the Makefile targets through `QUESTION_GEN_ARGS`
+rather than by editing them. Still argparse: a framework migration would be the largest change here
+and buy nothing these flags do not, and the thing worth having later — presets — attaches to
+`build_plan`, not to the parser.
+
+Narrowing a run does **not** move its seeds. The skill index is enumerated over the whole topic, so a
+filtered run proposes the same ids a full run would for the slots they share; a filter that shifted
+seeds would make two runs collide by having narrowed one of them.
+
+### 5. Preflight is authoritative
+
+It reports provider, all five resolved model ids, selected topic/skills/difficulties, candidates per
+slot, scheduled count, planned and already-used template ids, seed offset, budget ceiling and
+estimated maximum calls, then fails on: identical solver models, taken ids, a budget above the
+configured hard cap. Planning failures — unknown topic, a skill outside it, a difficulty off the 1–5
+scale, a filter matching no slots — raise before the engine is even created.
+
+**A paid run now refuses to start when preflight fails.** A mock run continues and says so;
+`--allow-preflight-failure` is the documented override, because a single-model solver pair is the
+correct configuration for a mock smoke test.
+
+Maximum *spend* is deliberately not estimated. Per-call cost depends on model ids and output length,
+and this project has exactly one measurement (Haiku, ~0.29¢/call) that says nothing about a premium
+generator. The budget ceiling the gateway enforces is a real bound; an invented average would read
+like one and not be.
+
+### 6. A correction to D-193
+
+D-193 claimed `_settle` contained duplicate-id damage. It did not, quite:
+`QuestionRepository.create_template` **flushes**, so a unique violation is raised while the candidate
+is still being built, one statement before the commit `_settle` was guarding. The catch is now in
+`run_plan` around the candidate call, and `_settle` keeps its own for the same error arriving at
+commit time. Found by writing the test D-193 should have had
+(`test_per_candidate_settlement_survives_a_duplicate_id`), which failed against the landed code.
+
+### 7. Verification
+
+`ruff` clean, `pyright` 0, **945 passed / 2 skipped** — up 11. **No paid call was made**; the only
+runs were `--preflight` and `--dry-run`, and a test asserts those paths never touch a provider.
+
+Preflight against real settings fails both live checks: all four model slots resolve to
+`anthropic.claude-sonnet-5` (the shipped defaults, so Solver A and B are one model), and 4 of 22 ids
+at offset 0 are taken.
+
+**Deferred until pilot evidence justifies them** (unchanged from D-193, restated because the brief
+asked): YAML presets, verifier-router expansion beyond the existing SymPy check, a separate engagement
+judge, non-MCQ question types, cross-provider integration. Student response data superseding
+model-estimated difficulty stays the long-term plan; `difficulty_confidence` is the field it will
+land in.
+
+### 8. Follow-up: the diversity check compared strings, not models
+
+Found the same day, while establishing which Bedrock models the account can actually invoke. Only
+**two** Anthropic models have an available agreement there, so the obvious way to give Solver A and
+Solver B "different model ids" is to pick a different *inference profile* of the same model — and
+the check reported PASS for exactly that:
+
+```
+solver A model:        us.anthropic.claude-haiku-4-5-20251001-v1:0
+solver B model:        global.anthropic.claude-haiku-4-5-20251001-v1:0
+solver diversity:      PASS
+```
+
+`us.`, `global.`, `apac.`, `eu.` and the bare id are routing aliases for one set of weights.
+`underlying_model()` strips the prefix before comparing. A safety check that answers permissively is
+worse than no check, because its report gets read as evidence — and this one would have certified the
+precise configuration it exists to prevent. 946 passed / 2 skipped.
+
+**Revert:** drop the three response fields and `judge_difficulty`, restore `proposed_difficulty` on
+the judge payload and the inline `abs(...) > 1` check, and replace `run_plan`/`build_plan` with the
+two per-mode loops. The CLI flags are additive and can stay.

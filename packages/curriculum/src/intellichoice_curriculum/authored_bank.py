@@ -99,8 +99,22 @@ class AuthoredTemplateDef(BaseModel):
     def to_generated_item(self) -> AuthoredGeneratedItemResponse:
         """Rebuild the pipeline's own response shape, so the loader can re-run the exact
         §5.8.5 validation suite the item passed when it was generated.
+
+        The two difficulty fields (D-194) are reconstructed rather than restored, and this
+        is the honest version of that: `proposed_difficulty` is the tier the item is
+        *stored* at, which is true but is not necessarily what the generator proposed, and
+        the rationale says so in words rather than inventing one. Neither field is read by
+        `validate_authored_item` - the §5.8.5 gate checks options, hints, wording and the
+        equation - so nothing downstream is deceived by the placeholder. The generator's
+        real proposal and rationale live in `question_validation_runs`, which is authoring
+        evidence and deliberately not shipped in the served bank.
         """
         return AuthoredGeneratedItemResponse(
+            proposed_difficulty=self.difficulty_label,
+            difficulty_rationale=(
+                "Reconstructed from the versioned bank; the generator's original rationale "
+                "is in this item's validation run, not in the served content."
+            ),
             stem=self.stem,
             context_block=self.context_block,
             option_a=self.option_a,
@@ -108,7 +122,7 @@ class AuthoredTemplateDef(BaseModel):
             option_c=self.option_c,
             option_d=self.option_d,
             correct_option=self.correct_option,  # type: ignore[arg-type]
-            answer_expression=self.answer_expression,
+            equation=self.answer_expression,
             hint_ladder=self.hint_ladder,
             canonical_solution=SolutionResponse.model_validate(self.canonical_solution),
             misconception_tags=self.common_error_tags,
