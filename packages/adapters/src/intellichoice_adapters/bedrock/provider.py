@@ -36,6 +36,13 @@ class RawGeneration:
     # it (D-195). Defaulted, so `MockBedrockProvider` and every existing caller are
     # unaffected.
     stop_reason: str = ""
+    # Prompt-cache accounting (D-203). Carried separately from `input_tokens` because they
+    # are billed at different rates - a cache read is roughly a tenth of normal input - so
+    # collapsing them would make a cached run look cheaper than it is in one direction and
+    # dearer in the other. Nothing costs off these yet; they exist so the saving can be
+    # measured rather than assumed.
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
 
 
 @dataclass(frozen=True)

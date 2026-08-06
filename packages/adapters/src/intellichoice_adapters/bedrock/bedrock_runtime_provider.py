@@ -24,6 +24,15 @@ from .provider import ProviderCallError, RawGeneration
 
 _TOOL_NAME = "emit_result"
 
+# Families measured to accept Converse `cachePoint` blocks on this account (D-203). Others
+# are left alone rather than probed: an unsupported block is a `ValidationException`, and a
+# failed paid call to learn something a prefix check already tells us is a bad trade.
+_PROMPT_CACHE_MODEL_MARKERS = ("anthropic.",)
+
+
+def _supports_prompt_caching(model_id: str) -> bool:
+    return any(marker in model_id for marker in _PROMPT_CACHE_MODEL_MARKERS)
+
 
 class AnthropicBedrockProvider:
     def __init__(self, *, aws_region: str) -> None:
@@ -64,11 +73,27 @@ class AnthropicBedrockProvider:
             }
         }
         all_tools = [*(tools or []), emit_spec]
-        messages: list[dict[str, Any]] = [
-            {"role": "user", "content": [{"text": user_message}]}
-        ]
+        # Two cache points, at the two prefixes that actually repeat (D-203):
+        #
+        #   after `system` - identical for every candidate in a run, so an 11-slot batch
+        #     writes it once and reads it ten times;
+        #   after the first user message - identical for every round of one candidate's
+        #     tool loop, which is where the loop's cost lives, since Converse resends the
+        #     whole conversation each round.
+        #
+        # Measured on Haiku 4.5: 4188 billed input tokens became 3 billed + 4185 cache-read,
+        # and a cache read is roughly a tenth of the normal input rate.
+        cacheable = _supports_prompt_caching(model_id)
+        system_blocks: list[dict[str, Any]] = [{"text": system_prompt}]
+        first_user: list[dict[str, Any]] = [{"text": user_message}]
+        if cacheable:
+            system_blocks.append({"cachePoint": {"type": "default"}})
+            first_user.append({"cachePoint": {"type": "default"}})
+        messages: list[dict[str, Any]] = [{"role": "user", "content": first_user}]
         total_input = 0
         total_output = 0
+        cache_read = 0
+        cache_write = 0
         stop_reason = ""
 
         for round_index in range(max_tool_rounds + 1):
@@ -82,7 +107,7 @@ class AnthropicBedrockProvider:
                 response = await asyncio.to_thread(
                     self._client.converse,
                     modelId=model_id,
-                    system=[{"text": system_prompt}],
+                    system=system_blocks,
                     messages=messages,
                     toolConfig={"tools": all_tools, "toolChoice": choice},
                     inferenceConfig={"maxTokens": max_output_tokens},
@@ -95,6 +120,8 @@ class AnthropicBedrockProvider:
             usage = response.get("usage", {})
             total_input += usage.get("inputTokens", 0)
             total_output += usage.get("outputTokens", 0)
+            cache_read += usage.get("cacheReadInputTokens", 0) or 0
+            cache_write += usage.get("cacheWriteInputTokens", 0) or 0
             stop_reason = response.get("stopReason", "")
             message = response["output"]["message"]
             content: list[dict[str, Any]] = message["content"]
@@ -108,6 +135,8 @@ class AnthropicBedrockProvider:
                     output_tokens=total_output,
                     truncated=stop_reason == "max_tokens",
                     stop_reason=stop_reason,
+                    cache_read_tokens=cache_read,
+                    cache_write_tokens=cache_write,
                 )
 
             helper_calls = [u for u in uses if u["name"] != _TOOL_NAME]

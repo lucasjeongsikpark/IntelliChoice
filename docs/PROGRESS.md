@@ -5,6 +5,19 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-203: prompt caching for the tool loop (2026-08-06).** `ruff` clean, `pyright` 0,
+  **1002 passed / 2 skipped**.
+  - D-202's tool loop resends the whole conversation each round (~3.2k → ~24.7k input tokens per
+    call). Two cache points — after `system` (shared across every candidate in a run) and after the
+    first user message (shared across a candidate's tool rounds).
+  - **Measured on Haiku 4.5:** 4188 billed input → 3 billed + 4185 cache-read. Across three
+    consecutive tool-using calls, **53,673 raw input tokens → ~26,682 effective, a 50% saving**;
+    one warm-cache candidate saved 80%. Improves with batch size.
+  - **Gated by model family, not probed** — an unsupported `cachePoint` is a failed paid call, and
+    a prefix check is free. Only `anthropic.` is enabled, pinned by a test.
+  - **Carry-over:** cache tokens are recorded but not yet priced; the rate table is still a
+    placeholder.
+
 - **⏸ D-202: the deterministic gate removed, SymPy became a tool (2026-08-06).**
   `ruff` clean, `pyright` 0, **1001 passed / 2 skipped**. Branch `d200-judge-rubric-and-verified-equation`.
   - **`validate_authored_item` is out of the pipeline** (user's call). It still guards the approved

@@ -13988,3 +13988,45 @@ Lite), judge GPT-OSS 120B. Solver B needs a contract test before that is more th
 **Cost note:** tool use resends the conversation each round, so input tokens rose to ~24.7k for one
 authoring call against ~3.2k without. Input is the cheap direction, but the ratio is worth measuring
 before turning this on for a full run.
+
+## D-203 — prompt caching, because the tool loop resends everything (accepted, 2026-08-06)
+
+D-202's tool loop is a Converse conversation, and Converse resends the whole conversation every
+round. One authoring call went from ~3.2k input tokens to ~24.7k. The prefix being resent is
+identical each time, which is exactly what prompt caching is for.
+
+**Two cache points, at the two prefixes that actually repeat:**
+
+- **after `system`** - identical for every candidate in a run, so an 11-slot batch writes it once
+  and reads it ten times;
+- **after the first user message** - identical for every round of one candidate's tool loop, which
+  is where the loop's cost lives.
+
+**Measured on Haiku 4.5**, same call three ways:
+
+```
+no cache      in=4188   cacheWrite=0      cacheRead=0
+first call    in=3      cacheWrite=4185   cacheRead=0
+later call    in=3      cacheWrite=0      cacheRead=4185
+```
+
+A cache read bills at roughly a tenth of normal input. Across three consecutive tool-using
+authoring calls: **53,673 raw input tokens became ~26,682 effective - a 50% saving**, and one
+candidate that hit a warm cache saved 80%. The ratio improves with batch size, since a run writes
+the shared prefix once and reads it for every remaining candidate.
+
+**Gated by model family, not probed.** An unsupported `cachePoint` is a `ValidationException` - a
+failed paid call - and a prefix check tells us the same thing for free. `_supports_prompt_caching`
+lists only what was measured on this account (`anthropic.`), so Mistral, Qwen and GPT-OSS are left
+exactly as they were. A test pins that list.
+
+**Cache tokens are carried separately** on `RawGeneration` rather than folded into `input_tokens`.
+They bill at different rates in both directions - a read is cheaper, a write dearer - so collapsing
+them would make a cached run look wrong either way. Nothing costs off them yet; they exist so the
+saving is measurable rather than assumed.
+
+**Unrelated observation while measuring:** one Haiku authoring call returned a malformed tool call,
+with `hint_ladder` as a string containing `<parameter name="hint_...` - XML-ish parameter syntax
+leaking into the JSON. The gateway's repair retry is what handles this in the real pipeline; a bare
+provider call has no such protection. Worth knowing that Haiku's structured output is not perfect
+either, on the same shape of failure Mistral shows.
