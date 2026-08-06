@@ -197,8 +197,12 @@ class LearningChatIntentPayload(BaseModel):
 
 class LearningChatIntentResponse(BaseModel):
     intent: Literal[
-        "question_help", "request_hint", "request_solution", "request_video",
-        "why_wrong", "off_topic",
+        "question_help",
+        "request_hint",
+        "request_solution",
+        "request_video",
+        "why_wrong",
+        "off_topic",
     ]
     reasoning: str = ""
 
@@ -284,8 +288,30 @@ class SolverPayload(BaseModel):
 
 
 class SolverResponse(BaseModel):
+    """Field order is load-bearing, and so is `no_option_matches` - see D-193.
+
+    `reasoning` comes first because the gateway sends `model_json_schema()` and a model
+    emits its JSON in schema order: a `selected_option` declared first is chosen *before*
+    the model has worked anything out, and the reasoning that follows can only rationalise
+    it. Reasoning first makes the field what it is named after.
+    """
+
+    reasoning: str
+    # A solver that has computed an answer absent from the options used to have no way to
+    # say so - `selected_option` is a closed literal, so it was forced to name one of four
+    # wrong answers. `narrative-linear_equations-d4-23000` is what that costs: the story's
+    # answer was 4, no option offered 4, and both solvers picked the same wrong option and
+    # were recorded as *agreeing*. Agreement manufactured by the schema is worse than no
+    # check, because the pipeline reports it as independent confirmation.
+    no_option_matches: bool = False
+    # Distinct from `no_option_matches`: there the solver has one answer and cannot find
+    # it, here it cannot settle on one answer at all. Fail-closed either way, but the
+    # rejection reason should say which happened.
+    is_unambiguous: bool = True
+    ambiguity_reasons: list[str] = Field(default_factory=list)
+    # Still required, still a closed literal: a solver must commit to its best option even
+    # when it flags one of the above, so the disagreement arm keeps working unchanged.
     selected_option: Literal["a", "b", "c", "d"]
-    reasoning: str = ""
 
 
 class DifficultyReviewPayload(BaseModel):
@@ -385,55 +411,6 @@ class AuthoredGeneratedItemResponse(BaseModel):
     reasoning: str = ""
 
 
-# --- S9/S20 narrative dressing (D-192) ---------------------------------------------
-#
-# The inversion of authored mode. There, the model invented the question and the
-# deterministic gate checked it afterwards; here the *equation* is generated first from a
-# registered shape - so its skill, its tier, its answer and its misconception-tagged
-# distractors are all code-owned - and the model is asked only to write a situation whose
-# mathematics is that equation.
-#
-# The response deliberately carries no options, no correct option, no answer and no
-# equation. Not as a convention but as a constraint: a model that cannot state the answer
-# cannot state it wrongly, which removes by construction every failure the first scenario
-# runs actually produced (D-191 measured 3 wrong answers in 11, plus 2 skill mismatches in
-# 6, plus difficulty labels nothing could trust).
-
-
-class NarrativeDressingPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    equation: str
-    unknown_symbol: str
-    # The model needs the answer to write hints and a worked solution; it just never gets
-    # to *declare* it. `option_values` is included so the unit it proposes fits all four
-    # and so it can avoid a scenario in which a distractor would be nonsensical.
-    answer_value: str
-    option_values: list[str]
-    topic_name: str
-    skill_name: str
-    grade_band: str
-    difficulty_label: int
-    exemplars: list[str]
-
-
-class NarrativeDressingResponse(BaseModel):
-    """Language only. Every mathematical fact is supplied by the caller and re-attached by
-    it afterwards - see `ai_pipeline.generate_narrative_candidate`.
-
-    `unit_label` is a bare noun ("sunflowers", "minutes"), applied by code to all four
-    options uniformly. The model proposing the word while code applies it is what keeps
-    the option *values* code-owned: a unit cannot change which option is correct.
-    """
-
-    stem: str
-    context_block: str | None = None
-    unit_label: str | None = None
-    hint_ladder: list[str] = []
-    solution_steps: list[SolutionStep] = []
-    estimated_time_seconds: int
-
-
 class QuestionJudgePayload(BaseModel):
     """A single combined judge call replacing S9's three separate reviewers for this
     mode (difficulty fit + ambiguity + curriculum alignment + age-appropriateness +
@@ -456,6 +433,18 @@ class QuestionJudgePayload(BaseModel):
 
 
 class QuestionJudgeResponse(BaseModel):
+    """`reasoning` first, for the reason given on `SolverResponse` - and here there is a
+    measured failure to point at (D-193).
+
+    On `narrative-linear_equations-d4-23000` this judge derived the story's true answer,
+    wrote "the canonical solution is mathematically incorrect", and closed with "I must
+    flag this as internally inconsistent" - while the `is_internally_consistent` it had
+    already emitted said `true`. The judge was not wrong about the question; it was asked
+    for its verdict before it was allowed to think, and nothing in a JSON response can be
+    revised once written. Every boolean below is now decided after the prose.
+    """
+
+    reasoning: str
     difficulty_label: int
     is_ambiguous: bool
     is_aligned: bool
@@ -474,7 +463,6 @@ class QuestionJudgeResponse(BaseModel):
     # `model_json_schema()`), and an out-of-range score now fails validation into the
     # repair retry and then rejection, which is the fail-closed direction (SPEC §5.25.3).
     hint_quality_score: int = Field(ge=1, le=5)
-    reasoning: str = ""
 
 
 # --- SPEC §5.19 Q&A graph, §5.21.7-5.21.8 (S13) ------------------------------------
@@ -500,9 +488,7 @@ class ScopeAndIntentResponse(BaseModel):
     """
 
     in_scope: bool
-    intent: Literal[
-        "document_qa", "branch_locator", "calendar", "admin_contact", "clarification"
-    ]
+    intent: Literal["document_qa", "branch_locator", "calendar", "admin_contact", "clarification"]
     reasoning: str = ""
 
 

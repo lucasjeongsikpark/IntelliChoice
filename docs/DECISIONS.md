@@ -12934,3 +12934,92 @@ start.
 **Revert:** remove the static branch in `build_variant_row` and the two `get_canonical_variants`
 calls, and restore `get_variant_for_template`'s unfiltered `limit(1)`. Nothing needs re-pinning —
 the fixtures were never changed in the landed state.
+
+---
+
+## D-193 — the reviewer panel is asked for its verdict before it is allowed to think, and equation-first authoring is retired (accepted, 2026-08-05)
+
+**Context.** D-192 built an inverted authoring mode: generate the equation from a registered shape
+first, then ask the model only to dress it in a story. The claim was that this makes the answer
+correct by construction. Twenty candidates from three runs sat at `pending`, unreviewed, so before
+building anything further every one of them was read and re-solved by hand.
+
+### 1. What the audit found
+
+`narrative-linear_equations-d4-23000` reached `pending` **with the wrong answer.** Its story — a
+console with `x` games, another with `x + 8`, buy `2x` more for the first — resolves to `x + 8 = 3x`,
+so `x = 4`. The shape's equation was `2x + 8 = 6x`, so `x = 2`, and `2 games` was marked correct.
+Four was not among the four options.
+
+It passed the deterministic gate, both solver agents, and the judge. Two mechanisms, both confirmed
+in code rather than inferred:
+
+1. **`reasoning` was the last field** of `SolverResponse` and `QuestionJudgeResponse`. The gateway
+   sends `model_json_schema()`, so a model emits its fields in schema order and every verdict was
+   decided before a word of reasoning existed. The judge's stored `reasoning` derives the true
+   answer, states "the canonical solution is mathematically incorrect", and ends "I must flag this
+   as internally inconsistent" — beside the `is_internally_consistent: true` it had already written.
+   It was not wrong about the question. It was asked in the wrong order.
+2. **`selected_option` was a closed literal with no escape hatch.** A solver that computes an answer
+   absent from the options must still name one of four. Both did, both named the same one, and the
+   agreement arm reported that as independent confirmation. Agreement manufactured by the schema is
+   worse than no check at all.
+
+### 2. Equation-first is retired as a generation mode
+
+Equation-first guarantees the *equation's* answer, not that **the story encodes that equation** —
+and that gap is structurally invisible downstream, because every later stage inherits the
+pre-chosen answer. The measured quality gap points the same way. Of the 8 narrative candidates:
+8/8 carried a negative distractor in a counting context (`-6 stickers`, `-7 raffle tickets`), 6/8
+starred "Marcus", the singular/plural bug was visible (`1 notebooks`), and one was degenerate. Of
+the 12 model-first candidates, 11 were verified correct by hand and 1 was ambiguous
+(`d3-307300`: a pot of *broth* filled with *soup*, where 12 and 16 are both defensible and both on
+offer). Their settings were a movie theatre, pizza toppings, sunflower rows, a café mixing cold
+brew, two filling water tanks.
+
+So the positivity filter, the story-friendly seed search, the substituted distractors and the 14
+structurally unreachable templates all go with it. They were patches over this defect. The counters,
+`RejectionStage` and `--seed-offset` that D-192 also brought are mode-independent and stay.
+
+**This reverses the direction of D-192, not its findings.** Its commit is kept in history.
+
+### 3. What replaced it
+
+- `reasoning` is the **first** field on both response models, and required. Asserted on the schema
+  (`test_the_judge_and_solver_decide_after_they_reason_not_before`), because field order in what we
+  send is the part we control.
+- `SolverResponse` gains `no_option_matches`, `is_unambiguous` and `ambiguity_reasons`.
+  `solver_objections()` gates on all three, checking them **before** agreement, and **either**
+  solver objecting is enough — fail-closed, and requiring two independent readers to notice the same
+  defect would set the bar above what one careful reader catches.
+- **Per-candidate commit** (`_settle`). The runners previously held a whole batch in one transaction
+  and `main` committed after the loop, which made one duplicate template id discard every candidate
+  in the run *including the paid, passing ones*. A collision now costs one candidate, and an
+  interrupted run keeps everything up to the interruption.
+- **`--preflight`**, free and calling nothing: resolved model ids, spend ceiling, whether the two
+  solvers are actually two models, and whether the ids this run would claim are still available.
+  `planned_template_ids` recomputes the plan from `(skill, tier, index)` rather than sharing the
+  runners' loop, so a divergence is *possible* and therefore testable; the first version of its test
+  hand-rebuilt an id for a `(skill, tier)` pair the plan never visits and "proved" the check saw
+  nothing by handing it nothing.
+
+Run against real settings, it fails both checks immediately: all four model slots resolve to
+`anthropic.claude-sonnet-5` (the shipped defaults), and 4 of 22 ids at offset 0 are taken. Printed
+as a warning rather than enforced — a single-model pair is right for a mock smoke test, and offset 0
+against an empty topic is a legitimate first run. What must not happen is spending without saying
+which of those it is.
+
+### 4. Verification
+
+`ruff` clean, `pyright` 0, **934 passed / 2 skipped**. Six new tests: the two solver escape hatches,
+the field-order property, and three preflight tests. The 8 narrative candidates are `rejected` in
+the dev database; the 12 authored ones stay `pending` as the pilot's human-review baseline.
+
+One caveat recorded rather than smoothed over: `test_hint_reflects_the_students_actual_wrong_option`
+failed once in a full-suite run and passed in the next full-suite run, in isolation, and in a
+targeted pair. Not reproduced, not diagnosed, and not obviously related to anything here — noted so
+the next occurrence is the second data point rather than the first.
+
+**Revert:** move `reasoning` back to last and drop the three solver fields (the prompts degrade
+harmlessly); replace `_settle`'s body with `summary.record`; delete `preflight`. Restoring narrative
+mode means reverting this commit's deletions — its own commit is still in history.

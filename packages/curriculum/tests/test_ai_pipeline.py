@@ -161,7 +161,10 @@ class _ScriptedGateway:
             value: BaseModel = self._generator(payload)
         elif name == "SolverResponse":
             assert isinstance(payload, SolverPayload)
-            value = SolverResponse(selected_option=self._solver(payload))  # type: ignore[arg-type]
+            value = SolverResponse(
+                reasoning="scripted solver",
+                selected_option=self._solver(payload),  # type: ignore[arg-type]
+            )
         elif name == "DifficultyReviewResponse":
             from intellichoice_shared.bedrock import DifficultyReviewPayload
 

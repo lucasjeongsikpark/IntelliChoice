@@ -45,7 +45,6 @@ from intellichoice_shared.bedrock import (
     MemoryConsolidationPayload,
     MemoryEventSummary,
     MemoryExistingFact,
-    NarrativeDressingPayload,
     RagAnswerPayload,
     RagContextChunk,
     ReportInterpretationPayload,
@@ -256,14 +255,6 @@ _GENERATION_REGIME_PAYLOAD_NAMES = {
 # Regime 3: ungoverned on purpose, with the reason written down. An entry here is a claim
 # that has to survive being read - not a place to park a payload nobody wants to allowlist.
 _UNGOVERNED_WITH_REASON: dict[type[BaseModel], str] = {
-    NarrativeDressingPayload: (
-        "Every field is curriculum content the caller computed before the call: an equation "
-        "from a registered shape, its answer, its four option values, and the topic/skill/"
-        "grade-band names from the taxonomy (D-192). No student is involved - this is the "
-        "offline authoring pipeline, so there is no request, no session and no learner "
-        "whose data could reach it. Same regime as the other §5.8.3 generation payloads, "
-        "which are bound by `extra=\"forbid\"` rather than by a §5.30.1 field list (D-026)."
-    ),
     LlmJudgePayload: (
         "`content_to_judge`/`context` hold already-generated text (a hint, solution, chat "
         "reply, or RAG answer plus its grounding context) that passed the PII floor when it "
@@ -362,16 +353,12 @@ def test_payload_field_set_matches_allowlist_exactly(
     assert set(model_cls.model_fields) == allowed_fields
 
 
-@pytest.mark.parametrize(
-    "model_cls", [pytest.param(k, id=k.__name__) for k in _PII_ALLOWLISTS]
-)
+@pytest.mark.parametrize("model_cls", [pytest.param(k, id=k.__name__) for k in _PII_ALLOWLISTS])
 def test_payload_has_no_denylisted_pii_field_name(model_cls: type[BaseModel]) -> None:
     assert set(model_cls.model_fields) & _PII_DENYLIST == set()
 
 
-@pytest.mark.parametrize(
-    "model_cls", [pytest.param(k, id=k.__name__) for k in _PII_ALLOWLISTS]
-)
+@pytest.mark.parametrize("model_cls", [pytest.param(k, id=k.__name__) for k in _PII_ALLOWLISTS])
 def test_payload_forbids_extra_fields(model_cls: type[BaseModel]) -> None:
     """`extra="forbid"` is what makes the allowlist above binding at runtime rather than
     merely descriptive: without it an unexpected field is accepted and forwarded.

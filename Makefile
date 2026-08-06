@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-gen-narrative question-review question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence tfvars-floor-check
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-gen-preflight question-review question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence tfvars-floor-check
 
 up:
 	docker compose up -d
@@ -27,11 +27,10 @@ question-gen-run:
 question-gen-authored:
 	uv run python -m intellichoice_curriculum.pipeline_cli --mode authored
 
-# D-192: the shape bank's equations dressed in real-world stories by the model. The
-# equation, answer, distractors, skill and tier come from the shape, so the model can
-# only get the *story* wrong - and a wrong story is rejected, never served.
-question-gen-narrative:
-	uv run python -m intellichoice_curriculum.pipeline_cli --mode narrative
+# Free: says what a run would cost, which models it would use, and whether its template
+# ids are still available - without calling anything. Run before every paid batch.
+question-gen-preflight:
+	uv run python -m intellichoice_curriculum.pipeline_cli --mode authored --preflight
 
 question-review:
 	uv run python -m intellichoice_curriculum.review_cli
