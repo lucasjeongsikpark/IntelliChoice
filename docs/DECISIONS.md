@@ -13023,3 +13023,134 @@ the next occurrence is the second data point rather than the first.
 **Revert:** move `reasoning` back to last and drop the three solver fields (the prompts degrade
 harmlessly); replace `_settle`'s body with `summary.record`; delete `preflight`. Restoring narrative
 mode means reverting this commit's deletions — its own commit is still in history.
+
+---
+
+## D-194 — the Generator proposes a difficulty and the judge, now blind, reviews it; authoring becomes a repeatable command (accepted, 2026-08-05)
+
+**Context.** D-193 retired equation-first generation, leaving authored-first as the only AI-authored
+mode. What it did not fix: the pipeline could only run the *whole* authoring plan at default
+settings, and difficulty was a number the pipeline told the judge and then congratulated itself when
+the judge repeated it.
+
+### 1. The judge was never independent about difficulty
+
+`QuestionJudgePayload` carried `proposed_difficulty`, and the gate compared the judge's rating to it.
+A model shown a number and asked to rate the same thing will mostly return that number, so "the judge
+agreed the difficulty was right" carried close to no information — and the ±1 threshold that read it
+was measuring anchoring, not agreement.
+
+`proposed_difficulty` is gone from that payload. The judge now sees what a teacher would see: the
+question, its options, the hint ladder, the answer, and the topic/skill/grade band it is meant for.
+Neither the Generator's proposal nor its rationale reaches it.
+
+### 2. Three numbers, two gates
+
+Difficulty now has three values that answer different questions, which is why one gate cannot cover
+them:
+
+| value | source | what it is |
+|---|---|---|
+| `requested` | the slot | an instruction — decides where the item is stored and what its id says |
+| `proposed` | the Generator | anchored, because the Generator is told the target; the *rationale* is the part worth reading |
+| `reviewed` | the judge | the only independent reading |
+
+`judge_difficulty()` computes both gaps. `|proposed − reviewed| ≥ 2` rejects: two readers cannot both
+be right and nothing can tell which is wrong. `|reviewed − requested| ≥ 2` also rejects: an item both
+models call tier 1, stored in the tier-5 slot, would be offered to students who have earned tier 5,
+which is worse than a wasted candidate. A gap of 1 on either keeps the item and sets
+`review_priority="high"`. Rejections get their own `rejected_at="difficulty"` bucket — a judge
+rejection says the question is bad, this one says the question may be fine.
+
+Both numbers, both rationales, both gaps and the decision are persisted to
+`question_validation_runs.stage_results["difficulty"]` whatever the outcome, so a reviewer reading a
+rejection sees the two readings that disagreed rather than a verdict. Prerequisites land beside them.
+
+**Acceptability is computed, not asked of the model.** The brief asked the judge to report whether the
+proposed difficulty is acceptable. A judge blind to the proposal *cannot* answer that, and a judge
+shown the proposal is the thing this decision just removed — so the only coherent form of the question
+is arithmetic on two numbers, which is also the answer that cannot be argued out of (CLAUDE.md rule 2).
+
+### 3. The Generator writes more, and is held to it
+
+`AuthoredGeneratedItemResponse` gains `proposed_difficulty` (bounded 1–5, so the bound travels in the
+tool schema — the same fix `hint_quality_score` needed after the model invented a 1–10 scale),
+`difficulty_rationale` (`min_length=20`; "moderately difficult" restates the label and says nothing a
+reviewer can check) and `required_prerequisites` (recorded, not gated — there is no prerequisite graph
+to check them against, and inventing one from free text would be worse than admitting they are
+unvalidated). The response is now `extra="forbid"`: a drifted model fails into the bounded repair
+retry rather than having stray fields silently dropped.
+
+The prompt now also requires distractors to be the value a *named* student mistake produces, and every
+few-shot exemplar demonstrates the whole contract — options with the error each encodes, a three-level
+ladder, the solution, a rationale naming reasoning operations, prerequisites. A field shown in every
+exemplar is filled far more consistently than one only described. All three exemplars' arithmetic was
+checked with SymPy rather than by eye.
+
+`AuthoredTemplateDef.to_generated_item()` reconstructs the two new fields rather than restoring them —
+the served YAML bank does not carry authoring evidence — and the placeholder rationale says so in
+words instead of inventing one. Neither field is read by the §5.8.5 gate it feeds.
+
+### 4. One plan drives the run and the preflight
+
+`build_plan()` turns CLI arguments into the exact list of candidates a run would attempt, and
+`run_plan()` iterates it. This **reverses D-193's deliberate duplication**, where the preflight
+recomputed ids so a divergence could be caught. Filtering changed the balance: a `--skill-id` the
+report understood and the loop ignored would generate content nobody asked for, which is worse than
+the divergence the duplication guarded against. The agreement is now asserted by test instead.
+
+New flags: `--topic-id`, repeatable `--skill-id`, repeatable `--difficulty`, `--candidates-per-slot`
+(with `--candidates-per-difficulty` kept working), `--run-budget-cents`, `--dry-run`,
+`--allow-preflight-failure`. Extra arguments reach the Makefile targets through `QUESTION_GEN_ARGS`
+rather than by editing them. Still argparse: a framework migration would be the largest change here
+and buy nothing these flags do not, and the thing worth having later — presets — attaches to
+`build_plan`, not to the parser.
+
+Narrowing a run does **not** move its seeds. The skill index is enumerated over the whole topic, so a
+filtered run proposes the same ids a full run would for the slots they share; a filter that shifted
+seeds would make two runs collide by having narrowed one of them.
+
+### 5. Preflight is authoritative
+
+It reports provider, all five resolved model ids, selected topic/skills/difficulties, candidates per
+slot, scheduled count, planned and already-used template ids, seed offset, budget ceiling and
+estimated maximum calls, then fails on: identical solver models, taken ids, a budget above the
+configured hard cap. Planning failures — unknown topic, a skill outside it, a difficulty off the 1–5
+scale, a filter matching no slots — raise before the engine is even created.
+
+**A paid run now refuses to start when preflight fails.** A mock run continues and says so;
+`--allow-preflight-failure` is the documented override, because a single-model solver pair is the
+correct configuration for a mock smoke test.
+
+Maximum *spend* is deliberately not estimated. Per-call cost depends on model ids and output length,
+and this project has exactly one measurement (Haiku, ~0.29¢/call) that says nothing about a premium
+generator. The budget ceiling the gateway enforces is a real bound; an invented average would read
+like one and not be.
+
+### 6. A correction to D-193
+
+D-193 claimed `_settle` contained duplicate-id damage. It did not, quite:
+`QuestionRepository.create_template` **flushes**, so a unique violation is raised while the candidate
+is still being built, one statement before the commit `_settle` was guarding. The catch is now in
+`run_plan` around the candidate call, and `_settle` keeps its own for the same error arriving at
+commit time. Found by writing the test D-193 should have had
+(`test_per_candidate_settlement_survives_a_duplicate_id`), which failed against the landed code.
+
+### 7. Verification
+
+`ruff` clean, `pyright` 0, **945 passed / 2 skipped** — up 11. **No paid call was made**; the only
+runs were `--preflight` and `--dry-run`, and a test asserts those paths never touch a provider.
+
+Preflight against real settings fails both live checks: all four model slots resolve to
+`anthropic.claude-sonnet-5` (the shipped defaults, so Solver A and B are one model), and 4 of 22 ids
+at offset 0 are taken.
+
+**Deferred until pilot evidence justifies them** (unchanged from D-193, restated because the brief
+asked): YAML presets, verifier-router expansion beyond the existing SymPy check, a separate engagement
+judge, non-MCQ question types, cross-provider integration. Student response data superseding
+model-estimated difficulty stays the long-term plan; `difficulty_confidence` is the field it will
+land in.
+
+**Revert:** drop the three response fields and `judge_difficulty`, restore `proposed_difficulty` on
+the judge payload and the inline `abs(...) > 1` check, and replace `run_plan`/`build_plan` with the
+two per-mode loops. The CLI flags are additive and can stay.

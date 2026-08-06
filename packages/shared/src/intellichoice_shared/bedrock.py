@@ -384,11 +384,29 @@ class AuthoredGeneratorPayload(BaseModel):
     topic_name: str
     skill_name: str
     grade_band: str
-    difficulty_label: int
+    # Renamed from `difficulty_label` (D-194) to say what it is: the tier this slot is
+    # *asking* for, not a fact about the item. The generator answers with its own
+    # `proposed_difficulty`, which is normally this number - being told the target
+    # anchors it, and that is precisely why the anchored proposal is not the check. The
+    # judge never sees this field (see `QuestionJudgePayload`).
+    target_difficulty: int
     exemplars: list[str]
 
 
 class AuthoredGeneratedItemResponse(BaseModel):
+    """What the Generator returns: a complete student-facing MCQ *plus* its own claim
+    about how hard the item is and why (D-194).
+
+    `extra="forbid"` here and not on the older response models on purpose. A stray field
+    in a generated question is a signal that the model has drifted from the contract, and
+    the failure path is the good one - schema violation, bounded repair retry, then
+    rejection (SPEC §5.25.3). The cost is that a candidate can be lost to a formatting
+    slip rather than to bad math, which is the trade this project has already chosen
+    everywhere else content reaches a student.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
     stem: str
     context_block: str | None = None
     option_a: str
@@ -408,6 +426,23 @@ class AuthoredGeneratedItemResponse(BaseModel):
     canonical_solution: SolutionResponse
     misconception_tags: list[str] = []
     estimated_time_seconds: int
+    # The Generator's own difficulty claim (D-194). Bounded to the 1-5 scale the whole
+    # system uses, for the reason `hint_quality_score` is bounded: an unbounded field
+    # reached the model as a free integer and it invented its own scale, which silently
+    # disabled the gate reading it. The bound travels in the tool's JSON schema.
+    proposed_difficulty: int = Field(ge=1, le=5)
+    # Deliberately `min_length`, not just required. "This is difficulty 3" and "moderately
+    # difficult" restate the label and say nothing a reviewer can check; what earns the
+    # label is the reasoning the item demands - translating a scenario into an equation,
+    # a variable on both sides, distribution before combining like terms. A length floor
+    # does not force a *good* rationale, but it does stop the empty string, and the judge
+    # is what actually tests the claim.
+    difficulty_rationale: str = Field(min_length=20)
+    # Curriculum concepts a student needs before this item is fair. Recorded as evidence
+    # for the human reviewer rather than gated on: there is no prerequisite graph to check
+    # them against yet, and inventing one from a model's free text would be worse than
+    # admitting they are unvalidated.
+    required_prerequisites: list[str] = []
     reasoning: str = ""
 
 
@@ -415,6 +450,14 @@ class QuestionJudgePayload(BaseModel):
     """A single combined judge call replacing S9's three separate reviewers for this
     mode (difficulty fit + ambiguity + curriculum alignment + age-appropriateness +
     hint-ladder quality, all from one independent model call).
+
+    **It no longer carries `proposed_difficulty` (D-194), and that omission is the point.**
+    The judge used to be told the tier being asked for and then asked to rate difficulty,
+    so "the judge agreed" meant a model had been shown a number and returned it. The
+    comparison that gates the candidate is only worth making if the second number was
+    reached independently, so the judge sees what a teacher would see: the question, the
+    options, the hint ladder, the answer, and the topic/skill/grade it is meant for.
+    Neither the Generator's proposal nor its rationale reaches here.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -429,7 +472,6 @@ class QuestionJudgePayload(BaseModel):
     topic_name: str
     skill_name: str
     grade_band: str
-    proposed_difficulty: int
 
 
 class QuestionJudgeResponse(BaseModel):
@@ -445,7 +487,16 @@ class QuestionJudgeResponse(BaseModel):
     """
 
     reasoning: str
-    difficulty_label: int
+    # Renamed from `difficulty_label` (D-194): this is the judge's *own* rating, reached
+    # without seeing what was proposed, and the old name read like the item's settled
+    # difficulty rather than one of two opinions about it. Bounded for the same reason
+    # `hint_quality_score` is.
+    reviewed_difficulty: int = Field(ge=1, le=5)
+    # Separate from `reasoning`, which covers the whole review. This one has to name the
+    # reasoning operations the item demands - the same standard the Generator's
+    # `difficulty_rationale` is held to - so the two rationales are comparable when a
+    # human reads the disagreement.
+    difficulty_reasoning: str = Field(min_length=20)
     is_ambiguous: bool
     is_aligned: bool
     is_age_appropriate: bool

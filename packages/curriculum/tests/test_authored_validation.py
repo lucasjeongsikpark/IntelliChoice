@@ -32,6 +32,11 @@ def _good_item(**overrides: object) -> AuthoredGeneratedItemResponse:
         ),
         misconception_tags=["off_by_one"],
         estimated_time_seconds=30,
+        proposed_difficulty=1,
+        difficulty_rationale=(
+            "One addition with single-digit whole numbers and no equation to rearrange."
+        ),
+        required_prerequisites=["single-digit addition"],
     )
     base.update(overrides)
     return AuthoredGeneratedItemResponse(**base)  # type: ignore[arg-type]

@@ -199,6 +199,109 @@ _SOLVER_SYSTEM_PROMPT = (
 )
 
 
+# D-194 difficulty policy. `_DIFFICULTY_REJECT_AT` is the gap at which two independent
+# readings of the same item stop being a judgement call and start being a contradiction:
+# one of them is wrong about what the item demands, and neither the pipeline nor a
+# reviewer can tell which. `_DIFFICULTY_FLAG_AT` is a real but survivable disagreement -
+# the item is kept and a human is pointed at it.
+_DIFFICULTY_FLAG_AT = 1
+_DIFFICULTY_REJECT_AT = 2
+
+
+@dataclass(frozen=True)
+class DifficultyVerdict:
+    """The whole difficulty decision as data, so the evidence written to
+    `question_validation_runs` and the branch taken by the pipeline cannot disagree -
+    they are computed once, here, from the same fields.
+    """
+
+    proposed: int
+    proposed_rationale: str
+    reviewed: int
+    reviewed_rationale: str
+    requested: int
+    proposal_gap: int
+    slot_gap: int
+    decision: Literal["accepted", "flagged", "rejected"]
+    reasons: list[str]
+
+    def as_evidence(self) -> dict:
+        return {
+            "generator_proposed_difficulty": self.proposed,
+            "generator_difficulty_rationale": self.proposed_rationale,
+            "judge_reviewed_difficulty": self.reviewed,
+            "judge_difficulty_reasoning": self.reviewed_rationale,
+            "requested_difficulty": self.requested,
+            "proposal_vs_review_difference": self.proposal_gap,
+            "review_vs_requested_difference": self.slot_gap,
+            "decision": self.decision,
+        }
+
+
+def judge_difficulty(
+    *,
+    proposed: int,
+    proposed_rationale: str,
+    reviewed: int,
+    reviewed_rationale: str,
+    requested: int,
+) -> DifficultyVerdict:
+    """Compare the Generator's difficulty claim with the judge's independent one.
+
+    Three numbers are in play and they answer different questions, which is why one gate
+    cannot cover them:
+
+    - `requested` is the tier the *slot* asked for. It is an instruction, not an opinion,
+      and it decides where the item is stored and what its template id says.
+    - `proposed` is the Generator's claim. It saw `requested`, so it is anchored - the
+      number is weak evidence and the rationale beside it is the part worth reading.
+    - `reviewed` is the judge's, reached without seeing either of the others
+      (`QuestionJudgePayload` no longer carries them). This is the only independent one.
+
+    So `proposal_gap` asks "do two readers agree about this item?" and `slot_gap` asks
+    "does this item belong in the slot it was generated for?". Both reject at 2. An item
+    the judge calls tier 1 stored in the tier-5 slot would be selected for students who
+    have earned tier 5, which is a worse failure than a wasted candidate.
+
+    Acceptability is decided here rather than asked of the model, deliberately. A judge
+    blind to the proposal *cannot* say whether it is acceptable, and a judge shown the
+    proposal is no longer independent - so the question the instruction asks for is only
+    answerable by arithmetic on two numbers, which is also the answer that cannot be
+    argued out of (CLAUDE.md rule 2, deterministic core).
+    """
+    proposal_gap = abs(proposed - reviewed)
+    slot_gap = abs(reviewed - requested)
+    reasons: list[str] = []
+    if proposal_gap >= _DIFFICULTY_REJECT_AT:
+        reasons.append(
+            f"difficulty disagreement: generator proposed {proposed} "
+            f"({proposed_rationale}), judge independently rated {reviewed} "
+            f"({reviewed_rationale})"
+        )
+    if slot_gap >= _DIFFICULTY_REJECT_AT:
+        reasons.append(
+            f"judge rated difficulty {reviewed} ({reviewed_rationale}), too far from the "
+            f"requested tier {requested} this candidate would be stored at"
+        )
+    if reasons:
+        decision: Literal["accepted", "flagged", "rejected"] = "rejected"
+    elif proposal_gap >= _DIFFICULTY_FLAG_AT or slot_gap >= _DIFFICULTY_FLAG_AT:
+        decision = "flagged"
+    else:
+        decision = "accepted"
+    return DifficultyVerdict(
+        proposed=proposed,
+        proposed_rationale=proposed_rationale,
+        reviewed=reviewed,
+        reviewed_rationale=reviewed_rationale,
+        requested=requested,
+        proposal_gap=proposal_gap,
+        slot_gap=slot_gap,
+        decision=decision,
+        reasons=reasons,
+    )
+
+
 def solver_objections(
     solver_a: SolverResponse, solver_b: SolverResponse, *, declared: str
 ) -> list[str]:
@@ -311,7 +414,40 @@ _AUTHORED_GENERATOR_SYSTEM_PROMPT = (
     # option text is what students and downstream text checks actually see.
     "Write each option as a bare value with no variable "
     "and no equals sign ('7', not 'x = 7'), and use the ASCII hyphen '-' for negatives, "
-    "never a typographic minus."
+    "never a typographic minus. "
+    # D-191 measured the alternative: six passing items in a row whose correct answer was
+    # option b, i.e. a bank a student could score 100% on by answering "always b". The fix
+    # is `shuffle_options`, in code and seeded; this sentence only stops the model from
+    # *also* trying, which would compose with the shuffle into a fresh bias rather than
+    # cancelling it.
+    "Do not try to control which option letter is correct - vary it naturally and ignore "
+    "the position; a deterministic shuffle reorders the options afterwards. "
+    # The distractors are what make an MCQ diagnostic rather than a coin flip. Generic
+    # wrong numbers tell a teacher nothing; a distractor that is the answer a specific
+    # mistake produces turns the response data into evidence about *which* mistake.
+    "Each distractor must be the value a specific, likely student mistake produces - "
+    "dropping a sign, adding where the equation subtracts, solving for the wrong "
+    "quantity, stopping one step early - and its misconception tag must name that "
+    "mistake. Never pad with a value no plausible reasoning reaches. Exactly one option "
+    "may be defensible: if a second reading of your own stem makes another option "
+    "arguable, rewrite the stem. "
+    # D-194. The tier is supplied as a target, so `proposed_difficulty` is anchored by it
+    # and is not evidence on its own - the independent number comes from the judge, which
+    # never sees either. What this field genuinely buys is the rationale: a model that has
+    # to name the operations an item demands writes a different item than one that does
+    # not, and the rationale is what a human reviewer reads next to the judge's.
+    "Set `proposed_difficulty` to the tier YOU judge the item to be, on a 1-5 scale, even "
+    "when that differs from the target you were given - a disagreement recorded is worth "
+    "more than a number echoed. In `difficulty_rationale`, name the reasoning operations "
+    "the item actually demands: 'the equation is not given, so the student must translate "
+    "two rates and two starting amounts into one', 'the variable appears on both sides', "
+    "'distribution is required before like terms can be combined', 'the coefficient is a "
+    "negative fraction', 'two distinct reasoning steps with no intermediate prompt'. Do "
+    "NOT restate the label ('this is difficulty 3', 'moderately difficult', 'appropriate "
+    "for the grade') - that is not a rationale. "
+    "List in `required_prerequisites` the curriculum concepts a student must already hold "
+    "for this item to be fair, in plain words ('integer arithmetic with negatives', "
+    "'solving one-step equations')."
 )
 _JUDGE_SYSTEM_PROMPT = (
     "You are an independent judge reviewing one authored K-12 math question for "
@@ -340,7 +476,17 @@ _JUDGE_SYSTEM_PROMPT = (
     # cheap next to another item reaching a student.
     "Write `reasoning` first and work the question out there in full, including solving "
     "it yourself. Then set every boolean to match what you concluded. If your reasoning "
-    "finds the stated answer wrong, `is_internally_consistent` must be false."
+    "finds the stated answer wrong, `is_internally_consistent` must be false. "
+    # D-194. The judge is not told the tier that was requested or the tier the generator
+    # claimed, so this is genuinely its own reading - which is the only reason comparing
+    # the two numbers means anything. Saying "you have not been told" out loud discourages
+    # the model from guessing at an intended answer.
+    "Rate `reviewed_difficulty` on the same 1-5 scale from the question alone. You have "
+    "NOT been told what tier this item was written for, and you should not try to infer "
+    "one from the request - judge what the item demands. In `difficulty_reasoning`, name "
+    "the reasoning operations required (translating a scenario into an equation, a "
+    "variable on both sides, distribution before combining like terms, negative or "
+    "fractional coefficients, the number of distinct steps), not how hard it feels."
 )
 
 # Small, fixed set of hand-written few-shot exemplars (this project has no pre-authored
@@ -348,34 +494,66 @@ _JUDGE_SYSTEM_PROMPT = (
 # request time, §5.11.4) describing the expected stem/hint-ladder/solution style. Not
 # topic-specific by design so the same list works across every authored difficulty.
 _AUTHORED_FEW_SHOT_EXEMPLARS: list[str] = [
-    # Every exemplar is now a scenario, deliberately. The previous pair was one word
-    # problem and one bare "Solve for x", and the model copied the bare one five times out
-    # of five - an exemplar set is a menu, and half of that menu was the thing to avoid.
-    # The settings are intentionally unlike each other (robots, a bake sale, a hike) so
-    # "vary the setting" is demonstrated rather than only instructed.
+    # Every exemplar is a scenario, deliberately. The previous pair was one word problem
+    # and one bare "Solve for x", and the model copied the bare one five times out of five
+    # - an exemplar set is a menu, and half of that menu was the thing to avoid.
+    #
+    # Each is now complete rather than illustrative of the stem alone (D-194): options with
+    # the mistake each one encodes, a three-level ladder, the final answer, a difficulty
+    # rationale naming reasoning operations, and prerequisites. A field demonstrated in
+    # every exemplar is filled far more consistently than one only described in the prompt,
+    # and `difficulty_rationale` is exactly the field a model will otherwise satisfy with
+    # "moderately difficult". The three settings and the three tiers are unlike each other
+    # so variety is shown, not just asked for.
     (
         "stem: 'Two robots are collecting energy crystals. Robot A starts with 4 crystals "
-        "and collects 4 crystals each minute. Robot B starts with 16 crystals and "
-        "collects 2 crystals each minute. After how many minutes will the robots have the "
-        "same number of crystals?' | hint_ladder: ['Write an expression for each robot's "
-        "total after m minutes.', 'Robot A has 4 + 4m and Robot B has 16 + 2m. The "
-        "question asks when those are equal.', 'Collect the m terms on one side, then "
-        "divide by what is left.'] | canonical_solution final_answer: '6 minutes' | "
-        "equation: 'Eq(4 + 4*m, 16 + 2*m)'"
+        "and collects 4 crystals each minute. Robot B starts with 16 crystals and collects "
+        "2 crystals each minute. After how many minutes will the robots have the same "
+        "number of crystals?' | options: '6 minutes' (correct), '2 minutes' (added the two "
+        "rates instead of subtracting), '12 minutes' (stopped at 2m = 12 without dividing), "
+        "'3 minutes' (ignored Robot B's rate) | misconception_tags: ['added_rates', "
+        "'skipped_final_division', 'ignored_second_rate'] | hint_ladder: ['Write an "
+        "expression for each robot's total after m minutes.', 'Robot A has 4 + 4m and Robot "
+        "B has 16 + 2m. The question asks when those are equal.', 'Collect the m terms on "
+        "one side, then divide by what is left.'] | canonical_solution final_answer: "
+        "'6 minutes' | equation: 'Eq(4 + 4*m, 16 + 2*m)' | proposed_difficulty: 4 | "
+        "difficulty_rationale: 'The equation is not given, so the student must turn two "
+        "starting amounts and two rates into one equation; the variable then appears on "
+        "both sides and has to be collected before dividing.' | required_prerequisites: "
+        "['writing a linear expression from a starting amount and a rate', 'solving "
+        "two-step equations']"
     ),
     (
         "stem: 'Mia is saving for a bike. She already has $18 and saves $6 each week. The "
-        "bike costs $60. How many weeks until she can buy it?' | hint_ladder: ['What will "
-        "Mia have saved after w weeks?', 'Her savings are 18 + 6w, and she needs that to "
-        "reach 60.', 'Subtract what she already has, then divide by her weekly amount.'] "
-        "| canonical_solution final_answer: '7 weeks' | equation: 'Eq(18 + 6*w, 60)'"
+        "bike costs $60. How many weeks until she can buy it?' | options: '7 weeks' "
+        "(correct), '13 weeks' (added the $18 instead of subtracting it), '10 weeks' "
+        "(ignored the money already saved), '42 weeks' (stopped at 6w = 42) | "
+        "misconception_tags: ['added_instead_of_subtracted', 'ignored_starting_amount', "
+        "'skipped_final_division'] | hint_ladder: ['What will Mia have saved after w "
+        "weeks?', 'Her savings are 18 + 6w, and she needs that to reach 60.', 'Subtract "
+        "what she already has, then divide by her weekly amount.'] | canonical_solution "
+        "final_answer: '7 weeks' | equation: 'Eq(18 + 6*w, 60)' | proposed_difficulty: 2 | "
+        "difficulty_rationale: 'Two steps - undo the starting amount, then undo the weekly "
+        "rate - with the variable on one side only and no negative or fractional "
+        "coefficient.' | required_prerequisites: ['whole-number division', 'writing an "
+        "expression from a starting amount and a constant rate']"
     ),
     (
-        "stem: 'A hiking trail has markers every 250 meters. Ben has walked past 6 "
-        "markers and has 1500 meters left. How long is the whole trail?' | hint_ladder: "
-        "['How far has Ben walked when he passes 6 markers?', 'Six markers means 6 x 250 "
-        "meters walked so far.', 'Add the distance walked to the distance remaining.'] | "
-        "canonical_solution final_answer: '3000 meters' | equation: 'Eq(t, 6*250 + 1500)'"
+        "stem: 'A bakery packs gift boxes. Each box holds the same number of cookies plus "
+        "2 chocolates, and there are 5 boxes. The bakery also packs 12 loose cookies. "
+        "Altogether there are 42 items. How many cookies are in each box?' | options: "
+        "'4 cookies' (correct), '5 cookies' (multiplied 5 by the cookies but not by the 2 "
+        "chocolates), '6 cookies' (folded the 2 into the coefficient and solved 7x = 42), "
+        "'32 cookies' (stopped at 8x = 32) | misconception_tags: "
+        "['distributed_only_the_first_term', 'combined_constant_into_coefficient', "
+        "'skipped_final_division'] | hint_ladder: ['How many items are in one box, if a box "
+        "holds c cookies?', 'Five boxes hold 5(c + 2) items, and 12 loose cookies are added "
+        "to that.', 'Multiply out the bracket first, then gather the c terms.'] | "
+        "canonical_solution final_answer: '4 cookies' | equation: 'Eq(5*(c + 2) + 12, 42)' "
+        "| proposed_difficulty: 5 | difficulty_rationale: 'The bracket has to be "
+        "distributed before like terms can be combined, and the student must first decide "
+        "that a box is c + 2 items rather than c.' | required_prerequisites: ['the "
+        "distributive property', 'combining like terms', 'solving two-step equations']"
     ),
 ]
 
@@ -448,7 +626,18 @@ class PipelineConfigError(Exception):
 # because a run's headline number is only interpretable if "the solvers disagreed" and "we
 # ran out of money before calling anything" are different rows (D-192).
 RejectionStage = Literal[
-    "generator", "validation", "dedup", "solver", "judge", "budget", "unsupported_shape"
+    "generator",
+    "validation",
+    "dedup",
+    "solver",
+    "judge",
+    # D-194: split out of "judge" because it is a different finding. A judge rejection
+    # says the question is bad; a difficulty rejection says the question may be fine and
+    # the two independent readings of how hard it is cannot both be right. Merging them
+    # would make the run summary's largest bucket uninterpretable.
+    "difficulty",
+    "budget",
+    "unsupported_shape",
 ]
 
 
@@ -818,7 +1007,7 @@ async def _generate_authored_item(
         topic_name=topic.name,  # type: ignore[attr-defined]
         skill_name=skill.name,  # type: ignore[attr-defined]
         grade_band=topic.grade_band,  # type: ignore[attr-defined]
-        difficulty_label=difficulty_label,
+        target_difficulty=difficulty_label,
         exemplars=_AUTHORED_FEW_SHOT_EXEMPLARS,
     )
     return await _call(
@@ -1022,7 +1211,6 @@ async def generate_authored_candidate(
         topic_name=topic.name,
         skill_name=skill.name,
         grade_band=topic.grade_band,
-        proposed_difficulty=difficulty_label,
     )
     judge, cost, error = await _call(
         gateway,
@@ -1050,21 +1238,28 @@ async def generate_authored_candidate(
         judge_reasons.append(
             f"judge flagged the answer as impossible in the situation described: {judge.reasoning}"
         )
-    if abs(judge.difficulty_label - difficulty_label) > 1:
-        judge_reasons.append(
-            f"judge rated difficulty {judge.difficulty_label}, too far from proposed "
-            f"{difficulty_label}"
-        )
     if judge.hint_quality_score < _HINT_QUALITY_REJECT_BELOW:
         judge_reasons.append(f"judge rated hint quality {judge.hint_quality_score}, too low")
     if judge_reasons:
         return await _reject(judge_reasons, stage_results, "judge")
 
+    # Difficulty is its own stage from here (D-194) rather than one more judge flag. Both
+    # numbers and both rationales are persisted whatever the outcome, so a reviewer reading
+    # a rejection can see the two readings that disagreed instead of a verdict.
+    difficulty = judge_difficulty(
+        proposed=item.proposed_difficulty,
+        proposed_rationale=item.difficulty_rationale,
+        reviewed=judge.reviewed_difficulty,
+        reviewed_rationale=judge.difficulty_reasoning,
+        requested=difficulty_label,
+    )
+    stage_results["difficulty"] = difficulty.as_evidence()
+    stage_results["prerequisites"] = item.required_prerequisites
+    if difficulty.decision == "rejected":
+        return await _reject(difficulty.reasons, stage_results, "difficulty")
+
     review_priority = "normal"
-    if (
-        judge.hint_quality_score <= _HINT_QUALITY_BORDERLINE_AT
-        or abs(judge.difficulty_label - difficulty_label) == 1
-    ):
+    if judge.hint_quality_score <= _HINT_QUALITY_BORDERLINE_AT or difficulty.decision == "flagged":
         review_priority = "high"
 
     # --- 6. Persist as pending (never auto-approved - see module docstring) -----
@@ -1077,7 +1272,9 @@ async def generate_authored_candidate(
             skill_id=skill_id,
             grade_band=topic.grade_band,
             difficulty_label=difficulty_label,
-            difficulty_confidence=1.0 if judge.difficulty_label == difficulty_label else 0.5,
+            # Two independent readings agreeing is the only thing here worth calling
+            # confidence; the requested tier is an instruction, not a second opinion.
+            difficulty_confidence=1.0 if difficulty.decision == "accepted" else 0.5,
             question_type="multiple_choice",
             parameter_schema={},
             solution_function="authored",

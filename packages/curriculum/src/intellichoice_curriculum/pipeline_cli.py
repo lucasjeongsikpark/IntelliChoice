@@ -18,6 +18,7 @@ students.
 
 import argparse
 import asyncio
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from intellichoice_adapters.bedrock.bedrock_runtime_provider import AnthropicBedrockProvider
@@ -33,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.ai_pipeline import (
     DIFFICULTY_SHAPES,
+    TOPIC_DIFFICULTY_SKILLS,
     TOPIC_SKILL_DIFFICULTIES,
     PipelineOutcome,
     generate_authored_candidate,
@@ -91,6 +93,10 @@ class RunSummary:
     rejected_dedup: int = 0
     rejected_solver: int = 0
     rejected_judge: int = 0
+    # D-194: two independent readings of how hard the item is, disagreeing by 2 or
+    # more. Its own bucket because it is not the same finding as a judge rejection -
+    # the question may be perfectly good and still land here.
+    rejected_difficulty: int = 0
     skipped_budget: int = 0
     # A candidate whose template id was already taken. Its own row is discarded and the
     # batch continues (D-193) - the money is still counted, because it was still spent.
@@ -106,6 +112,7 @@ class RunSummary:
             + self.rejected_dedup
             + self.rejected_solver
             + self.rejected_judge
+            + self.rejected_difficulty
         )
 
     def record(self, outcome: "PipelineOutcome") -> None:
@@ -129,7 +136,8 @@ class RunSummary:
             f"{self.total_cost_cents:.2f} cents spent.\n"
             f"  rejected: generator={self.rejected_generator} "
             f"validation={self.rejected_validation} dedup={self.rejected_dedup} "
-            f"solver={self.rejected_solver} judge={self.rejected_judge}\n"
+            f"solver={self.rejected_solver} judge={self.rejected_judge} "
+            f"difficulty={self.rejected_difficulty}\n"
             f"  skipped: budget={self.skipped_budget} "
             f"duplicate_id={self.skipped_duplicate_id}"
         )
@@ -171,210 +179,342 @@ async def _settle(
         summary.rejections.append((topic_id, difficulty_label, outcome.reasons))
 
 
-async def run_pipeline(
-    session: AsyncSession,
-    gateway: BedrockGateway,
-    *,
-    candidates_per_difficulty: int = 2,
-    run_budget_cents: float = 1000.0,
-    seed_offset: int = DEFAULT_SEED_OFFSET,
-) -> RunSummary:
-    curriculum = load_curriculum()
-    summary = RunSummary()
-    summary.scheduled = candidates_per_difficulty * sum(
-        len(shapes) for shapes in DIFFICULTY_SHAPES.values()
-    )
-    spend = 0.0
-
-    for topic_id, difficulty_shapes in sorted(DIFFICULTY_SHAPES.items()):
-        for difficulty_label in sorted(difficulty_shapes):
-            for i in range(candidates_per_difficulty):
-                if spend >= run_budget_cents:
-                    print(f"run budget of {run_budget_cents} cents reached - stopping early")
-                    return summary
-                seed = _SEED_BASE + seed_offset + difficulty_label * 100 + i
-                outcome: PipelineOutcome = await generate_candidate(
-                    session=session,
-                    gateway=gateway,
-                    curriculum=curriculum,
-                    topic_id=topic_id,
-                    difficulty_label=difficulty_label,
-                    seed=seed,
-                    session_spend_cents=spend,
-                )
-                spend += outcome.cost_cents
-                await _settle(
-                    session,
-                    summary,
-                    outcome,
-                    topic_id=topic_id,
-                    difficulty_label=difficulty_label,
-                )
-    return summary
-
-
-async def run_authored_pipeline(
-    session: AsyncSession,
-    gateway: BedrockGateway,
-    *,
-    candidates_per_difficulty: int = 2,
-    run_budget_cents: float = 1000.0,
-    seed_offset: int = DEFAULT_SEED_OFFSET,
-) -> RunSummary:
-    """S20 (plan §7) counterpart to `run_pipeline` above, driving
-    `generate_authored_candidate` - authored mode has no shape allowlist to iterate.
-
-    D-186: iterates **(skill, tier) pairs** from `TOPIC_SKILL_DIFFICULTIES` rather than
-    tiers alone from `TOPIC_DIFFICULTY_SKILLS`, which is what makes multi-tier-per-skill
-    content reachable at all. The old loop derived the skill *from* the tier, so it could
-    only ever produce the 1:1 ladder no matter how many times it ran. `skill_id` is now
-    passed explicitly for the same reason - once two skills share a tier, derivation has
-    nothing to derive from.
-
-    `candidates_per_difficulty` is now per (skill, tier) pair, so the same value asks for
-    more items than it used to: `linear_equations` went from 5 pairs to 11.
+@dataclass(frozen=True)
+class GenerationSlot:
+    """One candidate a run intends to produce. `question_template_id` is what the pipeline
+    will actually write, computed here so preflight and the runner cannot disagree about
+    which rows a run claims.
     """
-    curriculum = load_curriculum()
-    summary = RunSummary()
-    summary.scheduled = candidates_per_difficulty * sum(
-        len(tiers) for plan in TOPIC_SKILL_DIFFICULTIES.values() for tiers in plan.values()
-    )
-    spend = 0.0
 
-    for topic_id, skill_difficulties in sorted(TOPIC_SKILL_DIFFICULTIES.items()):
-        for skill_index, (skill_id, difficulty_labels) in enumerate(
-            sorted(skill_difficulties.items())
-        ):
-            for difficulty_label in sorted(difficulty_labels):
-                for i in range(candidates_per_difficulty):
-                    if spend >= run_budget_cents:
-                        print(f"run budget of {run_budget_cents} cents reached - stopping early")
-                        return summary
-                    seed = authored_seed(
-                        skill_index=skill_index,
-                        difficulty_label=difficulty_label,
-                        index=i,
-                        seed_offset=seed_offset,
-                    )
-                    outcome: PipelineOutcome = await generate_authored_candidate(
-                        session=session,
-                        gateway=gateway,
-                        curriculum=curriculum,
-                        topic_id=topic_id,
-                        difficulty_label=difficulty_label,
-                        seed=seed,
-                        session_spend_cents=spend,
-                        skill_id=skill_id,
-                    )
-                    spend += outcome.cost_cents
-                    await _settle(
-                        session,
-                        summary,
-                        outcome,
-                        topic_id=topic_id,
-                        difficulty_label=difficulty_label,
-                    )
-    return summary
+    topic_id: str
+    skill_id: str
+    difficulty_label: int
+    index: int
+    seed: int
+    question_template_id: str
 
 
-def planned_template_ids(
-    mode: str, *, candidates_per_difficulty: int, seed_offset: int
-) -> list[str]:
-    """Every template id a run at these settings would try to claim, without calling
-    anything. The runners derive ids from seeds and seeds from (skill, tier, index), so
-    the whole plan is knowable in advance - which is what makes a no-cost preflight
-    possible at all.
-
-    Deliberately recomputed here from the same inputs rather than refactored out of the
-    runners: a preflight that shares the runners' code would agree with them by
-    construction and could not catch a divergence, but one that agrees by *test* can. See
-    `test_preflight_predicts_the_ids_the_run_claims`.
+class PlanError(Exception):
+    """The requested run cannot be built - an unknown topic, a skill that is not in it, a
+    difficulty outside 1-5, or a filter that leaves nothing to generate. Raised while
+    planning, which is before anything has been called or written.
     """
-    ids: list[str] = []
+
+
+@dataclass(frozen=True)
+class GenerationPlan:
+    mode: str
+    slots: tuple[GenerationSlot, ...]
+    candidates_per_slot: int
+    seed_offset: int
+    run_budget_cents: float
+    # What was asked for, kept for the preflight report - "selected skills: all 5" and
+    # "selected skills: linear_both_sides" are different runs and the report should say so.
+    topic_ids: tuple[str, ...]
+    skill_ids: tuple[str, ...]
+    difficulties: tuple[int, ...]
+
+    @property
+    def template_ids(self) -> tuple[str, ...]:
+        return tuple(slot.question_template_id for slot in self.slots)
+
+
+VALID_DIFFICULTIES = range(1, 6)
+# Per candidate: generator, solver A, solver B, judge, plus one embedding for the dedup
+# check. Used only to turn a plan into an upper bound on calls - it is the shape of the
+# pipeline, so it changes when a stage is added and the estimate should be re-derived here
+# rather than in the report.
+_MODEL_CALLS_PER_AUTHORED_CANDIDATE = 5
+
+
+def build_plan(
+    mode: str,
+    *,
+    topic_id: str | None = None,
+    skill_ids: Sequence[str] | None = None,
+    difficulties: Sequence[int] | None = None,
+    candidates_per_slot: int = 2,
+    seed_offset: int = DEFAULT_SEED_OFFSET,
+    run_budget_cents: float = 1000.0,
+) -> GenerationPlan:
+    """Turn CLI arguments into the exact list of candidates a run would attempt.
+
+    One structure drives both the runner and `preflight`, which is the property that makes
+    the preflight worth trusting: a filter that the report understands but the loop does
+    not would be worse than no filter. The runner iterating `plan.slots` rather than
+    re-deriving them is what forecloses that.
+
+    This is also where presets would attach later - a YAML file would be parsed into these
+    same arguments, so nothing below the plan needs to know they exist (deliberately not
+    built now; there is one topic).
+
+    Validation is fail-closed and happens here, before any provider is constructed: an
+    unknown topic, a skill outside the topic, a difficulty off the 1-5 scale, or a filter
+    combination with no planned (skill, tier) pairs all raise rather than quietly
+    generating something adjacent to what was asked for.
+    """
+    requested_difficulties = tuple(difficulties or ())
+    for difficulty in requested_difficulties:
+        if difficulty not in VALID_DIFFICULTIES:
+            raise PlanError(
+                f"difficulty {difficulty} is outside the 1-5 scale the whole system uses"
+            )
+
+    plan_by_topic: dict[str, dict[str, list[int]]]
     if mode == "authored":
-        for topic_id, skill_difficulties in sorted(TOPIC_SKILL_DIFFICULTIES.items()):
-            for skill_index, (_skill_id, difficulty_labels) in enumerate(
-                sorted(skill_difficulties.items())
-            ):
-                for difficulty_label in sorted(difficulty_labels):
-                    for i in range(candidates_per_difficulty):
+        plan_by_topic = {t: dict(s) for t, s in TOPIC_SKILL_DIFFICULTIES.items()}
+    else:
+        # The shape pipeline has no skill dimension of its own - its skill follows from the
+        # tier (D-186's "native ladder"). Expressed in the same shape so one planner covers
+        # both modes instead of two loops drifting apart.
+        plan_by_topic = {}
+        for topic, tiers in DIFFICULTY_SHAPES.items():
+            by_skill: dict[str, list[int]] = {}
+            for tier in sorted(tiers):
+                skill = TOPIC_DIFFICULTY_SKILLS.get(topic, {}).get(tier)
+                if skill is not None:
+                    by_skill.setdefault(skill, []).append(tier)
+            plan_by_topic[topic] = by_skill
+
+    if topic_id is not None:
+        if topic_id not in plan_by_topic:
+            raise PlanError(
+                f"topic {topic_id!r} has no registered generation plan "
+                f"(known: {', '.join(sorted(plan_by_topic))})"
+            )
+        plan_by_topic = {topic_id: plan_by_topic[topic_id]}
+
+    requested_skills = tuple(skill_ids or ())
+    if requested_skills:
+        if mode != "authored":
+            raise PlanError("--skill-id applies to authored mode only; shape mode plans by tier")
+        known = {skill for skills in plan_by_topic.values() for skill in skills}
+        for skill in requested_skills:
+            if skill not in known:
+                raise PlanError(
+                    f"skill {skill!r} is not in the selected topic "
+                    f"(known: {', '.join(sorted(known))})"
+                )
+
+    slots: list[GenerationSlot] = []
+    for topic, skill_difficulties in sorted(plan_by_topic.items()):
+        # The skill index is enumerated over the *whole* topic, not the filtered subset,
+        # so `--skill-id linear_both_sides` proposes the same seeds it would have as part
+        # of a full run. A filter that shifted the seeds would make two runs collide by
+        # having narrowed one of them, which is the opposite of what filtering is for.
+        for skill_index, (skill_id, _tiers) in enumerate(
+            sorted(TOPIC_SKILL_DIFFICULTIES.get(topic, skill_difficulties).items())
+        ):
+            if skill_id not in skill_difficulties:
+                continue
+            if requested_skills and skill_id not in requested_skills:
+                continue
+            for difficulty_label in sorted(skill_difficulties[skill_id]):
+                if requested_difficulties and difficulty_label not in requested_difficulties:
+                    continue
+                for index in range(candidates_per_slot):
+                    if mode == "authored":
                         seed = authored_seed(
                             skill_index=skill_index,
                             difficulty_label=difficulty_label,
-                            index=i,
+                            index=index,
                             seed_offset=seed_offset,
                         )
-                        ids.append(f"authored-{topic_id}-d{difficulty_label}-{seed}")
-    else:
-        for topic_id, difficulty_shapes in sorted(DIFFICULTY_SHAPES.items()):
-            for difficulty_label in sorted(difficulty_shapes):
-                for i in range(candidates_per_difficulty):
-                    seed = _SEED_BASE + seed_offset + difficulty_label * 100 + i
-                    ids.append(f"ai-{topic_id}-d{difficulty_label}-{seed}")
-    return ids
+                        template_id = f"authored-{topic}-d{difficulty_label}-{seed}"
+                    else:
+                        seed = _SEED_BASE + seed_offset + difficulty_label * 100 + index
+                        template_id = f"ai-{topic}-d{difficulty_label}-{seed}"
+                    slots.append(
+                        GenerationSlot(
+                            topic_id=topic,
+                            skill_id=skill_id,
+                            difficulty_label=difficulty_label,
+                            index=index,
+                            seed=seed,
+                            question_template_id=template_id,
+                        )
+                    )
+
+    if not slots:
+        raise PlanError(
+            "no generation slots match this request - the skill/difficulty combination is "
+            "not in the authoring plan"
+        )
+    return GenerationPlan(
+        mode=mode,
+        slots=tuple(slots),
+        candidates_per_slot=candidates_per_slot,
+        seed_offset=seed_offset,
+        run_budget_cents=run_budget_cents,
+        topic_ids=tuple(sorted(plan_by_topic)),
+        skill_ids=tuple(sorted({slot.skill_id for slot in slots})),
+        difficulties=tuple(sorted({slot.difficulty_label for slot in slots})),
+    )
+
+
+async def run_plan(
+    session: AsyncSession,
+    gateway: BedrockGateway,
+    plan: GenerationPlan,
+) -> RunSummary:
+    """Execute a plan, one committed candidate at a time.
+
+    Both modes share this loop now; the only difference is which candidate function runs,
+    because everything that used to differ - which (skill, tier) pairs to visit, what seed
+    each gets, what id it claims - is decided by `build_plan` and identical in structure.
+    """
+    curriculum = load_curriculum()
+    summary = RunSummary()
+    summary.scheduled = len(plan.slots)
+    spend = 0.0
+
+    for slot in plan.slots:
+        if spend >= plan.run_budget_cents:
+            print(f"run budget of {plan.run_budget_cents} cents reached - stopping early")
+            return summary
+        try:
+            if plan.mode == "authored":
+                outcome: PipelineOutcome = await generate_authored_candidate(
+                    session=session,
+                    gateway=gateway,
+                    curriculum=curriculum,
+                    topic_id=slot.topic_id,
+                    difficulty_label=slot.difficulty_label,
+                    seed=slot.seed,
+                    session_spend_cents=spend,
+                    skill_id=slot.skill_id,
+                )
+            else:
+                outcome = await generate_candidate(
+                    session=session,
+                    gateway=gateway,
+                    curriculum=curriculum,
+                    topic_id=slot.topic_id,
+                    difficulty_label=slot.difficulty_label,
+                    seed=slot.seed,
+                    session_spend_cents=spend,
+                )
+        except IntegrityError as exc:
+            # The collision surfaces HERE, not at commit: `QuestionRepository.create_template`
+            # flushes, so the unique-violation is raised while the candidate is still being
+            # built. D-193 put this catch in `_settle`, which is one statement too late -
+            # measured by `test_per_candidate_settlement_survives_a_duplicate_id`, which
+            # failed against that version. `_settle` keeps its own catch for the same error
+            # arriving at commit time, since either is possible and both cost one candidate.
+            await session.rollback()
+            summary.skipped_duplicate_id += 1
+            summary.rejections.append(
+                (
+                    slot.topic_id,
+                    slot.difficulty_label,
+                    [f"template id {slot.question_template_id} already exists: {exc}"],
+                )
+            )
+            continue
+        spend += outcome.cost_cents
+        await _settle(
+            session,
+            summary,
+            outcome,
+            topic_id=slot.topic_id,
+            difficulty_label=slot.difficulty_label,
+        )
+    return summary
+
+
+@dataclass(frozen=True)
+class PreflightReport:
+    text: str
+    ok: bool
+    failures: tuple[str, ...]
 
 
 async def preflight(
     session: AsyncSession,
     settings: CurriculumPipelineSettings,
-    *,
-    mode: str,
-    candidates_per_difficulty: int,
-    seed_offset: int,
-) -> tuple[str, bool]:
-    """What the run would do, before it costs anything. Returns (report, ok).
+    plan: GenerationPlan,
+) -> PreflightReport:
+    """What the run would do, before it costs anything. Makes no model or embedding call.
 
-    Exists because the two ways a paid run has been wasted here are both knowable up
-    front. Seeds are deterministic, so id collisions are predictable rather than
-    discovered at commit; and Solver A/B share their model slots with the generator and
-    reviewer, which default to the *same* model id - two solvers that are one model
-    agreeing with each other is not independent verification, it is one opinion counted
-    twice (§3.5). Neither check calls a model, so running it is free and refusing to run
-    it is the only expensive option.
+    Exists because the ways a paid run has actually been wasted here are all knowable up
+    front. Seeds are deterministic, so id collisions are predictable rather than discovered
+    at commit. Solver A/B share their model slots with the generator and reviewer, which
+    default to the *same* model id - two solvers that are one model agreeing is one opinion
+    counted twice, and every "independent solver agreement" recorded before this check was
+    exactly that. Neither check costs anything, so declining to run it is the only
+    expensive option.
     """
-    ids = planned_template_ids(
-        mode, candidates_per_difficulty=candidates_per_difficulty, seed_offset=seed_offset
-    )
     taken = (
         (
             await session.execute(
                 select(QuestionTemplate.question_template_id).where(
-                    QuestionTemplate.question_template_id.in_(ids)
+                    QuestionTemplate.question_template_id.in_(plan.template_ids)
                 )
             )
         )
         .scalars()
         .all()
     )
+    generator_model = (
+        settings.bedrock_authored_generation_model_id
+        if plan.mode == "authored"
+        else settings.bedrock_generation_model_id
+    )
     solver_a = settings.bedrock_generation_model_id
     solver_b = settings.bedrock_review_model_id
     solvers_differ = solver_a != solver_b
-    # A ceiling, not an estimate: the gateway refuses the call that would cross it, so this
-    # is the most the run can cost however the candidates go.
-    lines = [
-        f"mode:                {mode}",
-        f"provider:            {settings.bedrock_provider}",
-        f"candidates:          {len(ids)} "
-        f"({candidates_per_difficulty} per slot, seed offset {seed_offset})",
-        f"generator model:     {settings.bedrock_authored_generation_model_id}"
-        if mode == "authored"
-        else f"generator model:     {solver_a}",
-        f"solver A model:      {solver_a}",
-        f"solver B model:      {solver_b}",
-        f"judge model:         {settings.bedrock_judge_model_id}",
-        f"embedding model:     {settings.bedrock_embedding_model_id}",
-        f"max spend:           {settings.bedrock_run_budget_cents:.0f} cents",
-        f"solver diversity:    "
-        f"{'PASS' if solvers_differ else 'FAIL - both solvers are one model'}",
-        f"id availability:     "
-        f"{'PASS' if not taken else f'FAIL - {len(taken)} of {len(ids)} taken'}",
-    ]
-    if taken:
-        lines.append(
-            f"  already taken:     {', '.join(sorted(taken)[:5])}{' ...' if len(taken) > 5 else ''}"
+    max_calls = len(plan.slots) * _MODEL_CALLS_PER_AUTHORED_CANDIDATE
+
+    failures: list[str] = []
+    if not solvers_differ:
+        failures.append(
+            f"Solver A and Solver B both resolve to {solver_a!r} - their agreement would be "
+            f"one opinion counted twice"
         )
-        lines.append("  pick a fresh --seed-offset")
-    return "\n".join(lines), solvers_differ and not taken
+    if taken:
+        failures.append(
+            f"{len(taken)} of {len(plan.slots)} planned template ids already exist - "
+            f"pick a fresh --seed-offset"
+        )
+    if plan.run_budget_cents > settings.bedrock_run_budget_cents:
+        failures.append(
+            f"requested budget {plan.run_budget_cents:.0f}c exceeds the configured hard "
+            f"ceiling of {settings.bedrock_run_budget_cents:.0f}c"
+        )
+
+    lines = [
+        f"mode:                  {plan.mode}",
+        f"provider:              {settings.bedrock_provider}",
+        f"generator model:       {generator_model}",
+        f"solver A model:        {solver_a}",
+        f"solver B model:        {solver_b}",
+        f"judge model:           {settings.bedrock_judge_model_id}",
+        f"embedding model:       {settings.bedrock_embedding_model_id}",
+        f"topic:                 {', '.join(plan.topic_ids)}",
+        f"skills:                {', '.join(plan.skill_ids)}",
+        f"difficulties:          {', '.join(str(d) for d in plan.difficulties)}",
+        f"candidates per slot:   {plan.candidates_per_slot}",
+        f"scheduled candidates:  {len(plan.slots)}",
+        f"seed offset:           {plan.seed_offset}",
+        f"planned template ids:  {len(plan.template_ids)} "
+        f"({plan.template_ids[0]} .. {plan.template_ids[-1]})",
+        f"already-used ids:      {len(taken)}"
+        + (f" ({', '.join(sorted(taken)[:5])}{' ...' if len(taken) > 5 else ''})" if taken else ""),
+        f"run budget ceiling:    {plan.run_budget_cents:.0f} cents "
+        f"(configured hard cap {settings.bedrock_run_budget_cents:.0f})",
+        f"estimated max calls:   {max_calls} ({_MODEL_CALLS_PER_AUTHORED_CANDIDATE} per candidate)",
+        # Deliberately not a number. Per-call cost depends on the model ids above and on
+        # output length, and this project has one measurement (Haiku, ~0.29c per call) that
+        # says nothing about a premium generator. A budget ceiling the gateway enforces is
+        # a real bound; an invented average would read like one and not be.
+        "estimated max spend:   not calculable - no per-token price table is configured; "
+        "the run budget ceiling above is the enforced bound",
+        f"solver diversity:      {'PASS' if solvers_differ else 'FAIL'}",
+        f"id availability:       {'PASS' if not taken else 'FAIL'}",
+    ]
+    for failure in failures:
+        lines.append(f"  ! {failure}")
+    return PreflightReport(text="\n".join(lines), ok=not failures, failures=tuple(failures))
 
 
 def _build_gateway(settings: CurriculumPipelineSettings) -> ResilientBedrockGateway:
@@ -403,7 +543,14 @@ def _build_gateway(settings: CurriculumPipelineSettings) -> ResilientBedrockGate
     )
 
 
-async def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """Separate from `main` so the argument surface is testable without a database.
+
+    Deliberately still `argparse` (D-194). A framework migration would be the largest
+    change in this area and would buy nothing the flags below do not already do; the
+    thing worth having later is presets, and presets attach to `build_plan`, not to the
+    parser.
+    """
     parser = argparse.ArgumentParser(description="Run the AI question-generation pipeline")
     parser.add_argument(
         "--mode",
@@ -413,10 +560,40 @@ async def main() -> None:
         "writes the whole item) - default: shape",
     )
     parser.add_argument(
+        "--topic-id",
+        default=None,
+        help="Restrict generation to one topic (default: every topic with a plan)",
+    )
+    parser.add_argument(
+        "--skill-id",
+        action="append",
+        default=None,
+        metavar="SKILL_ID",
+        help="Restrict to this skill; repeat the flag to name several. Authored mode only "
+        "(shape mode's skill follows from the tier). Default: every skill in the topic",
+    )
+    parser.add_argument(
+        "--difficulty",
+        action="append",
+        type=int,
+        default=None,
+        metavar="1-5",
+        help="Restrict to this difficulty tier; repeat the flag for several. Default: the "
+        "tiers the authoring plan lists for each selected skill",
+    )
+    parser.add_argument(
+        "--candidates-per-slot",
+        type=int,
+        default=None,
+        help="Candidates to attempt per (skill, tier) slot (default: 2)",
+    )
+    parser.add_argument(
+        # The old name, kept working rather than broken: it is in the Makefile's history,
+        # in DECISIONS.md and in at least one shell someone has open. Same meaning.
         "--candidates-per-difficulty",
         type=int,
-        default=2,
-        help="Candidates to attempt per topic/difficulty pair (default: 2)",
+        default=None,
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--seed-offset",
@@ -428,51 +605,100 @@ async def main() -> None:
         "candidates are paid for and then dropped (default: 0)",
     )
     parser.add_argument(
+        "--run-budget-cents",
+        type=float,
+        default=None,
+        help="Spend ceiling for this run. Cannot exceed the configured hard cap "
+        "(CURRICULUM_BEDROCK_RUN_BUDGET_CENTS), which it defaults to",
+    )
+    parser.add_argument(
         "--preflight",
         action="store_true",
-        help="Print what this run would do - resolved model ids, whether the two solvers "
-        "are actually two models, the id range it claims and the spend ceiling - then "
-        "exit without calling anything. Free; run it before every paid batch.",
+        help="Print what this run would do - resolved model ids, the selected slots, the "
+        "ids it claims, the spend ceiling - then exit. Makes no model or embedding call "
+        "and writes nothing. Free; run it before every paid batch",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Like --preflight, plus every planned slot listed individually. Also calls "
+        "nothing and writes nothing",
+    )
+    parser.add_argument(
+        "--allow-preflight-failure",
+        action="store_true",
+        help="Run even though preflight failed. Intended for mock-provider smoke tests, "
+        "where a single-model solver pair is the correct configuration; a paid run refuses "
+        "without it",
+    )
+    return parser
 
+
+async def main() -> None:
+    args = build_parser().parse_args()
     settings = get_pipeline_settings()
+
+    candidates_per_slot = (
+        args.candidates_per_slot
+        if args.candidates_per_slot is not None
+        else args.candidates_per_difficulty
+        if args.candidates_per_difficulty is not None
+        else 2
+    )
+    try:
+        plan = build_plan(
+            args.mode,
+            topic_id=args.topic_id,
+            skill_ids=args.skill_id,
+            difficulties=args.difficulty,
+            candidates_per_slot=candidates_per_slot,
+            seed_offset=args.seed_offset,
+            run_budget_cents=(
+                args.run_budget_cents
+                if args.run_budget_cents is not None
+                else settings.bedrock_run_budget_cents
+            ),
+        )
+    except PlanError as exc:
+        # Before the engine, before the provider, before anything is written.
+        raise SystemExit(f"cannot plan this run: {exc}") from exc
+
     engine = create_engine()
     try:
         session_factory = create_session_factory(engine)
         async with session_scope(session_factory) as session:
-            report, ok = await preflight(
-                session,
-                settings,
-                mode=args.mode,
-                candidates_per_difficulty=args.candidates_per_difficulty,
-                seed_offset=args.seed_offset,
-            )
-            print(report)
-            if args.preflight:
+            report = await preflight(session, settings, plan)
+            print(report.text)
+            if args.dry_run:
+                print("\nplanned slots:")
+                for slot in plan.slots:
+                    print(
+                        f"  {slot.question_template_id}  skill={slot.skill_id} "
+                        f"d={slot.difficulty_label} seed={slot.seed}"
+                    )
+            if args.preflight or args.dry_run:
                 return
-            # Printed rather than enforced. A failing check is a warning here, not a
-            # refusal: `--seed-offset 0` against an empty topic is a legitimate first run,
-            # and a single-model solver pair is the right configuration for a mock-provider
-            # smoke test. What the run must not do is spend money without saying which of
-            # those it is doing.
-            if not ok:
-                print("preflight found problems above - continuing anyway")
+            if not report.ok:
+                # Fail-closed for anything that spends money. A mock run is the documented
+                # exception and still has to say so with the flag - the failure mode this
+                # guards against is a paid batch that quietly proceeds past a warning
+                # nobody was watching for.
+                paid = settings.bedrock_provider == "bedrock"
+                if paid and not args.allow_preflight_failure:
+                    raise SystemExit(
+                        "preflight failed and this run would call a paid provider - "
+                        "fix the problems above, or pass --allow-preflight-failure if "
+                        "you have decided they are acceptable"
+                    )
+                print("preflight failed - continuing because this run is not paid")
             gateway = _build_gateway(settings)
             try:
-                run = run_authored_pipeline if args.mode == "authored" else run_pipeline
-                summary = await run(
-                    session,
-                    gateway,
-                    candidates_per_difficulty=args.candidates_per_difficulty,
-                    run_budget_cents=settings.bedrock_run_budget_cents,
-                    seed_offset=args.seed_offset,
-                )
+                summary = await run_plan(session, gateway, plan)
             except CostBudgetExceededError as exc:
                 print(f"run budget exceeded: {exc}")
                 raise
             # Every candidate has already committed itself (`_settle`); this only flushes
-            # anything a runner left uncommitted on an early return.
+            # anything the runner left uncommitted on an early return.
             await session.commit()
         print(summary.format(args.mode))
         for topic_id, difficulty_label, reasons in summary.rejections:
