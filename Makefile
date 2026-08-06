@@ -1,4 +1,4 @@
-.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence tfvars-floor-check
+.PHONY: up down dev dev-observability test lint typecheck dev-learning dev-chat dev-learning-web dev-chat-web seed curriculum-load question-gen-run question-gen-authored question-review question-export knowledge-load knowledge-reembed youtube-sync webcontent-sync org-load chat-suggestions-load chat-purge memory-consolidate db-upgrade db-downgrade db-revision security-scan-staging e2e e2e-install e2e-staging e2e-typecheck load-staging-chat load-staging-learning scan-traces scan-logs scheduler-evidence tfvars-floor-check
 
 up:
 	docker compose up -d
@@ -29,6 +29,12 @@ question-gen-authored:
 
 question-review:
 	uv run python -m intellichoice_curriculum.review_cli
+
+# D-190: the last step of the authoring workflow. Until this runs and its diff is
+# committed, approval exists only as a row in whatever database was reviewed against, and
+# no other environment has the content.
+question-export:
+	uv run python -m intellichoice_curriculum.export_cli
 
 knowledge-load:
 	uv run python -m intellichoice_knowledge.ingest_cli
