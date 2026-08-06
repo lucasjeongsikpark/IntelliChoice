@@ -3,7 +3,10 @@ Postgres needed, unlike `test_authored_pipeline.py`'s end-to-end tests.
 """
 
 import pytest
-from intellichoice_curriculum.authored_validation import validate_authored_item
+from intellichoice_curriculum.authored_validation import (
+    answer_text_leaked,
+    validate_authored_item,
+)
 from intellichoice_shared.bedrock import (
     AuthoredGeneratedItemResponse,
     SolutionResponse,
@@ -403,4 +406,79 @@ def test_an_ordinary_adjustment_in_a_scenario_still_passes() -> None:
     result = validate_authored_item(
         1, _good_item(stem="The recipe was adjusted to serve 4 people. What is 2 + 2?")
     )
+    assert result.passed, result.failures
+
+
+# --- D-195 repeat pilot: a decimal in the scenario is not a leaked answer --------------
+# `answer_text_leaked` treated a decimal point as a word boundary, so answer "8" matched
+# the 8 inside "0.8". That rejected a correct, well-built item whose hint said "Jake
+# starts 0.8 km from the park", and the same function guards runtime hints, where a false
+# positive suppresses a legitimate hint. Single-digit answers in scenarios that use
+# decimals are most of this topic, not a corner case.
+
+
+def test_a_digit_inside_a_decimal_is_not_a_leaked_answer() -> None:
+    hint = "Jake starts 0.8 km from the park and runs 0.05 km closer each minute."
+    assert not answer_text_leaked(hint, "8")
+
+
+def test_an_answer_followed_by_a_decimal_place_is_not_a_leak() -> None:
+    assert not answer_text_leaked("the value is 8.5 km", "8")
+
+
+def test_a_decimal_answer_is_still_caught_when_stated_in_full() -> None:
+    assert answer_text_leaked("it costs 2.4 dollars", "2.4")
+
+
+def test_a_genuine_leak_at_the_end_of_a_sentence_is_still_caught() -> None:
+    # The `.` here is not followed by a digit, so it is punctuation, not a decimal point.
+    assert answer_text_leaked("The answer is 8.", "8")
+    assert answer_text_leaked("so g = 8 minutes", "8")
+
+
+def test_the_earlier_boundary_fixes_are_not_regressed() -> None:
+    # S30's negative-answer fix and the "4 inside 24" guard both still hold.
+    assert answer_text_leaked("the value is -4", "-4")
+    assert not answer_text_leaked("24 apples", "4")
+
+
+def test_the_repeat_pilots_correct_item_now_survives_the_gate() -> None:
+    """The whole item that was lost, rebuilt: Lena and Jake running toward a park.
+
+    `Eq(1.2 - 0.1*m, 0.8 - 0.05*m)` solves to m = 8, which matches the declared option.
+    Nothing about it was wrong - it was rejected because hint 2 mentioned "0.8 km".
+    """
+    item = _good_item(
+        stem=(
+            "Lena begins 1.2 km from the park and runs 0.1 km each minute. Jake begins "
+            "0.8 km away and runs 0.05 km each minute. When are they equally far away?"
+        ),
+        option_a="12",
+        option_b="2",
+        option_c="4",
+        option_d="8",
+        correct_option="d",
+        equation="Eq(1.2 - 0.1*m, 0.8 - 0.05*m)",
+        hint_ladder=[
+            "Think about how far each has left to run after a certain number of minutes.",
+            "Lena starts 1.2 km from the park; Jake starts 0.8 km from the park.",
+            "Write an equation setting Lena's distance equal to Jake's after m minutes.",
+        ],
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Set the two remaining distances equal.",
+                    expression="1.2 - 0.1*m = 0.8 - 0.05*m",
+                )
+            ],
+            final_answer="8",
+        ),
+        proposed_difficulty=3,
+        difficulty_rationale=(
+            "Two moving objects, a variable on both sides, and decimal coefficients to "
+            "carry through the arithmetic."
+        ),
+    )
+    result = validate_authored_item(3, item)
     assert result.passed, result.failures

@@ -13357,3 +13357,82 @@ an assumption about it, and is correct for both template kinds.
 authored templates being servable, so the earlier failures had at least one other cause. What is
 established is that *this* failure had a real, reproducible root cause and the test was asserting
 something untrue.
+
+## D-196 — the repeat pilot, and a gate that was destroying correct content (accepted, 2026-08-06)
+
+The identical four-candidate repeat: same models, same seed offset `400000`, same budget. **0 of 4
+accepted, 13.81¢.** But the profile moved, and the reason matters more than the headline.
+
+### The D-195 hardening worked, measurably
+
+Four of the five defect classes the first pilot produced did not recur:
+
+| first pilot | repeat |
+|---|---|
+| 4-level hint ladder (C1) | **gone** — the schema bound stops it before generation completes |
+| equation with no unknown / false (C2) | **gone** |
+| authoring commentary in the stem (C2) | **gone** |
+| under-specified stem, caught by solvers (C4) | **gone** — `solver=0` this run |
+| answer leaked in a hint (C2) | recurred — but see below, this one was *our* bug |
+
+`generator=0 validation=2 dedup=0 solver=0 judge=1 difficulty=1`.
+
+### The finding: `answer_text_leaked` was rejecting correct items
+
+Candidate `d3-405301` — Lena and Jake running toward a park, `Eq(1.2 - 0.1*m, 0.8 - 0.05*m)`,
+solving to m = 8, declared option d) 8 — is **mathematically correct and well-built**. It was
+rejected for `hint_ladder[2] leaks the correct answer text verbatim`. The hint said:
+
+> Jake starts 0.8 km from the park and runs 0.05 km closer each minute.
+
+The answer is `8`. The check's boundary guards are `(?<![0-9A-Za-z])` / `(?![0-9A-Za-z])`, and a
+decimal point is neither — so `8` matched the `8` inside `0.8`.
+
+This is the mirror image of the S30 bug documented in that function's own docstring. That fix
+handled negative answers and "4 inside 24"; it did not handle a digit after a decimal point. For a
+topic whose scenarios routinely use decimals and whose answers are routinely single digits, this is
+most items, not a corner case. **And the same function guards the S21 runtime hint path**, where a
+false positive suppresses a legitimate hint for any question containing a decimal.
+
+**Fix:** two more assertions — a match may not be immediately preceded by `<digit>.` nor followed by
+`.<digit>`, which is exactly "this digit is part of a larger decimal". `"The answer is 8."` at a
+sentence end still matches, because that `.` is not followed by a digit.
+
+**This changes the escalation call.** D-195 §5 said: if the repeat again yields 0 of 4, stop using
+Mistral Large 3 and obtain more model access. One of the four rejections was **ours, not the
+model's**. The honest count is 3 model failures out of 4, with the fourth eliminated by a defect in
+our gate before the solvers or judge ever saw it. It cannot be claimed it would have been accepted —
+only that it was never given the chance. So: **repeat once more with this fix**, before concluding
+anything about the generator.
+
+### Two findings recorded, not acted on
+
+**1. The tier-4 slot, not the difficulty gate, looks miscalibrated.** `d4-405400` (Lena and Noah
+swimming, `Eq(28 + 3*w, 10 + 5*w)`, w = 9) is correct — I verified it, and the judge solved it
+independently and agreed. It was rejected on `proposed 4 / reviewed 2`. That is now the **second**
+such item, after the first pilot's garden question, and both are `linear_both_sides` at requested
+tier 4, both proposed 4, both judged 2.
+
+Two independent correct items, same slot, same split, is a pattern rather than a disagreement. The
+likeliest reading is that "variables on both sides with integer coefficients" simply *is* a tier-2/3
+skill by the judge's consistent reckoning, and asking for it at tier 4 asks for something the
+mathematics does not support. **The gate is not weakened** — it is reporting a real conflict, and
+the conflict is in the authoring plan. Worth investigating the slot before the policy.
+
+**2. A physically impossible premise passed everything except an accident.** `d3-405300` has Lena
+walking at 3 km/h to catch a brother biking at 15 km/h who is already 24 km ahead. She never catches
+him; `Eq(3*t, 15*t + 24)` solves to **t = −2**, which is the mathematics saying so. The generator
+declared `2`, and the gate caught the sign mismatch. Had it declared `−2`, the equation check would
+have passed and a nonsense scenario would have gone to the solvers. The generator's own rationale
+even says "the negative solution ... might confuse students, demanding recontextualization" — it
+noticed and shipped it anyway. No check currently asks whether a solution is *possible in the
+situation*; the judge's `is_internally_consistent` is the nearest thing and it never ran.
+
+**3. The judge earned its place.** `d4-405401` (Leo and Ava's marbles) solves to g = 12/5 = 2.4
+games. Mathematically correct, and nonsense as a scenario. The deterministic gate passed it; the
+judge caught it as internally inconsistent and ambiguous. That is the check working exactly as
+designed on something no deterministic rule could see.
+
+**The snapshot is what made all of this readable.** Every judgement above was made from
+`make question-review-rejected` output, on candidates that under the previous code would have left
+nothing but a reason string.
