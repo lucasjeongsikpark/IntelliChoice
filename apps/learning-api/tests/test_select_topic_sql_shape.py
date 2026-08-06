@@ -446,17 +446,28 @@ def _content(views: list[flow.QuestionItemView]) -> list[tuple[str, str, str, st
 #
 # The third row is the tell: `2x + 7 = 19` with options 6/8/9/13 is
 # `authored-linear_equations-d2-9200`, an authored item served from its canonical variant.
+# Re-pinned 2026-08-06 (D-206): the approved bank grew from 5 authored items to 48, so
+# the same seed draws from a much larger pool and builds a different exam. Legitimate
+# for the reason stated above - the content is in the repository, so every environment
+# builds this same exam. The fourth row is the tell: an authored word problem where the
+# previous capture's authored item was `d2-9200`. Verified by hand - $8 saved plus $5 a
+# week reaching $48 is 8 + 5w = 48, so w = 8, and option d is 8.
 _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
-    ("Solve for x: 11x = -33", "-2", "3", "-5", "-3"),
-    ("Solve for x: x + 11 = 16", "3", "-5", "5", "4"),
-    ("Solve for x: 2x + 7 = 19", "6", "8", "9", "13"),
-    ("Solve for x: -3x + 15 = -3", "10", "6", "-6", "5"),
-    ("Solve for x: -3x + 6 = -15", "11", "-7", "8", "7"),
-    ("Solve for x: -6x + 20 = 8", "3", "-3", "-2", "2"),
-    ("Solve for x: 8x + 17 = -9x + 0", "1", "4", "0", "-1"),
-    ("Solve for x: 5x + 4 = 6x + -4", "9", "8", "5", "-8"),
-    ("Solve for x: 4(x - 7) = -36", "-2", "-5", "2", "-1"),
-    ("Solve for x: -5(x - 2) = -15", "5", "7", "-5", "4"),
+    ('Solve for x: -9x = 54', '-7', '-1', '6', '-6'),
+    ('Solve for x: x + 20 = 17', '-2', '3', '-5', '-3'),
+    ('Solve for x: -12x + 20 = 104', '-11', '-7', '7', '-8'),
+    (
+        'Liam earns $5 each week by helping his neighbour with gardening. He already has '
+        '$8 saved from his birthday. After a few weeks, he checks his savings and finds he '
+        'has $48 in total. How many weeks has Liam been saving?',
+        '6', '10', '9', '8',
+    ),
+    ('Solve for x: -9x + 8 = 53', '-2', '5', '-5', '-4'),
+    ('Solve for x: x/6 + 12 = 20', '-48', '50', '48', '47'),
+    ('Solve for x: -3x - 4 = 2x + -19', '-3', '8', '3', '4'),
+    ('Solve for x: 12x - 16 = 9x + -19', '-1', '-6', '-2', '1'),
+    ('Solve for x: -6(x + 15) + 9x = -105', '-6', '-3', '5', '-5'),
+    ('Solve for x: 7(x - 6) = -28', '2', '4', '-2', '3'),
 )
 
 

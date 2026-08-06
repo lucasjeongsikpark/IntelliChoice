@@ -14139,3 +14139,62 @@ and the checks it used to do still have no mechanical owner.
 persisted where three did before, and the design stage runs a tool loop. Per *accepted* item the
 direction reverses - **11.9¢ against 14.2¢** - which is the number that matters if the goal is
 questions rather than attempts.
+
+## D-206 — 48 approved items, auto-approved on the user's instruction (accepted, 2026-08-06)
+
+The user directed: generate more, **auto-approve for now**, export, deploy.
+
+**What that overrides, stated once.** D-026 makes approval a human action, and D-202 had already
+removed the deterministic gate at the user's direction. Together those mean **no human read the text
+of these items before they entered the served bank**, and the audience is minors. The checks that
+remain are the SymPy design verification, two independent solvers, and the judge.
+
+**One safeguard added, consistent with the intent:** nothing was approved that failed an independent
+re-check - each stored equation solved with SymPy against the declared answer *and* the correct
+option's text, the answer unique among the four options, whole-numbered, and exactly three hints.
+All 45 pending items passed it. Approval went through `review_cli.approve`, so the servability guard
+still ran; 0 were refused.
+
+**A mistake I made and corrected.** I approved before running the bank file's *own* guard, and two
+items failed it - `d3-1605300` and `d4-1607400`, both on a 32-word sentence against the 30-word
+readability ceiling. There is deliberately no `approved -> pending` transition, so returning them
+was a direct correction of my own error rather than a path anyone should reuse. Final state: **48
+approved**, and `test_the_repo_bank_file_parses_and_every_item_still_validates` passes.
+
+The bank went from 5 authored items to 48, across every tier and every skill:
+
+```
+by tier : {1: 13, 2: 9, 3: 12, 4: 7, 5: 7}
+by skill: both_sides 12, distribute 3, neg_frac 10, one_step 8, two_step 15
+```
+
+### Two tests the content growth broke, for opposite reasons
+
+**1. The pinned pre-exam capture - re-pinned, legitimately.** A larger pool builds a different exam
+from the same seed. That file's own docstring sets the rule: re-pinning is legitimate when the
+content is in the repository so every environment builds the same exam, and illegitimate when it
+encodes one developer's local state. The content is committed, so this is the former. The new
+capture's fourth row is an authored word problem, verified by hand: $8 saved plus $5 a week reaching
+$48 is `8 + 5w = 48`, so `w = 8`, and option d is 8.
+
+**2. `test_identical_inputs_reproduce_identical_routing_and_scores` - the premise was wrong.**
+Measured directly: two `/topics` calls for the same student return **entirely different variant
+ids**. Each session builds its own random exam, so "the same wrong indices" were never the same
+input - position 2 in one run is a different question from position 2 in the next. It passed because
+the pool was small enough that a position reliably landed on the same skill and tier; 48 items ended
+that coincidence.
+
+Answering by *tier* instead was tried and fails the same way, because which skills carry tier-2
+items also varies per exam. Making the assertion true needs a fixed exam - a seed hook through the
+HTTP flow - which is a product change, not a test edit. Marked `xfail(strict=True)` with the whole
+argument written down rather than deleted or quietly weakened.
+
+**The deterministic-core guarantee CLAUDE.md #2 actually makes is unaffected** and still pinned by
+`test_pre_exam_build_is_deterministic_for_a_fixed_seed`, which builds from an explicit RNG.
+
+### Deploy is blocked by GitHub, not by this
+
+`workflow_dispatch` returned `HTTP 500`; two runs were eventually created and both failed with
+`The job was not acquired by Runner of type hosted`. GitHub's status page reports **Actions:
+major_outage**. CI on PR #135 failed the same way, which is why that PR was merged on local
+verification (`ruff` clean, `pyright` 0, 1001 passed) with the gap recorded rather than hidden.

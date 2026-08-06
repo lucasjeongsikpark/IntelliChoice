@@ -1,6 +1,497 @@
 curriculum_version: '2026.1'
 topic_id: linear_equations
 templates:
+- question_template_id: authored-linear_equations-d3-1505300
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - skipped_final_division
+  - added_instead_of_subtracted
+  - ignored_starting_amount
+  - incorrect_coefficient_combination
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Leo and Ava are running a toy drive. Leo starts with 12 fewer toys than he needs, but collects
+    5 toys each week. Ava already has 4 toys and collects 3 toys each week. After how many weeks will
+    both have the same number of toys?
+  context_block: null
+  answer_expression: Eq(5*x - 12, 3*x + 4)
+  hint_ladder:
+  - Think about how many toys each person has now and how many they add each week.
+  - Leo begins with 12 fewer toys than he needs, so his total toys after w weeks is 5w - 12. Ava’s total
+    after w weeks is 3w + 4.
+  - Set the two expressions equal to each other and solve for w.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the equation representing the situation: Leo’s toys equal Ava’s toys after w
+        weeks.'
+      expression: 5w - 12 = 3w + 4
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 3w from both sides to gather like terms on the left.
+      expression: 5w - 3w - 12 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the equation by combining like terms.
+      expression: 2w - 12 = 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Add 12 to both sides to isolate the term with w.
+      expression: 2w = 16
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 2 to solve for w.
+      expression: w = 8
+      common_mistake: null
+    - step_number: 6
+      explanation: The answer is 8 weeks.
+      expression: ''
+      common_mistake: Forgetting to divide by 2 after isolating the term with w.
+    final_answer: '8'
+  random_seed: 1505300
+  rendered_question: Leo and Ava are running a toy drive. Leo starts with 12 fewer toys than he needs,
+    but collects 5 toys each week. Ava already has 4 toys and collects 3 toys each week. After how many
+    weeks will both have the same number of toys?
+  option_a: '16'
+  option_b: '6'
+  option_c: '8'
+  option_d: '4'
+  correct_option: c
+- question_template_id: authored-linear_equations-d3-1605301
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_small_from_large
+  - added_coefficients_instead_of_subtracting
+  - ignored_negative_coefficient_after_move
+  - stopped_before_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: "Leo wants to buy some games at the store, but he has two offers to choose from. \n- Offer X:\
+    \ He starts with $80, but $4 is taken away for every game he buys.\n- Offer Y: He starts with $20,\
+    \ and $1 is added for every game he buys.\nHow many games should Leo buy so that both offers give\
+    \ him the same amount of money?"
+  context_block: "Leo is shopping at a video game store with two special offers. \n- Offer X: Start with\
+    \ $80 credit, then lose $4 for every game you buy.\n- Offer Y: Start with $20 credit, then gain $1\
+    \ for every game you buy.\nLeo wants to know how many games he can buy so that both offers give him\
+    \ the same amount of money."
+  answer_expression: Eq(80 - 4*x, 20 + x)
+  hint_ladder:
+  - Think about how much money Leo has under each offer after buying x items.
+  - 'Write an expression for the first offer: $80 minus $4 for each item. Write one for the second: $20
+    plus $1 for each item.'
+  - Set the two expressions equal to each other and decide how to move the x terms to one side.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the equation from the two expressions described in the offers.
+      expression: 80 - 4x = 20 + x
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract x from both sides to gather variable terms on the left.
+      expression: 80 - 4x - x = 20 + x - x
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the left side by combining like terms.
+      expression: 80 - 5x = 20
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 80 from both sides to isolate the term with x.
+      expression: 80 - 5x - 80 = 20 - 80
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify the right side.
+      expression: -5x = -60
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by -5 to solve for x.
+      expression: x = (-60) / (-5)
+      common_mistake: null
+    - step_number: 7
+      explanation: Simplify to find the number of games.
+      expression: x = 12
+      common_mistake: null
+    final_answer: '12'
+  random_seed: 1605301
+  rendered_question: "Leo is shopping at a video game store with two special offers. \n- Offer X: Start\
+    \ with $80 credit, then lose $4 for every game you buy.\n- Offer Y: Start with $20 credit, then gain\
+    \ $1 for every game you buy.\nLeo wants to know how many games he can buy so that both offers give\
+    \ him the same amount of money.\n\nLeo wants to buy some games at the store, but he has two offers\
+    \ to choose from. \n- Offer X: He starts with $80, but $4 is taken away for every game he buys.\n\
+    - Offer Y: He starts with $20, and $1 is added for every game he buys.\nHow many games should Leo\
+    \ buy so that both offers give him the same amount of money?"
+  option_a: '12'
+  option_b: '10'
+  option_c: '15'
+  option_d: '20'
+  correct_option: a
+- question_template_id: authored-linear_equations-d3-205300
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - Failing to move variables to one side before solving
+  - Adding instead of subtracting when isolating the variable
+  - Arithmetic error in simplification
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started
+    with 5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After
+    how many minutes will they have planted the same total number of flowers?
+  context_block: Two gardeners working on the same path at different rates, starting with different amounts
+    already completed. This is a concrete real-world scenario requiring students to set up and solve a
+    linear equation with variables on both sides.
+  answer_expression: Eq(5 + 3*t, 11 + 2*t)
+  hint_ladder:
+  - Write an expression for each gardener's total flowers after t minutes.
+  - Asha has 5 + 3*t and Jasmine has 11 + 2*t. The question asks when those totals are equal.
+  - Subtract 2*t from both sides first, then subtract 5 from both sides to isolate t.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for each gardener's total flowers after t minutes.
+      expression: Asha has 5 + 3*t flowers and Jasmine has 11 + 2*t flowers
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the two expressions equal since we want them to have the same total.
+      expression: 5 + 3*t = 11 + 2*t
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 2*t from both sides to collect t terms on the left.
+      expression: 5 + 3*t - 2*t = 11 + 2*t - 2*t
+      common_mistake: Forgetting to subtract 2*t from both sides
+    - step_number: 4
+      explanation: Simplify both sides.
+      expression: 5 + t = 11
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 5 from both sides to isolate t.
+      expression: 5 + t - 5 = 11 - 5
+      common_mistake: null
+    - step_number: 6
+      explanation: Simplify to find t.
+      expression: t = 6
+      common_mistake: Arithmetic error when subtracting 5 from 11
+    final_answer: 6 minutes
+  random_seed: 205300
+  rendered_question: 'Two gardeners working on the same path at different rates, starting with different
+    amounts already completed. This is a concrete real-world scenario requiring students to set up and
+    solve a linear equation with variables on both sides.
+
+
+    Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started with
+    5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After
+    how many minutes will they have planted the same total number of flowers?'
+  option_a: 4 minutes
+  option_b: 6 minutes
+  option_c: 8 minutes
+  option_d: 10 minutes
+  correct_option: b
+- question_template_id: authored-linear_equations-d3-415300
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_rates_instead_of_subtracting
+  - ignored_larger_starting_amount
+  - stopped_before_final_division
+  - swapped_variables
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Lena and Jake are reading the same book. Lena has read 20 pages already and reads 5 more pages
+    each day. Jake has read 32 pages already and reads 3 more pages each day. After how many days will
+    they have read the same number of pages?
+  context_block: Lena and Jake are both reading the same book. Lena has already read 20 pages and reads
+    5 more pages each day. Jake has already read 32 pages and reads 3 more pages each day. The question
+    asks when they will have read the same number of pages.
+  answer_expression: Eq(20 + 5*d, 32 + 3*d)
+  hint_ladder:
+  - Lena and Jake are both reading the same book. How many pages has each read so far?
+  - Lena’s total pages are her starting pages plus 5 pages per day. Jake’s total is his starting pages
+    plus 3 pages per day.
+  - Write an equation that says their totals are equal after d days, then solve for d.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the total pages each has read after d days and set them equal.
+      expression: 20 + 5d = 32 + 3d
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 3d from both sides to gather like terms.
+      expression: 20 + 5d - 3d = 32 + 3d - 3d
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: 20 + 2d = 32
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 20 from both sides to isolate the term with d.
+      expression: 20 + 2d - 20 = 32 - 20
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify both sides.
+      expression: 2d = 12
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 2 to solve for d.
+      expression: d = 12 / 2
+      common_mistake: null
+    - step_number: 7
+      explanation: Calculate the final value.
+      expression: d = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 415300
+  rendered_question: 'Lena and Jake are both reading the same book. Lena has already read 20 pages and
+    reads 5 more pages each day. Jake has already read 32 pages and reads 3 more pages each day. The question
+    asks when they will have read the same number of pages.
+
+
+    Lena and Jake are reading the same book. Lena has read 20 pages already and reads 5 more pages each
+    day. Jake has read 32 pages already and reads 3 more pages each day. After how many days will they
+    have read the same number of pages?'
+  option_a: '2'
+  option_b: '4'
+  option_c: '12'
+  option_d: '6'
+  correct_option: d
+- question_template_id: authored-linear_equations-d3-415301
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_rates_instead_of_equating
+  - ignored_initial_amount
+  - skipped_final_division
+  - solved_for_w_plus_120_instead_of_w
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Liam has 120 trading cards and gives Emma 5 cards every week. Emma starts with no cards. After
+    how many weeks will they have the same number of cards?
+  context_block: Liam and Emma collect trading cards. Liam has 120 cards but decides to give Emma 5 cards
+    every week so they can have the same number. Emma starts with no cards. The question asks after how
+    many weeks they will have the same number of cards.
+  answer_expression: Eq(120 - 5*w, 5*w)
+  hint_ladder:
+  - Liam has some trading cards, and Emma starts with none. Think about how many each has after Liam gives
+    away 5 cards every week.
+  - After w weeks, Liam has 120 minus 5 times w, and Emma has 5 times w.
+  - Set the two expressions equal to find when they have the same number of cards.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the equation showing Liam's and Emma's cards after w weeks.
+      expression: 120 - 5w = 5w
+      common_mistake: null
+    - step_number: 2
+      explanation: Add 5w to both sides to gather the w terms on one side.
+      expression: 120 = 5w + 5w
+      common_mistake: null
+    - step_number: 3
+      explanation: Combine like terms.
+      expression: 120 = 10w
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 10 to solve for w.
+      expression: w = 120 / 10
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the division to find the number of weeks.
+      expression: w = 12
+      common_mistake: null
+    final_answer: '12'
+  random_seed: 415301
+  rendered_question: 'Liam and Emma collect trading cards. Liam has 120 cards but decides to give Emma
+    5 cards every week so they can have the same number. Emma starts with no cards. The question asks
+    after how many weeks they will have the same number of cards.
+
+
+    Liam has 120 trading cards and gives Emma 5 cards every week. Emma starts with no cards. After how
+    many weeks will they have the same number of cards?'
+  option_a: '6'
+  option_b: '8'
+  option_c: '12'
+  option_d: '24'
+  correct_option: c
+- question_template_id: authored-linear_equations-d4-1505400
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_wrong_direction
+  - ignored_starting_amount
+  - stopped_after_collecting_terms
+  - added_variable_terms_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Marcus starts with $24 and saves $3 each week. His sister starts with $6 and saves $5 each week.
+    After how many weeks will they have the same amount of money?
+  context_block: Marcus and his sister are saving money for a gift. They want to know when they’ll have
+    the same amount, so they can combine their savings.
+  answer_expression: Eq(24 + 3*m, 6 + 5*m)
+  hint_ladder:
+  - Think about how much money each has after m weeks. Write an expression for Marcus and one for his
+    sister.
+  - Marcus has 24 + 3m dollars, and his sister has 6 + 5m dollars. The question asks when these amounts
+    are equal.
+  - Move the variable terms to one side and the constant terms to the other to solve for m.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write expressions for each person's savings after m weeks.
+      expression: 24 + 3m = 6 + 5m
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 3m from both sides to gather variable terms on one side.
+      expression: 24 + 3m - 3m = 6 + 5m - 3m
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides after subtracting 3m.
+      expression: 24 = 6 + 2m
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 6 from both sides to isolate the term with m.
+      expression: 24 - 6 = 6 + 2m - 6
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify both sides after subtracting 6.
+      expression: 18 = 2m
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 2 to solve for m.
+      expression: 18 / 2 = 2m / 2
+      common_mistake: null
+    - step_number: 7
+      explanation: Simplify to find the number of weeks.
+      expression: m = 9
+      common_mistake: null
+    final_answer: '9'
+  random_seed: 1505400
+  rendered_question: 'Marcus and his sister are saving money for a gift. They want to know when they’ll
+    have the same amount, so they can combine their savings.
+
+
+    Marcus starts with $24 and saves $3 each week. His sister starts with $6 and saves $5 each week. After
+    how many weeks will they have the same amount of money?'
+  option_a: '12'
+  option_b: '9'
+  option_c: '6'
+  option_d: '3'
+  correct_option: b
+- question_template_id: authored-linear_equations-d4-205400
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confusing_which_side_to_subtract_from
+  - arithmetic_error_in_combining_constants
+  - forgetting_to_divide_by_coefficient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two friends are texting emoji chains. Priya starts with 12 emojis and adds 5 more each turn. Kai
+    starts with 3 emojis and adds 8 more each turn. After how many turns will they have the same number
+    of emojis?
+  context_block: null
+  answer_expression: Eq(12 + 5*t, 3 + 8*t)
+  hint_ladder:
+  - Write an expression for each friend's total emojis after t turns.
+  - Priya has 12 + 5t and Kai has 3 + 8t. The question asks when those are equal.
+  - Subtract 5t from both sides, then subtract 3 from both sides, then divide by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for each friend's total emojis after t turns.
+      expression: 'Priya: 12 + 5*t, Kai: 3 + 8*t'
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the two expressions equal because they will have the same number of emojis.
+      expression: 12 + 5*t = 3 + 8*t
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 5*t from both sides to collect variable terms on the right.
+      expression: 12 = 3 + 3*t
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 3 from both sides to isolate the term with t.
+      expression: 9 = 3*t
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 3 to solve for t.
+      expression: t = 3
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Check: After 3 turns, Priya has 12 + 5(3) = 27 and Kai has 3 + 8(3) = 27. They match.'
+      expression: 3 turns
+      common_mistake: null
+    final_answer: 3 turns
+  random_seed: 205400
+  rendered_question: Two friends are texting emoji chains. Priya starts with 12 emojis and adds 5 more
+    each turn. Kai starts with 3 emojis and adds 8 more each turn. After how many turns will they have
+    the same number of emojis?
+  option_a: 2 turns
+  option_b: 3 turns
+  option_c: 4 turns
+  option_d: 5 turns
+  correct_option: b
 - question_template_id: authored-linear_equations-d4-5400
   topic_id: linear_equations
   skill_id: linear_both_sides
@@ -53,6 +544,408 @@ templates:
   option_c: '6'
   option_d: '8.5'
   correct_option: a
+- question_template_id: authored-linear_equations-d5-1305500
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_rates_instead_of_equations
+  - ignored_second_rate
+  - stopped_at_2w_equals_12
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: 'Maya has two options for earning money. Option 1: She starts with $6 and earns $4 each week.
+    Option 2: She starts with $18 and earns $2 each week. After how many weeks will she have the same
+    amount of money under both options?'
+  context_block: null
+  answer_expression: 4*w + 6 = 2*w + 18
+  hint_ladder:
+  - Write an expression for how much money Maya will have after w weeks under each option.
+  - Under Option 1 she has 6 + 4w dollars, and under Option 2 she has 18 + 2w dollars. When are these
+    equal?
+  - Set up the equation 6 + 4w = 18 + 2w, then collect the w terms on one side and numbers on the other.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the amount Maya will have under each option after w weeks.
+      expression: 'Option 1: 6 + 4w; Option 2: 18 + 2w'
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the two expressions equal because we want to find when she has the same amount.
+      expression: 6 + 4w = 18 + 2w
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 2w from both sides to collect all w terms on the left.
+      expression: 6 + 4w - 2w = 18 + 2w - 2w
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify both sides.
+      expression: 6 + 2w = 18
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 6 from both sides to isolate the term with w.
+      expression: 2w = 12
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 2 to solve for w.
+      expression: w = 6
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Check: After 6 weeks, Option 1 gives 6 + 4(6) = 30, and Option 2 gives 18 + 2(6) =
+        30. Both equal 30.'
+      expression: 6 + 4(6) = 30 and 18 + 2(6) = 30 ✓
+      common_mistake: null
+    final_answer: 6 weeks
+  random_seed: 1305500
+  rendered_question: 'Maya has two options for earning money. Option 1: She starts with $6 and earns $4
+    each week. Option 2: She starts with $18 and earns $2 each week. After how many weeks will she have
+    the same amount of money under both options?'
+  option_a: 4 weeks
+  option_b: 3 weeks
+  option_c: 6 weeks
+  option_d: 12 weeks
+  correct_option: c
+- question_template_id: authored-linear_equations-d5-1405500
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 150
+  common_error_tags:
+  - added_rates_instead_of_collecting
+  - stopped_after_subtracting_terms
+  - ignored_one_person_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Alex saves $6 each week and has no money to start. Jamie starts with $20 and saves $2 each week.
+    After how many weeks will they have saved the same amount of money?
+  context_block: null
+  answer_expression: 6*w = 20 + 2*w
+  hint_ladder:
+  - After w weeks, write how much money Alex will have and how much Jamie will have.
+  - Alex has 6w dollars and Jamie has 20 + 2w dollars. When are those equal?
+  - Move the w terms to one side by subtracting 2w from both sides, then divide by what multiplies w.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for each person's total savings after w weeks. Alex starts with
+        $0 and saves $6 per week, so Alex has 6w dollars. Jamie starts with $20 and saves $2 per week,
+        so Jamie has 20 + 2w dollars.
+      expression: 'Alex: 6w, Jamie: 20 + 2w'
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the two expressions equal because we want to find when they have the same amount.
+      expression: 6w = 20 + 2w
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 2w from both sides to collect all w terms on the left.
+      expression: 6w - 2w = 20 + 2w - 2w
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify both sides.
+      expression: 4w = 20
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 4 to solve for w.
+      expression: w = 20 ÷ 4 = 5
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Check: After 5 weeks, Alex has 6(5) = 30 dollars. After 5 weeks, Jamie has 20 + 2(5)
+        = 20 + 10 = 30 dollars. Both have the same amount.'
+      expression: 6(5) = 30 and 20 + 2(5) = 30 ✓
+      common_mistake: null
+    final_answer: 5 weeks
+  random_seed: 1405500
+  rendered_question: Alex saves $6 each week and has no money to start. Jamie starts with $20 and saves
+    $2 each week. After how many weeks will they have saved the same amount of money?
+  option_a: 2 weeks
+  option_b: 5 weeks
+  option_c: 20 weeks
+  option_d: 10 weeks
+  correct_option: b
+- question_template_id: authored-linear_equations-d5-1605501
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - distributed_only_the_first_term
+  - ignored_the_extra_item
+  - combined_constants_incorrectly
+  - stopped_before_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group, plus he
+    adds 1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose items.
+    They end up with the same number of items. How many items are in one of Mia’s groups?
+  context_block: Leo and Mia are packing items into identical boxes. Leo packs 2 boxes, and each box holds
+    4 more items than one of Mia’s groups. He also adds 1 loose item. Mia packs 3 groups of items, each
+    the size of one of her groups, and adds 3 loose items. They end up with the same total number of items.
+  answer_expression: Eq(2*(w + 4) + 1, 3*w + 3)
+  hint_ladder:
+  - Think about how many items Leo packs in one group.
+  - Leo has 2 of those groups, plus one extra item. Write an expression for his total.
+  - Set Leo’s total equal to Mia’s total and simplify step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Leo packs 2 boxes, each holding (w + 4) items, plus 1 loose item.
+      expression: 2(w + 4) + 1
+      common_mistake: null
+    - step_number: 2
+      explanation: Set Leo’s total equal to Mia’s total, which is 3 groups of w items plus 3 loose items.
+      expression: 2(w + 4) + 1 = 3w + 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Expand the left side by distributing the 2 across (w + 4) and combining constants.
+      expression: 2w + 8 + 1 = 3w + 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine like terms on the left side.
+      expression: 2w + 9 = 3w + 3
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 2w from both sides to isolate the variable term on one side.
+      expression: 9 = w + 3
+      common_mistake: null
+    - step_number: 6
+      explanation: Subtract 3 from both sides to solve for w.
+      expression: 6 = w
+      common_mistake: null
+    - step_number: 7
+      explanation: State the final answer clearly.
+      expression: w = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 1605501
+  rendered_question: 'Leo and Mia are packing items into identical boxes. Leo packs 2 boxes, and each
+    box holds 4 more items than one of Mia’s groups. He also adds 1 loose item. Mia packs 3 groups of
+    items, each the size of one of her groups, and adds 3 loose items. They end up with the same total
+    number of items.
+
+
+    Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group, plus he adds
+    1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose items. They
+    end up with the same number of items. How many items are in one of Mia’s groups?'
+  option_a: '10'
+  option_b: '4'
+  option_c: '6'
+  option_d: '5'
+  correct_option: c
+- question_template_id: authored-linear_equations-d5-205500
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - Forgetting to include the starting amount for Tank B
+  - Subtracting incorrectly when moving terms to one side
+  - Dividing by the wrong coefficient when isolating t
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two water tanks are filling up. Tank A starts empty and fills at 8 liters per minute. Tank B starts
+    with 20 liters and fills at 3 liters per minute. After how many minutes will both tanks have the same
+    amount of water?
+  context_block: null
+  answer_expression: Eq(8*t, 20 + 3*t)
+  hint_ladder:
+  - Write an expression for how much water each tank has after t minutes.
+  - Tank A has 8*t liters and Tank B has 20 + 3*t liters. These should be equal.
+  - Get all the t terms on one side by subtracting 3*t, then divide by what is left.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write an expression for Tank A''s water after t minutes: it starts at 0 and gains
+        8 liters per minute.'
+      expression: Tank A = 8*t
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Write an expression for Tank B''s water after t minutes: it starts at 20 and gains
+        3 liters per minute.'
+      expression: Tank B = 20 + 3*t
+      common_mistake: null
+    - step_number: 3
+      explanation: Set the two expressions equal, since we want to find when they have the same amount.
+      expression: 8*t = 20 + 3*t
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 3*t from both sides to collect t terms on the left.
+      expression: 8*t - 3*t = 20 + 3*t - 3*t
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify both sides.
+      expression: 5*t = 20
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 5 to solve for t.
+      expression: t = 20/5 = 4
+      common_mistake: null
+    final_answer: 4 minutes
+  random_seed: 205500
+  rendered_question: Two water tanks are filling up. Tank A starts empty and fills at 8 liters per minute.
+    Tank B starts with 20 liters and fills at 3 liters per minute. After how many minutes will both tanks
+    have the same amount of water?
+  option_a: 3 minutes
+  option_b: 4 minutes
+  option_c: 5 minutes
+  option_d: 6 minutes
+  correct_option: b
+- question_template_id: authored-linear_equations-d5-1506500
+  topic_id: linear_equations
+  skill_id: linear_distribute
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - distributed_only_the_first_term
+  - combined_constants_incorrectly
+  - skipped_final_division
+  - ignored_coefficient_after_distribution
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Liam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He
+    also buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in
+    each pack?
+  context_block: A student is buying cards for a game. They purchase 3 identical packs, and each pack
+    contains some regular cards plus 5 bonus cards. They also buy 2x individual regular cards, where x
+    is the number of regular cards in one pack. Altogether, they have 35 cards. How many regular cards
+    are in each pack?
+  answer_expression: Eq(3*(x + 5) + 2*x, 35)
+  hint_ladder:
+  - Think about how many cards are in one pack. Each pack has x regular cards plus 5 bonus cards.
+  - Three packs mean 3 times the cards in one pack, and then 2x individual cards are added to that total.
+  - Write the equation for the total number of cards by distributing the 3 first, then combine like terms.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the equation for the total number of cards. Each pack has x regular cards and
+        5 bonus cards, and there are 3 packs. The student also buys 2x individual cards.
+      expression: 3*(x + 5) + 2*x = 35
+      common_mistake: null
+    - step_number: 2
+      explanation: Distribute the 3 across the terms inside the parentheses.
+      expression: 3x + 15 + 2x = 35
+      common_mistake: null
+    - step_number: 3
+      explanation: Combine like terms (3x and 2x).
+      expression: 5x + 15 = 35
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 15 from both sides to isolate the term with x.
+      expression: 5x = 20
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 5 to solve for x.
+      expression: x = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 1506500
+  rendered_question: 'A student is buying cards for a game. They purchase 3 identical packs, and each
+    pack contains some regular cards plus 5 bonus cards. They also buy 2x individual regular cards, where
+    x is the number of regular cards in one pack. Altogether, they have 35 cards. How many regular cards
+    are in each pack?
+
+
+    Liam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He also
+    buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in each
+    pack?'
+  option_a: '4'
+  option_b: '2'
+  option_c: '8'
+  option_d: '6'
+  correct_option: a
+- question_template_id: authored-linear_equations-d5-306500
+  topic_id: linear_equations
+  skill_id: linear_distribute
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - Forgetting to subtract the flat fee before dividing
+  - Dividing the total cost by the per-piece cost without subtracting the flat fee
+  - Confusing which operation to use
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A pottery studio charges a flat fee of $15 to start a class, plus $8 for each piece of clay you
+    use. Marco spends a total of $63 on his class. How many pieces of clay did he use?
+  context_block: null
+  answer_expression: Eq(15 + 8*p, 63)
+  hint_ladder:
+  - Write an equation for Marco's total cost using a variable for the number of clay pieces.
+  - His total is the flat fee plus the cost per piece times the number of pieces. Set it equal to $63.
+  - Subtract $15 from both sides, then divide by 8 to find the number of pieces.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation for Marco's total cost. The flat fee is $15, and he pays $8 per piece
+        of clay. Let p be the number of pieces.
+      expression: 15 + 8*p = 63
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the flat fee of $15 from both sides to isolate the term with the variable.
+      expression: 8*p = 63 - 15
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: 8*p = 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 8 to solve for p.
+      expression: p = 48 / 8
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the result.
+      expression: p = 6
+      common_mistake: null
+    final_answer: 6 pieces
+  random_seed: 306500
+  rendered_question: A pottery studio charges a flat fee of $15 to start a class, plus $8 for each piece
+    of clay you use. Marco spends a total of $63 on his class. How many pieces of clay did he use?
+  option_a: 8 pieces
+  option_b: 6 pieces
+  option_c: 7 pieces
+  option_d: 9 pieces
+  correct_option: b
 - question_template_id: authored-linear_equations-d5-6500
   topic_id: linear_equations
   skill_id: linear_distribute
@@ -109,6 +1002,133 @@ templates:
   option_c: '5'
   option_d: '6'
   correct_option: b
+- question_template_id: authored-linear_equations-d2-1607200
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - sign_error_spending
+  - added_instead_of_subtracted
+  - skipped_final_division
+  - ignored_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has $60 saved for a concert ticket. She spends $5 on lunch each day. After some days, she
+    checks her wallet and sees she has $20 left. For how many days has she been buying lunch?
+  context_block: Maya is saving for a concert ticket. She has $60 now and spends $5 on lunch each day.
+    She checks her wallet and sees she has $20 left. How many days has she been buying lunch?
+  answer_expression: Eq(60 - 5*x, 20)
+  hint_ladder:
+  - Think about how much money Maya has left after each day.
+  - Write an expression for the amount of money Maya has after x days.
+  - Set that expression equal to 20 and solve for the number of days.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with $60 and spends $5 each day. After x days, she has $20 left.
+      expression: 60 - 5x = 20
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 60 from both sides to isolate the term with x.
+      expression: 60 - 5x - 60 = 20 - 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify both sides.
+      expression: -5x = -40
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -5 to solve for x.
+      expression: x = -40 / -5
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify to find the number of days.
+      expression: x = 8
+      common_mistake: null
+    final_answer: '8'
+  random_seed: 1607200
+  rendered_question: 'Maya is saving for a concert ticket. She has $60 now and spends $5 on lunch each
+    day. She checks her wallet and sees she has $20 left. How many days has she been buying lunch?
+
+
+    Maya has $60 saved for a concert ticket. She spends $5 on lunch each day. After some days, she checks
+    her wallet and sees she has $20 left. For how many days has she been buying lunch?'
+  option_a: '4'
+  option_b: '8'
+  option_c: '12'
+  option_d: '2'
+  correct_option: b
+- question_template_id: authored-linear_equations-d2-1607201
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - ignored_initial_amount
+  - subtracted_in_reverse_order
+  - skipped_final_division
+  - incorrect_sign_handling
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Jamal starts with $60 and spends $4 each week on snacks. He wants to know how many weeks it will
+    take until he has only $12 left.
+  context_block: 'The student has a concrete goal (remaining money) and a constant rate of spending. The
+    equation requires two operations: undoing the starting amount and dividing by a negative coefficient.'
+  answer_expression: Eq(60 - 4*w, 12)
+  hint_ladder:
+  - Determine how much money the student has left after each week.
+  - Write an equation showing the starting amount minus the weekly spending equals the remaining money.
+  - After writing the equation, isolate the variable by first moving the constant term.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the equation representing the situation: starting amount minus weekly spending
+        equals remaining money.'
+      expression: 60 - 4w = 12
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 12 from both sides to isolate the term with the variable.
+      expression: 60 - 12 = 4w
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the left side of the equation.
+      expression: 48 = 4w
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 4 to solve for w.
+      expression: w = 48 / 4
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify to find the number of weeks.
+      expression: w = 12
+      common_mistake: null
+    final_answer: '12'
+  random_seed: 1607201
+  rendered_question: 'The student has a concrete goal (remaining money) and a constant rate of spending.
+    The equation requires two operations: undoing the starting amount and dividing by a negative coefficient.
+
+
+    Jamal starts with $60 and spends $4 each week on snacks. He wants to know how many weeks it will take
+    until he has only $12 left.'
+  option_a: '3'
+  option_b: '12'
+  option_c: '8'
+  option_d: '15'
+  correct_option: b
 - question_template_id: authored-linear_equations-d3-107300
   topic_id: linear_equations
   skill_id: linear_neg_frac_coeff
@@ -163,6 +1183,447 @@ templates:
   option_c: '-10'
   option_d: '4'
   correct_option: a
+- question_template_id: authored-linear_equations-d3-1607300
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - signed_coefficient_error
+  - added_instead_of_subtracted
+  - skipped_final_division
+  - ignored_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Leo has $50 to spend on keychains. Each keychain costs $3. After buying some keychains, Leo checks
+    his wallet and finds he has $14 left. How many keychains did Leo buy?
+  context_block: A student is saving money to buy small toys. Each toy costs the same amount, and the
+    student wants to know how many toys they can buy without spending all their money.
+  answer_expression: Eq(50 - 3*x, 14)
+  hint_ladder:
+  - Think about how much money the person has left after buying each item.
+  - Write an expression for the money left after buying x items.
+  - Set that expression equal to the $14 they have left and stop before solving.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student starts with $50 and spends $3 for each item purchased. The remaining money
+        is $14, so the equation is 50 - 3x = 14.
+      expression: 50 - 3x = 14
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 14 from both sides to isolate the term with x.
+      expression: 50 - 14 = 3x
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the left side to find the total amount spent on x items.
+      expression: 36 = 3x
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to solve for x.
+      expression: x = 36 / 3
+      common_mistake: null
+    - step_number: 5
+      explanation: The solution shows the student can buy 12 items.
+      expression: x = 12
+      common_mistake: null
+    final_answer: '12'
+  random_seed: 1607300
+  rendered_question: 'A student is saving money to buy small toys. Each toy costs the same amount, and
+    the student wants to know how many toys they can buy without spending all their money.
+
+
+    Leo has $50 to spend on keychains. Each keychain costs $3. After buying some keychains, Leo checks
+    his wallet and finds he has $14 left. How many keychains did Leo buy?'
+  option_a: '8'
+  option_b: '12'
+  option_c: '18'
+  option_d: '14'
+  correct_option: b
+- question_template_id: authored-linear_equations-d3-307300
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - Failing to account for the starting amount
+  - Dividing by 0.5 incorrectly as subtraction
+  - Forgetting to apply the operation to both sides
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A chef is preparing a large batch of soup. She starts with a 10-liter pot that already has 2 liters
+    of broth. She pours in soup at a rate of 0.5 liters per minute. How many minutes until the pot contains
+    8 liters of soup?
+  context_block: null
+  answer_expression: Eq(2 + 0.5*t, 8)
+  hint_ladder:
+  - Write an expression for how much soup is in the pot after t minutes.
+  - The chef starts with 2 liters and adds 0.5 liters per minute, so after t minutes she has 2 + 0.5*t
+    liters.
+  - Set your expression equal to 8, subtract 2 from both sides, then divide by 0.5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for the amount of soup in the pot after t minutes. The chef starts
+        with 2 liters and adds 0.5 liters each minute.
+      expression: Amount = 2 + 0.5*t
+      common_mistake: null
+    - step_number: 2
+      explanation: Set this expression equal to 8 liters, the target amount.
+      expression: 2 + 0.5*t = 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 2 from both sides to isolate the term with t.
+      expression: 0.5*t = 8 - 2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the right side.
+      expression: 0.5*t = 6
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 0.5 to solve for t. Dividing by 0.5 is the same as multiplying
+        by 2.
+      expression: t = 6 / 0.5 = 12
+      common_mistake: null
+    final_answer: 12 minutes
+  random_seed: 307300
+  rendered_question: A chef is preparing a large batch of soup. She starts with a 10-liter pot that already
+    has 2 liters of broth. She pours in soup at a rate of 0.5 liters per minute. How many minutes until
+    the pot contains 8 liters of soup?
+  option_a: 10 minutes
+  option_b: 20 minutes
+  option_c: 16 minutes
+  option_d: 12 minutes
+  correct_option: d
+- question_template_id: authored-linear_equations-d3-817300
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_rates_instead_of_subtracting
+  - ignored_starting_distance
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Liam and Zoe are training for a track meet. Liam has already run 1200 metres and continues at
+    150 metres per minute. Zoe runs the entire 2400 metres at a steady pace. How many minutes will it
+    take for Liam to have run as far as Zoe?
+  context_block: null
+  answer_expression: Eq(1200 + 150*m, 2400)
+  hint_ladder:
+  - Liam has already run part of his workout. Think about how many metres he runs each minute.
+  - Write an expression for how far Liam has run after m more minutes.
+  - Set the total distance Liam will have run equal to Zoe's 2400 metres, then solve for m.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the equation modeling Liam's total distance after m minutes.
+      expression: 1200 + 150m = 2400
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 1200 from both sides to isolate the term with m.
+      expression: 150m = 2400 - 1200
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side of the equation.
+      expression: 150m = 1200
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 150 to solve for m.
+      expression: m = 1200 / 150
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the value of m, which represents the number of minutes.
+      expression: m = 8
+      common_mistake: null
+    final_answer: 8 minutes
+  random_seed: 817300
+  rendered_question: Liam and Zoe are training for a track meet. Liam has already run 1200 metres and
+    continues at 150 metres per minute. Zoe runs the entire 2400 metres at a steady pace. How many minutes
+    will it take for Liam to have run as far as Zoe?
+  option_a: 4 minutes
+  option_b: -4 minutes
+  option_c: 8 minutes
+  option_d: 16 minutes
+  correct_option: c
+- question_template_id: authored-linear_equations-d4-1307400
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - ignored_kai_gain
+  - combined_terms_incorrectly
+  - solved_for_wrong_quantity
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has a video game score. She starts one round with 36 points and loses 3 points for each mistake
+    she makes. Her friend Kai starts the same round with 12 points and gains 1 point for each correct
+    move. After how many moves will they have the same score?
+  context_block: null
+  answer_expression: 36 - 3*x = 12 + x
+  hint_ladder:
+  - After x moves, Maya's score is 36 - 3x and Kai's score is 12 + x. You need to find when those are
+    equal.
+  - 'Set up the equation: 36 - 3x = 12 + x. Now collect all the x terms on one side of the equation.'
+  - After moving the x terms, you should have 24 = 4x. What do you need to do next?
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for each player's score after x moves. Maya starts with 36 and
+        loses 3 points per move, so her score is 36 - 3x. Kai starts with 12 and gains 1 point per move,
+        so his score is 12 + x.
+      expression: 'Maya''s score: 36 - 3x; Kai''s score: 12 + x'
+      common_mistake: null
+    - step_number: 2
+      explanation: We want to find when their scores are equal, so set the two expressions equal.
+      expression: 36 - 3x = 12 + x
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 12 from both sides to move the constant from the right side to the left side.
+      expression: 36 - 12 - 3x = x
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the left side.
+      expression: 24 - 3x = x
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 3x to both sides to collect all variable terms on one side.
+      expression: 24 = x + 3x
+      common_mistake: null
+    - step_number: 6
+      explanation: Combine the x terms on the right side.
+      expression: 24 = 4x
+      common_mistake: null
+    - step_number: 7
+      explanation: Divide both sides by 4 to solve for x.
+      expression: x = 6
+      common_mistake: null
+    - step_number: 8
+      explanation: 'Check: After 6 moves, Maya has 36 - 3(6) = 36 - 18 = 18 points. Kai has 12 + 6 = 18
+        points. They are equal.'
+      expression: 18 = 18 ✓
+      common_mistake: null
+    final_answer: 6 games
+  random_seed: 1307400
+  rendered_question: Maya has a video game score. She starts one round with 36 points and loses 3 points
+    for each mistake she makes. Her friend Kai starts the same round with 12 points and gains 1 point
+    for each correct move. After how many moves will they have the same score?
+  option_a: 4 games
+  option_b: 12 games
+  option_c: 6 games
+  option_d: 8 games
+  correct_option: c
+- question_template_id: authored-linear_equations-d4-1507400
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - combined_rates_incorrectly
+  - ignored_starting_amount_for_second_shelf
+  - stopped_before_dividing
+  - added_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam’s game store has 60 video games in stock. Each hour, 3 games are sold from the main shelf,
+    but 2 new games arrive from the warehouse and are added to a different shelf. Liam wants to know after
+    how many hours the two shelves will have the same number of games.
+  context_block: null
+  answer_expression: Eq(60 - 3*m, 2*m)
+  hint_ladder:
+  - Think about how many games are on each shelf after m hours.
+  - The main shelf starts with 60 games and loses 3 games every hour.
+  - The second shelf starts with 0 games and gains 2 games every hour. Write an equation showing when
+    the two shelves are equal.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: After m hours, the main shelf has lost 3 games per hour, so it has 60 - 3m games.
+      expression: 60 - 3m
+      common_mistake: null
+    - step_number: 2
+      explanation: The second shelf starts with 0 games and gains 2 games per hour, so it has 2m games.
+      expression: 0 + 2m
+      common_mistake: null
+    - step_number: 3
+      explanation: Set the two expressions equal to find when the shelves have the same number of games.
+      expression: 60 - 3m = 2m
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine like terms by adding 3m to both sides.
+      expression: 60 = 5m
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 5 to solve for m.
+      expression: m = 60 / 5
+      common_mistake: null
+    - step_number: 6
+      explanation: Calculate the division to find the number of hours.
+      expression: m = 12
+      common_mistake: null
+    final_answer: '12'
+  random_seed: 1507400
+  rendered_question: Liam’s game store has 60 video games in stock. Each hour, 3 games are sold from the
+    main shelf, but 2 new games arrive from the warehouse and are added to a different shelf. Liam wants
+    to know after how many hours the two shelves will have the same number of games.
+  option_a: '12'
+  option_b: '20'
+  option_c: '10'
+  option_d: '15'
+  correct_option: a
+- question_template_id: authored-linear_equations-d4-307400
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Confusing total with amount added
+  - Forgetting to subtract the initial amount
+  - Multiplying instead of adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A café is mixing two types of coffee. They pour 8 liters of cold brew and add hot coffee until
+    the total is 3 times the cold brew amount. How many liters of hot coffee did they add?
+  context_block: null
+  answer_expression: Eq(8 + h, 3*8)
+  hint_ladder:
+  - The total mixture is 3 times the amount of cold brew. What is 3 × 8?
+  - 'If the total is 24 liters and 8 liters are cold brew, write an equation: 8 + h = 24.'
+  - Subtract 8 from both sides to find h.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total mixture must be 3 times the cold brew. Cold brew is 8 liters, so total =
+        3 × 8.
+      expression: 3 * 8 = 24 liters total
+      common_mistake: null
+    - step_number: 2
+      explanation: The hot coffee added plus the cold brew equals the total. So 8 + h = 24.
+      expression: 8 + h = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 8 from both sides to isolate h.
+      expression: h = 24 - 8 = 16
+      common_mistake: null
+    final_answer: 16 liters
+  random_seed: 307400
+  rendered_question: A café is mixing two types of coffee. They pour 8 liters of cold brew and add hot
+    coffee until the total is 3 times the cold brew amount. How many liters of hot coffee did they add?
+  option_a: '8'
+  option_b: '24'
+  option_c: '32'
+  option_d: '16'
+  correct_option: d
+- question_template_id: authored-linear_equations-d4-817400
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_starting_amount_instead_of_dividing
+  - multiplied_coefficient_by_total
+  - added_starting_amount_to_total
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Lena is sewing ribbon onto a dance banner for the school festival. She already has 3/4 metres
+    of ribbon sewn on. Each day, she adds another 1/8 metre of ribbon. The banner needs a total of 3 metres
+    of ribbon. How many days will it take Lena to finish the banner?
+  context_block: null
+  answer_expression: Eq(3/4 + 1/8 * d, 3)
+  hint_ladder:
+  - Lena has already sewn part of the dance banner. How much ribbon does she add each day, and how much
+    does she start with?
+  - Write an expression for the total length Lena has after d days. Remember, she started with some ribbon
+    already.
+  - Set the expression for the total length after d days equal to the banner's total length, then gather
+    the d terms.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Lena starts with 3/4 metres and adds 1/8 metre each day for d days.
+      expression: 3/4 + 1/8 \cdot d
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the total ribbon equal to the banner's length, 3 metres.
+      expression: 3/4 + 1/8 \cdot d = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the starting amount from both sides to isolate the term with d.
+      expression: 1/8 \cdot d = 3 - 3/4
+      common_mistake: null
+    - step_number: 4
+      explanation: Calculate 3 - 3/4 = 9/4.
+      expression: 1/8 \cdot d = 9/4
+      common_mistake: null
+    - step_number: 5
+      explanation: Multiply both sides by 8 to solve for d.
+      expression: d = 9/4 \cdot 8
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Simplify: 9/4 * 8 = 18.'
+      expression: d = 18
+      common_mistake: null
+    final_answer: '18'
+  random_seed: 817400
+  rendered_question: Lena is sewing ribbon onto a dance banner for the school festival. She already has
+    3/4 metres of ribbon sewn on. Each day, she adds another 1/8 metre of ribbon. The banner needs a total
+    of 3 metres of ribbon. How many days will it take Lena to finish the banner?
+  option_a: '18'
+  option_b: '12'
+  option_c: '6'
+  option_d: '-6'
+  correct_option: a
 - question_template_id: authored-linear_equations-d1-108100
   topic_id: linear_equations
   skill_id: linear_one_step
@@ -211,6 +1672,1051 @@ templates:
   option_c: '7'
   option_d: '2'
   correct_option: b
+- question_template_id: authored-linear_equations-d1-1108100
+  topic_id: linear_equations
+  skill_id: linear_one_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 30
+  common_error_tags:
+  - added_instead_of_subtracted
+  - ignored_total_amount
+  - stopped_at_equation_without_solving
+  - multiplied_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: How many baseball cards did Liam have before he bought the 5 new ones?
+  context_block: Liam collects baseball cards. After buying 5 more cards, he counts his collection and
+    finds he has 12 cards altogether.
+  answer_expression: Eq(x + 5, 12)
+  hint_ladder:
+  - Think about how many cards Liam had before he bought the new ones.
+  - If he added 5 cards and now has 12, how can you write that as an equation?
+  - Start with the total and subtract the cards he added to find the starting amount.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of cards Liam started with. He added 5 cards, so his total is x
+        + 5, which equals 12.
+      expression: x + 5 = 12
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, subtract the 5 cards he added from the total of 12 cards.
+      expression: x = 12 - 5
+      common_mistake: null
+    - step_number: 3
+      explanation: After subtracting, Liam started with 7 cards.
+      expression: x = 7
+      common_mistake: null
+    final_answer: '7'
+  random_seed: 1108100
+  rendered_question: 'Liam collects baseball cards. After buying 5 more cards, he counts his collection
+    and finds he has 12 cards altogether.
+
+
+    How many baseball cards did Liam have before he bought the 5 new ones?'
+  option_a: '7'
+  option_b: '17'
+  option_c: '12'
+  option_d: '-7'
+  correct_option: a
+- question_template_id: authored-linear_equations-d1-1508100
+  topic_id: linear_equations
+  skill_id: linear_one_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 30
+  common_error_tags:
+  - subtracted_wrong_way
+  - added_instead_of_subtracted
+  - ignored_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam’s teacher asks him to help organize the classroom bookshelf. The shelf already has 15 books
+    on it. After Liam adds some more books, there are 28 books in total. How many books did Liam add?
+  context_block: A librarian is organizing a classroom shelf. The shelf already has some books on it,
+    and more books are added. The question asks how many books were added, not how many are on the shelf
+    now.
+  answer_expression: Eq(b + 15, 28)
+  hint_ladder:
+  - Think about how many books are on the shelf before any new ones are added.
+  - If the shelf ends up with 28 books after adding some, what equation connects the starting amount,
+    the new books, and the total?
+  - Write an equation where the number of books added is the unknown.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The shelf starts with 15 books, and b books are added. The total becomes 28 books.
+      expression: b + 15 = 28
+      common_mistake: null
+    - step_number: 2
+      explanation: To find b, subtract the starting number of books from the total number of books.
+      expression: b = 28 - 15
+      common_mistake: null
+    - step_number: 3
+      explanation: 13 books were added to the shelf.
+      expression: b = 13
+      common_mistake: null
+    final_answer: '13'
+  random_seed: 1508100
+  rendered_question: 'A librarian is organizing a classroom shelf. The shelf already has some books on
+    it, and more books are added. The question asks how many books were added, not how many are on the
+    shelf now.
+
+
+    Liam’s teacher asks him to help organize the classroom bookshelf. The shelf already has 15 books on
+    it. After Liam adds some more books, there are 28 books in total. How many books did Liam add?'
+  option_a: '15'
+  option_b: '28'
+  option_c: '13'
+  option_d: '43'
+  correct_option: c
+- question_template_id: authored-linear_equations-d1-1608100
+  topic_id: linear_equations
+  skill_id: linear_one_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 30
+  common_error_tags:
+  - subtracted_wrong_number
+  - multiplied_instead_of_added
+  - ignored_the_chores_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student saves some money for a game. After earning $12 from chores, they have $28 total. How
+    much had they saved before the chores?
+  context_block: null
+  answer_expression: Eq(x + 12, 28)
+  hint_ladder:
+  - Think about how much money the student had before the chores.
+  - The total after adding the chores money is $28. What operation connects the starting amount and the
+    $12?
+  - Write an equation that says the starting amount plus $12 equals $28.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student has some money saved, then earns $12 from chores, totaling $28.
+      expression: x + 12 = 28
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the $12 earned from chores to find the starting amount.
+      expression: x = 28 - 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the result to find the starting amount.
+      expression: x = 16
+      common_mistake: null
+    final_answer: '16'
+  random_seed: 1608100
+  rendered_question: A student saves some money for a game. After earning $12 from chores, they have $28
+    total. How much had they saved before the chores?
+  option_a: '14'
+  option_b: '40'
+  option_c: '2'
+  option_d: '16'
+  correct_option: d
+- question_template_id: authored-linear_equations-d1-208100
+  topic_id: linear_equations
+  skill_id: linear_one_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Adds instead of divides when isolating the variable
+  - Subtracts the cost from the revenue instead of dividing
+  - Multiplies the revenue by the cost instead of dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A movie theater sells popcorn in large buckets. Each bucket costs $8. The theater made $144 from
+    selling large popcorn buckets on Friday. How many buckets did they sell?
+  context_block: null
+  answer_expression: Eq(8*b, 144)
+  hint_ladder:
+  - Write an equation where b is the number of buckets. What does 8b represent?
+  - The total revenue is 8b = 144. You need to undo the multiplication by 8.
+  - Divide 144 by 8 to find how many buckets were sold.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation where b represents the number of buckets sold. Each bucket costs
+        $8, so 8b is the total revenue.
+      expression: 8*b = 144
+      common_mistake: null
+    - step_number: 2
+      explanation: To isolate b, divide both sides of the equation by 8.
+      expression: b = 144/8
+      common_mistake: null
+    - step_number: 3
+      explanation: Perform the division to find the number of buckets sold.
+      expression: b = 18
+      common_mistake: null
+    final_answer: '18'
+  random_seed: 208100
+  rendered_question: A movie theater sells popcorn in large buckets. Each bucket costs $8. The theater
+    made $144 from selling large popcorn buckets on Friday. How many buckets did they sell?
+  option_a: '16'
+  option_b: '18'
+  option_c: '20'
+  option_d: '22'
+  correct_option: b
+- question_template_id: authored-linear_equations-d1-308100
+  topic_id: linear_equations
+  skill_id: linear_one_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - Forgetting to add remaining items
+  - Only counting planted items
+  - Misunderstanding 'leftover' means not yet used
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener is planting sunflowers in rows. Each row holds 8 sunflowers. If she plants 5 rows and
+    still has 12 sunflowers left, how many sunflowers did she start with?
+  context_block: Students solve equations by combining given information rather than isolating variables
+    through multiple steps.
+  answer_expression: Eq(s, 5*8 + 12)
+  hint_ladder:
+  - How many sunflowers are in 5 rows if each row has 8?
+  - Five rows means 5 times 8 equals 40 sunflowers planted. What about the leftover ones?
+  - Add the planted sunflowers to the remaining ones to get the starting total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each row holds 8 sunflowers and she plants 5 rows. Multiply to find how many sunflowers
+        are in those rows.
+      expression: 5 * 8 = 40
+      common_mistake: null
+    - step_number: 2
+      explanation: She has 40 sunflowers planted in rows and 12 left over. Add these to find the total
+        she started with.
+      expression: 40 + 12 = 52
+      common_mistake: null
+    final_answer: '52'
+  random_seed: 308100
+  rendered_question: 'Students solve equations by combining given information rather than isolating variables
+    through multiple steps.
+
+
+    A gardener is planting sunflowers in rows. Each row holds 8 sunflowers. If she plants 5 rows and still
+    has 12 sunflowers left, how many sunflowers did she start with?'
+  option_a: '40'
+  option_b: '60'
+  option_c: '67'
+  option_d: '52'
+  correct_option: d
+- question_template_id: authored-linear_equations-d1-708100
+  topic_id: linear_equations
+  skill_id: linear_one_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 40
+  common_error_tags:
+  - ignored_starting_amount
+  - added_instead_of_subtracted
+  - skipped_final_subtraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Liam has a lemonade stand. He starts the day with 15 cups of lemonade. By the end of the day,
+    he has sold 7 cups. He wants to know how many cups he needs to make tonight so he will have exactly
+    20 cups ready for tomorrow. How many cups should he make?
+  context_block: null
+  answer_expression: Eq(x + (15 - 7), 20)
+  hint_ladder:
+  - First, figure out how many cups Liam has left at the end of today.
+  - The number of cups he needs to make plus the cups he has left should equal 20.
+  - Write an equation that shows what he needs to make plus what he has equals 20, then solve for the
+    unknown.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 15 cups and sells 7, so he has 8 cups left at the end of the day.
+      expression: 15 - 7
+      common_mistake: Subtracting incorrectly or forgetting to subtract the sold cups.
+    - step_number: 2
+      explanation: Let x be the number of cups he needs to make. The cups he has left plus the cups he
+        makes should equal 20.
+      expression: x + (15 - 7) = 20
+      common_mistake: Forgetting to include the leftover cups in the total for tomorrow.
+    - step_number: 3
+      explanation: Simplify the equation by calculating the leftover cups.
+      expression: x + 8 = 20
+      common_mistake: Not simplifying the equation before solving.
+    - step_number: 4
+      explanation: Subtract the leftover cups from the total needed to find how many to make.
+      expression: x = 20 - 8
+      common_mistake: Adding instead of subtracting or stopping before isolating x.
+    - step_number: 5
+      explanation: Calculate the final answer.
+      expression: x = 12
+      common_mistake: Making an arithmetic error in the final step.
+    final_answer: '12'
+  random_seed: 708100
+  rendered_question: Liam has a lemonade stand. He starts the day with 15 cups of lemonade. By the end
+    of the day, he has sold 7 cups. He wants to know how many cups he needs to make tonight so he will
+    have exactly 20 cups ready for tomorrow. How many cups should he make?
+  option_a: '5'
+  option_b: '12'
+  option_c: '2'
+  option_d: '8'
+  correct_option: b
+- question_template_id: authored-linear_equations-d1-818100
+  topic_id: linear_equations
+  skill_id: linear_one_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - ignored_starting_amount
+  - added_instead_of_subtracted
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Liam’s father is preparing a fish tank for a community event. The tank already has 30 litres of
+    water. He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?
+  context_block: Liam’s father is filling a large fish tank for a community event. The tank already has
+    some water in it, and he adds more every day.
+  answer_expression: Eq(30 + 5*d, 70)
+  hint_ladder:
+  - Think about how much water is already in the tank and how much is added each day.
+  - Liam’s father starts with 30 litres and adds 5 litres every day. How much water is in the tank after
+    d days?
+  - Set up an equation that says the starting amount plus 5 litres per day equals the total amount needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The tank starts with 30 litres, and 5 litres are added each day for d days. The total
+        needs to be 70 litres.
+      expression: 30 + 5d = 70
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the starting amount (30 litres) from both sides to isolate the term with the
+        variable.
+      expression: 5d = 70 - 30
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side of the equation.
+      expression: 5d = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 5 to solve for d.
+      expression: d = 40 / 5
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the final value of d.
+      expression: d = 8
+      common_mistake: null
+    final_answer: '8'
+  random_seed: 818100
+  rendered_question: 'Liam’s father is filling a large fish tank for a community event. The tank already
+    has some water in it, and he adds more every day.
+
+
+    Liam’s father is preparing a fish tank for a community event. The tank already has 30 litres of water.
+    He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?'
+  option_a: '10'
+  option_b: '6'
+  option_c: '8'
+  option_d: '14'
+  correct_option: c
+- question_template_id: authored-linear_equations-d1-1109100
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 30
+  common_error_tags:
+  - added_instead_of_multiplied
+  - ignored_total_markers
+  - skipped_division
+  - used_wrong_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 20 markers and wants to divide them equally among some groups. If each group gets
+    5 markers, how many groups can the teacher make?
+  context_block: A teacher has 20 markers to divide equally among some groups of students. Each group
+    receives 5 markers. The teacher wants to know how many groups can be formed.
+  answer_expression: Eq(5*x, 20)
+  hint_ladder:
+  - Think about how many markers the teacher started with and how many each group received.
+  - If each group gets 5 markers, how can you express the total number of groups using the total markers?
+  - Set up an equation where the number of groups times 5 equals the total markers.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The teacher divides 20 markers into groups, each receiving 5 markers. This gives the
+        equation 5x = 20.
+      expression: 5x = 20
+      common_mistake: null
+    - step_number: 2
+      explanation: To find the number of groups, divide both sides of the equation by 5.
+      expression: x = 20 / 5
+      common_mistake: null
+    - step_number: 3
+      explanation: After dividing, we find that the teacher can form 4 groups.
+      expression: x = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 1109100
+  rendered_question: 'A teacher has 20 markers to divide equally among some groups of students. Each group
+    receives 5 markers. The teacher wants to know how many groups can be formed.
+
+
+    A teacher has 20 markers and wants to divide them equally among some groups. If each group gets 5
+    markers, how many groups can the teacher make?'
+  option_a: '15'
+  option_b: '5'
+  option_c: '3'
+  option_d: '4'
+  correct_option: d
+- question_template_id: authored-linear_equations-d1-1509100
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - forgot_to_subtract_the_pen_first
+  - divided_total_cost_by_3_without_removing_pen_cost
+  - multiplied_instead_of_divided
+  - added_the_pen_cost_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Liam buys 3 identical notebooks and a pen that costs $5. His total bill is $26. How much does
+    one notebook cost?
+  context_block: 'A student is buying supplies for school. The scenario provides all necessary numbers:
+    3 notebooks, a $5 pen, and a $26 total.'
+  answer_expression: Eq(3*x + 5, 26)
+  hint_ladder:
+  - What is the total cost made up of?
+  - How much does each notebook contribute to the total cost?
+  - Write an equation showing that 3 notebooks plus the pen equal $26.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the equation representing the total cost: 3 notebooks at x dollars each plus
+        a $5 pen equals $26.'
+      expression: 3*x + 5 = 26
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the cost of the pen from both sides to isolate the cost of the notebooks.
+      expression: 3*x = 26 - 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the right side after subtraction.
+      expression: 3*x = 21
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to find the cost of one notebook.
+      expression: x = 21 / 3
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the final answer, which is the cost of one notebook.
+      expression: x = 7
+      common_mistake: null
+    final_answer: '7'
+  random_seed: 1509100
+  rendered_question: 'A student is buying supplies for school. The scenario provides all necessary numbers:
+    3 notebooks, a $5 pen, and a $26 total.
+
+
+    Liam buys 3 identical notebooks and a pen that costs $5. His total bill is $26. How much does one
+    notebook cost?'
+  option_a: '6'
+  option_b: '10'
+  option_c: '8'
+  option_d: '7'
+  correct_option: d
+- question_template_id: authored-linear_equations-d1-209100
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Dividing the entire total by the per-topping cost (18 ÷ 2 = 9, then choosing 10)
+  - Not subtracting the base price before dividing (18 ÷ 2 = 9)
+  - Subtracting instead of dividing in the final step (10 - 2 = 8, then rounding)
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A pizza restaurant charges $8 for a large pizza and $2 per topping. Marcus orders one large pizza
+    with toppings and pays $18 total. How many toppings did Marcus add to his pizza?
+  context_block: null
+  answer_expression: Eq(8 + 2*t, 18)
+  hint_ladder:
+  - Write an expression for Marcus's total bill using the base price and the cost per topping.
+  - The total bill is 8 + 2t and it equals 18. Use subtraction to get the topping cost alone.
+  - After subtracting 8 from both sides, divide by 2 to find the number of toppings.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for the total cost. The base pizza costs $8 and each topping costs
+        $2, so the total is 8 + 2t where t is the number of toppings.
+      expression: 8 + 2*t = 18
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 8 from both sides to isolate the term with t.
+      expression: 2*t = 18 - 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: 2*t = 10
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 2 to solve for t.
+      expression: t = 10 / 2
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the final answer.
+      expression: t = 5
+      common_mistake: null
+    final_answer: 5 toppings
+  random_seed: 209100
+  rendered_question: A pizza restaurant charges $8 for a large pizza and $2 per topping. Marcus orders
+    one large pizza with toppings and pays $18 total. How many toppings did Marcus add to his pizza?
+  option_a: 4 toppings
+  option_b: 5 toppings
+  option_c: 6 toppings
+  option_d: 10 toppings
+  correct_option: b
+- question_template_id: authored-linear_equations-d1-309100
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - Forgetting to add the initial week's distance
+  - Confusing week number with total distance added
+  - Assuming linear growth means adding the same total each week instead of each increment
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Keisha is training for a 10-kilometer running race. She runs 2 kilometers the first week and plans
+    to add 1 kilometer each week. In which week will she reach exactly 10 kilometers?
+  context_block: Keisha is preparing for a running challenge. Each week, her training increases by a fixed
+    amount.
+  answer_expression: Eq(2 + 1*(w - 1), 10)
+  hint_ladder:
+  - What distance does Keisha run in week 1? What about week 2? Week 3?
+  - She runs 2 km in week 1, then 3 km in week 2, then 4 km in week 3, and so on. Her distance in week
+    w is 1 + w.
+  - Set up the equation 1 + w = 10 and solve by subtracting 1 from both sides.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Keisha runs 2 km in week 1 and adds 1 km each subsequent week. After w weeks, she runs
+        2 + 1(w - 1) kilometers, which simplifies to 1 + w.
+      expression: 2 + 1*(w - 1) = 10
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Simplify the left side: 2 + w - 1 = 10, which becomes 1 + w = 10.'
+      expression: 1 + w = 10
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 1 from both sides to isolate w.
+      expression: w = 10 - 1 = 9
+      common_mistake: null
+    final_answer: 9 weeks
+  random_seed: 309100
+  rendered_question: 'Keisha is preparing for a running challenge. Each week, her training increases by
+    a fixed amount.
+
+
+    Keisha is training for a 10-kilometer running race. She runs 2 kilometers the first week and plans
+    to add 1 kilometer each week. In which week will she reach exactly 10 kilometers?'
+  option_a: 8 weeks
+  option_b: 12 weeks
+  option_c: 9 weeks
+  option_d: 10 weeks
+  correct_option: c
+- question_template_id: authored-linear_equations-d1-709100
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_total_and_starting_blocks
+  - skipped_final_division
+  - divided_total_instead_of_remaining
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Liam is building a model tower with wooden blocks. He has already stacked 9 blocks. Each level
+    of the tower needs 3 blocks. If his finished tower will have 30 blocks in total, how many more levels
+    does Liam need to build?
+  context_block: null
+  answer_expression: Eq(9 + 3*l, 30)
+  hint_ladder:
+  - Think about how many blocks Liam has used so far and how many he still needs.
+  - The total blocks needed are 30, and he already has 9 stacked. How many blocks remain to be added?
+  - 'Each level uses 3 blocks, so write an equation for the remaining levels: 3 * levels = 30 - 9.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: First, find out how many blocks Liam still needs to add to reach the total of 30 blocks.
+        He already has 9 blocks stacked.
+      expression: 30 - 9
+      common_mistake: Adding 30 and 9 instead of subtracting, which would give 39.
+    - step_number: 2
+      explanation: Each level requires 3 blocks, so the remaining blocks (21) must equal 3 times the number
+        of levels.
+      expression: 3 * levels = 21
+      common_mistake: Forgetting to divide by 3 or stopping here, which would leave the answer as 21.
+    - step_number: 3
+      explanation: Solve for the number of levels by dividing both sides of the equation by 3.
+      expression: levels = 21 / 3
+      common_mistake: Dividing 30 by 3 instead of 21, which would give 10.
+    final_answer: '7'
+  random_seed: 709100
+  rendered_question: Liam is building a model tower with wooden blocks. He has already stacked 9 blocks.
+    Each level of the tower needs 3 blocks. If his finished tower will have 30 blocks in total, how many
+    more levels does Liam need to build?
+  option_a: '7'
+  option_b: '10'
+  option_c: '17'
+  option_d: '21'
+  correct_option: a
+- question_template_id: authored-linear_equations-d2-1109200
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracted
+  - ignored_starting_amount
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Jamie is saving for a new skateboard. They already have $20 and save $5 every week. The skateboard
+    costs $50. How many weeks will Jamie need to save?
+  context_block: null
+  answer_expression: Eq(20 + 5*w, 50)
+  hint_ladder:
+  - Think about how much money the student has saved after each week.
+  - Write an expression for the total savings after w weeks.
+  - 'Set up the equation: starting amount + weekly savings × weeks = total cost.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the equation that represents the total savings after w weeks.
+      expression: 20 + 5w = 50
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the initial savings (20) from both sides to isolate the term with the variable.
+      expression: 5w = 50 - 20
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side of the equation.
+      expression: 5w = 30
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 5 to solve for w.
+      expression: w = 30 / 5
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify to find the number of weeks needed.
+      expression: w = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 1109200
+  rendered_question: Jamie is saving for a new skateboard. They already have $20 and save $5 every week.
+    The skateboard costs $50. How many weeks will Jamie need to save?
+  option_a: '10'
+  option_b: '6'
+  option_c: '4'
+  option_d: '5'
+  correct_option: b
+- question_template_id: authored-linear_equations-d2-1509200
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_5_to_26_instead_of_subtracting
+  - divided_26_by_3_and_ignored_the_pen
+  - stopped_at_3x_equals_21_without_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Marcus buys 3 identical notebooks and a pen for $5. He spends $26 altogether. What is the cost
+    of one notebook?
+  context_block: Marcus buys 3 identical notebooks and a pen for $5. He spends $26 in total. How much
+    does one notebook cost?
+  answer_expression: Eq(3*x + 5, 26)
+  hint_ladder:
+  - Marcus wants to know the price of one notebook. What do you know about the total cost?
+  - The total cost is the cost of 3 notebooks plus the $5 pen.
+  - Write an equation that says 3 notebooks plus $5 equals $26, then solve for the notebook's cost.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Marcus spends $5 on a pen and the rest on 3 notebooks, totaling $26. Let x be the cost
+        of one notebook.
+      expression: 3x + 5 = 26
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the cost of the pen from the total to isolate the cost of the notebooks.
+      expression: 3x = 26 - 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side of the equation.
+      expression: 3x = 21
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to find the cost of one notebook.
+      expression: x = 21 / 3
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify to find the final answer.
+      expression: x = 7
+      common_mistake: null
+    final_answer: '7'
+  random_seed: 1509200
+  rendered_question: 'Marcus buys 3 identical notebooks and a pen for $5. He spends $26 in total. How
+    much does one notebook cost?
+
+
+    Marcus buys 3 identical notebooks and a pen for $5. He spends $26 altogether. What is the cost of
+    one notebook?'
+  option_a: '9'
+  option_b: '8'
+  option_c: '7'
+  option_d: '21'
+  correct_option: c
+- question_template_id: authored-linear_equations-d2-1609200
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_12_instead_of_subtracting
+  - stopped_at_5x_equals_30
+  - multiplied_12_by_5_before_adding
+  - ignored_the_12_dollar_item
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam bought a book for $12 and some packs of stickers at $5 each. He spent $42 in total. How many
+    packs of stickers did he buy?
+  context_block: 'The scenario is concrete: a student can picture buying one thing, then several identical
+    things, and wondering how many of the second thing they bought. The numbers are small and the operations
+    are whole-number only, keeping the focus on translating the situation into an equation.'
+  answer_expression: Eq(5*x + 12, 42)
+  hint_ladder:
+  - Think about what you pay for first and how much money remains.
+  - After buying the $12 item, the remaining money is spent on identical $5 items.
+  - Write an equation showing $12 plus $5 times the number of items equals $42.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the equation based on the total cost: $12 plus $5 times the number of items
+        equals $42.'
+      expression: 5x + 12 = 42
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract $12 from both sides to isolate the term with x.
+      expression: 5x = 42 - 12
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Calculate the right side: 42 - 12 = 30.'
+      expression: 5x = 30
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 5 to solve for x.
+      expression: x = 30 / 5
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate 30 divided by 5 to find the number of items.
+      expression: x = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 1609200
+  rendered_question: 'The scenario is concrete: a student can picture buying one thing, then several identical
+    things, and wondering how many of the second thing they bought. The numbers are small and the operations
+    are whole-number only, keeping the focus on translating the situation into an equation.
+
+
+    Liam bought a book for $12 and some packs of stickers at $5 each. He spent $42 in total. How many
+    packs of stickers did he buy?'
+  option_a: '4'
+  option_b: '10'
+  option_c: '3'
+  option_d: '6'
+  correct_option: d
+- question_template_id: authored-linear_equations-d2-1609201
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_starting_amount_instead_of_subtracting
+  - ignored_starting_amount_entirely
+  - skipped_final_division
+  - incorrect_order_of_operations
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam earns $5 each week by helping his neighbour with gardening. He already has $8 saved from
+    his birthday. After a few weeks, he checks his savings and finds he has $48 in total. How many weeks
+    has Liam been saving?
+  context_block: null
+  answer_expression: Eq(5*w + 8, 48)
+  hint_ladder:
+  - Think about how Liam’s total savings grow each week. What two amounts make up his $48?
+  - Liam’s total savings come from the $8 he already had plus $5 for each week he worked.
+  - Write an equation that says the $8 plus $5 times the number of weeks equals $48, then solve for the
+    unknown.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with $8 and saves $5 each week. After w weeks, his total savings are $8
+        + $5w, which equals $48.
+      expression: 5w + 8 = 48
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract $8 from both sides to isolate the term with w.
+      expression: 5w = 48 - 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 48 - 8 to simplify the right side.
+      expression: 5w = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 5 to solve for w.
+      expression: w = 40 / 5
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate 40 divided by 5 to find the number of weeks.
+      expression: w = 8
+      common_mistake: null
+    final_answer: '8'
+  random_seed: 1609201
+  rendered_question: Liam earns $5 each week by helping his neighbour with gardening. He already has $8
+    saved from his birthday. After a few weeks, he checks his savings and finds he has $48 in total. How
+    many weeks has Liam been saving?
+  option_a: '6'
+  option_b: '10'
+  option_c: '9'
+  option_d: '8'
+  correct_option: d
+- question_template_id: authored-linear_equations-d2-209200
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Forgetting to subtract the bonus before dividing
+  - Dividing the entire total by the points per level without accounting for the bonus separately
+  - Subtracting the bonus but then multiplying instead of dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A video game has three levels. Completing each level earns 15 points. After beating levels, Maya
+    has 72 points total—she earned 12 bonus points for beating the final level quickly. How many levels
+    did she complete?
+  context_block: A video game awards points for completing levels and bonus points for special achievements.
+    Maya wants to understand how many levels she completed based on her final score.
+  answer_expression: Eq(15*n + 12, 72)
+  hint_ladder:
+  - Write an equation where n is the number of levels Maya completed. What two parts make up her total
+    of 72 points?
+  - Her total is 15n + 12 = 72, because 15 points per level plus 12 bonus points equals 72.
+  - Subtract 12 from both sides first, then divide by 15 to find n.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify what we know. Maya has 72 total points. Each level gives 15 points, and she
+        got a 12-point bonus.
+      expression: 15*n + 12 = 72
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 12 from both sides to isolate the term with n.
+      expression: 15*n = 72 - 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: 15*n = 60
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 15 to solve for n.
+      expression: n = 60 / 15
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify to get the final answer.
+      expression: n = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 209200
+  rendered_question: 'A video game awards points for completing levels and bonus points for special achievements.
+    Maya wants to understand how many levels she completed based on her final score.
+
+
+    A video game has three levels. Completing each level earns 15 points. After beating levels, Maya has
+    72 points total—she earned 12 bonus points for beating the final level quickly. How many levels did
+    she complete?'
+  option_a: '3'
+  option_b: '4'
+  option_c: '5'
+  option_d: '6'
+  correct_option: b
+- question_template_id: authored-linear_equations-d2-709200
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - multiplied_total_straws_incorrectly
+  - added_instead_of_subtracted
+  - ignored_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam is building a model bridge. He has 25 straws to start with. Each centimetre of bridge length
+    uses 3 straws. He wants the bridge to be 18 centimetres long. How many extra straws will Liam need
+    to buy?
+  context_block: null
+  answer_expression: Eq(3*18 - 25, extra_straws)
+  hint_ladder:
+  - How many straws does Liam need for an 18 cm bridge?
+  - The total straws needed are 3 straws per cm times 18 cm.
+  - Subtract the 25 straws he already has from the total needed, and solve for the extra straws.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the total number of straws needed for an 18 cm bridge.
+      expression: 3 \times 18
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the number of straws per cm by the length of the bridge.
+      expression: 3 \times 18 = 54
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the straws Liam already has from the total needed.
+      expression: 54 - 25
+      common_mistake: null
+    - step_number: 4
+      explanation: Perform the subtraction to find the number of extra straws Liam needs to buy.
+      expression: 54 - 25 = 29
+      common_mistake: null
+    final_answer: '29'
+  random_seed: 709200
+  rendered_question: Liam is building a model bridge. He has 25 straws to start with. Each centimetre
+    of bridge length uses 3 straws. He wants the bridge to be 18 centimetres long. How many extra straws
+    will Liam need to buy?
+  option_a: '29'
+  option_b: '54'
+  option_c: '75'
+  option_d: '19'
+  correct_option: a
 - question_template_id: authored-linear_equations-d2-9200
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -266,4 +2772,182 @@ templates:
   option_b: '8'
   option_c: '9'
   option_d: '13'
+  correct_option: a
+- question_template_id: authored-linear_equations-d3-1309300
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - ignored_negative_coefficient
+  - incorrect_arithmetic_when_dividing_negatives
+  - stopped_after_subtraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya has $60 and spends $8 each week at the arcade. After how many weeks will she have $12 left?
+  context_block: null
+  answer_expression: 60 - 8*w = 12
+  hint_ladder:
+  - Write an expression for how much money Maya has left after w weeks.
+  - She starts with 60 and subtracts 8 each week, so after w weeks she has 60 - 8w. Set that equal to
+    12.
+  - Subtract 60 from both sides to isolate the term with w, then divide by -8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the equation for Maya's remaining money after w weeks. She starts with $60 and
+        spends $8 each week.
+      expression: 60 - 8w = 12
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 60 from both sides to move the constant to the right.
+      expression: -8w = 12 - 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: -8w = -48
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -8 to solve for w.
+      expression: w = -48 / -8 = 6
+      common_mistake: null
+    final_answer: 6 weeks
+  random_seed: 1309300
+  rendered_question: Maya has $60 and spends $8 each week at the arcade. After how many weeks will she
+    have $12 left?
+  option_a: 4 weeks
+  option_b: 9 weeks
+  option_c: 11 weeks
+  option_d: 6 weeks
+  correct_option: d
+- question_template_id: authored-linear_equations-d3-1609301
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - ignored_starting_amount
+  - stopped_before_dividing
+  - misinterpreted_unknown
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A store clerk counts 50 items on the shelves at opening. By noon, the clerk sells exactly 5 identical
+    boxes of these items. After selling, 20 items remain. How many items were in each box?
+  context_block: A store clerk is inventorying items. The scenario involves whole numbers and a straightforward
+    subtraction and division, making it accessible for students in grades 6-7.
+  answer_expression: Eq(50 - 5*x, 20)
+  hint_ladder:
+  - Think about how many items the store started with and how many were sold.
+  - Each of the 5 boxes holds the same number of items. How many items were sold in total?
+  - 'Write an equation: starting items minus (number of boxes × items per box) equals remaining items.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The store starts with 50 items and sells 5 boxes, each containing x items. After selling,
+        20 items remain.
+      expression: 50 - 5x = 20
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 20 from both sides to isolate the term with x.
+      expression: 50 - 20 = 5x
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the left side of the equation.
+      expression: 30 = 5x
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 5 to solve for x.
+      expression: x = 30 / 5
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the division to find the number of items per box.
+      expression: x = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 1609301
+  rendered_question: 'A store clerk is inventorying items. The scenario involves whole numbers and a straightforward
+    subtraction and division, making it accessible for students in grades 6-7.
+
+
+    A store clerk counts 50 items on the shelves at opening. By noon, the clerk sells exactly 5 identical
+    boxes of these items. After selling, 20 items remain. How many items were in each box?'
+  option_a: '2'
+  option_b: '6'
+  option_c: '10'
+  option_d: '4'
+  correct_option: b
+- question_template_id: authored-linear_equations-d3-309300
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Adds instead of subtracts when isolating the variable term
+  - Incorrectly divides the starting amount rather than the difference
+  - Confuses the goal with the remaining distance or makes arithmetic errors in subtraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Marcus is training for a race. He runs 3 kilometers every morning and has already run 27 kilometers
+    this month. His goal is to run 48 kilometers total. How many more mornings must he run to reach his
+    goal?
+  context_block: null
+  answer_expression: Eq(27 + 3*n, 48)
+  hint_ladder:
+  - Write an expression for how far Marcus will have run after n more mornings.
+  - His total will be 27 + 3n kilometers. This needs to equal his goal of 48 km.
+  - Subtract 27 from both sides to get 3n by itself, then divide by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Marcus has already run 27 km and needs to reach 48 km total. Each morning he runs 3
+        km. After n more mornings, he will have run 27 + 3n kilometers.
+      expression: 27 + 3*n = 48
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 27 from both sides to isolate the term with n.
+      expression: 3*n = 48 - 27
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: 3*n = 21
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to solve for n.
+      expression: n = 21 / 3
+      common_mistake: null
+    - step_number: 5
+      explanation: Marcus must run 7 more mornings to reach his goal of 48 kilometers.
+      expression: n = 7
+      common_mistake: null
+    final_answer: 7 mornings
+  random_seed: 309300
+  rendered_question: Marcus is training for a race. He runs 3 kilometers every morning and has already
+    run 27 kilometers this month. His goal is to run 48 kilometers total. How many more mornings must
+    he run to reach his goal?
+  option_a: 7 mornings
+  option_b: 12 mornings
+  option_c: 5 mornings
+  option_d: 9 mornings
   correct_option: a
