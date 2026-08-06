@@ -79,4 +79,5 @@ class AnthropicBedrockProvider:
             # happens to be valid JSON of the wrong shape. Only `stopReason` tells the
             # two apart (D-115).
             truncated=response.get("stopReason") == "max_tokens",
+            stop_reason=response.get("stopReason", ""),
         )

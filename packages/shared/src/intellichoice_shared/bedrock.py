@@ -1052,6 +1052,11 @@ class BedrockGenerationResult[T: BaseModel]:
     cost_cents: float
     model_id: str
     repaired: bool
+    # Converse's raw `stopReason`, carried up from the provider (D-195). Nothing on the
+    # serving path reads it - it exists so that when a model new to this account fails the
+    # structured-output contract, the first diagnostic question has an answer. Defaulted,
+    # so every existing construction site is unaffected.
+    stop_reason: str = ""
 
 
 @dataclass(frozen=True)

@@ -61,9 +61,10 @@ class YoutubeDataApiProvider:
                         continue
                     status = item.get("status", {})
                     content_details = item.get("contentDetails", {})
-                    available = status.get("privacyStatus") == "public" and status.get(
-                        "uploadStatus"
-                    ) == "processed"
+                    available = (
+                        status.get("privacyStatus") == "public"
+                        and status.get("uploadStatus") == "processed"
+                    )
                     caption = content_details.get("caption") == "true"
                     results[video_id] = VideoDetails(
                         available=available,
@@ -100,9 +101,7 @@ class YoutubeDataApiProvider:
             if page_token:
                 params["pageToken"] = page_token
             payload = await self._get(client, "playlistItems", params)
-            video_ids.extend(
-                item["contentDetails"]["videoId"] for item in payload.get("items", [])
-            )
+            video_ids.extend(item["contentDetails"]["videoId"] for item in payload.get("items", []))
             page_token = payload.get("nextPageToken")
             if not page_token:
                 break

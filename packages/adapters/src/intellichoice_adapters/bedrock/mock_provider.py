@@ -93,9 +93,7 @@ def _generated_template_json(payload: dict) -> dict:
         "correct_option_generator": next(
             iter(payload.get("allowed_correct_option_generators", [])), "format_integer"
         ),
-        "distractor_generator_keys": list(payload.get("allowed_distractor_generator_keys", []))[
-            :3
-        ],
+        "distractor_generator_keys": list(payload.get("allowed_distractor_generator_keys", []))[:3],
         "common_error_tags": ["mock_error_tag"],
         "estimated_time_seconds": 45,
         "reasoning": "mock generator",
@@ -210,9 +208,25 @@ def _tutor_chat_json(payload: dict) -> dict:
 
 
 _SUPPORTED_TOPIC_KEYWORDS = (
-    "intellichoice", "branch", "volunteer", "student", "parent", "tutor",
-    "calendar", "schedule", "attendance", "class", "program", "session",
-    "learning", "handbook", "escalat", "admin", "location", "hour", "manager",
+    "intellichoice",
+    "branch",
+    "volunteer",
+    "student",
+    "parent",
+    "tutor",
+    "calendar",
+    "schedule",
+    "attendance",
+    "class",
+    "program",
+    "session",
+    "learning",
+    "handbook",
+    "escalat",
+    "admin",
+    "location",
+    "hour",
+    "manager",
 )
 
 
@@ -293,8 +307,18 @@ def _rag_answer_json(payload: dict) -> dict:
 
 
 _MONTHS = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
 }
 _DATE_RE = re.compile(
     r"(?P<month>Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-zA-Z]*\.?\s+"
@@ -636,9 +660,7 @@ class MockBedrockProvider:
     async def raw_embed(self, *, model_id: str, texts: list[str]) -> RawEmbedding:
         del model_id
         vectors = [_deterministic_vector(text) for text in texts]
-        return RawEmbedding(
-            vectors=vectors, input_tokens=sum(len(text) // 4 for text in texts)
-        )
+        return RawEmbedding(vectors=vectors, input_tokens=sum(len(text) // 4 for text in texts))
 
 
 def _deterministic_vector(text: str) -> list[float]:

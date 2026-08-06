@@ -77,6 +77,7 @@ class _ScriptedProvider:
                 input_tokens=10,
                 output_tokens=10,
                 truncated=True,
+                stop_reason="max_tokens",
             )
         assert action == "valid"
         return RawGeneration(
@@ -84,6 +85,7 @@ class _ScriptedProvider:
             '"answer_revealed": false, "difficulty": 1}',
             input_tokens=10,
             output_tokens=10,
+            stop_reason="tool_use",
         )
 
 
@@ -369,9 +371,10 @@ def test_every_failure_exit_logs_exactly_one_warning(
             max_retries=0,
             **kwargs,
         )
-        with caplog.at_level(
-            logging.WARNING, logger="intellichoice_adapters.bedrock.gateway"
-        ), pytest.raises(expected):
+        with (
+            caplog.at_level(logging.WARNING, logger="intellichoice_adapters.bedrock.gateway"),
+            pytest.raises(expected),
+        ):
             await gateway.generate_structured(
                 task=BedrockTask.TUTOR,
                 system_prompt="system",
@@ -417,9 +420,10 @@ def test_a_circuit_open_refusal_also_logs_a_warning(
             )
 
         caplog.clear()
-        with caplog.at_level(
-            logging.WARNING, logger="intellichoice_adapters.bedrock.gateway"
-        ), pytest.raises(CircuitOpenError):
+        with (
+            caplog.at_level(logging.WARNING, logger="intellichoice_adapters.bedrock.gateway"),
+            pytest.raises(CircuitOpenError),
+        ):
             await gateway.generate_structured(
                 task=BedrockTask.TUTOR,
                 system_prompt="system",
@@ -735,3 +739,65 @@ def test_create_embedding_cost_budget_exceeded_before_any_provider_call() -> Non
         assert provider.calls == 0
 
     asyncio.run(run())
+
+
+def test_the_raw_stop_reason_reaches_the_caller() -> None:
+    """Carried through rather than collapsed into `truncated` (D-195).
+
+    A boolean that only separates `max_tokens` from everything else cannot answer the
+    first question asked of a model new to this account - *why* did it stop. Measured
+    need: `mistral.magistral-small-2509` returns a successful Converse response with no
+    `toolUse` block at all, and telling that apart from a refusal or a truncation starts
+    with the stop reason.
+    """
+
+    async def run() -> None:
+        gateway = ResilientBedrockGateway(
+            provider=_ScriptedProvider(["valid"]),
+            model_registry={BedrockTask.TUTOR: MODEL_ID},
+        )
+        result = await gateway.generate_structured(
+            task=BedrockTask.TUTOR,
+            system_prompt="s",
+            payload=_payload(),
+            response_model=HintResponse,
+            max_output_tokens=100,
+            session_spend_cents=0.0,
+        )
+        assert result.stop_reason == "tool_use"
+
+    asyncio.run(run())
+
+
+def test_smoke_cli_classifies_the_failure_modes_it_has_actually_seen() -> None:
+    """Each string below is a real error this project has received from Bedrock, not an
+    invented one - the classifier exists so that "cannot call it" and "can call it but it
+    will not emit our schema" are never reported as the same outcome, because they lead to
+    opposite decisions.
+    """
+    from intellichoice_adapters.bedrock.smoke_cli import classify_failure
+
+    cases = {
+        "An error occurred (AccessDeniedException) when calling the Converse operation: "
+        "anthropic.claude-sonnet-5 is not available for this account.": "ACCESS DENIED",
+        "Bedrock call failed: model did not return a tool_use block": "PARSER INCOMPATIBILITY",
+        "structured output still invalid after one repair retry": "VALID CALL, INVALID SCHEMA",
+        "ValidationException: toolChoice of type tool is not supported": "UNSUPPORTED TOOL CHOICE",
+    }
+    for detail, expected in cases.items():
+        assert classify_failure(detail).startswith(expected), detail
+
+
+def test_the_smoke_schema_exercises_what_the_real_contracts_rely_on() -> None:
+    """The smoke schema is only useful if passing it means something. It has to carry the
+    three properties the pipeline's real response models depend on, or a model could pass
+    it and still fail every actual contract - which is exactly what
+    `openai.gpt-oss-120b-1:0` did (smoke pass, generator contract fail).
+    """
+    from intellichoice_adapters.bedrock.smoke_cli import SmokeAnswer
+
+    schema = SmokeAnswer.model_json_schema()
+    assert list(schema["properties"])[0] == "reasoning", "reasoning must precede the decision"
+    assert schema["properties"]["answer"]["minimum"] == 0
+    assert schema["properties"]["answer"]["maximum"] == 10
+    assert SmokeAnswer.model_config.get("extra") == "forbid"
