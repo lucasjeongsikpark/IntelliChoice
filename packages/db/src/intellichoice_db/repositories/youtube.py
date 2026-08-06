@@ -119,6 +119,31 @@ class YoutubeRepository:
         await self._session.flush()
         return result.rowcount or 0
 
+    async def has_servable_video(self) -> bool:
+        """Is there any video `search_catalog` could possibly return?
+
+        D-207: the same three unconditional gates `search_catalog` applies (active,
+        approved suitability, embedded), asked as a cheap existence check *before* the
+        caller pays for an embedding. Staging ran for weeks with `youtube_videos` empty -
+        the sync worker has never been part of a deploy - so every "Watch a video" bought
+        a Titan embedding and then hit the §5.11.6 fallback anyway, ~145 ms and a real
+        (if tiny) charge for a foregone conclusion.
+
+        Deliberately *not* filtered by skill or difficulty. Those filters live in
+        `search_catalog` and are applied in Python over the fetched rows; duplicating them
+        here would mean two places to keep in step, and the case worth short-circuiting is
+        "the catalog is empty", not "this skill is thin". A non-empty catalog with no match
+        for the skill still runs the embedding and still falls back - correctly, since a
+        semantic rank is the thing deciding that.
+        """
+        stmt = select(YoutubeVideo.youtube_video_id).where(
+            YoutubeVideo.active_status == "active",
+            YoutubeVideo.suitability_status == "approved",
+            YoutubeVideo.embedding.is_not(None),
+        )
+        result = await self._session.execute(stmt.limit(1))
+        return result.first() is not None
+
     async def search_catalog(
         self,
         *,

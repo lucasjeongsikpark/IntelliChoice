@@ -158,6 +158,54 @@ def test_search_video_falls_back_when_no_catalog_match() -> None:
     asyncio.run(run())
 
 
+def test_an_empty_catalog_falls_back_without_paying_for_an_embedding() -> None:
+    """D-207: the §5.11.6 outcome is already decided when nothing is servable, so the
+    embedding call must not happen at all.
+
+    This is not hypothetical tidying. Staging's `youtube_videos` has been empty since the
+    environment was built - the sync worker has never been part of a deploy - so *every*
+    "Watch a video" a student clicked bought a Titan embedding and then returned the
+    fallback message anyway. Measured live at 2026-08-06T20:13:51Z: one
+    `bedrock_embedding_call`, 144.73 ms, for a foregone conclusion.
+
+    `_CountingGateway` rather than an assertion on cost alone: a zero cost could also mean
+    "the embedding was free", which would let a regression through. Counting the calls says
+    the thing the test is actually about.
+    """
+
+    class _CountingGateway:
+        def __init__(self) -> None:
+            self.embed_calls = 0
+
+        async def create_embedding(self, *, texts: list[str], session_spend_cents: float):
+            self.embed_calls += 1
+            raise AssertionError("an empty catalog must not reach the embedding provider")
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            # Inside the rollback transaction, so this empties the catalog for this test
+            # only - the seeded rows other tests in this file rely on are restored when
+            # the transaction rolls back.
+            await session.execute(text("DELETE FROM youtube_videos"))
+            gateway = _CountingGateway()
+
+            video, cost = await video_catalog.search_video(
+                repo=YoutubeRepository(session),
+                gateway=gateway,  # type: ignore[arg-type]
+                mcp_call_repo=McpToolCallRepository(session),
+                caller_external_id="zqxvvc-caller-1",
+                skill_id="linear_one_step",
+                skill_name="Solve one-step linear equations",
+                difficulty=1,
+                session_spend_cents=0.0,
+            )
+            assert video is None
+            assert cost == 0.0
+            assert gateway.embed_calls == 0
+
+    asyncio.run(run())
+
+
 class _CapturingGateway:
     """S27 query-enrichment proof: records the exact text handed to `create_embedding`
     (delegating the real work to the wrapped gateway) so a test can assert the

@@ -233,22 +233,89 @@ button.link {
   margin-left: auto;
 }
 
+/* D-207 question typography. This is an `<h1>` semantically (it is the page's heading and
+   screen-reader users navigate by it) but it must not *look* like one: `base.css` gives
+   h1 28px/600/-0.02em, which is heading styling applied to a sixty-word word problem.
+   Everything here overrides that back to body prose. */
+.question-stem {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* `pre-line` is what keeps the pipeline's own line breaks - the blank line between a
+     context block and the stem, and the newline-separated bullet lines inside one. HTML
+     collapsed both to single spaces before this. */
+  white-space: pre-line;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: normal;
+  /* A measure, not a width. Long lines are the other half of why this was hard to read. */
+  max-width: 60ch;
+  margin: 0 0 20px;
+}
+
+/* The scenario: present, readable, and clearly not the thing being asked. */
+.question-setup {
+  color: var(--text);
+}
+
+.question-ask {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
 .options {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 16px;
 }
 
 .option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   background: var(--bg);
   color: var(--text-h);
   border: 1px solid var(--border);
   margin: 0;
+  padding: 14px 16px;
   text-align: left;
+  font-size: 16px;
   font-weight: 400;
+  line-height: 1.45;
   text-transform: none;
   letter-spacing: normal;
+}
+
+/* The letter as a token rather than a bare "A." glued to the text - it makes the option
+   text start at a consistent x-position down the whole list, which is most of what makes
+   four choices scannable. */
+.option-key {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.option-text {
+  flex: 1;
+}
+
+/* The 1-4 keyboard shortcut, which has existed since S22 with nothing announcing it.
+   Faint on purpose: useful to notice once, not something to read every question. */
+.option-shortcut {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0.55;
 }
 
 .option.selected {
@@ -256,6 +323,12 @@ button.link {
   background: var(--accent-bg);
   color: var(--accent);
   font-weight: 600;
+}
+
+.option.selected .option-key {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
 }
 
 .stack {
@@ -275,18 +348,214 @@ button.link {
   text-align: left;
 }
 
-.intervention-panel ol {
-  padding-left: 20px;
+/* D-207 assistance panel. Every part of a hint or a solution now says what it is; before
+   this a hint's three fields were three undifferentiated paragraphs, two of them `.dim`. */
+.intervention-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
-.intervention-panel li {
-  margin-bottom: 10px;
+.intervention-head h2 {
+  margin: 0;
+}
+
+/* The hint ladder as filled/empty pips: "how much help is left" at a glance, and it does
+   not grow the heading the way "(hint 2 of 3)" did. `role="img"` + `aria-label` because
+   the pips carry meaning that the shapes alone do not announce. */
+.hint-ladder {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.hint-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+}
+
+.hint-pip.filled {
+  background: var(--accent);
+}
+
+.intervention-lead {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-h);
+  max-width: 60ch;
+}
+
+/* Supporting context - visible, labelled, and subordinate to the hint itself. Uses a
+   left rule rather than `.dim`'s faintness, so "secondary" doesn't mean "hard to read". */
+.intervention-aside {
+  border-left: 2px solid var(--border);
+  padding-left: 12px;
+  margin-bottom: 12px;
+}
+
+.intervention-aside h3 {
+  margin: 0 0 2px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.intervention-aside p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 60ch;
+}
+
+.solution-steps {
+  list-style: none;
+  counter-reset: solution-step;
+  padding: 0;
+  margin: 0 0 16px;
+}
+
+/* Numbered by CSS counter rather than by `<ol>`'s marker so the number can sit in the
+   card's own gutter and stay aligned with a multi-line explanation. */
+.solution-step {
+  counter-increment: solution-step;
+  position: relative;
+  padding: 12px 14px 12px 42px;
+  margin-bottom: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.solution-step::before {
+  content: counter(solution-step);
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.step-explanation {
+  margin: 0 0 6px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* The algebra on its own line. It used to be inline with the prose, which on a six-step
+   solution - now the normal case, since D-207 serves the authored bank's own steps -
+   made the working impossible to follow down the page. */
+.step-expression {
+  display: block;
+  width: fit-content;
+  font-size: 15px;
+  padding: 4px 10px;
+}
+
+.step-mistake {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.solution-answer {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-control);
+  background: var(--accent-bg);
+  font-size: 17px;
+  color: var(--accent);
+}
+
+.solution-answer-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.video-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  text-decoration: none;
+}
+
+.video-card:hover {
+  border-color: var(--accent);
+}
+
+.video-card-title {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.video-card-meta {
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* The choices as one block with its own spacing, so the buttons read as a set of options
+   rather than as a stack that happens to be adjacent to the content above it. */
+.assistance-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.assistance-choices button {
+  margin-top: 0;
 }
 
 .chat-panel {
-  margin-top: 10px;
+  margin-top: 14px;
   border-top: 1px solid var(--border);
   padding-top: 14px;
+}
+
+.chat-open {
+  margin-top: 8px;
+}
+
+.chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.chat-head h3 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.chat-collapse {
+  width: auto;
+  margin-top: 0;
+  padding: 0;
+  font-size: 13px;
 }
 
 .chat-messages {
@@ -296,6 +565,52 @@ button.link {
   max-height: 220px;
   overflow-y: auto;
   margin-bottom: 10px;
+}
+
+/* A tutor turn is ~3-5 s against real Bedrock (measured: 4050 ms for the reply alone).
+   Without a pending indicator the student's message just sat there looking ignored. */
+.chat-bubble.typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--text);
+  opacity: 0.4;
+  animation: typing-blink 1.2s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes typing-blink {
+  0%,
+  70%,
+  100% {
+    opacity: 0.25;
+  }
+  35% {
+    opacity: 0.9;
+  }
+}
+
+/* Respects the OS-level setting. A looping animation is exactly the kind of thing this
+   preference exists for. */
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot {
+    animation: none;
+    opacity: 0.5;
+  }
 }
 
 .chat-bubble {

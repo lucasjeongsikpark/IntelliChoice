@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ExamTimer } from "../components/ExamTimer";
 import { QuestionNavBar } from "../components/QuestionNavBar";
+import { QuestionStem } from "../components/QuestionStem";
 import { SubmitConfirmationModal } from "../components/SubmitConfirmationModal";
 import type { ExamOverview, QuestionItem } from "../types";
 
@@ -199,7 +200,29 @@ export function ExamScreen({
     ? (cachedBatch?.find((item) => item.display_order === currentDisplayOrder) ?? null)
     : (items?.[0] ?? null);
 
-  const isReadOnly = isExamPhase && currentOverviewItem?.status === "answered";
+  // D-207: `answeredSelections` is consulted alongside the server's own status, and that
+  // second clause is a fix rather than a convenience.
+  //
+  // The overview is what makes a question read-only, and it arrives on a poll. Submitting
+  // the *last* question is the one case where `handleSubmitClick` does not advance
+  // (there is nowhere to advance to), so the student stays on a question whose lock has
+  // not landed yet: `onFetchOverview()` is fired immediately after `onSubmit`, but the
+  // answer POST is still in flight, so the overview it fetches still says `unseen`. Select
+  // an option again, click Submit again, and the second request takes a 409 from
+  // `flow.ensure_item_unanswered`. Measured on staging at 2026-08-06T20:12:46.914Z - the
+  // eleventh `POST /answers` of a ten-question exam, 15.4 ms, rejected.
+  //
+  // `answeredSelections` is written synchronously in `handleSubmitClick`, so it closes
+  // that window without waiting for anything. It is also already the state this screen
+  // uses to redisplay a locked answer, so the two facts stay in one place.
+  //
+  // Kept as `||`, not a replacement: the local record is per-mount and does not survive
+  // the refresh that AUD-F-03 restores from, so the server's status is still the one that
+  // knows about answers from a previous page load.
+  const isReadOnly =
+    isExamPhase &&
+    (currentOverviewItem?.status === "answered" ||
+      answeredSelections[currentDisplayOrder] !== undefined);
 
   function handleSelect(key: string) {
     if (busy || isReadOnly) return;
@@ -329,7 +352,7 @@ export function ExamScreen({
         <span className="difficulty-badge">{difficultyLabel(currentOverviewItem.difficulty)}</span>
       )}
 
-      <h1>{currentItem.rendered_question}</h1>
+      <QuestionStem text={currentItem.rendered_question} />
 
       {isReadOnly && (
         <p className="readonly-note">
@@ -338,7 +361,7 @@ export function ExamScreen({
       )}
 
       <div className="options">
-        {options.map(([key, text]) => {
+        {options.map(([key, text], index) => {
           const isSelected = isReadOnly ? rememberedSelection === key : selected === key;
           return (
             <button
@@ -349,7 +372,16 @@ export function ExamScreen({
               aria-pressed={isSelected}
               onClick={() => handleSelect(key)}
             >
-              <span aria-hidden="true">{key.toUpperCase()}.</span> {text}
+              <span className="option-key" aria-hidden="true">
+                {key.toUpperCase()}
+              </span>
+              <span className="option-text">{text}</span>
+              {/* The 1-4 shortcut has worked since S22 and nothing said so. Hidden from
+                  screen readers, which announce the button's text and would otherwise
+                  read a stray digit after every option. */}
+              <span className="option-shortcut" aria-hidden="true">
+                {index + 1}
+              </span>
             </button>
           );
         })}

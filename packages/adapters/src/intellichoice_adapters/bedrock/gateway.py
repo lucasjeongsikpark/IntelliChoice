@@ -23,6 +23,7 @@ from intellichoice_shared.bedrock import (
     CircuitOpenError,
     CostBudgetExceededError,
     EmbeddingResult,
+    OutputTruncatedError,
     StructuredOutputError,
 )
 from pydantic import BaseModel, ValidationError
@@ -450,7 +451,7 @@ class ResilientBedrockGateway:
             # truncation, at full input cost and ~10 s of latency. Raise on the spot and
             # let the caller's fallback run - the honest fix is a bigger ceiling or a
             # smaller response shape, not another attempt (D-115).
-            raise StructuredOutputError(
+            raise OutputTruncatedError(
                 f"model hit max_output_tokens={max_output_tokens} before completing the "
                 f"{response_model.__name__} response; not retrying under the same ceiling",
                 cost_cents=self._cost_cents(model_id, already_in, already_out),

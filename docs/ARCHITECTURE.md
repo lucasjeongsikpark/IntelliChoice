@@ -47,6 +47,18 @@ to rot, because nothing fails when it does.)*
 
 ## Cross-cutting invariants the diagrams encode
 
+- **Authored content is served from the bank, not regenerated** (D-207). An authored template's
+  `canonical_solution` was verified by the offline pipeline (SymPy re-solve + answer-key agreement)
+  and written to `question_templates.canonical_solution` by the loader; the serving path reads it
+  back rather than paying an LLM to re-derive it. `tutor.stored_solution` is the seam - it returns
+  `None` for a shape template (which has none) and for a stored blob that fails its own re-check,
+  and both fall through to generation. The general rule this instance of: **anything the offline
+  pipeline already proved is cheaper and more reliable to read than to re-ask.**
+- **A truncated structured response is the caller's decision, not the gateway's** (D-207). The
+  gateway refuses to retry under the same ceiling (D-115, and it is right to - same prompt, same
+  ceiling, same truncation). `OutputTruncatedError` exists so a caller who can raise the ceiling can
+  tell that case apart from malformed JSON, where a retry really is waste. Only `tutor_chat` uses
+  it, once, at 800 tokens.
 - **The authoring pipeline is five model calls with different jobs, not one** (D-200/D-205). In
   order: an equation *design* call whose six-field output is solved by SymPy before anything is
   written around it; an *authoring* call that builds the item on that verified skeleton; two

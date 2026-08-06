@@ -23,7 +23,11 @@ from intellichoice_shared.bedrock import BedrockTask
 from intellichoice_shared.youtube import YoutubeProvider
 
 from intellichoice_youtube.catalog_sync import YoutubeSyncError, sync_channel
-from intellichoice_youtube.settings import YoutubeSyncSettings, get_sync_settings
+from intellichoice_youtube.settings import (
+    YoutubeSyncSettings,
+    check_real_sync_preflight,
+    get_sync_settings,
+)
 
 
 def _build_gateway(settings: YoutubeSyncSettings) -> ResilientBedrockGateway:
@@ -52,15 +56,19 @@ def _build_gateway(settings: YoutubeSyncSettings) -> ResilientBedrockGateway:
 
 def _build_provider(settings: YoutubeSyncSettings) -> YoutubeProvider:
     if settings.youtube_provider == "youtube":
-        # Real YouTube Data API credentials don't exist yet (D-002's posture, same
-        # footing as Gmail/Calendar/Maps) - unexercised until a real `youtube_api_key`
-        # is configured; `fake` stays the dev default.
-        return YoutubeDataApiProvider(api_key=settings.youtube_api_key)
+        # `fake` stays the dev default (D-002's posture, same footing as Gmail/Calendar/
+        # Maps). `check_real_sync_preflight` has already refused a run that cannot work,
+        # so reaching here means key and channel id are both present and well-shaped.
+        return YoutubeDataApiProvider(
+            api_key=settings.youtube_api_key, max_videos=settings.max_videos
+        )
     return FakeYoutubeProvider()
 
 
 async def main() -> None:
     settings = get_sync_settings()
+    # D-207: before the engine, before the gateway, before anything billable.
+    check_real_sync_preflight(settings)
     gateway = _build_gateway(settings)
     provider = _build_provider(settings)
     curriculum = load_curriculum()

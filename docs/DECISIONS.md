@@ -14226,3 +14226,186 @@ name cost a minute of confusion and is worth renaming.
 
 **Staging verified after the load:** `/healthz` → 200, `POST /learning/sessions` → 401 (auth
 enforced, which is the correct answer to an unauthenticated call).
+
+## D-207 — the five things a real UI walk found, and what each of them actually was
+
+The user ran the deployed app by hand and reported five areas: question readability, hint and
+solution, video, tutor chat, and "flow에서 이상한 에러가 뜰 때가 있는데". Rather than guess at
+any of them, staging's own CloudWatch log for that session (2026-08-06T20:11-20:14Z) and a direct
+query against the staging database were read first. **Four of the five had a specific, recorded
+cause; the fifth had zero rows.** Everything below is anchored to one of those two measurements.
+
+### 1. The question was styled as a heading, not as prose
+
+`ExamScreen` rendered the whole question inside a bare `<h1>`, which `packages/ui-brand/base.css`
+styles at **28 px / weight 600 / letter-spacing -0.02em**. That is heading typography applied to a
+sixty-word word problem.
+
+Worse, `rendered_question` is not one sentence. `ai_pipeline.py` builds it as
+`context_block + "\n\n" + stem`, and **20 of the 48 approved authored items have a context block**;
+one of them contains a markdown-style bullet list. HTML collapses `\n\n` and the bullet newlines to
+single spaces, so the scenario, the list and the question ran together into one large bold block.
+
+New `QuestionStem` component: paragraphs split on the blank line the pipeline itself wrote (not on a
+guess), the final paragraph emphasised as the thing being asked, the rest as scenario, and
+`white-space: pre-line` so the bullet lines survive. Measured after the change, in a browser:
+
+```
+.question-stem   17px / 400 / #1a1a1a / pre-line / line-height 27.2px / letter-spacing normal
+.question-setup  17px / 400 / #333333
+.question-ask    17px / 600 / #1a1a1a
+```
+
+Options also gained a letter token, a real tap target and a visible `1-4` shortcut hint - that
+keyboard shortcut has worked since S22 with nothing announcing it.
+
+### 2. The solution the bank had already verified was never served
+
+Staging, 20:13:32Z:
+
+```
+solution generation returned a final_answer that didn't match the correct answer; using deterministic fallback instead
+```
+
+Two separate defects behind that one line.
+
+**The cross-check was too strict.** `generate_solution` compared with `final_answer.strip() !=
+correct_answer_text.strip()`, so a solution ending `"8 weeks"` against an option reading `"8"` was
+discarded as wrong. It is not wrong. Replaced with `answers_agree`, extracted from the authoring
+gate's own `check_hint_solution_answer_agreement`: normalised string equality first, then SymPy value
+equality. `"8"` and `"8 weeks"` now agree; `"8"` and `"18"` still do not.
+
+**And the fallback the student then saw is not a solution.** It is two steps, the second of which
+reads "Apply the standard method for {skill} to isolate the answer."
+
+The real finding is upstream of both: **an authored template already carries a verified
+`canonical_solution`**, written into `question_templates.canonical_solution` by the loader on every
+deploy - and nothing on the serving path had ever read it back. Every "show me the solution" paid
+Bedrock ~3 s to re-derive, less reliably, a solution the row already held. `tutor.stored_solution`
+now prefers it (returning `None` for shape templates, which have none, and for a stored blob that
+fails its own re-check). Confirmed end-to-end by a Playwright probe: **five real steps rendered**
+where the fallback would have shown two.
+
+The panel was rebuilt to match. A hint's three fields were three undifferentiated paragraphs, two of
+them `.dim`; they are now labelled ("Remember", "Try this next") with the ladder position as pips.
+Solution steps are numbered cards with the working on its own line.
+
+### 3. Staging's video catalog has zero rows
+
+Counted directly against the staging database:
+
+```
+youtube_videos => 0        question_templates => 98        question_variants => 15261
+```
+
+So **every** "Watch a video" bought a Titan embedding and then returned the §5.11.6 fallback anyway -
+measured at 20:13:51Z, 144.73 ms, for a foregone conclusion. `search_video` now asks
+`repo.has_servable_video()` first and returns `(None, 0.0)` when nothing is servable. A cost bug is a
+production bug.
+
+The catalog is empty because the sync worker has never been part of a deploy - the same class of
+omission as D-206's question bank. **The user chose the real-API-key path over hand-curation.** Two
+things about that path were broken and had never been exercised, because no key existed:
+
+- `channel_id` defaults to `"khan-academy-math"`, which is `FakeYoutubeProvider`'s id and **not a
+  YouTube channel id**. The Data API resolves channels by their `UC...` id, so the first real run
+  would have died with `channel 'khan-academy-math' not found` - which reads like a deleted channel
+  rather than a wrong kind of value.
+- the fetch was unbounded: `_playlist_video_ids` walks a channel's entire uploads playlist, and
+  `sync_channel`'s budget check does not run until *after* all of that.
+
+`check_real_sync_preflight` now refuses both before anything billable, and `max_videos` bounds the
+walk. The channel-id check is **shape only** and deliberately so - hard-coding a real channel's id
+would assert a fact this codebase cannot verify, and a wrong one points a K-12 student at somebody
+else's videos. (An attempt to verify Khan Academy's id via WebFetch returned nothing usable, so it
+was not guessed. Same lesson as D-204.)
+
+### 4. The tutor chat answered a student's question with an apology
+
+Staging, 20:14:08Z:
+
+```
+"reason": "output_truncated", "detail": "model hit max_output_tokens=400 before completing the TutorChatResponse response; not retrying under the same ceiling"
+```
+
+and the endpoint returned **200** carrying `_fallback_chat_response`'s "I'm having a little trouble
+right now". The student's question was silently swallowed.
+
+D-115's refusal to retry is correct *as stated* - same prompt, same ceiling, same truncation, at full
+input cost - and it names the honest fix: "a bigger ceiling or a smaller response shape". Both belong
+to the caller. So:
+
+- `OutputTruncatedError` split out of `StructuredOutputError`, so a caller can tell "ran out of
+  tokens" from "produced malformed JSON", where a retry really would be waste.
+- `_tutor_chat_call` retries **once**, at 800 tokens. Bounded; a second truncation falls back.
+- both chat prompts now ask for **at most 4 short sentences**. The ceiling alone never constrained
+  length, and a short answer is the better one for a student reading on a phone anyway.
+
+The transcript also moved out of `TutorChatPanel` into `useTutorChat`, held by `App`.
+`AssistancePanel` returns two different trees - a chooser, then a content view - so React unmounted
+the panel the moment the student's first choice landed, taking the conversation with it. Ask a
+question, take a hint, come back: gone. It now lives as long as the learning session does, and a
+typing indicator covers the ~4 s a real tutor turn takes.
+
+### 5. The "이상한 에러" was a 409, shown to a child in the API's own words
+
+Staging, 20:12:46.914Z: `POST /answers` → **409** in 15.4 ms - the eleventh answer of a ten-question
+exam, refused by `flow.ensure_item_unanswered` before any graph turn. A duplicate.
+
+**Why the last question specifically.** `handleSubmitClick` advances after a submit, and a question
+the student has left cannot be double-clicked. On the last one there is nowhere to advance to, so
+they stay put - and the read-only lock comes from `overview`, fetched on a poll. The immediate
+`onFetchOverview()` races the still-in-flight answer POST and comes back saying `unseen`. Options
+re-enable; a second Submit is a 409. `isReadOnly` now also consults `answeredSelections`, which is
+written synchronously, so the lock does not wait on a round trip.
+
+**And the message itself.** `useLearningSession.run()` surfaced `String(err.detail)` verbatim, so the
+student saw text like `question variant 3f2a… is not an item of this session`. The primary users of
+this app are minors. `api/errors.ts` maps status + a detail fragment to a sentence they can read, and
+logs the raw detail to the console instead of the screen.
+
+That mapping is a cross-language coupling with nothing holding it together, and it **broke on its
+first attempt**: it tested for `"already answered"` while `ItemAlreadyAnsweredError` formats `item
+{id} has already been answered` - not a substring - so duplicates fell through to the generic line.
+Caught by reading a Playwright failure screenshot, not by reasoning. `test_error_detail_wording.py`
+now pins the fragments on the Python side so the next reword fails fast and locally.
+
+### What is *not* fixed here, and why
+
+**Seven of the 48 live items show reviewer-facing rationale to students.** Found while checking the
+new paragraph split against real content. Their `context_block` - which is concatenated into
+`rendered_question` and therefore read by the student - contains sentences written for a reviewer:
+
+| item | the sentence a student currently reads |
+| --- | --- |
+| `authored-linear_equations-d2-1607201` | "The student has a concrete goal (remaining money) and a constant rate of spending. The equation requires two operations: undoing the starting amount and dividing by a negative coefficient." |
+| `authored-linear_equations-d1-308100` | "Students solve equations by combining given information rather than isolating variables through multiple steps." |
+| `authored-linear_equations-d2-1609200` | "The scenario is concrete: a student can picture buying one thing, then several identical things…" |
+| `authored-linear_equations-d3-205300` | "…This is a concrete real-world scenario requiring students to set up and solve a linear equation." |
+| `authored-linear_equations-d1-1509100` | "…The scenario provides all necessary numbers: 3 notebooks, a $5 pen, and a $26 total." |
+| `authored-linear_equations-d3-1609301` | "…making it accessible for students in grades 6-7." |
+| `authored-linear_equations-d3-1607300` | (borderline - reads as third-person scenario, listed for completeness) |
+
+The first one is the worst: it **states the solution method** before the student has attempted the
+question.
+
+Separately, **seven items have a context block that simply restates the stem** (>65% word overlap;
+`d3-415301` is 94%), so the student reads the same problem twice. The new paragraph split makes this
+obvious rather than hiding it in a run-on block, which is the right outcome for a human about to
+review the bank.
+
+Not fixed here, deliberately, for two reasons. `check_no_meta_commentary`'s phrase list targets a
+*different* class - the model narrating its own authoring - and matches none of these; widening it
+without also fixing the items would make the next deploy's loader **fail**, because
+`validate_authored_item` still runs at load time (D-202 removed it from the generation pipeline only,
+not from the loader). And the loader is **skip-by-id**: editing the YAML does not propagate to rows
+already in a database, so correcting these is `review_cli`'s edit-and-rerun path - a new id, a bumped
+version, re-review - which is a content decision about material shown to minors, not a text edit.
+
+### Test-suite note
+
+`make test` is **flaky before this change and after it**: measured 2 green out of 5 baseline runs,
+with `test_difficulty_recommendation_reaches_template_selection` and the strict-xfail determinism
+test alternating. Both are mastery-dependent and the suite shares one dev Postgres. Confirmed by
+stashing every change and re-running - the flakiness is pre-existing, not introduced here. The final
+sweep on this branch was green: **1027 passed, 2 skipped, 1 xfailed**.

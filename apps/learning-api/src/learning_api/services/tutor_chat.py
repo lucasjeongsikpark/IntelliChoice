@@ -30,6 +30,7 @@ from intellichoice_shared.bedrock import (
     BedrockTask,
     LearningChatIntentPayload,
     LearningChatIntentResponse,
+    OutputTruncatedError,
     TutorChatPayload,
     TutorChatResponse,
     TutorContext,
@@ -68,37 +69,65 @@ _SAFETY_KEYWORDS = (
     "want to die", "end my life", "hurting me", "abuse", "being hurt",
 )
 
+# D-207: both prompts now bound the reply's *length* as well as its content. The ceiling
+# alone did not - a model told only "be encouraging" writes until it is cut off, which is
+# exactly what happened on staging at 2026-08-06T20:14:08Z: `output_truncated` at 400
+# tokens, and the student got `_fallback_chat_response`'s apology instead of an answer.
+# Asking for 3-4 sentences is cheaper than raising the ceiling and hoping, and it is also
+# the better reply for a K-12 student reading on a phone.
+_BREVITY_RULE = (
+    " Reply in at most 4 short sentences - a student reads this on a phone, and a wall of "
+    "text is not help. Do not restate the question back to them."
+)
+
 _CHAT_REPLY_SYSTEM_PROMPT = (
     "You are a friendly math tutor for a K-12 student, chatting about the question "
     "they're currently working on. Never reveal the final answer. Keep language "
     "encouraging, age-appropriate, and focused on this question - redirect politely if "
-    "the student's message drifts off-topic."
+    "the student's message drifts off-topic." + _BREVITY_RULE
 )
 
 _WHY_WRONG_SYSTEM_PROMPT = (
     "You are a friendly math tutor for a K-12 student. Explain, in age-appropriate "
     "language, why the student's selected answer is wrong and what misconception it "
     "suggests - without stating the final answer. Ground your explanation in the "
-    "question and the student's own message."
+    "question and the student's own message." + _BREVITY_RULE
 )
 
 _MAX_CHAT_REPLY_TOKENS = 400
+# The one honest retry D-115 names: same prompt under a *bigger* ceiling, used only after
+# a real truncation, bounded to a single extra attempt.
+#
+# It **does** widen what a turn can cost, and `TURN_RESERVATION_ESTIMATE_CENTS` below was
+# raised for it. The first version of this comment claimed otherwise, reasoning that
+# `MAX_TURN_CONTENT_TOKENS` (800, sized for a solution) already exceeded it - which is
+# wrong twice over: 400 + 800 is 1200, and the retry is a whole extra call, so it pays a
+# second time for the ~2000 input tokens the worst-case estimate assumes. Measured on the
+# most expensive priced model: 2.6250 -> 3.8250 cents.
+_RETRY_CHAT_REPLY_TOKENS = 800
 
 # AUD-X-08: what one chat turn reserves against the per-day ceiling before it runs,
-# replaced by the turn's real accumulated cost once it finishes. Covers the most expensive
-# shape a turn can take - the intent classification every turn pays for (150 output
-# tokens), plus the largest single content generation it can route to (a solution, 800).
-# A hint turn therefore over-reserves briefly, which is the safe direction for a ceiling.
-# `test_cost_reservation_estimates.py` asserts this still bounds the real gateway's own
-# worst case for both calls, so a pricing change cannot silently make it too small.
+# replaced by the turn's real accumulated cost once it finishes. It must cover the most
+# expensive *shape* a turn can take, and since D-207 there are two shapes rather than one:
 #
-# 2.625 cents is the worst case on the most expensive priced model (Sonnet 5), which is
-# also the unpriced-model fallback rate; the deployed model (Haiku 4.5) is 0.875. Rounded
-# up to 3.0. Against the 100-cent ceiling that still allows 33 simultaneous turns before
+#   - dispatch to a solution: intent (150 out) + one content call (800 out)
+#   - a chat reply that truncates: intent (150 out) + 400 out + the retry's 800 out
+#
+# The second is now the worse of the two, and not only because 400 + 800 > 800: the retry
+# is a separate call, so it pays again for the ~2000 input tokens `worst_case_cost_cents`
+# assumes. `test_cost_reservation_estimates.py` asserts both shapes, so neither a pricing
+# change nor another retry can silently make this too small - which is exactly what
+# happened when the retry was added and the constant was not revisited.
+#
+# 3.825 cents is the worst case on the most expensive priced model (Sonnet 5), which is
+# also the unpriced-model fallback rate; the deployed model (Haiku 4.5) is 1.275. Rounded
+# up to 4.0. Against the 100-cent ceiling that still allows 25 simultaneous turns before
 # any student is degraded, and `settle` returns the difference as soon as the turn ends.
 INTENT_CLASSIFICATION_TOKENS = 150
 MAX_TURN_CONTENT_TOKENS = 800
-TURN_RESERVATION_ESTIMATE_CENTS = 3.0
+# The two content calls a truncated-then-retried chat turn makes, in order.
+CHAT_RETRY_CONTENT_TOKENS = (_MAX_CHAT_REPLY_TOKENS, _RETRY_CHAT_REPLY_TOKENS)
+TURN_RESERVATION_ESTIMATE_CENTS = 4.0
 
 
 def screen_for_safety_concern(message: str) -> bool:
@@ -156,26 +185,44 @@ async def _tutor_chat_call(
         relevant_learning_fact=relevant_learning_fact,
         redacted_message=redacted_message,
     )
-    try:
-        result = await gateway.generate_structured(
+    async def _call(max_output_tokens: int, spend: float):
+        return await gateway.generate_structured(
             task=BedrockTask.TUTOR_CHAT,
             system_prompt=system_prompt,
             payload=payload,
             response_model=TutorChatResponse,
-            max_output_tokens=_MAX_CHAT_REPLY_TOKENS,
-            session_spend_cents=session_spend_cents,
+            max_output_tokens=max_output_tokens,
+            session_spend_cents=spend,
         )
-    except BedrockGatewayError:
-        return _fallback_chat_response(), 0.0
 
+    truncation_cost = 0.0
+    try:
+        result = await _call(_MAX_CHAT_REPLY_TOKENS, session_spend_cents)
+    except OutputTruncatedError as exc:
+        # D-207. The gateway refuses to retry under the *same* ceiling and is right to
+        # (D-115) - but "the honest fix is a bigger ceiling" is a fix the caller can
+        # actually apply, and this is the only place that knows a truncated tutor reply
+        # is worth one more try. Without it the student's question is answered with an
+        # apology, which is what staging did. Still bounded: one retry, then the fallback.
+        truncation_cost = exc.cost_cents
+        try:
+            result = await _call(
+                _RETRY_CHAT_REPLY_TOKENS, session_spend_cents + truncation_cost
+            )
+        except BedrockGatewayError as retry_exc:
+            return _fallback_chat_response(), truncation_cost + retry_exc.cost_cents
+    except BedrockGatewayError as exc:
+        return _fallback_chat_response(), exc.cost_cents
+
+    result_cost = result.cost_cents + truncation_cost
     response = result.value
     if (
         response.answer_revealed
         or leak_phrase_present(response.reply_text)
         or answer_text_leaked(response.reply_text, correct_answer_text)
     ):
-        return _fallback_chat_response(), result.cost_cents
-    return response, result.cost_cents
+        return _fallback_chat_response(), result_cost
+    return response, result_cost
 
 
 async def generate_chat_reply(

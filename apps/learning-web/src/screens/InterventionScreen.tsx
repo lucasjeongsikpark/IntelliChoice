@@ -1,5 +1,5 @@
+import { TutorChatPanel, type ChatTranscript } from "../components/TutorChatPanel";
 import type { ChatMessageResult } from "../api/client";
-import { TutorChatPanel } from "../components/TutorChatPanel";
 import type { InterventionContent } from "../types";
 
 type Choice = "hint" | "solution" | "video" | "continue";
@@ -27,8 +27,20 @@ interface AssistancePanelProps {
     questionVariantId: string,
     message: string,
   ) => Promise<ChatMessageResult | null>;
+  // D-207: the transcript lives in `App`, not in `TutorChatPanel`. This component
+  // changes shape between the chooser and the content view, which unmounts the panel and
+  // took the conversation with it - a student who asked a question, took a hint, then
+  // came back found an empty chat. See `useTutorChat`.
+  chat: ChatTranscript;
 }
 
+/**
+ * D-207 rewrite. The content was correct before this and read as an undifferentiated
+ * wall: a hint's three fields (`hint_text`, `concept_reminder`, `next_step_prompt`) were
+ * three bare `<p>`s, two of them `.dim`, so nothing said which one was the hint and which
+ * two were context. Solution steps put `explanation` and `expression` in the same run of
+ * text. Each part now says what it is.
+ */
 export function AssistancePanel({
   intervention,
   ladderOpen,
@@ -37,27 +49,33 @@ export function AssistancePanel({
   onDismiss,
   questionVariantId,
   onSendChatMessage,
+  chat,
 }: AssistancePanelProps) {
+  const chatPanel = questionVariantId && (
+    <TutorChatPanel
+      questionVariantId={questionVariantId}
+      onSendMessage={onSendChatMessage}
+      transcript={chat}
+    />
+  );
+
   if (!intervention) {
     return (
       <div className="panel">
         <h1>Not quite — want a hand?</h1>
         <p className="subtitle">Choose how you'd like to work through this one.</p>
-        <button disabled={busy} onClick={() => onChoose("hint")}>
-          Get a hint
-        </button>
-        <button className="secondary" disabled={busy} onClick={() => onChoose("solution")}>
-          Show the solution
-        </button>
-        <button className="secondary" disabled={busy} onClick={() => onChoose("video")}>
-          Watch a video
-        </button>
-        {questionVariantId && (
-          <TutorChatPanel
-            questionVariantId={questionVariantId}
-            onSendMessage={onSendChatMessage}
-          />
-        )}
+        <div className="assistance-choices">
+          <button disabled={busy} onClick={() => onChoose("hint")}>
+            Get a hint
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => onChoose("solution")}>
+            Show the solution
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => onChoose("video")}>
+            Watch a video
+          </button>
+        </div>
+        {chatPanel}
       </div>
     );
   }
@@ -70,75 +88,29 @@ export function AssistancePanel({
 
   return (
     <div className="intervention-panel">
-      {intervention.type === "hint" && (
-        <>
-          <h2>
-            Hint
-            {intervention.hint_level != null && intervention.max_hint_level != null && (
-              <span className="dim">
-                {" "}
-                (hint {intervention.hint_level} of {intervention.max_hint_level})
-              </span>
-            )}
-          </h2>
-          <p>{intervention.hint_text}</p>
-          {intervention.concept_reminder && <p className="dim">{intervention.concept_reminder}</p>}
-          {intervention.next_step_prompt && <p className="dim">{intervention.next_step_prompt}</p>}
-        </>
-      )}
-      {intervention.type === "solution" && (
-        <>
-          <h2>Solution</h2>
-          <ol>
-            {intervention.steps?.map((step) => (
-              <li key={step.step_number}>
-                <p>{step.explanation}</p>
-                <code>{step.expression}</code>
-                {step.common_mistake && <p className="dim">Watch out: {step.common_mistake}</p>}
-              </li>
-            ))}
-          </ol>
-          <p>
-            <strong>Answer:</strong> {intervention.final_answer}
-          </p>
-        </>
-      )}
-      {intervention.type === "video" && (
-        <>
-          <h2>Video</h2>
-          {intervention.video_url ? (
-            <p>
-              <a href={intervention.video_url} target="_blank" rel="noreferrer">
-                {intervention.video_title} ({intervention.video_source})
-              </a>
-            </p>
-          ) : (
-            <p>{intervention.message}</p>
-          )}
-        </>
-      )}
+      {intervention.type === "hint" && <HintContent intervention={intervention} />}
+      {intervention.type === "solution" && <SolutionContent intervention={intervention} />}
+      {intervention.type === "video" && <VideoContent intervention={intervention} />}
+
       {ladderOpen ? (
         <>
-          {isHint && !atFinalLevel && (
-            <button disabled={busy} onClick={() => onChoose("hint")}>
-              Get another hint
+          <div className="assistance-choices">
+            {isHint && !atFinalLevel && (
+              <button disabled={busy} onClick={() => onChoose("hint")}>
+                Get another hint
+              </button>
+            )}
+            <button className="secondary" disabled={busy} onClick={() => onChoose("solution")}>
+              Show the solution
             </button>
-          )}
-          <button className="secondary" disabled={busy} onClick={() => onChoose("solution")}>
-            Show the solution
-          </button>
-          <button className="secondary" disabled={busy} onClick={() => onChoose("video")}>
-            Watch a video
-          </button>
-          <button className="secondary" disabled={busy} onClick={() => onChoose("continue")}>
-            I'll try again now
-          </button>
-          {questionVariantId && (
-            <TutorChatPanel
-              questionVariantId={questionVariantId}
-              onSendMessage={onSendChatMessage}
-            />
-          )}
+            <button className="secondary" disabled={busy} onClick={() => onChoose("video")}>
+              Watch a video
+            </button>
+            <button className="secondary" disabled={busy} onClick={() => onChoose("continue")}>
+              I'll try again now
+            </button>
+          </div>
+          {chatPanel}
         </>
       ) : (
         <button className="secondary" onClick={onDismiss}>
@@ -146,5 +118,123 @@ export function AssistancePanel({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * The ladder position as dots rather than "(hint 2 of 3)" in the heading. Two reasons:
+ * a student can see at a glance how much help is left, and it stops the heading from
+ * carrying a parenthetical that grows every round.
+ */
+function HintContent({ intervention }: { intervention: InterventionContent }) {
+  const level = intervention.hint_level ?? null;
+  const max = intervention.max_hint_level ?? null;
+  return (
+    <>
+      <div className="intervention-head">
+        <h2>Hint</h2>
+        {level != null && max != null && (
+          <span
+            className="hint-ladder"
+            role="img"
+            aria-label={`Hint ${level} of ${max}`}
+            title={`Hint ${level} of ${max}`}
+          >
+            {Array.from({ length: max }, (_, index) => (
+              <span
+                key={index}
+                aria-hidden="true"
+                className={`hint-pip ${index < level ? "filled" : ""}`}
+              />
+            ))}
+          </span>
+        )}
+      </div>
+      <p className="intervention-lead">{intervention.hint_text}</p>
+      {intervention.concept_reminder && (
+        <div className="intervention-aside">
+          <h3>Remember</h3>
+          <p>{intervention.concept_reminder}</p>
+        </div>
+      )}
+      {intervention.next_step_prompt && (
+        <div className="intervention-aside">
+          <h3>Try this next</h3>
+          <p>{intervention.next_step_prompt}</p>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Steps as cards, each with the working on its own line. The old markup put
+ * `<p>{explanation}</p><code>{expression}</code>` inside an `<li>`, so on a six-step
+ * solution the reasoning and the algebra interleaved with no visual rhythm at all - and a
+ * six-step solution is now the normal case, because D-207 serves the authored bank's own
+ * `canonical_solution` instead of a generated two-step fallback.
+ */
+function SolutionContent({ intervention }: { intervention: InterventionContent }) {
+  return (
+    <>
+      <div className="intervention-head">
+        <h2>Solution</h2>
+      </div>
+      <ol className="solution-steps">
+        {intervention.steps?.map((step) => (
+          <li key={step.step_number} className="solution-step">
+            <p className="step-explanation">{step.explanation}</p>
+            {/* Some canonical steps close with an empty expression (the "the answer is 8
+                weeks" step). Rendering an empty `<code>` box there is a stray artefact. */}
+            {step.expression.trim() && <code className="step-expression">{step.expression}</code>}
+            {step.common_mistake && (
+              <p className="step-mistake">
+                <strong>Watch out:</strong> {step.common_mistake}
+              </p>
+            )}
+          </li>
+        ))}
+      </ol>
+      <p className="solution-answer">
+        <span className="solution-answer-label">Answer</span>
+        <strong>{intervention.final_answer}</strong>
+      </p>
+    </>
+  );
+}
+
+/**
+ * A link card, not a bare anchor, and it says where it goes.
+ *
+ * Deliberately **not** an embedded player. An `<iframe>` would put a third-party frame
+ * that can set cookies and autoplay in front of a minor, inside a page that otherwise
+ * loads nothing external; that is a privacy decision, not a layout one, and it is not
+ * this change's to make. The card carries the title and channel so the student knows what
+ * they are about to open.
+ */
+function VideoContent({ intervention }: { intervention: InterventionContent }) {
+  return (
+    <>
+      <div className="intervention-head">
+        <h2>Video</h2>
+      </div>
+      {intervention.video_url ? (
+        <a
+          className="video-card"
+          href={intervention.video_url}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span className="video-card-title">{intervention.video_title}</span>
+          <span className="video-card-meta">
+            {intervention.video_source} · opens in a new tab
+          </span>
+        </a>
+      ) : (
+        // The §5.11.6 fallback. It is a real answer ("nothing verified for this skill
+        // yet"), so it reads as one rather than as an error.
+        <p className="intervention-lead">{intervention.message}</p>
+      )}
+    </>
   );
 }

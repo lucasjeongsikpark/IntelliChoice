@@ -5,6 +5,57 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+### Session log — what a real UI walk found (2026-08-06, D-207)
+
+**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1027 passed, 2 skipped,
+1 xfailed** · `learning-web` build + `tsc` + `oxlint` clean · e2e typecheck clean.
+
+**Not a numbered ROADMAP session** — the user walked the deployed app and reported five areas.
+No Bedrock spend: every diagnosis came from staging's own CloudWatch log for the user's session
+(2026-08-06T20:11–20:14Z) and one direct query against the staging database.
+
+**Four of the five had a recorded cause; the fifth had zero rows.** Full write-up in DECISIONS.md
+D-207.
+
+| | what it actually was | evidence |
+|---|---|---|
+| readability | the whole question rendered in a bare `<h1>` at 28px/600, and `rendered_question` is `context_block + "\n\n" + stem` for **20 of 48 items** — HTML collapsed every break | measured computed styles before/after; screenshot |
+| solution | **the bank's own verified `canonical_solution` was written by every deploy and read by nothing**; the LLM re-derivation was then discarded over a unit word (`"8 weeks"` vs `"8"`) and replaced by a 2-step placeholder | staging 20:13:32Z; probe now renders **5 real steps** |
+| video | **`youtube_videos` = 0 on staging** — every "Watch a video" bought a Titan embedding for a foregone fallback | staging DB count; 20:13:51Z |
+| chat | `output_truncated` at 400 tokens, and the endpoint answered **200** with "I'm having a little trouble right now" — the student's question silently swallowed | staging 20:14:08Z |
+| flow error | duplicate `POST /answers` → **409**, and the student was shown the API's own wire text | staging 20:12:46.914Z |
+
+**Two things I got wrong and corrected.** The friendly-error table tested for `"already answered"`
+while the backend says `"has already been answered"` — not a substring — so duplicates fell through
+to the generic message; caught by reading a Playwright screenshot, now pinned by
+`test_error_detail_wording.py`. And I could not verify Khan Academy's `UC...` channel id, so the
+real-sync preflight checks **shape only** rather than asserting an id from memory (D-204's lesson).
+
+### Carry-over from D-207, most consequential first
+
+1. **⚠️ Seven live items show reviewer-facing rationale to students**, because `context_block` is
+   concatenated into `rendered_question`. `authored-linear_equations-d2-1607201` **states the
+   solution method** before the student attempts it: "The equation requires two operations: undoing
+   the starting amount and dividing by a negative coefficient." Full list in DECISIONS.md D-207.
+   Not fixed here: `check_no_meta_commentary` targets a different class and matches none of them,
+   and widening it without fixing the items would make the next deploy's **loader fail** (that gate
+   still runs at load time). The loader is skip-by-id, so a YAML edit does not propagate —
+   correcting these is `review_cli`'s edit-and-rerun path, which is a content decision.
+2. **Seven items restate the stem in their context block** (>65% word overlap; `d3-415301` is 94%),
+   so the student reads the same problem twice. The new paragraph split makes this visible rather
+   than hiding it — which is what a human reviewing the bank wants.
+3. **`make test` is flaky before *and* after this change** — 2 green in 5 baseline runs, alternating
+   between `test_difficulty_recommendation_reaches_template_selection` and the strict-xfail
+   determinism test. Both are mastery-dependent and the suite shares one dev Postgres. Confirmed
+   pre-existing by stashing every change and re-running.
+4. **The LangGraph checkpoint warning is still there** — `Deserializing unregistered type
+   learning_api.graph.build.EntryInput … will be blocked in a future version`. Silencing it means
+   switching the serializer from permissive to an explicit allowlist, whose failure mode is "live
+   sessions cannot deserialize". Deliberately not done to remove a warning.
+5. **The video path is ready but empty.** `check_real_sync_preflight` will refuse clearly until
+   `YOUTUBE_YOUTUBE_API_KEY` and a real `UC...` `YOUTUBE_CHANNEL_ID` are set; the sync is still not
+   a deploy step, so staging stays at zero rows until it is run.
+
 ### Session log — authored question generation, end to end (2026-08-05 → 08-06, D-195 → D-206)
 
 **Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1001 passed, 2 skipped,
