@@ -21,7 +21,7 @@ templates:
   version: 1
   stem: 'Solve for x: 2x + 5 = x + 12'
   context_block: null
-  answer_expression: '7'
+  answer_expression: Eq(2*x + 5, x + 12)
   hint_ladder:
   - Think about what you need to do to get all the x terms on one side of the equation.
   - Try subtracting x from both sides first. What do you get?
@@ -73,7 +73,7 @@ templates:
   version: 1
   stem: 'Solve for x: 2(x + 3) + 4x = 30'
   context_block: null
-  answer_expression: '4'
+  answer_expression: Eq(2*(x + 3) + 4*x, 30)
   hint_ladder:
   - Start by using the distributive property to expand 2(x + 3). What do you multiply 2 by each term inside
     the parentheses?
@@ -129,7 +129,7 @@ templates:
   version: 1
   stem: 'Solve for x: -2x + 6 = 14'
   context_block: null
-  answer_expression: '-4'
+  answer_expression: Eq(-2*x + 6, 14)
   hint_ladder:
   - What operation would undo adding 6?
   - After subtracting 6 from both sides, you'll have -2x equal to a number. What operation undoes multiplication
@@ -183,7 +183,7 @@ templates:
   version: 1
   stem: 'Solve for x: x + 7 = 15'
   context_block: null
-  answer_expression: '8'
+  answer_expression: Eq(x + 7, 15)
   hint_ladder:
   - What operation is being done to x in this equation? What would undo it?
   - You need to subtract 7 from both sides to isolate x.
@@ -231,7 +231,7 @@ templates:
   version: 1
   stem: 'Solve for x: 2x + 7 = 19'
   context_block: null
-  answer_expression: '6'
+  answer_expression: Eq(2*x + 7, 19)
   hint_ladder:
   - What operation is the opposite of adding 7?
   - Subtract 7 from both sides to isolate the term with x.

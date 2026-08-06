@@ -33,6 +33,7 @@ Design choices worth knowing before reading the code (see DECISIONS.md D-026):
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -214,33 +215,56 @@ _MAX_TOKENS = 400
 # generator stage, before the deterministic gate ever ran. Sized with headroom above the
 # measured worst case rather than at it - the ceiling is a runaway guard, not a budget,
 # since output tokens bill by actual use.
-_AUTHORED_ITEM_MAX_TOKENS = 1600
+# Raised from 1600 after the first scenario run hit it (D-191). The 1600 was measured
+# against bare "Solve for x" output, where the worst case was 954 tokens; a question that
+# sets up a situation, four unit-bearing options and a worked solution is simply longer, so
+# the old ceiling was calibrated on content the pipeline no longer produces. Still a
+# runaway guard rather than a budget - output tokens bill by actual use.
+_AUTHORED_ITEM_MAX_TOKENS = 2500
 # Solver and judge responses are a few small fields plus a free-text `reasoning` (the
 # generator's ran ~660 characters at tier 5, i.e. well inside 400 on its own). Not observed
 # truncating, but a judge truncated by this ceiling discards a candidate that has already
 # paid for four calls, so they get modest headroom for the same reason.
-_AUTHORED_REVIEW_MAX_TOKENS = 800
+# Raised from 800 with narrative mode (D-192): a solver reading a *story* has to model it
+# before it can answer, and one ran out of tokens mid-reasoning on the first run. The judge
+# shares this ceiling and writes considerably more now that it also checks the scenario's
+# own constraints.
+_AUTHORED_REVIEW_MAX_TOKENS = 1200
 
 # --- S20 authored generation mode (plan §7) -----------------------------------------
 
 _AUTHORED_GENERATOR_SYSTEM_PROMPT = (
     "You are an expert K-12 math item writer. Given a topic, skill, grade band, and "
-    "target difficulty, write ONE original multiple-choice question: a clear stem, an "
-    "optional short context block (a scenario or table) if it helps, four distinct "
-    "options with exactly one correct, a SymPy-parseable answer_expression when the "
-    "answer is a computable value, a 3-level hint ladder that progressively guides "
+    "target difficulty, write ONE original multiple-choice question: a clear stem, four "
+    "distinct options with exactly one correct, a SymPy-parseable `equation` that models "
+    "the question, a 3-level hint ladder that progressively guides "
     "without ever stating the final answer, a worked canonical solution whose final "
     "answer matches the correct option exactly, and a misconception tag per distractor. "
-    "Follow the style of the exemplars provided. Never leak the answer in the stem or "
-    "any hint. "
-    # The deterministic gate re-solves `answer_expression` and compares it to the
+    "Never leak the answer in the stem or any hint. "
+    # The pipeline's first real output was five items, every one of them a bare
+    # "Solve for x: ..." with no context block at all - the field was documented as
+    # "optional ... if it helps" and the model took the cheap path every time. Nothing
+    # rejected a richer question; none was ever generated. Hence the requirement rather
+    # than the invitation (D-191).
+    "WRITE A SITUATION, NOT AN EXERCISE. The stem must place the mathematics in a "
+    "concrete scenario a student can picture - characters, objects, a goal, a question "
+    "worth answering. A bare symbolic prompt such as 'Solve for x: 7x + 3 = 4x + 4' is "
+    "NOT acceptable; the same mathematics presented as two robots collecting crystals at "
+    "different rates from different starting amounts IS. Only when the skill is explicitly "
+    "about symbolic manipulation for its own sake may the stem be purely symbolic. "
+    "Vary the setting between items - do not write two questions in the same world. "
+    "Keep every sentence under 30 words and the reading level inside the grade band; a "
+    "scenario that is hard to read is a reading test, not a math question. "
+    "The answer may carry a unit ('12 minutes', '40 cm') when the scenario implies one - "
+    "write the unit in the option text; the equation stays purely numeric. "
+    # The deterministic gate solves `equation` and compares the derived value to the
     # options' own text, so an option that does not parse as a value cannot be confirmed
     # correct. The first real run lost six of eleven candidates to exactly this - correct
     # answers written as "x = 7" or with a typographic minus - so the format is stated
     # rather than left implied. `_normalize_math_text` now also repairs both cases at the
     # parse site; asking here as well keeps the item text itself clean, since the stored
     # option text is what students and downstream text checks actually see.
-    "When answer_expression is given, write each option as a bare value with no variable "
+    "Write each option as a bare value with no variable "
     "and no equals sign ('7', not 'x = 7'), and use the ASCII hyphen '-' for negatives, "
     "never a typographic minus."
 )
@@ -249,6 +273,15 @@ _JUDGE_SYSTEM_PROMPT = (
     "difficulty fit, ambiguity, curriculum alignment, age-appropriateness, and the "
     "quality of its hint ladder. Be strict: a genuinely ambiguous, misaligned, or "
     "unsafe question must be flagged. "
+    # The first scenario run produced "A video game has three levels ... how many levels
+    # did she complete?" with the answer 4. The equation was solved correctly and the
+    # story was impossible; solvers and judge all passed it, because nothing had asked
+    # anyone to compare the answer against the scenario's own stated facts (D-191).
+    "Check the answer against the situation the question describes, not only against "
+    "its arithmetic. If the story states a limit or a quantity and the answer exceeds "
+    "or contradicts it - a three-level game whose answer is four levels, a person "
+    "buying more items than are for sale, a negative number of minutes - the question "
+    "is not internally consistent, however correct the algebra is. "
     # Left unstated until 2026-08-05, when the first real run showed the judge inventing a
     # 1-10 scale and scoring 8-9 on every item - which sits above both thresholds below,
     # so the hint-quality gate silently never fired. The schema now bounds the field too;
@@ -263,18 +296,34 @@ _JUDGE_SYSTEM_PROMPT = (
 # request time, §5.11.4) describing the expected stem/hint-ladder/solution style. Not
 # topic-specific by design so the same list works across every authored difficulty.
 _AUTHORED_FEW_SHOT_EXEMPLARS: list[str] = [
+    # Every exemplar is now a scenario, deliberately. The previous pair was one word
+    # problem and one bare "Solve for x", and the model copied the bare one five times out
+    # of five - an exemplar set is a menu, and half of that menu was the thing to avoid.
+    # The settings are intentionally unlike each other (robots, a bake sale, a hike) so
+    # "vary the setting" is demonstrated rather than only instructed.
     (
-        "stem: 'A rectangle is 3 times as long as it is wide. If the width is 5 cm, "
-        "what is the perimeter?' | hint_ladder: ['Perimeter adds up all four sides - "
-        "what shape does a rectangle have?', 'Find the length first using the "
-        "width-times-3 relationship.', 'Add width + length + width + length.'] | "
-        "canonical_solution final_answer: '40 cm'"
+        "stem: 'Two robots are collecting energy crystals. Robot A starts with 4 crystals "
+        "and collects 4 crystals each minute. Robot B starts with 16 crystals and "
+        "collects 2 crystals each minute. After how many minutes will the robots have the "
+        "same number of crystals?' | hint_ladder: ['Write an expression for each robot's "
+        "total after m minutes.', 'Robot A has 4 + 4m and Robot B has 16 + 2m. The "
+        "question asks when those are equal.', 'Collect the m terms on one side, then "
+        "divide by what is left.'] | canonical_solution final_answer: '6 minutes' | "
+        "equation: 'Eq(4 + 4*m, 16 + 2*m)'"
     ),
     (
-        "stem: 'Solve for x: 3x - 4 = 11.' | hint_ladder: ['What operation would undo "
-        "subtracting 4?', 'Add 4 to both sides first, then look at what multiplies x.', "
-        "'Isolate x by dividing both sides by its coefficient.'] | canonical_solution "
-        "final_answer: '5'"
+        "stem: 'Mia is saving for a bike. She already has $18 and saves $6 each week. The "
+        "bike costs $60. How many weeks until she can buy it?' | hint_ladder: ['What will "
+        "Mia have saved after w weeks?', 'Her savings are 18 + 6w, and she needs that to "
+        "reach 60.', 'Subtract what she already has, then divide by her weekly amount.'] "
+        "| canonical_solution final_answer: '7 weeks' | equation: 'Eq(18 + 6*w, 60)'"
+    ),
+    (
+        "stem: 'A hiking trail has markers every 250 meters. Ben has walked past 6 "
+        "markers and has 1500 meters left. How long is the whole trail?' | hint_ladder: "
+        "['How far has Ben walked when he passes 6 markers?', 'Six markers means 6 x 250 "
+        "meters walked so far.', 'Add the distance walked to the distance remaining.'] | "
+        "canonical_solution final_answer: '3000 meters' | equation: 'Eq(t, 6*250 + 1500)'"
     ),
 ]
 
@@ -291,6 +340,50 @@ NEAR_DUPLICATE_COSINE_DISTANCE_THRESHOLD = 0.05
 # queue. `hint_quality_score` is judged on a 1 (poor) - 5 (excellent) scale.
 _HINT_QUALITY_REJECT_BELOW = 2
 _HINT_QUALITY_BORDERLINE_AT = 3
+
+
+# Mirrors `authored_validation._OPTION_LABELS`; kept local rather than importing a
+# private name across modules.
+_OPTION_LABELS = ("a", "b", "c", "d")
+
+
+def shuffle_options(
+    item: AuthoredGeneratedItemResponse, *, seed: int
+) -> AuthoredGeneratedItemResponse:
+    """Deterministically permute the four options, keeping `correct_option` pointing at
+    the same text.
+
+    The first scenario run produced six passing items whose correct answer was option
+    **b** every single time (D-191). A student answering "always b" would have scored 100%.
+    Two solver agents and the judge passed all six without noticing, and no deterministic
+    check looked at the distribution - it is not a property of any single item, so nothing
+    examining one item could see it.
+
+    Fixed here rather than in the prompt on purpose: "vary which option is correct" is
+    exactly the kind of instruction a model follows unreliably and unverifiably, while a
+    seeded permutation is free, exact, and reproducible. Seeded from the candidate's own
+    seed so a re-run at the same seed rebuilds the identical item (D-013's determinism
+    posture).
+
+    Applied *before* validation and before the solvers, so every downstream stage sees the
+    item as a student would. Positions are tracked by index rather than by text, so an item
+    with duplicate options - which `check_unique_options` rejects a moment later - cannot
+    mislabel which option is correct on the way there.
+    """
+    texts = [item.option_a, item.option_b, item.option_c, item.option_d]
+    correct_index = _OPTION_LABELS.index(item.correct_option)
+    order = list(range(len(texts)))
+    random.Random(seed).shuffle(order)
+    shuffled = [texts[old_index] for old_index in order]
+    return item.model_copy(
+        update={
+            "option_a": shuffled[0],
+            "option_b": shuffled[1],
+            "option_c": shuffled[2],
+            "option_d": shuffled[3],
+            "correct_option": _OPTION_LABELS[order.index(correct_index)],
+        }
+    )
 
 
 class PipelineConfigError(Exception):
@@ -755,6 +848,9 @@ async def generate_authored_candidate(
     if error is not None or item is None:
         return await _reject([f"authored generator call failed: {error}"], {})
     assert isinstance(item, AuthoredGeneratedItemResponse)
+    # Before every check and before the solvers, so each stage sees what a student would
+    # (D-191). The generator put the correct answer in option b six times out of six.
+    item = shuffle_options(item, seed=seed)
 
     rendered_question = (
         f"{item.context_block}\n\n{item.stem}" if item.context_block else item.stem
@@ -879,6 +975,11 @@ async def generate_authored_candidate(
         judge_reasons.append(f"judge flagged misalignment: {judge.reasoning}")
     if not judge.is_age_appropriate:
         judge_reasons.append(f"judge flagged age-inappropriate content: {judge.reasoning}")
+    if not judge.is_internally_consistent:
+        judge_reasons.append(
+            f"judge flagged the answer as impossible in the situation described: "
+            f"{judge.reasoning}"
+        )
     if abs(judge.difficulty_label - difficulty_label) > 1:
         judge_reasons.append(
             f"judge rated difficulty {judge.difficulty_label}, too far from proposed "
@@ -925,7 +1026,9 @@ async def generate_authored_candidate(
             authoring_mode="authored",
             stem=item.stem,
             context_block=item.context_block,
-            answer_expression=item.answer_expression,
+            # The response field is `equation` (D-191); the column keeps its
+            # original name, so the mapping is stated here rather than implied.
+            answer_expression=item.equation,
             hint_ladder=item.hint_ladder,
             canonical_solution=item.canonical_solution.model_dump(),
             stem_embedding=stem_embedding,

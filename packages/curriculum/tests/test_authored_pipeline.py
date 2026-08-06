@@ -108,7 +108,7 @@ def _good_item(**overrides: object) -> AuthoredGeneratedItemResponse:
         option_c="6",
         option_d="3",
         correct_option="a",
-        answer_expression="2 + 2",
+        equation="Eq(x, 2 + 2)",
         hint_ladder=[
             "Think about combining two small groups of objects.",
             "Try counting up from 2 by 2 more.",
@@ -178,10 +178,32 @@ class _ScriptedAuthoredGateway:
         elif name == "SolverResponse":
             assert isinstance(payload, SolverPayload)
             assert self._last_item is not None
+            # Read the options *as presented*, which is what a real solver does and what
+            # the pipeline now requires: options are shuffled after generation (D-191), so
+            # the generated item's own `correct_option` letter no longer names the same
+            # option the solver is shown. Answering from the pre-shuffle letter made this
+            # double disagree with itself.
+            generated = {
+                "a": self._last_item.option_a,
+                "b": self._last_item.option_b,
+                "c": self._last_item.option_c,
+                "d": self._last_item.option_d,
+            }
+            correct_text = generated[self._last_item.correct_option]
+            presented = {
+                "a": payload.option_a,
+                "b": payload.option_b,
+                "c": payload.option_c,
+                "d": payload.option_d,
+            }
+            as_presented = next(
+                (label for label, text in presented.items() if text == correct_text),
+                self._last_item.correct_option,
+            )
             if task == BedrockTask.QUESTION_GENERATION:
-                selected = self._solver_a_option or self._last_item.correct_option
+                selected = self._solver_a_option or as_presented
             else:
-                selected = self._solver_b_option or self._last_item.correct_option
+                selected = self._solver_b_option or as_presented
             value = SolverResponse(selected_option=selected)  # type: ignore[arg-type]
         elif name == "QuestionJudgeResponse":
             assert isinstance(payload, QuestionJudgePayload)
@@ -443,6 +465,41 @@ def test_approving_an_authored_template_now_succeeds_but_still_needs_something_t
             assert still_pending.validation_status == "pending"
 
     asyncio.run(run())
+
+
+def test_option_shuffling_moves_the_correct_answer_without_changing_it() -> None:
+    """Six of six correct answers landed on option `b` in the first scenario run.
+
+    "Always answer b" would have scored 100%. Nothing caught it, and nothing could: the
+    bias is a property of the *set*, so no check that looks at one item can see it, and
+    the two solvers and the judge each look at one item. Fixed deterministically because
+    "vary the correct position" is an instruction a model follows unreliably.
+    """
+    item = _good_item()
+    correct_text = {"a": item.option_a, "b": item.option_b, "c": item.option_c}[
+        item.correct_option
+    ]
+
+    # The same seed rebuilds the same item - the whole pipeline is seed-reproducible.
+    assert ai_pipeline.shuffle_options(item, seed=7) == ai_pipeline.shuffle_options(item, seed=7)
+
+    positions = set()
+    for seed in range(40):
+        shuffled = ai_pipeline.shuffle_options(item, seed=seed)
+        options = {
+            "a": shuffled.option_a,
+            "b": shuffled.option_b,
+            "c": shuffled.option_c,
+            "d": shuffled.option_d,
+        }
+        # The declared correct option still names the same answer text.
+        assert options[shuffled.correct_option] == correct_text
+        # And the four options are the same four, only reordered.
+        assert sorted(options.values()) == sorted(
+            [item.option_a, item.option_b, item.option_c, item.option_d]
+        )
+        positions.add(shuffled.correct_option)
+    assert positions == {"a", "b", "c", "d"}, positions
 
 
 def test_unregistered_topic_raises_pipeline_config_error() -> None:

@@ -370,7 +370,14 @@ class AuthoredGeneratedItemResponse(BaseModel):
     option_c: str
     option_d: str
     correct_option: Literal["a", "b", "c", "d"]
-    answer_expression: str | None = None
+    # The equation that models the question, e.g. `Eq(3 + 7*m, 4 + 4*m)` for two robots
+    # collecting at different rates from different starting amounts. Named for what it is:
+    # this was `answer_expression`, and the generator filled it with the answer (`'7'`),
+    # which made the "independent solve" a comparison of the generator against itself
+    # (D-191). `authored_validation.derive_answer` solves it, so the answer is derived
+    # here rather than asserted by the model that wrote the question. Still persisted to
+    # the `answer_expression` column, which is not worth a migration to rename.
+    equation: str | None = None
     hint_ladder: list[str] = []
     canonical_solution: SolutionResponse
     misconception_tags: list[str] = []
@@ -404,6 +411,11 @@ class QuestionJudgeResponse(BaseModel):
     is_ambiguous: bool
     is_aligned: bool
     is_age_appropriate: bool
+    # Separate from `is_ambiguous` because the failure is not ambiguity: the question is
+    # perfectly clear, its algebra is right, and its answer is impossible in the world it
+    # describes. Overloading an existing flag would have made the rejection reason lie
+    # about what was wrong (D-191).
+    is_internally_consistent: bool = True
     # Bounded because an unbounded score silently disabled the gate that reads it. The
     # first real-Bedrock authoring run (2026-08-05) had the judge score every item 8 or 9
     # on its own invented 1-10 scale, while `ai_pipeline`'s thresholds reject below 2 and

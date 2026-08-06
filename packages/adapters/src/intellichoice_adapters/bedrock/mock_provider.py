@@ -141,7 +141,7 @@ def _authored_generated_item_json(payload: dict) -> dict:
         "option_c": "6",
         "option_d": "3",
         "correct_option": "a",
-        "answer_expression": "2 + 2",
+        "equation": "Eq(x, 2 + 2)",
         "hint_ladder": [
             "Think about combining two small groups of objects.",
             "Try counting up from 2 by 2 more.",
@@ -170,6 +170,7 @@ def _question_judge_json(payload: dict) -> dict:
         "is_ambiguous": False,
         "is_aligned": True,
         "is_age_appropriate": True,
+        "is_internally_consistent": True,
         "hint_quality_score": 5,
         "reasoning": "mock judge approves",
     }

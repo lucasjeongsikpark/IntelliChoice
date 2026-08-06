@@ -18,7 +18,7 @@ def _good_item(**overrides: object) -> AuthoredGeneratedItemResponse:
         option_c="6",
         option_d="3",
         correct_option="a",
-        answer_expression="2 + 2",
+        equation="Eq(x, 2 + 2)",
         hint_ladder=[
             "Think about combining two small groups of objects.",
             "Try counting up from 2 by 2 more.",
@@ -51,7 +51,7 @@ def test_two_correct_options_rejected() -> None:
 
 
 def test_sympy_disagreement_with_declared_answer_rejected() -> None:
-    item = _good_item(answer_expression="2 + 2", correct_option="b")  # option_b == "5"
+    item = _good_item(equation="Eq(x, 2 + 2)", correct_option="b")  # option_b == "5"
     result = validate_authored_item(1, item)
     assert not result.passed
     assert any("does not match declared correct option" in f for f in result.failures)
@@ -67,7 +67,7 @@ def test_correct_answer_written_as_an_equation_is_accepted() -> None:
     repair - that is what makes accepting them safe.
     """
     restated = _good_item(
-        answer_expression="3 + 4",
+        equation="Eq(x, 3 + 4)",
         option_a="x = 7",
         canonical_solution=SolutionResponse(
             steps=[SolutionStep(step_number=1, explanation="Add.", expression="3 + 4")],
@@ -79,7 +79,7 @@ def test_correct_answer_written_as_an_equation_is_accepted() -> None:
 
     typographic_minus = _good_item(
         stem="Solve for x: 2x + 7 = 1",
-        answer_expression="-3",
+        equation="Eq(2*x + 7, 1)",
         option_a="−3",
         canonical_solution=SolutionResponse(
             steps=[
@@ -92,6 +92,65 @@ def test_correct_answer_written_as_an_equation_is_accepted() -> None:
     assert result.passed, result.failures
 
 
+def test_a_word_problem_answer_with_a_unit_is_verified_rather_than_exempt() -> None:
+    """The gate penalised word problems, which is where units naturally appear.
+
+    Not by rejecting prose - a scenario stem always passed - but by rejecting the answer
+    text a scenario implies. `sympify('12 minutes')` fails, so the correct option matched
+    nothing and the item was rejected for a mismatch its math did not have. Same family as
+    `'x = 7'` and the typographic minus, unnoticed until the questions stopped being bare
+    equations (D-191).
+
+    The second half is the part that matters: stripping a unit must not stop the value
+    being checked, or this would trade a false rejection for a false acceptance.
+    """
+    with_unit = _good_item(
+        stem="A tank fills at 4 litres each minute. How long to add 12 litres?",
+        equation="Eq(4*x, 12)",
+        option_a="3 minutes",
+        option_b="4 minutes",
+        option_c="12 minutes",
+        option_d="48 minutes",
+        canonical_solution=SolutionResponse(
+            steps=[SolutionStep(step_number=1, explanation="Divide.", expression="12 / 4")],
+            final_answer="3 minutes",
+        ),
+    )
+    result = validate_authored_item(1, with_unit)
+    assert result.passed, result.failures
+
+    # Same units, wrong declared answer: still caught, so the unit did not become a
+    # loophole that makes any option match.
+    wrong = _good_item(
+        stem="A tank fills at 4 litres each minute. How long to add 12 litres?",
+        equation="Eq(4*x, 12)",
+        option_a="3 minutes",
+        option_b="4 minutes",
+        option_c="12 minutes",
+        option_d="48 minutes",
+        correct_option="b",
+        canonical_solution=SolutionResponse(
+            steps=[SolutionStep(step_number=1, explanation="Divide.", expression="12 / 4")],
+            final_answer="4 minutes",
+        ),
+    )
+    result = validate_authored_item(1, wrong)
+    assert not result.passed
+    assert any("does not match declared correct option" in f for f in result.failures)
+
+
+def test_an_algebraic_answer_is_not_mistaken_for_a_united_value() -> None:
+    """`'2x'` must not be read as `2` by the unit stripper - the reason it only runs
+    after a direct parse has already failed, and only on suffixes of two letters or more.
+    """
+    from intellichoice_curriculum.authored_validation import _sympify
+
+    assert _sympify("2x") is None
+    assert str(_sympify("x")) == "x"
+    assert _sympify("12 minutes") == 12
+    assert _sympify("40 cm") == 40
+
+
 def test_typographic_minus_distractor_is_no_longer_exempt_from_the_duplicate_check() -> None:
     """The gate was quieter, not just noisier, before the parse-site normalization.
 
@@ -101,10 +160,35 @@ def test_typographic_minus_distractor_is_no_longer_exempt_from_the_duplicate_che
     2026-08-05 run produced an item with exactly such a distractor ('−3'), which is how
     this was noticed.
     """
-    item = _good_item(answer_expression="2 + 2", option_b="−4", option_c="4")
+    item = _good_item(equation="Eq(x, 2 + 2)", option_b="−4", option_c="4")
     result = validate_authored_item(1, item)
     assert not result.passed
     assert any("more than one option matches" in f for f in result.failures)
+
+
+def test_banned_wording_matches_words_not_substrings() -> None:
+    """Substring matching rejected correct, harmless questions - and the words it hit are
+    ones a math item is likely to contain.
+
+    Measured on the first scenario run (D-191): a question about rolling a **die** was
+    rejected. `'skill'` contains `'kill'` and `'studies'` contains `'die'`, so the check
+    was a trap that got more likely to spring the more natural the language became. `die`
+    is off the list entirely - it is the singular of dice, not a word about death.
+    """
+    for harmless in [
+        "Roll a die and record the number that lands face up.",
+        "This skill needs practice before the next unit.",
+        "Ana studies for 40 minutes each evening.",
+        "Choose the medium jar rather than the small one.",
+    ]:
+        item = _good_item(stem=harmless)
+        result = validate_authored_item(1, item)
+        assert not any("disallowed wording" in f for f in result.failures), harmless
+
+    for banned in ["The plants died after a week.", "That answer is stupid."]:
+        item = _good_item(stem=banned)
+        result = validate_authored_item(1, item)
+        assert any("disallowed wording" in f for f in result.failures), banned
 
 
 def test_leaked_answer_in_hint_rejected() -> None:

@@ -108,7 +108,7 @@ class AuthoredTemplateDef(BaseModel):
             option_c=self.option_c,
             option_d=self.option_d,
             correct_option=self.correct_option,  # type: ignore[arg-type]
-            answer_expression=self.answer_expression,
+            equation=self.answer_expression,
             hint_ladder=self.hint_ladder,
             canonical_solution=SolutionResponse.model_validate(self.canonical_solution),
             misconception_tags=self.common_error_tags,
