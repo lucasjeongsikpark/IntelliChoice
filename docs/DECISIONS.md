@@ -13172,3 +13172,79 @@ precise configuration it exists to prevent. 946 passed / 2 skipped.
 **Revert:** drop the three response fields and `judge_difficulty`, restore `proposed_difficulty` on
 the judge payload and the inline `abs(...) > 1` check, and replace `run_plan`/`build_plan` with the
 two per-mode loops. The CLI flags are additive and can stay.
+
+---
+
+## D-195 — the gateway was never Anthropic-specific, and four non-Anthropic models prove it (accepted, 2026-08-06)
+
+**Context.** The D-194 pilot died at the first Generator call: `AccessDeniedException — anthropic
+.claude-sonnet-5 is not available for this account`. The account can invoke exactly one Anthropic
+chat model, Haiku 4.5, so a premium generator and three genuinely independent reviewers cannot be
+built from Anthropic alone.
+
+### 1. No provider abstraction was needed, and proving that came first
+
+`AnthropicBedrockProvider` is named for its history, not its contract. It already sends plain
+`bedrock-runtime` **Converse** — `system` + `messages` + standard `toolConfig.toolSpec.inputSchema
+.json` + `toolChoice` + `inferenceConfig` — and parses `output.message.content[].toolUse.input`,
+`usage`, `stopReason`. Nothing in it is Anthropic-shaped.
+
+Measured rather than assumed: **four non-Anthropic models pass through it unchanged.** No capability
+flags, no provider registry, no `supports_*` matrix. The smallest correct change to support
+non-Anthropic models turned out to be no change at all, which is only knowable by trying.
+
+### 2. Catalog and availability APIs are not evidence; a real call is
+
+`get-foundation-model-availability` returns a **byte-identical** payload for Haiku 4.5, which works,
+and Sonnet 5, which is denied:
+
+```
+{"agreementAvailability":{"status":"AVAILABLE"},"authorizationStatus":"AUTHORIZED",
+ "entitlementAvailability":"AVAILABLE","regionAvailability":"AVAILABLE"}
+```
+
+So `smoke_cli` exists: one model, one tiny schema, the real gateway path, no database, no seed, no
+writes, a hard budget ceiling, and one candidate per invocation because a loop that continues past a
+definitive failure pays to re-learn it. It reports the failure *class* — access denied, unsupported
+tool choice, parser incompatibility, valid call but invalid schema — because those lead to opposite
+decisions and all arrive as one string from boto3.
+
+### 3. What the six candidates actually did
+
+| model | smoke | generator | solver | judge |
+|---|---|---|---|---|
+| `mistral.mistral-large-3-675b-instruct` | pass | **pass** (repaired) | — | — |
+| `us.anthropic.claude-haiku-4-5-20251001-v1:0` | known | — | **pass** | — |
+| `qwen.qwen3-32b-v1:0` | pass | — | **pass** | — |
+| `openai.gpt-oss-120b-1:0` | pass | **fail** — invalid after repair | — | **pass** |
+| `us.amazon.nova-2-lite-v1:0` | pass | — | — | pass, but asserted instead of solving |
+| `mistral.magistral-small-2509` | **fail** — no `toolUse` block | — | — | — |
+| `qwen.qwen3-235b-a22b-2507-v1:0` | **absent from the catalog** | — | — | — |
+
+Two results are worth keeping. **Smoke pass does not imply contract pass**: `gpt-oss-120b` emitted a
+valid tiny schema and could not produce `AuthoredGeneratedItemResponse` even after the repair retry.
+And **a judge that does not solve is not a judge**: Nova 2 Lite returned "the problem is
+straightforward and internally consistent" without working the question out, while `gpt-oss-120b`
+derived `m = 6` and checked it against the canonical answer — which is the entire job D-193 gave that
+field.
+
+### 4. Selected configuration
+
+```
+Generator: mistral.mistral-large-3-675b-instruct   (the only generator-contract pass)
+Solver A:  us.anthropic.claude-haiku-4-5-...       (verified, solved correctly)
+Solver B:  qwen.qwen3-32b-v1:0                     (solved correctly)
+Judge:     openai.gpt-oss-120b-1:0                 (solved rather than asserted)
+```
+
+Four providers, four underlying models — far past the "Solver A ≠ Solver B" floor and past what
+Anthropic alone could offer on this account. D-194's preferred pairing is unreachable: Magistral
+Small fails the tool contract and Qwen3 235B is not in the catalog.
+
+**Not fixed, deliberately:** the rate table has no entry for any of these, so every cost below is
+computed at the default Sonnet-tier rate and is an **upper bound, not an invoice**. Inventing rates
+would make the number look authoritative while being just as wrong; the existing comment already
+says the table is a placeholder.
+
+**Revert:** delete `smoke_cli.py` and drop `stop_reason` from `RawGeneration`/`BedrockGenerationResult`.
+No behaviour on the serving path depends on either.

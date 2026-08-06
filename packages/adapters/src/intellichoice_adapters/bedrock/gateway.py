@@ -226,6 +226,7 @@ class ResilientBedrockGateway:
 
             raw_text: str | None = None
             truncated = False
+            stop_reason = ""
             total_input = 0
             total_output = 0
             attempts = 0
@@ -260,6 +261,7 @@ class ResilientBedrockGateway:
                 else:
                     raw_text = raw.text
                     truncated = raw.truncated
+                    stop_reason = raw.stop_reason
                     total_input += raw.input_tokens
                     total_output += raw.output_tokens
                     break
@@ -313,6 +315,7 @@ class ResilientBedrockGateway:
                 cost_cents=cost_cents,
                 model_id=model_id,
                 repaired=repaired,
+                stop_reason=stop_reason,
             )
 
     async def create_embedding(
@@ -343,9 +346,7 @@ class ResilientBedrockGateway:
                 raise
 
             if model_id is None:
-                raise ValueError(
-                    f"no Bedrock model configured for task {BedrockTask.EMBEDDING!r}"
-                )
+                raise ValueError(f"no Bedrock model configured for task {BedrockTask.EMBEDDING!r}")
 
             estimated_tokens = sum(len(text) // 4 for text in texts)
             worst_case_cost = self._embedding_cost_cents(model_id, estimated_tokens)

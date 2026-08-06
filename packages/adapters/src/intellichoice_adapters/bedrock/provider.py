@@ -29,6 +29,13 @@ class RawGeneration:
     # call on it - an identical retry under the same ceiling truncates identically
     # (D-115: exactly this cost ~21 s and ~3.2 cents on every staging chat turn).
     truncated: bool = False
+    # Converse's raw `stopReason`, carried through rather than collapsed into `truncated`.
+    # Nothing on the serving path reads it; it exists because when a *new* model fails the
+    # structured-output contract, "which stop reason did it give" is the first question,
+    # and a boolean that only distinguishes `max_tokens` from everything else cannot answer
+    # it (D-195). Defaulted, so `MockBedrockProvider` and every existing caller are
+    # unaffected.
+    stop_reason: str = ""
 
 
 @dataclass(frozen=True)

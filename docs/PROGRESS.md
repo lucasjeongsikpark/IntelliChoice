@@ -5,6 +5,24 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-195: the gateway was never Anthropic-specific, and four non-Anthropic models prove it
+  (2026-08-06).** `ruff` clean, `pyright` 0, **949 passed / 2 skipped**. Branch
+  `d195-non-anthropic-models`, PR #128. Discovery spend ~12¢ of a 20¢ ceiling.
+  - **No provider abstraction was needed.** `AnthropicBedrockProvider` already speaks plain
+    Converse with a standard `toolConfig`; four non-Anthropic models pass through it unchanged.
+  - **Catalog and availability APIs are not evidence.** `get-foundation-model-availability`
+    returns a byte-identical payload for Haiku 4.5 (works) and Sonnet 5 (denied). `smoke_cli`
+    makes the smallest real call instead and reports the failure *class*.
+  - **Selected:** Generator `mistral.mistral-large-3-675b-instruct`, Solver A
+    `us.anthropic.claude-haiku-4-5-20251001-v1:0`, Solver B `qwen.qwen3-32b-v1:0`, Judge
+    `openai.gpt-oss-120b-1:0` — four providers, four underlying models.
+  - **Carry-over — deferred, not prioritised:** add `skipped_circuit_open` to `RunSummary`, so a
+    candidate the circuit breaker refused is not counted as a generator rejection. Same category
+    confusion budget skips had before D-192 separated them; it distorts the rejection profile of
+    any run that trips the breaker, which is exactly the run whose profile matters.
+  - **Carry-over:** the rate table has no entry for any non-Anthropic model, so every reported
+    cost uses the default Sonnet-tier rate and is an upper bound, not an invoice.
+
 - **⏸ D-194: the Generator proposes a difficulty, a blind judge reviews it, and authoring becomes a
   repeatable command (2026-08-05).** `ruff` clean, `pyright` 0, **945 passed / 2 skipped** — up 11.
   **Nothing was spent**; the only runs were `--preflight` and `--dry-run`, and a test asserts those
