@@ -372,6 +372,33 @@ class AlignmentReviewResponse(BaseModel):
 # simplification for this mode, not a schema this session reuses from S9.
 
 
+class RepairContext(BaseModel):
+    """One prior rejected attempt, handed back to the Generator so it can fix the item
+    rather than re-roll a fresh one (D-198).
+
+    `defects` is deliberately **not** the raw rejection reasons. Those contain the
+    independent checks' verdicts - which option each solver picked, what tier the judge
+    assigned - and handing those back turns the checks into targets: the cheapest way to
+    resolve "solver A picked b, you declared c" is to change the declared answer, and the
+    cheapest way to resolve a difficulty gap is to relabel. `ai_pipeline.repair_feedback`
+    is the one place that decides what may cross this boundary, and it passes objective
+    defects and qualitative descriptions only.
+
+    The previous item's own content travels with it because "fix this" needs a *this*;
+    without it the model writes an unrelated question and the defect list reads as
+    arbitrary constraints.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    attempt: int
+    previous_stem: str
+    previous_context_block: str | None = None
+    previous_equation: str | None = None
+    previous_final_answer: str
+    defects: list[str]
+
+
 class AuthoredGeneratorPayload(BaseModel):
     """Input to the Authored Generator Agent. `exemplars` are a small, fixed set of
     hand-written few-shot examples (stem/hint-ladder/solution style) baked into the
@@ -391,6 +418,10 @@ class AuthoredGeneratorPayload(BaseModel):
     # judge never sees this field (see `QuestionJudgePayload`).
     target_difficulty: int
     exemplars: list[str]
+    # Absent on a first attempt, which is why it is optional rather than a separate payload
+    # type: the repair call is the same task with one more input, and a second schema would
+    # mean a second prompt drifting away from this one.
+    repair: RepairContext | None = None
 
 
 class AuthoredGeneratedItemResponse(BaseModel):

@@ -13608,3 +13608,77 @@ is reliable**, and they are recorded above for that purpose.
 topics", and this repository supports one of each. The repetition demonstrated here is across
 skills and difficulty tiers within one topic. That is weaker evidence than the rule contemplates,
 and it is the strongest the repository can currently produce.
+
+## D-198 — a rejected candidate can be repaired, but not by showing it the verdicts (accepted, 2026-08-06)
+
+**Context.** D-197 measured the dominant defect: 4 of 10 generated items declared an answer their
+own equation does not produce. Every one was caught, and every one cost a full Generator call that
+produced nothing. A rejection carries a precise description of what is wrong; throwing it away and
+re-rolling is the most expensive way to use it.
+
+**Decision.** A bounded repair loop inside `generate_authored_candidate`, **off by default**
+(`--max-repair-attempts 0`).
+
+**Placement.** Inside the candidate function, not `pipeline_cli.run_plan`. The slot keeps one
+template id across every attempt; the seed *is* the id, so retrying at plan level would need a fresh
+seed per attempt and would claim a slot the plan had already promised elsewhere.
+
+**Each attempt is a fresh pass, not a patch.** Every gate runs again on the new item, including the
+ones the previous attempt passed - re-running only the failed gate lets a repair fix its reported
+defect while breaking something already verified, which is exactly what a one-shot fixer produces.
+
+### The trust boundary is the whole design
+
+`repair_feedback` is the only thing deciding what reaches the Generator, because the raw rejection
+reasons are written for a human audit row and contain the independent checks' verdicts verbatim:
+
+```
+independent solver disagreement: solver_a='b' solver_b='a' declared='c'
+judge rated difficulty 2 ..., too far from the requested tier 4
+```
+
+Hand those back and the cheapest resolution of the first is to declare `b`, and of the second to
+relabel the tier. Both satisfy the gate, neither fixes the item, and the checks stop being checks.
+So the filter is by *kind of statement*:
+
+- **Deterministic failures pass verbatim** - mechanical facts about the item, no verdict, and the
+  defects most worth repairing.
+- **Solver and judge objections are re-stated qualitatively** - *that* a solver could not find the
+  answer, *why* it read as ambiguous - with every option letter and difficulty number dropped. Read
+  from the recorded flags rather than the reason strings, so there is no regex standing between a
+  leak and the model.
+- **`difficulty` is terminal.** The only feedback that would help is the judge's tier. It is also
+  futile: D-197 found `linear_both_sides` proposed-4/judged-2 four times across three sessions - the
+  slot's authoring plan is miscalibrated, not its items.
+- **`dedup` and `generator` are terminal** - the defect is not in the item, or there is no item.
+
+Six tests assert the boundary directly, including that no solver's chosen option and no reviewed
+difficulty appears in the feedback.
+
+### Prompt
+
+The repair instruction says *fix the item*, never *make the check pass* - a model told to satisfy a
+checker will satisfy the checker. It also names the tempting cheap fix and forbids it: when the
+answer does not match the equation, relabeling the correct option to whatever the equation produces
+turns a wrong answer into a wrong *question* that passes the gate. If that value is fractional,
+negative or impossible in the scenario, the scenario's numbers are what must change.
+
+### Cost, bounded twice and reported honestly
+
+`--max-repair-attempts` caps attempts per slot; the run budget is enforced *inside* the loop as well
+as between slots, so a slot cannot overshoot it - the between-slot check would only notice after the
+money was gone. Preflight prints the worst case in extra Generator calls before anything is paid.
+`RunSummary` gains `generator_calls`, `repaired_to_pending` and `repaired_still_rejected`: a run
+whose yield looks fine while `generator_calls` is triple the candidate count is not the same run as
+one that got there first time, and "repair helps" and "repair is affordable" are different claims.
+
+**Unchanged:** every gate, both solver schemas, the judge, the difficulty policy and thresholds,
+per-candidate transactions, the circuit breaker, seed generation, the approved-bank format. A
+repaired candidate lands `pending` exactly as any other - repair never approves anything.
+
+**Not yet measured.** No paid run has exercised this. Whether repair actually converts rejections
+into publishable items, and at what cost per fixed item, is the next experiment - `generator_calls`
+and `repaired_to_pending` exist to answer exactly that.
+
+**Revert:** default `max_repair_attempts=0` means deleting the flag restores prior behaviour; the
+loop is one function around an unchanged attempt path.

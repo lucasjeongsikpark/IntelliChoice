@@ -5,6 +5,25 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-198: rejection-driven repair loop (2026-08-06).** `ruff` clean, `pyright` 0,
+  **989 passed / 2 skipped** — up 12. **Nothing spent**; no paid run exercised it.
+  Branch `d198-rejection-repair-loop`.
+  - **Off by default** (`--max-repair-attempts 0`), so every existing caller is unchanged.
+  - **The loop lives inside `generate_authored_candidate`**, not `run_plan`: the seed *is* the
+    template id, so retrying at plan level would claim a slot promised to another candidate.
+  - **`repair_feedback` is the trust boundary.** Raw rejection reasons carry the solvers' chosen
+    options and the judge's tier; returning those makes the independent checks into targets. Only
+    deterministic failures (verbatim) and qualitative objections cross. **Difficulty rejections are
+    terminal** — the only useful feedback is the judge's tier, and D-197 showed the tier-4 slot is
+    miscalibrated rather than its items.
+  - **Every attempt is fully re-gated and keeps its own snapshot** with an `attempt` number, so
+    `make question-review-rejected` shows the whole repair history.
+  - **Cost bounded twice** — per-slot attempt cap, and the run budget enforced inside the loop, not
+    only between slots. Preflight prints the worst case in extra Generator calls.
+  - **Carry-over — unmeasured.** Whether repair converts rejections into publishable items, and at
+    what cost per fixed item, needs a paid run. `generator_calls` / `repaired_to_pending` /
+    `repaired_still_rejected` exist to answer it.
+
 - **⏸ D-197: common-prompt generalization baseline — 3 of 11 (2026-08-06).** Seed offset `700000`,
   **42.88¢**. `ruff` clean, `pyright` 0, **977 passed / 2 skipped**. Nothing committed but docs.
   - **Scope is one grade band and one topic.** Only `linear_equations` is generation-capable;

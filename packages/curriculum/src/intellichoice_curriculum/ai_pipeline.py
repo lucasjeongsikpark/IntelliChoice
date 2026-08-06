@@ -34,7 +34,7 @@ Design choices worth knowing before reading the code (see DECISIONS.md D-026):
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal
 
 from intellichoice_db.models.questions import (
@@ -60,6 +60,7 @@ from intellichoice_shared.bedrock import (
     GeneratorPayload,
     QuestionJudgePayload,
     QuestionJudgeResponse,
+    RepairContext,
     SolverPayload,
     SolverResponse,
 )
@@ -494,7 +495,25 @@ _AUTHORED_GENERATOR_SYSTEM_PROMPT = (
     "for the grade') - that is not a rationale. "
     "List in `required_prerequisites` the curriculum concepts a student must already hold "
     "for this item to be fair, in plain words ('integer arithmetic with negatives', "
-    "'solving one-step equations')."
+    "'solving one-step equations'). "
+    # D-198. Stated as "fix the item", never "make the check pass" - the difference is the
+    # whole point. A model told to satisfy a checker will satisfy the checker; the defect
+    # list describes what is wrong with the *question*, and the instruction is to correct
+    # the question. The commonest defect measured (D-197: 4 of 10 items) is an answer the
+    # item's own equation does not produce, and the tempting cheap fix - relabel the
+    # correct option to whatever the equation happens to give - is called out explicitly,
+    # because it converts a wrong answer into a wrong *question* that passes the gate.
+    "IF a `repair` block is present, you are correcting a specific earlier attempt, not "
+    "writing a new question. Keep whatever was sound about it - the scenario, the "
+    "characters, the shape of the mathematics - and fix exactly what the defects "
+    "describe. Do not start over with an unrelated topic. "
+    "When a defect says your answer does not match your equation, the fix is to decide "
+    "which one is right and correct the other, then recheck by substitution. Do NOT simply "
+    "relabel the correct option to whatever the equation produces: if that value is a "
+    "fraction, or negative, or impossible in your scenario, the *scenario's numbers* are "
+    "what needs changing so the answer comes out whole and sensible. "
+    "Re-verify everything before emitting, not only the part that was flagged - a repair "
+    "that fixes one defect and introduces another is a wasted attempt."
 )
 _JUDGE_SYSTEM_PROMPT = (
     "You are an independent judge reviewing one authored K-12 math question for "
@@ -696,6 +715,14 @@ class PipelineOutcome:
     question_template_id: str | None = None
     question_variant_id: str | None = None
     cost_cents: float = 0.0
+    # The same evidence written to `question_validation_runs.stage_results`, carried back
+    # to the caller (D-198). The repair loop needs two things from a rejection - which
+    # qualitative objections were raised, and what the item said - and both already live
+    # here. Returning them beats re-reading the row that was just written, and beats
+    # widening the return type of a function with ten early exits.
+    stage_results: dict = field(default_factory=dict)
+    # How many Generator calls this slot consumed. 1 unless a repair attempt ran.
+    attempts: int = 1
 
 
 async def _call(
@@ -1048,6 +1075,7 @@ async def _generate_authored_item(
     skill: object,
     difficulty_label: int,
     spend: float,
+    repair: RepairContext | None = None,
 ) -> tuple[AuthoredGeneratedItemResponse | None, float, str | None, str]:
     """Stage 1 of authored mode: the one call that invents the question.
 
@@ -1064,6 +1092,7 @@ async def _generate_authored_item(
         grade_band=topic.grade_band,  # type: ignore[attr-defined]
         target_difficulty=difficulty_label,
         exemplars=_AUTHORED_FEW_SHOT_EXEMPLARS,
+        repair=repair,
     )
     try:
         result = await gateway.generate_structured(
@@ -1079,6 +1108,109 @@ async def _generate_authored_item(
     return result.value, result.cost_cents, None, result.model_id
 
 
+# Stages a repair attempt is allowed to act on (D-198). The exclusions carry the whole
+# soundness argument, so they are stated rather than implied:
+#
+#   `difficulty` is **terminal**. The only feedback that would help is the judge's tier,
+#   and handing that back is not repair - it is relabeling, and it destroys the blind
+#   review D-194 built (the judge is unaware of the proposal precisely so its number is
+#   independent). It is terminal for a measured reason too: D-197 found
+#   `linear_both_sides` proposed-4/judged-2 four times across three sessions. That slot's
+#   *authoring plan* is miscalibrated, not its items, so repairing them burns money on a
+#   disagreement no rewrite resolves.
+#
+#   `dedup` is terminal because the defect is not in the item - it already exists.
+#   `generator` is terminal because there is no item to repair.
+_REPAIRABLE_STAGES: frozenset[str] = frozenset({"validation", "solver", "judge"})
+
+
+def repair_feedback(
+    *, stage: RejectionStage, reasons: list[str], stage_results: dict
+) -> list[str] | None:
+    """What a rejected candidate may tell the Generator about why it failed (D-198).
+
+    Returns `None` when the stage is not repairable at all, so the caller stops rather
+    than paying for an attempt that cannot help.
+
+    **This is the trust boundary.** The raw `reasons` are written for a human reading an
+    audit row and contain the independent checks' verdicts verbatim - `"independent solver
+    disagreement: solver_a='b' solver_b='a' declared='a'"`, `"judge rated difficulty 2"`.
+    Feeding those back would make the checks into targets: the cheapest resolution of the
+    first is to change the declared answer to `b`, and of the second to relabel the tier.
+    Neither fixes the item, both satisfy the gate, and the gate stops meaning anything.
+
+    So the filter is by *kind of statement*, not by string matching:
+
+    - Deterministic-gate failures pass through verbatim. They are mechanical facts about
+      the item ("your equation solves to 21/5, you declared 7"), carry no verdict, and are
+      the defects most worth repairing.
+    - Solver and judge objections are re-stated qualitatively - *that* a solver could not
+      find the answer, *why* it read as ambiguous - with every option letter and every
+      difficulty number dropped.
+    """
+    if stage not in _REPAIRABLE_STAGES:
+        return None
+
+    if stage == "validation":
+        # `reasons` here is `gate.failures`, which is exactly the deterministic output.
+        return list(reasons)
+
+    defects: list[str] = []
+    if stage == "solver":
+        # Read from the recorded flags rather than the reason strings, which is what keeps
+        # the option letters out: `solver_objections` formats them into its messages, and
+        # a filter that had to strip them back out would be one regex away from leaking.
+        for name in ("solver_a", "solver_b"):
+            result = stage_results.get(name) or {}
+            if result.get("no_option_matches"):
+                defects.append(
+                    "An independent solver worked your question and could not find its "
+                    "answer among your four options. Either your options do not contain "
+                    "the answer your own scenario leads to, or the scenario does not lead "
+                    "to a single answer."
+                )
+            if result.get("is_unambiguous") is False:
+                defects.append(
+                    "An independent solver found your question ambiguous - it could be "
+                    "read in more than one way, or it did not contain everything needed "
+                    "to reach one answer."
+                )
+        if not defects:
+            # Reached when the solvers simply disagreed. Deliberately says nothing about
+            # what either chose.
+            defects.append(
+                "Two independent solvers did not reach the same answer to your question. "
+                "Re-read your stem as a student who cannot see your solution: it must "
+                "lead to exactly one defensible answer."
+            )
+        return defects
+
+    judge = stage_results.get("judge") or {}
+    if judge.get("is_ambiguous"):
+        defects.append("An independent reviewer found the question ambiguous.")
+    if judge.get("is_aligned") is False:
+        defects.append(
+            "An independent reviewer found the question does not test the skill it was "
+            "written for."
+        )
+    if judge.get("is_age_appropriate") is False:
+        defects.append("An independent reviewer found the content unsuitable for the grade band.")
+    if judge.get("is_internally_consistent") is False:
+        defects.append(
+            "An independent reviewer found the answer impossible in the situation you "
+            "described - the arithmetic may be right while the scenario cannot produce "
+            "that result."
+        )
+    if not defects:
+        # The remaining judge rejection is a low hint-quality score. The number is the
+        # verdict, so the defect is described instead.
+        defects.append(
+            "An independent reviewer rated your hint ladder too weak to guide a student. "
+            "Each hint must add one genuinely new step toward setting up the equation."
+        )
+    return defects
+
+
 def candidate_snapshot(
     item: AuthoredGeneratedItemResponse,
     *,
@@ -1088,6 +1220,8 @@ def candidate_snapshot(
     seed: int,
     generator_model_id: str,
     planned_template_id: str,
+    attempt: int = 1,
+    repaired_defects: list[str] | None = None,
 ) -> dict:
     """The complete generated candidate, recorded as authoring evidence (D-195).
 
@@ -1112,6 +1246,8 @@ def candidate_snapshot(
     """
     return {
         "planned_template_id": planned_template_id,
+        "attempt": attempt,
+        "repaired_defects": list(repaired_defects or []),
         "topic_id": topic_id,
         "skill_id": skill_id,
         "requested_difficulty": requested_difficulty,
@@ -1135,7 +1271,7 @@ def candidate_snapshot(
     }
 
 
-async def generate_authored_candidate(
+async def _attempt_authored_candidate(
     *,
     session: AsyncSession,
     gateway: BedrockGateway,
@@ -1146,8 +1282,18 @@ async def generate_authored_candidate(
     session_spend_cents: float,
     version: int = 1,
     skill_id: str | None = None,
+    attempt: int = 1,
+    repair: RepairContext | None = None,
 ) -> PipelineOutcome:
-    """Runs one candidate through the S20 *authored* pipeline (plan §7): a real
+    """One pass: generate an item and run it through every gate (D-198 split this out of
+    `generate_authored_candidate`, which is now the bounded repair loop around it).
+
+    A repair attempt is a *fresh* pass, not a patch - every gate runs again on the new
+    item, including the ones the previous attempt passed. Re-running only the failed gate
+    would let a repair fix its reported defect while breaking something already verified,
+    and that is exactly the failure a one-shot fixer produces.
+
+    Runs one candidate through the S20 *authored* pipeline (plan §7): a real
     hand-quality stem/hint-ladder/solution instead of a parameterized shape (see this
     module's docstring for the two modes' relationship). Reuses the same
     `TOPIC_DIFFICULTY_SKILLS` topic/skill map the shape pipeline above uses (same scope
@@ -1226,12 +1372,21 @@ async def generate_authored_candidate(
             )
         )
         return PipelineOutcome(
-            status="rejected", reasons=reasons, cost_cents=total_cost, rejected_at=stage
+            status="rejected",
+            reasons=reasons,
+            cost_cents=total_cost,
+            rejected_at=stage,
+            stage_results=evidence,
         )
 
     # --- 1. Authored Generator Agent --------------------------------------------
     item, cost, error, generator_model_id = await _generate_authored_item(
-        gateway, topic=topic, skill=skill, difficulty_label=difficulty_label, spend=spend
+        gateway,
+        topic=topic,
+        skill=skill,
+        difficulty_label=difficulty_label,
+        spend=spend,
+        repair=repair,
     )
     _spend(cost)
     if error is not None or item is None:
@@ -1264,6 +1419,8 @@ async def generate_authored_candidate(
         seed=seed,
         generator_model_id=generator_model_id,
         planned_template_id=template_id,
+        attempt=attempt,
+        repaired_defects=list(repair.defects) if repair is not None else None,
     )
 
     rendered_question = f"{item.context_block}\n\n{item.stem}" if item.context_block else item.stem
@@ -1508,4 +1665,111 @@ async def generate_authored_candidate(
         question_template_id=template.question_template_id,
         question_variant_id=persisted_variant.question_variant_id,
         cost_cents=total_cost,
+        stage_results=stage_results,
+        attempts=attempt,
     )
+
+
+# Repair is off unless asked for, so every existing caller keeps one-shot behaviour and
+# turning it on is a deliberate, costed act (D-198).
+DEFAULT_MAX_REPAIR_ATTEMPTS = 0
+
+
+async def generate_authored_candidate(
+    *,
+    session: AsyncSession,
+    gateway: BedrockGateway,
+    curriculum: CurriculumContent,
+    topic_id: str,
+    difficulty_label: int,
+    seed: int,
+    session_spend_cents: float,
+    version: int = 1,
+    skill_id: str | None = None,
+    max_repair_attempts: int = DEFAULT_MAX_REPAIR_ATTEMPTS,
+    budget_ceiling_cents: float | None = None,
+) -> PipelineOutcome:
+    """One slot, with a bounded repair loop: when a candidate is rejected for something a
+    rewrite could fix, the Generator is told what was wrong and tries again (D-198).
+
+    **The slot keeps one template id across every attempt.** That is why the loop lives
+    here rather than in `pipeline_cli.run_plan` - retrying at the plan level would need a
+    fresh seed per attempt, and the seed *is* the id, so a repair would claim a slot the
+    plan had already promised to another candidate.
+
+    **Each attempt is fully gated and fully recorded.** A failed repair writes its own
+    `question_validation_runs` row with its own snapshot and `attempt` number, so
+    `make question-review-rejected` shows the whole history rather than only the last try.
+    Only an attempt that clears every gate persists a template, and it persists as
+    `pending` exactly as before - repair never approves anything.
+
+    **What the Generator is told is filtered, not forwarded** - see `repair_feedback`. A
+    stage with no safe feedback (`difficulty`, `dedup`, `generator`) ends the loop rather
+    than paying for an attempt that cannot help.
+
+    `budget_ceiling_cents` bounds the whole slot, repairs included: an attempt only starts
+    if spend so far is still under it. Without it, per-slot cost is unbounded in a way the
+    run budget - checked *between* slots - would not catch until after the money was gone.
+    """
+    attempt = 1
+    spent = 0.0
+    repair: RepairContext | None = None
+
+    while True:
+        outcome = await _attempt_authored_candidate(
+            session=session,
+            gateway=gateway,
+            curriculum=curriculum,
+            topic_id=topic_id,
+            difficulty_label=difficulty_label,
+            seed=seed,
+            session_spend_cents=session_spend_cents + spent,
+            version=version,
+            skill_id=skill_id,
+            attempt=attempt,
+            repair=repair,
+        )
+        spent += outcome.cost_cents
+        # Every attempt's spend counts, including the failed ones: the caller is paying for
+        # the slot, not for its last try.
+        outcome = replace(outcome, cost_cents=spent, attempts=attempt)
+
+        if outcome.status == "pending" or attempt > max_repair_attempts:
+            return outcome
+
+        defects = repair_feedback(
+            stage=outcome.rejected_at or "generator",
+            reasons=outcome.reasons,
+            stage_results=outcome.stage_results,
+        )
+        if not defects:
+            return outcome
+
+        previous = outcome.stage_results.get("candidate_snapshot")
+        if not previous:
+            # Only reachable if the Generator itself failed, which `repair_feedback`
+            # already refuses - but a repair with nothing to repair would silently become a
+            # plain re-roll, and that should not depend on two checks agreeing.
+            return outcome
+
+        if budget_ceiling_cents is not None and session_spend_cents + spent >= budget_ceiling_cents:
+            return replace(
+                outcome,
+                reasons=[
+                    *outcome.reasons,
+                    f"repair attempt {attempt + 1} not started: slot budget ceiling of "
+                    f"{budget_ceiling_cents} cents reached",
+                ],
+            )
+
+        repair = RepairContext(
+            attempt=attempt,
+            previous_stem=previous.get("stem", ""),
+            previous_context_block=previous.get("context_block"),
+            previous_equation=previous.get("equation"),
+            previous_final_answer=(previous.get("canonical_solution") or {}).get(
+                "final_answer", ""
+            ),
+            defects=defects,
+        )
+        attempt += 1

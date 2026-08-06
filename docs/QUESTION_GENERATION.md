@@ -128,6 +128,50 @@ survivors hold. `--seed-offset` claims a fresh range; the caller picks it delibe
 from a timestamp, so runs stay reproducible. Narrowing a run does not move its seeds — a filtered run
 proposes the same ids a full run would for the slots they share.
 
+## 4a. Repair loop (D-198)
+
+Off by default. When on, a candidate rejected for something a rewrite could fix is sent back to the
+Generator with a description of what was wrong, and re-gated from scratch.
+
+```bash
+make question-gen-authored QUESTION_GEN_ARGS="... --max-repair-attempts 1"
+```
+
+**The slot keeps one template id across every attempt**, which is why the loop lives inside
+`generate_authored_candidate` rather than in `run_plan`: the seed *is* the id, so retrying at the
+plan level would need a fresh seed and would claim a slot promised to another candidate.
+
+**What may be fed back is filtered, not forwarded** — `ai_pipeline.repair_feedback` is the only
+place that decides:
+
+| stage | repairable | what crosses |
+|---|---|---|
+| `validation` | ✅ | the deterministic failures verbatim — objective, no verdict |
+| `solver` | ✅ | *that* a solver could not find the answer, or found it ambiguous — **never which option any solver chose** |
+| `judge` | ✅ | the qualitative flags — **never `reviewed_difficulty`** |
+| `difficulty` | ❌ terminal | the only useful feedback is the judge's tier, and returning it is relabeling, not repair |
+| `dedup`, `generator` | ❌ terminal | nothing to repair from |
+
+The reason is not squeamishness. The raw rejection reasons read
+`independent solver disagreement: solver_a='b' solver_b='a' declared='c'` — and the cheapest way to
+resolve that is to declare `b`. The gate passes, the item is unchanged, and the independent solve
+has become a lookup. Same for the judge's tier: returning it makes D-194's blind review a target.
+
+`difficulty` is terminal for a second, measured reason: D-197 found `linear_both_sides`
+proposed-4/judged-2 four times across three sessions. That slot's authoring plan is miscalibrated,
+not its items, so repairing them buys nothing.
+
+**Every attempt is fully re-gated and fully recorded.** A failed repair writes its own
+`question_validation_runs` row with its own snapshot and `attempt` number, so
+`make question-review-rejected` shows the whole history. Only an attempt that clears every gate
+persists a template, and it persists as `pending` — repair never approves anything.
+
+**Cost is bounded twice:** `--max-repair-attempts` caps attempts per slot, and the run budget is
+enforced *inside* the loop as well as between slots, so a slot cannot overshoot it. Preflight prints
+the worst case in Generator calls before anything is paid for. `RunSummary` reports
+`generator_calls`, `fixed` and `still_rejected` separately, because "repair helps" and "repair is
+affordable" are different claims.
+
 ## 5. Preflight
 
 Zero model calls, zero embedding calls, zero writes — asserted by test, not assumed. It reports
