@@ -5,6 +5,63 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+### Session log — authored question generation, end to end (2026-08-05 → 08-06, D-195 → D-206)
+
+**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1001 passed, 2 skipped,
+1 xfailed**. Working tree clean, `main` at `959d18d`. **Deployed to staging** and the content
+loaded — `learning-api:70` / `chat-api:69` serving `gha-d7136d79b3d5`, `/healthz` 200.
+
+**Not a numbered ROADMAP session** — continuous work driven by the user, so no "Done when"
+criteria apply. Total spend across the session ≈ **$5.20** in Bedrock calls.
+
+**What changed, in the order it was learned:**
+
+| | finding | outcome |
+|---|---|---|
+| D-195 | rejected candidates kept no content, so a pilot that rejects everything leaves nothing to review | full `candidate_snapshot` + read-only `make question-review-rejected` |
+| D-196 | `answer_text_leaked` matched `8` inside `0.8`; solvers and judge were sent the stem *without* the context block | both fixed; the second was a hole in the approval path, not just a nuisance |
+| D-197 | baseline: 3 of 11, and **4 of 10 items declared an answer their own equation does not produce** | recommended revising the base prompt, not adding overlays |
+| D-198 | a rejection already says what is wrong; re-rolling wastes it | bounded repair loop, with `repair_feedback` as the trust boundary — verdicts never cross |
+| D-199 | a run reported `generator=11` when 2 were attempted and 9 refused by the breaker | `circuit_open` is a skip, not a rejection |
+| **D-200** | **the judge rated `2` in 15 of 17 items** — tier 4/5 was rejected by arithmetic, not quality | anchored rubric shared with a new equation-design stage; 4/4 exact on re-test |
+| D-201 | an answer coinciding with a given quantity is not a leak (user's call) | rule moved to "what the student can already see"; applied to the runtime hint path too |
+| D-202 | (user's direction) the deterministic gate removed; leak detection moved to the judge | SymPy became a tool the model can call while writing |
+| D-203 | the tool loop resends the whole conversation each round | prompt caching — 53,673 raw input tokens → ~26,682 effective |
+| D-204 | **I changed the roster on one good signal without checking the property the role depends on** | two paid runs lost; reverted, recorded |
+| **D-205** | "author" was two roles wanting opposite things | split → **7 of 11**, and tier 3/4/5 passed for the first time in seven runs |
+| D-206 | **the deploy had never loaded the question bank** | loaded, and added as a permanent workflow step |
+
+### Carry-over, most consequential first
+
+1. **⚠️ 48 approved items have not been read by a human.** Auto-approval was the user's explicit
+   instruction and D-202 had already removed the deterministic gate, so the only checks these
+   passed are the SymPy design verification, two solvers, the judge, and my independent re-check
+   (equation vs declared answer vs correct option, answer unique, whole-numbered, three hints).
+   The audience is minors. This is live on staging.
+2. **The removed gate's checks have no mechanical owner.** Hint-ladder monotonicity, worked-solution
+   vs answer-key agreement, sentence-length readability, and disallowed wording are now only the
+   judge's prose judgement. Measured before removal: **21 of 42 gate failures were things only the
+   gate could catch**, including a solution reading "50 cups" against a key of "38 cups".
+3. **`test_identical_inputs_reproduce_identical_routing_and_scores` is `xfail(strict=True)`.** Its
+   premise was wrong, not the routing: two `/topics` calls for one student return entirely
+   different variant ids. Making it true needs a seed hook through the HTTP flow — a product
+   decision, not a test edit.
+4. **A better generator model is coming** (user). The D-205 split means design and authoring can now
+   be swapped independently, so which role improves is separately measurable.
+5. **Cost accounting still uses placeholder rates**, and cache tokens are recorded but not priced.
+   Every cent figure in this log is an upper bound, not an invoice.
+6. **`make load-staging-learning` is a k6 load test, not a content load.** Worth renaming.
+7. Only `linear_equations` is generation-capable; `fraction_operations` and `place_value` have no
+   entry in either authoring map (D-197 §1).
+
+### Next session
+
+**Read the 48 live items.** Everything else is downstream of whether the content is actually good —
+the yield doubled and the maths verifies, but nobody has read a stem for tone, clarity or
+plausibility. `make question-review` renders them, or they are live at
+`https://d35dfnjzmgrm01.cloudfront.net`.
+
+
 - **✅ D-205: split the design model from the author — 7 of 11 (2026-08-06).**
   `ruff` clean, `pyright` 0, **1002 passed / 2 skipped**. 83.24¢.
   - **"Author" was two roles.** Design is a 6-field schema whose job is arithmetic → gets the

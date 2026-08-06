@@ -47,6 +47,24 @@ to rot, because nothing fails when it does.)*
 
 ## Cross-cutting invariants the diagrams encode
 
+- **The authoring pipeline is five model calls with different jobs, not one** (D-200/D-205). In
+  order: an equation *design* call whose six-field output is solved by SymPy before anything is
+  written around it; an *authoring* call that builds the item on that verified skeleton; two
+  independent *solvers* that read the question as a student would; and a *judge* that rates
+  difficulty against an anchored rubric shared with the design stage. The roles are separately
+  configurable because they want opposite things from a model - design needs tool use, authoring
+  needs reliable emission of a fifteen-field forced schema, and on this account no single model is
+  good at both. `BedrockTask.EQUATION_DESIGN` is what lets them differ.
+- **The gateway can hand the model tools, and does so exactly once** (D-202/D-204). The provider
+  runs a bounded Converse loop when tools are passed, executing them in-process; SymPy is exposed
+  as `solve_equation` so the design stage can check its own arithmetic while it still has the option
+  to change the numbers. Measured: a fifteen-field forced schema and a tool loop do not compose -
+  tools go where the output is small.
+- **Prompt caching is declared at the two prefixes that repeat** (D-203) - after the system prompt,
+  identical for every candidate in a run, and after the first user message, identical for every
+  round of one candidate's tool loop. Gated to model families measured to accept it.
+
+
 - **PII boundary** — MySQL is the only store holding names/emails/roles/attendance;
   PostgreSQL holds `*_external_id` references only (CLAUDE.md non-negotiable #1). LLM
   payloads cross the gateway with a restricted field set (D-023/D-026). One narrow,
