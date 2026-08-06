@@ -5,6 +5,35 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-196: the repeat pilot, and a gate that was destroying correct content (2026-08-06).**
+  `ruff` clean, `pyright` 0, **976 passed / 2 skipped** — up 6. Repeat pilot spend **13.81¢**.
+  Branch `d195-decimal-leak-false-positive`.
+  - **The D-195 hardening worked.** Four of the five first-pilot defect classes did not recur:
+    no 4-level ladder, no unknown-free equation, no authoring commentary in the stem, no
+    under-specified stem (`solver=0` this run). Profile:
+    `validation=2 solver=0 judge=1 difficulty=1`.
+  - **0 of 4 again — but one rejection was ours.** `answer_text_leaked` treats a decimal point as a
+    word boundary, so answer `8` matched the `8` inside `0.8 km` and killed a correct, well-built
+    item before the solvers or judge ever saw it. Same function guards the **S21 runtime hint
+    path**, where a false positive suppresses a legitimate hint for any question with a decimal.
+    Fixed with two lookaround assertions; the S30 negative-answer fix and the "4 inside 24" guard
+    both still hold.
+  - **Escalation deferred, deliberately.** D-195 §5 said 0/4 twice ⇒ change generator and obtain
+    model access. The honest count is 3 model failures, not 4. **Repeat once more with the fix
+    before concluding anything about Mistral Large 3.**
+  - **Carry-over — the tier-4 slot, not the gate, looks miscalibrated.** Two independent
+    mathematically-correct items have now been rejected at `linear_both_sides` × requested tier 4,
+    both proposed 4, both judged 2. A pattern, not a disagreement: the skill may simply be tier 2/3.
+    Investigate the authoring plan; **do not weaken the difficulty gate**.
+  - **Carry-over — nothing checks whether a solution is possible in its situation.** `d3-405300`
+    had Lena walking 3 km/h to catch a brother biking 15 km/h and 24 km ahead; the equation solves
+    to t = −2 because she never catches him. Caught only by a sign mismatch against the declared
+    answer — had the model declared −2, it would have reached the solvers.
+  - **The judge earned its place:** it caught `g = 12/5 = 2.4 games` as internally inconsistent, a
+    defect no deterministic rule can see.
+  - **Bank unchanged:** approved 5 / pending 12 / rejected 11; 0 pilot template rows; seed offset
+    `400000` now consumed by this run.
+
 - **⏸ D-195 §5: a rejected candidate keeps its content, and the Generator is hardened from the
   pilot's own failures (2026-08-06).** `ruff` clean, `pyright` 0, **970 passed / 2 skipped** — up 21.
   **Nothing was spent**; no paid model call, no pilot rerun. Branch

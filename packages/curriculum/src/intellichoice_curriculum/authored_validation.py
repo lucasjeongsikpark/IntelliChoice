@@ -402,12 +402,27 @@ def answer_text_leaked(text: str, correct_answer_text: str) -> bool:
     position is not immediately adjacent to another alphanumeric character on either
     side - this still rejects "4" embedded inside "24" (preceded by the digit "2") while
     correctly matching "-4" preceded by a space, punctuation, or string start.
+
+    D-195's repeat pilot found the mirror image of that bug. The alphanumeric guards treat
+    a decimal point as a boundary, so answer `"8"` matched the `8` inside `"0.8"`, and a
+    correct, well-built item was rejected for `hint_ladder[2] leaks the correct answer text
+    verbatim` when hint 2 merely said "Jake starts 0.8 km from the park". A single-digit
+    answer in a scenario that uses decimals is not a corner case for this topic - it is
+    most of them. Hence the two extra assertions: a match may not be immediately preceded
+    by `<digit>.` nor immediately followed by `.<digit>`, which is precisely "this digit is
+    part of a larger decimal number". `"the answer is 8."` at the end of a sentence still
+    matches, because the `.` there is not followed by a digit.
+
+    Both directions matter, and a false positive here is not harmless in either place it is
+    used: in authoring it destroys correct content, and on the S21 runtime path it
+    suppresses a legitimate hint for any question whose scenario contains a decimal.
     """
     correct_text = correct_answer_text.strip()
     if not correct_text:
         return False
     pattern = re.compile(
-        rf"(?<![0-9A-Za-z]){re.escape(correct_text)}(?![0-9A-Za-z])", re.IGNORECASE
+        rf"(?<![0-9A-Za-z])(?<!\d\.){re.escape(correct_text)}(?![0-9A-Za-z])(?!\.\d)",
+        re.IGNORECASE,
     )
     return bool(pattern.search(text))
 
