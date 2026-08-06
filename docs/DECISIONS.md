@@ -13508,3 +13508,103 @@ error rate was never what the counters said.
 **Carry-over, unchanged:** the tier-4 slot still looks miscalibrated (no tier-4 candidate has ever
 survived; both difficulty rejections were `linear_both_sides` at tier 4 with the judge rating 2), and
 nothing checks whether a solution is possible in its own situation.
+
+## D-197 — common-prompt generalization baseline: 3 of 11, and the base prompt is the blocker (accepted, 2026-08-06)
+
+A controlled baseline: one shared Generator prompt, one candidate per slot, **every generation-capable
+slot the repository has**. Nothing was tuned, added, or rerun. Seed offset `700000`, 42.88¢.
+
+### Scope, stated plainly
+
+The taxonomy declares three topics — `linear_equations` (6-7), `fraction_operations` (4-5),
+`place_value` (1-2) — but `TOPIC_SKILL_DIFFICULTIES` and `TOPIC_DIFFICULTY_SKILLS` contain **only
+`linear_equations`**. The other two raise `PipelineConfigError` before any provider is built, and
+neither can be represented by the authored schema anyway: the deterministic gate requires a
+SymPy-solvable relation with exactly one unknown, and "identify the place value of a digit" has no
+such relation.
+
+**This experiment therefore tests one grade band and one topic.** It says nothing about how the
+prompt generalizes across grades. The 11 slots are the complete authoring plan for that topic — all
+5 skills, all 5 tiers — which is the broadest valid experiment the repository supports today.
+
+### Result
+
+`3 accepted of 11 (27%)` · `generator=1 validation=4 solver=1 difficulty=2`
+
+Independent re-solve of all 10 generated equations: **5 correct, 5 wrong (50%)**.
+
+| slot | skill | d | outcome | my verdict |
+|---|---|---|---|---|
+| 708100 | one_step | 1 | pending | ✓ `Eq(x + (15-7), 20)` → 12 |
+| 709100 | two_step | 1 | pending | ✓ `Eq(9 + 3*l, 30)` → 7 |
+| 709200 | two_step | 2 | pending | ✓ 29 — but see the vacuous-equation finding |
+| 709300 | two_step | 3 | generator | contract failure, no content |
+| 705300 | both_sides | 3 | validation | ✗ solves to 21/5, declared 7 |
+| 705400 | both_sides | 4 | difficulty | ✓ correct; proposed 4 / reviewed 2 |
+| 705500 | both_sides | 5 | solver | ✗ "$23 first month then $3 after" modelled as `23 + 3m`; true answer 6 |
+| 706500 | distribute | 5 | difficulty | ✓ correct — **but requires no distribution** |
+| 707200 | neg_frac | 2 | validation | ✗ solves to 15, declared 14 |
+| 707300 | neg_frac | 3 | validation | ✗ solves to 62/7, declared 9 |
+| 707400 | neg_frac | 4 | validation | ✗ solves to 12/5, declared 12 |
+
+### The dominant defect is answer verification, and it is content-independent
+
+Four of ten items declare an answer their own equation does not produce, across **two unrelated
+skills** (`neg_frac_coeff` ×3, `both_sides` ×1) and **three difficulty tiers** (2, 3, 4). A fifth
+(`705500`) derives a correct answer from an equation that does not model its own story.
+
+The base prompt **already** says: *"substitute your final answer back into the equation and confirm
+both sides are genuinely equal. If they are not, your item is wrong - fix it before emitting it."*
+It is being ignored in 40% of items. That is a base-prompt effectiveness problem, not a curriculum
+one — no overlay keyed by grade, topic, skill or tier would address it.
+
+Three of the four failures produce a **non-integer** answer (21/5, 62/7, 12/5) that the model then
+rounds or replaces with a number from the stem. This is the same failure family as the previous
+session's 12/5 games and 8/3 swaps: the generator chooses coefficients without checking that they
+divide, then papers over the result.
+
+### Two pipeline findings, recorded and deliberately not fixed
+
+This session measures only; neither was touched.
+
+**1. `Eq(<arithmetic>, x)` passes the "restates the answer" guard vacuously.** `709200` is pending
+with `equation: Eq(3*18 - 25, extra_straws)`. It has exactly one unknown and solves cleanly, so
+`derive_answer` accepts it — but the unknown is alone on one side, so "solving" it just evaluates
+the arithmetic the model already did. Measured: `Eq(3*18 - 20, extra_straws)` "verifies" 34 just as
+happily. D-191 closed the zero-unknown form (`answer_expression: '7'`); this is the same hole in a
+new shape, and it means one of the three pending items has **no independent verification at all**.
+
+**2. The D-195 meta-commentary check missed a real instance.** `707400`'s student-visible context
+block reads: *"The original stem was adjusted slightly to ensure the answer aligns with one of the
+provided options..."* — exactly the defect the check exists for. `_META_COMMENTARY_PHRASES` has
+"the question was adjusted" and "the problem was adjusted" but not "the original stem was adjusted";
+the match returns `False`. The item was rejected for its wrong answer, so the commentary was caught
+by accident, not by the check.
+
+**3. The D-196 §2 fix demonstrably worked.** `705500`'s stem is *"Lena wants to know after how many
+months the two plans will cost the same amount"* — every number lives in its context block. Solver A
+reasoned correctly from the full text, found m = 6, and reported that no option matched. Under the
+previous code it would have been shown a question with no numbers in it.
+
+### Confirmed patterns, not yet acted on
+
+- **Pending rate falls monotonically with tier:** d1 100% (2/2), d2 50% (1/2), d3 0% (0/3),
+  d4 0% (0/2), d5 0% (0/2). **No candidate above tier 2 has ever survived**, across four runs.
+- **`linear_both_sides` proposed-4 / reviewed-2 is now four occurrences** across three sessions.
+- **The skill name is being ignored.** `706500` was authored for "Solve linear equations requiring
+  distribution and combining like terms" and contains no distribution (`Eq(24 - r, 10 + r)`).
+  `707200` and `707300` were authored for "negative or fractional coefficients" and have neither.
+  The generator receives `skill_name` in its payload and treats it as decoration.
+
+### Recommendation: revise the common base prompt
+
+Not overlays. The decision rule names answer-verification failure explicitly, and it is the defect
+that repeats across skills and tiers, is independent of curriculum content, and blocks everything
+else — an overlay layered on a base that gets 50% of answers wrong would be tuning the wrong thing.
+The skill-alignment and tier-calibration clusters are real and would suit overlays **once the base
+is reliable**, and they are recorded above for that purpose.
+
+**Caveat on the evidence:** the rule's phrase is "repeats across multiple unrelated grades or
+topics", and this repository supports one of each. The repetition demonstrated here is across
+skills and difficulty tiers within one topic. That is weaker evidence than the rule contemplates,
+and it is the strongest the repository can currently produce.

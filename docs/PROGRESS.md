@@ -5,6 +5,30 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+- **⏸ D-197: common-prompt generalization baseline — 3 of 11 (2026-08-06).** Seed offset `700000`,
+  **42.88¢**. `ruff` clean, `pyright` 0, **977 passed / 2 skipped**. Nothing committed but docs.
+  - **Scope is one grade band and one topic.** Only `linear_equations` is generation-capable;
+    `fraction_operations` and `place_value` have no entry in either authoring map and cannot be
+    represented by the authored schema. The 11 slots are that topic's complete plan — 5 skills × 5
+    tiers — which is the broadest valid experiment the repo supports. **This tests nothing about
+    cross-grade generalization.**
+  - **Independent re-solve: 5 of 10 generated items are wrong.** Four declare an answer their own
+    equation does not produce, across two unrelated skills and three tiers; three of those four
+    solve to a fraction (21/5, 62/7, 12/5) the model then rounds or replaces.
+  - **Recommendation: revise the common base prompt**, not overlays. The prompt already demands
+    substitution-checking and is ignored in 40% of items — no curriculum-keyed overlay fixes that.
+  - **Carry-over — `Eq(<arithmetic>, x)` verifies nothing.** Pending item `709200` has
+    `Eq(3*18 - 25, extra_straws)`: one unknown, alone on one side, so solving it re-evaluates the
+    model's own arithmetic. D-191's zero-unknown hole in a new shape; one of three pending items has
+    no independent verification.
+  - **Carry-over — the meta-commentary check missed a real instance:** "The original stem was
+    adjusted slightly..." reached a student-visible context block; the phrase list lacks it.
+  - **Carry-over — the skill name is decoration.** An item authored for the distribution skill
+    contains no distribution; two authored for negative/fractional coefficients have neither.
+  - **Carry-over — no candidate above tier 2 has ever survived**, across four runs.
+  - **The D-196 §2 fix is confirmed working** on real output: Solver A reasoned correctly from a
+    context block that carried every number in the question.
+
 - **⏸ D-196 §2: 2 of 4 accepted, and the solvers were reading half the question (2026-08-06).**
   `ruff` clean, `pyright` 0, **977 passed / 2 skipped** — up 1. Second repeat spend **14.47¢**, seed
   offset `410000`. Branch `d196-solvers-see-the-whole-question`.
