@@ -7,7 +7,7 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Session log — what a real UI walk found (2026-08-06, D-207)
 
-**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1027 passed, 2 skipped,
+**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1028 passed, 2 skipped,
 1 xfailed** · `learning-web` build + `tsc` + `oxlint` clean · e2e typecheck clean.
 
 **Not a numbered ROADMAP session** — the user walked the deployed app and reported five areas.

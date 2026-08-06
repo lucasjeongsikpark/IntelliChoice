@@ -4960,6 +4960,14 @@ but it is a real (small) availability cost, and it is the reason the estimate sh
 "just to be safe" beyond what the drift test requires. `BedrockGatewayError` is caught inside the
 turn, so ordinary model failures do not take this path.
 
+> **D-207 update.** The estimate is now **4.0 cents**, so the numbers in this paragraph read ~25
+> crashed turns rather than ~33. The chat call gained one bounded retry under a bigger ceiling, which
+> makes a turn's worst case three calls instead of two (3.825 cents measured). This is exactly what
+> the paragraph above asks for - raised because the drift test requires it, not "just to be safe" -
+> and the drift test itself was rewritten, because it modelled a turn as *one* content call and was
+> therefore structurally unable to notice a retry. The original entry stands; only these two numbers
+> moved.
+
 **Semantics deliberately unchanged:** the ceiling is still `spend >= ceiling` rather than
 `spend + estimate > ceiling`, so it still permits a single-call overshoot exactly as before. The
 defect fixed is the *N*-call overshoot. **Out of scope and still open:** the per-session gateway
