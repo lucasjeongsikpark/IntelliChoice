@@ -2010,3 +2010,295 @@ def test_solvers_and_judge_receive_the_context_block_not_just_the_stem() -> None
                 assert "same amount" in seen, f"{payload_name} lost the stem"
 
     asyncio.run(run())
+
+
+# --- D-198: the repair loop, and the boundary it must not cross ----------------------
+# `repair_feedback` is the only thing standing between "tell the model what was wrong" and
+# "tell the model what the independent checks decided". These tests are that boundary.
+
+
+def test_repair_feedback_passes_deterministic_failures_verbatim() -> None:
+    # Objective, mechanical facts about the item. Nothing here is a verdict, and these are
+    # the defects most worth repairing - D-197 measured 4 of 10 items failing exactly this.
+    failures = ["SymPy-solved answer 21/5 does not match declared correct option 'b' ('7')"]
+    assert ai_pipeline.repair_feedback(
+        stage="validation", reasons=failures, stage_results={}
+    ) == failures
+
+
+def test_repair_feedback_never_reveals_which_option_a_solver_chose() -> None:
+    """The cheapest way to resolve "solver A picked b, you declared c" is to declare b.
+
+    That satisfies the gate and fixes nothing, and it turns the independent solve into a
+    lookup. So the raw reason - which does contain the letters - must not survive.
+    """
+    raw = ["independent solver disagreement: solver_a='b' solver_b='a' declared='c'"]
+    defects = ai_pipeline.repair_feedback(
+        stage="solver",
+        reasons=raw,
+        stage_results={
+            "solver_a": {
+                "selected_option": "b", "no_option_matches": False, "is_unambiguous": True
+            },
+            "solver_b": {
+                "selected_option": "a", "no_option_matches": False, "is_unambiguous": True
+            },
+        },
+    )
+    assert defects
+    joined = " ".join(defects)
+    for leak in ("solver_a=", "solver_b=", "'b'", "'a'", "declared="):
+        assert leak not in joined, f"repair feedback leaked {leak!r}: {joined}"
+
+
+def test_repair_feedback_describes_a_solver_objection_without_its_verdict() -> None:
+    defects = ai_pipeline.repair_feedback(
+        stage="solver",
+        reasons=["solver_b reached an answer that is not among the options (closest='a')"],
+        stage_results={
+            "solver_a": {
+                "selected_option": "a", "no_option_matches": False, "is_unambiguous": True
+            },
+            "solver_b": {
+                "selected_option": "a", "no_option_matches": True, "is_unambiguous": False
+            },
+        },
+    )
+    joined = " ".join(defects or [])
+    assert "could not find its answer among your four options" in joined
+    assert "ambiguous" in joined
+    assert "closest=" not in joined and "'a'" not in joined
+
+
+def test_repair_feedback_never_reveals_the_judges_difficulty() -> None:
+    # The judge's tier is the one number D-194 built blind review to protect. A rejection
+    # it caused is not repairable at all - see the next test - but even a judge rejection
+    # for another reason must not carry it.
+    defects = ai_pipeline.repair_feedback(
+        stage="judge",
+        reasons=["judge flagged ambiguity: ..."],
+        stage_results={"judge": {"is_ambiguous": True, "reviewed_difficulty": 2}},
+    )
+    joined = " ".join(defects or [])
+    assert "ambiguous" in joined
+    assert "2" not in joined and "reviewed_difficulty" not in joined
+
+
+def test_a_difficulty_rejection_is_never_repairable() -> None:
+    """The only feedback that would help is the judge's tier, and that is the one thing
+    that must not cross. D-197 also measured *why* repairing it is futile:
+    `linear_both_sides` proposed-4/judged-2 four times across three sessions - the slot's
+    authoring plan is miscalibrated, not its items.
+    """
+    assert (
+        ai_pipeline.repair_feedback(
+            stage="difficulty",
+            reasons=["difficulty disagreement: generator proposed 4 ... judge rated 2"],
+            stage_results={"difficulty": {"judge_reviewed_difficulty": 2}},
+        )
+        is None
+    )
+
+
+def test_stages_with_nothing_to_repair_are_terminal() -> None:
+    for stage in ("generator", "dedup", "budget"):
+        assert ai_pipeline.repair_feedback(stage=stage, reasons=["x"], stage_results={}) is None
+
+
+class _RepairAwareGateway(_ScriptedAuthoredGateway):
+    """Emits a defective item first, then a good one once a `repair` block arrives.
+
+    Also records the repair contexts it was handed, so a test can assert what actually
+    crossed the boundary rather than only what `repair_feedback` returned in isolation.
+    """
+
+    def __init__(self, *, bad: AuthoredGeneratedItemResponse, **kwargs: object) -> None:
+        self.repairs: list[object] = []
+        super().__init__(  # type: ignore[arg-type]
+            item_factory=lambda payload: (
+                self._record(payload) or (_good_item(proposed_difficulty=payload.target_difficulty))
+                if payload.repair is not None
+                else bad
+            ),
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+    def _record(self, payload: AuthoredGeneratorPayload) -> None:
+        self.repairs.append(payload.repair)
+
+
+def _bad_equation_item() -> AuthoredGeneratedItemResponse:
+    # Candidate 2 of the very first pilot: an equation that restates arithmetic instead of
+    # modelling the question. Rejected by the deterministic gate, which is repairable.
+    return _good_item(equation="Eq(4, 4)")
+
+
+def test_a_repairable_rejection_is_retried_and_can_land_pending() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _RepairAwareGateway(bad=_bad_equation_item())
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=gateway,  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=801001,
+                session_spend_cents=0.0,
+                max_repair_attempts=1,
+            )
+            assert outcome.status == "pending"
+            assert outcome.attempts == 2
+            # Never auto-approved, repair or not.
+            template = await QuestionRepository(session).get_template(
+                outcome.question_template_id or ""
+            )
+            assert template is not None and template.validation_status == "pending"
+            # The slot kept its one id across both attempts.
+            assert outcome.question_template_id == "authored-linear_equations-d2-801001"
+
+    asyncio.run(run())
+
+
+def test_repair_is_off_unless_asked_for() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _RepairAwareGateway(bad=_bad_equation_item())
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=gateway,  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=801002,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "rejected"
+            assert outcome.attempts == 1
+            assert gateway.repairs == []
+
+    asyncio.run(run())
+
+
+def test_the_repair_context_carries_the_previous_item_and_only_safe_defects() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            bad = _bad_equation_item()
+            gateway = _RepairAwareGateway(bad=bad)
+            await generate_authored_candidate(
+                session=session,
+                gateway=gateway,  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=801003,
+                session_spend_cents=0.0,
+                max_repair_attempts=1,
+            )
+            assert len(gateway.repairs) == 1
+            repair = gateway.repairs[0]
+            assert repair is not None
+            # "Fix this" needs a *this*.
+            assert repair.previous_stem == bad.stem  # type: ignore[attr-defined]
+            assert repair.previous_equation == "Eq(4, 4)"  # type: ignore[attr-defined]
+            assert repair.defects  # type: ignore[attr-defined]
+
+    asyncio.run(run())
+
+
+def test_every_failed_attempt_keeps_its_own_snapshot_and_attempt_number() -> None:
+    """A repair history a reviewer cannot read is not a history. D-195 made rejected
+    content inspectable; a loop that overwrote or skipped the failed attempts would undo
+    that for exactly the runs where the trail matters most.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _RepairAwareGateway(bad=_bad_equation_item())
+            await generate_authored_candidate(
+                session=session,
+                gateway=gateway,  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=801004,
+                session_spend_cents=0.0,
+                max_repair_attempts=1,
+            )
+            # Scoped to this slot: the database carries every earlier run's rejections,
+            # so a bare count would assert a fact about the whole table.
+            rows = (
+                await session.execute(
+                    select(QuestionValidationRun).where(QuestionValidationRun.outcome == "rejected")
+                )
+            ).scalars().all()
+            mine = [
+                r
+                for r in rows
+                if (r.stage_results or {}).get("candidate_snapshot", {}).get(
+                    "planned_template_id"
+                )
+                == "authored-linear_equations-d2-801004"
+            ]
+            assert len(mine) == 1, "the failed attempt must leave exactly one audit row"
+            snapshot = mine[0].stage_results["candidate_snapshot"]
+            assert snapshot["attempt"] == 1
+            assert snapshot["equation"] == "Eq(4, 4)"
+            assert snapshot["repaired_defects"] == []  # attempt 1 repaired nothing
+
+    asyncio.run(run())
+
+
+def test_a_repair_attempt_is_not_started_past_the_budget_ceiling() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _RepairAwareGateway(bad=_bad_equation_item())
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=gateway,  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=801005,
+                session_spend_cents=0.0,
+                max_repair_attempts=3,
+                budget_ceiling_cents=0.001,  # below one scripted call's cost
+            )
+            assert outcome.status == "rejected"
+            assert outcome.attempts == 1
+            assert gateway.repairs == []
+            assert any("budget ceiling" in r for r in outcome.reasons)
+
+    asyncio.run(run())
+
+
+def test_a_difficulty_rejection_ends_the_loop_without_paying_for_a_retry() -> None:
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _RepairAwareGateway(
+                bad=_good_item(proposed_difficulty=4),
+                judge=QuestionJudgeResponse(
+                    reasoning="straightforward",
+                    reviewed_difficulty=2,
+                    difficulty_reasoning="one step, no rearrangement required",
+                    is_ambiguous=False,
+                    is_aligned=True,
+                    is_age_appropriate=True,
+                    hint_quality_score=5,
+                ),
+            )
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=gateway,  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=4,
+                seed=801006,
+                session_spend_cents=0.0,
+                max_repair_attempts=3,
+            )
+            assert outcome.rejected_at == "difficulty"
+            assert outcome.attempts == 1
+            assert gateway.repairs == [], "a difficulty rejection must not be retried"
+
+    asyncio.run(run())

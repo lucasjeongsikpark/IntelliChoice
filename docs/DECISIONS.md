@@ -13508,3 +13508,177 @@ error rate was never what the counters said.
 **Carry-over, unchanged:** the tier-4 slot still looks miscalibrated (no tier-4 candidate has ever
 survived; both difficulty rejections were `linear_both_sides` at tier 4 with the judge rating 2), and
 nothing checks whether a solution is possible in its own situation.
+
+## D-197 — common-prompt generalization baseline: 3 of 11, and the base prompt is the blocker (accepted, 2026-08-06)
+
+A controlled baseline: one shared Generator prompt, one candidate per slot, **every generation-capable
+slot the repository has**. Nothing was tuned, added, or rerun. Seed offset `700000`, 42.88¢.
+
+### Scope, stated plainly
+
+The taxonomy declares three topics — `linear_equations` (6-7), `fraction_operations` (4-5),
+`place_value` (1-2) — but `TOPIC_SKILL_DIFFICULTIES` and `TOPIC_DIFFICULTY_SKILLS` contain **only
+`linear_equations`**. The other two raise `PipelineConfigError` before any provider is built, and
+neither can be represented by the authored schema anyway: the deterministic gate requires a
+SymPy-solvable relation with exactly one unknown, and "identify the place value of a digit" has no
+such relation.
+
+**This experiment therefore tests one grade band and one topic.** It says nothing about how the
+prompt generalizes across grades. The 11 slots are the complete authoring plan for that topic — all
+5 skills, all 5 tiers — which is the broadest valid experiment the repository supports today.
+
+### Result
+
+`3 accepted of 11 (27%)` · `generator=1 validation=4 solver=1 difficulty=2`
+
+Independent re-solve of all 10 generated equations: **5 correct, 5 wrong (50%)**.
+
+| slot | skill | d | outcome | my verdict |
+|---|---|---|---|---|
+| 708100 | one_step | 1 | pending | ✓ `Eq(x + (15-7), 20)` → 12 |
+| 709100 | two_step | 1 | pending | ✓ `Eq(9 + 3*l, 30)` → 7 |
+| 709200 | two_step | 2 | pending | ✓ 29 — but see the vacuous-equation finding |
+| 709300 | two_step | 3 | generator | contract failure, no content |
+| 705300 | both_sides | 3 | validation | ✗ solves to 21/5, declared 7 |
+| 705400 | both_sides | 4 | difficulty | ✓ correct; proposed 4 / reviewed 2 |
+| 705500 | both_sides | 5 | solver | ✗ "$23 first month then $3 after" modelled as `23 + 3m`; true answer 6 |
+| 706500 | distribute | 5 | difficulty | ✓ correct — **but requires no distribution** |
+| 707200 | neg_frac | 2 | validation | ✗ solves to 15, declared 14 |
+| 707300 | neg_frac | 3 | validation | ✗ solves to 62/7, declared 9 |
+| 707400 | neg_frac | 4 | validation | ✗ solves to 12/5, declared 12 |
+
+### The dominant defect is answer verification, and it is content-independent
+
+Four of ten items declare an answer their own equation does not produce, across **two unrelated
+skills** (`neg_frac_coeff` ×3, `both_sides` ×1) and **three difficulty tiers** (2, 3, 4). A fifth
+(`705500`) derives a correct answer from an equation that does not model its own story.
+
+The base prompt **already** says: *"substitute your final answer back into the equation and confirm
+both sides are genuinely equal. If they are not, your item is wrong - fix it before emitting it."*
+It is being ignored in 40% of items. That is a base-prompt effectiveness problem, not a curriculum
+one — no overlay keyed by grade, topic, skill or tier would address it.
+
+Three of the four failures produce a **non-integer** answer (21/5, 62/7, 12/5) that the model then
+rounds or replaces with a number from the stem. This is the same failure family as the previous
+session's 12/5 games and 8/3 swaps: the generator chooses coefficients without checking that they
+divide, then papers over the result.
+
+### Two pipeline findings, recorded and deliberately not fixed
+
+This session measures only; neither was touched.
+
+**1. `Eq(<arithmetic>, x)` passes the "restates the answer" guard vacuously.** `709200` is pending
+with `equation: Eq(3*18 - 25, extra_straws)`. It has exactly one unknown and solves cleanly, so
+`derive_answer` accepts it — but the unknown is alone on one side, so "solving" it just evaluates
+the arithmetic the model already did. Measured: `Eq(3*18 - 20, extra_straws)` "verifies" 34 just as
+happily. D-191 closed the zero-unknown form (`answer_expression: '7'`); this is the same hole in a
+new shape, and it means one of the three pending items has **no independent verification at all**.
+
+**2. The D-195 meta-commentary check missed a real instance.** `707400`'s student-visible context
+block reads: *"The original stem was adjusted slightly to ensure the answer aligns with one of the
+provided options..."* — exactly the defect the check exists for. `_META_COMMENTARY_PHRASES` has
+"the question was adjusted" and "the problem was adjusted" but not "the original stem was adjusted";
+the match returns `False`. The item was rejected for its wrong answer, so the commentary was caught
+by accident, not by the check.
+
+**3. The D-196 §2 fix demonstrably worked.** `705500`'s stem is *"Lena wants to know after how many
+months the two plans will cost the same amount"* — every number lives in its context block. Solver A
+reasoned correctly from the full text, found m = 6, and reported that no option matched. Under the
+previous code it would have been shown a question with no numbers in it.
+
+### Confirmed patterns, not yet acted on
+
+- **Pending rate falls monotonically with tier:** d1 100% (2/2), d2 50% (1/2), d3 0% (0/3),
+  d4 0% (0/2), d5 0% (0/2). **No candidate above tier 2 has ever survived**, across four runs.
+- **`linear_both_sides` proposed-4 / reviewed-2 is now four occurrences** across three sessions.
+- **The skill name is being ignored.** `706500` was authored for "Solve linear equations requiring
+  distribution and combining like terms" and contains no distribution (`Eq(24 - r, 10 + r)`).
+  `707200` and `707300` were authored for "negative or fractional coefficients" and have neither.
+  The generator receives `skill_name` in its payload and treats it as decoration.
+
+### Recommendation: revise the common base prompt
+
+Not overlays. The decision rule names answer-verification failure explicitly, and it is the defect
+that repeats across skills and tiers, is independent of curriculum content, and blocks everything
+else — an overlay layered on a base that gets 50% of answers wrong would be tuning the wrong thing.
+The skill-alignment and tier-calibration clusters are real and would suit overlays **once the base
+is reliable**, and they are recorded above for that purpose.
+
+**Caveat on the evidence:** the rule's phrase is "repeats across multiple unrelated grades or
+topics", and this repository supports one of each. The repetition demonstrated here is across
+skills and difficulty tiers within one topic. That is weaker evidence than the rule contemplates,
+and it is the strongest the repository can currently produce.
+
+## D-198 — a rejected candidate can be repaired, but not by showing it the verdicts (accepted, 2026-08-06)
+
+**Context.** D-197 measured the dominant defect: 4 of 10 generated items declared an answer their
+own equation does not produce. Every one was caught, and every one cost a full Generator call that
+produced nothing. A rejection carries a precise description of what is wrong; throwing it away and
+re-rolling is the most expensive way to use it.
+
+**Decision.** A bounded repair loop inside `generate_authored_candidate`, **off by default**
+(`--max-repair-attempts 0`).
+
+**Placement.** Inside the candidate function, not `pipeline_cli.run_plan`. The slot keeps one
+template id across every attempt; the seed *is* the id, so retrying at plan level would need a fresh
+seed per attempt and would claim a slot the plan had already promised elsewhere.
+
+**Each attempt is a fresh pass, not a patch.** Every gate runs again on the new item, including the
+ones the previous attempt passed - re-running only the failed gate lets a repair fix its reported
+defect while breaking something already verified, which is exactly what a one-shot fixer produces.
+
+### The trust boundary is the whole design
+
+`repair_feedback` is the only thing deciding what reaches the Generator, because the raw rejection
+reasons are written for a human audit row and contain the independent checks' verdicts verbatim:
+
+```
+independent solver disagreement: solver_a='b' solver_b='a' declared='c'
+judge rated difficulty 2 ..., too far from the requested tier 4
+```
+
+Hand those back and the cheapest resolution of the first is to declare `b`, and of the second to
+relabel the tier. Both satisfy the gate, neither fixes the item, and the checks stop being checks.
+So the filter is by *kind of statement*:
+
+- **Deterministic failures pass verbatim** - mechanical facts about the item, no verdict, and the
+  defects most worth repairing.
+- **Solver and judge objections are re-stated qualitatively** - *that* a solver could not find the
+  answer, *why* it read as ambiguous - with every option letter and difficulty number dropped. Read
+  from the recorded flags rather than the reason strings, so there is no regex standing between a
+  leak and the model.
+- **`difficulty` is terminal.** The only feedback that would help is the judge's tier. It is also
+  futile: D-197 found `linear_both_sides` proposed-4/judged-2 four times across three sessions - the
+  slot's authoring plan is miscalibrated, not its items.
+- **`dedup` and `generator` are terminal** - the defect is not in the item, or there is no item.
+
+Six tests assert the boundary directly, including that no solver's chosen option and no reviewed
+difficulty appears in the feedback.
+
+### Prompt
+
+The repair instruction says *fix the item*, never *make the check pass* - a model told to satisfy a
+checker will satisfy the checker. It also names the tempting cheap fix and forbids it: when the
+answer does not match the equation, relabeling the correct option to whatever the equation produces
+turns a wrong answer into a wrong *question* that passes the gate. If that value is fractional,
+negative or impossible in the scenario, the scenario's numbers are what must change.
+
+### Cost, bounded twice and reported honestly
+
+`--max-repair-attempts` caps attempts per slot; the run budget is enforced *inside* the loop as well
+as between slots, so a slot cannot overshoot it - the between-slot check would only notice after the
+money was gone. Preflight prints the worst case in extra Generator calls before anything is paid.
+`RunSummary` gains `generator_calls`, `repaired_to_pending` and `repaired_still_rejected`: a run
+whose yield looks fine while `generator_calls` is triple the candidate count is not the same run as
+one that got there first time, and "repair helps" and "repair is affordable" are different claims.
+
+**Unchanged:** every gate, both solver schemas, the judge, the difficulty policy and thresholds,
+per-candidate transactions, the circuit breaker, seed generation, the approved-bank format. A
+repaired candidate lands `pending` exactly as any other - repair never approves anything.
+
+**Not yet measured.** No paid run has exercised this. Whether repair actually converts rejections
+into publishable items, and at what cost per fixed item, is the next experiment - `generator_calls`
+and `repaired_to_pending` exist to answer exactly that.
+
+**Revert:** default `max_repair_attempts=0` means deleting the flag restores prior behaviour; the
+loop is one function around an unchanged attempt path.

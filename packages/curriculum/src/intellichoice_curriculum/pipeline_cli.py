@@ -97,6 +97,13 @@ class RunSummary:
     # more. Its own bucket because it is not the same finding as a judge rejection -
     # the question may be perfectly good and still land here.
     rejected_difficulty: int = 0
+    # D-198. Two separate facts, because one number would hide the thing worth knowing:
+    # how many Generator calls the run actually paid for, and how many candidates only
+    # became publishable *because* a repair ran. A repair loop that fixes nothing still
+    # spends, and `generator_calls` is what makes that visible.
+    generator_calls: int = 0
+    repaired_to_pending: int = 0
+    repaired_still_rejected: int = 0
     skipped_budget: int = 0
     # A candidate whose template id was already taken. Its own row is discarded and the
     # batch continues (D-193) - the money is still counted, because it was still spent.
@@ -117,14 +124,25 @@ class RunSummary:
 
     def record(self, outcome: "PipelineOutcome") -> None:
         self.total_cost_cents += outcome.cost_cents
+        # D-198: attempts, not candidates. A slot that repaired twice paid for three
+        # Generator calls, and a run whose yield looks fine while this number is triple the
+        # candidate count is not the same run as one that got there first time.
+        self.generator_calls += outcome.attempts
         if outcome.status == "pending":
             self.processed += 1
             self.pending += 1
+            if outcome.attempts > 1:
+                self.repaired_to_pending += 1
             return
         if outcome.rejected_at == "budget":
             self.skipped_budget += 1
             return
         self.processed += 1
+        if outcome.attempts > 1:
+            # Repaired and still rejected: the money that bought nothing. Counted
+            # separately because "repair helps" and "repair is affordable" are different
+            # claims and this is the one that tests the second.
+            self.repaired_still_rejected += 1
         attribute = f"rejected_{outcome.rejected_at or 'generator'}"
         setattr(self, attribute, getattr(self, attribute) + 1)
 
@@ -138,6 +156,8 @@ class RunSummary:
             f"validation={self.rejected_validation} dedup={self.rejected_dedup} "
             f"solver={self.rejected_solver} judge={self.rejected_judge} "
             f"difficulty={self.rejected_difficulty}\n"
+            f"  repair: generator_calls={self.generator_calls} "
+            f"fixed={self.repaired_to_pending} still_rejected={self.repaired_still_rejected}\n"
             f"  skipped: budget={self.skipped_budget} "
             f"duplicate_id={self.skipped_duplicate_id}"
         )
@@ -213,6 +233,9 @@ class GenerationPlan:
     topic_ids: tuple[str, ...]
     skill_ids: tuple[str, ...]
     difficulties: tuple[int, ...]
+    # D-198. Defaulted, and last, so every existing construction site keeps one-shot
+    # behaviour without naming it.
+    max_repair_attempts: int = 0
 
     @property
     def template_ids(self) -> tuple[str, ...]:
@@ -236,6 +259,7 @@ def build_plan(
     candidates_per_slot: int = 2,
     seed_offset: int = DEFAULT_SEED_OFFSET,
     run_budget_cents: float = 1000.0,
+    max_repair_attempts: int = 0,
 ) -> GenerationPlan:
     """Turn CLI arguments into the exact list of candidates a run would attempt.
 
@@ -344,6 +368,7 @@ def build_plan(
         mode=mode,
         slots=tuple(slots),
         candidates_per_slot=candidates_per_slot,
+        max_repair_attempts=max_repair_attempts,
         seed_offset=seed_offset,
         run_budget_cents=run_budget_cents,
         topic_ids=tuple(sorted(plan_by_topic)),
@@ -383,6 +408,10 @@ async def run_plan(
                     seed=slot.seed,
                     session_spend_cents=spend,
                     skill_id=slot.skill_id,
+                    max_repair_attempts=plan.max_repair_attempts,
+                    # The slot may not spend past the run's own ceiling; without this the
+                    # between-slot check only notices after the money is gone.
+                    budget_ceiling_cents=plan.run_budget_cents,
                 )
             else:
                 outcome = await generate_candidate(
@@ -450,6 +479,19 @@ class PreflightReport:
     text: str
     ok: bool
     failures: tuple[str, ...]
+
+
+def _repair_cost_note(plan: GenerationPlan) -> str:
+    """How much a repair setting could cost, in the units the reader is deciding in.
+
+    Preflight exists so nobody learns a run's shape by paying for it, and repair is the one
+    setting whose worst case is a multiple of the visible candidate count rather than equal
+    to it (D-198).
+    """
+    if not plan.max_repair_attempts:
+        return " (off - a rejected candidate is not retried)"
+    extra = len(plan.slots) * plan.max_repair_attempts
+    return f" (worst case {extra} extra Generator calls across {len(plan.slots)} slots)"
 
 
 async def preflight(
@@ -521,6 +563,7 @@ async def preflight(
         f"skills:                {', '.join(plan.skill_ids)}",
         f"difficulties:          {', '.join(str(d) for d in plan.difficulties)}",
         f"candidates per slot:   {plan.candidates_per_slot}",
+        f"max repair attempts:   {plan.max_repair_attempts}{_repair_cost_note(plan)}",
         f"scheduled candidates:  {len(plan.slots)}",
         f"seed offset:           {plan.seed_offset}",
         f"planned template ids:  {len(plan.template_ids)} "
@@ -623,6 +666,16 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "--max-repair-attempts",
+        type=int,
+        default=0,
+        help="After a rejection a rewrite could fix, tell the Generator what was wrong and "
+        "try again, up to this many extra times per slot (default: 0, off). Each attempt is "
+        "a paid Generator call and is fully re-gated. Difficulty disagreements are never "
+        "repaired - the only useful feedback would be the judge's tier, and handing that "
+        "back is relabeling, not repair",
+    )
+    parser.add_argument(
         "--seed-offset",
         type=int,
         default=DEFAULT_SEED_OFFSET,
@@ -679,6 +732,7 @@ async def main() -> None:
             skill_ids=args.skill_id,
             difficulties=args.difficulty,
             candidates_per_slot=candidates_per_slot,
+            max_repair_attempts=args.max_repair_attempts,
             seed_offset=args.seed_offset,
             run_budget_cents=(
                 args.run_budget_cents
