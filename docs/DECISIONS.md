@@ -13682,3 +13682,44 @@ and `repaired_to_pending` exist to answer exactly that.
 
 **Revert:** default `max_repair_attempts=0` means deleting the flag restores prior behaviour; the
 loop is one function around an unchanged attempt path.
+
+## D-199 — a circuit-breaker refusal is not a verdict on a question (accepted, 2026-08-06)
+
+Deferred as a carry-over in D-195, prioritised when it misdirected a live diagnosis.
+
+The D-198 comparison run reported:
+
+```
+0 accepted of 11 processed (0%), 11 scheduled, 0.00 cents spent.
+  rejected: generator=11
+```
+
+read as *"the generator cannot produce anything"*. The rejection evidence said otherwise: **two**
+candidates hit `model did not return a tool_use block`, the breaker opened, and the remaining
+**nine** were refused without a model ever seeing them. The true reading is "the model failed twice
+and the breaker did its job" - the opposite diagnosis, and it cost real time to find, including a
+paid check of whether D-198's prompt change had broken the generator. It had not.
+
+**Decision.** `circuit_open` is its own `RejectionStage`, and `RunSummary` counts it as a *skip*
+beside `budget` rather than a rejection. Same reasoning D-192 applied to budget skips: a candidate
+that never reached a model is not part of the denominator for whether the mode produces good
+questions.
+
+Classified from a distinct `CircuitOpenError` catch rather than by matching the breaker's wording -
+by the time the failure is a string, "we asked and it went wrong" and "we never asked" differ by a
+substring, and that is not a distinction worth resting on a message.
+
+`circuit_open` is also terminal for D-198's repair loop, automatically: it is not in
+`_REPAIRABLE_STAGES`, and there is neither an item to repair nor a defect to describe.
+
+### Two things measured while diagnosing, recorded not fixed
+
+- **The Generator's structured output is unreliable at the top of its range.** A direct call with
+  `max_output_tokens=4000` returned a response that fails schema validation
+  (`canonical_solution.steps.0.common_mistake` not a string). This is the same failure D-197's slot
+  `709300` hit as `structured output still invalid after one repair retry`.
+- **Output length varies enormously** for the same prompt - 2500, 809, 652 tokens across three
+  calls, with one landing exactly on the 2500 ceiling while `stopReason` still said `tool_use`. If
+  Mistral reports truncation that way, D-115's `truncated` flag cannot see it and the gateway will
+  spend a repair retry on a fragment. Not confirmed - one observation, and the two later calls came
+  in well under - but worth a look before raising the ceiling.
