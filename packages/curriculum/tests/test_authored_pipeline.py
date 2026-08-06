@@ -16,6 +16,7 @@ import hashlib
 import random
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from typing import NoReturn
 
 import pytest
 from intellichoice_curriculum import ai_pipeline, pipeline_cli, review_cli
@@ -35,6 +36,7 @@ from intellichoice_shared.bedrock import (
     BedrockGatewayError,
     BedrockGenerationResult,
     BedrockTask,
+    CircuitOpenError,
     EmbeddingResult,
     EquationDesignResponse,
     QuestionJudgePayload,
@@ -2456,6 +2458,40 @@ def test_a_design_that_never_solves_cleanly_fails_cheaply_and_never_authors() ->
             assert outcome.rejected_at == "design"
             # The whole economic argument: no full-size authoring call was ever made.
             assert gateway.authored == 0
+# --- D-199: a circuit-breaker refusal is not a verdict on a question ------------------
+
+
+class _CircuitOpenGateway(_ScriptedAuthoredGateway):
+    async def generate_structured(self, **kwargs: object) -> NoReturn:
+        raise CircuitOpenError("Bedrock circuit breaker is open")
+
+
+def test_a_circuit_open_refusal_is_recorded_as_a_skip_not_a_generator_rejection() -> None:
+    """Measured cost of not separating these: a run reported `generator=11` when two
+    candidates had actually been attempted and nine were refused after the breaker opened.
+    It read as "the model cannot produce anything"; it meant "the model failed twice and
+    the breaker did its job", which is the opposite diagnosis.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_CircuitOpenGateway(),  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=901001,
+                session_spend_cents=0.0,
+            )
+            assert outcome.rejected_at == "circuit_open"
+
+            summary = pipeline_cli.RunSummary()
+            summary.record(outcome)
+            assert summary.skipped_circuit_open == 1
+            # Not in the quality denominator: nothing was generated to judge.
+            assert summary.processed == 0
+            assert summary.rejected_generator == 0
 
     asyncio.run(run())
 
@@ -2492,3 +2528,35 @@ def test_every_authorable_skill_has_a_required_equation_structure() -> None:
     # The two that collided must now demand different shapes.
     assert "BOTH sides" in ai_pipeline.SKILL_STRUCTURES["linear_both_sides"]
     assert "distributed" in ai_pipeline.SKILL_STRUCTURES["linear_distribute"]
+def test_a_real_generator_failure_is_still_a_generator_rejection() -> None:
+    # The other half: the separation must not swallow genuine failures.
+    async def run() -> None:
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_FailingGeneratorGateway(),  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=901002,
+                session_spend_cents=0.0,
+            )
+            assert outcome.rejected_at == "generator"
+            summary = pipeline_cli.RunSummary()
+            summary.record(outcome)
+            assert summary.rejected_generator == 1
+            assert summary.skipped_circuit_open == 0
+            assert summary.processed == 1
+
+    asyncio.run(run())
+
+
+def test_a_circuit_open_candidate_is_never_repaired() -> None:
+    # There is no item and no defect - only a breaker that has already decided the next
+    # call should not be made. Retrying is the one thing that must not happen.
+    assert (
+        ai_pipeline.repair_feedback(
+            stage="circuit_open", reasons=["Bedrock circuit breaker is open"], stage_results={}
+        )
+        is None
+    )

@@ -107,6 +107,7 @@ class RunSummary:
     generator_calls: int = 0
     repaired_to_pending: int = 0
     repaired_still_rejected: int = 0
+    skipped_circuit_open: int = 0
     skipped_budget: int = 0
     # A candidate whose template id was already taken. Its own row is discarded and the
     # batch continues (D-193) - the money is still counted, because it was still spent.
@@ -140,6 +141,10 @@ class RunSummary:
         if outcome.rejected_at == "budget":
             self.skipped_budget += 1
             return
+        if outcome.rejected_at == "circuit_open":
+            # Never reached a model, so it is not part of the quality denominator (D-199).
+            self.skipped_circuit_open += 1
+            return
         self.processed += 1
         if outcome.attempts > 1:
             # Repaired and still rejected: the money that bought nothing. Counted
@@ -162,7 +167,7 @@ class RunSummary:
             f"difficulty={self.rejected_difficulty}\n"
             f"  repair: generator_calls={self.generator_calls} "
             f"fixed={self.repaired_to_pending} still_rejected={self.repaired_still_rejected}\n"
-            f"  skipped: budget={self.skipped_budget} "
+            f"  skipped: budget={self.skipped_budget} circuit_open={self.skipped_circuit_open} "
             f"duplicate_id={self.skipped_duplicate_id}"
         )
 
