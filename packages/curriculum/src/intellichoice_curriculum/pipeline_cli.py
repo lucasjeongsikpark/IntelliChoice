@@ -31,17 +31,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from intellichoice_curriculum.ai_pipeline import (
     DIFFICULTY_SHAPES,
     TOPIC_SKILL_DIFFICULTIES,
+    PipelineConfigError,
     PipelineOutcome,
     generate_authored_candidate,
     generate_candidate,
+    generate_narrative_candidate,
+)
+from intellichoice_curriculum.ai_pipeline import (
+    PipelineOutcome as _PipelineOutcome,  # noqa: F401  (RunSummary.record's annotation)
 )
 from intellichoice_curriculum.content import load_curriculum
+from intellichoice_curriculum.loader import TEMPLATE_BANKS
 from intellichoice_curriculum.settings import CurriculumPipelineSettings, get_pipeline_settings
 
 _SEED_BASE = 1000  # Well clear of the S4 hand-authored bank's seeds (0-9 per difficulty).
 # S20 authored mode uses its own seed range so a shape-pipeline run and an authored-
 # pipeline run against the same topic/difficulty never propose colliding template ids.
 _AUTHORED_SEED_BASE = 5000
+# D-192 narrative mode gets its own range for the same reason authored mode did: a seed
+# decides a template id, and two modes sharing a range would collide on ids rather than on
+# content.
+_NARRATIVE_SEED_BASE = 20000
 
 # Seeds are a pure function of (skill, tier, index), and a template id is a pure function
 # of the seed - so a second run at the same settings re-proposes ids the first run's
@@ -76,10 +86,64 @@ def authored_seed(
 
 @dataclass
 class RunSummary:
+    """Counts with separate denominators, because one number was hiding two (D-192).
+
+    The first narrative run reported "8 of 50" and "stopped at 34 of 50" in the same
+    breath: 16 candidates were never sent to a model at all - the gateway refused them on
+    budget - yet they were counted as rejections. So the yield was quoted as 16% when the
+    rate that actually says whether the mode works is 8/34, and neither number was
+    labelled. `processed` is the honest denominator for quality; `scheduled` is the one for
+    coverage.
+    """
+
+    scheduled: int = 0
+    processed: int = 0
     pending: int = 0
-    rejected: int = 0
+    rejected_generator: int = 0
+    rejected_validation: int = 0
+    rejected_dedup: int = 0
+    rejected_solver: int = 0
+    rejected_judge: int = 0
+    skipped_budget: int = 0
+    skipped_unsupported_shape: int = 0
     total_cost_cents: float = 0.0
     rejections: list[tuple[str, int, list[str]]] = field(default_factory=list)
+
+    @property
+    def rejected(self) -> int:
+        return (
+            self.rejected_generator
+            + self.rejected_validation
+            + self.rejected_dedup
+            + self.rejected_solver
+            + self.rejected_judge
+        )
+
+    def record(self, outcome: "PipelineOutcome") -> None:
+        self.total_cost_cents += outcome.cost_cents
+        if outcome.status == "pending":
+            self.processed += 1
+            self.pending += 1
+            return
+        if outcome.rejected_at == "budget":
+            self.skipped_budget += 1
+            return
+        self.processed += 1
+        attribute = f"rejected_{outcome.rejected_at or 'generator'}"
+        setattr(self, attribute, getattr(self, attribute) + 1)
+
+    def format(self, mode: str) -> str:
+        yield_rate = (self.pending / self.processed * 100) if self.processed else 0.0
+        return (
+            f"Pipeline run complete ({mode}): {self.pending} accepted of {self.processed} "
+            f"processed ({yield_rate:.0f}%), {self.scheduled} scheduled, "
+            f"{self.total_cost_cents:.2f} cents spent.\n"
+            f"  rejected: generator={self.rejected_generator} "
+            f"validation={self.rejected_validation} dedup={self.rejected_dedup} "
+            f"solver={self.rejected_solver} judge={self.rejected_judge}\n"
+            f"  skipped: budget={self.skipped_budget} "
+            f"unsupported_shape={self.skipped_unsupported_shape}"
+        )
 
 
 async def run_pipeline(
@@ -92,6 +156,9 @@ async def run_pipeline(
 ) -> RunSummary:
     curriculum = load_curriculum()
     summary = RunSummary()
+    summary.scheduled = candidates_per_difficulty * sum(
+        len(shapes) for shapes in DIFFICULTY_SHAPES.values()
+    )
     spend = 0.0
 
     for topic_id, difficulty_shapes in sorted(DIFFICULTY_SHAPES.items()):
@@ -111,11 +178,8 @@ async def run_pipeline(
                     session_spend_cents=spend,
                 )
                 spend += outcome.cost_cents
-                summary.total_cost_cents += outcome.cost_cents
-                if outcome.status == "pending":
-                    summary.pending += 1
-                else:
-                    summary.rejected += 1
+                summary.record(outcome)
+                if outcome.status != "pending":
                     summary.rejections.append((topic_id, difficulty_label, outcome.reasons))
     return summary
 
@@ -143,6 +207,9 @@ async def run_authored_pipeline(
     """
     curriculum = load_curriculum()
     summary = RunSummary()
+    summary.scheduled = candidates_per_difficulty * sum(
+        len(tiers) for plan in TOPIC_SKILL_DIFFICULTIES.values() for tiers in plan.values()
+    )
     spend = 0.0
 
     for topic_id, skill_difficulties in sorted(TOPIC_SKILL_DIFFICULTIES.items()):
@@ -171,12 +238,71 @@ async def run_authored_pipeline(
                         skill_id=skill_id,
                     )
                     spend += outcome.cost_cents
-                    summary.total_cost_cents += outcome.cost_cents
-                    if outcome.status == "pending":
-                        summary.pending += 1
-                    else:
-                        summary.rejected += 1
+                    summary.record(outcome)
+                    if outcome.status != "pending":
                         summary.rejections.append((topic_id, difficulty_label, outcome.reasons))
+    return summary
+
+
+async def run_narrative_pipeline(
+    session: AsyncSession,
+    gateway: BedrockGateway,
+    *,
+    candidates_per_difficulty: int = 2,
+    run_budget_cents: float = 1000.0,
+    seed_offset: int = DEFAULT_SEED_OFFSET,
+) -> RunSummary:
+    """D-192: iterate the *hand-authored shape bank* and ask the model to dress each item
+    in a real-world story.
+
+    Iterating templates rather than (skill, tier) pairs is what makes this mode's
+    guarantees free. A `QuestionTemplateDef` already carries the skill, the tier, the
+    parameter bounds and the misconception-tagged distractor generators, so every property
+    authored mode had to generate and then check is simply read here.
+
+    `candidates_per_difficulty` is per *template*, and each candidate re-draws the shape's
+    parameters from its own seed - so two candidates of the same template are two different
+    equations dressed in two different stories, not the same question twice.
+    """
+    curriculum = load_curriculum()
+    summary = RunSummary()
+    summary.scheduled = candidates_per_difficulty * sum(
+        len(templates) for templates in TEMPLATE_BANKS.values()
+    )
+    spend = 0.0
+
+    for topic_id, templates in sorted(TEMPLATE_BANKS.items()):
+        for template_index, template_def in enumerate(templates):
+            for i in range(candidates_per_difficulty):
+                if spend >= run_budget_cents:
+                    print(f"run budget of {run_budget_cents} cents reached - stopping early")
+                    return summary
+                seed = _NARRATIVE_SEED_BASE + seed_offset + template_index * 100 + i
+                try:
+                    outcome: PipelineOutcome = await generate_narrative_candidate(
+                        session=session,
+                        gateway=gateway,
+                        curriculum=curriculum,
+                        template_def=template_def,
+                        seed=seed,
+                        session_spend_cents=spend,
+                    )
+                except PipelineConfigError as exc:
+                    # 14 of the bank's 50 templates have bounds that cannot produce a
+                    # countable answer (D-192). That is a configuration fact about those
+                    # templates, not a reason to discard everything else in the batch -
+                    # the same lesson the seed-collision hazard taught.
+                    summary.skipped_unsupported_shape += 1
+                    summary.rejections.append(
+                        (topic_id, template_def.difficulty_label, [str(exc)])
+                    )
+                    continue
+                spend += outcome.cost_cents
+                summary.record(outcome)
+                if outcome.status != "pending":
+                    summary.rejections.append(
+                        (topic_id, template_def.difficulty_label, outcome.reasons)
+                    )
     return summary
 
 
@@ -210,10 +336,11 @@ async def main() -> None:
     parser = argparse.ArgumentParser(description="Run the AI question-generation pipeline")
     parser.add_argument(
         "--mode",
-        choices=["shape", "authored"],
+        choices=["shape", "authored", "narrative"],
         default="shape",
-        help="'shape' (S9, parameterized templates) or 'authored' (S20, hand-quality "
-        "items) - default: shape",
+        help="'shape' (S9, parameterized templates), 'authored' (S20, the model writes "
+        "the whole item) or 'narrative' (D-192, a shape's equation dressed in a story by "
+        "the model) - default: shape",
     )
     parser.add_argument(
         "--candidates-per-difficulty",
@@ -239,7 +366,10 @@ async def main() -> None:
         session_factory = create_session_factory(engine)
         async with session_scope(session_factory) as session:
             try:
-                run = run_authored_pipeline if args.mode == "authored" else run_pipeline
+                run = {
+                    "authored": run_authored_pipeline,
+                    "narrative": run_narrative_pipeline,
+                }.get(args.mode, run_pipeline)
                 summary = await run(
                     session,
                     gateway,
@@ -251,10 +381,7 @@ async def main() -> None:
                 print(f"run budget exceeded: {exc}")
                 raise
             await session.commit()
-        print(
-            f"Pipeline run complete ({args.mode}): {summary.pending} pending, "
-            f"{summary.rejected} rejected, {summary.total_cost_cents:.2f} cents spent."
-        )
+        print(summary.format(args.mode))
         for topic_id, difficulty_label, reasons in summary.rejections:
             print(f"  rejected {topic_id} d{difficulty_label}: {reasons}")
     finally:

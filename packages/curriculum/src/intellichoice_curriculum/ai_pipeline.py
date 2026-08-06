@@ -58,15 +58,18 @@ from intellichoice_shared.bedrock import (
     DifficultyReviewResponse,
     GeneratedTemplateResponse,
     GeneratorPayload,
+    NarrativeDressingPayload,
+    NarrativeDressingResponse,
     QuestionJudgePayload,
     QuestionJudgeResponse,
+    SolutionResponse,
     SolverPayload,
     SolverResponse,
 )
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from intellichoice_curriculum.authored_validation import validate_authored_item
+from intellichoice_curriculum.authored_validation import derive_answer, validate_authored_item
 from intellichoice_curriculum.content import CurriculumContent
 from intellichoice_curriculum.generation import VariantGenerationError, generate_variant
 from intellichoice_curriculum.templates.model import QuestionTemplateDef
@@ -332,6 +335,39 @@ _AUTHORED_FEW_SHOT_EXEMPLARS: list[str] = [
 # "never exercised against real AWS" caveat as D-025/D-035/D-046: `MockBedrockProvider`'s
 # hash-based vectors are high-dimensional and effectively random for unrelated text, so
 # only a near-exact-text stem collides this tightly in tests.
+_NARRATIVE_SYSTEM_PROMPT = (
+    "You are an expert K-12 math item writer. You are given an equation, its unknown, its "
+    "answer, and the four answer options that will be shown. Your ONLY job is to write a "
+    "real-world situation whose mathematics is exactly that equation. "
+    "Do not restate the equation symbolically in the stem - describe the situation in "
+    "words, so a student has to model it themselves. "
+    "The situation must be concrete and worth picturing: people with names, objects, a "
+    "goal. Vary the setting between items; do not write two questions in the same world. "
+    "Every quantity in the equation must correspond to something the story states, and "
+    "the story must not imply any constraint the answer violates - if the answer is 4, do "
+    "not describe a game with three levels. "
+    "Set unit_label to the bare noun the answer counts ('sunflowers', 'minutes', "
+    "'dollars'), or leave it null if the answer is a pure number. It is applied to every "
+    "option, so it must fit all four. "
+    "Write a 3-level hint ladder that guides toward modelling and solving without ever "
+    "stating the answer, and solution_steps that work the situation through to it. "
+    "Keep every sentence under 30 words and inside the grade band's reading level."
+)
+
+_NARRATIVE_EXEMPLARS: list[str] = [
+    (
+        "equation: '4x + 4 = 16' | answer: '3' | stem: 'Maya is filling gift bags for a "
+        "party. She puts 4 stickers in each bag and has 4 stickers left over. She started "
+        "with 16 stickers. How many bags did she fill?' | unit_label: 'bags'"
+    ),
+    (
+        "equation: '5(x + 1) + 2x = 54' | answer: '7' | stem: 'A food truck sells combo "
+        "meals for $5 each, and every combo comes with one $1 drink. The truck also sold "
+        "$2 cookies, one per combo. Takings were $54. How many combos were sold?' | "
+        "unit_label: 'combos'"
+    ),
+]
+
 NEAR_DUPLICATE_COSINE_DISTANCE_THRESHOLD = 0.05
 
 # SPEC §5.8.5/plan §7 judge thresholds: a genuinely low hint-quality score rejects; a
@@ -392,10 +428,19 @@ class PipelineConfigError(Exception):
     """
 
 
+# Which stage ended the candidate. Recorded rather than inferred from the reason strings,
+# because a run's headline number is only interpretable if "the solvers disagreed" and "we
+# ran out of money before calling anything" are different rows (D-192).
+RejectionStage = Literal[
+    "generator", "validation", "dedup", "solver", "judge", "budget", "unsupported_shape"
+]
+
+
 @dataclass
 class PipelineOutcome:
     status: Literal["pending", "rejected"]
     reasons: list[str] = field(default_factory=list)
+    rejected_at: RejectionStage | None = None
     question_template_id: str | None = None
     question_variant_id: str | None = None
     cost_cents: float = 0.0
@@ -751,6 +796,35 @@ async def generate_candidate(
     )
 
 
+async def _generate_authored_item(
+    gateway: BedrockGateway,
+    *,
+    topic: object,
+    skill: object,
+    difficulty_label: int,
+    spend: float,
+) -> tuple[BaseModel | None, float, str | None]:
+    """Stage 1 of authored mode, extracted so narrative mode can skip exactly this step
+    and share everything after it (D-192).
+    """
+    payload = AuthoredGeneratorPayload(
+        topic_name=topic.name,  # type: ignore[attr-defined]
+        skill_name=skill.name,  # type: ignore[attr-defined]
+        grade_band=topic.grade_band,  # type: ignore[attr-defined]
+        difficulty_label=difficulty_label,
+        exemplars=_AUTHORED_FEW_SHOT_EXEMPLARS,
+    )
+    return await _call(
+        gateway,
+        task=BedrockTask.AUTHORED_QUESTION_GENERATION,
+        system_prompt=_AUTHORED_GENERATOR_SYSTEM_PROMPT,
+        payload=payload,
+        response_model=AuthoredGeneratedItemResponse,
+        session_spend_cents=spend,
+        max_output_tokens=_AUTHORED_ITEM_MAX_TOKENS,
+    )
+
+
 async def generate_authored_candidate(
     *,
     session: AsyncSession,
@@ -762,6 +836,9 @@ async def generate_authored_candidate(
     session_spend_cents: float,
     version: int = 1,
     skill_id: str | None = None,
+    prebuilt_item: AuthoredGeneratedItemResponse | None = None,
+    template_id_prefix: str = "authored",
+    generator_model: str = "bedrock-authored-question-generation",
 ) -> PipelineOutcome:
     """Runs one candidate through the S20 *authored* pipeline (plan §7): a real
     hand-quality stem/hint-ladder/solution instead of a parameterized shape (see this
@@ -815,7 +892,9 @@ async def generate_authored_candidate(
 
     repo = QuestionRepository(session)
 
-    async def _reject(reasons: list[str], stage_results: dict) -> PipelineOutcome:
+    async def _reject(
+        reasons: list[str], stage_results: dict, stage: RejectionStage
+    ) -> PipelineOutcome:
         await repo.create_validation_run(
             QuestionValidationRun(
                 question_template_id=None,
@@ -825,32 +904,31 @@ async def generate_authored_candidate(
                 cost_cents=total_cost,
             )
         )
-        return PipelineOutcome(status="rejected", reasons=reasons, cost_cents=total_cost)
+        return PipelineOutcome(
+            status="rejected", reasons=reasons, cost_cents=total_cost, rejected_at=stage
+        )
 
     # --- 1. Authored Generator Agent --------------------------------------------
-    gen_payload = AuthoredGeneratorPayload(
-        topic_name=topic.name,
-        skill_name=skill.name,
-        grade_band=topic.grade_band,
-        difficulty_label=difficulty_label,
-        exemplars=_AUTHORED_FEW_SHOT_EXEMPLARS,
-    )
-    item, cost, error = await _call(
-        gateway,
-        task=BedrockTask.AUTHORED_QUESTION_GENERATION,
-        system_prompt=_AUTHORED_GENERATOR_SYSTEM_PROMPT,
-        payload=gen_payload,
-        response_model=AuthoredGeneratedItemResponse,
-        session_spend_cents=spend,
-        max_output_tokens=_AUTHORED_ITEM_MAX_TOKENS,
-    )
+    # Narrative mode (D-192) supplies the item already assembled - its equation, options,
+    # answer and skill come from a registered shape rather than from a model - so stage 1
+    # is skipped and every stage below runs unchanged. Sharing this path rather than
+    # copying it is deliberate: two gates that were meant to be identical would drift.
+    if prebuilt_item is not None:
+        item: BaseModel | None = prebuilt_item
+        cost, error = 0.0, None
+    else:
+        item, cost, error = await _generate_authored_item(
+            gateway, topic=topic, skill=skill, difficulty_label=difficulty_label, spend=spend
+        )
     _spend(cost)
     if error is not None or item is None:
-        return await _reject([f"authored generator call failed: {error}"], {})
+        return await _reject([f"authored generator call failed: {error}"], {}, "generator")
     assert isinstance(item, AuthoredGeneratedItemResponse)
-    # Before every check and before the solvers, so each stage sees what a student would
-    # (D-191). The generator put the correct answer in option b six times out of six.
-    item = shuffle_options(item, seed=seed)
+    if prebuilt_item is None:
+        # The shape generator already randomises option order for narrative mode, so only
+        # a model-authored item needs this (D-191's position-bias fix).
+        item = shuffle_options(item, seed=seed)
+
 
     rendered_question = (
         f"{item.context_block}\n\n{item.stem}" if item.context_block else item.stem
@@ -864,11 +942,13 @@ async def generate_authored_candidate(
         "deterministic_gate": {"passed": gate.passed, "failures": gate.failures}
     }
     if not gate.passed:
-        return await _reject(gate.failures, stage_results)
+        return await _reject(gate.failures, stage_results, "validation")
 
     if await repo.rendered_question_exists(rendered_question):
         stage_results["deduplication"] = {"passed": False, "reason": "exact text duplicate"}
-        return await _reject(["duplicate rendered_question (exact text match)"], stage_results)
+        return await _reject(
+            ["duplicate rendered_question (exact text match)"], stage_results, "dedup"
+        )
 
     # --- 3. Near-duplicate check: embed the stem, cosine-compare against every ---
     # --- other authored template's stem in this topic -----------------------------
@@ -878,7 +958,7 @@ async def generate_authored_candidate(
         )
     except BedrockGatewayError as exc:
         stage_results["deduplication"] = {"passed": False, "error": str(exc)}
-        return await _reject([f"stem embedding call failed: {exc}"], stage_results)
+        return await _reject([f"stem embedding call failed: {exc}"], stage_results, "dedup")
     _spend(embed_result.cost_cents)
     stem_embedding = embed_result.vectors[0]
     if await repo.stem_near_duplicate_exists(
@@ -890,7 +970,7 @@ async def generate_authored_candidate(
         }
         return await _reject(
             ["near-duplicate stem (embedding cosine distance below threshold)"], stage_results
-        )
+        , "dedup")
     stage_results["deduplication"] = {"passed": True}
 
     # --- 4. Independent Solver Agents A and B, routed through two already- -------
@@ -913,7 +993,7 @@ async def generate_authored_candidate(
     )
     _spend(cost)
     if error is not None:
-        return await _reject([f"solver A call failed: {error}"], stage_results)
+        return await _reject([f"solver A call failed: {error}"], stage_results, "solver")
     solver_b, cost, error = await _call(
         gateway,
         task=BedrockTask.QUESTION_REVIEW,
@@ -925,7 +1005,7 @@ async def generate_authored_candidate(
     )
     _spend(cost)
     if error is not None:
-        return await _reject([f"solver B call failed: {error}"], stage_results)
+        return await _reject([f"solver B call failed: {error}"], stage_results, "solver")
     assert isinstance(solver_a, SolverResponse) and isinstance(solver_b, SolverResponse)
     stage_results["solver_a"] = {"selected_option": solver_a.selected_option}
     stage_results["solver_b"] = {"selected_option": solver_b.selected_option}
@@ -936,7 +1016,7 @@ async def generate_authored_candidate(
             f"solver_a={solver_a.selected_option!r} solver_b={solver_b.selected_option!r} "
             f"declared={item.correct_option!r}"
         ]
-        return await _reject(reasons, stage_results)
+        return await _reject(reasons, stage_results, "solver")
 
     # --- 5. Judge: difficulty fit, ambiguity, alignment, age-appropriateness, ----
     # --- hint quality, all from one independent model call -----------------------
@@ -964,7 +1044,7 @@ async def generate_authored_candidate(
     )
     _spend(cost)
     if error is not None:
-        return await _reject([f"judge call failed: {error}"], stage_results)
+        return await _reject([f"judge call failed: {error}"], stage_results, "judge")
     assert isinstance(judge, QuestionJudgeResponse)
     stage_results["judge"] = judge.model_dump()
 
@@ -988,7 +1068,7 @@ async def generate_authored_candidate(
     if judge.hint_quality_score < _HINT_QUALITY_REJECT_BELOW:
         judge_reasons.append(f"judge rated hint quality {judge.hint_quality_score}, too low")
     if judge_reasons:
-        return await _reject(judge_reasons, stage_results)
+        return await _reject(judge_reasons, stage_results, "judge")
 
     review_priority = "normal"
     if (
@@ -998,7 +1078,7 @@ async def generate_authored_candidate(
         review_priority = "high"
 
     # --- 6. Persist as pending (never auto-approved - see module docstring) -----
-    template_id = f"authored-{topic_id}-d{difficulty_label}-{seed}"
+    template_id = f"{template_id_prefix}-{topic_id}-d{difficulty_label}-{seed}"
     template = await repo.create_template(
         QuestionTemplate(
             question_template_id=template_id,
@@ -1015,7 +1095,7 @@ async def generate_authored_candidate(
             distractor_generators=[],
             common_error_tags=item.misconception_tags,
             estimated_time_seconds=item.estimated_time_seconds,
-            generator_model="bedrock-authored-question-generation",
+            generator_model=generator_model,
             review_model_versions={
                 "solver_a": "bedrock-question-generation",
                 "solver_b": "bedrock-question-review",
@@ -1070,4 +1150,233 @@ async def generate_authored_candidate(
         question_template_id=template.question_template_id,
         question_variant_id=persisted_variant.question_variant_id,
         cost_cents=total_cost,
+    )
+
+
+# A story's answer is a count of something. These bounds are about what a *scenario* can
+# hold, not about what the algebra allows, which is why they live here rather than in
+# `SHAPE_PARAMETER_BOUNDS` - that table is correct for bare "Solve for x" items and stays
+# untouched.
+#
+# Measured, not guessed (D-192's first run): the shape bank handed the model `5x = 5`,
+# `2x + 8 = 6x + 0` and answers like -6 and -25, and it wrapped them in scenarios such as
+# "-1 notebooks" and a $2 book collection that ends up worth $10. Seventeen of forty-two
+# rejections were solvers disagreeing with stories that could not be told coherently.
+# 6, not 2: `distractor_scaled` offsets by up to 5, so a smaller answer would put a
+# distractor at zero or below and reintroduce "-1 notebooks" through the back door.
+_STORY_MIN_ANSWER = 6
+_STORY_MAX_ANSWER = 200
+# Measured, not chosen: 36 of the bank's 50 templates find a story-friendly draw, and that
+# number is identical at 40, 120 and 300 attempts. The other 14 are structurally
+# unreachable - their bounds cannot produce an answer of 6 or more with all-positive
+# distractors - so searching harder buys nothing.
+_STORY_FRIENDLY_SEED_ATTEMPTS = 40
+_STORY_SEED_STRIDE = 7919  # prime, so the search never lands on a neighbouring candidate
+
+# `distractor_sign_flip` negates the answer by construction, so while it is in play one
+# option is *always* negative and no counting story can use all four. Measured: 0 of 50
+# templates could produce four positive options with the default set. Narrative mode
+# therefore substitutes its own distractors, and pays for it by losing the `sign_error`
+# misconception - which a counting scenario cannot express anyway, since "-6 stickers" is
+# not an error a student would make, it is an answer they would never write.
+_NARRATIVE_DISTRACTORS = [
+    "distractor_off_by_one",
+    "distractor_scaled",
+    "distractor_scaled",
+]
+_NARRATIVE_ERROR_TAGS = ["off_by_one", "magnitude_error", "magnitude_error"]
+
+
+def _is_story_friendly(variant: object) -> bool:
+    """Can this equation's numbers be counted out loud in a situation?
+
+    Every option has to be a plain positive whole number: a distractor of `-1` is fine as a
+    sign-error probe on a bare equation and absurd once it reads "-1 notebooks", and the
+    distractor generators produce sign flips by design.
+    """
+    texts = [
+        variant.option_a,  # type: ignore[attr-defined]
+        variant.option_b,  # type: ignore[attr-defined]
+        variant.option_c,  # type: ignore[attr-defined]
+        variant.option_d,  # type: ignore[attr-defined]
+    ]
+    values = []
+    for text in texts:
+        try:
+            values.append(int(text))
+        except ValueError:
+            return False
+    if any(value < 1 for value in values):
+        return False
+    correct = values[_OPTION_LABELS.index(variant.correct_option)]  # type: ignore[attr-defined]
+    return _STORY_MIN_ANSWER <= correct <= _STORY_MAX_ANSWER
+
+
+def _equation_from_rendered(rendered_question: str) -> str:
+    """`'Solve for x: 5(x + 1) + 2x = 54'` -> `'5(x + 1) + 2x = 54'`.
+
+    Every registered shape renders with this prefix (see `templates/registry.py`). The
+    extraction is not trusted: `generate_narrative_candidate` solves the result and
+    compares it to the shape's own correct option, so a shape that ever renders differently
+    fails loudly instead of quietly dressing the wrong equation.
+    """
+    _, _, equation = rendered_question.partition(":")
+    return (equation or rendered_question).strip()
+
+
+async def generate_narrative_candidate(
+    *,
+    session: AsyncSession,
+    gateway: BedrockGateway,
+    curriculum: CurriculumContent,
+    template_def: QuestionTemplateDef,
+    seed: int,
+    session_spend_cents: float,
+) -> PipelineOutcome:
+    """D-192: generate the equation first, then ask the model only to dress it in a story.
+
+    The inversion of authored mode, and it removes by construction the failures D-191
+    measured rather than checking for them afterwards. The equation, its answer, its
+    misconception-tagged distractors, the skill and the tier all come from a registered
+    shape, so a model that writes a bad story produces a *rejected* item, never a wrong
+    answer, a mislabelled difficulty or a question that does not exercise its skill.
+
+    What the model can still get wrong is the one thing it is better at than code: whether
+    the situation it describes really is this equation. That is exactly what the two
+    independent solvers test - and the test is sharp here in a way it was not before,
+    because they are checked against an answer we derived, not one they were handed.
+    """
+    topic = next((t for t in curriculum.topics if t.topic_id == template_def.topic_id), None)
+    skill = next((s for s in curriculum.skills if s.skill_id == template_def.skill_id), None)
+    if topic is None or skill is None:
+        raise PipelineConfigError(
+            f"topic/skill not in curriculum taxonomy: "
+            f"{template_def.topic_id}/{template_def.skill_id}"
+        )
+
+    # Redraw until the equation's numbers can live in a story. The template id keeps the
+    # caller's seed - only the *parameters* are searched - so the id space stays exactly
+    # as the runner planned it and two candidates can never collide.
+    variant = None
+    for attempt in range(_STORY_FRIENDLY_SEED_ATTEMPTS):
+        try:
+            candidate_variant = generate_variant(
+                shape_key=template_def.solution_function,
+                parameter_schema=template_def.parameter_schema,
+                correct_option_generator=template_def.correct_option_generator,
+                distractor_generator_keys=_NARRATIVE_DISTRACTORS,
+                seed=seed + attempt * _STORY_SEED_STRIDE,
+            )
+        except VariantGenerationError as exc:
+            raise PipelineConfigError(str(exc)) from exc
+        if _is_story_friendly(candidate_variant):
+            variant = candidate_variant
+            break
+    if variant is None:
+        # Not a per-candidate rejection: this shape's bounds cannot produce a countable
+        # answer at all, which is a configuration fact worth surfacing rather than a run
+        # of bad luck.
+        raise PipelineConfigError(
+            f"shape {template_def.solution_function!r} produced no story-friendly "
+            f"parameters in {_STORY_FRIENDLY_SEED_ATTEMPTS} attempts - every draw had a "
+            f"non-positive or out-of-range option"
+        )
+
+    options = [variant.option_a, variant.option_b, variant.option_c, variant.option_d]
+    answer_value = options[_OPTION_LABELS.index(variant.correct_option)]
+    equation = _equation_from_rendered(variant.rendered_question)
+
+    # Code against code: the extracted equation must independently solve to the answer the
+    # shape computed. Cheap, and it means a rendering change can never silently hand the
+    # model an equation that does not match the options it will be dressed with.
+    derived, derive_error = derive_answer(equation)
+    if derived is None or str(derived) != answer_value:
+        raise PipelineConfigError(
+            f"shape {template_def.solution_function!r} rendered {variant.rendered_question!r}, "
+            f"whose equation solves to {derived} rather than the shape's own answer "
+            f"{answer_value!r} ({derive_error or 'values differ'})"
+        )
+
+    narrative, cost, error = await _call(
+        gateway,
+        task=BedrockTask.AUTHORED_QUESTION_GENERATION,
+        system_prompt=_NARRATIVE_SYSTEM_PROMPT,
+        payload=NarrativeDressingPayload(
+            equation=equation,
+            unknown_symbol="x",
+            answer_value=answer_value,
+            option_values=options,
+            topic_name=topic.name,
+            skill_name=skill.name,
+            grade_band=topic.grade_band,
+            difficulty_label=template_def.difficulty_label,
+            exemplars=_NARRATIVE_EXEMPLARS,
+        ),
+        response_model=NarrativeDressingResponse,
+        session_spend_cents=session_spend_cents,
+        max_output_tokens=_AUTHORED_ITEM_MAX_TOKENS,
+    )
+    if error is not None or narrative is None:
+        repo = QuestionRepository(session)
+        await repo.create_validation_run(
+            QuestionValidationRun(
+                question_template_id=None,
+                outcome="rejected",
+                stage_results={},
+                reasons=[f"narrative dressing call failed: {error}"],
+                cost_cents=cost,
+            )
+        )
+        budget_exhausted = "budget" in (error or "")
+        return PipelineOutcome(
+            status="rejected",
+            reasons=[f"narrative dressing call failed: {error}"],
+            cost_cents=cost,
+            rejected_at="budget" if budget_exhausted else "generator",
+        )
+    assert isinstance(narrative, NarrativeDressingResponse)
+
+    # The unit is applied by code to every option, so it can never change which one is
+    # correct - the model supplies the word, not the arithmetic.
+    unit = (narrative.unit_label or "").strip()
+    labelled = [f"{value} {unit}".strip() for value in options]
+    item = AuthoredGeneratedItemResponse(
+        stem=narrative.stem,
+        context_block=narrative.context_block,
+        option_a=labelled[0],
+        option_b=labelled[1],
+        option_c=labelled[2],
+        option_d=labelled[3],
+        correct_option=variant.correct_option,  # type: ignore[arg-type]
+        equation=equation,
+        hint_ladder=narrative.hint_ladder,
+        canonical_solution=SolutionResponse(
+            steps=narrative.solution_steps,
+            # Code-owned: the model wrote the working, never the result.
+            final_answer=f"{answer_value} {unit}".strip(),
+        ),
+        misconception_tags=_NARRATIVE_ERROR_TAGS,
+        estimated_time_seconds=narrative.estimated_time_seconds,
+    )
+
+    outcome = await generate_authored_candidate(
+        session=session,
+        gateway=gateway,
+        curriculum=curriculum,
+        topic_id=template_def.topic_id,
+        difficulty_label=template_def.difficulty_label,
+        seed=seed,
+        session_spend_cents=session_spend_cents + cost,
+        skill_id=template_def.skill_id,
+        prebuilt_item=item,
+        template_id_prefix="narrative",
+        generator_model="bedrock-narrative-dressing",
+    )
+    # The dressing call's cost belongs to this candidate, not to the shared stages.
+    return PipelineOutcome(
+        status=outcome.status,
+        reasons=outcome.reasons,
+        question_template_id=outcome.question_template_id,
+        question_variant_id=outcome.question_variant_id,
+        cost_cents=outcome.cost_cents + cost,
     )

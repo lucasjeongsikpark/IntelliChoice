@@ -385,6 +385,55 @@ class AuthoredGeneratedItemResponse(BaseModel):
     reasoning: str = ""
 
 
+# --- S9/S20 narrative dressing (D-192) ---------------------------------------------
+#
+# The inversion of authored mode. There, the model invented the question and the
+# deterministic gate checked it afterwards; here the *equation* is generated first from a
+# registered shape - so its skill, its tier, its answer and its misconception-tagged
+# distractors are all code-owned - and the model is asked only to write a situation whose
+# mathematics is that equation.
+#
+# The response deliberately carries no options, no correct option, no answer and no
+# equation. Not as a convention but as a constraint: a model that cannot state the answer
+# cannot state it wrongly, which removes by construction every failure the first scenario
+# runs actually produced (D-191 measured 3 wrong answers in 11, plus 2 skill mismatches in
+# 6, plus difficulty labels nothing could trust).
+
+
+class NarrativeDressingPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    equation: str
+    unknown_symbol: str
+    # The model needs the answer to write hints and a worked solution; it just never gets
+    # to *declare* it. `option_values` is included so the unit it proposes fits all four
+    # and so it can avoid a scenario in which a distractor would be nonsensical.
+    answer_value: str
+    option_values: list[str]
+    topic_name: str
+    skill_name: str
+    grade_band: str
+    difficulty_label: int
+    exemplars: list[str]
+
+
+class NarrativeDressingResponse(BaseModel):
+    """Language only. Every mathematical fact is supplied by the caller and re-attached by
+    it afterwards - see `ai_pipeline.generate_narrative_candidate`.
+
+    `unit_label` is a bare noun ("sunflowers", "minutes"), applied by code to all four
+    options uniformly. The model proposing the word while code applies it is what keeps
+    the option *values* code-owned: a unit cannot change which option is correct.
+    """
+
+    stem: str
+    context_block: str | None = None
+    unit_label: str | None = None
+    hint_ladder: list[str] = []
+    solution_steps: list[SolutionStep] = []
+    estimated_time_seconds: int
+
+
 class QuestionJudgePayload(BaseModel):
     """A single combined judge call replacing S9's three separate reviewers for this
     mode (difficulty fit + ambiguity + curriculum alignment + age-appropriateness +

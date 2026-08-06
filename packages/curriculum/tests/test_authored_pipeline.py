@@ -24,7 +24,9 @@ from intellichoice_curriculum.ai_pipeline import (
     PipelineConfigError,
     generate_authored_candidate,
 )
+from intellichoice_curriculum.authored_validation import derive_answer
 from intellichoice_curriculum.content import load_curriculum
+from intellichoice_curriculum.templates.linear_equations import LINEAR_EQUATIONS_TEMPLATES
 from intellichoice_db.engine import create_engine
 from intellichoice_db.models.questions import QuestionTemplate, QuestionValidationRun
 from intellichoice_db.repositories.questions import QuestionRepository
@@ -34,6 +36,8 @@ from intellichoice_shared.bedrock import (
     BedrockGenerationResult,
     BedrockTask,
     EmbeddingResult,
+    NarrativeDressingPayload,
+    NarrativeDressingResponse,
     QuestionJudgePayload,
     QuestionJudgeResponse,
     SolutionResponse,
@@ -1007,3 +1011,210 @@ def test_an_unknown_skill_is_a_config_error() -> None:
                 )
 
     asyncio.run(run())
+
+
+class _ScriptedNarrativeGateway(_ScriptedAuthoredGateway):
+    """Answers the narrative dressing call, then behaves like the authored double for the
+    shared stages below it.
+    """
+
+    def __init__(self, *, stem: str = "Maya fills gift bags.", **kwargs: object) -> None:
+        super().__init__(**kwargs)  # type: ignore[arg-type]
+        self._stem = stem
+        self._answer_value: str | None = None
+        self.dressing_payloads: list[NarrativeDressingPayload] = []
+
+    async def generate_structured[T: BaseModel](
+        self,
+        *,
+        task: object,
+        system_prompt: str,
+        payload: BaseModel,
+        response_model: type[T],
+        max_output_tokens: int,
+        session_spend_cents: float,
+    ) -> BedrockGenerationResult[T]:
+        if response_model.__name__ == "NarrativeDressingResponse":
+            assert isinstance(payload, NarrativeDressingPayload)
+            self.dressing_payloads.append(payload)
+            self._answer_value = payload.answer_value
+            return BedrockGenerationResult(
+                value=NarrativeDressingResponse(  # type: ignore[arg-type]
+                    stem=self._stem,
+                    unit_label="bags",
+                    hint_ladder=[
+                        "What does each bag hold?",
+                        "Write the total as bags times four, plus the leftovers.",
+                        "Subtract the leftovers, then divide.",
+                    ],
+                    solution_steps=[
+                        SolutionStep(
+                            step_number=1, explanation="Model the situation.", expression="ok"
+                        )
+                    ],
+                    estimated_time_seconds=60,
+                ),
+                input_tokens=1,
+                output_tokens=1,
+                cost_cents=0.01,
+                model_id="test",
+                repaired=False,
+            )
+        if response_model.__name__ == "SolverResponse":
+            # Narrative mode skips stage 1, so the parent's `_last_item` is never set.
+            # A solver that genuinely solved the story picks the option carrying the
+            # answer the shape computed - which is exactly what this double models.
+            assert isinstance(payload, SolverPayload)
+            assert self._answer_value is not None
+            presented = {
+                "a": payload.option_a,
+                "b": payload.option_b,
+                "c": payload.option_c,
+                "d": payload.option_d,
+            }
+            label = next(
+                key
+                for key, texts in presented.items()
+                if texts.split(" ")[0] == self._answer_value
+            )
+            return BedrockGenerationResult(
+                value=SolverResponse(selected_option=label),  # type: ignore[arg-type]
+                input_tokens=1,
+                output_tokens=1,
+                cost_cents=0.01,
+                model_id="test",
+                repaired=False,
+            )
+        return await super().generate_structured(
+            task=task,
+            system_prompt=system_prompt,
+            payload=payload,
+            response_model=response_model,
+            max_output_tokens=max_output_tokens,
+            session_spend_cents=session_spend_cents,
+        )
+
+
+def test_narrative_mode_lets_the_model_write_only_language() -> None:
+    """D-192's whole guarantee: no mathematical fact is model-supplied.
+
+    The equation, its answer, the four options, the misconception tags, the skill and the
+    tier all come from a registered `QuestionTemplateDef`, so the failures D-191 measured -
+    3 wrong answers in 11, 2 skill mismatches in 6, difficulty labels nothing could trust -
+    are not checked for here, they are unreachable. The model contributes a stem, a unit
+    word, hints and the wording of the solution.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        template_def = next(
+            t for t in LINEAR_EQUATIONS_TEMPLATES if t.solution_function == "two_step"
+        )
+        gateway = _ScriptedNarrativeGateway(stem="Maya fills gift bags for a party.")
+        async with _rollback_session() as session:
+            outcome = await ai_pipeline.generate_narrative_candidate(
+                session=session,
+                gateway=gateway,
+                curriculum=curriculum,
+                template_def=template_def,
+                seed=515151,
+                session_spend_cents=0.0,
+            )
+            assert outcome.status == "pending", outcome.reasons
+            assert outcome.question_template_id is not None
+            assert outcome.question_template_id.startswith("narrative-")
+
+            repo = QuestionRepository(session)
+            template = await repo.get_template(outcome.question_template_id)
+            assert template is not None
+            # Skill and tier are the shape's, not a model's claim about them.
+            assert template.skill_id == template_def.skill_id
+            assert template.difficulty_label == template_def.difficulty_label
+            # Narrative mode substitutes its own distractors and therefore its own tags:
+            # `distractor_sign_flip` negates the answer, so while it is in play one option
+            # is always negative and no counting story can use all four ("-6 stickers").
+            # The cost is the `sign_error` misconception, which a counting scenario cannot
+            # express anyway - measured as 0 of 50 templates usable with the default set.
+            assert template.common_error_tags == ai_pipeline._NARRATIVE_ERROR_TAGS
+            assert "sign_error" not in template.common_error_tags
+            assert template.generator_model == "bedrock-narrative-dressing"
+            # The stem is the story; the equation behind it is the shape's.
+            assert template.stem == "Maya fills gift bags for a party."
+            assert template.answer_expression is not None
+
+            variant = await repo.get_variant_for_template(outcome.question_template_id)
+            assert variant is not None
+            # The unit was applied by code to every option, uniformly.
+            for text in (variant.option_a, variant.option_b, variant.option_c, variant.option_d):
+                assert text.endswith(" bags"), text
+            # And the option the shape computed as correct is still the correct one: the
+            # equation solves to it.
+            correct_text = {
+                "a": variant.option_a,
+                "b": variant.option_b,
+                "c": variant.option_c,
+                "d": variant.option_d,
+            }[variant.correct_option]
+            solved, error = derive_answer(template.answer_expression)
+            assert error is None
+            assert correct_text == f"{solved} bags"
+
+            # The model was shown the answer (it needs it to write hints) but had no field
+            # in which to declare one - `NarrativeDressingResponse` has no answer, no
+            # options and no equation.
+            assert gateway.dressing_payloads
+            assert set(NarrativeDressingResponse.model_fields) == {
+                "stem",
+                "context_block",
+                "unit_label",
+                "hint_ladder",
+                "solution_steps",
+                "estimated_time_seconds",
+            }
+
+    asyncio.run(run())
+
+
+def test_run_summary_separates_processed_from_scheduled() -> None:
+    """The first narrative run quoted two denominators as if they were one (D-192).
+
+    It reported "8 of 50" and "stopped at 34 of 50" together: 16 candidates never reached a
+    model - the gateway refused them on budget - and were counted as rejections, so the
+    yield read 16% when the number that says whether the mode works is 8/34. A budget skip
+    is not a quality signal and must not sit in the same bucket as a solver disagreement.
+    """
+    summary = pipeline_cli.RunSummary()
+    summary.scheduled = 50
+    for _ in range(8):
+        summary.record(ai_pipeline.PipelineOutcome(status="pending", cost_cents=1.0))
+    stages: list[tuple[ai_pipeline.RejectionStage, int]] = [
+        ("solver", 17),
+        ("judge", 3),
+        ("validation", 5),
+        ("dedup", 1),
+    ]
+    for stage, count in stages:
+        for _ in range(count):
+            summary.record(
+                ai_pipeline.PipelineOutcome(
+                    status="rejected", rejected_at=stage, cost_cents=0.5
+                )
+            )
+    for _ in range(16):
+        summary.record(
+            ai_pipeline.PipelineOutcome(
+                status="rejected", rejected_at="budget", cost_cents=0.0
+            )
+        )
+
+    assert summary.processed == 34
+    assert summary.skipped_budget == 16
+    assert summary.rejected == 26
+    # The budget skips are outside `rejected` entirely, so the quality denominator is the
+    # 34 candidates a model actually saw.
+    assert summary.pending / summary.processed == pytest.approx(8 / 34)
+    rendered = summary.format("narrative")
+    assert "8 accepted of 34 processed (24%)" in rendered
+    assert "50 scheduled" in rendered
+    assert "solver=17" in rendered
+    assert "budget=16" in rendered
