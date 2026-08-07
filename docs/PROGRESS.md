@@ -11098,3 +11098,36 @@ unambiguous, not to imply entries exist for them._
 - Verification: <tests/typecheck/manual runs performed>
 - Carry-over: <scope cut and deferred, or "none">
 - New decisions: <D-xxx refs, or "none">
+
+## Carry-over — `journey-student.spec.ts` is not isolated against staging (2026-08-07)
+
+Found while verifying D-213 against the deployed build, not by a CI failure — CI runs the e2e
+suite against a **local** stack, where a fresh database isolates each test. Against `E2E_TARGET=
+staging` it does not.
+
+**Measured, three runs:**
+
+| run | `student walks sign-in → … → study` | `a refresh mid-exam restores the exact position` |
+|---|---|---|
+| whole file, 1st | pass | **fail** |
+| whole file, 2nd | **fail** | **fail** |
+| each alone | pass | pass (twice) |
+
+The symptoms are consistent with each test starting on a session a previous test left behind:
+`answerWholeExam` returned **1 of 10**, and the refresh test compared two entirely different
+questions. The failure screenshot showed no narrative overlay and a fresh 19:59 timer, so the
+D-213 overlay is not implicated — and both tests pass individually against the same deployed
+build (`4b847a8c5df4`), which is the evidence that the code is fine and the fixtures are not.
+
+**Not diagnosed further, and stated as an inference rather than a conclusion.** The likely cause
+is that both tests sign in as the same fixture student and staging's database keeps every session
+they create, but the server-side session-resume behaviour was not read to confirm it. That is the
+next step, not a finished finding.
+
+**Why it matters beyond tidiness:** the staging e2e run is the only thing that exercises the real
+CloudFront → ALB → ECS path with real Bedrock. If it cannot be run whole, it stops being a gate
+and becomes a thing someone runs one test at a time and interprets. That is how AUD-F-23's
+silently-skipped journeys happened.
+
+**Fix when picked up:** give each test its own fixture student, or have the suite clear the
+student's sessions in `beforeEach`. Both are test-side; nothing in the application needs to change.
