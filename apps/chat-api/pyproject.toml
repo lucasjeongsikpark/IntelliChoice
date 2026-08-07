@@ -11,7 +11,7 @@ dependencies = [
     "intellichoice-db",
     "intellichoice-knowledge",
     "intellichoice-observability",
-    "langgraph>=1.2.9",
+    "langgraph>=1.2.10",
     "langgraph-checkpoint-postgres>=3.1.1",
     "psycopg[binary,pool]>=3.3.4",
     "python-dateutil>=2.9",
