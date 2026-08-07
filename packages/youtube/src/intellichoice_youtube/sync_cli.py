@@ -16,7 +16,7 @@ from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_adapters.bedrock.titan_embedding_provider import TitanEmbeddingProvider
 from intellichoice_adapters.fake_youtube import FakeYoutubeProvider
 from intellichoice_adapters.youtube_data_api_provider import YoutubeDataApiProvider
-from intellichoice_curriculum.content import load_curriculum
+from intellichoice_curriculum.content import CurriculumContent, load_curriculum
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.repositories.youtube import YoutubeRepository
 from intellichoice_shared.bedrock import BedrockTask
@@ -54,13 +54,25 @@ def _build_gateway(settings: YoutubeSyncSettings) -> ResilientBedrockGateway:
     )
 
 
-def _build_provider(settings: YoutubeSyncSettings) -> YoutubeProvider:
+def _build_provider(
+    settings: YoutubeSyncSettings, curriculum: CurriculumContent
+) -> YoutubeProvider:
     if settings.youtube_provider == "youtube":
         # `fake` stays the dev default (D-002's posture, same footing as Gmail/Calendar/
         # Maps). `check_real_sync_preflight` has already refused a run that cannot work,
         # so reaching here means key and channel id are both present and well-shaped.
+        #
+        # D-209: the search terms are **the curriculum's own skill names**, not a
+        # hand-written list. That keeps the same "code decides what to ask for, the model
+        # only judges what comes back" split the rest of this pipeline has, and it means
+        # adding a skill automatically widens the catalog rather than silently leaving a
+        # gap. Measured against Khan Academy: all five linear-equations skills returned
+        # their intended videos.
         return YoutubeDataApiProvider(
-            api_key=settings.youtube_api_key, max_videos=settings.max_videos
+            api_key=settings.youtube_api_key,
+            max_videos=settings.max_videos,
+            search_terms=[skill.name for skill in curriculum.skills],
+            per_term=settings.search_results_per_skill,
         )
     return FakeYoutubeProvider()
 
@@ -70,8 +82,8 @@ async def main() -> None:
     # D-207: before the engine, before the gateway, before anything billable.
     check_real_sync_preflight(settings)
     gateway = _build_gateway(settings)
-    provider = _build_provider(settings)
     curriculum = load_curriculum()
+    provider = _build_provider(settings, curriculum)
     engine = create_engine()
     try:
         session_factory = create_session_factory(engine)

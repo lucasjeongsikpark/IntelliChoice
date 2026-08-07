@@ -51,6 +51,9 @@ from learning_api.routers.questions import router as questions_router
 from learning_api.routers.sessions import router as sessions_router
 from learning_api.routers.stream import router as stream_router
 from learning_api.routers.students import router as students_router
+from learning_api.services.consolidation_scheduler import (
+    BackgroundConsolidationScheduler,
+)
 from learning_api.services.session_events import SessionEventBus
 
 logger = logging.getLogger(__name__)
@@ -149,9 +152,32 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         circuit_cooldown_s=settings.bedrock_circuit_cooldown_s,
         session_budget_cents=settings.bedrock_session_budget_cents,
     )
+    # D-208: a second gateway, for the one task whose call is a different size.
+    # Same providers and same model registry as above - only the ceiling differs. Built
+    # here rather than inside the scheduler so provider selection (mock vs real) stays in
+    # one place, and passed as a factory so each background run gets a fresh circuit
+    # breaker rather than sharing one across unrelated students.
+    def _consolidation_gateway() -> ResilientBedrockGateway:
+        return ResilientBedrockGateway(
+            provider=chat_provider,
+            embedding_provider=embedding_provider,
+            model_registry={
+                BedrockTask.MEMORY_CONSOLIDATION: settings.bedrock_tutor_model_id,
+            },
+            call_timeout_s=settings.bedrock_consolidation_timeout_s,
+            max_retries=settings.bedrock_max_retries,
+            circuit_failure_threshold=settings.bedrock_circuit_failure_threshold,
+            circuit_cooldown_s=settings.bedrock_circuit_cooldown_s,
+            session_budget_cents=settings.bedrock_session_budget_cents,
+        )
+
     engine = create_engine(settings.database_url)
     app.state.db_engine = engine
     app.state.db_session_factory = create_session_factory(engine)
+    app.state.consolidation_scheduler = BackgroundConsolidationScheduler(
+        session_factory=app.state.db_session_factory,
+        gateway_factory=_consolidation_gateway,
+    )
 
     if _otel_provider is not None:
         instrument_sqlalchemy_engines(engine, adapter.engine, provider=_otel_provider)

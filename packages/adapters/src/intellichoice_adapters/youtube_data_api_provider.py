@@ -43,16 +43,77 @@ class YoutubeDataApiProvider:
     not an arbitrary slice.
     """
 
-    def __init__(self, *, api_key: str, timeout_s: float = 15.0, max_videos: int = 200) -> None:
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        timeout_s: float = 15.0,
+        max_videos: int = 200,
+        search_terms: list[str] | None = None,
+        per_term: int = 5,
+    ) -> None:
         self._api_key = api_key
         self._timeout_s = timeout_s
         self._max_videos = max_videos
+        self._search_terms = search_terms or []
+        self._per_term = per_term
 
     async def list_uploaded_videos(self, channel_id: str) -> list[RawVideoMetadata]:
+        """Two ways to pick which of a channel's videos to consider (D-209).
+
+        **Uploads-playlist walk** (no `search_terms`): the channel's own upload order,
+        newest first. Right for a small, focused channel where everything is on-topic.
+
+        **Per-skill search** (`search_terms` set): one `search.list` per term, restricted
+        to this channel. Right for a large general channel - and measured, not assumed.
+        Khan Academy has **9 308 videos** across every subject, so the 200 most recent
+        uploads are essentially a random sample of the wrong thing: a walk would have
+        classified 200 videos and plausibly matched zero linear-equations skills. Searching
+        the same channel for the curriculum's five skill names returned the exact intended
+        videos for all five - "Solving two-step equations", "Introduction to solving an
+        equation with variables on both sides", and so on.
+
+        Quota: `search.list` costs 100 units against a 10 000/day default, versus 1 for
+        `playlistItems.list`. Five terms is 500 units - affordable precisely because the
+        term list is the curriculum's skills, not an open-ended crawl.
+
+        Either way `sync_channel` re-checks each returned item's own `channel_id` against
+        the requested one (the S27 channel pin), so this method choosing differently cannot
+        widen what ends up in the catalog.
+        """
         async with httpx.AsyncClient(timeout=self._timeout_s) as client:
-            uploads_playlist_id = await self._uploads_playlist_id(client, channel_id)
-            video_ids = await self._playlist_video_ids(client, uploads_playlist_id)
+            if self._search_terms:
+                video_ids = await self._search_video_ids(client, channel_id)
+            else:
+                uploads_playlist_id = await self._uploads_playlist_id(client, channel_id)
+                video_ids = await self._playlist_video_ids(client, uploads_playlist_id)
             return await self._video_metadata(client, channel_id, video_ids)
+
+    async def _search_video_ids(self, client: httpx.AsyncClient, channel_id: str) -> list[str]:
+        """Deduplicated across terms, preserving first-seen order - skills overlap, and the
+        same video legitimately answers "two-step equations" and "multi-step equations".
+        """
+        seen: dict[str, None] = {}
+        for term in self._search_terms:
+            payload = await self._get(
+                client,
+                "search",
+                {
+                    "part": "snippet",
+                    "channelId": channel_id,
+                    "q": term,
+                    "type": "video",
+                    "order": "relevance",
+                    "maxResults": self._per_term,
+                },
+            )
+            for item in payload.get("items", []):
+                video_id = item.get("id", {}).get("videoId")
+                if video_id:
+                    seen.setdefault(video_id, None)
+            if len(seen) >= self._max_videos:
+                break
+        return list(seen)[: self._max_videos]
 
     async def get_video_details(self, video_ids: list[str]) -> dict[str, VideoDetails]:
         results: dict[str, VideoDetails] = {}

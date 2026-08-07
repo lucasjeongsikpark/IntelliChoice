@@ -39,6 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from learning_api.authorization import resolve_target_student
 from learning_api.dependencies import (
     get_bedrock_gateway,
+    get_consolidation_scheduler,
     get_cost_ledger,
     get_current_claims,
     get_db_session,
@@ -52,6 +53,7 @@ from learning_api.graph.build import EntryInput, LearningGraph
 from learning_api.graph.nodes import TurnContext
 from learning_api.services import attendance, checkpoint_reconcile, flow, topic_availability
 from learning_api.services.assessment_builder import AssessmentBuildError
+from learning_api.services.consolidation_scheduler import ConsolidationScheduler
 from learning_api.services.effective_policy import effective_assistance_policy
 from learning_api.services.session_events import SessionEventBus
 from learning_api.services.study_plan import StudyPlanBuildError
@@ -487,6 +489,7 @@ def _turn_context(
     attendance_choice: str | None = None,
     confirm_unanswered: bool = False,
     student_message: str | None = None,
+    consolidation_scheduler: ConsolidationScheduler | None = None,
 ) -> TurnContext:
     return TurnContext(
         claims=claims,
@@ -516,6 +519,7 @@ def _turn_context(
         confirm_unanswered=confirm_unanswered,
         tutor_chat_repo=TutorChatMessageRepository(db),
         student_message=student_message,
+        consolidation_scheduler=consolidation_scheduler,
     )
 
 
@@ -545,6 +549,9 @@ async def select_student(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    consolidation_scheduler: Annotated[
+        ConsolidationScheduler, Depends(get_consolidation_scheduler)
+    ],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -552,6 +559,7 @@ async def select_student(
 ) -> LearningSessionResponse:
     ctx = _turn_context(
         cost_ledger=cost_ledger,
+        consolidation_scheduler=consolidation_scheduler,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -633,6 +641,9 @@ async def select_topic(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    consolidation_scheduler: Annotated[
+        ConsolidationScheduler, Depends(get_consolidation_scheduler)
+    ],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -673,6 +684,7 @@ async def select_topic(
 
     ctx = _turn_context(
         cost_ledger=cost_ledger,
+        consolidation_scheduler=consolidation_scheduler,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -720,6 +732,9 @@ async def resolve_attendance_choice(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    consolidation_scheduler: Annotated[
+        ConsolidationScheduler, Depends(get_consolidation_scheduler)
+    ],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -742,6 +757,7 @@ async def resolve_attendance_choice(
 
     ctx = _turn_context(
         cost_ledger=cost_ledger,
+        consolidation_scheduler=consolidation_scheduler,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -817,6 +833,9 @@ async def submit_answer(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    consolidation_scheduler: Annotated[
+        ConsolidationScheduler, Depends(get_consolidation_scheduler)
+    ],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -880,6 +899,7 @@ async def submit_answer(
 
     ctx = _turn_context(
         cost_ledger=cost_ledger,
+        consolidation_scheduler=consolidation_scheduler,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -1104,6 +1124,9 @@ async def finalize_exam(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    consolidation_scheduler: Annotated[
+        ConsolidationScheduler, Depends(get_consolidation_scheduler)
+    ],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -1134,6 +1157,7 @@ async def finalize_exam(
 
     ctx = _turn_context(
         cost_ledger=cost_ledger,
+        consolidation_scheduler=consolidation_scheduler,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -1177,6 +1201,9 @@ async def send_chat_message(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    consolidation_scheduler: Annotated[
+        ConsolidationScheduler, Depends(get_consolidation_scheduler)
+    ],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -1225,6 +1252,7 @@ async def send_chat_message(
 
     ctx = _turn_context(
         cost_ledger=cost_ledger,
+        consolidation_scheduler=consolidation_scheduler,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -1254,6 +1282,9 @@ async def respond_to_interrupt(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    consolidation_scheduler: Annotated[
+        ConsolidationScheduler, Depends(get_consolidation_scheduler)
+    ],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -1304,6 +1335,7 @@ async def respond_to_interrupt(
     # `acknowledge`, since that path never interrupts in the first place).
     ctx = _turn_context(
         cost_ledger=cost_ledger,
+        consolidation_scheduler=consolidation_scheduler,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,
@@ -1357,6 +1389,9 @@ async def resume_session(
     profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     cost_ledger: Annotated[CostReservationRepository, Depends(get_cost_ledger)],
+    consolidation_scheduler: Annotated[
+        ConsolidationScheduler, Depends(get_consolidation_scheduler)
+    ],
     mcp_registry: Annotated[McpToolRegistry, Depends(get_mcp_registry)],
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
@@ -1404,6 +1439,7 @@ async def resume_session(
 
     ctx = _turn_context(
         cost_ledger=cost_ledger,
+        consolidation_scheduler=consolidation_scheduler,
         claims=claims,
         profile_adapter=profile_adapter,
         db=db,

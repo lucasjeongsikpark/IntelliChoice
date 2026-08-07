@@ -94,6 +94,17 @@ class Settings(BaseSettings):
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"
     bedrock_call_timeout_s: float = 20.0
     bedrock_max_retries: int = 2
+    # D-208: memory consolidation gets its own, longer ceiling because it is a different
+    # size of call. Every other task here is one short generation - a tutor reply measures
+    # ~3-4 s on staging. Consolidation sends up to 20 000 tokens of session events plus
+    # every existing fact for the student, and asks for a structured response sized to
+    # that. Under the shared 20 s ceiling it timed out on all three attempts, every time
+    # it ever ran: fourteen days of staging logs contain two attempts and zero successes.
+    #
+    # Safe to make this large *because* D-208 also took the call off the request path -
+    # nobody is waiting on it now. Under the old inline arrangement a bigger number would
+    # have made the student's wait worse, which is presumably why it was never raised.
+    bedrock_consolidation_timeout_s: float = 120.0
     bedrock_circuit_failure_threshold: int = 5
     bedrock_circuit_cooldown_s: float = 30.0
     bedrock_session_budget_cents: float = 50.0
