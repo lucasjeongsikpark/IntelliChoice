@@ -14,7 +14,13 @@ class YoutubeSyncSettings(BaseSettings):
 
     bedrock_provider: str = "mock"
     bedrock_aws_region: str = "us-east-1"
-    bedrock_classification_model_id: str = "anthropic.claude-sonnet-5"
+    # D-211: a model this account can actually invoke. `anthropic.claude-sonnet-5` is
+    # listed by `list-foundation-models` but has no agreement here - invoking it returns
+    # `AccessDeniedException: not available for this account`, which reached the sync only
+    # as a tripped circuit breaker. Video classification is a short label-picking call, so
+    # Haiku is a fit rather than a compromise; the authoring pipeline is the place where
+    # the model choice genuinely matters (D-204).
+    bedrock_classification_model_id: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"
     bedrock_call_timeout_s: float = 20.0
     bedrock_max_retries: int = 2

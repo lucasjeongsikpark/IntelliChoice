@@ -70,6 +70,7 @@ def throwaway_question() -> Iterator[tuple[str, str]]:
                 repo = QuestionRepository(session)
                 template = await repo.create_template(
                     QuestionTemplate(
+                        authoring_mode="authored",
                         question_template_id=template_id,
                         curriculum_version="2026.1",
                         topic_id="linear_equations",

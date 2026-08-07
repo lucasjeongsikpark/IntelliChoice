@@ -241,8 +241,7 @@ def test_statement_counter_control() -> None:
 
             await session.execute(
                 text(
-                    "CREATE TEMPORARY TABLE counter_control (n integer, label text) "
-                    "ON COMMIT DROP"
+                    "CREATE TEMPORARY TABLE counter_control (n integer, label text) ON COMMIT DROP"
                 )
             )
             before = log.count()
@@ -264,9 +263,7 @@ def test_statement_counter_control() -> None:
 # --------------------------------------------------------------------------------------
 
 
-async def _build_and_view(
-    session: AsyncSession, rng: random.Random
-) -> list[flow.QuestionItemView]:
+async def _build_and_view(session: AsyncSession, rng: random.Random) -> list[flow.QuestionItemView]:
     """The Postgres half of the `select_topic` node: build the pre-exam, then read it back
     for the response payload exactly as `graph/nodes.py:select_topic` does.
     """
@@ -452,22 +449,84 @@ def _content(views: list[flow.QuestionItemView]) -> list[tuple[str, str, str, st
 # builds this same exam. The fourth row is the tell: an authored word problem where the
 # previous capture's authored item was `d2-9200`. Verified by hand - $8 saved plus $5 a
 # week reaching $48 is 8 + 5w = 48, so w = 8, and option d is 8.
+# Pinned verbatim, so the rows are not wrapped: reformatting captured content is a way
+# to change what is being pinned without noticing.
 _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
-    ('Solve for x: -9x = 54', '-7', '-1', '6', '-6'),
-    ('Solve for x: x + 20 = 17', '-2', '3', '-5', '-3'),
-    ('Solve for x: -12x + 20 = 104', '-11', '-7', '7', '-8'),
+    # D-210 re-pin. The previous capture was mostly `Solve for x: ...` because the serving
+    # path drew from the shape bank; it now draws only from authored word problems, and the
+    # five authored items that were themselves bare equations were removed from the bank file
+    # and retired by the loader. That every row here is a situation rather than an equation is
+    # the change being pinned, not an accident of this seed.
     (
-        'Liam earns $5 each week by helping his neighbour with gardening. He already has '
-        '$8 saved from his birthday. After a few weeks, he checks his savings and finds he '
-        'has $48 in total. How many weeks has Liam been saving?',
-        '6', '10', '9', '8',
+        "Liam’s father is filling a large fish tank for a community event. The tank already has some water in it, and he adds more every day.\n\nLiam’s father is preparing a fish tank for a community event. The tank already has 30 litres of water. He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?",  # noqa: E501
+        "10",
+        "6",
+        "8",
+        "14",
     ),
-    ('Solve for x: -9x + 8 = 53', '-2', '5', '-5', '-4'),
-    ('Solve for x: x/6 + 12 = 20', '-48', '50', '48', '47'),
-    ('Solve for x: -3x - 4 = 2x + -19', '-3', '8', '3', '4'),
-    ('Solve for x: 12x - 16 = 9x + -19', '-1', '-6', '-2', '1'),
-    ('Solve for x: -6(x + 15) + 9x = -105', '-6', '-3', '5', '-5'),
-    ('Solve for x: 7(x - 6) = -28', '2', '4', '-2', '3'),
+    (
+        "Liam has a lemonade stand. He starts the day with 15 cups of lemonade. By the end of the day, he has sold 7 cups. He wants to know how many cups he needs to make tonight so he will have exactly 20 cups ready for tomorrow. How many cups should he make?",  # noqa: E501
+        "5",
+        "12",
+        "2",
+        "8",
+    ),
+    (
+        "Maya is saving for a concert ticket. She has $60 now and spends $5 on lunch each day. She checks her wallet and sees she has $20 left. How many days has she been buying lunch?\n\nMaya has $60 saved for a concert ticket. She spends $5 on lunch each day. After some days, she checks her wallet and sees she has $20 left. For how many days has she been buying lunch?",  # noqa: E501
+        "4",
+        "8",
+        "12",
+        "2",
+    ),
+    (
+        "Jamie is saving for a new skateboard. They already have $20 and save $5 every week. The skateboard costs $50. How many weeks will Jamie need to save?",  # noqa: E501
+        "10",
+        "6",
+        "4",
+        "5",
+    ),
+    (
+        "Leo is shopping at a video game store with two special offers. \n- Offer X: Start with $80 credit, then lose $4 for every game you buy.\n- Offer Y: Start with $20 credit, then gain $1 for every game you buy.\nLeo wants to know how many games he can buy so that both offers give him the same amount of money.\n\nLeo wants to buy some games at the store, but he has two offers to choose from. \n- Offer X: He starts with $80, but $4 is taken away for every game he buys.\n- Offer Y: He starts with $20, and $1 is added for every game he buys.\nHow many games should Leo buy so that both offers give him the same amount of money?",  # noqa: E501
+        "12",
+        "10",
+        "15",
+        "20",
+    ),
+    (
+        "Lena and Jake are both reading the same book. Lena has already read 20 pages and reads 5 more pages each day. Jake has already read 32 pages and reads 3 more pages each day. The question asks when they will have read the same number of pages.\n\nLena and Jake are reading the same book. Lena has read 20 pages already and reads 5 more pages each day. Jake has read 32 pages already and reads 3 more pages each day. After how many days will they have read the same number of pages?",  # noqa: E501
+        "2",
+        "4",
+        "12",
+        "6",
+    ),
+    (
+        "Liam’s game store has 60 video games in stock. Each hour, 3 games are sold from the main shelf, but 2 new games arrive from the warehouse and are added to a different shelf. Liam wants to know after how many hours the two shelves will have the same number of games.",  # noqa: E501
+        "12",
+        "20",
+        "10",
+        "15",
+    ),
+    (
+        "Maya has a video game score. She starts one round with 36 points and loses 3 points for each mistake she makes. Her friend Kai starts the same round with 12 points and gains 1 point for each correct move. After how many moves will they have the same score?",  # noqa: E501
+        "4 games",
+        "12 games",
+        "6 games",
+        "8 games",
+    ),
+    (
+        "A student is buying cards for a game. They purchase 3 identical packs, and each pack contains some regular cards plus 5 bonus cards. They also buy 2x individual regular cards, where x is the number of regular cards in one pack. Altogether, they have 35 cards. How many regular cards are in each pack?\n\nLiam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He also buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in each pack?",  # noqa: E501
+        "4",
+        "2",
+        "8",
+        "6",
+    ),
+    (
+        "Alex saves $6 each week and has no money to start. Jamie starts with $20 and saves $2 each week. After how many weeks will they have saved the same amount of money?",  # noqa: E501
+        "2 weeks",
+        "5 weeks",
+        "20 weeks",
+        "10 weeks",
+    ),
 )
 
 

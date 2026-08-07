@@ -12,6 +12,37 @@ from intellichoice_db.models.questions import (
 
 _ACTIVATABLE_VALIDATION_STATUS = "pending"
 
+# D-210: what the serving path is allowed to hand a student.
+#
+# The user's decision, and the reason for it: a "shape" template renders a bare equation
+# ("Solve for x: -4x + 3 = -33"), while an authored template is a real-world word problem
+# with a scenario, a hint ladder and a verified worked solution. Serving both meant a
+# student met two visibly different kinds of question inside one exam, and the bare form
+# is the weaker one pedagogically - it tests the arithmetic without ever asking them to
+# build the equation from a situation.
+#
+# A hard filter, applied in **one** place, deliberately. The four read methods below all
+# feed question selection, and a filter applied to three of them is a bug that only shows
+# up on whichever path was missed.
+#
+# The cost, stated because it is real: a topic whose bank has no authored items becomes
+# unservable. That is the intended outcome rather than a side effect - D-187 already makes
+# topic availability a question the bank answers, so those topics correctly stop being
+# offered instead of silently serving weaker content. Today `linear_equations` is the only
+# generation-capable topic and its authored tiers are {1:13, 2:9, 3:12, 4:7, 5:7}.
+#
+# Reversing this is deleting one clause from `_servable()`.
+SERVABLE_AUTHORING_MODE = "authored"
+
+
+def _servable() -> tuple:
+    """The filter every serving-path read shares: active, approved, and authored."""
+    return (
+        QuestionTemplate.active_status == "active",
+        QuestionTemplate.validation_status == "approved",
+        QuestionTemplate.authoring_mode == SERVABLE_AUTHORING_MODE,
+    )
+
 
 class QuestionRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -86,8 +117,7 @@ class QuestionRepository:
             .where(
                 QuestionTemplate.topic_id == topic_id,
                 QuestionTemplate.difficulty_label == difficulty,
-                QuestionTemplate.active_status == "active",
-                QuestionTemplate.validation_status == "approved",
+                *_servable(),
             )
             .order_by(QuestionTemplate.question_template_id)
         )
@@ -114,8 +144,7 @@ class QuestionRepository:
             .where(
                 QuestionTemplate.topic_id == topic_id,
                 QuestionTemplate.difficulty_label.in_(list(difficulties)),
-                QuestionTemplate.active_status == "active",
-                QuestionTemplate.validation_status == "approved",
+                *_servable(),
             )
             .order_by(QuestionTemplate.difficulty_label, QuestionTemplate.question_template_id)
         )
@@ -146,8 +175,7 @@ class QuestionRepository:
                 func.count(QuestionTemplate.question_template_id),
             )
             .where(
-                QuestionTemplate.active_status == "active",
-                QuestionTemplate.validation_status == "approved",
+                *_servable(),
             )
             .group_by(QuestionTemplate.topic_id, QuestionTemplate.difficulty_label)
         )
@@ -163,8 +191,20 @@ class QuestionRepository:
         """
         stmt = select(QuestionTemplate).where(
             QuestionTemplate.skill_id == skill_id,
-            QuestionTemplate.active_status == "active",
-            QuestionTemplate.validation_status == "approved",
+            *_servable(),
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_authored_templates(self) -> list[QuestionTemplate]:
+        """Every authored template in the bank, whatever its status (D-210).
+
+        Used by the loader to retire ones the bank file no longer lists. Deliberately
+        unfiltered: a retired row must still be *found* here, or a re-added template could
+        never be reactivated and a second retirement pass would keep counting it.
+        """
+        stmt = select(QuestionTemplate).where(
+            QuestionTemplate.authoring_mode == SERVABLE_AUTHORING_MODE
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())

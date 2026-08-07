@@ -47,7 +47,14 @@ async def build_bank_file(
             await session.execute(
                 select(QuestionTemplate)
                 .where(QuestionTemplate.authoring_mode == AUTHORED_MODE)
-                .where(QuestionTemplate.validation_status == "approved")
+                .where(
+                    QuestionTemplate.validation_status == "approved",
+                    # D-210: approved but retired is no longer exported. The bank file is
+                    # what the serving path draws from, so "what the database would
+                    # export" has to mean the same thing - otherwise retiring an item
+                    # makes the file and the export permanently disagree.
+                    QuestionTemplate.active_status == "active",
+                )
                 .where(QuestionTemplate.topic_id == topic_id)
                 .order_by(
                     QuestionTemplate.skill_id,
@@ -146,7 +153,14 @@ async def main() -> None:
                         await session.execute(
                             select(QuestionTemplate.topic_id)
                             .where(QuestionTemplate.authoring_mode == AUTHORED_MODE)
-                            .where(QuestionTemplate.validation_status == "approved")
+                            .where(
+                    QuestionTemplate.validation_status == "approved",
+                    # D-210: approved but retired is no longer exported. The bank file is
+                    # what the serving path draws from, so "what the database would
+                    # export" has to mean the same thing - otherwise retiring an item
+                    # makes the file and the export permanently disagree.
+                    QuestionTemplate.active_status == "active",
+                )
                             .distinct()
                         )
                     )

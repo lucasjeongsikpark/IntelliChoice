@@ -14477,3 +14477,144 @@ stashing every change and re-running - the flakiness is pre-existing, not introd
 come from state accumulating in the shared dev Postgres across runs, not from shuffling. (An earlier
 note in this session assumed the opposite and was wrong.) The final sweep on this branch was green:
 **1028 passed, 2 skipped, 1 xfailed**.
+
+## D-212 — a skill nobody was tested on is the weakest skill (accepted, 2026-08-06)
+
+`test_difficulty_recommendation_reaches_template_selection` failed CI on `main` with
+`assert 'linear_one_step' == 'linear_two_step'`. The D-207 addendum above records this test as
+one of two carrying D-206's broken premise, and dispositioned it by resolving the real
+`skill_id` instead of inferring it from a pre-exam position. That fixed *which items the test
+fails*. It left the hardcoded name in the three **assertions**, which is a different premise and
+was still wrong.
+
+**The mechanism, and it is not flakiness.** `build_study_plan` ranks skills weakest-first:
+
+```
+weighted = mastery.weighted_score if mastery is not None else 0.0
+```
+
+A skill the pre-exam never served has no mastery row, so it ranks at **0.0 — below any skill the
+student actually answered badly**. Whichever skills a draw omits are therefore routed *first*,
+ahead of the skill the test deliberately failed. Failing every `linear_two_step` item makes it
+the weakest skill *that was measured*, which is not the same thing as the weakest skill.
+
+The test-suite note further down this file called this test "flaky … mastery-dependent" and
+attributed it to accumulated dev-Postgres state. That was the wrong diagnosis: the dependence is
+on **which skills a draw covers**, which is why it reproduced 4-in-8 against a shared local
+database and also on CI's fresh one.
+
+**Is the ranking itself a defect?** Judged not, deliberately. Routing an unmeasured skill first
+is defensible — an unknown skill is a bigger information gap than a known-weak one, and the
+pre-exam cannot cover every skill in the items it has. Changing the ranking to satisfy a test
+would be the tail wagging the dog. What is a defect is a test asserting a skill name it can only
+hope the draw provides.
+
+**The fix.** The assertions now name no skill. The contract they actually encode — the value
+reaching `_select_template` is the served skill's own `recommended_difficulty` — is expressed
+against whichever skill was routed, including the `None` a skill with no row legitimately has.
+Remediation is asserted to stay on the same line as the base item (`== first_skill`), and the
+next base line to differ from it, both derived rather than named.
+
+Two assertions were **dropped rather than adapted**, and neither loss is silent:
+
+- `first_recommended == 1` (the step-down) only holds for a skill whose items were all failed,
+  which the routed skill is no longer guaranteed to be. `_select_template`'s difficulty rule is
+  covered against synthetic multi-tier templates in `test_study_plan_difficulty_routing.py`,
+  which is where it belongs — this test is about the value reaching the call at all.
+- `next_recommended is not None` was the guard against "the code just passes `None`". Since
+  `None` is now a legal expectation, that guard moved to an explicit vacuity check: if *neither*
+  routed skill was measured, the test `skip`s with a message saying so instead of passing
+  hollowly.
+
+**Verified:** 12/12 green on the isolated test with **zero skips**, so the vacuity guard is a
+backstop and not the normal path; 5/5 green on the whole file (16 tests each); full suite
+**1035 passed, 2 skipped, 1 xfailed**; `ruff` clean; `pyright` 0 errors.
+
+## D-210 disposition — the thin-skill ladder degrades to repetition, not failure (accepted, 2026-08-06)
+
+D-210 was committed "WIP" because removing shape templates left three thin cells —
+`linear_distribute` 2 items (both tier 5), `linear_both_sides` d4 2, `linear_neg_frac_coeff` d2 2 —
+and the §5.11.7 retry ladder wants base + 2 same-skill retries + 1 prerequisite. The commit
+message said "a student weak in `linear_distribute` now gets a ladder that runs out".
+
+**That was overstated, and reading `_select_template` is what corrects it:**
+
+```
+matched = _closest_to_recommended(candidates, recommended_difficulty)
+unused  = [t for t in matched if t.question_template_id not in used_template_ids]
+pool    = unused or matched
+```
+
+`unused or matched` means exhausting the unused items falls back to the **full matched pool**, so
+a thin skill **re-serves an item the student has already seen**. It does not raise.
+`StudyPlanBuildError` fires only at *zero* approved templates for a skill, and the thinnest cell
+has two. So the failure mode is repetition, not a broken ladder — and on a retry ladder,
+re-serving the item the student just got wrong is defensible rather than merely tolerable.
+
+A shape-template fallback (the "option B" considered here) is therefore **not built**: it would
+add a second serving path to fix a problem that does not occur, and reintroduce exactly the bare
+equations D-210 removed.
+
+The real remedy is more authored depth (the user's "option A"), which is **blocked on model
+access**: authoring needs Sonnet 5 and this account can only invoke Haiku 4.5 (see D-211). The
+user's instruction is to stay on permitted models and revisit when access is granted, so the thin
+cells are a **known, bounded limitation shipped deliberately**, not an oversight.
+
+## D-211 — a model that is listed is not a model you can call (accepted, 2026-08-06)
+
+The option-A authoring batch reported `circuit_open=14` and `0.00 cents` — fourteen candidates,
+zero model calls, no cost. The circuit breaker had opened after 5 failures and blocked the rest,
+which is the guard working, but the *message* named the breaker rather than the cause. The cause
+was `AccessDeniedException: anthropic.claude-sonnet-5 is not available for this account`.
+
+`list-foundation-models` **lists Sonnet 5 for this account**, which is what made this expensive to
+diagnose. Listing reflects the model catalogue; invocability reflects a separate agreement. The
+only honest test is to call it.
+
+So preflight gained `unavailable_models()`: a 1-token `converse` per configured model, failing
+only on access-shaped errors (`AccessDeniedException`, `ValidationException`,
+`ResourceNotFoundException`) so a transient network fault does not read as "no access". It adds a
+`model access: PASS/FAIL` line, verified live to now print the real reason instead of fourteen
+breaker lines. Cost is a few output tokens per model per run, and it is skipped under the mock
+provider.
+
+Separately, `bedrock_classification_model_id` now defaults to Haiku 4.5. Video classification is a
+short label-selection call, so Haiku is a fit rather than a concession — unlike authoring, which
+D-204 measured Haiku failing 9 of 11 times against the 15-field forced schema. Authoring was
+**not** re-pointed at Haiku for that reason.
+
+### D-212 addendum — the sibling ladder test had the same premise, one layer deeper
+
+The D-212 fix went green locally and CI then failed a *different* test in the same file:
+`test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite`, `assert 1 == 4`.
+
+Same root cause, and worth stating plainly because D-207 had already "fixed" this exact test
+once. D-207 changed it from "indices 2 and 3 of the pre-exam" to "the `linear_two_step` items,
+resolved by skill" — which correctly stopped inferring a skill from a position, and still assumed
+that **failing a skill makes it the one the study phase routes first**. It does not, for the same
+reason D-212 records: an unserved skill has no mastery row, scores 0.0, and is routed ahead of it.
+So the ladder ran in full, on another skill, and the assertions counted items on a line that had
+only its base question.
+
+Two premises were stacked, and removing the first left the second looking like a fix.
+
+**The fix is to stop steering the routing at all.** Every pre-exam item is now answered wrong, and
+the line under test is read from the item the flow actually served (`display_order == 0`). This
+test is about the *shape* of the retry ladder — base + 2 same-skill retries + 1 prerequisite —
+not about which skill enters it, and a student who got the whole pre-exam wrong is a coherent
+thing to be. The `pytest.skip` for "this draw served no `linear_two_step` item" is gone with it:
+there is now no draw the test cannot run on.
+
+The prerequisite assertion became **conditional**, which is not a weakening but a correction:
+`flow._advance_study` only drops to the prerequisite when one exists *and* has approved templates,
+and `linear_one_step` is the root of this topic's chain and has none. The unconditional version
+was only ever correct for the skill it happened to name.
+
+`prerequisite_items[0].difficulty == 1` was **dropped rather than generalised to "easier than the
+base"**, because that generalisation is false: `linear_both_sides` (tiers 3-5) has prerequisite
+`linear_neg_frac_coeff` (tiers 2-4), so a prerequisite item can legitimately outrank the base one.
+The remediation path passes `recommended_difficulty=None` by design (AUD-L-12), so the code makes
+no difficulty promise on this path at all — the old assertion pinned an accident of the bank.
+
+**Verified:** 10/10 green on the isolated test with zero skips; 5/5 green on the whole file; full
+suite **1035 passed, 2 skipped, 1 xfailed**; `ruff` clean; `pyright` 0 errors.

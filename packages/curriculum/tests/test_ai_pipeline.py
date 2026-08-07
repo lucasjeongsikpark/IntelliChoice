@@ -229,8 +229,19 @@ def test_passing_candidate_lands_pending_then_activates_to_active() -> None:
             template = await repo.get_template(outcome.question_template_id)
             assert template is not None
             assert template.validation_status == "approved"
+            # D-210: approved is no longer the same as servable. This template comes from
+            # the S9 *shape* pipeline, and the serving path now returns authored word
+            # problems only - so what activation still guarantees is the status above, and
+            # what it deliberately no longer guarantees is an appearance here.
+            #
+            # Asserted in both directions rather than deleted: silently dropping the second
+            # half would hide that the shape pipeline's output is now unservable, which is a
+            # consequence of the decision that someone reading this test should meet.
             active_after = await repo.get_active_questions("linear_equations", difficulty=2)
-            assert outcome.question_template_id in {t.question_template_id for t in active_after}
+            assert outcome.question_template_id not in {
+                t.question_template_id for t in active_after
+            }
+            assert all(t.authoring_mode == "authored" for t in active_after)
 
     asyncio.run(run())
 
