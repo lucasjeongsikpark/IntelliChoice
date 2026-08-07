@@ -14529,3 +14529,56 @@ Two assertions were **dropped rather than adapted**, and neither loss is silent:
 **Verified:** 12/12 green on the isolated test with **zero skips**, so the vacuity guard is a
 backstop and not the normal path; 5/5 green on the whole file (16 tests each); full suite
 **1035 passed, 2 skipped, 1 xfailed**; `ruff` clean; `pyright` 0 errors.
+
+## D-210 disposition — the thin-skill ladder degrades to repetition, not failure (accepted, 2026-08-06)
+
+D-210 was committed "WIP" because removing shape templates left three thin cells —
+`linear_distribute` 2 items (both tier 5), `linear_both_sides` d4 2, `linear_neg_frac_coeff` d2 2 —
+and the §5.11.7 retry ladder wants base + 2 same-skill retries + 1 prerequisite. The commit
+message said "a student weak in `linear_distribute` now gets a ladder that runs out".
+
+**That was overstated, and reading `_select_template` is what corrects it:**
+
+```
+matched = _closest_to_recommended(candidates, recommended_difficulty)
+unused  = [t for t in matched if t.question_template_id not in used_template_ids]
+pool    = unused or matched
+```
+
+`unused or matched` means exhausting the unused items falls back to the **full matched pool**, so
+a thin skill **re-serves an item the student has already seen**. It does not raise.
+`StudyPlanBuildError` fires only at *zero* approved templates for a skill, and the thinnest cell
+has two. So the failure mode is repetition, not a broken ladder — and on a retry ladder,
+re-serving the item the student just got wrong is defensible rather than merely tolerable.
+
+A shape-template fallback (the "option B" considered here) is therefore **not built**: it would
+add a second serving path to fix a problem that does not occur, and reintroduce exactly the bare
+equations D-210 removed.
+
+The real remedy is more authored depth (the user's "option A"), which is **blocked on model
+access**: authoring needs Sonnet 5 and this account can only invoke Haiku 4.5 (see D-211). The
+user's instruction is to stay on permitted models and revisit when access is granted, so the thin
+cells are a **known, bounded limitation shipped deliberately**, not an oversight.
+
+## D-211 — a model that is listed is not a model you can call (accepted, 2026-08-06)
+
+The option-A authoring batch reported `circuit_open=14` and `0.00 cents` — fourteen candidates,
+zero model calls, no cost. The circuit breaker had opened after 5 failures and blocked the rest,
+which is the guard working, but the *message* named the breaker rather than the cause. The cause
+was `AccessDeniedException: anthropic.claude-sonnet-5 is not available for this account`.
+
+`list-foundation-models` **lists Sonnet 5 for this account**, which is what made this expensive to
+diagnose. Listing reflects the model catalogue; invocability reflects a separate agreement. The
+only honest test is to call it.
+
+So preflight gained `unavailable_models()`: a 1-token `converse` per configured model, failing
+only on access-shaped errors (`AccessDeniedException`, `ValidationException`,
+`ResourceNotFoundException`) so a transient network fault does not read as "no access". It adds a
+`model access: PASS/FAIL` line, verified live to now print the real reason instead of fourteen
+breaker lines. Cost is a few output tokens per model per run, and it is skipped under the mock
+provider.
+
+Separately, `bedrock_classification_model_id` now defaults to Haiku 4.5. Video classification is a
+short label-selection call, so Haiku is a fit rather than a concession — unlike authoring, which
+D-204 measured Haiku failing 9 of 11 times against the 15-field forced schema. Authoring was
+**not** re-pointed at Haiku for that reason.
