@@ -1160,3 +1160,175 @@ ul {
   /* Word problems carry their own paragraph breaks, same as `.question-stem`. */
   white-space: pre-line;
 }
+
+/* ---------------------------------------------------------------------------
+   D-213 dashboard
+
+   The screen used to open with a title, a full-width Back button, and five
+   charts. It answered "here is your data" when the question is "how am I doing
+   and what do I do next". The focus list is the answer; the charts are the
+   evidence behind it, and now sit below it.
+   --------------------------------------------------------------------------- */
+
+.dashboard-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.dashboard-head h1,
+.dashboard-head .subtitle {
+  margin: 0;
+}
+
+.dashboard-back {
+  width: auto;
+  margin-top: 0;
+  flex: none;
+}
+
+/* Skills to strengthen ----------------------------------------------------- */
+
+.skill-focus-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skill-focus-item {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+}
+
+.skill-focus-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.skill-focus-name {
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.skill-focus-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-h);
+  flex: none;
+}
+
+.skill-focus-bar {
+  position: relative;
+  height: 8px;
+  margin: 10px 0 8px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.skill-focus-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--viz-series-1);
+}
+
+/* The target as a tick on the same track, so "how far to go" is a distance the
+   eye can measure rather than a subtraction the reader has to do. `overflow:
+   hidden` on the track clips it at 100%, which is where it belongs anyway. */
+.skill-focus-target {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--text-h);
+  opacity: 0.55;
+}
+
+.skill-focus-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.skill-focus-clear {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: var(--radius-control);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.skill-secure {
+  margin-top: 18px;
+}
+
+.skill-secure-title {
+  margin: 0 0 8px;
+  font-family: var(--heading);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+.skill-secure-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.skill-secure-check {
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 5px;
+}
+
+.skill-secure-score {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* Completed sessions table ------------------------------------------------- */
+
+/* Six columns still overflow a narrow phone. Scrolling the table rather than the
+   page keeps the rest of the screen readable. */
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-scroll .numeric {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.gain-up {
+  color: var(--viz-series-2);
+  font-weight: 600;
+}
+
+/* A drop is information, not an alarm - same weight as a rise, different hue,
+   and the sign is in the text either way. */
+.gain-down {
+  color: var(--viz-series-3);
+  font-weight: 600;
+}

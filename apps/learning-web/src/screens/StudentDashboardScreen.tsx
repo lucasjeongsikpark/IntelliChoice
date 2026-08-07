@@ -14,6 +14,8 @@ import {
 } from "recharts";
 import * as api from "../api/client";
 import { ReportView } from "../components/ReportView";
+import { SkillFocusList } from "../components/SkillFocus";
+import { splitByTarget } from "../lib/skillFocus";
 import { topicLabel } from "../topics";
 import type { DashboardData, DifficultyPoint, StudentHistory, StudentReport } from "../types";
 
@@ -151,6 +153,30 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
     }
   }
 
+  // D-213: derived here rather than fetched - every input is already on this screen, so a
+  // new endpoint would be a second source of truth for a number the client can compute.
+  //
+  // `unresolved_skill_names` is per completed session, so a skill that has been left
+  // unfinished repeatedly counts once per session. That count is the "and it keeps
+  // happening" signal a single mastery percentage cannot carry.
+  const skillGroups = useMemo(() => {
+    if (!dashboard) return { focus: [], secure: [] };
+    const unresolvedCounts = new Map<string, number>();
+    for (const session of history?.completed_sessions ?? []) {
+      for (const name of session.unresolved_skill_names) {
+        unresolvedCounts.set(name, (unresolvedCounts.get(name) ?? 0) + 1);
+      }
+    }
+    return splitByTarget(dashboard.mastery_by_skill, unresolvedCounts);
+  }, [dashboard, history]);
+
+  // Independence as a share, not a count. "12 independent correct" is unreadable without
+  // the denominator - 12 of 14 and 12 of 90 are different students.
+  const independenceRate =
+    dashboard && dashboard.usage.total_attempts > 0
+      ? Math.round((dashboard.usage.independent_count / dashboard.usage.total_attempts) * 100)
+      : null;
+
   const colors = {
     series1: vizColor("--viz-series-1"),
     series2: vizColor("--viz-series-2"),
@@ -162,11 +188,17 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
 
   return (
     <div className="panel wide dashboard dashboard-charts">
-      <h1>Progress dashboard</h1>
-      <p className="subtitle">Student: {studentId}</p>
-      <button className="secondary" onClick={onBack}>
-        Back
-      </button>
+      {/* D-213: the Back button used to sit full-width between the title and the controls,
+          splitting the header in half. It belongs beside the title. */}
+      <div className="dashboard-head">
+        <div>
+          <h1>Progress dashboard</h1>
+          <p className="subtitle">Student: {studentId}</p>
+        </div>
+        <button className="secondary dashboard-back" onClick={onBack}>
+          Back
+        </button>
+      </div>
 
       <div
         className="date-range-controls"
@@ -190,20 +222,38 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
 
       {dashboard && (
         <>
+          {/* D-213: each stat now carries the context that makes it mean something. A bare
+              "26" answered no question anyone actually has. */}
           <div className="stat-grid">
             <div className="stat">
               <span className="stat-value">{dashboard.attempts_count}</span>
-              Attempts
+              Questions answered
             </div>
             <div className="stat">
               <span className="stat-value">{dashboard.time_spent_minutes.toFixed(0)}</span>
-              Minutes spent
+              Minutes of practice
             </div>
             <div className="stat">
-              <span className="stat-value">{dashboard.usage.independent_count}</span>
-              Independent correct
+              <span className="stat-value">
+                {independenceRate === null ? "—" : `${independenceRate}%`}
+              </span>
+              Solved without help
+            </div>
+            <div className="stat">
+              <span className="stat-value">{skillGroups.secure.length}</span>
+              {skillGroups.secure.length + skillGroups.focus.length > 0
+                ? `of ${skillGroups.secure.length + skillGroups.focus.length} skills at target`
+                : "skills at target"}
             </div>
           </div>
+
+          {/* D-213: promoted to the top of the screen, because it is the one section that
+              says what to do next. It used to be the last column of the session table. */}
+          <section className="chart-section" aria-label="Skills to strengthen">
+            <h2>Skills to strengthen</h2>
+            <p className="chart-caption">{dashboard.mastery_window_label}</p>
+            <SkillFocusList focus={skillGroups.focus} secure={skillGroups.secure} />
+          </section>
 
           <section className="chart-section" aria-label="Mastery by skill">
             <h2>Mastery by skill</h2>
@@ -234,7 +284,14 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
                     interval={0}
                   />
                   <Tooltip formatter={formatPercent} />
-                  <ReferenceLine x={0.8} stroke={colors.ink} strokeDasharray="4 4" />
+                  {/* D-213: the dashed line was unlabelled, so it read as decoration. It
+                      is the mastery target the "skills to strengthen" split uses. */}
+                  <ReferenceLine
+                    x={0.8}
+                    stroke={colors.ink}
+                    strokeDasharray="4 4"
+                    label={{ value: "Target", position: "top", fill: colors.ink, fontSize: 11 }}
+                  />
                   <Bar
                     dataKey="weighted_score"
                     name="Mastery"
@@ -370,38 +427,51 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
         <>
           <h2>Completed sessions</h2>
           {history.completed_sessions.length === 0 && <p className="dim">None yet.</p>}
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Topic</th>
-                <th>Pre</th>
-                <th>Post</th>
-                <th>Gain</th>
-                <th>Hints</th>
-                <th>Solutions</th>
-                <th>Videos</th>
-                <th>Review flag</th>
-                <th>Skills to strengthen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.completed_sessions.map((s) => (
-                <tr key={s.learning_gain_id}>
-                  <td>{new Date(s.completed_at).toLocaleDateString()}</td>
-                  <td>{topicLabel(s.topic_id)}</td>
-                  <td>{s.pre_raw_score}</td>
-                  <td>{s.post_raw_score}</td>
-                  <td>{s.raw_gain}</td>
-                  <td>{s.hint_count}</td>
-                  <td>{s.solution_count}</td>
-                  <td>{s.video_count}</td>
-                  <td>{s.tutor_review_flagged ? "⚠️" : ""}</td>
-                  <td>{s.unresolved_skill_names.join(", ") || "—"}</td>
+          {/* D-213: ten columns became six.
+              - Hints/Solutions/Videos collapse into one "Support used" total. The split
+                mattered to nobody reading a row; the breakdown is the "Support usage"
+                chart above, which is where a reader who wants it will look.
+              - "Skills to strengthen" is gone from here entirely - it is the section at the
+                top of the screen now, derived from current mastery rather than from one
+                session's leftovers.
+              - Pre/Post/Gain become one "Pre -> Post" cell, so the improvement reads as a
+                movement instead of three numbers to subtract mentally. */}
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Topic</th>
+                  <th>Pre → Post</th>
+                  <th>Gain</th>
+                  <th>Support used</th>
+                  <th>Review</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {history.completed_sessions.map((s) => (
+                  <tr key={s.learning_gain_id}>
+                    <td>{new Date(s.completed_at).toLocaleDateString()}</td>
+                    <td>{topicLabel(s.topic_id)}</td>
+                    <td className="numeric">
+                      {s.pre_raw_score} → {s.post_raw_score}
+                    </td>
+                    <td className={`numeric ${s.raw_gain > 0 ? "gain-up" : s.raw_gain < 0 ? "gain-down" : ""}`}>
+                      {s.raw_gain > 0 ? `+${s.raw_gain}` : s.raw_gain}
+                    </td>
+                    <td className="numeric">{s.hint_count + s.solution_count + s.video_count}</td>
+                    <td>
+                      {s.tutor_review_flagged ? (
+                        <span title="Flagged for tutor review">⚠️ Flagged</span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <h2>Blocked (attendance not confirmed)</h2>
           {history.blocked_sessions.length === 0 && <p className="dim">None.</p>}
@@ -414,15 +484,12 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
             ))}
           </ul>
 
-          <h2>Skill mastery</h2>
-          {history.mastery.length === 0 && <p className="dim">No mastery data yet.</p>}
-          <ul>
-            {history.mastery.map((m) => (
-              <li key={m.skill_name}>
-                {m.skill_name}: {Math.round(m.weighted_score * 100)}%
-              </li>
-            ))}
-          </ul>
+          {/* D-213: the "Skill mastery" bullet list that sat here is removed. It printed the
+              same weighted scores as the "Mastery by skill" chart and the "Skills to
+              strengthen" section above it - three renderings of one dataset, the last of
+              them a bare `<ul>`. Nothing was lost: `history.mastery` and
+              `dashboard.mastery_by_skill` carry the same per-skill weighted score, and the
+              two surviving views show it against its target rather than alone. */}
 
           {history.problem_reports.length > 0 && (
             <>
