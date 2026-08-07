@@ -42,10 +42,13 @@ code. Landed in seven commits, one per area.
   wins were logging and the repair-cache fix, not caching the short serving prompts.
 - The latency fix's background narrative is best-effort (no queue/retry, D-208's posture): a task
   lost to a process replacement costs one between-questions overlay, nothing more.
-- **Minor (found in the live re-walk):** on the intervention *menu*/chat state — after a wrong answer,
-  before the next item loads — the **left** column reads "Loading the next question…" instead of the
-  just-attempted question. Cosmetic (the question-left two-column is confirmed on the hint-ladder
-  path), left untouched rather than editing the merged, deployed build. Worth a small follow-up.
+- **Found in the live re-walk, then fixed:** on the intervention *menu*/chat state — after a wrong
+  answer, before the next item loads (`items: []`) — the **left** column read "Loading the next
+  question…" instead of the just-attempted question. Fixed client-side: `App.tsx` remembers the last
+  study question (a ref keyed by `question_variant_id`) and hands its stem to `ExamScreen` as
+  `pausedQuestionText` while the pause is still about that id, so the question stays visible on the
+  left through the menu and chat; the paused copy is now "Work through the help on the right →". No
+  backend change (D-217 finding 2).
 
 ### Session log — the learning flow, walked in code (2026-08-07, D-216)
 

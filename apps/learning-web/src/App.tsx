@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import "./App.css";
 import * as api from "./api/client";
 import { friendlyError } from "./api/errors";
@@ -138,6 +138,12 @@ function App() {
     snapshot?.pending_interrupt?.question_variant_id ?? null,
   );
   const [interventionDismissed, setInterventionDismissed] = useState(false);
+  // D-217 follow-up: the study intervention menu (and a chat opened from it) arrives with
+  // `items: []`, so the left column loses the question the student is getting help with. We
+  // remember the last study question we did have full data for, keyed by its variant id, and
+  // hand its stem back to `ExamScreen` when the pause is still about that same id. A ref, not
+  // state: this is a render-time cache, and writing it must not trigger a re-render.
+  const lastStudyQuestionRef = useRef<{ id: string; text: string } | null>(null);
   // AUD-F-04: both narrative gates now live in a `sessionStorage`-backed hook so they
   // survive a refresh - see useNarrativeGate.ts for why both of them had to move and why the
   // record is keyed by learning session id. The two properties they had as React state are
@@ -480,10 +486,33 @@ function App() {
         // intervention` already carries this round's content - both are read together.
         const ladderOpen = pending?.interrupt_type === "intervention_choice";
 
+        // Remember the current study question so the intervention menu/chat (which arrives
+        // with `items: []`) can keep showing it on the left. Updated during render as a cache;
+        // only the study phase, and only when we actually have the item.
+        const currentStudyItem =
+          snapshot.phase === "study" ? (snapshot.items?.[0] ?? null) : null;
+        if (currentStudyItem) {
+          lastStudyQuestionRef.current = {
+            id: currentStudyItem.question_variant_id,
+            text: currentStudyItem.rendered_question,
+          };
+        }
+        // Only reuse the remembered stem when the pause is still about that same question -
+        // never show a stale question next to help for a different one (the D-213 concern).
+        const remembered = lastStudyQuestionRef.current;
+        const pausedQuestionText =
+          ladderOpen &&
+          (snapshot.items?.length ?? 0) === 0 &&
+          remembered !== null &&
+          remembered.id === pending?.question_variant_id
+            ? remembered.text
+            : null;
+
         const examView = (
           <ExamScreen
             phase={snapshot.phase}
             items={snapshot.items ?? null}
+            pausedQuestionText={pausedQuestionText}
             streak={streak}
             overview={session.examOverview}
             busy={session.busy}

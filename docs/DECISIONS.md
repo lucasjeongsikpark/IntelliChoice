@@ -15242,8 +15242,13 @@ Two findings from the walk, neither a regression:
    (`repaired: false`, no exception) that the deterministic `answer_text_leaked` check in
    `tutor_chat.py` caught, so the service fail-closed to the safe fallback (SPEC §5.21.8). Correct
    behaviour; the viz appeared as soon as the question was conceptual rather than answer-seeking.
-2. **Minor (carry-over):** on the intervention *menu*/chat state (after a wrong answer, before the
-   next item loads), the **left** column reads "Loading the next question…" rather than the
-   just-attempted question. Cosmetic - the question-left two-column is confirmed on the hint-ladder
-   path - but slightly confusing on the menu/chat path. Left as a carry-over rather than touching the
-   merged, deployed build.
+2. **Minor, then fixed:** on the intervention *menu*/chat state (after a wrong answer, before the
+   next item loads) the **left** column read "Loading the next question…" rather than the
+   just-attempted question. Root cause: a wrong study answer returns `pending_interrupt.
+   interrupt_type = intervention_choice` with `items: []`, so `ExamScreen`'s `currentItem`
+   (`items[0]`) was null and it fell to its loader. Fixed client-side: `App.tsx` remembers the last
+   study question it had full data for (a render-time ref keyed by `question_variant_id`) and passes
+   its stem to `ExamScreen` as `pausedQuestionText` **only while the pause is still about that same
+   id** (the D-213 wrong-question guard), so the left column keeps showing the question, read-only,
+   through the menu and any chat opened from it; the misleading "Loading…" copy is replaced by "Work
+   through the help on the right →" whenever paused. No backend or snapshot-contract change.
