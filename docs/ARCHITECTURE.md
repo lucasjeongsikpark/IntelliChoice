@@ -241,6 +241,16 @@ to rot, because nothing fails when it does.)*
   threshold that crosses a package boundary lives in one module
   (`intellichoice_shared.mastery_policy`); two copies is how one subsystem calls a skill weak
   while another calls it proficient.
+  **D-215 found a third surface using the phrase with no threshold at all.** The stage
+  narrative's evidence line printed `Skills to strengthen: …` straight from the study plan's
+  `target_skill_ids`, and `study_plan.py` takes `ranked[:BASE_PROBLEM_COUNT]` — 5 of a topic's
+  5 skills. So it was never a subset that failed a test; it was the whole topic in priority
+  order, and a student who scored 7 of 10 read that five skills needed strengthening while the
+  dashboard scored two of them at 100%. The report path above was correct throughout, which is
+  what made this hard to see: the rule was applied where it was written down and not where the
+  same words were reached for later. Relabelled to `Study plan, weakest first`. **The rule
+  generalises: this phrase is a claim about a measurement, so any surface using it owes a
+  threshold — and the narrative prompt now says a plan list is not a list of failures.**
 - **Authorization distinguishes reading a student's data from changing it** — every learning
   route passes a required `access: "read" | "write"` to `resolve_target_student` (S40, D-107).
   Required rather than defaulted because the recurring defect in this codebase is a route
