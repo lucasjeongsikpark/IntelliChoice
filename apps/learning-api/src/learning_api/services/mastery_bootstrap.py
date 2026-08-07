@@ -66,12 +66,21 @@ async def resolve_graded_attempts(
     as correct only when independently correct (`_study_counts_as_correct`), so an
     assisted or unresolved study answer never inflates mastery.
     """
+    # D-217: batched, not a `get_variant`+`get_template` pair per attempt. This runs on
+    # every study answer over *all* pre-exam + study attempts (`_recompute_all_skill_
+    # mastery`), so the per-attempt round-trips grew with the session; two `IN (...)`
+    # queries make it flat. `get_variants`/`get_templates` are the AUD-F-31 batch forms.
+    attempts = list(attempts)
+    variants = await question_repo.get_variants(
+        [a.question_variant_id for a in attempts]
+    )
+    templates = await question_repo.get_templates(
+        [v.question_template_id for v in variants.values()]
+    )
     graded: list[GradedAttempt] = []
     for attempt in attempts:
-        variant = await question_repo.get_variant(attempt.question_variant_id)
-        assert variant is not None
-        template = await question_repo.get_template(variant.question_template_id)
-        assert template is not None
+        variant = variants[attempt.question_variant_id]
+        template = templates[variant.question_template_id]
         if isinstance(attempt, StudyAttempt):
             is_correct = _study_counts_as_correct(attempt)
         else:

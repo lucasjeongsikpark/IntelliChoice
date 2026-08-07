@@ -48,6 +48,7 @@ from learning_api.dependencies import get_current_claims, get_profile_adapter
 from learning_api.graph.build import build_graph
 from learning_api.routers.parents import router as parents_router
 from learning_api.routers.questions import router as questions_router
+from learning_api.routers.sessions import build_deferred_narrative_snapshot
 from learning_api.routers.sessions import router as sessions_router
 from learning_api.routers.stream import router as stream_router
 from learning_api.routers.students import router as students_router
@@ -55,6 +56,9 @@ from learning_api.services.consolidation_scheduler import (
     BackgroundConsolidationScheduler,
 )
 from learning_api.services.session_events import SessionEventBus
+from learning_api.services.stage_narrative_scheduler import (
+    BackgroundStudyNarrativeScheduler,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +175,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             session_budget_cents=settings.bedrock_session_budget_cents,
         )
 
+    # D-217: a gateway for the deferred study-transition narrative, built as a factory for
+    # the same reason as `_consolidation_gateway` - each background run gets a fresh
+    # circuit breaker rather than sharing the request gateway's. Normal call timeout (a
+    # narrative is tutor-reply-sized, unlike consolidation).
+    def _narrative_gateway() -> ResilientBedrockGateway:
+        return ResilientBedrockGateway(
+            provider=chat_provider,
+            embedding_provider=embedding_provider,
+            model_registry={
+                BedrockTask.STAGE_NARRATIVE: settings.bedrock_tutor_model_id,
+            },
+            call_timeout_s=settings.bedrock_call_timeout_s,
+            max_retries=settings.bedrock_max_retries,
+            circuit_failure_threshold=settings.bedrock_circuit_failure_threshold,
+            circuit_cooldown_s=settings.bedrock_circuit_cooldown_s,
+            session_budget_cents=settings.bedrock_session_budget_cents,
+        )
+
     engine = create_engine(settings.database_url)
     app.state.db_engine = engine
     app.state.db_session_factory = create_session_factory(engine)
@@ -189,6 +211,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with AsyncPostgresSaver.from_conn_string(settings.checkpoint_database_url) as saver:
         await saver.setup()
         app.state.learning_graph = build_graph(saver)
+        # D-217: the study-transition narrative goes off the answer's critical path only
+        # under a real Bedrock provider, where the call actually costs ~1.5s. Under the
+        # mock provider it stays inline in the graph node (nothing to defer), which is
+        # what keeps every existing test seeing the narrative synchronously - so the
+        # scheduler is `None` there and `defer_study_narrative` stays False.
+        if settings.bedrock_provider == "bedrock":
+            app.state.study_narrative_scheduler = BackgroundStudyNarrativeScheduler(
+                session_factory=app.state.db_session_factory,
+                gateway_factory=_narrative_gateway,
+                graph_getter=lambda: app.state.learning_graph,
+                events=app.state.session_events,
+                profile_adapter=adapter,
+                snapshot_builder=build_deferred_narrative_snapshot,
+            )
+        else:
+            app.state.study_narrative_scheduler = None
         yield
 
     await adapter.close()

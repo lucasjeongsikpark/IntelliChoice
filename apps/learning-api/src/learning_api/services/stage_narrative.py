@@ -24,7 +24,9 @@ import logging
 from dataclasses import dataclass
 
 from intellichoice_db.models.stage_transition import StageTransition
+from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.stage_transition import StageTransitionRepository
+from intellichoice_db.repositories.study import StudyRepository
 from intellichoice_shared.bedrock import (
     BedrockGateway,
     BedrockGatewayError,
@@ -33,10 +35,59 @@ from intellichoice_shared.bedrock import (
     StageNarrativeResponse,
 )
 from intellichoice_shared.numeric_grounding import grounding_failure
+from intellichoice_shared.profiles import ProfileAdapter
 
 logger = logging.getLogger(__name__)
 
 _MAX_OUTPUT_TOKENS = 400
+
+
+async def payload_from_marker(
+    *,
+    profile_adapter: ProfileAdapter,
+    curriculum_repo: CurriculumRepository,
+    study_repo: StudyRepository,
+    student_external_id: str,
+    marker: dict,
+) -> tuple[StageNarrativePayload, str | None]:
+    """Resolve an ids-only `study_step`/`study_outro` marker (D-217) into the full
+    `StageNarrativePayload` + `related_skill_id`. Shared by the inline node path and the
+    background scheduler so both build the same payload from the same ids; takes the repos
+    rather than a `TurnContext` so the background task can pass its own session's repos.
+    Skill *names* and grade are resolved here, at generation time - never carried in the
+    marker (which is checkpointed), keeping the SPEC §5.30 PII rule intact.
+    """
+    profile = await profile_adapter.get_student_profile(student_external_id)
+    assert profile is not None
+    grade = profile.grade
+
+    if marker["stage"] == "study_step":
+
+        async def _name(skill_id: str) -> str:
+            skill = await curriculum_repo.get_skill(skill_id)
+            return skill.name if skill is not None else skill_id
+
+        return (
+            StageNarrativePayload(
+                stage="study_step",
+                grade=grade,
+                completed_skill_name=await _name(marker["completed_skill_id"]),
+                target_skill_name=await _name(marker["target_skill_id"]),
+            ),
+            marker["target_skill_id"],
+        )
+
+    attempts = await study_repo.get_attempts(marker["study_session_id"])
+    return (
+        StageNarrativePayload(
+            stage="study_outro",
+            grade=grade,
+            hint_count=sum(1 for a in attempts if a.hint_used),
+            solution_count=sum(1 for a in attempts if a.solution_used),
+            video_count=sum(1 for a in attempts if a.video_used),
+        ),
+        None,
+    )
 
 _SYSTEM_PROMPT = (
     "You are writing a short, warm, growth-oriented message for a K-12 student using a "
