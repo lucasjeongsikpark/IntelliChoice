@@ -40,6 +40,10 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _CONSTRUCTION_SITES = [
     "apps/learning-api/src/learning_api/graph/nodes.py",
     "apps/learning-api/src/learning_api/routers/stream.py",
+    # D-217: the `study_step`/`study_outro` payloads are built here now, in
+    # `payload_from_marker`, so both the inline node path and the background narrative
+    # scheduler build the same payload from the same ids.
+    "apps/learning-api/src/learning_api/services/stage_narrative.py",
 ]
 
 # What each stage is allowed to carry, and nothing more. `stage` and `grade` are on every
@@ -86,7 +90,15 @@ def _payload_constructions() -> list[tuple[str, int, str, set[str]]]:
                 continue
             if not isinstance(node.func, ast.Name) or node.func.id != "StageNarrativePayload":
                 continue
+            # D-217: skip a `StageNarrativePayload(**already_stored_evidence)` reconstruction
+            # (a `**` unpack, i.e. a keyword with `arg is None`). That is not a stage-authoring
+            # site - it rebuilds an already-validated payload from its own stored evidence on
+            # the idempotent-replay path - so it has no literal stage to attribute and no new
+            # fields to police. An authoring site always names its fields explicitly.
+            has_double_star = any(kw.arg is None for kw in node.keywords)
             keywords = {kw.arg for kw in node.keywords if kw.arg is not None}
+            if has_double_star and "stage" not in keywords:
+                continue
             stage_values = [
                 kw.value.value
                 for kw in node.keywords

@@ -370,6 +370,17 @@ to rot, because nothing fails when it does.)*
   with every HTTP call returning 200 and no error anywhere. The read is not instantaneous and must
   not be assumed so — S26's `pre_intro` puts a real Bedrock call inside it. "The checkpoint is read
   fresh on connect" covers events from *before* the connect, never during it.
+- **A study answer does not wait on its stage-transition narrative** (D-217) — under a real Bedrock
+  provider the `study_step`/`study_outro` narrative was a ~1.5s call awaited inside the answer turn,
+  fired on essentially every correct study answer, and it dominated a measured 3.9s round-trip. It is
+  now generated off the critical path by a background scheduler (the D-208 consolidation-scheduler
+  pattern) that publishes a **full** snapshot over the SSE bus when the narrative is ready; the answer
+  response returns immediately with the next question. The graph node leaves an ids-only marker
+  (`LearningState.pending_study_narrative`, no PII) and the route hands it to the scheduler. Under the
+  mock provider it stays inline in the node, so the property tests still see the narrative on the turn
+  that produced it. Best-effort by the same reasoning as consolidation: a lost task costs one
+  between-questions overlay, never the answer, mastery, or the next question, all of which the
+  synchronous turn committed.
 - **External actions are interrupt-gated** — child selection, attendance emails, and the
   hint/solution/video choice each pause via LangGraph `interrupt()` and survive restart via
   the Postgres checkpointer (S7); chat-api's admin-escalation email and calendar action

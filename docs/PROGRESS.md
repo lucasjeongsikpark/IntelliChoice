@@ -5,6 +5,40 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+### Session log — the second UI walk: latency, layout, text, chat viz, content (2026-08-07, D-217)
+
+**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1044 passed, 2 skipped, 1 xfailed** · `tsc`
+and `oxlint` clean for `learning-web`, `chat-web`, `e2e` · the six new bank items load through the
+§5.8.5 gate; bank re-exported 41 → 47 · full write-up in DECISIONS.md **D-217**.
+
+**Not a numbered ROADMAP session** — the user re-walked the app and reported eight things; I
+re-walked the deployed staging UI with `chrome-devtools` and traced backend/frontend/gateway in
+code. Landed in seven commits, one per area.
+
+**What was measured live, and what changed:**
+
+| point | finding (staging) | fix |
+|---|---|---|
+| 2 latency | correct study answer **3,882 ms**, hint 2,280 ms | the inline `study_step` narrative Bedrock call (~1.5s) now defers off the answer path (background scheduler, ids-only marker, published over SSE); inline under the mock provider so tests are unchanged. Batched `_recompute_all_skill_mastery`'s N+1. |
+| 1 layout | help stacked above a shrunk question; Submit stuck on "SUBMITTING…" | two-column study screen (question left, help right), first width breakpoint; a `paused` state distinct from `busy` |
+| 3 rendering | hints/solutions/report rendered Markdown/LaTeX as literal text, newlines collapsed | broadened the shared `RichText` renderer + routed every LLM-text site through it; prompts say plain text, no LaTeX; hints capped at 1-2 sentences (point 7) |
+| 7 content gate | a served study stem showed reviewer meta-commentary | widened `check_no_meta_commentary`; re-minted the item |
+| 5 chat | one transcript for the whole session | scoped per `question_variant_id` |
+| 6 chat | (new) a bounded diagram (number line / bar model) can accompany a reply | `ChatVizSpec`, schema-bounded, rendered by a text-node-safe component |
+| 4 caching | serving prompts too short to cache (reported, not faked); cache-read tokens dropped; repair busted the system cache | log cache tokens; repair correction moved to the user turn |
+| 8 content | thin cells; few videos | 6 hand-authored items through the §5.8.5 gate (thin cells 2 → 4); `search_results_per_skill` 5 → 8 |
+
+**Carry-over:**
+
+- **The two dormant topics are still "Coming soon".** `fraction_operations` and `place_value` are
+  defined but have zero questions; standing one up with reviewed content is its own session.
+- **New AI-authored questions remain blocked on Sonnet 5** (D-211). This session hand-authored six
+  items through the gate; a larger expansion is either more hand-authoring or a low-yield Haiku run.
+- **Serving-path prompt caching is not achievable** without bloating prompts (D-217 §6) - the honest
+  wins were logging and the repair-cache fix, not caching the short serving prompts.
+- The latency fix's background narrative is best-effort (no queue/retry, D-208's posture): a task
+  lost to a process replacement costs one between-questions overlay, nothing more.
+
 ### Session log — the learning flow, walked in code (2026-08-07, D-216)
 
 **Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1040 passed, 2 skipped,

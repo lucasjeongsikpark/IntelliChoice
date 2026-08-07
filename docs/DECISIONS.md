@@ -15104,3 +15104,112 @@ new tests: the exhausted chat ladder + flags, the duplicate study answer, the re
 intervention, the permutation property, the unserved-report 404) · `tsc` and `oxlint` clean for
 `learning-web`, `chat-web`, `e2e` · migration `b7e42a91c503` round-tripped (upgrade → downgrade →
 upgrade) against dev Postgres.
+
+## D-217 — a second UI walk: latency, a two-column study screen, cleaner text, chat viz, and content (accepted, 2026-08-07)
+
+The user re-walked the app and reported eight things; I re-walked the deployed staging UI with
+`chrome-devtools` and traced backend/frontend/gateway in code. Two constraints shaped what was
+possible and the user resolved both: **use the available model (Haiku 4.5), not Sonnet 5** (so
+content work is unblocked, since the deterministic §5.8.5 gate is the quality bar regardless of
+who authored an item), and **the real YouTube key is already in Secrets Manager**. Integration with
+the production system stays deferred (D-152). Landed in seven commits, one per area.
+
+### 1. The study answer took ~3.9s; it should not have (point 2)
+
+Measured live with the browser driver: a correct study-phase answer round-tripped in **3,882 ms**,
+a hint in **2,280 ms**, a pre-exam answer in **194 ms**. The study answer was dominated by an inline
+`study_step` stage-narrative **Bedrock call (~1.5s) awaited before the response returned**
+(`graph/nodes.py`), fired on essentially every first-try-correct answer, with a per-(session, stage,
+skill) idempotency key that never warm-hits on forward progress. The narrative is a between-questions
+overlay that also travels over SSE - the answer response never needed to wait for it.
+
+It now defers under a real provider, mirroring D-208's consolidation scheduler: the node leaves an
+**ids-only marker** (`LearningState.pending_study_narrative` - no grade, no names, so the SPEC §5.30
+PII rule holds), the answer returns immediately with the next question, and
+`BackgroundStudyNarrativeScheduler` generates the narrative against its own session and publishes a
+full snapshot over the SSE bus a beat later. Under the mock provider it stays **inline** in the node,
+so all ~1040 tests still see the narrative synchronously - deferral is opt-in, selected by provider
+in `main.py`. Also batched `_recompute_all_skill_mastery`'s N+1 (`resolve_graded_attempts` now uses
+the AUD-F-31 `get_variants`/`get_templates` batch forms instead of two `Session.get` per attempt
+across every pre-exam + study attempt, which grew with the session).
+
+### 2. Question left, help right (point 1)
+
+The deployed layout stacked the assistance panel **above** a shrunk question in one column, with the
+question's Submit button stuck reading "SUBMITTING…" (`busy = session.busy || ladderOpen`). During
+study, the hint/solution/video/chat panel now sits **beside** the question - question left, help
+right, both full-size - via the codebase's first width breakpoint (`.study-columns`, stacking under
+900px). The left question shows a clear paused state (a new `paused` prop on `ExamScreen`, distinct
+from `busy`: "Work through the help first"). Spent-ladder terminal help (hint 3 / solution / video)
+still shows alone, because by then the graph has advanced to the next question (D-215 §4).
+
+### 3. LLM text rendered its markup as literal characters (points 3 and 7)
+
+`lib/markdown.ts` handled only `**bold**`/`` `code` `` and was used **only** in chat bubbles;
+hints, solutions, narratives and the parent report rendered raw with no `white-space: pre-line`, so
+any list, heading, LaTeX or multi-line hint collapsed or showed literal syntax. The shared
+`RichText` renderer now normalizes stray Markdown headings/bullets to plain glyphs and preserves the
+model's line breaks itself, and **every** LLM-text site renders through it - still text-node-only, no
+injection surface. The generative prompts (hint/solution/chat/narrative/report) now say "plain text,
+no Markdown headings/bullets or LaTeX, math inline like 2x + 3 = 7", and the hint prompts ask for one
+or two sentences (a hint had been arriving as three stacked paragraphs). The pinned prompt substrings
+(`at most 4 short sentences`, `different windows`) were preserved so their tests still hold.
+
+Content gate: a *served study item*'s stem was found rendering reviewer meta-commentary ("This is a
+concrete real-world scenario requiring students to set up and solve..."), the same context-block leak
+D-215 fixed by hand for other items, missed by that sweep. `check_no_meta_commentary` gained the
+class it missed (text that describes the problem *to a reviewer* rather than posing it to the
+student), and the offending item was re-minted with its context block stripped.
+
+### 4. The tutor chat is per-question now (point 5)
+
+The transcript was session-scoped, so one question's conversation carried onto the next. It is keyed
+by `question_variant_id` using the derived-not-synchronised pattern `useNarrativeGate`/
+`useAssistanceCounts` already use, so each question starts fresh with no window where the previous
+transcript flashes.
+
+### 5. A bounded diagram in chat (point 6)
+
+A chat reply may attach a small `ChatVizSpec` - a number line with a value marked, or two bars
+comparing the two sides of an equation - when a picture helps. One flat schema (`kind` plus parallel
+`labels`/`values`), every bound in the JSON schema the model fills (2-4 items, values in [-100, 100],
+labels ≤ 24 chars), validated and repaired by the existing gateway machinery, rendered by a new
+text-node-safe `ChatViz` component. Only the chat-reply intents can carry one; the prompt asks the
+model to include it only when it clarifies and never to reveal the answer. "Cheap to draw" = a
+deterministic client render, a few extra output tokens, no image generation.
+
+### 6. Prompt caching: honest, not pretended (point 4)
+
+Prompt caching already exists (D-203, Converse `cachePoint`) and pays off only in the offline
+authoring pipeline; the serving prompts (~25-230 words) are far below Anthropic's ~1024-token cache
+minimum, so **caching them is not achievable without bloating them, and this change does not pretend
+otherwise.** Two real wins: the gateway read `cacheReadInputTokens` off the provider but dropped them,
+so a warm-cache hit was invisible and cost under-derived - they now accumulate onto
+`BedrockGenerationResult` and the `bedrock_call` log; and the repair retry appended its correction to
+the *system* prompt, changing that block and busting the D-203 system cache point on every repair -
+the correction now rides the user turn, leaving the system block byte-identical so the cache still
+hits.
+
+### 7. More content, within the real constraint (point 8)
+
+New AI-authored math is blocked on Sonnet 5 (D-211: Haiku failed authoring 9/11), so the six new
+`linear_equations` items were **hand-authored** and put through the deterministic §5.8.5 gate - the
+same quality bar every item clears regardless of who wrote it. Each equation was SymPy-verified before
+writing; all six passed the gate at load (solve-check, one-correct-answer, hint monotonicity, no
+answer leak, no meta-commentary, age-appropriate). They take the three thin cells from 2 to 4 items
+(`linear_both_sides` d4, `linear_distribute` d5, `linear_neg_frac_coeff` d2), giving the §5.11.7 retry
+ladder real depth there; the bank is 41 → 47. `search_results_per_skill` rose 5 → 8 so the next real
+YouTube sync keeps a wider net per skill at flat quota cost.
+
+### What was deliberately *not* done
+
+- Serving-path prompt caching (§6): impossible without bloating prompts; reported rather than faked.
+- New AI-authored questions or a Haiku authoring batch: hand-authoring + the gate was the safer path
+  to "more problems" for a minor-facing bank; a Haiku pipeline run remains available but low-yield.
+- A whole new topic (`fraction_operations`/`place_value` are still "Coming soon"): standing up a topic
+  with enough reviewed content is its own effort, not folded into this UX-and-latency pass.
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1044 passed, 2 skipped, 1 xfailed** · `tsc` and `oxlint`
+clean for `learning-web`, `chat-web`, `e2e` · the six new bank items load through the §5.8.5 gate and
+the bank re-exports clean · deployed to staging with both gates green; the real YouTube sync ran as a
+one-off ops-task afterwards.

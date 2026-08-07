@@ -20,6 +20,7 @@ from intellichoice_db.engine import create_engine, create_session_factory, sessi
 from intellichoice_db.models.stage_transition import StageTransition
 from intellichoice_shared.bedrock import BedrockTask
 from learning_api.graph.nodes import _study_narrative_marker
+from learning_api.graph.state import LearningState
 from learning_api.routers.sessions import build_deferred_narrative_snapshot
 from learning_api.services import flow
 from learning_api.services.session_events import SessionEventBus
@@ -86,8 +87,9 @@ def seeded_fixtures() -> None:
 
 
 def test_study_narrative_marker_is_ids_only_and_carries_no_pii() -> None:
+    state = LearningState(session_id="s", study_session_id="ss-1")
     step = _study_narrative_marker(
-        SimpleNamespace(study_session_id="ss-1"),
+        state,
         flow.AnswerResult(
             is_correct=True,
             phase="study",
@@ -104,16 +106,14 @@ def test_study_narrative_marker_is_ids_only_and_carries_no_pii() -> None:
     }
 
     outro = _study_narrative_marker(
-        SimpleNamespace(study_session_id="ss-1"),
-        flow.AnswerResult(
-            is_correct=True, phase="post_exam", items=[{"x": 1}], learning_gain=None
-        ),
+        state,
+        flow.AnswerResult(is_correct=True, phase="post_exam", items=[], learning_gain=None),
     )
     assert outro == {"stage": "study_outro", "study_session_id": "ss-1"}
 
     # A plain incorrect study answer (pauses for intervention) fires no narrative.
     none = _study_narrative_marker(
-        SimpleNamespace(study_session_id="ss-1"),
+        state,
         flow.AnswerResult(is_correct=False, phase="study", items=None, learning_gain=None),
     )
     assert none is None
@@ -165,7 +165,7 @@ def test_background_scheduler_generates_and_publishes_a_full_snapshot() -> None:
             scheduler = BackgroundStudyNarrativeScheduler(
                 session_factory=create_session_factory(engine),
                 gateway_factory=_gateway,
-                graph_getter=lambda: fake_graph,
+                graph_getter=lambda: fake_graph,  # type: ignore[arg-type, return-value]
                 events=events,
                 profile_adapter=profile_adapter,
                 snapshot_builder=build_deferred_narrative_snapshot,
