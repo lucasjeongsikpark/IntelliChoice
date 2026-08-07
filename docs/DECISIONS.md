@@ -14477,3 +14477,55 @@ stashing every change and re-running - the flakiness is pre-existing, not introd
 come from state accumulating in the shared dev Postgres across runs, not from shuffling. (An earlier
 note in this session assumed the opposite and was wrong.) The final sweep on this branch was green:
 **1028 passed, 2 skipped, 1 xfailed**.
+
+## D-212 — a skill nobody was tested on is the weakest skill (accepted, 2026-08-06)
+
+`test_difficulty_recommendation_reaches_template_selection` failed CI on `main` with
+`assert 'linear_one_step' == 'linear_two_step'`. The D-207 addendum above records this test as
+one of two carrying D-206's broken premise, and dispositioned it by resolving the real
+`skill_id` instead of inferring it from a pre-exam position. That fixed *which items the test
+fails*. It left the hardcoded name in the three **assertions**, which is a different premise and
+was still wrong.
+
+**The mechanism, and it is not flakiness.** `build_study_plan` ranks skills weakest-first:
+
+```
+weighted = mastery.weighted_score if mastery is not None else 0.0
+```
+
+A skill the pre-exam never served has no mastery row, so it ranks at **0.0 — below any skill the
+student actually answered badly**. Whichever skills a draw omits are therefore routed *first*,
+ahead of the skill the test deliberately failed. Failing every `linear_two_step` item makes it
+the weakest skill *that was measured*, which is not the same thing as the weakest skill.
+
+The test-suite note further down this file called this test "flaky … mastery-dependent" and
+attributed it to accumulated dev-Postgres state. That was the wrong diagnosis: the dependence is
+on **which skills a draw covers**, which is why it reproduced 4-in-8 against a shared local
+database and also on CI's fresh one.
+
+**Is the ranking itself a defect?** Judged not, deliberately. Routing an unmeasured skill first
+is defensible — an unknown skill is a bigger information gap than a known-weak one, and the
+pre-exam cannot cover every skill in the items it has. Changing the ranking to satisfy a test
+would be the tail wagging the dog. What is a defect is a test asserting a skill name it can only
+hope the draw provides.
+
+**The fix.** The assertions now name no skill. The contract they actually encode — the value
+reaching `_select_template` is the served skill's own `recommended_difficulty` — is expressed
+against whichever skill was routed, including the `None` a skill with no row legitimately has.
+Remediation is asserted to stay on the same line as the base item (`== first_skill`), and the
+next base line to differ from it, both derived rather than named.
+
+Two assertions were **dropped rather than adapted**, and neither loss is silent:
+
+- `first_recommended == 1` (the step-down) only holds for a skill whose items were all failed,
+  which the routed skill is no longer guaranteed to be. `_select_template`'s difficulty rule is
+  covered against synthetic multi-tier templates in `test_study_plan_difficulty_routing.py`,
+  which is where it belongs — this test is about the value reaching the call at all.
+- `next_recommended is not None` was the guard against "the code just passes `None`". Since
+  `None` is now a legal expectation, that guard moved to an explicit vacuity check: if *neither*
+  routed skill was measured, the test `skip`s with a message saying so instead of passing
+  hollowly.
+
+**Verified:** 12/12 green on the isolated test with **zero skips**, so the vacuity guard is a
+backstop and not the normal path; 5/5 green on the whole file (16 tests each); full suite
+**1035 passed, 2 skipped, 1 xfailed**; `ruff` clean; `pyright` 0 errors.

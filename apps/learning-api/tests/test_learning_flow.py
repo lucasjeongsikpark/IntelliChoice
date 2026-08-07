@@ -897,17 +897,42 @@ def test_difficulty_recommendation_reaches_template_selection(
         base_calls = list(calls)
         assert base_calls, "no template selection happened while building the study plan"
         first_skill, first_recommended = base_calls[-1]
-        assert first_skill == "linear_two_step"
+
+        # D-212: this used to assert `first_skill == "linear_two_step"` - the last hardcoded
+        # skill name left over from D-206's disposed-of premise, and it failed in CI on a
+        # draw that served no `linear_one_step` item.
+        #
+        # The mechanism is in `build_study_plan`'s ranking, and it is not a flake:
+        #
+        #     weighted = mastery.weighted_score if mastery is not None else 0.0
+        #
+        # A skill the pre-exam never served has **no mastery row at all**, so it ranks at
+        # 0.0 - weaker than any skill the student merely answered badly. Whichever skills a
+        # draw omits are therefore routed *first*, ahead of the one this test deliberately
+        # failed. Failing `linear_two_step` makes it the weakest skill *that was measured*,
+        # which is not the same thing as the weakest skill.
+        #
+        # So the assertion is on the routed skill itself rather than on its name. That is
+        # also the contract the docstring states: the first base question is selected with
+        # **the weakest skill's own** recommendation, whichever skill that turns out to be.
+        # An unmeasured skill's recommendation is legitimately `None`, so the assertion is
+        # "whatever that skill's row says, including its absence" rather than "not None".
+        # Vacuity is guarded once at the end instead, where both routed skills are known.
+        def _recommendation_of(rows: dict, skill_id: str) -> int | None:
+            row = rows.get(skill_id)
+            return row.recommended_difficulty if row is not None else None
 
         rows = {row.skill_id: row for row in _mastery_rows(STUDENT_UNLINKED)}
-        assert rows["linear_two_step"].recommended_difficulty is not None, (
-            "the pre-exam should have produced a recommendation for the weakest skill"
+        assert first_recommended == _recommendation_of(rows, first_skill), (
+            f"the first base question was selected with {first_recommended!r}, but "
+            f"{first_skill}'s mastery row says {_recommendation_of(rows, first_skill)!r}"
         )
-        assert first_recommended == rows["linear_two_step"].recommended_difficulty
-        # Failing both tier-2 items means the model recommends stepping down, which is the
-        # case the finding was filed on: the student is not re-served their failed tier
-        # because of a recommendation, only because tier 2 is all this skill has.
-        assert first_recommended == 1
+        # The `first_recommended == 1` step-down assertion that used to sit here went with
+        # the hardcoded name: it only holds for a skill whose items were all failed, and
+        # the routed skill is no longer guaranteed to be that one. `_select_template`'s
+        # actual difficulty rule is covered against synthetic multi-tier templates in
+        # `test_study_plan_difficulty_routing.py`, which is where it belongs - this test is
+        # about the value reaching the call at all.
 
         # One wrong answer + "solution" produces a remediation item on the same line.
         variant_id = body["items"][0]["question_variant_id"]
@@ -928,7 +953,9 @@ def test_difficulty_recommendation_reaches_template_selection(
         ).json()
         assert body["phase"] == "study"
         remediation_skill, remediation_recommended = calls[-1]
-        assert remediation_skill == "linear_two_step"
+        # D-212: the contract is "remediation stays on the line just answered", not a
+        # particular skill name - so it is checked against the skill actually routed above.
+        assert remediation_skill == first_skill
         assert remediation_recommended is None, (
             "the retry ladder must not apply the bootstrap recommendation - it has its own "
             "difficulty policy (same skill, then the prerequisite one tier down)"
@@ -949,13 +976,27 @@ def test_difficulty_recommendation_reaches_template_selection(
         ).json()
         assert body["phase"] == "study"
         next_skill, next_recommended = calls[-1]
-        assert next_skill != "linear_two_step", "expected the next base skill line"
+        assert next_skill != first_skill, "expected the next base skill line"
         rows_after = {row.skill_id: row for row in _mastery_rows(STUDENT_UNLINKED)}
-        assert next_recommended == rows_after[next_skill].recommended_difficulty
-        assert next_recommended is not None, (
-            "the next base skill was selected with no recommendation - "
+        assert next_recommended == _recommendation_of(rows_after, next_skill), (
+            f"the next base skill was selected with {next_recommended!r}, but "
+            f"{next_skill}'s mastery row says "
+            f"{_recommendation_of(rows_after, next_skill)!r} - "
             "`_serve_next_base_or_complete` is not reading the mastery row"
         )
+
+        # D-212 vacuity guard. Both assertions above would also hold if the code passed a
+        # constant `None`, so the test is only meaningful once at least one routed skill was
+        # actually measured by this draw. Which skills a draw covers is not controllable
+        # here (that is the whole finding), so a draw that measured neither routed skill is
+        # skipped explicitly rather than counted as a pass.
+        if first_recommended is None and next_recommended is None:
+            pytest.skip(
+                "this pre-exam draw measured neither routed skill "
+                f"({first_skill}, {next_skill}), so both recommendations are legitimately "
+                "None and the wiring assertions above cannot distinguish a real read from "
+                "a hardcoded None"
+            )
 
 
 def _drive_full_flow(
