@@ -14618,3 +14618,86 @@ no difficulty promise on this path at all — the old assertion pinned an accide
 
 **Verified:** 10/10 green on the isolated test with zero skips; 5/5 green on the whole file; full
 suite **1035 passed, 2 skipped, 1 xfailed**; `ruff` clean; `pyright` 0 errors.
+
+## D-213 — the readability pass, and the two places the ask and the code disagreed (accepted, 2026-08-06)
+
+Nine reported UI items. Most were straightforward; two were not, and both are worth recording
+because in each case doing exactly what was asked would have reintroduced a fixed defect.
+
+### The stage narrative: "show only that screen" vs. AUD-F-21/AUD-F-24
+
+The ask was for the narrative to be the only thing on screen, with `Continue` moving on.
+Rendering it *instead of* the phase screen is precisely what AUD-F-21 and AUD-F-24 fixed, twice:
+unmounting `ExamScreen` fires its view-time cleanup early (flushing most of the dwell that parent
+reports are built from) and re-runs `useState(0)`, returning the student to Question 1.
+
+Resolved with a `position: fixed` overlay. The student gets the requested exclusivity - nothing
+else is visible or reachable - while the phase screen stays mounted, at the same child index,
+underneath. **The two requirements only looked like they conflicted.** An absolutely-positioned
+child is not a flex item, so it also adds no gap to `.app-main` and shifts nothing.
+
+*Stated risk, not silently softened:* the overlay blocks input, and the exam timer is
+server-authoritative (`flow.is_exam_expired`), so a narrative arriving mid-exam costs real exam
+time until Continue is pressed. The existing `interactedPhase` guard already drops narratives once
+the student has answered, so the exposure is the window between the screen rendering and the first
+answer, and it is one click.
+
+### "Stream the answer" vs. the answer-leak check
+
+Token streaming would put model output in front of a child **before** anything had judged it. The
+leak check (`answer_text_leaked`, SPEC §5.25.3/§5.27) runs on the whole reply, and its failure mode
+is exactly the one streaming creates: the answer arriving in the first sentence and being read
+before the rest is refused. There is no way to un-show it.
+
+So the reply is validated first and *then* revealed progressively. The student gets the same "it is
+arriving" feel; nothing is displayed that has not passed the gate. `prefers-reduced-motion` shows
+it complete immediately.
+
+### Smaller judgements
+
+- **Study position has no denominator.** `create_study_item` assigns `display_order = len(items)`
+  and the retry ladder adds items as needed, so the total is unknown until the session ends.
+  Printing `base_problem_count` would say "3 of 5" and then serve a sixth.
+- **Markdown is hand-rolled, not a dependency.** A general renderer brings links, images and raw
+  HTML passthrough - each a way for generated text to put something unreviewed in front of a minor
+  - and the mitigation is a sanitiser guarding the first dependency. Bold and inline code are the
+  only markup the tutor prompt produces. Everything renders as text nodes, so there is no injection
+  surface.
+- **"Skills to strengthen" is derived from current mastery, not from the session log.** It was
+  `unresolved_skill_names.join(", ")` in the tenth column of a ten-column table. Moving that string
+  somewhere roomier would not have fixed it: a list of names says which skills and nothing about
+  how far off they are. The split uses each skill's own `target_band`, so it cannot drift from the
+  line the mastery chart draws.
+- **A duplicate view was deleted, after checking.** The "Skill mastery" `<ul>` printed the same
+  weighted scores as the mastery chart and the new focus section. Verified before removing:
+  `history.mastery` and `dashboard.mastery_by_skill` both carry current standing across all
+  practice, and the list rendered only name + percent.
+
+### Observability: metric filters over infrastructure metrics
+
+The module had a budget, SNS, and alarms - which answer "is it broken", not "how is it going".
+Every real incident this session was invisible in CPU and ALB latency: consolidation burning 61.5 s
+per call with a 100% failure rate for fourteen days, and an authoring batch reporting `circuit_open`
+fourteen times with $0.00 spent. The application already logged all of it as structured JSON, so
+four metric filters per service (spend, duration, failures, open circuits) turn those lines into
+metrics with no agent, sidecar, or new dependency.
+
+Duration is charted p50/p95/**max** because a call hitting its ceiling is a flat line at the
+timeout - the shape that identified the 61.5 s call, and one an average hides.
+
+Three CloudWatch rules learned by rejection, each stated only in passing in the docs:
+
+1. Terraform's `flatten` dissolves the widget metric arrays (CloudWatch wants a list of lists;
+   `flatten` removes *every* level). `concat` of per-stat lists is the fix.
+2. `dimensions` and `default_value` are mutually exclusive on a metric transformation.
+3. A dimension **value** must be a JSON selector into the log event. A literal service name is
+   rejected, because the service is not in the log line - it is the log group.
+
+Resolved by putting the service in the *namespace*, which also restores `default_value`: a quiet
+period reads as a real zero rather than a gap indistinguishable from "no data reaching CloudWatch".
+
+**Not done, and why.** X-Ray needs an ADOT sidecar plus `xray:PutTraceSegments` on the task role -
+straightforward, not started. **LangSmith is deliberately not wired**: it needs an API key (not
+mine to create or handle) and it sends LLM payloads to a third party. The payloads are PII-free by
+design, but transmitting a minors-platform's learning data to an external service is the user's
+decision to take explicitly, not one to make on their behalf.
