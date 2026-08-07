@@ -51,3 +51,13 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+# D-214: opt-in, and default `false` on purpose. D-084's "no NAT at all" is a real security
+# property - a private-subnet task cannot reach the internet even if something in it tries -
+# and it should stay the default so that turning it off is a decision someone had to write
+# down rather than something that drifted in.
+variable "nat_gateway_enabled" {
+  description = "Give private subnets a default route to the internet via a NAT gateway. Needed only for third-party SaaS that has no VPC endpoint (LangSmith); everything AWS-native already goes through PrivateLink."
+  type        = bool
+  default     = false
+}

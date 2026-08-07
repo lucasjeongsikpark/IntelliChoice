@@ -59,13 +59,54 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# No NAT Gateway (D-084) - private subnets have no default internet route at all.
-# Everything a private-subnet ECS task needs (ECR, CloudWatch Logs, Secrets Manager,
-# Bedrock, and S3 for ECR image layers) is reachable via the VPC endpoints below.
+# D-084: private subnets have no default internet route *by default*. Everything a
+# private-subnet ECS task needs - ECR, CloudWatch Logs, Secrets Manager, Bedrock, X-Ray,
+# and S3 for ECR image layers - is reachable via the VPC endpoints below, so the account
+# ran with zero NAT gateways and zero internet egress.
+#
+# D-214 makes that conditional rather than absolute, because LangSmith is a third-party
+# SaaS with no PrivateLink equivalent: `api.smith.langchain.com` is reachable only over the
+# internet. Measured before deciding - `learning-api` runs in these subnets with
+# `assignPublicIp=DISABLED` and the account had 0 NAT gateways, so a LangSmith API key
+# alone would have produced silent upload failures and a per-graph-run timeout wait.
+#
+# Deliberately **one** NAT, in the first AZ, not one per AZ. It costs ~$33/month per
+# gateway and the traffic crossing it is telemetry: if that AZ goes down, private tasks in
+# the other AZ lose *tracing*, not function, because every path they actually need still
+# goes through a VPC endpoint. Paying twice for redundancy on an observability side-channel
+# is the wrong trade.
+resource "aws_eip" "nat" {
+  count  = var.nat_gateway_enabled ? 1 : 0
+  domain = "vpc"
+
+  tags = merge(var.tags, { Name = "${var.name_prefix}-nat-eip" })
+}
+
+resource "aws_nat_gateway" "this" {
+  count         = var.nat_gateway_enabled ? 1 : 0
+  allocation_id = aws_eip.nat[0].id
+  subnet_id     = aws_subnet.public[0].id
+
+  # The IGW route must exist before the NAT can reach anything.
+  depends_on = [aws_internet_gateway.this]
+
+  tags = merge(var.tags, { Name = "${var.name_prefix}-nat" })
+}
+
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.this.id
 
   tags = merge(var.tags, { Name = "${var.name_prefix}-private-rt" })
+}
+
+# A separate `aws_route` rather than an inline `route` block, so that flipping
+# `nat_gateway_enabled` back to false removes the route and restores the no-egress property
+# without recreating the route table (which would briefly detach every private subnet).
+resource "aws_route" "private_nat" {
+  count                  = var.nat_gateway_enabled ? 1 : 0
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.this[0].id
 }
 
 resource "aws_route_table_association" "private" {

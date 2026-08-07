@@ -53,7 +53,41 @@ module "vpc" {
   # Tied to the tracing flag rather than defaulted on: the endpoint bills per hour
   # whether or not a span ever crosses it, and it is useless when the sidecar is absent.
   xray_endpoint_enabled = var.enable_otel_tracing
-  tags                  = local.common_tags
+  # D-214: private subnets get an internet route only because LangSmith is third-party SaaS
+  # with no PrivateLink equivalent. Tied to the same flag that turns tracing on, so the NAT
+  # cannot be left billing after the feature is switched off.
+  nat_gateway_enabled = var.langsmith_tracing_enabled
+  tags                = local.common_tags
+}
+
+# D-214: looked up rather than created by Terraform, matching how the YouTube API key is
+# handled - the value is written once by a human with `aws secretsmanager create-secret` and
+# never passes through the repo, a plan file, or state as anything but an ARN.
+# D-214: the YouTube Data API key, created by hand the same way. Adopted into Terraform
+# here because it was previously invisible to it - see the ops_task block below.
+data "aws_secretsmanager_secret" "youtube_api_key" {
+  name = "${var.name_prefix}/youtube-api-key"
+}
+
+data "aws_secretsmanager_secret" "langsmith_api_key" {
+  count = var.langsmith_tracing_enabled ? 1 : 0
+  name  = "${var.name_prefix}/langsmith-api-key"
+}
+
+locals {
+  # LangSmith reads *unprefixed* env vars straight from the process environment - these are
+  # deliberately not `LEARNING_`/`CHAT_` prefixed like the app's own settings, because the
+  # langsmith client never goes through pydantic-settings. Verified against the installed
+  # 0.10.5: `LANGSMITH_TRACING=true` flips `tracing_is_enabled()`, and `LANGSMITH_API_KEY`
+  # is the key the client resolves.
+  langsmith_env = var.langsmith_tracing_enabled ? {
+    LANGSMITH_TRACING = "true"
+    LANGSMITH_PROJECT = var.name_prefix
+  } : {}
+
+  langsmith_secrets = var.langsmith_tracing_enabled ? {
+    LANGSMITH_API_KEY = data.aws_secretsmanager_secret.langsmith_api_key[0].arn
+  } : {}
 }
 
 module "alb" {
@@ -145,7 +179,7 @@ module "rds_mysql" {
 module "iam" {
   source      = "../../modules/iam"
   name_prefix = var.name_prefix
-  secret_arns = [
+  secret_arns = concat(var.langsmith_tracing_enabled ? [data.aws_secretsmanager_secret.langsmith_api_key[0].arn] : [], [
     module.rds_postgres.master_user_secret_arn,
     module.rds_mysql.master_user_secret_arn,
     aws_secretsmanager_secret.jwt_signing_secret_learning.arn,
@@ -155,7 +189,13 @@ module "iam" {
     # happens before the container runs, so it is a startup failure, not a runtime 500.
     aws_secretsmanager_secret.staging_token_shared_secret_learning.arn,
     aws_secretsmanager_secret.staging_token_shared_secret_chat.arn,
-  ]
+    # D-214: both of these were granted by hand and Terraform's plan wanted to *remove*
+    # them - the youtube key silently (it is only read by the ops task, which nothing
+    # alarms on), and langsmith not at all, since it did not exist yet. Secret injection
+    # happens before the container runs, so losing the grant is a startup failure rather
+    # than a runtime error, exactly as the S36 note above records.
+    data.aws_secretsmanager_secret.youtube_api_key.arn,
+  ])
   bedrock_model_arns = local.bedrock_model_arns
   log_group_arns     = local.log_group_arns
   tags               = local.common_tags
@@ -333,7 +373,7 @@ module "ecs_service_learning_api" {
   enable_otel_sidecar  = var.enable_otel_tracing
   otel_collector_image = local.otel_collector_image
 
-  environment = {
+  environment = merge(local.langsmith_env, {
     LEARNING_ENVIRONMENT = var.app_environment
     # D-085: independent second gate on /dev/token, ANDed with LEARNING_ENVIRONMENT==
     # "dev" in code - explicitly false here so flipping app_environment back to "dev"
@@ -368,9 +408,9 @@ module "ecs_service_learning_api" {
     ORG_TIMEZONE        = var.org_timezone
     ORG_TIME_CONVENTION = var.org_time_convention
     ORG_TIME_CONFIRMED  = var.org_time_confirmed ? "true" : "false"
-  }
+  })
 
-  secrets = {
+  secrets = merge(local.langsmith_secrets, {
     # D-092 (S33): RDS's own AWS-managed, auto-rotated master-password secrets (real
     # rotation, no custom Lambda) - JSON-shaped, so each field is extracted
     # individually via the `:json-key::` ARN suffix rather than injected as one ready
@@ -382,7 +422,7 @@ module "ecs_service_learning_api" {
     LEARNING_JWT_SIGNING_SECRET = aws_secretsmanager_secret.jwt_signing_secret_learning.arn
     # S36/D-097: staging only - see the resource definition above.
     LEARNING_STAGING_TOKEN_SHARED_SECRET = aws_secretsmanager_secret.staging_token_shared_secret_learning.arn
-  }
+  })
 }
 
 module "ecs_service_chat_api" {
@@ -419,7 +459,7 @@ module "ecs_service_chat_api" {
   enable_otel_sidecar  = var.enable_otel_tracing
   otel_collector_image = local.otel_collector_image
 
-  environment = {
+  environment = merge(local.langsmith_env, {
     CHAT_ENVIRONMENT = var.app_environment
     # D-085: mirrors LEARNING_DEV_TOKEN_ENDPOINT_ENABLED above - see that comment.
     CHAT_DEV_TOKEN_ENDPOINT_ENABLED           = "false"
@@ -446,9 +486,9 @@ module "ecs_service_chat_api" {
     ORG_TIMEZONE        = var.org_timezone
     ORG_TIME_CONVENTION = var.org_time_convention
     ORG_TIME_CONFIRMED  = var.org_time_confirmed ? "true" : "false"
-  }
+  })
 
-  secrets = {
+  secrets = merge(local.langsmith_secrets, {
     # D-092 (S33): mirrors ecs_service_learning_api's identical secrets block above.
     CHAT_DB_USERNAME        = "${module.rds_postgres.master_user_secret_arn}:username::"
     CHAT_DB_PASSWORD        = "${module.rds_postgres.master_user_secret_arn}:password::"
@@ -457,7 +497,7 @@ module "ecs_service_chat_api" {
     CHAT_JWT_SIGNING_SECRET = aws_secretsmanager_secret.jwt_signing_secret_chat.arn
     # S36/D-097: staging only - see the resource definition above.
     CHAT_STAGING_TOKEN_SHARED_SECRET = aws_secretsmanager_secret.staging_token_shared_secret_chat.arn
-  }
+  })
 }
 
 # /dev/token is registered as a literal, identical path in BOTH apps (outside any
@@ -523,7 +563,18 @@ module "ops_task" {
   region             = var.aws_region
   tags               = local.common_tags
 
-  environment = {
+  environment = merge(local.langsmith_env, {
+    # D-214: adopted into Terraform. These five were added directly to the task definition
+    # by hand when the YouTube sync was first run, so Terraform did not know they existed -
+    # and its plan wanted to replace the task definition *without* them, which would have
+    # silently broken the sync and its Sunday cron. Caught by diffing the live definition
+    # against this block before applying, not by the plan, which showed only "must be
+    # replaced".
+    YOUTUBE_CHANNEL_ID         = var.youtube_channel_id
+    YOUTUBE_YOUTUBE_PROVIDER   = "youtube"
+    YOUTUBE_BEDROCK_PROVIDER   = "bedrock"
+    YOUTUBE_BEDROCK_AWS_REGION = var.aws_region
+
     LEARNING_ENVIRONMENT = "staging"
 
     # S40: the scheduled memory-consolidation job reads MEMORY_*-prefixed settings, and
@@ -546,14 +597,16 @@ module "ops_task" {
     DB_NAME       = module.rds_postgres.db_name
     MYSQL_DB_HOST = module.rds_mysql.endpoint_address
     MYSQL_DB_PORT = tostring(module.rds_mysql.endpoint_port)
-  }
+  })
 
-  secrets = {
+  secrets = merge(local.langsmith_secrets, {
+    YOUTUBE_YOUTUBE_API_KEY = data.aws_secretsmanager_secret.youtube_api_key.arn
+
     DB_USERNAME       = "${module.rds_postgres.master_user_secret_arn}:username::"
     DB_PASSWORD       = "${module.rds_postgres.master_user_secret_arn}:password::"
     MYSQL_DB_USERNAME = "${module.rds_mysql.master_user_secret_arn}:username::"
     MYSQL_DB_PASSWORD = "${module.rds_mysql.master_user_secret_arn}:password::"
-  }
+  })
 }
 
 module "cloudfront_learning" {
