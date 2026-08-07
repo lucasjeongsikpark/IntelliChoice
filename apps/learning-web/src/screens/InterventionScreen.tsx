@@ -32,6 +32,9 @@ interface AssistancePanelProps {
   // took the conversation with it - a student who asked a question, took a hint, then
   // came back found an empty chat. See `useTutorChat`.
   chat: ChatTranscript;
+  // D-213: the stem of the question this pause is about, so the tutor panel can show it
+  // alongside the conversation. `null` when the snapshot no longer carries the item.
+  questionText: string | null;
 }
 
 /**
@@ -50,12 +53,14 @@ export function AssistancePanel({
   questionVariantId,
   onSendChatMessage,
   chat,
+  questionText,
 }: AssistancePanelProps) {
   const chatPanel = questionVariantId && (
     <TutorChatPanel
       questionVariantId={questionVariantId}
       onSendMessage={onSendChatMessage}
       transcript={chat}
+      questionText={questionText}
     />
   );
 
@@ -97,7 +102,13 @@ export function AssistancePanel({
           <div className="assistance-choices">
             {isHint && !atFinalLevel && (
               <button disabled={busy} onClick={() => onChoose("hint")}>
-                Get another hint
+                {/* D-213: names the rung the student is about to get rather than "another",
+                    so the choice between one more hint and the full solution is informed.
+                    Falls back when the levels are absent, which is the same condition
+                    `atFinalLevel` already tolerates. */}
+                {intervention.hint_level != null && intervention.max_hint_level != null
+                  ? `Next hint (${intervention.hint_level + 1} of ${intervention.max_hint_level})`
+                  : "Get another hint"}
               </button>
             )}
             <button className="secondary" disabled={busy} onClick={() => onChoose("solution")}>
@@ -122,34 +133,63 @@ export function AssistancePanel({
 }
 
 /**
- * The ladder position as dots rather than "(hint 2 of 3)" in the heading. Two reasons:
- * a student can see at a glance how much help is left, and it stops the heading from
- * carrying a parenthetical that grows every round.
+ * What each rung of the ladder is *for*, in the student's terms.
+ *
+ * SPEC §5.11.3's hint ladder is three graded levels - a nudge, then the method, then
+ * enough to finish - and the UI never said so. Naming them turns "hint 2" from a counter
+ * into information: a student who wants the approach rather than a nudge can see that the
+ * next one is the approach, and one who is nearly there can see there is a further step.
+ *
+ * Indexed by level, so a `max_hint_level` other than 3 degrades to "Hint N" rather than
+ * mislabelling. The server owns the ladder's length; this only names what it serves.
+ */
+const HINT_RUNG_LABELS = ["A nudge", "The method", "Almost there"];
+
+/**
+ * D-213: the ladder was three dots with an `aria-label`. That showed *position* but not
+ * that the ladder had rungs, or what they were, or how much help was left - the user's
+ * "make it clearer that there are three hints, and make hints more readable".
+ *
+ * Now an explicit stepper: numbered rungs, the current one marked, spent ones checked, and
+ * the ones still available named. The visual state is duplicated in text for screen
+ * readers rather than conveyed by colour and shape alone.
  */
 function HintContent({ intervention }: { intervention: InterventionContent }) {
   const level = intervention.hint_level ?? null;
   const max = intervention.max_hint_level ?? null;
+  const showLadder = level != null && max != null;
+  const remaining = showLadder ? max - level : 0;
+
   return (
     <>
       <div className="intervention-head">
-        <h2>Hint</h2>
-        {level != null && max != null && (
-          <span
-            className="hint-ladder"
-            role="img"
-            aria-label={`Hint ${level} of ${max}`}
-            title={`Hint ${level} of ${max}`}
-          >
-            {Array.from({ length: max }, (_, index) => (
-              <span
-                key={index}
-                aria-hidden="true"
-                className={`hint-pip ${index < level ? "filled" : ""}`}
-              />
-            ))}
+        <h2>{showLadder ? `Hint ${level} of ${max}` : "Hint"}</h2>
+        {showLadder && (
+          <span className="hint-remaining">
+            {remaining > 0
+              ? `${remaining} more ${remaining === 1 ? "hint" : "hints"} if you need them`
+              : "Last hint"}
           </span>
         )}
       </div>
+
+      {showLadder && (
+        <ol className="hint-ladder">
+          {Array.from({ length: max }, (_, index) => {
+            const rung = index + 1;
+            const state = rung < level ? "done" : rung === level ? "current" : "upcoming";
+            return (
+              <li key={rung} className={`hint-rung ${state}`} aria-current={state === "current"}>
+                <span className="hint-rung-marker" aria-hidden="true">
+                  {state === "done" ? "✓" : rung}
+                </span>
+                <span className="hint-rung-label">{HINT_RUNG_LABELS[index] ?? `Hint ${rung}`}</span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
       <p className="intervention-lead">{intervention.hint_text}</p>
       {intervention.concept_reminder && (
         <div className="intervention-aside">

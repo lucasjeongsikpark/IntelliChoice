@@ -458,6 +458,16 @@ function App() {
             questionVariantId={pending?.question_variant_id ?? null}
             onSendChatMessage={session.sendChatMessage}
             chat={chat}
+            // D-213: matched by id rather than assumed to be `items[0]`. During a retry
+            // ladder the snapshot can carry the *next* item while the pause is still about
+            // the previous one, and showing the wrong question next to the chat is worse
+            // than showing none - the student would be asked about a problem they were
+            // never given.
+            questionText={
+              snapshot.items?.find(
+                (item) => item.question_variant_id === pending?.question_variant_id,
+              )?.rendered_question ?? null
+            }
           />
         );
 

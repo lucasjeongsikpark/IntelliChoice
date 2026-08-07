@@ -172,6 +172,17 @@ test("a narrative arriving mid-exam leaves the exam screen mounted and the dwell
     "the exam screen remounted, so useState(0) re-initialised and the student was returned to the first question",
   ).toBe(questionBefore);
 
+  // D-213: dismiss the narrative before navigating. It is now a `position: fixed` overlay
+  // that intercepts pointer events until `Continue` is pressed - which is the requested
+  // behaviour ("only that screen, and Continue goes to the question"), so the navigator
+  // click below is genuinely unreachable while it is up rather than flaky.
+  //
+  // This does not weaken what the test measures. Every assertion above about the screen
+  // staying mounted was made *while* the narrative was showing, which is the window the
+  // defect lived in; the dwell flush only needs the narrative gone to reach the navigator.
+  await narrativeContinue(page).click();
+  await expect(narrativeContinue(page)).toHaveCount(0);
+
   // And the dwell telemetry (the exam screen's autosave signal - since AUD-L-14 the
   // report reads `response_time_ms` instead, but a truncated flush here would still mean
   // the screen unmounted mid-dwell). Navigating away flushes the dwell.
