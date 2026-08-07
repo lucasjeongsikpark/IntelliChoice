@@ -30,9 +30,23 @@ def _chunks(items: list[str], size: int) -> list[list[str]]:
 
 
 class YoutubeDataApiProvider:
-    def __init__(self, *, api_key: str, timeout_s: float = 15.0) -> None:
+    """`max_videos` bounds the *fetch*, not the spend (D-207).
+
+    `sync_channel` caps Bedrock spend, but its budget check runs inside the classify loop -
+    by which point this provider has already walked the channel's entire uploads playlist
+    and pulled full metadata for every item, 50 per request. On a large teaching channel
+    that is thousands of items and hundreds of API calls before the first cent is checked.
+    Bounding the walk keeps a first real run predictable in wall-clock and in API quota.
+
+    The bound takes the playlist's own order, which for an uploads playlist is
+    newest-first - so a run that hits the cap syncs the most recent `max_videos` uploads,
+    not an arbitrary slice.
+    """
+
+    def __init__(self, *, api_key: str, timeout_s: float = 15.0, max_videos: int = 200) -> None:
         self._api_key = api_key
         self._timeout_s = timeout_s
+        self._max_videos = max_videos
 
     async def list_uploaded_videos(self, channel_id: str) -> list[RawVideoMetadata]:
         async with httpx.AsyncClient(timeout=self._timeout_s) as client:
@@ -102,6 +116,8 @@ class YoutubeDataApiProvider:
                 params["pageToken"] = page_token
             payload = await self._get(client, "playlistItems", params)
             video_ids.extend(item["contentDetails"]["videoId"] for item in payload.get("items", []))
+            if len(video_ids) >= self._max_videos:
+                return video_ids[: self._max_videos]
             page_token = payload.get("nextPageToken")
             if not page_token:
                 break

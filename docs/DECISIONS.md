@@ -4960,6 +4960,14 @@ but it is a real (small) availability cost, and it is the reason the estimate sh
 "just to be safe" beyond what the drift test requires. `BedrockGatewayError` is caught inside the
 turn, so ordinary model failures do not take this path.
 
+> **D-207 update.** The estimate is now **4.0 cents**, so the numbers in this paragraph read ~25
+> crashed turns rather than ~33. The chat call gained one bounded retry under a bigger ceiling, which
+> makes a turn's worst case three calls instead of two (3.825 cents measured). This is exactly what
+> the paragraph above asks for - raised because the drift test requires it, not "just to be safe" -
+> and the drift test itself was rewritten, because it modelled a turn as *one* content call and was
+> therefore structurally unable to notice a retry. The original entry stands; only these two numbers
+> moved.
+
 **Semantics deliberately unchanged:** the ceiling is still `spend >= ceiling` rather than
 `spend + estimate > ceiling`, so it still permits a single-call overshoot exactly as before. The
 defect fixed is the *N*-call overshoot. **Out of scope and still open:** the per-session gateway
@@ -14226,3 +14234,246 @@ name cost a minute of confusion and is worth renaming.
 
 **Staging verified after the load:** `/healthz` → 200, `POST /learning/sessions` → 401 (auth
 enforced, which is the correct answer to an unauthenticated call).
+
+## D-207 — the five things a real UI walk found, and what each of them actually was
+
+The user ran the deployed app by hand and reported five areas: question readability, hint and
+solution, video, tutor chat, and "flow에서 이상한 에러가 뜰 때가 있는데". Rather than guess at
+any of them, staging's own CloudWatch log for that session (2026-08-06T20:11-20:14Z) and a direct
+query against the staging database were read first. **Four of the five had a specific, recorded
+cause; the fifth had zero rows.** Everything below is anchored to one of those two measurements.
+
+### 1. The question was styled as a heading, not as prose
+
+`ExamScreen` rendered the whole question inside a bare `<h1>`, which `packages/ui-brand/base.css`
+styles at **28 px / weight 600 / letter-spacing -0.02em**. That is heading typography applied to a
+sixty-word word problem.
+
+Worse, `rendered_question` is not one sentence. `ai_pipeline.py` builds it as
+`context_block + "\n\n" + stem`, and **20 of the 48 approved authored items have a context block**;
+one of them contains a markdown-style bullet list. HTML collapses `\n\n` and the bullet newlines to
+single spaces, so the scenario, the list and the question ran together into one large bold block.
+
+New `QuestionStem` component: paragraphs split on the blank line the pipeline itself wrote (not on a
+guess), the final paragraph emphasised as the thing being asked, the rest as scenario, and
+`white-space: pre-line` so the bullet lines survive. Measured after the change, in a browser:
+
+```
+.question-stem   17px / 400 / #1a1a1a / pre-line / line-height 27.2px / letter-spacing normal
+.question-setup  17px / 400 / #333333
+.question-ask    17px / 600 / #1a1a1a
+```
+
+Options also gained a letter token, a real tap target and a visible `1-4` shortcut hint - that
+keyboard shortcut has worked since S22 with nothing announcing it.
+
+### 2. The solution the bank had already verified was never served
+
+Staging, 20:13:32Z:
+
+```
+solution generation returned a final_answer that didn't match the correct answer; using deterministic fallback instead
+```
+
+Two separate defects behind that one line.
+
+**The cross-check was too strict.** `generate_solution` compared with `final_answer.strip() !=
+correct_answer_text.strip()`, so a solution ending `"8 weeks"` against an option reading `"8"` was
+discarded as wrong. It is not wrong. Replaced with `answers_agree`, extracted from the authoring
+gate's own `check_hint_solution_answer_agreement`: normalised string equality first, then SymPy value
+equality. `"8"` and `"8 weeks"` now agree; `"8"` and `"18"` still do not.
+
+**And the fallback the student then saw is not a solution.** It is two steps, the second of which
+reads "Apply the standard method for {skill} to isolate the answer."
+
+The real finding is upstream of both: **an authored template already carries a verified
+`canonical_solution`**, written into `question_templates.canonical_solution` by the loader on every
+deploy - and nothing on the serving path had ever read it back. Every "show me the solution" paid
+Bedrock ~3 s to re-derive, less reliably, a solution the row already held. `tutor.stored_solution`
+now prefers it (returning `None` for shape templates, which have none, and for a stored blob that
+fails its own re-check). Confirmed end-to-end by a Playwright probe: **five real steps rendered**
+where the fallback would have shown two.
+
+The panel was rebuilt to match. A hint's three fields were three undifferentiated paragraphs, two of
+them `.dim`; they are now labelled ("Remember", "Try this next") with the ladder position as pips.
+Solution steps are numbered cards with the working on its own line.
+
+### 3. Staging's video catalog has zero rows
+
+Counted directly against the staging database:
+
+```
+youtube_videos => 0        question_templates => 98        question_variants => 15261
+```
+
+So **every** "Watch a video" bought a Titan embedding and then returned the §5.11.6 fallback anyway -
+measured at 20:13:51Z, 144.73 ms, for a foregone conclusion. `search_video` now asks
+`repo.has_servable_video()` first and returns `(None, 0.0)` when nothing is servable. A cost bug is a
+production bug.
+
+The catalog is empty because the sync worker has never been part of a deploy - the same class of
+omission as D-206's question bank. **The user chose the real-API-key path over hand-curation.** Two
+things about that path were broken and had never been exercised, because no key existed:
+
+- `channel_id` defaults to `"khan-academy-math"`, which is `FakeYoutubeProvider`'s id and **not a
+  YouTube channel id**. The Data API resolves channels by their `UC...` id, so the first real run
+  would have died with `channel 'khan-academy-math' not found` - which reads like a deleted channel
+  rather than a wrong kind of value.
+- the fetch was unbounded: `_playlist_video_ids` walks a channel's entire uploads playlist, and
+  `sync_channel`'s budget check does not run until *after* all of that.
+
+`check_real_sync_preflight` now refuses both before anything billable, and `max_videos` bounds the
+walk. The channel-id check is **shape only** and deliberately so - hard-coding a real channel's id
+would assert a fact this codebase cannot verify, and a wrong one points a K-12 student at somebody
+else's videos. (An attempt to verify Khan Academy's id via WebFetch returned nothing usable, so it
+was not guessed. Same lesson as D-204.)
+
+### 4. The tutor chat answered a student's question with an apology
+
+Staging, 20:14:08Z:
+
+```
+"reason": "output_truncated", "detail": "model hit max_output_tokens=400 before completing the TutorChatResponse response; not retrying under the same ceiling"
+```
+
+and the endpoint returned **200** carrying `_fallback_chat_response`'s "I'm having a little trouble
+right now". The student's question was silently swallowed.
+
+D-115's refusal to retry is correct *as stated* - same prompt, same ceiling, same truncation, at full
+input cost - and it names the honest fix: "a bigger ceiling or a smaller response shape". Both belong
+to the caller. So:
+
+- `OutputTruncatedError` split out of `StructuredOutputError`, so a caller can tell "ran out of
+  tokens" from "produced malformed JSON", where a retry really would be waste.
+- `_tutor_chat_call` retries **once**, at 800 tokens. Bounded; a second truncation falls back.
+- both chat prompts now ask for **at most 4 short sentences**. The ceiling alone never constrained
+  length, and a short answer is the better one for a student reading on a phone anyway.
+
+The transcript also moved out of `TutorChatPanel` into `useTutorChat`, held by `App`.
+`AssistancePanel` returns two different trees - a chooser, then a content view - so React unmounted
+the panel the moment the student's first choice landed, taking the conversation with it. Ask a
+question, take a hint, come back: gone. It now lives as long as the learning session does, and a
+typing indicator covers the ~4 s a real tutor turn takes.
+
+### 5. The "이상한 에러" was a 409, shown to a child in the API's own words
+
+Staging, 20:12:46.914Z: `POST /answers` → **409** in 15.4 ms - the eleventh answer of a ten-question
+exam, refused by `flow.ensure_item_unanswered` before any graph turn. A duplicate.
+
+**Why the last question specifically.** `handleSubmitClick` advances after a submit, and a question
+the student has left cannot be double-clicked. On the last one there is nowhere to advance to, so
+they stay put - and the read-only lock comes from `overview`, fetched on a poll. The immediate
+`onFetchOverview()` races the still-in-flight answer POST and comes back saying `unseen`. Options
+re-enable; a second Submit is a 409. `isReadOnly` now also consults `answeredSelections`, which is
+written synchronously, so the lock does not wait on a round trip.
+
+**And the message itself.** `useLearningSession.run()` surfaced `String(err.detail)` verbatim, so the
+student saw text like `question variant 3f2a… is not an item of this session`. The primary users of
+this app are minors. `api/errors.ts` maps status + a detail fragment to a sentence they can read, and
+logs the raw detail to the console instead of the screen.
+
+That mapping is a cross-language coupling with nothing holding it together, and it **broke on its
+first attempt**: it tested for `"already answered"` while `ItemAlreadyAnsweredError` formats `item
+{id} has already been answered` - not a substring - so duplicates fell through to the generic line.
+Caught by reading a Playwright failure screenshot, not by reasoning. `test_error_detail_wording.py`
+now pins the fragments on the Python side so the next reword fails fast and locally.
+
+### What is *not* fixed here, and why
+
+**Seven of the 48 live items show reviewer-facing rationale to students.** Found while checking the
+new paragraph split against real content. Their `context_block` - which is concatenated into
+`rendered_question` and therefore read by the student - contains sentences written for a reviewer:
+
+| item | the sentence a student currently reads |
+| --- | --- |
+| `authored-linear_equations-d2-1607201` | "The student has a concrete goal (remaining money) and a constant rate of spending. The equation requires two operations: undoing the starting amount and dividing by a negative coefficient." |
+| `authored-linear_equations-d1-308100` | "Students solve equations by combining given information rather than isolating variables through multiple steps." |
+| `authored-linear_equations-d2-1609200` | "The scenario is concrete: a student can picture buying one thing, then several identical things…" |
+| `authored-linear_equations-d3-205300` | "…This is a concrete real-world scenario requiring students to set up and solve a linear equation." |
+| `authored-linear_equations-d1-1509100` | "…The scenario provides all necessary numbers: 3 notebooks, a $5 pen, and a $26 total." |
+| `authored-linear_equations-d3-1609301` | "…making it accessible for students in grades 6-7." |
+| `authored-linear_equations-d3-1607300` | (borderline - reads as third-person scenario, listed for completeness) |
+
+The first one is the worst: it **states the solution method** before the student has attempted the
+question.
+
+Separately, **seven items have a context block that simply restates the stem** (>65% word overlap;
+`d3-415301` is 94%), so the student reads the same problem twice. The new paragraph split makes this
+obvious rather than hiding it in a run-on block, which is the right outcome for a human about to
+review the bank.
+
+Not fixed here, deliberately, for two reasons. `check_no_meta_commentary`'s phrase list targets a
+*different* class - the model narrating its own authoring - and matches none of these; widening it
+without also fixing the items would make the next deploy's loader **fail**, because
+`validate_authored_item` still runs at load time (D-202 removed it from the generation pipeline only,
+not from the loader). And the loader is **skip-by-id**: editing the YAML does not propagate to rows
+already in a database, so correcting these is `review_cli`'s edit-and-rerun path - a new id, a bumped
+version, re-review - which is a content decision about material shown to minors, not a text edit.
+
+### D-207 addendum — D-206 dispositioned one of two tests with the same broken premise
+
+CI failed on `test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite` with
+`assert 1 == 4`, and on the re-run with `assert 0 == 4`. **Same code, fresh database, different
+number** - which is the whole diagnosis: a deterministic regression does not change its answer.
+
+It is not a D-207 regression, and that was established rather than assumed. The test passes in
+isolation on either arm; run 12 times against a deliberately dirtied database it fails 12 of 12 on
+*both* `6cd47ab` and this branch, identically. What it actually depends on is its own comment:
+
+```
+# Items are ordered by difficulty (2 per level); indices 2,3 are difficulty 2 =
+# skill `linear_two_step`. Fail exactly those so it becomes the weakest skill.
+```
+
+Items are still ordered by difficulty. **Which skill carries a given tier is not fixed** - it is
+whatever the exam builder drew from the bank, and D-206 grew that bank from 5 authored items to 48.
+This is word for word the premise D-206 already wrote down for the sibling test:
+
+> "Answering by tier instead was tried and fails the same way, because which skills carry tier-2
+> items also varies per exam."
+
+D-206 dispositioned `test_identical_inputs_reproduce_identical_routing_and_scores` and **missed that
+a second test rested on the same assumption**. It has been a coin flip since 2026-08-05; `main`
+passed by winning its flips.
+
+**Fixed rather than xfailed**, because unlike the determinism test's premise, this one can be made
+true without a product change: the §5.11.7 retry ladder is real behaviour worth covering, and the
+test only needed to stop *inferring* the skill from a position. `_skills_for()` resolves each served
+variant's actual `skill_id`, and the test now fails the `linear_two_step` items by skill. A draw
+containing none of them skips, naming the skills it did draw, rather than asserting vacuously.
+
+Measured on freshly-created databases, one per run:
+
+| test | index-based (before) | skill-based (after) |
+| --- | --- | --- |
+| `test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite` | 13 pass / 2 fail | **15 / 0** |
+| `test_difficulty_recommendation_reaches_template_selection` | flaky (see below) | **12 / 0** |
+
+**And there were two of them, not one.** Grepping for the assumption rather than stopping at the
+test CI happened to name found `test_difficulty_recommendation_reaches_template_selection` carrying
+it verbatim - *"Same setup as the retry-ladder test: fail both difficulty-2 items (indices 2,3)"*.
+That is the test that failed the **first** local full-suite run of this change with `assert 2 == 1`,
+which at the time looked like unexplained suite flakiness. It is the same bug: a draw where
+`linear_two_step` does not own both tier-2 slots leaves its mastery, and therefore its recommended
+difficulty, somewhere else entirely. So D-206's premise had actually leaked into **three** tests, and
+two of them were still live.
+
+**A note on the harness, because it produced two wrong answers before it produced a right one.**
+Pointing only `DATABASE_URL` at a scratch database splits the run: the test helpers follow it, the
+FastAPI app follows `LEARNING_DATABASE_URL`, and the two then disagree about which database holds
+the seeded content - which reads exactly like a code failure. `LEARNING_DATABASE_URL` and
+`CHAT_DATABASE_URL` have to be set with it. And `git stash` is a no-op once the work is committed,
+so a "with vs without" comparison built on stashing silently compares a branch with itself; use a
+detached checkout of the parent commit.
+
+### Test-suite note
+
+`make test` is **flaky before this change and after it**: measured 2 green out of 5 baseline runs,
+with `test_difficulty_recommendation_reaches_template_selection` and the strict-xfail determinism
+test alternating. Both are mastery-dependent and the suite shares one dev Postgres. Confirmed by
+stashing every change and re-running - the flakiness is pre-existing, not introduced here.
+
+`pytest-randomly` is **not** installed, so collection order is deterministic; the varying results
+come from state accumulating in the shared dev Postgres across runs, not from shuffling. (An earlier
+note in this session assumed the opposite and was wrong.) The final sweep on this branch was green:
+**1028 passed, 2 skipped, 1 xfailed**.

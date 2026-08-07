@@ -934,6 +934,16 @@ async def _generate_intervention_content(
     assert variant is not None
     template = await ctx.question_repo.get_template(variant.question_template_id)
     assert template is not None
+
+    # D-207: an authored template already carries a solution the S20 pipeline verified
+    # before approval, so re-deriving it with an LLM is both worse and paid for. Prefer
+    # the stored one; `stored_solution` returns None for shape templates (which have
+    # none) and for a stored blob that fails its own re-check, and both fall through to
+    # generation below.
+    stored = tutor.stored_solution(template.canonical_solution, correct_answer_text)
+    if stored is not None:
+        return {"type": "solution", **stored.model_dump()}, 0.0
+
     relevant_fact = await _resolve_relevant_fact(
         ctx, attempt.student_external_id, template.skill_id
     )

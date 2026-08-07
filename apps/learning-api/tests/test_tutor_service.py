@@ -160,6 +160,123 @@ def test_generate_solution_rejects_a_wrong_final_answer_and_falls_back() -> None
     asyncio.run(run())
 
 
+def test_generate_solution_keeps_a_correct_answer_written_with_its_unit() -> None:
+    """D-207. The check that guards the score must not also discard correct work.
+
+    The old comparison was `final_answer.strip() != correct_answer_text.strip()`, so a
+    solution ending "8 weeks" against an option reading "8" was thrown away and the
+    student was shown `_fallback_solution`'s two-step placeholder instead - which says
+    "Apply the standard method for {skill} to isolate the answer" and is not a solution at
+    all. Measured on staging at 2026-08-06T20:13:32Z.
+    """
+
+    async def run() -> None:
+        solution = SolutionResponse(
+            steps=[SolutionStep(step_number=1, explanation="e", expression="w=8")],
+            final_answer="8 weeks",
+        )
+        gateway = _FakeGateway(
+            BedrockGenerationResult(
+                value=solution,
+                input_tokens=10,
+                output_tokens=10,
+                cost_cents=0.5,
+                model_id="anthropic.claude-test",
+                repaired=False,
+            )
+        )
+        result, _ = await tutor.generate_solution(
+            gateway=gateway,
+            context=_context(),
+            correct_answer_text="8",
+            session_spend_cents=0.0,
+        )
+        assert result is solution
+
+    asyncio.run(run())
+
+
+def test_a_numerically_different_answer_is_still_rejected() -> None:
+    """The other half of the pair above: loosening the comparison must not make it blind.
+    `'18'` is not `'8'`, unit word or not.
+    """
+
+    async def run() -> None:
+        wrong = SolutionResponse(
+            steps=[SolutionStep(step_number=1, explanation="e", expression="w=18")],
+            final_answer="18 weeks",
+        )
+        gateway = _FakeGateway(
+            BedrockGenerationResult(
+                value=wrong,
+                input_tokens=10,
+                output_tokens=10,
+                cost_cents=0.5,
+                model_id="anthropic.claude-test",
+                repaired=False,
+            )
+        )
+        result, _ = await tutor.generate_solution(
+            gateway=gateway,
+            context=_context(),
+            correct_answer_text="8",
+            session_spend_cents=0.0,
+        )
+        assert result is not wrong
+        assert result.final_answer == "8"
+
+    asyncio.run(run())
+
+
+def test_stored_solution_is_preferred_over_generating_one() -> None:
+    """D-207: an authored template's `canonical_solution` was written to the database by
+    every deploy and read back by nothing. Serving it costs no Bedrock call and is the
+    solution the S20 pipeline actually verified.
+    """
+    stored = tutor.stored_solution(
+        {
+            "steps": [
+                {"step_number": 1, "explanation": "Set the two totals equal.",
+                 "expression": "5w - 12 = 3w + 4", "common_mistake": None},
+                {"step_number": 2, "explanation": "Divide both sides by 2.",
+                 "expression": "w = 8", "common_mistake": None},
+            ],
+            "final_answer": "8",
+        },
+        "8",
+    )
+    assert stored is not None
+    assert len(stored.steps) == 2
+    assert stored.final_answer == "8"
+
+
+def test_stored_solution_is_refused_when_it_disagrees_with_the_correct_answer() -> None:
+    """A stored blob has no database constraint tying it to the correct option, and this
+    is content a child reads - so the re-check runs even though the authoring gate already
+    passed. Refusing returns `None`, which routes the caller to generation rather than
+    showing a solution that contradicts the score.
+    """
+    assert (
+        tutor.stored_solution(
+            {
+                "steps": [{"step_number": 1, "explanation": "e", "expression": "w = 50"}],
+                "final_answer": "50 cups",
+            },
+            "38 cups",
+        )
+        is None
+    )
+
+
+def test_stored_solution_is_absent_for_a_shape_template() -> None:
+    """Shape templates carry no canonical solution; `None` keeps them on the generated
+    path rather than raising.
+    """
+    assert tutor.stored_solution(None, "4") is None
+    assert tutor.stored_solution({}, "4") is None
+    assert tutor.stored_solution({"steps": [], "final_answer": "4"}, "4") is None
+
+
 def test_generate_solution_falls_back_on_gateway_error() -> None:
     async def run() -> None:
         gateway = _FakeGateway(BedrockGatewayError("boom", cost_cents=0.0))

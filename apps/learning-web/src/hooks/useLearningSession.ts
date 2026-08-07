@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "../api/client";
+import { friendlyError } from "../api/errors";
 import { openSessionStream } from "../api/stream";
 import type { RespondBody } from "../api/client";
 import type { ExamOverview, SessionSnapshot } from "../types";
@@ -110,7 +111,10 @@ export function useLearningSession(token: string | null) {
     try {
       return await fn();
     } catch (err) {
-      setError(err instanceof api.ApiError ? String(err.detail) : String(err));
+      // D-207: the API's wire text is not a student-facing message. See api/errors.ts -
+      // this used to print things like "question variant 3f2a… is not an item of this
+      // session" to a child, measured live on staging.
+      setError(friendlyError(err));
       return null;
     } finally {
       busyRef.current = false;

@@ -1190,6 +1190,18 @@ class StructuredOutputError(BedrockGatewayError):
     """
 
 
+class OutputTruncatedError(StructuredOutputError):
+    """The specific `StructuredOutputError` where the model ran out of output tokens
+    mid-response (D-115: the gateway deliberately does not retry, because the same prompt
+    under the same ceiling truncates again at full input cost).
+
+    Split out as its own type (D-207) so a caller that *can* honestly retry - by raising
+    the ceiling for one attempt, which is the fix D-115 names - can tell this apart from
+    "the model produced malformed JSON", where a retry really would be waste. Callers that
+    do not care still catch `BedrockGatewayError` and fall back exactly as before.
+    """
+
+
 class CostBudgetExceededError(BedrockGatewayError):
     """Raised before any provider call when the session's cumulative spend plus this
     call's worst-case cost would exceed the configured per-session budget.

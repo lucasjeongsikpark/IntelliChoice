@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import "./App.css";
 import * as api from "./api/client";
+import { friendlyError } from "./api/errors";
 import { useLearningSession } from "./hooks/useLearningSession";
 import { useNarrativeGate } from "./hooks/useNarrativeGate";
+import { useTutorChat } from "./hooks/useTutorChat";
 import type { ChildCandidate, Role, SessionSnapshot, TopicOption } from "./types";
 import logoUrl from "../../../packages/ui-brand/assets/logo.png";
 import { DevLoginScreen } from "./screens/DevLoginScreen";
@@ -117,6 +119,9 @@ function App() {
 
   const [streak, setStreak] = useState(0);
   const [counts, setCounts] = useState({ hint: 0, solution: 0, video: 0 });
+  // D-207: see useTutorChat.ts. Held here rather than inside `TutorChatPanel` because
+  // `AssistancePanel` unmounts that panel on every change of intervention state.
+  const { reset: resetChat, ...chat } = useTutorChat();
   const [interventionDismissed, setInterventionDismissed] = useState(false);
   // AUD-F-04: both narrative gates now live in a `sessionStorage`-backed hook so they
   // survive a refresh - see useNarrativeGate.ts for why both of them had to move and why the
@@ -175,7 +180,7 @@ function App() {
       setSub(chosenSub);
       setRole(chosenRole);
     } catch (err) {
-      setLoginError(err instanceof api.ApiError ? String(err.detail) : String(err));
+      setLoginError(friendlyError(err));
     } finally {
       setLoginBusy(false);
     }
@@ -201,6 +206,10 @@ function App() {
     setStreak(0);
     setCounts({ hint: 0, solution: 0, video: 0 });
     resetNarrativeGate();
+    // D-207: the transcript is scoped to a learning session, so it is cleared exactly
+    // where the rest of the per-session UI state is - not when `TutorChatPanel` happens
+    // to unmount, which is what it used to be and why it kept vanishing mid-session.
+    resetChat();
   }
 
   // AUD-F-27: every screen below is passed `session.busy` where it used to be given a
@@ -448,6 +457,7 @@ function App() {
             onDismiss={() => setInterventionDismissed(true)}
             questionVariantId={pending?.question_variant_id ?? null}
             onSendChatMessage={session.sendChatMessage}
+            chat={chat}
           />
         );
 

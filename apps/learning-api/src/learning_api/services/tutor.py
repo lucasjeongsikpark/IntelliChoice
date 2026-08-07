@@ -22,6 +22,7 @@ import logging
 
 from intellichoice_curriculum.authored_validation import (
     answer_leaked_beyond_the_question,
+    answers_agree,
     leak_phrase_present,
 )
 from intellichoice_shared.bedrock import (
@@ -36,6 +37,7 @@ from intellichoice_shared.bedrock import (
     SolutionStep,
     TutorContext,
 )
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +142,49 @@ async def generate_hint(
     return result.value, result.cost_cents
 
 
+def stored_solution(
+    canonical_solution: dict | None, correct_answer_text: str
+) -> SolutionResponse | None:
+    """The authored bank's own verified solution for this template, or `None`.
+
+    D-207. Authored templates carry a `canonical_solution` that the S20 pipeline already
+    proved correct before the item was ever approved: `check_hint_solution_answer_agreement`
+    compares its `final_answer` to the declared correct option, and
+    `check_sympy_independent_solve` re-solves the equation independently. The loader writes
+    it into `question_templates.canonical_solution` on every deploy - and until now nothing
+    on the serving path read it back. Every "show me the solution" therefore paid for a
+    Bedrock call to re-derive, less reliably, a solution the row already held.
+
+    Preferring the stored one is better on all three axes that matter here: it is
+    verified rather than merely cross-checked, it costs nothing, and it returns in a
+    database read instead of ~3 s of generation. Shape templates have no canonical
+    solution, so they still take the generated path - which is why this returns `None`
+    rather than raising.
+
+    The final-answer check runs again here even though the bank already passed it. The
+    stored blob is JSON with no database-level constraint, the correct option can be
+    re-pointed by a later variant, and this is content a child reads: re-checking costs
+    one string comparison and removes the class of failure where a stale row silently
+    contradicts the score.
+    """
+    if not canonical_solution:
+        return None
+    try:
+        solution = SolutionResponse.model_validate(canonical_solution)
+    except ValidationError:
+        logger.warning("stored canonical_solution failed validation; generating instead")
+        return None
+    if not solution.steps:
+        return None
+    if not answers_agree(solution.final_answer, correct_answer_text):
+        logger.warning(
+            "stored canonical_solution.final_answer disagrees with the correct answer; "
+            "generating instead"
+        )
+        return None
+    return solution
+
+
 async def generate_solution(
     *,
     gateway: BedrockGateway,
@@ -161,11 +206,19 @@ async def generate_solution(
         logger.warning("solution generation fell back to deterministic content: %s", exc)
         return _fallback_solution(context, correct_answer_text), exc.cost_cents
 
-    if result.value.final_answer.strip() != correct_answer_text.strip():
+    if not answers_agree(result.value.final_answer, correct_answer_text):
         # SPEC §5.12.2 "verify calculations with tools" - never let the model's stated
         # final answer stand in for the score-bearing correct answer; the deterministic
         # fallback is guaranteed correct because it's built directly from
         # `correct_answer_text` (already validated at question-generation time, §5.8.5).
+        #
+        # D-207: the comparison is `answers_agree`, not `!=` on stripped strings. The
+        # strict form rejected `'8 weeks'` against an option reading `'8'` - a *correct*
+        # solution thrown away over a unit word - and that is what fired on staging at
+        # 2026-08-06T20:13:32Z, so the student who asked for a solution got the two-step
+        # placeholder below instead of six real steps. A genuinely wrong answer still
+        # fails: `answers_agree` falls back to SymPy value equality, not to substring
+        # matching.
         logger.warning(
             "solution generation returned a final_answer that didn't match the correct "
             "answer; using deterministic fallback instead"

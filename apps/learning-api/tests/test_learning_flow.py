@@ -133,6 +133,42 @@ def _correct_options(variant_ids: list[str]) -> dict[str, str]:
     return asyncio.run(fetch())
 
 
+def _skills_for(variant_ids: list[str]) -> dict[str, str]:
+    """Which skill each served variant actually tests.
+
+    D-207. `test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite` used to
+    assume "indices 2 and 3 of the pre-exam are difficulty 2, therefore `linear_two_step`".
+    That is the same premise D-206 recorded as broken for
+    `test_identical_inputs_reproduce_identical_routing_and_scores`, in those words: *"which
+    skills carry tier-2 items also varies per exam"*. Only one of the two tests was
+    dispositioned then; this one kept passing on the draw and started failing in CI once the
+    approved bank grew from 5 authored items to 48.
+
+    Observed directly: the same test on the same code produced `len(line_items)` of 4, 1 and
+    0 across three CI runs. Reading the skill instead of inferring it from a position makes
+    the test drive the skill its own docstring names, on every draw.
+    """
+
+    async def fetch() -> dict[str, str]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                repo = QuestionRepository(session)
+                result = {}
+                for variant_id in variant_ids:
+                    variant = await repo.get_variant(variant_id)
+                    assert variant is not None
+                    template = await repo.get_template(variant.question_template_id)
+                    assert template is not None
+                    result[variant_id] = template.skill_id
+                return result
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
 def _attempt_count(assessment_session_id: str) -> int:
     async def fetch() -> int:
         engine = create_engine()
@@ -663,18 +699,43 @@ def test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite() -> N
             json={"topic_id": "linear_equations"},
         )
         pre_items = topics_resp.json()["items"]
-        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        pre_variant_ids = [item["question_variant_id"] for item in pre_items]
+        pre_correct = _correct_options(pre_variant_ids)
+        pre_skills = _skills_for(pre_variant_ids)
 
-        # Items are ordered by difficulty (2 per level); indices 2,3 are difficulty 2 =
-        # skill `linear_two_step`. Fail exactly those so it becomes the weakest skill.
+        # D-207: fail the `linear_two_step` items *by skill*, so it becomes the weakest
+        # skill on every draw.
+        #
+        # This used to say "indices 2,3 are difficulty 2 = skill `linear_two_step`". Items
+        # are still ordered by difficulty, but which skill carries a given tier is not fixed
+        # - it is whatever the exam builder drew from the bank, and the bank went from 5
+        # authored items to 48 in D-206. The assumption then silently became a coin flip:
+        # the same code produced 4, 1 and 0 line items across three CI runs.
+        target_skill = "linear_two_step"
+        wrong_variant_ids = {
+            variant_id
+            for variant_id, skill_id in pre_skills.items()
+            if skill_id == target_skill
+        }
+        if not wrong_variant_ids:
+            # A draw with no `linear_two_step` item at all cannot make it the weakest
+            # skill, so the ladder this test drives has nothing to start from. Skipping is
+            # honest; passing vacuously is what the index-based version effectively did.
+            pytest.skip(
+                f"this pre-exam draw served no {target_skill} item "
+                f"(skills drawn: {sorted(set(pre_skills.values()))})"
+            )
+
         body = None
-        for index, item in enumerate(pre_items):
+        for item in pre_items:
             variant_id = item["question_variant_id"]
             correct = pre_correct[variant_id]
-            selected = _other_option(correct) if index in (2, 3) else correct
+            selected = _other_option(correct) if variant_id in wrong_variant_ids else correct
             answer_resp = client.post(
                 f"/learning/sessions/{session_id}/answers",
-                headers={**headers, "Idempotency-Key": f"ladder-pre-{index}"},
+                # Keyed on the variant rather than the loop index, since the loop no longer
+                # enumerates. Unique per item either way, which is all this needs.
+                headers={**headers, "Idempotency-Key": f"ladder-pre-{variant_id}"},
                 json={
                     "question_variant_id": variant_id,
                     "selected_option": selected,
@@ -794,17 +855,35 @@ def test_difficulty_recommendation_reaches_template_selection(
             headers=headers,
             json={"topic_id": "linear_equations"},
         ).json()["items"]
-        pre_correct = _correct_options([i["question_variant_id"] for i in pre_items])
+        pre_variant_ids = [i["question_variant_id"] for i in pre_items]
+        pre_correct = _correct_options(pre_variant_ids)
+        pre_skills = _skills_for(pre_variant_ids)
 
-        # Same setup as the retry-ladder test: fail both difficulty-2 items (indices 2,3) so
-        # `linear_two_step` is the weakest skill and is routed first.
-        for index, item in enumerate(pre_items):
+        # Same setup as the retry-ladder test, and fixed the same way (D-207): fail the
+        # `linear_two_step` items **by skill** so it is the weakest skill and is routed
+        # first. This said "indices 2,3" too, and was the second of the two tests carrying
+        # D-206's already-disposed-of premise - it is the one that failed the first local
+        # full-suite run of this change with `assert 2 == 1`, because a draw where
+        # `linear_two_step` did not own both tier-2 slots leaves its mastery, and therefore
+        # its recommended difficulty, somewhere else entirely.
+        wrong_variant_ids = {
+            variant_id
+            for variant_id, skill_id in pre_skills.items()
+            if skill_id == "linear_two_step"
+        }
+        if not wrong_variant_ids:
+            pytest.skip(
+                "this pre-exam draw served no linear_two_step item "
+                f"(skills drawn: {sorted(set(pre_skills.values()))})"
+            )
+
+        for item in pre_items:
             variant_id = item["question_variant_id"]
             correct = pre_correct[variant_id]
-            selected = _other_option(correct) if index in (2, 3) else correct
+            selected = _other_option(correct) if variant_id in wrong_variant_ids else correct
             client.post(
                 f"/learning/sessions/{session_id}/answers",
-                headers={**headers, "Idempotency-Key": f"recdiff-pre-{index}"},
+                headers={**headers, "Idempotency-Key": f"recdiff-pre-{variant_id}"},
                 json={
                     "question_variant_id": variant_id,
                     "selected_option": selected,

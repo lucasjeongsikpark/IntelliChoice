@@ -53,6 +53,13 @@ async def search_video(
     (`skill_id`/`difficulty` stay the only filters, applied by `search_catalog`). This
     costs zero extra external calls: still exactly one embedding call, same as before.
     """
+    # D-207: no catalog, no embedding. The §5.11.6 outcome is already decided when nothing
+    # is servable, and paying Bedrock to reach a foregone conclusion is a cost bug, not a
+    # nicety - staging has had zero rows since it was built, so *every* video request took
+    # this shape. One indexed existence read replaces one paid call.
+    if not await repo.has_servable_video():
+        return None, 0.0
+
     query_text = skill_name
     extra = [part for part in (grade_band, misconception_tag, mastery_state) if part]
     if extra:

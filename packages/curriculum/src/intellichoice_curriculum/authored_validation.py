@@ -248,6 +248,31 @@ def _values_equal(a: sympy.Basic, b: sympy.Basic) -> bool:
     return bool(a.equals(b))  # type: ignore[attr-defined]
 
 
+def answers_agree(candidate: str, expected: str) -> bool:
+    """Do two human-written answer texts name the same value?
+
+    Case- and whitespace-insensitive string equality first, then - only if that fails -
+    the same numeric comparison `check_sympy_independent_solve` uses, so `'8'` and
+    `'8 weeks'` agree while `'8'` and `'18'` still do not. `_sympify` only strips a unit
+    *after* a direct parse has already failed, which is what keeps the fallback from
+    quietly widening anything that parses today.
+
+    Extracted from `check_hint_solution_answer_agreement` (which still uses it) so the
+    serving path can apply the identical rule. `tutor.generate_solution` previously
+    compared with `!=` on stripped strings and therefore discarded a correct model
+    solution whenever it wrote the answer with its unit - measured live on staging
+    (D-207), where the student's "show me the solution" returned a two-step placeholder
+    because the model had answered `'8 weeks'` to a question whose option read `'8'`.
+    """
+    if candidate.strip().casefold() == expected.strip().casefold():
+        return True
+    candidate_value = _sympify(candidate)
+    expected_value = _sympify(expected)
+    if candidate_value is None or expected_value is None:
+        return False
+    return _values_equal(candidate_value, expected_value)
+
+
 # One `=` that is not part of `==`, `<=`, `>=` or `!=`.
 _RELATION_SPLIT_RE = re.compile(r"(?<![<>!=])=(?!=)")
 _PARSE_TRANSFORMS = standard_transformations + (implicit_multiplication_application,)
@@ -507,20 +532,12 @@ def check_hint_ladder_monotonicity(
 def check_hint_solution_answer_agreement(
     item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
 ) -> None:
-    correct_text = _options(item)[item.correct_option].strip().lower()
-    final_answer = item.canonical_solution.final_answer.strip().lower()
-    if final_answer != correct_text:
-        agree_numerically = False
-        solution_value = _sympify(item.canonical_solution.final_answer)
-        correct_value = _sympify(_options(item)[item.correct_option])
-        if solution_value is not None and correct_value is not None:
-            agree_numerically = _values_equal(solution_value, correct_value)
-        if not agree_numerically:
-            result.fail(
-                f"canonical_solution.final_answer {item.canonical_solution.final_answer!r} "
-                f"does not match the declared correct option "
-                f"{_options(item)[item.correct_option]!r}"
-            )
+    correct_text = _options(item)[item.correct_option]
+    if not answers_agree(item.canonical_solution.final_answer, correct_text):
+        result.fail(
+            f"canonical_solution.final_answer {item.canonical_solution.final_answer!r} "
+            f"does not match the declared correct option {correct_text!r}"
+        )
 
 
 def check_difficulty_rubric_compliance(
