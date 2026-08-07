@@ -132,7 +132,11 @@ function App() {
   } = useAssistanceCounts(snapshot?.learning_session_id ?? null);
   // D-207: see useTutorChat.ts. Held here rather than inside `TutorChatPanel` because
   // `AssistancePanel` unmounts that panel on every change of intervention state.
-  const { reset: resetChat, ...chat } = useTutorChat();
+  // D-217: scoped to the question the current pause is about, so each question gets its own
+  // conversation. `pending_interrupt.question_variant_id` is the same id the chat sends with.
+  const { reset: resetChat, ...chat } = useTutorChat(
+    snapshot?.pending_interrupt?.question_variant_id ?? null,
+  );
   const [interventionDismissed, setInterventionDismissed] = useState(false);
   // AUD-F-04: both narrative gates now live in a `sessionStorage`-backed hook so they
   // survive a refresh - see useNarrativeGate.ts for why both of them had to move and why the
