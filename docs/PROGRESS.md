@@ -9,7 +9,11 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 **Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1044 passed, 2 skipped, 1 xfailed** · `tsc`
 and `oxlint` clean for `learning-web`, `chat-web`, `e2e` · the six new bank items load through the
-§5.8.5 gate; bank re-exported 41 → 47 · full write-up in DECISIONS.md **D-217**.
+§5.8.5 gate; bank re-exported 41 → 47 · deployed to staging (both gates green) · **live re-walk of
+the deployed build with `chrome-devtools`** confirmed every point: study answer **286 ms** (was
+3,882 ms), two-column layout, clean text, per-question chat reset, a **rendered bar-model viz on real
+Haiku 4.5**; the real YouTube sync created 21 / updated 44 → **65 videos** for 18.3¢ · full write-up
+in DECISIONS.md **D-217**.
 
 **Not a numbered ROADMAP session** — the user re-walked the app and reported eight things; I
 re-walked the deployed staging UI with `chrome-devtools` and traced backend/frontend/gateway in
@@ -38,6 +42,10 @@ code. Landed in seven commits, one per area.
   wins were logging and the repair-cache fix, not caching the short serving prompts.
 - The latency fix's background narrative is best-effort (no queue/retry, D-208's posture): a task
   lost to a process replacement costs one between-questions overlay, nothing more.
+- **Minor (found in the live re-walk):** on the intervention *menu*/chat state — after a wrong answer,
+  before the next item loads — the **left** column reads "Loading the next question…" instead of the
+  just-attempted question. Cosmetic (the question-left two-column is confirmed on the hint-ladder
+  path), left untouched rather than editing the merged, deployed build. Worth a small follow-up.
 
 ### Session log — the learning flow, walked in code (2026-08-07, D-216)
 

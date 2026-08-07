@@ -15213,3 +15213,37 @@ YouTube sync keeps a wider net per skill at flat quota cost.
 clean for `learning-web`, `chat-web`, `e2e` · the six new bank items load through the §5.8.5 gate and
 the bank re-exports clean · deployed to staging with both gates green; the real YouTube sync ran as a
 one-off ops-task afterwards.
+
+### Live re-walk against the deployed build (post-deploy, `chrome-devtools`)
+
+Drove the deployed staging learning app end-to-end (pre-exam → study → hint ladder → tutor chat) and
+confirmed each point live:
+
+- **Latency (§1):** a first-try-correct study answer round-tripped in **286 ms** (TTFB 284 ms,
+  Performance API), down from the **3,882 ms** measured before. The deferral holds: the answer no
+  longer waits on the `study_step` Bedrock call, which now arrives over SSE a beat later.
+- **Two-column (§2):** confirmed - question + options on the left with the new *"Work through the
+  help first →"* paused affordance (no longer a stuck "SUBMITTING…"), hint ladder on the right, both
+  full-size.
+- **Text (§3):** hints and narratives render clean - em-dashes and inline math display correctly,
+  no literal Markdown.
+- **Per-question chat (§4):** advancing to the next question opened a **fresh, empty** transcript;
+  the prior question's conversation (and its viz) did not carry over.
+- **Chat viz (§5):** on **real Haiku 4.5**, asking the tutor to "draw a picture of what *the same on
+  both sides* means" returned a grounded Socratic reply **plus a rendered bar-model** (two equal bars,
+  "Both sides are equal") - illustrating the concept without leaking the answer.
+- **Videos (§7):** the real sync created **21**, updated **44**, rejected 0 off-channel, failed 0
+  verification, for **18.3¢** - the catalog is now **65** videos (was 44).
+
+Two findings from the walk, neither a regression:
+
+1. **The chat "error" I first hit was the anti-leak gate working, not a bug.** A question phrased to
+   invite the answer ("compare the two options **week by week**") produced a valid LLM reply
+   (`repaired: false`, no exception) that the deterministic `answer_text_leaked` check in
+   `tutor_chat.py` caught, so the service fail-closed to the safe fallback (SPEC §5.21.8). Correct
+   behaviour; the viz appeared as soon as the question was conceptual rather than answer-seeking.
+2. **Minor (carry-over):** on the intervention *menu*/chat state (after a wrong answer, before the
+   next item loads), the **left** column reads "Loading the next question…" rather than the
+   just-attempted question. Cosmetic - the question-left two-column is confirmed on the hint-ladder
+   path - but slightly confusing on the menu/chat path. Left as a carry-over rather than touching the
+   merged, deployed build.
