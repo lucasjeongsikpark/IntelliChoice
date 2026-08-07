@@ -1153,6 +1153,9 @@ def _chat_reply_from_content(content: dict) -> str:
 class ChatTurnResult:
     reply_text: str
     intent: str
+    # D-217: an optional bounded diagram (number line / bar model) from a chat reply, as a
+    # plain dict for the wire. `None` on every other intent.
+    viz: dict | None = None
 
 
 async def run_chat_turn(
@@ -1208,7 +1211,12 @@ async def run_chat_turn(
     reservation: Reservation | None = None
 
     async def _finish(
-        *, intent: str, reply_text: str, flagged: bool = False, resolved: bool = True
+        *,
+        intent: str,
+        reply_text: str,
+        flagged: bool = False,
+        resolved: bool = True,
+        viz: dict | None = None,
     ) -> ChatTurnResult:
         assert ctx.tutor_chat_repo is not None
         if reservation is not None:
@@ -1237,7 +1245,7 @@ async def run_chat_turn(
             resolved=resolved,
             tutor_chat_message_id=chat_message.message_id,
         )
-        return ChatTurnResult(reply_text=reply_text, intent=intent)
+        return ChatTurnResult(reply_text=reply_text, intent=intent, viz=viz)
 
     if tutor_chat_service.screen_for_safety_concern(message):
         return await _finish(
@@ -1373,5 +1381,11 @@ async def run_chat_turn(
         )
         cost += call_cost
         reply_text = result.reply_text
+        # D-217: a chat reply may carry a bounded diagram; the other intents never do.
+        return await _finish(
+            intent=intent,
+            reply_text=reply_text,
+            viz=result.viz.model_dump() if result.viz is not None else None,
+        )
 
     return await _finish(intent=intent, reply_text=reply_text)

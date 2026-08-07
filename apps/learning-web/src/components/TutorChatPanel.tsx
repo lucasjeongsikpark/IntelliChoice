@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChatMessageResult } from "../api/client";
 import type { ChatMessage } from "../hooks/useTutorChat";
 import { useProgressiveReveal } from "../hooks/useProgressiveReveal";
+import { ChatViz } from "./ChatViz";
 import { RichText } from "./RichText";
 import { renderedLength } from "../lib/markdown";
 
@@ -13,10 +14,16 @@ import { renderedLength } from "../lib/markdown";
 function ChatBubble({ message, reveal }: { message: ChatMessage; reveal: boolean }) {
   const total = renderedLength(message.text);
   const revealed = useProgressiveReveal(total, reveal);
+  const fullyRevealed = !reveal || revealed >= total;
   return (
-    <p className={`chat-bubble ${message.role}`}>
-      <RichText text={message.text} maxChars={reveal ? revealed : undefined} />
-    </p>
+    <>
+      <p className={`chat-bubble ${message.role}`}>
+        <RichText text={message.text} maxChars={reveal ? revealed : undefined} />
+      </p>
+      {/* D-217: the diagram appears once its reply has finished revealing, so it doesn't
+          pop in above still-typing text. */}
+      {message.viz && fullyRevealed && <ChatViz viz={message.viz} />}
+    </>
   );
 }
 

@@ -767,6 +767,104 @@ button.link {
   border: 1px solid var(--border);
 }
 
+/* D-217: the tutor chat's optional bounded diagram. Left-aligned under the tutor bubble,
+   inside the panel's own width - the values/labels are schema-bounded, so this only ever
+   draws in a small fixed box. */
+.chat-viz {
+  align-self: flex-start;
+  width: 100%;
+  max-width: 85%;
+  margin: 2px 0 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-bg);
+}
+
+.chat-viz figcaption,
+.chat-viz > figcaption {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.chat-viz-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-viz-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 6em) 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.chat-viz-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-viz-bar-track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  overflow: hidden;
+}
+
+.chat-viz-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.chat-viz-bar-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
+}
+
+.chat-viz-numberline {
+  position: relative;
+  height: 46px;
+  margin: 6px 4px 18px;
+}
+
+.chat-viz-line {
+  position: absolute;
+  top: 10px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border);
+}
+
+.chat-viz-mark {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.chat-viz-mark-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: 6px;
+}
+
+.chat-viz-mark-label {
+  margin-top: 4px;
+  color: var(--text-h);
+}
+
 .chat-input-row {
   display: flex;
   gap: 8px;

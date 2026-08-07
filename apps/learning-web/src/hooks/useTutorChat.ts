@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatMessageResult } from "../api/client";
+import type { ChatMessageResult, ChatViz } from "../api/client";
 
 export interface ChatMessage {
   role: "student" | "tutor";
   text: string;
+  // D-217: an optional bounded diagram on a tutor reply; never on a student message.
+  viz?: ChatViz | null;
 }
 
 /**
@@ -78,7 +80,10 @@ export function useTutorChat(questionVariantId: string | null) {
             prev.questionVariantId === questionVariantId
               ? {
                   questionVariantId,
-                  messages: [...prev.messages, { role: "tutor", text: result.reply_text }],
+                  messages: [
+                    ...prev.messages,
+                    { role: "tutor", text: result.reply_text, viz: result.viz },
+                  ],
                 }
               : prev,
           );

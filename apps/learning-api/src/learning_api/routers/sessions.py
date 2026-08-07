@@ -27,7 +27,7 @@ from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_db.repositories.youtube import YoutubeRepository
 from intellichoice_observability.metrics import CHECKPOINT_REPAIRS, SESSION_STARTS
 from intellichoice_shared.auth import TokenClaims
-from intellichoice_shared.bedrock import BedrockGateway
+from intellichoice_shared.bedrock import BedrockGateway, ChatVizSpec
 from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.pii_redaction import redact_free_text
 from intellichoice_shared.profiles import ProfileAdapter
@@ -234,6 +234,9 @@ class ChatMessageResponse(BaseModel):
     learning_session_id: str
     reply_text: str
     intent: str
+    # D-217: an optional bounded diagram (see `ChatVizSpec`); present only when the reply
+    # judged a picture would help. A plain dict on the wire, rendered client-side.
+    viz: ChatVizSpec | None = None
 
 
 class ResumeResponse(BaseModel):
@@ -1349,6 +1352,7 @@ async def send_chat_message(
         learning_session_id=learning_session_id,
         reply_text=result.reply_text,
         intent=result.intent,
+        viz=ChatVizSpec.model_validate(result.viz) if result.viz is not None else None,
     )
 
 
