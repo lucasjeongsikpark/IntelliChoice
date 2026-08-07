@@ -482,14 +482,13 @@ function App() {
             items={snapshot.items ?? null}
             streak={streak}
             overview={session.examOverview}
-            // `ladderOpen` as well as `busy`: while the graph is paused on
-            // `intervention_choice` an answer has nowhere to land, but the exam's options and
-            // Submit stayed clickable underneath the hint. Measured on staging 2026-08-07 -
-            // selecting an option and submitting returned "That didn't fit where the session
-            // is right now", which is an error message standing in for a disabled control.
-            // The student resolves the pause through the panel ("I'll try again now", or now
-            // "No thanks"), and only then are these live again.
-            busy={session.busy || ladderOpen}
+            busy={session.busy}
+            // D-217: while the graph is paused on `intervention_choice` an answer has
+            // nowhere to land, so this question's controls are disabled - but as a clear
+            // "paused while you get help" state, not the misleading "Submitting…" the old
+            // `busy || ladderOpen` produced (it read as a request stuck in flight forever).
+            // The student proceeds through the panel on the right ("I'll try again now").
+            paused={ladderOpen}
             error={session.error}
             onSubmit={(questionVariantId, selectedOption, responseTimeMs) => {
               markInteraction();
@@ -553,31 +552,33 @@ function App() {
           />
         );
 
-        // The very first pause has no content yet - nothing to show alongside the exam
-        // question, matching the prior standalone-chooser behavior.
-        if (ladderOpen && !snapshot.intervention) {
-          return assistancePanel;
+        // Pre/post-exam never have assistance alongside - render the exam full-width.
+        if (snapshot.phase !== "study") {
+          return examView;
         }
-        if (snapshot.intervention && !interventionDismissed) {
-          // The question is shown beneath the help only while the pause is still *about*
-          // that question - which is exactly what `ladderOpen` means. Once the ladder is
-          // spent (hint 3 of 3, or any solution/video), the graph has already advanced and
-          // `snapshot.items` carries the **next** question, so pairing them put the help for
-          // one problem directly above a different problem.
-          //
-          // Measured on staging 2026-08-07: "Hint 3 of 3" ended with "Does your answer of 8
-          // keychains make this equation true?" while the card below it was Maya's concert
-          // ticket, with its own four options. The same happened after every solution and
-          // every video. The panel's own button already says "Got it — next question", so
-          // showing the next question before it is pressed was also contradicting the button.
-          return ladderOpen ? (
-            <div className="stack">
-              {assistancePanel}
+
+        // D-217 (point 1): during study, while the hint/solution/video/chat ladder is open
+        // the question stays on the LEFT and the assistance on the RIGHT, both full-size,
+        // instead of the old single column that stacked the panel above a shrunk question.
+        // `ladderOpen` is exactly "the pause is still about the question in `snapshot.items`",
+        // so the left column shows the right question for the whole ladder (chooser and every
+        // hint round). The panel renders its own chooser when `intervention` is still null.
+        if (ladderOpen) {
+          return (
+            <div className="study-columns">
               {examView}
+              {assistancePanel}
             </div>
-          ) : (
-            assistancePanel
           );
+        }
+
+        // Ladder spent (hint 3 of 3, or any solution/video): the graph has already advanced
+        // and `snapshot.items` is the NEXT question, so the question is deliberately not
+        // shown beside this terminal help - pairing them put one problem's solution above a
+        // different problem (measured on staging 2026-08-07). The panel's "Got it — next
+        // question" dismisses it and returns to the question below.
+        if (snapshot.intervention && !interventionDismissed) {
+          return assistancePanel;
         }
         return examView;
       }

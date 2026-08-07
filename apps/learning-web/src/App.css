@@ -375,6 +375,33 @@ button.link {
   max-width: 880px;
 }
 
+/* D-217 (point 1): the study-phase two-column layout - the question stays on the left and
+   the hint/solution/video/chat panel sits on the right, both full-size, for the whole
+   ladder. Wider than a single 880px card because it now holds two; each cell is capped at
+   100% and `min-width: 0` so a long stem or a code line wraps inside its column instead of
+   forcing the grid to overflow the viewport. */
+.study-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+  align-items: start;
+}
+
+.study-columns > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* The codebase's first width breakpoint (there were none before). Below it the two columns
+   stack - question first, then the help - so nothing is ever squeezed on a phone. */
+@media (max-width: 900px) {
+  .study-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 .intervention-panel {
   background: var(--panel-bg);
   border: 1px solid var(--border);
