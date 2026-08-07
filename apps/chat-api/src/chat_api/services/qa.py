@@ -160,6 +160,17 @@ async def _verify_citations(
     repo: RagRepository, raw: RagAnswerResponse, chunks_by_index: dict[int, RagChunk]
 ) -> list[Citation]:
     verified: list[Citation] = []
+    # A citation names a *place in a source*, so two of them naming the same place are one
+    # citation with two supporting quotes - not two sources. The model routinely emits both,
+    # and every field a reader sees (`document_title`, `section_title`) is identical between
+    # them, so the answer rendered "About IntelliChoice — About Us" twice on staging
+    # 2026-08-07. Two chips that cannot be told apart read as two independent sources
+    # agreeing, which is a stronger claim than the evidence actually makes.
+    #
+    # Keyed on the identity a reader can see plus the version, and the *first* verified quote
+    # for a place wins - later ones are redundant for display and the audit row already has
+    # the chunk they came from.
+    seen_locations: set[tuple[str, int, int | None, str | None]] = set()
     dropped_below_floor = 0
     for llm_citation in raw.citations:
         chunk = chunks_by_index.get(llm_citation.context_index)
@@ -180,6 +191,15 @@ async def _verify_citations(
         document = await repo.get_document(chunk.document_id)
         if document is None:
             continue
+        location = (
+            chunk.document_id,
+            document.version,
+            chunk.page_number,
+            chunk.section_title,
+        )
+        if location in seen_locations:
+            continue
+        seen_locations.add(location)
         verified.append(
             Citation(
                 document_title=chunk.document_title,

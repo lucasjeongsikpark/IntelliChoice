@@ -66,7 +66,7 @@ test("an absent student never reaches an exam, and can acknowledge the absence",
     "the gate rendered with no explanation for the student",
   ).toBeGreaterThan(0);
 
-  await stableClick(page.getByRole("button", { name: /confirm i did not attend/i }));
+  await stableClick(page.getByRole("button", { name: /i did not come this week/i }));
   await expect(page.getByRole("button", { name: /back to start/i })).toBeVisible({
     timeout: 60_000,
   });
@@ -112,7 +112,7 @@ test("unknown attendance is gated too, and the branch-manager email is shown bef
   ).toContain("not been marked yet");
   expect(gateMessage).not.toContain("did not receive");
 
-  await stableClick(page.getByRole("button", { name: /ask the branch manager to verify/i }));
+  await stableClick(page.getByRole("button", { name: /ask my branch manager to check/i }));
 
   // SPEC §5.1.4: the draft is shown and approval is explicit. An approval gate with no
   // decline is not a gate, so both buttons must exist.

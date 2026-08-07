@@ -15,6 +15,16 @@ interface Props {
    */
   canSwitchChild?: boolean;
   onSwitchChild?: () => void;
+  /**
+   * Which child this session will be for, when a parent is signed in.
+   *
+   * The screen used to say only "Signed in as parent-ext-2 (parent)". A parent with two
+   * linked children picked one on the previous screen and then got no confirmation of who
+   * was selected - "Switch child" implied a selection existed without naming it. Starting a
+   * session writes real attempts against a real child, so the wrong one is not a cosmetic
+   * mistake.
+   */
+  studentName?: string | null;
 }
 
 export function StartScreen({
@@ -28,6 +38,7 @@ export function StartScreen({
   error,
   canSwitchChild = false,
   onSwitchChild,
+  studentName = null,
 }: Props) {
   return (
     <div className="panel">
@@ -35,6 +46,11 @@ export function StartScreen({
       <p className="subtitle">
         Signed in as <strong>{sub}</strong> ({role}).
       </p>
+      {studentName && (
+        <p className="subtitle">
+          This session is for <strong>{studentName}</strong>.
+        </p>
+      )}
       {error && <p className="error">{error}</p>}
       <button disabled={busy} onClick={onStart}>
         {busy ? "Starting…" : "Start learning session"}

@@ -50,11 +50,14 @@ export function AttendanceScreen({
 
       {!emailPreview && !resolved && (
         <>
+          {/* Second person, matching the message above them. The body used to talk about
+              "the student" in the third person while this button said "I", which is two
+              voices on one screen - see attendance.py's BLOCKED_MESSAGE. */}
           <button disabled={busy} onClick={onAskBranchManager}>
-            Ask the Branch Manager to verify
+            Ask my Branch Manager to check
           </button>
           <button className="secondary" disabled={busy} onClick={onAcknowledge}>
-            Confirm I did not attend
+            I did not come this week
           </button>
         </>
       )}

@@ -43,7 +43,14 @@ _SYSTEM_PROMPT = (
     "math tutoring app (SPEC §5.10.3: use phrases like 'skills to strengthen' and "
     "'almost there', never discouraging language). Write 1-3 sentences. Only reference "
     "names and numbers that appear in the data you were given - never invent a score, "
-    "a gain, a count, or a skill name that isn't already there."
+    "a gain, a count, or a skill name that isn't already there. "
+    # A 'Study plan, weakest first' line lists the whole topic in priority order, and the
+    # model was reading it as a list of failures: a student who scored 7 of 10 was told they
+    # had five skills to strengthen, two of which they had mastered. The tone guidance above
+    # is about *how* to say things, not a licence to assert weakness the data does not show.
+    "A study-plan list is the order skills will be practised in, not a list of things the "
+    "student is bad at - describe it as what comes next, and only call a skill out as "
+    "needing work if a number you were given says so."
 )
 
 
@@ -70,7 +77,18 @@ def _evidence_summary(payload: StageNarrativePayload) -> list[str]:
     if payload.raw_gain is not None:
         lines.append(f"Growth: {payload.raw_gain} points")
     if payload.weak_skill_names:
-        lines.append(f"Skills to strengthen: {', '.join(payload.weak_skill_names)}")
+        # "Your study plan, weakest first", not "skills to strengthen".
+        #
+        # `study_plan.py` ranks every skill in the topic by mastery and takes
+        # `ranked[:BASE_PROBLEM_COUNT]` - and `BASE_PROBLEM_COUNT` is 5 while
+        # `linear_equations` has exactly 5 skills. So this list is *the whole topic in
+        # priority order*, never a subset that failed a weakness test. Measured on staging
+        # 2026-08-07: a student who answered 7 of 10 correctly was told they had five
+        # "skills to strengthen" - including two the dashboard scored at 100%.
+        #
+        # The ordering is genuinely useful and is left alone; only the claim about it is
+        # corrected. `Next up:` below remains the actionable line.
+        lines.append(f"Study plan, weakest first: {', '.join(payload.weak_skill_names)}")
     if payload.completed_skill_name is not None:
         lines.append(f"Just completed: {payload.completed_skill_name}")
     if payload.target_skill_name is not None:
@@ -80,7 +98,7 @@ def _evidence_summary(payload: StageNarrativePayload) -> list[str]:
     if payload.solution_count is not None:
         lines.append(f"Solutions viewed: {payload.solution_count}")
     if payload.video_count is not None:
-        lines.append(f"Videos watched: {payload.video_count}")
+        lines.append(f"Videos suggested: {payload.video_count}")
     if payload.relevant_learning_facts:
         lines.extend(payload.relevant_learning_facts)
     return lines
@@ -94,7 +112,10 @@ def _fallback_text(payload: StageNarrativePayload) -> str:
         if payload.pre_raw_score is not None:
             parts.append(f"You scored {payload.pre_raw_score} on the pre-exam.")
         if payload.weak_skill_names:
-            parts.append(f"Let's strengthen {', '.join(payload.weak_skill_names)}.")
+            # Same correction as `_evidence_summary`: this is the plan's order, not a
+            # verdict that every one of these skills is weak.
+            names = ", ".join(payload.weak_skill_names)
+            parts.append(f"Your plan starts with the ones to work on most: {names}.")
         if payload.target_skill_name:
             parts.append(f"Your study plan starts with {payload.target_skill_name}.")
         return " ".join(parts) or "Let's get started with your study plan."

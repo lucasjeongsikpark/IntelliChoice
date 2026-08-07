@@ -65,11 +65,21 @@ SEED_SUGGESTIONS: list[ChatSuggestion] = [
         sort_order=6,
         active=True,
     ),
+    # These two used to read "What should I know as a student/parent?", and the classifier
+    # was right to refuse them: `clarification` means "in scope but too vague to route", and
+    # an open-ended "what should I know" has no answerable shape. The defect was that the app
+    # offered them. Measured on staging 2026-08-07 - clicking the student chip, the very
+    # first suggestion a signed-in student sees, returned "Could you rephrase your question?"
+    # whose own text then lists "student participation and learning" as something it can
+    # help with. Reproduced twice: typed verbatim and clicked as a chip.
+    #
+    # Rewritten to name a thing the corpus actually documents (programs), which is the shape
+    # the scope prompt routes to `document_qa`.
     ChatSuggestion(
         id="student-general-expect",
         role_audience="student",
         category="general",
-        prompt_text="What should I know as a student?",
+        prompt_text="What programs can I join as a student?",
         sort_order=0,
         active=True,
     ),
@@ -77,7 +87,7 @@ SEED_SUGGESTIONS: list[ChatSuggestion] = [
         id="parent-general-expect",
         role_audience="parent",
         category="general",
-        prompt_text="What should I know as a parent?",
+        prompt_text="What programs are available for my child?",
         sort_order=0,
         active=True,
     ),

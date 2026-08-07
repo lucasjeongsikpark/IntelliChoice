@@ -1,7 +1,7 @@
 curriculum_version: '2026.1'
 topic_id: linear_equations
 templates:
-- question_template_id: authored-linear_equations-d3-1505300
+- question_template_id: authored-linear_equations-d3-1415300
   topic_id: linear_equations
   skill_id: linear_both_sides
   grade_band: 6-7
@@ -9,141 +9,126 @@ templates:
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
-  - skipped_final_division
-  - added_instead_of_subtracted
-  - ignored_starting_amount
-  - incorrect_coefficient_combination
+  - added_rates_instead_of_subtracting
+  - ignored_larger_starting_amount
+  - stopped_before_final_division
+  - swapped_variables
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
     solver_b: bedrock-question-review
     judge: bedrock-question-judge
   review_priority: high
-  version: 1
-  stem: Leo and Ava are running a toy drive. Leo starts with 12 fewer toys than he needs, but collects
-    5 toys each week. Ava already has 4 toys and collects 3 toys each week. After how many weeks will
-    both have the same number of toys?
+  version: 2
+  stem: Lena and Jake are reading the same book. Lena has read 20 pages already and reads 5 more pages
+    each day. Jake has read 32 pages already and reads 3 more pages each day. After how many days will
+    they have read the same number of pages?
   context_block: null
-  answer_expression: Eq(5*x - 12, 3*x + 4)
+  answer_expression: Eq(20 + 5*d, 32 + 3*d)
   hint_ladder:
-  - Think about how many toys each person has now and how many they add each week.
-  - Leo begins with 12 fewer toys than he needs, so his total toys after w weeks is 5w - 12. Ava’s total
-    after w weeks is 3w + 4.
-  - Set the two expressions equal to each other and solve for w.
+  - Lena and Jake are both reading the same book. How many pages has each read so far?
+  - Lena’s total pages are her starting pages plus 5 pages per day. Jake’s total is his starting pages
+    plus 3 pages per day.
+  - Write an equation that says their totals are equal after d days, then solve for d.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: 'Write the equation representing the situation: Leo’s toys equal Ava’s toys after w
-        weeks.'
-      expression: 5w - 12 = 3w + 4
+      explanation: Write the total pages each has read after d days and set them equal.
+      expression: 20 + 5d = 32 + 3d
       common_mistake: null
     - step_number: 2
-      explanation: Subtract 3w from both sides to gather like terms on the left.
-      expression: 5w - 3w - 12 = 4
+      explanation: Subtract 3d from both sides to gather like terms.
+      expression: 20 + 5d - 3d = 32 + 3d - 3d
       common_mistake: null
     - step_number: 3
-      explanation: Simplify the equation by combining like terms.
-      expression: 2w - 12 = 4
+      explanation: Simplify both sides.
+      expression: 20 + 2d = 32
       common_mistake: null
     - step_number: 4
-      explanation: Add 12 to both sides to isolate the term with w.
-      expression: 2w = 16
+      explanation: Subtract 20 from both sides to isolate the term with d.
+      expression: 20 + 2d - 20 = 32 - 20
       common_mistake: null
     - step_number: 5
-      explanation: Divide both sides by 2 to solve for w.
-      expression: w = 8
+      explanation: Simplify both sides.
+      expression: 2d = 12
       common_mistake: null
     - step_number: 6
-      explanation: The answer is 8 weeks.
-      expression: ''
-      common_mistake: Forgetting to divide by 2 after isolating the term with w.
-    final_answer: '8'
-  random_seed: 1505300
-  rendered_question: Leo and Ava are running a toy drive. Leo starts with 12 fewer toys than he needs,
-    but collects 5 toys each week. Ava already has 4 toys and collects 3 toys each week. After how many
-    weeks will both have the same number of toys?
-  option_a: '16'
-  option_b: '6'
-  option_c: '8'
-  option_d: '4'
-  correct_option: c
-- question_template_id: authored-linear_equations-d3-1605301
-  topic_id: linear_equations
-  skill_id: linear_both_sides
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - subtracted_small_from_large
-  - added_coefficients_instead_of_subtracting
-  - ignored_negative_coefficient_after_move
-  - stopped_before_dividing
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: "Leo wants to buy some games at the store, but he has two offers to choose from. \n- Offer X:\
-    \ He starts with $80, but $4 is taken away for every game he buys.\n- Offer Y: He starts with $20,\
-    \ and $1 is added for every game he buys.\nHow many games should Leo buy so that both offers give\
-    \ him the same amount of money?"
-  context_block: "Leo is shopping at a video game store with two special offers. \n- Offer X: Start with\
-    \ $80 credit, then lose $4 for every game you buy.\n- Offer Y: Start with $20 credit, then gain $1\
-    \ for every game you buy.\nLeo wants to know how many games he can buy so that both offers give him\
-    \ the same amount of money."
-  answer_expression: Eq(80 - 4*x, 20 + x)
-  hint_ladder:
-  - Think about how much money Leo has under each offer after buying x items.
-  - 'Write an expression for the first offer: $80 minus $4 for each item. Write one for the second: $20
-    plus $1 for each item.'
-  - Set the two expressions equal to each other and decide how to move the x terms to one side.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Write the equation from the two expressions described in the offers.
-      expression: 80 - 4x = 20 + x
-      common_mistake: null
-    - step_number: 2
-      explanation: Subtract x from both sides to gather variable terms on the left.
-      expression: 80 - 4x - x = 20 + x - x
-      common_mistake: null
-    - step_number: 3
-      explanation: Simplify the left side by combining like terms.
-      expression: 80 - 5x = 20
-      common_mistake: null
-    - step_number: 4
-      explanation: Subtract 80 from both sides to isolate the term with x.
-      expression: 80 - 5x - 80 = 20 - 80
-      common_mistake: null
-    - step_number: 5
-      explanation: Simplify the right side.
-      expression: -5x = -60
-      common_mistake: null
-    - step_number: 6
-      explanation: Divide both sides by -5 to solve for x.
-      expression: x = (-60) / (-5)
+      explanation: Divide both sides by 2 to solve for d.
+      expression: d = 12 / 2
       common_mistake: null
     - step_number: 7
-      explanation: Simplify to find the number of games.
-      expression: x = 12
+      explanation: Calculate the final value.
+      expression: d = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 415300
+  rendered_question: Lena and Jake are reading the same book. Lena has read 20 pages already and reads
+    5 more pages each day. Jake has read 32 pages already and reads 3 more pages each day. After how many
+    days will they have read the same number of pages?
+  option_a: '2'
+  option_b: '4'
+  option_c: '12'
+  option_d: '6'
+  correct_option: d
+- question_template_id: authored-linear_equations-d3-1415301
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_rates_instead_of_equating
+  - ignored_initial_amount
+  - skipped_final_division
+  - solved_for_w_plus_120_instead_of_w
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 2
+  stem: Liam has 120 trading cards and gives Emma 5 cards every week. Emma starts with no cards. After
+    how many weeks will they have the same number of cards?
+  context_block: null
+  answer_expression: Eq(120 - 5*w, 5*w)
+  hint_ladder:
+  - Liam has some trading cards, and Emma starts with none. Think about how many each has after Liam gives
+    away 5 cards every week.
+  - After w weeks, Liam has 120 minus 5 times w, and Emma has 5 times w.
+  - Set the two expressions equal to find when they have the same number of cards.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the equation showing Liam's and Emma's cards after w weeks.
+      expression: 120 - 5w = 5w
+      common_mistake: null
+    - step_number: 2
+      explanation: Add 5w to both sides to gather the w terms on one side.
+      expression: 120 = 5w + 5w
+      common_mistake: null
+    - step_number: 3
+      explanation: Combine like terms.
+      expression: 120 = 10w
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 10 to solve for w.
+      expression: w = 120 / 10
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the division to find the number of weeks.
+      expression: w = 12
       common_mistake: null
     final_answer: '12'
-  random_seed: 1605301
-  rendered_question: "Leo is shopping at a video game store with two special offers. \n- Offer X: Start\
-    \ with $80 credit, then lose $4 for every game you buy.\n- Offer Y: Start with $20 credit, then gain\
-    \ $1 for every game you buy.\nLeo wants to know how many games he can buy so that both offers give\
-    \ him the same amount of money.\n\nLeo wants to buy some games at the store, but he has two offers\
-    \ to choose from. \n- Offer X: He starts with $80, but $4 is taken away for every game he buys.\n\
-    - Offer Y: He starts with $20, and $1 is added for every game he buys.\nHow many games should Leo\
-    \ buy so that both offers give him the same amount of money?"
-  option_a: '12'
-  option_b: '10'
-  option_c: '15'
-  option_d: '20'
-  correct_option: a
+  random_seed: 415301
+  rendered_question: Liam has 120 trading cards and gives Emma 5 cards every week. Emma starts with no
+    cards. After how many weeks will they have the same number of cards?
+  option_a: '6'
+  option_b: '8'
+  option_c: '12'
+  option_d: '24'
+  correct_option: c
 - question_template_id: authored-linear_equations-d3-205300
   topic_id: linear_equations
   skill_id: linear_both_sides
@@ -214,7 +199,7 @@ templates:
   option_c: 8 minutes
   option_d: 10 minutes
   correct_option: b
-- question_template_id: authored-linear_equations-d3-415300
+- question_template_id: authored-linear_equations-d3-2605301
   topic_id: linear_equations
   skill_id: linear_both_sides
   grade_band: 6-7
@@ -222,140 +207,69 @@ templates:
   difficulty_confidence: 0.5
   estimated_time_seconds: 90
   common_error_tags:
-  - added_rates_instead_of_subtracting
-  - ignored_larger_starting_amount
-  - stopped_before_final_division
-  - swapped_variables
+  - subtracted_small_from_large
+  - added_coefficients_instead_of_subtracting
+  - ignored_negative_coefficient_after_move
+  - stopped_before_dividing
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
     solver_b: bedrock-question-review
     judge: bedrock-question-judge
   review_priority: high
-  version: 1
-  stem: Lena and Jake are reading the same book. Lena has read 20 pages already and reads 5 more pages
-    each day. Jake has read 32 pages already and reads 3 more pages each day. After how many days will
-    they have read the same number of pages?
-  context_block: Lena and Jake are both reading the same book. Lena has already read 20 pages and reads
-    5 more pages each day. Jake has already read 32 pages and reads 3 more pages each day. The question
-    asks when they will have read the same number of pages.
-  answer_expression: Eq(20 + 5*d, 32 + 3*d)
+  version: 2
+  stem: "Leo wants to buy some games at the store, but he has two offers to choose from. \n- Offer X:\
+    \ He starts with $80, but $4 is taken away for every game he buys.\n- Offer Y: He starts with $20,\
+    \ and $1 is added for every game he buys.\nHow many games should Leo buy so that both offers give\
+    \ him the same amount of money?"
+  context_block: null
+  answer_expression: Eq(80 - 4*x, 20 + x)
   hint_ladder:
-  - Lena and Jake are both reading the same book. How many pages has each read so far?
-  - Lena’s total pages are her starting pages plus 5 pages per day. Jake’s total is his starting pages
-    plus 3 pages per day.
-  - Write an equation that says their totals are equal after d days, then solve for d.
+  - Think about how much money Leo has under each offer after buying x items.
+  - 'Write an expression for the first offer: $80 minus $4 for each item. Write one for the second: $20
+    plus $1 for each item.'
+  - Set the two expressions equal to each other and decide how to move the x terms to one side.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Write the total pages each has read after d days and set them equal.
-      expression: 20 + 5d = 32 + 3d
+      explanation: Write the equation from the two expressions described in the offers.
+      expression: 80 - 4x = 20 + x
       common_mistake: null
     - step_number: 2
-      explanation: Subtract 3d from both sides to gather like terms.
-      expression: 20 + 5d - 3d = 32 + 3d - 3d
+      explanation: Subtract x from both sides to gather variable terms on the left.
+      expression: 80 - 4x - x = 20 + x - x
       common_mistake: null
     - step_number: 3
-      explanation: Simplify both sides.
-      expression: 20 + 2d = 32
+      explanation: Simplify the left side by combining like terms.
+      expression: 80 - 5x = 20
       common_mistake: null
     - step_number: 4
-      explanation: Subtract 20 from both sides to isolate the term with d.
-      expression: 20 + 2d - 20 = 32 - 20
+      explanation: Subtract 80 from both sides to isolate the term with x.
+      expression: 80 - 5x - 80 = 20 - 80
       common_mistake: null
     - step_number: 5
-      explanation: Simplify both sides.
-      expression: 2d = 12
+      explanation: Simplify the right side.
+      expression: -5x = -60
       common_mistake: null
     - step_number: 6
-      explanation: Divide both sides by 2 to solve for d.
-      expression: d = 12 / 2
+      explanation: Divide both sides by -5 to solve for x.
+      expression: x = (-60) / (-5)
       common_mistake: null
     - step_number: 7
-      explanation: Calculate the final value.
-      expression: d = 6
-      common_mistake: null
-    final_answer: '6'
-  random_seed: 415300
-  rendered_question: 'Lena and Jake are both reading the same book. Lena has already read 20 pages and
-    reads 5 more pages each day. Jake has already read 32 pages and reads 3 more pages each day. The question
-    asks when they will have read the same number of pages.
-
-
-    Lena and Jake are reading the same book. Lena has read 20 pages already and reads 5 more pages each
-    day. Jake has read 32 pages already and reads 3 more pages each day. After how many days will they
-    have read the same number of pages?'
-  option_a: '2'
-  option_b: '4'
-  option_c: '12'
-  option_d: '6'
-  correct_option: d
-- question_template_id: authored-linear_equations-d3-415301
-  topic_id: linear_equations
-  skill_id: linear_both_sides
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - added_rates_instead_of_equating
-  - ignored_initial_amount
-  - skipped_final_division
-  - solved_for_w_plus_120_instead_of_w
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: Liam has 120 trading cards and gives Emma 5 cards every week. Emma starts with no cards. After
-    how many weeks will they have the same number of cards?
-  context_block: Liam and Emma collect trading cards. Liam has 120 cards but decides to give Emma 5 cards
-    every week so they can have the same number. Emma starts with no cards. The question asks after how
-    many weeks they will have the same number of cards.
-  answer_expression: Eq(120 - 5*w, 5*w)
-  hint_ladder:
-  - Liam has some trading cards, and Emma starts with none. Think about how many each has after Liam gives
-    away 5 cards every week.
-  - After w weeks, Liam has 120 minus 5 times w, and Emma has 5 times w.
-  - Set the two expressions equal to find when they have the same number of cards.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Write the equation showing Liam's and Emma's cards after w weeks.
-      expression: 120 - 5w = 5w
-      common_mistake: null
-    - step_number: 2
-      explanation: Add 5w to both sides to gather the w terms on one side.
-      expression: 120 = 5w + 5w
-      common_mistake: null
-    - step_number: 3
-      explanation: Combine like terms.
-      expression: 120 = 10w
-      common_mistake: null
-    - step_number: 4
-      explanation: Divide both sides by 10 to solve for w.
-      expression: w = 120 / 10
-      common_mistake: null
-    - step_number: 5
-      explanation: Calculate the division to find the number of weeks.
-      expression: w = 12
+      explanation: Simplify to find the number of games.
+      expression: x = 12
       common_mistake: null
     final_answer: '12'
-  random_seed: 415301
-  rendered_question: 'Liam and Emma collect trading cards. Liam has 120 cards but decides to give Emma
-    5 cards every week so they can have the same number. Emma starts with no cards. The question asks
-    after how many weeks they will have the same number of cards.
-
-
-    Liam has 120 trading cards and gives Emma 5 cards every week. Emma starts with no cards. After how
-    many weeks will they have the same number of cards?'
-  option_a: '6'
-  option_b: '8'
-  option_c: '12'
-  option_d: '24'
-  correct_option: c
+  random_seed: 1605301
+  rendered_question: "Leo wants to buy some games at the store, but he has two offers to choose from.\
+    \ \n- Offer X: He starts with $80, but $4 is taken away for every game he buys.\n- Offer Y: He starts\
+    \ with $20, and $1 is added for every game he buys.\nHow many games should Leo buy so that both offers\
+    \ give him the same amount of money?"
+  option_a: '12'
+  option_b: '10'
+  option_c: '15'
+  option_d: '20'
+  correct_option: a
 - question_template_id: authored-linear_equations-d4-1505400
   topic_id: linear_equations
   skill_id: linear_both_sides
@@ -625,82 +539,6 @@ templates:
   option_c: 20 weeks
   option_d: 10 weeks
   correct_option: b
-- question_template_id: authored-linear_equations-d5-1605501
-  topic_id: linear_equations
-  skill_id: linear_both_sides
-  grade_band: 6-7
-  difficulty_label: 5
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - distributed_only_the_first_term
-  - ignored_the_extra_item
-  - combined_constants_incorrectly
-  - stopped_before_final_division
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group, plus he
-    adds 1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose items.
-    They end up with the same number of items. How many items are in one of Mia’s groups?
-  context_block: Leo and Mia are packing items into identical boxes. Leo packs 2 boxes, and each box holds
-    4 more items than one of Mia’s groups. He also adds 1 loose item. Mia packs 3 groups of items, each
-    the size of one of her groups, and adds 3 loose items. They end up with the same total number of items.
-  answer_expression: Eq(2*(w + 4) + 1, 3*w + 3)
-  hint_ladder:
-  - Think about how many items Leo packs in one group.
-  - Leo has 2 of those groups, plus one extra item. Write an expression for his total.
-  - Set Leo’s total equal to Mia’s total and simplify step by step.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Leo packs 2 boxes, each holding (w + 4) items, plus 1 loose item.
-      expression: 2(w + 4) + 1
-      common_mistake: null
-    - step_number: 2
-      explanation: Set Leo’s total equal to Mia’s total, which is 3 groups of w items plus 3 loose items.
-      expression: 2(w + 4) + 1 = 3w + 3
-      common_mistake: null
-    - step_number: 3
-      explanation: Expand the left side by distributing the 2 across (w + 4) and combining constants.
-      expression: 2w + 8 + 1 = 3w + 3
-      common_mistake: null
-    - step_number: 4
-      explanation: Combine like terms on the left side.
-      expression: 2w + 9 = 3w + 3
-      common_mistake: null
-    - step_number: 5
-      explanation: Subtract 2w from both sides to isolate the variable term on one side.
-      expression: 9 = w + 3
-      common_mistake: null
-    - step_number: 6
-      explanation: Subtract 3 from both sides to solve for w.
-      expression: 6 = w
-      common_mistake: null
-    - step_number: 7
-      explanation: State the final answer clearly.
-      expression: w = 6
-      common_mistake: null
-    final_answer: '6'
-  random_seed: 1605501
-  rendered_question: 'Leo and Mia are packing items into identical boxes. Leo packs 2 boxes, and each
-    box holds 4 more items than one of Mia’s groups. He also adds 1 loose item. Mia packs 3 groups of
-    items, each the size of one of her groups, and adds 3 loose items. They end up with the same total
-    number of items.
-
-
-    Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group, plus he adds
-    1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose items. They
-    end up with the same number of items. How many items are in one of Mia’s groups?'
-  option_a: '10'
-  option_b: '4'
-  option_c: '6'
-  option_d: '5'
-  correct_option: c
 - question_template_id: authored-linear_equations-d5-205500
   topic_id: linear_equations
   skill_id: linear_both_sides
@@ -766,7 +604,75 @@ templates:
   option_c: 5 minutes
   option_d: 6 minutes
   correct_option: b
-- question_template_id: authored-linear_equations-d5-1506500
+- question_template_id: authored-linear_equations-d5-2605501
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - distributed_only_the_first_term
+  - ignored_the_extra_item
+  - combined_constants_incorrectly
+  - stopped_before_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 2
+  stem: Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group, plus he
+    adds 1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose items.
+    They end up with the same number of items. How many items are in one of Mia’s groups?
+  context_block: null
+  answer_expression: Eq(2*(w + 4) + 1, 3*w + 3)
+  hint_ladder:
+  - Think about how many items Leo packs in one group.
+  - Leo has 2 of those groups, plus one extra item. Write an expression for his total.
+  - Set Leo’s total equal to Mia’s total and simplify step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Leo packs 2 boxes, each holding (w + 4) items, plus 1 loose item.
+      expression: 2(w + 4) + 1
+      common_mistake: null
+    - step_number: 2
+      explanation: Set Leo’s total equal to Mia’s total, which is 3 groups of w items plus 3 loose items.
+      expression: 2(w + 4) + 1 = 3w + 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Expand the left side by distributing the 2 across (w + 4) and combining constants.
+      expression: 2w + 8 + 1 = 3w + 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine like terms on the left side.
+      expression: 2w + 9 = 3w + 3
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 2w from both sides to isolate the variable term on one side.
+      expression: 9 = w + 3
+      common_mistake: null
+    - step_number: 6
+      explanation: Subtract 3 from both sides to solve for w.
+      expression: 6 = w
+      common_mistake: null
+    - step_number: 7
+      explanation: State the final answer clearly.
+      expression: w = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 1605501
+  rendered_question: Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group,
+    plus he adds 1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose
+    items. They end up with the same number of items. How many items are in one of Mia’s groups?
+  option_a: '10'
+  option_b: '4'
+  option_c: '6'
+  option_d: '5'
+  correct_option: c
+- question_template_id: authored-linear_equations-d5-2506500
   topic_id: linear_equations
   skill_id: linear_distribute
   grade_band: 6-7
@@ -784,14 +690,11 @@ templates:
     solver_b: bedrock-question-review
     judge: bedrock-question-judge
   review_priority: high
-  version: 1
+  version: 2
   stem: Liam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He
     also buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in
     each pack?
-  context_block: A student is buying cards for a game. They purchase 3 identical packs, and each pack
-    contains some regular cards plus 5 bonus cards. They also buy 2x individual regular cards, where x
-    is the number of regular cards in one pack. Altogether, they have 35 cards. How many regular cards
-    are in each pack?
+  context_block: null
   answer_expression: Eq(3*(x + 5) + 2*x, 35)
   hint_ladder:
   - Think about how many cards are in one pack. Each pack has x regular cards plus 5 bonus cards.
@@ -822,15 +725,9 @@ templates:
       common_mistake: null
     final_answer: '4'
   random_seed: 1506500
-  rendered_question: 'A student is buying cards for a game. They purchase 3 identical packs, and each
-    pack contains some regular cards plus 5 bonus cards. They also buy 2x individual regular cards, where
-    x is the number of regular cards in one pack. Altogether, they have 35 cards. How many regular cards
+  rendered_question: Liam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus
+    cards. He also buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards
     are in each pack?
-
-
-    Liam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He also
-    buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in each
-    pack?'
   option_a: '4'
   option_b: '2'
   option_c: '8'
@@ -894,7 +791,7 @@ templates:
   option_c: 7 pieces
   option_d: 9 pieces
   correct_option: b
-- question_template_id: authored-linear_equations-d2-1607200
+- question_template_id: authored-linear_equations-d2-2607200
   topic_id: linear_equations
   skill_id: linear_neg_frac_coeff
   grade_band: 6-7
@@ -912,11 +809,10 @@ templates:
     solver_b: bedrock-question-review
     judge: bedrock-question-judge
   review_priority: normal
-  version: 1
+  version: 2
   stem: Maya has $60 saved for a concert ticket. She spends $5 on lunch each day. After some days, she
     checks her wallet and sees she has $20 left. For how many days has she been buying lunch?
-  context_block: Maya is saving for a concert ticket. She has $60 now and spends $5 on lunch each day.
-    She checks her wallet and sees she has $20 left. How many days has she been buying lunch?
+  context_block: null
   answer_expression: Eq(60 - 5*x, 20)
   hint_ladder:
   - Think about how much money Maya has left after each day.
@@ -946,18 +842,14 @@ templates:
       common_mistake: null
     final_answer: '8'
   random_seed: 1607200
-  rendered_question: 'Maya is saving for a concert ticket. She has $60 now and spends $5 on lunch each
-    day. She checks her wallet and sees she has $20 left. How many days has she been buying lunch?
-
-
-    Maya has $60 saved for a concert ticket. She spends $5 on lunch each day. After some days, she checks
-    her wallet and sees she has $20 left. For how many days has she been buying lunch?'
+  rendered_question: Maya has $60 saved for a concert ticket. She spends $5 on lunch each day. After some
+    days, she checks her wallet and sees she has $20 left. For how many days has she been buying lunch?
   option_a: '4'
   option_b: '8'
   option_c: '12'
   option_d: '2'
   correct_option: b
-- question_template_id: authored-linear_equations-d2-1607201
+- question_template_id: authored-linear_equations-d2-2607201
   topic_id: linear_equations
   skill_id: linear_neg_frac_coeff
   grade_band: 6-7
@@ -975,11 +867,10 @@ templates:
     solver_b: bedrock-question-review
     judge: bedrock-question-judge
   review_priority: high
-  version: 1
+  version: 2
   stem: Jamal starts with $60 and spends $4 each week on snacks. He wants to know how many weeks it will
     take until he has only $12 left.
-  context_block: 'The student has a concrete goal (remaining money) and a constant rate of spending. The
-    equation requires two operations: undoing the starting amount and dividing by a negative coefficient.'
+  context_block: null
   answer_expression: Eq(60 - 4*w, 12)
   hint_ladder:
   - Determine how much money the student has left after each week.
@@ -1010,12 +901,8 @@ templates:
       common_mistake: null
     final_answer: '12'
   random_seed: 1607201
-  rendered_question: 'The student has a concrete goal (remaining money) and a constant rate of spending.
-    The equation requires two operations: undoing the starting amount and dividing by a negative coefficient.
-
-
-    Jamal starts with $60 and spends $4 each week on snacks. He wants to know how many weeks it will take
-    until he has only $12 left.'
+  rendered_question: Jamal starts with $60 and spends $4 each week on snacks. He wants to know how many
+    weeks it will take until he has only $12 left.
   option_a: '3'
   option_b: '12'
   option_c: '8'
@@ -1516,63 +1403,53 @@ templates:
   option_c: '12'
   option_d: '-7'
   correct_option: a
-- question_template_id: authored-linear_equations-d1-1508100
+- question_template_id: authored-linear_equations-d1-1308100
   topic_id: linear_equations
   skill_id: linear_one_step
   grade_band: 6-7
   difficulty_label: 1
   difficulty_confidence: 1.0
-  estimated_time_seconds: 30
+  estimated_time_seconds: 60
   common_error_tags:
-  - subtracted_wrong_way
-  - added_instead_of_subtracted
-  - ignored_starting_amount
+  - Forgetting to add remaining items
+  - Only counting planted items
+  - Misunderstanding 'leftover' means not yet used
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
     solver_b: bedrock-question-review
     judge: bedrock-question-judge
   review_priority: normal
-  version: 1
-  stem: Liam’s teacher asks him to help organize the classroom bookshelf. The shelf already has 15 books
-    on it. After Liam adds some more books, there are 28 books in total. How many books did Liam add?
-  context_block: A librarian is organizing a classroom shelf. The shelf already has some books on it,
-    and more books are added. The question asks how many books were added, not how many are on the shelf
-    now.
-  answer_expression: Eq(b + 15, 28)
+  version: 2
+  stem: A gardener is planting sunflowers in rows. Each row holds 8 sunflowers. If she plants 5 rows and
+    still has 12 sunflowers left, how many sunflowers did she start with?
+  context_block: null
+  answer_expression: Eq(s, 5*8 + 12)
   hint_ladder:
-  - Think about how many books are on the shelf before any new ones are added.
-  - If the shelf ends up with 28 books after adding some, what equation connects the starting amount,
-    the new books, and the total?
-  - Write an equation where the number of books added is the unknown.
+  - How many sunflowers are in 5 rows if each row has 8?
+  - Five rows means 5 times 8 equals 40 sunflowers planted. What about the leftover ones?
+  - Add the planted sunflowers to the remaining ones to get the starting total.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: The shelf starts with 15 books, and b books are added. The total becomes 28 books.
-      expression: b + 15 = 28
+      explanation: Each row holds 8 sunflowers and she plants 5 rows. Multiply to find how many sunflowers
+        are in those rows.
+      expression: 5 * 8 = 40
       common_mistake: null
     - step_number: 2
-      explanation: To find b, subtract the starting number of books from the total number of books.
-      expression: b = 28 - 15
+      explanation: She has 40 sunflowers planted in rows and 12 left over. Add these to find the total
+        she started with.
+      expression: 40 + 12 = 52
       common_mistake: null
-    - step_number: 3
-      explanation: 13 books were added to the shelf.
-      expression: b = 13
-      common_mistake: null
-    final_answer: '13'
-  random_seed: 1508100
-  rendered_question: 'A librarian is organizing a classroom shelf. The shelf already has some books on
-    it, and more books are added. The question asks how many books were added, not how many are on the
-    shelf now.
-
-
-    Liam’s teacher asks him to help organize the classroom bookshelf. The shelf already has 15 books on
-    it. After Liam adds some more books, there are 28 books in total. How many books did Liam add?'
-  option_a: '15'
-  option_b: '28'
-  option_c: '13'
-  option_d: '43'
-  correct_option: c
+    final_answer: '52'
+  random_seed: 308100
+  rendered_question: A gardener is planting sunflowers in rows. Each row holds 8 sunflowers. If she plants
+    5 rows and still has 12 sunflowers left, how many sunflowers did she start with?
+  option_a: '40'
+  option_b: '60'
+  option_c: '67'
+  option_d: '52'
+  correct_option: d
 - question_template_id: authored-linear_equations-d1-1608100
   topic_id: linear_equations
   skill_id: linear_one_step
@@ -1673,58 +1550,57 @@ templates:
   option_c: '20'
   option_d: '22'
   correct_option: b
-- question_template_id: authored-linear_equations-d1-308100
+- question_template_id: authored-linear_equations-d1-2508100
   topic_id: linear_equations
   skill_id: linear_one_step
   grade_band: 6-7
   difficulty_label: 1
   difficulty_confidence: 1.0
-  estimated_time_seconds: 60
+  estimated_time_seconds: 30
   common_error_tags:
-  - Forgetting to add remaining items
-  - Only counting planted items
-  - Misunderstanding 'leftover' means not yet used
+  - subtracted_wrong_way
+  - added_instead_of_subtracted
+  - ignored_starting_amount
   generator_model: bedrock-authored-question-generation
   review_model_versions:
     solver_a: bedrock-question-generation
     solver_b: bedrock-question-review
     judge: bedrock-question-judge
   review_priority: normal
-  version: 1
-  stem: A gardener is planting sunflowers in rows. Each row holds 8 sunflowers. If she plants 5 rows and
-    still has 12 sunflowers left, how many sunflowers did she start with?
-  context_block: Students solve equations by combining given information rather than isolating variables
-    through multiple steps.
-  answer_expression: Eq(s, 5*8 + 12)
+  version: 2
+  stem: Liam’s teacher asks him to help organize the classroom bookshelf. The shelf already has 15 books
+    on it. After Liam adds some more books, there are 28 books in total. How many books did Liam add?
+  context_block: null
+  answer_expression: Eq(b + 15, 28)
   hint_ladder:
-  - How many sunflowers are in 5 rows if each row has 8?
-  - Five rows means 5 times 8 equals 40 sunflowers planted. What about the leftover ones?
-  - Add the planted sunflowers to the remaining ones to get the starting total.
+  - Think about how many books are on the shelf before any new ones are added.
+  - If the shelf ends up with 28 books after adding some, what equation connects the starting amount,
+    the new books, and the total?
+  - Write an equation where the number of books added is the unknown.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Each row holds 8 sunflowers and she plants 5 rows. Multiply to find how many sunflowers
-        are in those rows.
-      expression: 5 * 8 = 40
+      explanation: The shelf starts with 15 books, and b books are added. The total becomes 28 books.
+      expression: b + 15 = 28
       common_mistake: null
     - step_number: 2
-      explanation: She has 40 sunflowers planted in rows and 12 left over. Add these to find the total
-        she started with.
-      expression: 40 + 12 = 52
+      explanation: To find b, subtract the starting number of books from the total number of books.
+      expression: b = 28 - 15
       common_mistake: null
-    final_answer: '52'
-  random_seed: 308100
-  rendered_question: 'Students solve equations by combining given information rather than isolating variables
-    through multiple steps.
-
-
-    A gardener is planting sunflowers in rows. Each row holds 8 sunflowers. If she plants 5 rows and still
-    has 12 sunflowers left, how many sunflowers did she start with?'
-  option_a: '40'
-  option_b: '60'
-  option_c: '67'
-  option_d: '52'
-  correct_option: d
+    - step_number: 3
+      explanation: 13 books were added to the shelf.
+      expression: b = 13
+      common_mistake: null
+    final_answer: '13'
+  random_seed: 1508100
+  rendered_question: Liam’s teacher asks him to help organize the classroom bookshelf. The shelf already
+    has 15 books on it. After Liam adds some more books, there are 28 books in total. How many books did
+    Liam add?
+  option_a: '15'
+  option_b: '28'
+  option_c: '13'
+  option_d: '43'
+  correct_option: c
 - question_template_id: authored-linear_equations-d1-708100
   topic_id: linear_equations
   skill_id: linear_one_step
@@ -1851,126 +1727,6 @@ templates:
   option_c: '8'
   option_d: '14'
   correct_option: c
-- question_template_id: authored-linear_equations-d1-1109100
-  topic_id: linear_equations
-  skill_id: linear_two_step
-  grade_band: 6-7
-  difficulty_label: 1
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 30
-  common_error_tags:
-  - added_instead_of_multiplied
-  - ignored_total_markers
-  - skipped_division
-  - used_wrong_operation
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A teacher has 20 markers and wants to divide them equally among some groups. If each group gets
-    5 markers, how many groups can the teacher make?
-  context_block: A teacher has 20 markers to divide equally among some groups of students. Each group
-    receives 5 markers. The teacher wants to know how many groups can be formed.
-  answer_expression: Eq(5*x, 20)
-  hint_ladder:
-  - Think about how many markers the teacher started with and how many each group received.
-  - If each group gets 5 markers, how can you express the total number of groups using the total markers?
-  - Set up an equation where the number of groups times 5 equals the total markers.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The teacher divides 20 markers into groups, each receiving 5 markers. This gives the
-        equation 5x = 20.
-      expression: 5x = 20
-      common_mistake: null
-    - step_number: 2
-      explanation: To find the number of groups, divide both sides of the equation by 5.
-      expression: x = 20 / 5
-      common_mistake: null
-    - step_number: 3
-      explanation: After dividing, we find that the teacher can form 4 groups.
-      expression: x = 4
-      common_mistake: null
-    final_answer: '4'
-  random_seed: 1109100
-  rendered_question: 'A teacher has 20 markers to divide equally among some groups of students. Each group
-    receives 5 markers. The teacher wants to know how many groups can be formed.
-
-
-    A teacher has 20 markers and wants to divide them equally among some groups. If each group gets 5
-    markers, how many groups can the teacher make?'
-  option_a: '15'
-  option_b: '5'
-  option_c: '3'
-  option_d: '4'
-  correct_option: d
-- question_template_id: authored-linear_equations-d1-1509100
-  topic_id: linear_equations
-  skill_id: linear_two_step
-  grade_band: 6-7
-  difficulty_label: 1
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 60
-  common_error_tags:
-  - forgot_to_subtract_the_pen_first
-  - divided_total_cost_by_3_without_removing_pen_cost
-  - multiplied_instead_of_divided
-  - added_the_pen_cost_instead_of_subtracting
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: Liam buys 3 identical notebooks and a pen that costs $5. His total bill is $26. How much does
-    one notebook cost?
-  context_block: 'A student is buying supplies for school. The scenario provides all necessary numbers:
-    3 notebooks, a $5 pen, and a $26 total.'
-  answer_expression: Eq(3*x + 5, 26)
-  hint_ladder:
-  - What is the total cost made up of?
-  - How much does each notebook contribute to the total cost?
-  - Write an equation showing that 3 notebooks plus the pen equal $26.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Write the equation representing the total cost: 3 notebooks at x dollars each plus
-        a $5 pen equals $26.'
-      expression: 3*x + 5 = 26
-      common_mistake: null
-    - step_number: 2
-      explanation: Subtract the cost of the pen from both sides to isolate the cost of the notebooks.
-      expression: 3*x = 26 - 5
-      common_mistake: null
-    - step_number: 3
-      explanation: Calculate the right side after subtraction.
-      expression: 3*x = 21
-      common_mistake: null
-    - step_number: 4
-      explanation: Divide both sides by 3 to find the cost of one notebook.
-      expression: x = 21 / 3
-      common_mistake: null
-    - step_number: 5
-      explanation: Calculate the final answer, which is the cost of one notebook.
-      expression: x = 7
-      common_mistake: null
-    final_answer: '7'
-  random_seed: 1509100
-  rendered_question: 'A student is buying supplies for school. The scenario provides all necessary numbers:
-    3 notebooks, a $5 pen, and a $26 total.
-
-
-    Liam buys 3 identical notebooks and a pen that costs $5. His total bill is $26. How much does one
-    notebook cost?'
-  option_a: '6'
-  option_b: '10'
-  option_c: '8'
-  option_d: '7'
-  correct_option: d
 - question_template_id: authored-linear_equations-d1-209100
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -2029,6 +1785,116 @@ templates:
   option_c: 6 toppings
   option_d: 10 toppings
   correct_option: b
+- question_template_id: authored-linear_equations-d1-2109100
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 30
+  common_error_tags:
+  - added_instead_of_multiplied
+  - ignored_total_markers
+  - skipped_division
+  - used_wrong_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 2
+  stem: A teacher has 20 markers and wants to divide them equally among some groups. If each group gets
+    5 markers, how many groups can the teacher make?
+  context_block: null
+  answer_expression: Eq(5*x, 20)
+  hint_ladder:
+  - Think about how many markers the teacher started with and how many each group received.
+  - If each group gets 5 markers, how can you express the total number of groups using the total markers?
+  - Set up an equation where the number of groups times 5 equals the total markers.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The teacher divides 20 markers into groups, each receiving 5 markers. This gives the
+        equation 5x = 20.
+      expression: 5x = 20
+      common_mistake: null
+    - step_number: 2
+      explanation: To find the number of groups, divide both sides of the equation by 5.
+      expression: x = 20 / 5
+      common_mistake: null
+    - step_number: 3
+      explanation: After dividing, we find that the teacher can form 4 groups.
+      expression: x = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 1109100
+  rendered_question: A teacher has 20 markers and wants to divide them equally among some groups. If each
+    group gets 5 markers, how many groups can the teacher make?
+  option_a: '15'
+  option_b: '5'
+  option_c: '3'
+  option_d: '4'
+  correct_option: d
+- question_template_id: authored-linear_equations-d1-2509100
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - forgot_to_subtract_the_pen_first
+  - divided_total_cost_by_3_without_removing_pen_cost
+  - multiplied_instead_of_divided
+  - added_the_pen_cost_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 2
+  stem: Liam buys 3 identical notebooks and a pen that costs $5. His total bill is $26. How much does
+    one notebook cost?
+  context_block: null
+  answer_expression: Eq(3*x + 5, 26)
+  hint_ladder:
+  - What is the total cost made up of?
+  - How much does each notebook contribute to the total cost?
+  - Write an equation showing that 3 notebooks plus the pen equal $26.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the equation representing the total cost: 3 notebooks at x dollars each plus
+        a $5 pen equals $26.'
+      expression: 3*x + 5 = 26
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the cost of the pen from both sides to isolate the cost of the notebooks.
+      expression: 3*x = 26 - 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the right side after subtraction.
+      expression: 3*x = 21
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to find the cost of one notebook.
+      expression: x = 21 / 3
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the final answer, which is the cost of one notebook.
+      expression: x = 7
+      common_mistake: null
+    final_answer: '7'
+  random_seed: 1509100
+  rendered_question: Liam buys 3 identical notebooks and a pen that costs $5. His total bill is $26. How
+    much does one notebook cost?
+  option_a: '6'
+  option_b: '10'
+  option_c: '8'
+  option_d: '7'
+  correct_option: d
 - question_template_id: authored-linear_equations-d1-309100
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -2195,135 +2061,6 @@ templates:
   option_c: '4'
   option_d: '5'
   correct_option: b
-- question_template_id: authored-linear_equations-d2-1509200
-  topic_id: linear_equations
-  skill_id: linear_two_step
-  grade_band: 6-7
-  difficulty_label: 2
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 60
-  common_error_tags:
-  - added_5_to_26_instead_of_subtracting
-  - divided_26_by_3_and_ignored_the_pen
-  - stopped_at_3x_equals_21_without_dividing
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Marcus buys 3 identical notebooks and a pen for $5. He spends $26 altogether. What is the cost
-    of one notebook?
-  context_block: Marcus buys 3 identical notebooks and a pen for $5. He spends $26 in total. How much
-    does one notebook cost?
-  answer_expression: Eq(3*x + 5, 26)
-  hint_ladder:
-  - Marcus wants to know the price of one notebook. What do you know about the total cost?
-  - The total cost is the cost of 3 notebooks plus the $5 pen.
-  - Write an equation that says 3 notebooks plus $5 equals $26, then solve for the notebook's cost.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Marcus spends $5 on a pen and the rest on 3 notebooks, totaling $26. Let x be the cost
-        of one notebook.
-      expression: 3x + 5 = 26
-      common_mistake: null
-    - step_number: 2
-      explanation: Subtract the cost of the pen from the total to isolate the cost of the notebooks.
-      expression: 3x = 26 - 5
-      common_mistake: null
-    - step_number: 3
-      explanation: Simplify the right side of the equation.
-      expression: 3x = 21
-      common_mistake: null
-    - step_number: 4
-      explanation: Divide both sides by 3 to find the cost of one notebook.
-      expression: x = 21 / 3
-      common_mistake: null
-    - step_number: 5
-      explanation: Simplify to find the final answer.
-      expression: x = 7
-      common_mistake: null
-    final_answer: '7'
-  random_seed: 1509200
-  rendered_question: 'Marcus buys 3 identical notebooks and a pen for $5. He spends $26 in total. How
-    much does one notebook cost?
-
-
-    Marcus buys 3 identical notebooks and a pen for $5. He spends $26 altogether. What is the cost of
-    one notebook?'
-  option_a: '9'
-  option_b: '8'
-  option_c: '7'
-  option_d: '21'
-  correct_option: c
-- question_template_id: authored-linear_equations-d2-1609200
-  topic_id: linear_equations
-  skill_id: linear_two_step
-  grade_band: 6-7
-  difficulty_label: 2
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 45
-  common_error_tags:
-  - added_12_instead_of_subtracting
-  - stopped_at_5x_equals_30
-  - multiplied_12_by_5_before_adding
-  - ignored_the_12_dollar_item
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Liam bought a book for $12 and some packs of stickers at $5 each. He spent $42 in total. How many
-    packs of stickers did he buy?
-  context_block: 'The scenario is concrete: a student can picture buying one thing, then several identical
-    things, and wondering how many of the second thing they bought. The numbers are small and the operations
-    are whole-number only, keeping the focus on translating the situation into an equation.'
-  answer_expression: Eq(5*x + 12, 42)
-  hint_ladder:
-  - Think about what you pay for first and how much money remains.
-  - After buying the $12 item, the remaining money is spent on identical $5 items.
-  - Write an equation showing $12 plus $5 times the number of items equals $42.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: 'Write the equation based on the total cost: $12 plus $5 times the number of items
-        equals $42.'
-      expression: 5x + 12 = 42
-      common_mistake: null
-    - step_number: 2
-      explanation: Subtract $12 from both sides to isolate the term with x.
-      expression: 5x = 42 - 12
-      common_mistake: null
-    - step_number: 3
-      explanation: 'Calculate the right side: 42 - 12 = 30.'
-      expression: 5x = 30
-      common_mistake: null
-    - step_number: 4
-      explanation: Divide both sides by 5 to solve for x.
-      expression: x = 30 / 5
-      common_mistake: null
-    - step_number: 5
-      explanation: Calculate 30 divided by 5 to find the number of items.
-      expression: x = 6
-      common_mistake: null
-    final_answer: '6'
-  random_seed: 1609200
-  rendered_question: 'The scenario is concrete: a student can picture buying one thing, then several identical
-    things, and wondering how many of the second thing they bought. The numbers are small and the operations
-    are whole-number only, keeping the focus on translating the situation into an equation.
-
-
-    Liam bought a book for $12 and some packs of stickers at $5 each. He spent $42 in total. How many
-    packs of stickers did he buy?'
-  option_a: '4'
-  option_b: '10'
-  option_c: '3'
-  option_d: '6'
-  correct_option: d
 - question_template_id: authored-linear_equations-d2-1609201
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -2452,6 +2189,65 @@ templates:
   option_c: '5'
   option_d: '6'
   correct_option: b
+- question_template_id: authored-linear_equations-d2-2609200
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_12_instead_of_subtracting
+  - stopped_at_5x_equals_30
+  - multiplied_12_by_5_before_adding
+  - ignored_the_12_dollar_item
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 2
+  stem: Liam bought a book for $12 and some packs of stickers at $5 each. He spent $42 in total. How many
+    packs of stickers did he buy?
+  context_block: null
+  answer_expression: Eq(5*x + 12, 42)
+  hint_ladder:
+  - Think about what you pay for first and how much money remains.
+  - After buying the $12 item, the remaining money is spent on identical $5 items.
+  - Write an equation showing $12 plus $5 times the number of items equals $42.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the equation based on the total cost: $12 plus $5 times the number of items
+        equals $42.'
+      expression: 5x + 12 = 42
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract $12 from both sides to isolate the term with x.
+      expression: 5x = 42 - 12
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Calculate the right side: 42 - 12 = 30.'
+      expression: 5x = 30
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 5 to solve for x.
+      expression: x = 30 / 5
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate 30 divided by 5 to find the number of items.
+      expression: x = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 1609200
+  rendered_question: Liam bought a book for $12 and some packs of stickers at $5 each. He spent $42 in
+    total. How many packs of stickers did he buy?
+  option_a: '4'
+  option_b: '10'
+  option_c: '3'
+  option_d: '6'
+  correct_option: d
 - question_template_id: authored-linear_equations-d2-709200
   topic_id: linear_equations
   skill_id: linear_two_step
@@ -2561,7 +2357,7 @@ templates:
   option_c: 11 weeks
   option_d: 6 weeks
   correct_option: d
-- question_template_id: authored-linear_equations-d3-1609301
+- question_template_id: authored-linear_equations-d3-2609301
   topic_id: linear_equations
   skill_id: linear_two_step
   grade_band: 6-7
@@ -2579,11 +2375,10 @@ templates:
     solver_b: bedrock-question-review
     judge: bedrock-question-judge
   review_priority: high
-  version: 1
+  version: 2
   stem: A store clerk counts 50 items on the shelves at opening. By noon, the clerk sells exactly 5 identical
     boxes of these items. After selling, 20 items remain. How many items were in each box?
-  context_block: A store clerk is inventorying items. The scenario involves whole numbers and a straightforward
-    subtraction and division, making it accessible for students in grades 6-7.
+  context_block: null
   answer_expression: Eq(50 - 5*x, 20)
   hint_ladder:
   - Think about how many items the store started with and how many were sold.
@@ -2614,12 +2409,9 @@ templates:
       common_mistake: null
     final_answer: '6'
   random_seed: 1609301
-  rendered_question: 'A store clerk is inventorying items. The scenario involves whole numbers and a straightforward
-    subtraction and division, making it accessible for students in grades 6-7.
-
-
-    A store clerk counts 50 items on the shelves at opening. By noon, the clerk sells exactly 5 identical
-    boxes of these items. After selling, 20 items remain. How many items were in each box?'
+  rendered_question: A store clerk counts 50 items on the shelves at opening. By noon, the clerk sells
+    exactly 5 identical boxes of these items. After selling, 20 items remain. How many items were in each
+    box?
   option_a: '2'
   option_b: '6'
   option_c: '10'

@@ -479,12 +479,20 @@ def test_full_deterministic_learning_flow() -> None:
         assert body["phase"] == "study"
 
         # S26: the pre_outro narrative fires on the same finalize turn - grounded in
-        # this cycle's real weak skills and the planner's actual next step (skill
-        # *names*, never ids).
+        # this cycle's planned skills and the planner's actual next step (skill *names*,
+        # never ids).
+        #
+        # D-215: this asserted "Skills to strengthen", which is what the line used to say
+        # and what made it wrong. `study_plan.py` takes `ranked[:BASE_PROBLEM_COUNT]` and
+        # that is 5 of 5 skills, so the list is the whole topic in priority order - a
+        # student who scored 7 of 10 was told they had five skills to strengthen, two of
+        # which the dashboard scored at 100%. The ordering is useful and unchanged; only the
+        # claim made about it moved.
         assert body["stage_narrative"]
         assert body["stage_narrative_evidence"]
         pre_outro_evidence = " ".join(body["stage_narrative_evidence"])
-        assert "Skills to strengthen" in pre_outro_evidence
+        assert "Study plan, weakest first" in pre_outro_evidence
+        assert "Skills to strengthen" not in pre_outro_evidence
         assert "Next up" in pre_outro_evidence
 
         # A retried finalize call is idempotent - same result, no side effects.

@@ -199,19 +199,21 @@ def test_an_authored_template_is_served_from_its_canonical_variant() -> None:
     _run(scenario)
 
 
-def test_the_post_exam_repeats_an_authored_item_and_says_so() -> None:
-    """The accepted trade-off, pinned so it stays a decision rather than a surprise.
+def test_the_post_exam_repeats_an_authored_stem_but_reorders_its_options() -> None:
+    """The accepted trade-off and its one recovered axis, both pinned.
 
     SPEC §5.13.2 asks the post-exam for a rendering that is not the pre-exam's, and an
     authored template has exactly one to give. D-189's call was to serve it again rather
-    than to exclude authored content from exams. Two things make that defensible and both
-    are asserted here: a *new variant row* is still minted (which is what §5.13.2's
-    wording actually forbids reusing), and the repeat is logged so its frequency can be
-    measured instead of assumed.
+    than to exclude authored content from exams, *conditional on the repeat rate being
+    measured*. It was measured on staging 2026-08-07 by driving a full journey through the
+    deployed UI: 10 of 10 post-exam items repeated, stems and numbers and option order
+    alike. 100%, not the rare fallback the generated path had.
 
-    The generated path already had this behaviour as a rare fallback - `build_variant_row`
-    retries a bounded number of times and then returns the colliding rendering anyway - so
-    what changed is the frequency, not the guarantee.
+    So this asserts both halves of where that leaves us. The stem and its numbers still
+    repeat - that is D-189's open trade and re-rendering them is content work. But SPEC
+    §5.13.1 lists **option order** as its own axis, and that one costs nothing to honour,
+    so the four options now come back in a different order with the answer key moved to
+    follow. Without it the gain measurement was also rewarding pure position memory.
     """
 
     async def scenario() -> None:
@@ -250,12 +252,31 @@ def test_the_post_exam_repeats_an_authored_item_and_says_so() -> None:
             post_served = await served(post_exam.assessment_session_id)
             assert set(pre_served) == set(post_served) == set(authored_ids)
 
+            def options(variant: QuestionVariant) -> list[str]:
+                return [
+                    variant.option_a,
+                    variant.option_b,
+                    variant.option_c,
+                    variant.option_d,
+                ]
+
+            def answer_text(variant: QuestionVariant) -> str:
+                return options(variant)["abcd".index(variant.correct_option)]
+
             for template_id in authored_ids:
                 before, after = pre_served[template_id], post_served[template_id]
                 # The text repeats - this is the trade-off, stated.
                 assert after.rendered_question == before.rendered_question
                 # But it is a distinct row, which is what §5.13.2 forbids reusing.
                 assert after.question_variant_id != before.question_variant_id
+                # SPEC §5.13.1's option-order axis: the same four options, genuinely
+                # re-ordered rather than merely re-emitted.
+                assert sorted(options(after)) == sorted(options(before))
+                assert options(after) != options(before)
+                # And the answer key moved with them. This is the assertion that would
+                # catch a permutation applied to the options but not to `correct_option`,
+                # which would silently mis-grade every post-exam.
+                assert answer_text(after) == answer_text(before)
 
     _run(scenario)
 

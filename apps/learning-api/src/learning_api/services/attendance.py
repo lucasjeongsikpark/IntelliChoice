@@ -15,13 +15,20 @@ from intellichoice_shared.profiles import AttendanceStatus, ProfileAdapter
 
 # SPEC §5.6.3 - shown when attendance is explicitly marked *absent*. The "material they
 # did not receive" framing is accurate here because the manager recorded a real absence.
+#
+# Written in the second person, to the person reading it. It used to describe "the student"
+# in the third person while the button underneath it said "Confirm **I** did not attend" -
+# two voices in one screen - and the prose ("to prevent the student from being assessed on
+# material they did not receive") was written for an adult reviewer, not for the K-12 student
+# CLAUDE.md names as the primary user. Seen on staging 2026-08-07. The gate, the options and
+# their consequences are all unchanged; only the words are.
 BLOCKED_MESSAGE = (
-    "Attendance has not been confirmed for this week.\n\n"
-    "This learning sequence is connected to the material taught during the student's "
-    "on-site session. To prevent the student from being assessed on material they did "
-    "not receive, the session cannot continue until attendance is confirmed.\n\n"
-    "You may ask the Branch Manager to verify the attendance record, or confirm that "
-    "the student did not attend this week."
+    "We could not confirm that you came to class this week.\n\n"
+    "This practice follows what your class covered in person, so it waits until your "
+    "attendance is confirmed. That way you are never tested on something you have not "
+    "been taught yet.\n\n"
+    "You can ask your Branch Manager to check the record, or tell us you did not come "
+    "this week."
 )
 
 # SPEC §5.6.3, unknown branch - shown when attendance simply has not been *marked* yet
@@ -33,34 +40,33 @@ BLOCKED_MESSAGE = (
 # not-yet-recorded and steers an attended student to the verify path (D-153-adjacent; the
 # gate and options are unchanged, only the words a student reads).
 UNKNOWN_MESSAGE = (
-    "Attendance for this week has not been marked yet.\n\n"
-    "This is normal - the Branch Manager may simply not have recorded this week's "
-    "session yet. Because the learning activity is based on the material taught on-site, "
-    "it cannot begin until attendance is confirmed.\n\n"
-    "If the student attended, ask the Branch Manager to verify the record, then try "
-    "again once it is updated. Only confirm that the student did not attend if that is "
-    "truly the case - doing so ends this week's activity."
+    "Your attendance for this week has not been marked yet.\n\n"
+    "This is normal - your Branch Manager may just not have recorded this week's class "
+    "yet. Because this practice follows what your class covered in person, it waits until "
+    "your attendance is confirmed.\n\n"
+    "If you came to class, ask your Branch Manager to check the record and try again once "
+    "it is updated. Only tell us you did not come if that is really true - that ends this "
+    "week's practice."
 )
 
 # SPEC §5.6.5 - shown once the user acknowledges the absence.
 ACKNOWLEDGED_MESSAGE = (
-    "This week's adaptive learning activity is available only after attendance because "
-    "the assessment is based on the topics taught during the on-site session.\n\n"
-    "Since the student did not attend, this learning sequence has ended. No score or "
-    "learning penalty will be recorded."
+    "This week's practice is only available after class, because it is built from what "
+    "your class covered in person.\n\n"
+    "Since you did not come this week, this practice has ended. Nothing is counted "
+    "against you - no score and no penalty are recorded."
 )
 
 # SPEC §5.6.4 - shown once the branch-manager email is approved and sent.
 EMAIL_SENT_MESSAGE = (
-    "A verification email has been sent to the Branch Manager. The Branch Manager will "
-    "update the attendance record in the existing system - you may try again once it is "
-    "confirmed. This learning sequence remains blocked until then."
+    "We sent a message to your Branch Manager asking them to check the record. Once they "
+    "confirm it, you can try again. This week's practice stays paused until then."
 )
 
 # Shown if the user declines to send the email after previewing it.
 EMAIL_DECLINED_MESSAGE = (
-    "The verification email was not sent. You may ask the Branch Manager to verify the "
-    "attendance record, or confirm that the student did not attend this week."
+    "We did not send the message. You can still ask your Branch Manager to check the "
+    "record, or tell us you did not come this week."
 )
 
 # SPEC §5.29 "Gmail MCP failure -> Preserve draft" - shown when the user approved the

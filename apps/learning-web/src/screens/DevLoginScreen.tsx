@@ -2,9 +2,21 @@ import { useState } from "react";
 import type { Role } from "../types";
 import logoUrl from "../../../../packages/ui-brand/assets/logo.png";
 
+// Kept in step with `e2e/config.ts`'s FIXTURES, which documents itself as mirroring this
+// list "so a journey and the screen it drives cannot disagree about who exists". It had
+// drifted: `student-ext-3` was in the harness and missing here, so the one fixture that
+// exercises SPEC §5.4.4's fail-closed case - attendance *unknown*, not absent - was
+// unreachable by hand. D-152 §2 established that `signups.attended = null` is the *routine*
+// production state rather than a rare one, which makes this the most important of the three
+// attendance fixtures to be able to click.
 const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
   { label: "Student — Ava Only (present, 1 parent)", role: "student", sub: "student-ext-1" },
   { label: "Student — Ben First (absent this week)", role: "student", sub: "student-ext-2" },
+  {
+    label: "Student — Cleo Second (attendance not yet marked)",
+    role: "student",
+    sub: "student-ext-3",
+  },
   { label: "Student — Drew Unlinked (present, no parent)", role: "student", sub: "student-ext-4" },
   { label: "Parent — Priya One (1 linked child)", role: "parent", sub: "parent-ext-1" },
   { label: "Parent — Paul Two (2 linked children)", role: "parent", sub: "parent-ext-2" },

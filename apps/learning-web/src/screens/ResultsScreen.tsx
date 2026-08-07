@@ -52,9 +52,16 @@ export function ResultsScreen({
           <span className="stat-value">{solutionCount}</span>
           <span className="stat-label">Solutions viewed</span>
         </div>
+        {/* "suggested", not "watched": the video intervention renders a link that opens
+            YouTube in a new tab, and this counter increments when that link is *shown*.
+            Nothing observes whether the student followed it, let alone watched anything.
+            Noticed on staging 2026-08-07 - a run that only ever displayed the link reported
+            "Videos watched: 1". The same count reaches the parent report, where claiming a
+            child watched a video they never opened is the kind of small false statement that
+            costs a parent's trust in every other number on the page. */}
         <div className="stat">
           <span className="stat-value">{videoCount}</span>
-          <span className="stat-label">Videos watched</span>
+          <span className="stat-label">Videos suggested</span>
         </div>
       </div>
 
