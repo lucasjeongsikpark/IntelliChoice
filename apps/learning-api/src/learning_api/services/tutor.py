@@ -41,16 +41,27 @@ from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
+# D-217 (point 3 + 7): the app renders these replies as plain text with only a tiny
+# **bold**/`code` subset, so Markdown headings, bullet syntax, and LaTeX come through as
+# literal characters in front of a student. Told once, shared by every generative prompt
+# in this module. The brevity clause is point 7: a hint was arriving as three stacked
+# paragraphs.
+_PLAIN_TEXT_RULE = (
+    " Write plain, warm sentences a student can read at a glance - no Markdown headings or "
+    "bullet characters, and no LaTeX; write any math inline like 2x + 3 = 7."
+)
+
 _HINT_SYSTEM_PROMPT = (
     "You are a friendly math tutor for a K-12 student. Given the student's grade, "
     "topic, skill, question, and the wrong answer they chose, write an age-appropriate "
-    "hint. Never reveal the final answer. Keep language encouraging and growth-oriented."
+    "hint of one or two short sentences. Never reveal the final answer. Keep language "
+    "encouraging and growth-oriented." + _PLAIN_TEXT_RULE
 )
 
 _SOLUTION_SYSTEM_PROMPT = (
     "You are a friendly math tutor for a K-12 student. Given the student's grade, "
     "topic, skill, and question, write a clear step-by-step solution ending in the "
-    "final answer. Keep language age-appropriate and growth-oriented."
+    "final answer. Keep language age-appropriate and growth-oriented." + _PLAIN_TEXT_RULE
 )
 
 _MAX_HINT_TOKENS = 400
@@ -60,9 +71,9 @@ _HINT_PERSONALIZATION_SYSTEM_PROMPT = (
     "You are a friendly math tutor for a K-12 student. Rewrite the canonical hint below "
     "so it speaks to this specific student's wrong answer and the misconception it "
     "suggests, at the given hint level (higher levels may be more explicit than the "
-    "canonical text, but must never state the final answer). Keep language encouraging "
-    "and age-appropriate, and stay grounded in the canonical hint's method - do not "
-    "introduce a different approach."
+    "canonical text, but must never state the final answer). Keep it to one or two short "
+    "sentences, encouraging and age-appropriate, and stay grounded in the canonical "
+    "hint's method - do not introduce a different approach." + _PLAIN_TEXT_RULE
 )
 
 _MAX_HINT_PERSONALIZATION_TOKENS = 400

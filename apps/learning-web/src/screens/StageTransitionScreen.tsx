@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { RichText } from "../components/RichText";
 
 /**
  * The between-stage narrative: "here is what we are doing next, and why".
@@ -62,7 +63,7 @@ export function StageTransitionScreen({ narrative, evidence, onContinue }: Props
         <div className="gradient-bar" aria-hidden="true" />
 
         <p className="narrative-text" id="narrative-text">
-          {narrative}
+          <RichText text={narrative} />
         </p>
 
         {evidence.length > 0 && (

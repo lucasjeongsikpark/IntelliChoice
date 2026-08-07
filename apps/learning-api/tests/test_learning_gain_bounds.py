@@ -34,6 +34,14 @@ class _FakeQuestionRepo:
     async def get_template(self, _template_id: str) -> _FakeTemplate:
         return _FakeTemplate()
 
+    # D-217: `resolve_graded_attempts` now batches, so the fake mirrors the real batch
+    # forms (dict keyed by id).
+    async def get_variants(self, variant_ids) -> dict[str, "_FakeVariant"]:
+        return {variant_id: _FakeVariant() for variant_id in variant_ids}
+
+    async def get_templates(self, template_ids) -> dict[str, "_FakeTemplate"]:
+        return {template_id: _FakeTemplate() for template_id in template_ids}
+
 
 def _attempt(*, is_correct: bool) -> AssessmentAttempt:
     return AssessmentAttempt(

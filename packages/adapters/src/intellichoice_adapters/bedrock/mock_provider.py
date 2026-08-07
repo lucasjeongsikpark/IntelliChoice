@@ -198,13 +198,25 @@ def _learning_chat_intent_json(payload: dict) -> dict:
 
 def _tutor_chat_json(payload: dict) -> dict:
     skill = payload.get("skill", "this skill")
-    return {
+    reply: dict = {
         "reply_text": (
             f"Let's think through {skill} together - what part of this question feels "
             "trickiest right now?"
         ),
         "answer_revealed": False,
     }
+    # D-217: emit a bounded `viz` when the student explicitly asks for a picture, so the
+    # dev/test path exercises the whole viz round-trip deterministically (the real model
+    # decides for itself whether a diagram helps).
+    message = (payload.get("redacted_message") or "").lower()
+    if any(k in message for k in ("picture", "diagram", "draw", "show me a")):
+        reply["viz"] = {
+            "kind": "bar_model",
+            "caption": "The two sides of the equation, side by side.",
+            "labels": ["Left side", "Right side"],
+            "values": [12.0, 12.0],
+        }
+    return reply
 
 
 _SUPPORTED_TOPIC_KEYWORDS = (

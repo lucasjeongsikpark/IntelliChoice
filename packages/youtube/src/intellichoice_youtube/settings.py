@@ -47,11 +47,14 @@ class YoutubeSyncSettings(BaseSettings):
     # every one of them fetched before the budget check ever runs. This bounds the fetch
     # itself so a first run against a real channel is predictable in time and in API quota.
     max_videos: int = 200
-    # D-209: results kept per skill-name search. Five skills x five results is a 25-video
-    # catalog - small on purpose. Every one of them costs a classification call and an
-    # embedding call, and a bigger catalog is not obviously a better one: the serving path
-    # picks a single semantic best match, so relevance beats volume.
-    search_results_per_skill: int = 5
+    # D-209: results kept per skill-name search. Started at 5 (a deliberately small catalog).
+    # D-217: raised to 8 - the user asked for more videos, and a wider net per skill gives
+    # the serving path's single-best-match pick more to choose from. Still bounded: each
+    # kept video costs one classification + one embedding call, and `search.list` is a flat
+    # 100 quota units per skill-term regardless of how many results it returns, so this
+    # widens coverage without widening the quota cost. `max_videos` and
+    # `bedrock_run_budget_cents` remain the hard ceilings on a run.
+    search_results_per_skill: int = 8
 
 
 # A YouTube channel id: literal "UC" plus 22 characters of base64url. Checked by shape

@@ -91,6 +91,24 @@ _META_COMMENTARY_PHRASES = (
     "i have written",
     "note to the reviewer",
     "note for the reviewer",
+    # D-217: a whole class the earlier list missed - text that describes the problem *as a
+    # problem to a reviewer* ("This is a concrete real-world scenario requiring students to
+    # set up and solve...") rather than posing it to the student. Found live in a served
+    # study item's stem, the same context-block leak D-215 fixed by hand for other items.
+    # Every phrase talks *about* the student in the third person, which a finished stem
+    # written *to* the student never does.
+    "requiring students to",
+    "requires students to",
+    "requiring the student to",
+    "requires the student to",
+    "students to set up",
+    "real-world scenario",
+    "this is a concrete",
+    "scenario requiring",
+    "this problem requires",
+    "this problem tests",
+    "this problem is designed",
+    "designed to test",
 )
 _META_COMMENTARY_RE = re.compile(
     "|".join(re.escape(phrase) for phrase in _META_COMMENTARY_PHRASES), re.IGNORECASE

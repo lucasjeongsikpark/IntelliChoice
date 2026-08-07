@@ -457,76 +457,85 @@ def _content(views: list[flow.QuestionItemView]) -> list[tuple[str, str, str, st
 # (a duplicate pair, and one problem that compares a relative quantity against an absolute one).
 # Stripping and retiring those changes which items this seed draws, so the old capture pinned
 # content that no longer exists. Regenerated from the bank rather than hand-edited.
+# D-217 re-captured one row again: a *served study item* was found with the same context-block
+# leak ("This is a concrete real-world scenario requiring students to set up and solve..."),
+# missed by D-215's sweep. Stripping it re-mints the item under a new id/seed, which reshuffles
+# the difficulty-3 draw, so index 5 is now the two-gardeners problem instead of the arcade item.
+# Regenerated from the bank, not hand-edited.
+# D-217 also hand-authored six new items to fill the three thin cells (linear_both_sides d4,
+# linear_distribute d5, linear_neg_frac_coeff d2, each 2 -> 4). More candidates at those
+# difficulties reshuffles the d2/d4/d5 draws, so several rows here are those new items. Same
+# discipline: regenerated from the bank, and every drawn item still passed the §5.8.5 gate.
 _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
     (
-        "Liam’s father is filling a large fish tank for a community event. The tank already has some water in it, and he adds more every day.\n\nLiam’s father is preparing a fish tank for a community event. The tank already has 30 litres of water. He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?",  # noqa: E501
-        "10",
-        "6",
-        "8",
-        "14",
+        'Liam’s father is filling a large fish tank for a community event. The tank already has some water in it, and he adds more every day.\n\nLiam’s father is preparing a fish tank for a community event. The tank already has 30 litres of water. He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?',  # noqa: E501
+        '10',
+        '6',
+        '8',
+        '14',
     ),
     (
-        "Liam has a lemonade stand. He starts the day with 15 cups of lemonade. By the end of the day, he has sold 7 cups. He wants to know how many cups he needs to make tonight so he will have exactly 20 cups ready for tomorrow. How many cups should he make?",  # noqa: E501
-        "5",
-        "12",
-        "2",
-        "8",
+        'Liam has a lemonade stand. He starts the day with 15 cups of lemonade. By the end of the day, he has sold 7 cups. He wants to know how many cups he needs to make tonight so he will have exactly 20 cups ready for tomorrow. How many cups should he make?',  # noqa: E501
+        '5',
+        '12',
+        '2',
+        '8',
     ),
     (
-        "Jamal starts with $60 and spends $4 each week on snacks. He wants to know how many weeks it will take until he has only $12 left.",  # noqa: E501
-        "3",
-        "12",
-        "8",
-        "15",
+        'One third of the members of a chess club left, leaving 18 members. How many members were in the club before anyone left?',  # noqa: E501
+        '27',
+        '24',
+        '54',
+        '12',
     ),
     (
-        "Liam earns $5 each week by helping his neighbour with gardening. He already has $8 saved from his birthday. After a few weeks, he checks his savings and finds he has $48 in total. How many weeks has Liam been saving?",  # noqa: E501
-        "6",
-        "10",
-        "9",
-        "8",
+        'A video game awards points for completing levels and bonus points for special achievements. Maya wants to understand how many levels she completed based on her final score.\n\nA video game has three levels. Completing each level earns 15 points. After beating levels, Maya has 72 points total—she earned 12 bonus points for beating the final level quickly. How many levels did she complete?',  # noqa: E501
+        '3',
+        '4',
+        '5',
+        '6',
     ),
     (
-        "Marcus is training for a race. He runs 3 kilometers every morning and has already run 27 kilometers this month. His goal is to run 48 kilometers total. How many more mornings must he run to reach his goal?",  # noqa: E501
-        "7 mornings",
-        "12 mornings",
-        "5 mornings",
-        "9 mornings",
+        'Marcus is training for a race. He runs 3 kilometers every morning and has already run 27 kilometers this month. His goal is to run 48 kilometers total. How many more mornings must he run to reach his goal?',  # noqa: E501
+        '7 mornings',
+        '12 mornings',
+        '5 mornings',
+        '9 mornings',
     ),
     (
-        "Maya has $60 and spends $8 each week at the arcade. After how many weeks will she have $12 left?",  # noqa: E501
-        "4 weeks",
-        "9 weeks",
-        "11 weeks",
-        "6 weeks",
+        'Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started with 5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After how many minutes will they have planted the same total number of flowers?',  # noqa: E501
+        '4 minutes',
+        '6 minutes',
+        '8 minutes',
+        '10 minutes',
     ),
     (
-        "A café is mixing two types of coffee. They pour 8 liters of cold brew and add hot coffee until the total is 3 times the cold brew amount. How many liters of hot coffee did they add?",  # noqa: E501
-        "8",
-        "24",
-        "32",
-        "16",
+        'Pool A holds 40 liters and fills at 4 liters per minute. Pool B holds 100 liters and drains at 2 liters per minute. After how many minutes do the pools hold the same amount?',  # noqa: E501
+        '10',
+        '15',
+        '20',
+        '5',
     ),
     (
-        "Lena is sewing ribbon onto a dance banner for the school festival. She already has 3/4 metres of ribbon sewn on. Each day, she adds another 1/8 metre of ribbon. The banner needs a total of 3 metres of ribbon. How many days will it take Lena to finish the banner?",  # noqa: E501
-        "18",
-        "12",
-        "6",
-        "-6",
+        'Taxi A charges $5 plus $3 for each mile. Taxi B charges $11 plus $2 for each mile. After how many miles do the two taxis cost the same?',  # noqa: E501
+        '6',
+        '16',
+        '4',
+        '8',
     ),
     (
-        "Maya has two options for earning money. Option 1: She starts with $6 and earns $4 each week. Option 2: She starts with $18 and earns $2 each week. After how many weeks will she have the same amount of money under both options?",  # noqa: E501
-        "4 weeks",
-        "3 weeks",
-        "6 weeks",
-        "12 weeks",
+        'Liam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He also buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in each pack?',  # noqa: E501
+        '4',
+        '2',
+        '8',
+        '6',
     ),
     (
-        "Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group, plus he adds 1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose items. They end up with the same number of items. How many items are in one of Mia’s groups?",  # noqa: E501
-        "10",
-        "4",
-        "6",
-        "5",
+        'Sam fills 4 identical bags. Each bag holds x stickers plus 3 free stickers. He then adds 8 loose stickers, giving 40 stickers in all. How many stickers of the counted kind are in each bag?',  # noqa: E501
+        '5',
+        '3',
+        '7',
+        '10',
     ),
 )
 

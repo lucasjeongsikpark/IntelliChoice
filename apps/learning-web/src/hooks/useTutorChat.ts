@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatMessageResult } from "../api/client";
+import type { ChatMessageResult, ChatViz } from "../api/client";
 
 export interface ChatMessage {
   role: "student" | "tutor";
   text: string;
+  // D-217: an optional bounded diagram on a tutor reply; never on a student message.
+  viz?: ChatViz | null;
 }
 
 /**
@@ -16,20 +18,26 @@ export interface ChatMessage {
  * a hint, come back: the conversation is gone. It disappeared again on every subsequent
  * ladder round for the same reason.
  *
- * Keeping it here also gives the transcript a lifetime that means something: it is the
- * conversation *for this learning session*, and `reset` is called from the same place the
- * rest of the per-session UI state is cleared.
+ * D-217: the transcript is scoped to the current *question*, not the whole session. Each
+ * question is its own problem, so its chat is its own conversation - carrying one question's
+ * back-and-forth onto the next was noise. Keyed by `questionVariantId` using the
+ * derived-not-synchronised pattern `useNarrativeGate`/`useAssistanceCounts` use: a record
+ * left by a different question reads as empty, so a new question starts fresh with no window
+ * where the previous transcript is briefly visible. `reset` (session end) still clears it.
  *
  * Still client-only, deliberately - unchanged from S24's D-048 precedent. A refresh loses
  * the visible transcript; the backend's own `tutor_chat_messages` audit rows are written
  * either way, so nothing that matters for review or safety depends on this.
  */
-export function useTutorChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export function useTutorChat(questionVariantId: string | null) {
+  const [record, setRecord] = useState<{
+    questionVariantId: string | null;
+    messages: ChatMessage[];
+  }>({ questionVariantId, messages: [] });
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Guards against a reply landing after the student has moved on to another session.
+  // Guards against a reply landing after the student has moved on.
   const activeRef = useRef(true);
   useEffect(() => {
     activeRef.current = true;
@@ -38,8 +46,12 @@ export function useTutorChat() {
     };
   }, []);
 
+  // Derived: a transcript belonging to a different question shows as empty rather than
+  // being cleared by an effect (which would race the question change).
+  const messages = record.questionVariantId === questionVariantId ? record.messages : [];
+
   const reset = useCallback(() => {
-    setMessages([]);
+    setRecord({ questionVariantId: null, messages: [] });
     setError(null);
     setSending(false);
   }, []);
@@ -54,13 +66,27 @@ export function useTutorChat() {
       setError(null);
       // Optimistic: the student's own words appear immediately, which is what makes the
       // ~3-5 s the tutor call actually takes on staging feel like a conversation rather
-      // than a frozen box.
-      setMessages((prev) => [...prev, { role: "student", text }]);
+      // than a frozen box. Appended to *this question's* transcript, starting fresh if the
+      // active question changed since the last message.
+      setRecord((prev) => {
+        const base = prev.questionVariantId === questionVariantId ? prev.messages : [];
+        return { questionVariantId, messages: [...base, { role: "student", text }] };
+      });
       try {
         const result = await call();
         if (!activeRef.current) return;
         if (result) {
-          setMessages((prev) => [...prev, { role: "tutor", text: result.reply_text }]);
+          setRecord((prev) =>
+            prev.questionVariantId === questionVariantId
+              ? {
+                  questionVariantId,
+                  messages: [
+                    ...prev.messages,
+                    { role: "tutor", text: result.reply_text, viz: result.viz },
+                  ],
+                }
+              : prev,
+          );
         }
       } catch {
         if (!activeRef.current) return;
@@ -69,7 +95,7 @@ export function useTutorChat() {
         if (activeRef.current) setSending(false);
       }
     },
-    [sending],
+    [sending, questionVariantId],
   );
 
   return { messages, sending, error, send, reset };

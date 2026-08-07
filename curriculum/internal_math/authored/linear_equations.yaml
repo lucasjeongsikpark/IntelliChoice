@@ -1,6 +1,69 @@
 curriculum_version: '2026.1'
 topic_id: linear_equations
 templates:
+- question_template_id: authored-linear_equations-d3-1205300
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - Failing to move variables to one side before solving
+  - Adding instead of subtracting when isolating the variable
+  - Arithmetic error in simplification
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 2
+  stem: Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started
+    with 5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After
+    how many minutes will they have planted the same total number of flowers?
+  context_block: null
+  answer_expression: Eq(5 + 3*t, 11 + 2*t)
+  hint_ladder:
+  - Write an expression for each gardener's total flowers after t minutes.
+  - Asha has 5 + 3*t and Jasmine has 11 + 2*t. The question asks when those totals are equal.
+  - Subtract 2*t from both sides first, then subtract 5 from both sides to isolate t.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for each gardener's total flowers after t minutes.
+      expression: Asha has 5 + 3*t flowers and Jasmine has 11 + 2*t flowers
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the two expressions equal since we want them to have the same total.
+      expression: 5 + 3*t = 11 + 2*t
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 2*t from both sides to collect t terms on the left.
+      expression: 5 + 3*t - 2*t = 11 + 2*t - 2*t
+      common_mistake: Forgetting to subtract 2*t from both sides
+    - step_number: 4
+      explanation: Simplify both sides.
+      expression: 5 + t = 11
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 5 from both sides to isolate t.
+      expression: 5 + t - 5 = 11 - 5
+      common_mistake: null
+    - step_number: 6
+      explanation: Simplify to find t.
+      expression: t = 6
+      common_mistake: Arithmetic error when subtracting 5 from 11
+    final_answer: 6 minutes
+  random_seed: 1205300
+  rendered_question: Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute
+    and started with 5 already planted. Jasmine plants 2 flowers per minute and started with 11 already
+    planted. After how many minutes will they have planted the same total number of flowers?
+  option_a: 4 minutes
+  option_b: 6 minutes
+  option_c: 8 minutes
+  option_d: 10 minutes
+  correct_option: b
 - question_template_id: authored-linear_equations-d3-1415300
   topic_id: linear_equations
   skill_id: linear_both_sides
@@ -129,76 +192,6 @@ templates:
   option_c: '12'
   option_d: '24'
   correct_option: c
-- question_template_id: authored-linear_equations-d3-205300
-  topic_id: linear_equations
-  skill_id: linear_both_sides
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 180
-  common_error_tags:
-  - Failing to move variables to one side before solving
-  - Adding instead of subtracting when isolating the variable
-  - Arithmetic error in simplification
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started
-    with 5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After
-    how many minutes will they have planted the same total number of flowers?
-  context_block: Two gardeners working on the same path at different rates, starting with different amounts
-    already completed. This is a concrete real-world scenario requiring students to set up and solve a
-    linear equation with variables on both sides.
-  answer_expression: Eq(5 + 3*t, 11 + 2*t)
-  hint_ladder:
-  - Write an expression for each gardener's total flowers after t minutes.
-  - Asha has 5 + 3*t and Jasmine has 11 + 2*t. The question asks when those totals are equal.
-  - Subtract 2*t from both sides first, then subtract 5 from both sides to isolate t.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Write an expression for each gardener's total flowers after t minutes.
-      expression: Asha has 5 + 3*t flowers and Jasmine has 11 + 2*t flowers
-      common_mistake: null
-    - step_number: 2
-      explanation: Set the two expressions equal since we want them to have the same total.
-      expression: 5 + 3*t = 11 + 2*t
-      common_mistake: null
-    - step_number: 3
-      explanation: Subtract 2*t from both sides to collect t terms on the left.
-      expression: 5 + 3*t - 2*t = 11 + 2*t - 2*t
-      common_mistake: Forgetting to subtract 2*t from both sides
-    - step_number: 4
-      explanation: Simplify both sides.
-      expression: 5 + t = 11
-      common_mistake: null
-    - step_number: 5
-      explanation: Subtract 5 from both sides to isolate t.
-      expression: 5 + t - 5 = 11 - 5
-      common_mistake: null
-    - step_number: 6
-      explanation: Simplify to find t.
-      expression: t = 6
-      common_mistake: Arithmetic error when subtracting 5 from 11
-    final_answer: 6 minutes
-  random_seed: 205300
-  rendered_question: 'Two gardeners working on the same path at different rates, starting with different
-    amounts already completed. This is a concrete real-world scenario requiring students to set up and
-    solve a linear equation with variables on both sides.
-
-
-    Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started with
-    5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After
-    how many minutes will they have planted the same total number of flowers?'
-  option_a: 4 minutes
-  option_b: 6 minutes
-  option_c: 8 minutes
-  option_d: 10 minutes
-  correct_option: b
 - question_template_id: authored-linear_equations-d3-2605301
   topic_id: linear_equations
   skill_id: linear_both_sides
@@ -406,6 +399,114 @@ templates:
   option_c: 4 turns
   option_d: 5 turns
   correct_option: b
+- question_template_id: authored-linear_equations-d4-9400001
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_variable_terms_instead_of_subtracting
+  - ignored_starting_amount
+  - subtracted_wrong_direction
+  - stopped_after_collecting_terms
+  generator_model: hand-authored-d217
+  review_model_versions:
+    solver_a: hand-authored-d217
+    solver_b: hand-authored-d217
+    judge: hand-authored-d217
+  review_priority: normal
+  version: 1
+  stem: Taxi A charges $5 plus $3 for each mile. Taxi B charges $11 plus $2 for each mile. After how many
+    miles do the two taxis cost the same?
+  context_block: null
+  answer_expression: Eq(5 + 3*x, 11 + 2*x)
+  hint_ladder:
+  - Write an expression for each taxi's cost after x miles.
+  - Taxi A costs 5 + 3x and Taxi B costs 11 + 2x. Set them equal.
+  - Subtract 2x from both sides, then subtract 5 from both sides.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write each cost after x miles.
+      expression: 5 + 3*x  and  11 + 2*x
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the two costs equal.
+      expression: 5 + 3*x = 11 + 2*x
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 2x from both sides.
+      expression: 5 + x = 11
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 5 from both sides.
+      expression: x = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 9400001
+  rendered_question: Taxi A charges $5 plus $3 for each mile. Taxi B charges $11 plus $2 for each mile.
+    After how many miles do the two taxis cost the same?
+  option_a: '6'
+  option_b: '16'
+  option_c: '4'
+  option_d: '8'
+  correct_option: a
+- question_template_id: authored-linear_equations-d4-9400002
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_variable_terms_instead_of_subtracting
+  - sign_error_with_draining_rate
+  - skipped_final_division
+  - ignored_starting_amount
+  generator_model: hand-authored-d217
+  review_model_versions:
+    solver_a: hand-authored-d217
+    solver_b: hand-authored-d217
+    judge: hand-authored-d217
+  review_priority: normal
+  version: 1
+  stem: Pool A holds 40 liters and fills at 4 liters per minute. Pool B holds 100 liters and drains at
+    2 liters per minute. After how many minutes do the pools hold the same amount?
+  context_block: null
+  answer_expression: Eq(40 + 4*x, 100 - 2*x)
+  hint_ladder:
+  - Pool A gains water each minute while Pool B loses water each minute.
+  - Write 40 + 4x for Pool A and 100 - 2x for Pool B, then set them equal.
+  - Add 2x to both sides, then subtract 40, and finish by dividing.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write each amount after x minutes.
+      expression: 40 + 4*x  and  100 - 2*x
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the two amounts equal.
+      expression: 40 + 4*x = 100 - 2*x
+      common_mistake: null
+    - step_number: 3
+      explanation: Add 2x to both sides.
+      expression: 40 + 6*x = 100
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 40, then divide by 6.
+      expression: x = 10
+      common_mistake: null
+    final_answer: '10'
+  random_seed: 9400002
+  rendered_question: Pool A holds 40 liters and fills at 4 liters per minute. Pool B holds 100 liters
+    and drains at 2 liters per minute. After how many minutes do the pools hold the same amount?
+  option_a: '10'
+  option_b: '15'
+  option_c: '20'
+  option_d: '5'
+  correct_option: a
 - question_template_id: authored-linear_equations-d5-1305500
   topic_id: linear_equations
   skill_id: linear_both_sides
@@ -791,6 +892,115 @@ templates:
   option_c: 7 pieces
   option_d: 9 pieces
   correct_option: b
+- question_template_id: authored-linear_equations-d5-9500001
+  topic_id: linear_equations
+  skill_id: linear_distribute
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - distributed_only_the_first_term
+  - combined_constants_incorrectly
+  - skipped_final_division
+  - ignored_the_loose_stickers
+  generator_model: hand-authored-d217
+  review_model_versions:
+    solver_a: hand-authored-d217
+    solver_b: hand-authored-d217
+    judge: hand-authored-d217
+  review_priority: normal
+  version: 1
+  stem: Sam fills 4 identical bags. Each bag holds x stickers plus 3 free stickers. He then adds 8 loose
+    stickers, giving 40 stickers in all. How many stickers of the counted kind are in each bag?
+  context_block: null
+  answer_expression: Eq(4*(x + 3) + 8, 40)
+  hint_ladder:
+  - 'First figure out how many stickers are in one bag: x plus 3.'
+  - Four bags hold 4 times (x + 3), and then 8 loose stickers are added.
+  - Distribute the 4 across x + 3 first, then combine the numbers before solving.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: One bag holds x + 3 stickers.
+      expression: x + 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Four bags plus 8 loose stickers total 40.
+      expression: 4*(x + 3) + 8 = 40
+      common_mistake: null
+    - step_number: 3
+      explanation: Distribute the 4.
+      expression: 4*x + 12 + 8 = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the constants, then subtract and divide.
+      expression: 4*x = 20, so x = 5
+      common_mistake: null
+    final_answer: '5'
+  random_seed: 9500001
+  rendered_question: Sam fills 4 identical bags. Each bag holds x stickers plus 3 free stickers. He then
+    adds 8 loose stickers, giving 40 stickers in all. How many stickers of the counted kind are in each
+    bag?
+  option_a: '5'
+  option_b: '3'
+  option_c: '7'
+  option_d: '10'
+  correct_option: a
+- question_template_id: authored-linear_equations-d5-9500002
+  topic_id: linear_equations
+  skill_id: linear_distribute
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - distributed_only_the_first_term
+  - combined_constants_incorrectly
+  - skipped_final_division
+  - ignored_the_referees
+  generator_model: hand-authored-d217
+  review_model_versions:
+    solver_a: hand-authored-d217
+    solver_b: hand-authored-d217
+    judge: hand-authored-d217
+  review_priority: normal
+  version: 1
+  stem: A relay has 3 identical teams. Each team has 2x runners plus 1 captain. With 4 referees added,
+    there are 37 people in all. How many runners of the counted kind are on each team?
+  context_block: null
+  answer_expression: Eq(3*(2*x + 1) + 4, 37)
+  hint_ladder:
+  - 'Work out how many people are on one team: 2x runners plus 1 captain.'
+  - Three teams hold 3 times (2x + 1), and then 4 referees are added.
+  - Distribute the 3 across 2x + 1 first, then combine the numbers before solving.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: One team has 2x + 1 people.
+      expression: 2*x + 1
+      common_mistake: null
+    - step_number: 2
+      explanation: Three teams plus 4 referees total 37.
+      expression: 3*(2*x + 1) + 4 = 37
+      common_mistake: null
+    - step_number: 3
+      explanation: Distribute the 3.
+      expression: 6*x + 3 + 4 = 37
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the constants, then subtract and divide.
+      expression: 6*x = 30, so x = 5
+      common_mistake: null
+    final_answer: '5'
+  random_seed: 9500002
+  rendered_question: A relay has 3 identical teams. Each team has 2x runners plus 1 captain. With 4 referees
+    added, there are 37 people in all. How many runners of the counted kind are on each team?
+  option_a: '5'
+  option_b: '6'
+  option_c: '4'
+  option_d: '8'
+  correct_option: a
 - question_template_id: authored-linear_equations-d2-2607200
   topic_id: linear_equations
   skill_id: linear_neg_frac_coeff
@@ -908,6 +1118,114 @@ templates:
   option_c: '8'
   option_d: '15'
   correct_option: b
+- question_template_id: authored-linear_equations-d2-9200001
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracted
+  - skipped_final_division
+  - ignored_starting_amount
+  - sign_error_after_move
+  generator_model: hand-authored-d217
+  review_model_versions:
+    solver_a: hand-authored-d217
+    solver_b: hand-authored-d217
+    judge: hand-authored-d217
+  review_priority: normal
+  version: 1
+  stem: A phone battery starts at 90 percent and drops 8 percent each hour. After how many hours is it
+    at 42 percent?
+  context_block: null
+  answer_expression: Eq(90 - 8*x, 42)
+  hint_ladder:
+  - Think about how the battery level changes each hour, starting from 90 percent.
+  - Write an expression for the battery level after x hours, then set it equal to 42.
+  - Subtract 42 from 90 first, then divide by the amount lost each hour.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Start at 90 percent and lose 8 percent per hour: 90 - 8x.'
+      expression: 90 - 8*x
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the level equal to 42 percent.
+      expression: 90 - 8*x = 42
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 90 from both sides.
+      expression: -8*x = -48
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -8.
+      expression: x = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 9200001
+  rendered_question: A phone battery starts at 90 percent and drops 8 percent each hour. After how many
+    hours is it at 42 percent?
+  option_a: '6'
+  option_b: '4'
+  option_c: '8'
+  option_d: '12'
+  correct_option: a
+- question_template_id: authored-linear_equations-d2-9200002
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_the_fraction_that_left
+  - skipped_final_division
+  - multiplied_instead_of_divided
+  - ignored_the_fractional_coefficient
+  generator_model: hand-authored-d217
+  review_model_versions:
+    solver_a: hand-authored-d217
+    solver_b: hand-authored-d217
+    judge: hand-authored-d217
+  review_priority: normal
+  version: 1
+  stem: One third of the members of a chess club left, leaving 18 members. How many members were in the
+    club before anyone left?
+  context_block: null
+  answer_expression: Eq(x - x/3, 18)
+  hint_ladder:
+  - If one third of the members left, what fraction of the members stayed?
+  - Two thirds of the members are still there, and that equals 18.
+  - Write two thirds of x equals 18, then divide 18 by two thirds.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: One third left, so two thirds stayed.
+      expression: x - x/3 = (2/3)*x
+      common_mistake: null
+    - step_number: 2
+      explanation: Two thirds of the members equal 18.
+      expression: (2/3)*x = 18
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply both sides by 3/2.
+      expression: x = 18 * 3/2
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify.
+      expression: x = 27
+      common_mistake: null
+    final_answer: '27'
+  random_seed: 9200002
+  rendered_question: One third of the members of a chess club left, leaving 18 members. How many members
+    were in the club before anyone left?
+  option_a: '27'
+  option_b: '24'
+  option_c: '54'
+  option_d: '12'
+  correct_option: a
 - question_template_id: authored-linear_equations-d3-1607300
   topic_id: linear_equations
   skill_id: linear_neg_frac_coeff

@@ -266,10 +266,21 @@ export function generateStudentReport(
   });
 }
 
+// D-217: the bounded chat diagram (mirrors the backend `ChatVizSpec`). `labels` and
+// `values` are the same length (2-4); `bar_model` reads them as labelled bars, `number_line`
+// as marks on a line. The client renders it as a pure function of these numbers/strings.
+export interface ChatViz {
+  kind: "number_line" | "bar_model";
+  caption: string;
+  labels: string[];
+  values: number[];
+}
+
 export interface ChatMessageResult {
   learning_session_id: string;
   reply_text: string;
   intent: string;
+  viz?: ChatViz | null;
 }
 
 export function sendChatMessage(

@@ -579,3 +579,39 @@ def test_purge_job_deletes_only_rows_older_than_90_days() -> None:
     remaining = _chat_messages("purge-test-session")
     assert len(remaining) == 1
     assert remaining[0].redacted_student_message == "recent message"
+
+
+def test_a_chat_reply_can_carry_a_bounded_viz() -> None:
+    """D-217: when the reply judges a picture would help, it attaches a bounded `ChatVizSpec`
+    (the mock provider emits one when the student asks for a picture). It rides the chat
+    response as a validated object - two-to-four aligned labels/values within the schema
+    bounds - so the client can render it as a pure function of numbers, never markup.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, variant_id = _reach_wrong_study_answer(client, headers)
+
+        resp = client.post(
+            f"/learning/sessions/{session_id}/chat",
+            headers=headers,
+            json={
+                "question_variant_id": variant_id,
+                "message": "can you show me a picture of what's happening?",
+            },
+        )
+        assert resp.status_code == 200
+        viz = resp.json()["viz"]
+        assert viz is not None
+        assert viz["kind"] in ("number_line", "bar_model")
+        assert 2 <= len(viz["labels"]) <= 4
+        assert len(viz["labels"]) == len(viz["values"])
+        assert all(-100 <= v <= 100 for v in viz["values"])
+
+        # A reply that does not ask for a picture carries none.
+        plain = client.post(
+            f"/learning/sessions/{session_id}/chat",
+            headers=headers,
+            json={"question_variant_id": variant_id, "message": "why is my answer wrong"},
+        )
+        assert plain.status_code == 200
+        assert plain.json()["viz"] is None

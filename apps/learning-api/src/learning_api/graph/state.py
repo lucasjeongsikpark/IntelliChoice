@@ -93,3 +93,12 @@ class LearningState(BaseModel):
     # Set on every `ainvoke` input to pick this turn's entry node (`graph/build.py`'s
     # `_route_entry`); overwritten every call, not meaningful once a turn completes.
     entry_action: str | None = None
+
+    # D-217: an ids-only marker left by `submit_answer`/`intervention_choice` when a
+    # `study_step`/`study_outro` narrative should fire but its Bedrock call was deferred
+    # off the answer's critical path (real-Bedrock only; see
+    # `services/stage_narrative_scheduler.py`). The route reads it, hands it to the
+    # background scheduler, and the narrative arrives in a later SSE snapshot. Never a
+    # name or grade - the background task re-derives those from its own session, keeping
+    # the PII rule (SPEC §5.30) intact. `None` on every inline (mock-provider) turn.
+    pending_study_narrative: dict | None = None

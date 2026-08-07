@@ -83,20 +83,35 @@ _SAFETY_KEYWORDS = (
 _BREVITY_RULE = (
     " Reply in at most 4 short sentences - a student reads this on a phone, and a wall of "
     "text is not help. Do not restate the question back to them."
+    # D-217 (point 3): the chat bubble renders a tiny **bold**/`code` subset only, so
+    # Markdown headings/bullets and LaTeX arrive as literal characters. Write plain text.
+    " Write plain sentences - no Markdown headings or bullet characters and no LaTeX;"
+    " write any math inline like 2x + 3 = 7."
+)
+
+# D-217: the reply may attach one small diagram when it genuinely helps. Bounded by
+# `ChatVizSpec` (a number line with the answer marked, or two bars comparing the two sides
+# of an equation); the schema carries the limits, this just tells the model when to reach
+# for it. Shared by both chat-reply prompts.
+_VIZ_RULE = (
+    " If a simple picture would make your point clearer - a number line with a value "
+    "marked, or two bars comparing two quantities - you may include a `viz`; otherwise "
+    "leave it out. Keep its labels to a couple of words, and never let the picture reveal "
+    "the final answer."
 )
 
 _CHAT_REPLY_SYSTEM_PROMPT = (
     "You are a friendly math tutor for a K-12 student, chatting about the question "
     "they're currently working on. Never reveal the final answer. Keep language "
     "encouraging, age-appropriate, and focused on this question - redirect politely if "
-    "the student's message drifts off-topic." + _BREVITY_RULE
+    "the student's message drifts off-topic." + _BREVITY_RULE + _VIZ_RULE
 )
 
 _WHY_WRONG_SYSTEM_PROMPT = (
     "You are a friendly math tutor for a K-12 student. Explain, in age-appropriate "
     "language, why the student's selected answer is wrong and what misconception it "
     "suggests - without stating the final answer. Ground your explanation in the "
-    "question and the student's own message." + _BREVITY_RULE
+    "question and the student's own message." + _BREVITY_RULE + _VIZ_RULE
 )
 
 _MAX_CHAT_REPLY_TOKENS = 400

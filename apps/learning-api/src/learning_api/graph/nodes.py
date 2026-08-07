@@ -104,6 +104,12 @@ class TurnContext:
     # call returns, and the request session commits only at dependency teardown.
     cost_ledger: CostReservationRepository
     rng: Any
+    # D-217: when True (real Bedrock), a `study_step`/`study_outro` narrative is not
+    # generated inside the answer turn - the node leaves an ids-only marker and the route
+    # hands it to the background scheduler, so the answer response no longer waits ~1.5s
+    # for a Bedrock call. False under the mock provider, so every existing test still sees
+    # the narrative synchronously on the turn that fired it.
+    defer_study_narrative: bool = False
     requested_student_id: str | None = None
     topic_id: str | None = None
     question_variant_id: str | None = None
@@ -472,59 +478,61 @@ async def resolve_attendance(state: LearningState, runtime: Runtime[TurnContext]
     }
 
 
-async def _fire_study_transition_narrative(
+def _study_narrative_marker(state: LearningState, result: flow.AnswerResult) -> dict | None:
+    """The ids-only description of which `study_step`/`study_outro` narrative this turn's
+    `flow.advance_study` result should fire, or None if none. Pure: no I/O, no Bedrock, no
+    grade or skill names (those are PII-adjacent and are resolved only when the narrative
+    is actually generated). `result.items is not None` alongside `phase == "post_exam"`
+    distinguishes a genuine study-completion transition from an ordinary post-exam answer.
+    """
+    if result.new_target_skill_id is not None:
+        assert result.target_skill_id is not None
+        return {
+            "stage": "study_step",
+            "completed_skill_id": result.target_skill_id,
+            "target_skill_id": result.new_target_skill_id,
+        }
+    if result.phase == "post_exam" and result.items is not None:
+        assert state.study_session_id is not None
+        return {"stage": "study_outro", "study_session_id": state.study_session_id}
+    return None
+
+
+async def _study_narrative_update(
     ctx: TurnContext,
     state: LearningState,
     result: flow.AnswerResult,
     bedrock_spend_cents: float,
-) -> tuple[str | None, list[str], float]:
-    """S26 (plan §18-L7): shared by `submit_answer`'s immediate-correct path and
-    `intervention_choice`'s resumed-round path - both call into `flow.advance_study`/
-    `_serve_next_base_or_complete`, the only two places a `study_step` (skill
-    transition) or `study_outro` (study completion) can fire.
-    `result.items is not None` alongside `phase == "post_exam"` is what distinguishes a
-    genuine study-completion transition from an ordinary post-exam answer submission
-    (`_submit_post_exam_answer` always returns `items=None`) - this helper is never
-    called from a post-exam answer's own code path, but the check is cheap defense in
-    depth against that ambiguity regardless.
+) -> tuple[dict, float]:
+    """S26 (plan §18-L7): decide and apply the `study_step`/`study_outro` narrative for
+    `submit_answer`'s immediate-correct path and `intervention_choice`'s resumed path.
+
+    D-217: under `ctx.defer_study_narrative` (real Bedrock) the ~1.5s narrative call is
+    kept off the answer's critical path - the returned update carries an ids-only
+    `pending_study_narrative` marker and the route hands it to the background scheduler.
+    Under the mock provider it fires inline exactly as before, so every existing test
+    still sees `stage_narrative` on the turn that produced it. Returns
+    `(update_fragment, updated_bedrock_spend_cents)`.
     """
     assert state.student_external_id is not None
-    grade = await _grade_for_narrative(ctx, state.student_external_id)
+    marker = _study_narrative_marker(state, result)
+    if marker is None:
+        return {}, bedrock_spend_cents
 
-    if result.new_target_skill_id is not None:
-        assert result.target_skill_id is not None
-        completed_name = await _skill_name(ctx, result.target_skill_id)
-        next_name = await _skill_name(ctx, result.new_target_skill_id)
-        return await _fire_stage_narrative(
-            ctx,
-            state,
-            StageNarrativePayload(
-                stage="study_step",
-                grade=grade,
-                completed_skill_name=completed_name,
-                target_skill_name=next_name,
-            ),
-            bedrock_spend_cents,
-            related_skill_id=result.new_target_skill_id,
-        )
+    if ctx.defer_study_narrative:
+        return {"pending_study_narrative": marker}, bedrock_spend_cents
 
-    if result.phase == "post_exam" and result.items is not None:
-        assert state.study_session_id is not None
-        attempts = await ctx.study_repo.get_attempts(state.study_session_id)
-        return await _fire_stage_narrative(
-            ctx,
-            state,
-            StageNarrativePayload(
-                stage="study_outro",
-                grade=grade,
-                hint_count=sum(1 for a in attempts if a.hint_used),
-                solution_count=sum(1 for a in attempts if a.solution_used),
-                video_count=sum(1 for a in attempts if a.video_used),
-            ),
-            bedrock_spend_cents,
-        )
-
-    return None, [], bedrock_spend_cents
+    payload, related = await stage_narrative.payload_from_marker(
+        profile_adapter=ctx.profile_adapter,
+        curriculum_repo=ctx.curriculum_repo,
+        study_repo=ctx.study_repo,
+        student_external_id=state.student_external_id,
+        marker=marker,
+    )
+    text, evidence, spend = await _fire_stage_narrative(
+        ctx, state, payload, bedrock_spend_cents, related_skill_id=related
+    )
+    return {"stage_narrative": text, "stage_narrative_evidence": evidence}, spend
 
 
 async def submit_answer(state: LearningState, runtime: Runtime[TurnContext]) -> dict:
@@ -584,10 +592,9 @@ async def submit_answer(state: LearningState, runtime: Runtime[TurnContext]) -> 
             outcome_label=result.outcome_label,
         )
 
-    narrative_result = await _fire_study_transition_narrative(
+    narrative_update, bedrock_spend_cents = await _study_narrative_update(
         ctx, state, result, state.bedrock_spend_cents
     )
-    narrative_text, narrative_evidence, bedrock_spend_cents = narrative_result
     update: dict = {
         "phase": result.phase,
         "topic_id": state.topic_id,
@@ -601,10 +608,8 @@ async def submit_answer(state: LearningState, runtime: Runtime[TurnContext]) -> 
         "last_study_attempt_id": result.study_attempt_id,
         "last_message": result.message,
         "bedrock_spend_cents": bedrock_spend_cents,
+        **narrative_update,
     }
-    if narrative_text is not None:
-        update["stage_narrative"] = narrative_text
-        update["stage_narrative_evidence"] = narrative_evidence
     # S23 fix: `result.items is None` means "no new question this turn" (every pre/post-
     # exam answer under free navigation, D-064; a wrong study answer pausing for
     # intervention_choice) - it does NOT mean "nothing is current". Omitting the key
@@ -1095,10 +1100,9 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
             outcome_label=result.outcome_label,
         )
 
-    narrative_result = await _fire_study_transition_narrative(
+    narrative_update, bedrock_spend_cents = await _study_narrative_update(
         ctx, state, result, bedrock_spend_cents
     )
-    narrative_text, narrative_evidence, bedrock_spend_cents = narrative_result
 
     update = {
         "phase": result.phase,
@@ -1111,10 +1115,8 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
         "bedrock_spend_cents": bedrock_spend_cents,
         "assistance_level_by_variant": assistance_levels,
         "hint_ladder_awaiting_choice": False,
+        **narrative_update,
     }
-    if narrative_text is not None:
-        update["stage_narrative"] = narrative_text
-        update["stage_narrative_evidence"] = narrative_evidence
     return update
 
 
@@ -1151,6 +1153,9 @@ def _chat_reply_from_content(content: dict) -> str:
 class ChatTurnResult:
     reply_text: str
     intent: str
+    # D-217: an optional bounded diagram (number line / bar model) from a chat reply, as a
+    # plain dict for the wire. `None` on every other intent.
+    viz: dict | None = None
 
 
 async def run_chat_turn(
@@ -1206,7 +1211,12 @@ async def run_chat_turn(
     reservation: Reservation | None = None
 
     async def _finish(
-        *, intent: str, reply_text: str, flagged: bool = False, resolved: bool = True
+        *,
+        intent: str,
+        reply_text: str,
+        flagged: bool = False,
+        resolved: bool = True,
+        viz: dict | None = None,
     ) -> ChatTurnResult:
         assert ctx.tutor_chat_repo is not None
         if reservation is not None:
@@ -1235,7 +1245,7 @@ async def run_chat_turn(
             resolved=resolved,
             tutor_chat_message_id=chat_message.message_id,
         )
-        return ChatTurnResult(reply_text=reply_text, intent=intent)
+        return ChatTurnResult(reply_text=reply_text, intent=intent, viz=viz)
 
     if tutor_chat_service.screen_for_safety_concern(message):
         return await _finish(
@@ -1371,5 +1381,11 @@ async def run_chat_turn(
         )
         cost += call_cost
         reply_text = result.reply_text
+        # D-217: a chat reply may carry a bounded diagram; the other intents never do.
+        return await _finish(
+            intent=intent,
+            reply_text=reply_text,
+            viz=result.viz.model_dump() if result.viz is not None else None,
+        )
 
     return await _finish(intent=intent, reply_text=reply_text)

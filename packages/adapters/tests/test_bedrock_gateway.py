@@ -801,3 +801,69 @@ def test_the_smoke_schema_exercises_what_the_real_contracts_rely_on() -> None:
     assert schema["properties"]["answer"]["minimum"] == 0
     assert schema["properties"]["answer"]["maximum"] == 10
     assert SmokeAnswer.model_config.get("extra") == "forbid"
+
+
+class _RecordingProvider:
+    """Records the (system_prompt, user_message) of every call, and returns invalid JSON
+    once then valid - so a repair happens and both calls can be inspected. Reports cache
+    tokens so the gateway's accounting can be asserted (D-217).
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+
+    async def raw_generate(
+        self,
+        *,
+        model_id: str,
+        system_prompt: str,
+        user_message: str,
+        json_schema: dict,
+        max_output_tokens: int,
+    ) -> RawGeneration:
+        self.calls.append((system_prompt, user_message))
+        if len(self.calls) == 1:
+            return RawGeneration(text="not json", input_tokens=10, output_tokens=10)
+        return RawGeneration(
+            text='{"hint_text": "h", "concept_reminder": "c", "next_step_prompt": "n", '
+            '"answer_revealed": false, "difficulty": 1}',
+            input_tokens=3,
+            output_tokens=10,
+            cache_read_tokens=4185,
+            cache_write_tokens=0,
+            stop_reason="tool_use",
+        )
+
+
+def test_repair_keeps_the_system_prompt_so_the_cache_point_survives() -> None:
+    """D-217: the repair correction moved into the user turn, so the system block is
+    byte-for-byte identical across the two calls and the D-203 system cache point still
+    hits on the repair (it used to be appended to the system prompt, busting the cache).
+    """
+
+    async def run() -> None:
+        provider = _RecordingProvider()
+        gateway = ResilientBedrockGateway(
+            provider=provider, model_registry={BedrockTask.TUTOR: MODEL_ID}, max_retries=0
+        )
+        result = await gateway.generate_structured(
+            task=BedrockTask.TUTOR,
+            system_prompt="system",
+            payload=_payload(),
+            response_model=HintResponse,
+            max_output_tokens=200,
+            session_spend_cents=0.0,
+        )
+        assert result.repaired is True
+        assert len(provider.calls) == 2
+        first_system, first_user = provider.calls[0]
+        repair_system, repair_user = provider.calls[1]
+        # The system block is unchanged - the cache-preserving property.
+        assert repair_system == first_system == "system"
+        # The correction rode the user turn instead.
+        assert first_user in repair_user
+        assert "did not match the required JSON schema" in repair_user
+        # And the cache-read tokens from the (successful) call surface on the result.
+        assert result.cache_read_tokens == 4185
+
+    asyncio.run(run())

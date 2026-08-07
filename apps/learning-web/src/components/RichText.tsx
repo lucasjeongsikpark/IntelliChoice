@@ -24,19 +24,22 @@ export function RichText({ text, maxChars }: Props) {
   const tokens = tokenize(text);
   let budget = maxChars ?? Number.POSITIVE_INFINITY;
 
+  // D-217: `white-space: pre-line` on the wrapper itself, so the model's line breaks and
+  // normalized "• " bullets survive at *every* call site (hints, solutions, narratives,
+  // reports), not only the chat bubble which happened to carry it. Before this, RichText
+  // was used only for chat and the other sites rendered raw with no pre-line, collapsing a
+  // multi-line hint into one run. Still text-node-only - the wrapper adds no injection
+  // surface.
   return (
-    <>
+    <span style={{ whiteSpace: "pre-line" }}>
       {tokens.map((token, index) => {
         if (budget <= 0) return null;
         const shown = token.text.length <= budget ? token.text : token.text.slice(0, budget);
         budget -= token.text.length;
         if (token.bold) return <strong key={index}>{shown}</strong>;
         if (token.code) return <code key={index}>{shown}</code>;
-        // A plain fragment: line breaks are honoured by `white-space: pre-line` on the
-        // bubble rather than by inserting `<br>` elements, so the text stays selectable and
-        // copyable as one run.
         return <span key={index}>{shown}</span>;
       })}
-    </>
+    </span>
   );
 }

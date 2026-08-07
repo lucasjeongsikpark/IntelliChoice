@@ -27,7 +27,7 @@ from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_db.repositories.youtube import YoutubeRepository
 from intellichoice_observability.metrics import CHECKPOINT_REPAIRS, SESSION_STARTS
 from intellichoice_shared.auth import TokenClaims
-from intellichoice_shared.bedrock import BedrockGateway
+from intellichoice_shared.bedrock import BedrockGateway, ChatVizSpec
 from intellichoice_shared.mcp import McpToolRegistry
 from intellichoice_shared.pii_redaction import redact_free_text
 from intellichoice_shared.profiles import ProfileAdapter
@@ -47,6 +47,7 @@ from learning_api.dependencies import (
     get_mcp_registry,
     get_profile_adapter,
     get_session_events,
+    get_study_narrative_scheduler,
 )
 from learning_api.graph import nodes
 from learning_api.graph.build import EntryInput, LearningGraph
@@ -56,6 +57,9 @@ from learning_api.services.assessment_builder import AssessmentBuildError
 from learning_api.services.consolidation_scheduler import ConsolidationScheduler
 from learning_api.services.effective_policy import effective_assistance_policy
 from learning_api.services.session_events import SessionEventBus
+from learning_api.services.stage_narrative_scheduler import (
+    BackgroundStudyNarrativeScheduler,
+)
 from learning_api.services.study_plan import StudyPlanBuildError
 
 EXAM_PHASES = ("pre_exam", "post_exam")
@@ -230,6 +234,9 @@ class ChatMessageResponse(BaseModel):
     learning_session_id: str
     reply_text: str
     intent: str
+    # D-217: an optional bounded diagram (see `ChatVizSpec`); present only when the reply
+    # judged a picture would help. A plain dict on the wire, rendered client-side.
+    viz: ChatVizSpec | None = None
 
 
 class ResumeResponse(BaseModel):
@@ -346,6 +353,39 @@ class SessionSnapshotEvent(BaseModel):
 def _publish_snapshot(events: SessionEventBus, response: BaseModel) -> None:
     snapshot = SessionSnapshotEvent.model_validate(response.model_dump())
     events.publish(snapshot.learning_session_id, snapshot.model_dump(mode="json"))
+
+
+def build_deferred_narrative_snapshot(
+    learning_session_id: str,
+    state: dict,
+    narrative_text: str,
+    narrative_evidence: list[str],
+) -> dict:
+    """D-217: the full session snapshot the background narrative scheduler publishes once
+    a deferred `study_step`/`study_outro` narrative is ready. Built from the committed
+    checkpoint `state` (so it carries the current question, not a partial view - the
+    client replaces its whole snapshot on each SSE frame) with the fresh narrative
+    attached. `pending_interrupt` is deliberately omitted: a study-transition narrative
+    only fires when the turn advanced (correct answer / study complete), i.e. when no
+    interrupt is pending. Injected into the scheduler in `main.py`, so the service layer
+    never imports the router.
+    """
+    event = SessionSnapshotEvent(
+        learning_session_id=learning_session_id,
+        phase=state.get("phase", "created"),
+        message=state.get("last_message"),
+        is_correct=state.get("last_is_correct"),
+        items=_items_response(state.get("last_items")),
+        learning_gain=(
+            LearningGainResponse.from_dict(state["last_learning_gain"])
+            if state.get("last_learning_gain") is not None
+            else None
+        ),
+        attendance_resolution=state.get("attendance_resolution"),
+        stage_narrative=narrative_text,
+        stage_narrative_evidence=narrative_evidence,
+    )
+    return event.model_dump(mode="json")
 
 
 def _items_response(items: list[dict] | None) -> list[QuestionItemResponse] | None:
@@ -490,6 +530,7 @@ def _turn_context(
     confirm_unanswered: bool = False,
     student_message: str | None = None,
     consolidation_scheduler: ConsolidationScheduler | None = None,
+    defer_study_narrative: bool = False,
 ) -> TurnContext:
     return TurnContext(
         claims=claims,
@@ -509,6 +550,7 @@ def _turn_context(
         bedrock_gateway=bedrock_gateway,
         cost_ledger=cost_ledger,
         rng=random.Random(),
+        defer_study_narrative=defer_study_narrative,
         requested_student_id=requested_student_id,
         topic_id=topic_id,
         question_variant_id=question_variant_id,
@@ -840,6 +882,10 @@ async def submit_answer(
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
     events: Annotated[SessionEventBus, Depends(get_session_events)],
+    study_narrative_scheduler: Annotated[
+        "BackgroundStudyNarrativeScheduler | None",
+        Depends(get_study_narrative_scheduler),
+    ],
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
 ) -> AnswerResponse:
     state = await _get_state_values(graph, learning_session_id, db)
@@ -909,6 +955,7 @@ async def submit_answer(
         selected_option=body.selected_option,
         response_time_ms=body.response_time_ms,
         idempotency_key=idempotency_key,
+        defer_study_narrative=study_narrative_scheduler is not None,
     )
     try:
         result = await graph.ainvoke(
@@ -968,7 +1015,30 @@ async def submit_answer(
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
     _publish_snapshot(events, response)
+    await _schedule_deferred_narrative(study_narrative_scheduler, learning_session_id, result)
     return response
+
+
+async def _schedule_deferred_narrative(
+    scheduler: "BackgroundStudyNarrativeScheduler | None",
+    learning_session_id: str,
+    result: dict,
+) -> None:
+    """D-217: if the turn deferred a `study_step`/`study_outro` narrative (real Bedrock),
+    hand the ids-only marker to the background scheduler after the answer response has
+    been built and published. No-op under the mock provider, where the narrative already
+    fired inline in the graph node.
+    """
+    marker = result.get("pending_study_narrative")
+    if scheduler is None or marker is None:
+        return
+    student_external_id = result.get("student_external_id")
+    assert student_external_id is not None
+    await scheduler.schedule(
+        learning_session_id=learning_session_id,
+        student_external_id=student_external_id,
+        marker=marker,
+    )
 
 
 async def _exam_phase_state(
@@ -1282,6 +1352,7 @@ async def send_chat_message(
         learning_session_id=learning_session_id,
         reply_text=result.reply_text,
         intent=result.intent,
+        viz=ChatVizSpec.model_validate(result.viz) if result.viz is not None else None,
     )
 
 
@@ -1300,6 +1371,10 @@ async def respond_to_interrupt(
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
     events: Annotated[SessionEventBus, Depends(get_session_events)],
+    study_narrative_scheduler: Annotated[
+        "BackgroundStudyNarrativeScheduler | None",
+        Depends(get_study_narrative_scheduler),
+    ],
 ) -> RespondResponse:
     """Resumes whichever `interrupt()` is currently paused on this thread (SPEC §5.1.4,
     Phase 8 §6.9) - child selection, attendance-email approval, or hint/solution/video
@@ -1353,6 +1428,7 @@ async def respond_to_interrupt(
         mcp_registry=mcp_registry,
         bedrock_gateway=bedrock_gateway,
         attendance_choice="ask_branch_manager" if body.interrupt_type == "email_approval" else None,
+        defer_study_narrative=study_narrative_scheduler is not None,
     )
     try:
         result = await graph.ainvoke(
@@ -1397,6 +1473,7 @@ async def respond_to_interrupt(
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
     _publish_snapshot(events, response)
+    await _schedule_deferred_narrative(study_narrative_scheduler, learning_session_id, result)
     return response
 
 

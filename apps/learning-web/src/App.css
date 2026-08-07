@@ -375,6 +375,33 @@ button.link {
   max-width: 880px;
 }
 
+/* D-217 (point 1): the study-phase two-column layout - the question stays on the left and
+   the hint/solution/video/chat panel sits on the right, both full-size, for the whole
+   ladder. Wider than a single 880px card because it now holds two; each cell is capped at
+   100% and `min-width: 0` so a long stem or a code line wraps inside its column instead of
+   forcing the grid to overflow the viewport. */
+.study-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+  align-items: start;
+}
+
+.study-columns > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* The codebase's first width breakpoint (there were none before). Below it the two columns
+   stack - question first, then the help - so nothing is ever squeezed on a phone. */
+@media (max-width: 900px) {
+  .study-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 .intervention-panel {
   background: var(--panel-bg);
   border: 1px solid var(--border);
@@ -738,6 +765,104 @@ button.link {
   background: var(--bg);
   color: var(--text-h);
   border: 1px solid var(--border);
+}
+
+/* D-217: the tutor chat's optional bounded diagram. Left-aligned under the tutor bubble,
+   inside the panel's own width - the values/labels are schema-bounded, so this only ever
+   draws in a small fixed box. */
+.chat-viz {
+  align-self: flex-start;
+  width: 100%;
+  max-width: 85%;
+  margin: 2px 0 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-bg);
+}
+
+.chat-viz figcaption,
+.chat-viz > figcaption {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.chat-viz-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-viz-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 6em) 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.chat-viz-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-viz-bar-track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  overflow: hidden;
+}
+
+.chat-viz-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.chat-viz-bar-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
+}
+
+.chat-viz-numberline {
+  position: relative;
+  height: 46px;
+  margin: 6px 4px 18px;
+}
+
+.chat-viz-line {
+  position: absolute;
+  top: 10px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border);
+}
+
+.chat-viz-mark {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.chat-viz-mark-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: 6px;
+}
+
+.chat-viz-mark-label {
+  margin-top: 4px;
+  color: var(--text-h);
 }
 
 .chat-input-row {

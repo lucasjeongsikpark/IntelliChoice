@@ -22,9 +22,9 @@ loosens *which* strict model a given call uses, not the "no ad-hoc dict payloads
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import ClassVar, Literal, Protocol, TypeVar
+from typing import Annotated, ClassVar, Literal, Protocol, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class BedrockTask(StrEnum):
@@ -233,9 +233,45 @@ class TutorChatPayload(BaseModel):
     redacted_message: str
 
 
+class ChatVizSpec(BaseModel):
+    """D-217: an optional, bounded little diagram a tutor chat reply may attach when a
+    picture helps - a number line with the answer marked, or two bars comparing the two
+    sides of an equation. Deliberately one flat shape (a `kind` plus parallel `labels`/
+    `values`) rather than a per-kind union, so the forced-tool JSON schema the model fills
+    stays simple. Every bound lives *in the schema* (the `Field` constraints below travel
+    in the tool's `inputSchema`, so the model is told the rule while it writes, the same
+    discipline the generator payloads use) - the client render is then a pure function of
+    already-validated numbers and short strings, with no model-chosen markup, so there is
+    no injection surface.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["number_line", "bar_model"]
+    caption: Annotated[str, Field(max_length=80)]
+    labels: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=24)]],
+        Field(min_length=2, max_length=4),
+    ]
+    values: Annotated[
+        list[Annotated[float, Field(ge=-100, le=100)]],
+        Field(min_length=2, max_length=4),
+    ]
+
+    @model_validator(mode="after")
+    def _labels_and_values_align(self) -> "ChatVizSpec":
+        if len(self.labels) != len(self.values):
+            raise ValueError("labels and values must have the same length")
+        return self
+
+
 class TutorChatResponse(BaseModel):
     reply_text: str
     answer_revealed: bool = False
+    # D-217: present only when the model judged a picture would help; omitted otherwise.
+    # Bounded by `ChatVizSpec`; validated by the same gateway machinery as the rest of the
+    # response, so a malformed viz is repaired or falls back like any other field.
+    viz: ChatVizSpec | None = None
 
 
 # --- SPEC §5.8.3 AI question-generation pipeline (S9) -----------------------------
@@ -1151,6 +1187,13 @@ class BedrockGenerationResult[T: BaseModel]:
     # structured-output contract, the first diagnostic question has an answer. Defaulted,
     # so every existing construction site is unaffected.
     stop_reason: str = ""
+    # D-217: prompt-cache accounting (D-203 measured the saving but the gateway dropped
+    # these). Carried and logged so a cache hit is *visible* rather than only inferable
+    # from `input_tokens` collapsing. Defaulted, so existing construction sites are
+    # unaffected. Not yet billed off separately - the cost above still rates every input
+    # token the same, which slightly over-states the cost of a warm-cache call.
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
 
 
 @dataclass(frozen=True)

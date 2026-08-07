@@ -15,6 +15,9 @@ from learning_api.config import get_settings
 from learning_api.graph.build import LearningGraph
 from learning_api.services.consolidation_scheduler import ConsolidationScheduler
 from learning_api.services.session_events import SessionEventBus
+from learning_api.services.stage_narrative_scheduler import (
+    BackgroundStudyNarrativeScheduler,
+)
 
 
 @lru_cache
@@ -52,6 +55,16 @@ def get_consolidation_scheduler(request: Request) -> ConsolidationScheduler:
     the request's session.
     """
     return request.app.state.consolidation_scheduler
+
+
+def get_study_narrative_scheduler(
+    request: Request,
+) -> "BackgroundStudyNarrativeScheduler | None":
+    """D-217. `None` under the mock provider, where study-transition narratives fire
+    inline in the graph node (nothing to defer); a real scheduler under real Bedrock,
+    where a ~1.5s narrative call would otherwise block the answer response.
+    """
+    return request.app.state.study_narrative_scheduler
 
 
 def get_graph(request: Request) -> LearningGraph:

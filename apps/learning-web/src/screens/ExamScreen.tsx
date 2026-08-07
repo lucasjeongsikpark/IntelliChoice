@@ -16,6 +16,11 @@ interface Props {
   streak: number;
   overview: ExamOverview | null;
   busy: boolean;
+  // D-217: the study-phase intervention pause. Distinct from `busy` (a request in flight):
+  // the controls are disabled because this question's answer path is closed while the
+  // student works through the hint/solution/video on the right, and the Submit button says
+  // so plainly instead of showing a stuck "Submitting…".
+  paused?: boolean;
   error: string | null;
   onSubmit: (questionVariantId: string, selectedOption: string, responseTimeMs: number) => void;
   onSkip: (assessmentItemId: string) => void;
@@ -52,6 +57,7 @@ export function ExamScreen({
   streak,
   overview,
   busy,
+  paused = false,
   error,
   onSubmit,
   onSkip,
@@ -239,13 +245,13 @@ export function ExamScreen({
       answeredSelections[currentDisplayOrder] !== undefined);
 
   function handleSelect(key: string) {
-    if (busy || isReadOnly) return;
+    if (busy || isReadOnly || paused) return;
     setSelected(key);
     setStatusMessage(`Option ${key.toUpperCase()} selected.`);
   }
 
   function handleSubmitClick() {
-    if (!currentItem || !selected || busy) return;
+    if (!currentItem || !selected || busy || paused) return;
     const chosen = selected;
     const responseTimeMs = Date.now() - viewStartRef.current;
     onSubmit(currentItem.question_variant_id, chosen, responseTimeMs);
@@ -308,7 +314,7 @@ export function ExamScreen({
   }
 
   function handleContainerKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (busy || isReadOnly || !currentItem) return;
+    if (busy || isReadOnly || paused || !currentItem) return;
     if (["1", "2", "3", "4"].includes(event.key)) {
       const index = Number(event.key) - 1;
       const key = ["a", "b", "c", "d"][index];
@@ -392,7 +398,7 @@ export function ExamScreen({
               key={key}
               type="button"
               className={`option ${isSelected ? "selected" : ""}`}
-              disabled={busy || isReadOnly}
+              disabled={busy || isReadOnly || paused}
               aria-pressed={isSelected}
               onClick={() => handleSelect(key)}
             >
@@ -415,8 +421,16 @@ export function ExamScreen({
 
       {!isReadOnly && (
         <>
-          <button type="button" disabled={busy || !selected} onClick={handleSubmitClick}>
-            {busy ? "Submitting…" : "Submit answer"}
+          <button
+            type="button"
+            disabled={busy || paused || !selected}
+            onClick={handleSubmitClick}
+          >
+            {paused
+              ? "Work through the help first →"
+              : busy
+                ? "Submitting…"
+                : "Submit answer"}
           </button>
           {isExamPhase && (
             <div className="exam-actions">
