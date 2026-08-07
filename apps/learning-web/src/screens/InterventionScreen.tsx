@@ -1,3 +1,4 @@
+import { RichText } from "../components/RichText";
 import { TutorChatPanel, type ChatTranscript } from "../components/TutorChatPanel";
 import type { ChatMessageResult } from "../api/client";
 import type { InterventionContent } from "../types";
@@ -211,17 +212,26 @@ function HintContent({ intervention }: { intervention: InterventionContent }) {
         </ol>
       )}
 
-      <p className="intervention-lead">{intervention.hint_text}</p>
+      {/* D-217: through RichText so the model's bold/inline-code/line-breaks render as
+          formatting rather than literal characters, and so a multi-line hint keeps its
+          breaks (these `<p>`s had no `white-space: pre-line`, unlike the chat bubble). */}
+      <p className="intervention-lead">
+        <RichText text={intervention.hint_text ?? ""} />
+      </p>
       {intervention.concept_reminder && (
         <div className="intervention-aside">
           <h3>Remember</h3>
-          <p>{intervention.concept_reminder}</p>
+          <p>
+            <RichText text={intervention.concept_reminder} />
+          </p>
         </div>
       )}
       {intervention.next_step_prompt && (
         <div className="intervention-aside">
           <h3>Try this next</h3>
-          <p>{intervention.next_step_prompt}</p>
+          <p>
+            <RichText text={intervention.next_step_prompt} />
+          </p>
         </div>
       )}
     </>
@@ -244,13 +254,15 @@ function SolutionContent({ intervention }: { intervention: InterventionContent }
       <ol className="solution-steps">
         {intervention.steps?.map((step) => (
           <li key={step.step_number} className="solution-step">
-            <p className="step-explanation">{step.explanation}</p>
+            <p className="step-explanation">
+              <RichText text={step.explanation} />
+            </p>
             {/* Some canonical steps close with an empty expression (the "the answer is 8
                 weeks" step). Rendering an empty `<code>` box there is a stray artefact. */}
             {step.expression.trim() && <code className="step-expression">{step.expression}</code>}
             {step.common_mistake && (
               <p className="step-mistake">
-                <strong>Watch out:</strong> {step.common_mistake}
+                <strong>Watch out:</strong> <RichText text={step.common_mistake} />
               </p>
             )}
           </li>

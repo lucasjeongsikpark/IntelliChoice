@@ -18,6 +18,24 @@ export interface Token {
 }
 
 /**
+ * D-217: reshape the two block-level Markdown constructs a model still occasionally emits
+ * (despite the prompt now asking for plain text) into something that reads cleanly rather
+ * than as literal syntax - a `#`/`##` heading marker becomes just its text, and a `-`/`*`/
+ * `+` bullet becomes a real "• " glyph. Line-based and text-only, so it stays inside this
+ * file's injection-safe guarantee (it only ever reshapes text, never introduces markup).
+ * Leaves `**bold**` and `` `code` `` for `tokenize` below; leaves numbered lists ("1. ")
+ * alone, since those already read fine.
+ */
+export function normalizeBlockMarkup(text: string): string {
+  return text
+    .split("\n")
+    .map((line) =>
+      line.replace(/^\s{0,3}#{1,6}\s+/, "").replace(/^(\s*)[-*+]\s+/, "$1• "),
+    )
+    .join("\n");
+}
+
+/**
  * Split on `**bold**` and `` `code` `` in one pass.
  *
  * Unpaired delimiters stay literal rather than being swallowed: a reply containing a stray
@@ -25,6 +43,7 @@ export interface Token {
  */
 export function tokenize(text: string): Token[] {
   const tokens: Token[] = [];
+  text = normalizeBlockMarkup(text);
   const pattern = /\*\*([\s\S]+?)\*\*|`([^`]+?)`/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;

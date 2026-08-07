@@ -101,7 +101,9 @@ _SYSTEM_PROMPT = (
     # is about *how* to say things, not a licence to assert weakness the data does not show.
     "A study-plan list is the order skills will be practised in, not a list of things the "
     "student is bad at - describe it as what comes next, and only call a skill out as "
-    "needing work if a number you were given says so."
+    "needing work if a number you were given says so. "
+    # D-217 (point 3): rendered as plain text, so no Markdown or LaTeX.
+    "Write plain sentences only - no Markdown headings or bullet characters and no LaTeX."
 )
 
 

@@ -457,6 +457,11 @@ def _content(views: list[flow.QuestionItemView]) -> list[tuple[str, str, str, st
 # (a duplicate pair, and one problem that compares a relative quantity against an absolute one).
 # Stripping and retiring those changes which items this seed draws, so the old capture pinned
 # content that no longer exists. Regenerated from the bank rather than hand-edited.
+# D-217 re-captured one row again: a *served study item* was found with the same context-block
+# leak ("This is a concrete real-world scenario requiring students to set up and solve..."),
+# missed by D-215's sweep. Stripping it re-mints the item under a new id/seed, which reshuffles
+# the difficulty-3 draw, so index 5 is now the two-gardeners problem instead of the arcade item.
+# Regenerated from the bank, not hand-edited.
 _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
     (
         "Liam’s father is filling a large fish tank for a community event. The tank already has some water in it, and he adds more every day.\n\nLiam’s father is preparing a fish tank for a community event. The tank already has 30 litres of water. He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?",  # noqa: E501
@@ -494,11 +499,11 @@ _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
         "9 mornings",
     ),
     (
-        "Maya has $60 and spends $8 each week at the arcade. After how many weeks will she have $12 left?",  # noqa: E501
-        "4 weeks",
-        "9 weeks",
-        "11 weeks",
-        "6 weeks",
+        "Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started with 5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After how many minutes will they have planted the same total number of flowers?",  # noqa: E501
+        "4 minutes",
+        "6 minutes",
+        "8 minutes",
+        "10 minutes",
     ),
     (
         "A café is mixing two types of coffee. They pour 8 liters of cold brew and add hot coffee until the total is 3 times the cold brew amount. How many liters of hot coffee did they add?",  # noqa: E501

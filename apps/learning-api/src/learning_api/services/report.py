@@ -133,7 +133,10 @@ _SYSTEM_PROMPT = (
     "from different windows, and never treat a disagreement between them as an error: a "
     "skill can be mastered in one window and still need work in another. When you cite a "
     "mastery score or a skill needing work, say which window it comes from, in plain "
-    "words the audience would use."
+    "words the audience would use. "
+    # D-217 (point 3): the report is rendered as plain text with only a tiny **bold**/
+    # `code` subset, so Markdown headings/bullets and LaTeX arrive as literal characters.
+    "Write plain sentences only - no Markdown headings or bullet characters and no LaTeX."
 )
 
 # AUD-L-15 (D-156): "skills to strengthen" is now the same question as "which skills are

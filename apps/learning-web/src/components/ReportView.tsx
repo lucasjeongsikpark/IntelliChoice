@@ -1,3 +1,4 @@
+import { RichText } from "./RichText";
 import type { StudentReport } from "../types";
 
 interface Props {
@@ -73,11 +74,15 @@ export function ReportView({ report, busy, error, onGenerate }: Props) {
           </div>
           <div className="report-block">
             <h3>Interpretation</h3>
-            <p>{report.interpretation_text}</p>
+            <p>
+              <RichText text={report.interpretation_text} />
+            </p>
           </div>
           <div className="report-block">
             <h3>Recommendations</h3>
-            <p>{report.recommendations_text}</p>
+            <p>
+              <RichText text={report.recommendations_text} />
+            </p>
           </div>
         </>
       )}

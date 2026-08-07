@@ -83,6 +83,10 @@ _SAFETY_KEYWORDS = (
 _BREVITY_RULE = (
     " Reply in at most 4 short sentences - a student reads this on a phone, and a wall of "
     "text is not help. Do not restate the question back to them."
+    # D-217 (point 3): the chat bubble renders a tiny **bold**/`code` subset only, so
+    # Markdown headings/bullets and LaTeX arrive as literal characters. Write plain text.
+    " Write plain sentences - no Markdown headings or bullet characters and no LaTeX;"
+    " write any math inline like 2x + 3 = 7."
 )
 
 _CHAT_REPLY_SYSTEM_PROMPT = (

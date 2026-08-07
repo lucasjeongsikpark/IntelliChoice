@@ -1,6 +1,69 @@
 curriculum_version: '2026.1'
 topic_id: linear_equations
 templates:
+- question_template_id: authored-linear_equations-d3-1205300
+  topic_id: linear_equations
+  skill_id: linear_both_sides
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - Failing to move variables to one side before solving
+  - Adding instead of subtracting when isolating the variable
+  - Arithmetic error in simplification
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 2
+  stem: Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started
+    with 5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After
+    how many minutes will they have planted the same total number of flowers?
+  context_block: null
+  answer_expression: Eq(5 + 3*t, 11 + 2*t)
+  hint_ladder:
+  - Write an expression for each gardener's total flowers after t minutes.
+  - Asha has 5 + 3*t and Jasmine has 11 + 2*t. The question asks when those totals are equal.
+  - Subtract 2*t from both sides first, then subtract 5 from both sides to isolate t.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for each gardener's total flowers after t minutes.
+      expression: Asha has 5 + 3*t flowers and Jasmine has 11 + 2*t flowers
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the two expressions equal since we want them to have the same total.
+      expression: 5 + 3*t = 11 + 2*t
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 2*t from both sides to collect t terms on the left.
+      expression: 5 + 3*t - 2*t = 11 + 2*t - 2*t
+      common_mistake: Forgetting to subtract 2*t from both sides
+    - step_number: 4
+      explanation: Simplify both sides.
+      expression: 5 + t = 11
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 5 from both sides to isolate t.
+      expression: 5 + t - 5 = 11 - 5
+      common_mistake: null
+    - step_number: 6
+      explanation: Simplify to find t.
+      expression: t = 6
+      common_mistake: Arithmetic error when subtracting 5 from 11
+    final_answer: 6 minutes
+  random_seed: 1205300
+  rendered_question: Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute
+    and started with 5 already planted. Jasmine plants 2 flowers per minute and started with 11 already
+    planted. After how many minutes will they have planted the same total number of flowers?
+  option_a: 4 minutes
+  option_b: 6 minutes
+  option_c: 8 minutes
+  option_d: 10 minutes
+  correct_option: b
 - question_template_id: authored-linear_equations-d3-1415300
   topic_id: linear_equations
   skill_id: linear_both_sides
@@ -129,76 +192,6 @@ templates:
   option_c: '12'
   option_d: '24'
   correct_option: c
-- question_template_id: authored-linear_equations-d3-205300
-  topic_id: linear_equations
-  skill_id: linear_both_sides
-  grade_band: 6-7
-  difficulty_label: 3
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 180
-  common_error_tags:
-  - Failing to move variables to one side before solving
-  - Adding instead of subtracting when isolating the variable
-  - Arithmetic error in simplification
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started
-    with 5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After
-    how many minutes will they have planted the same total number of flowers?
-  context_block: Two gardeners working on the same path at different rates, starting with different amounts
-    already completed. This is a concrete real-world scenario requiring students to set up and solve a
-    linear equation with variables on both sides.
-  answer_expression: Eq(5 + 3*t, 11 + 2*t)
-  hint_ladder:
-  - Write an expression for each gardener's total flowers after t minutes.
-  - Asha has 5 + 3*t and Jasmine has 11 + 2*t. The question asks when those totals are equal.
-  - Subtract 2*t from both sides first, then subtract 5 from both sides to isolate t.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Write an expression for each gardener's total flowers after t minutes.
-      expression: Asha has 5 + 3*t flowers and Jasmine has 11 + 2*t flowers
-      common_mistake: null
-    - step_number: 2
-      explanation: Set the two expressions equal since we want them to have the same total.
-      expression: 5 + 3*t = 11 + 2*t
-      common_mistake: null
-    - step_number: 3
-      explanation: Subtract 2*t from both sides to collect t terms on the left.
-      expression: 5 + 3*t - 2*t = 11 + 2*t - 2*t
-      common_mistake: Forgetting to subtract 2*t from both sides
-    - step_number: 4
-      explanation: Simplify both sides.
-      expression: 5 + t = 11
-      common_mistake: null
-    - step_number: 5
-      explanation: Subtract 5 from both sides to isolate t.
-      expression: 5 + t - 5 = 11 - 5
-      common_mistake: null
-    - step_number: 6
-      explanation: Simplify to find t.
-      expression: t = 6
-      common_mistake: Arithmetic error when subtracting 5 from 11
-    final_answer: 6 minutes
-  random_seed: 205300
-  rendered_question: 'Two gardeners working on the same path at different rates, starting with different
-    amounts already completed. This is a concrete real-world scenario requiring students to set up and
-    solve a linear equation with variables on both sides.
-
-
-    Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started with
-    5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After
-    how many minutes will they have planted the same total number of flowers?'
-  option_a: 4 minutes
-  option_b: 6 minutes
-  option_c: 8 minutes
-  option_d: 10 minutes
-  correct_option: b
 - question_template_id: authored-linear_equations-d3-2605301
   topic_id: linear_equations
   skill_id: linear_both_sides
