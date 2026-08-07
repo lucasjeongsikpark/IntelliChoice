@@ -1274,3 +1274,38 @@ flowchart LR
 | Personalized stage narratives | **PostgreSQL 16** | `stage_transitions` (S26) - one row per (session, stage[, skill]) (`student_external_id`, `learning_session_id`, `stage`, nullable `related_skill_id` (`study_step` only), `narrative_text`, `evidence` JSON, `generated` bool, `cost_cents`); doubles as the idempotency key (`StageTransitionRepository.get_for_session_stage`) so a reconnect/retry never re-calls Bedrock. **90-day retention** via the daily `retention-purge` job (D-114) - narrative text derived from tutoring data gets the same window as its source |
 | Episodic learning events + durable semantic facts | **PostgreSQL 16** | `learning_events` (S25) - one row per emission point (`answer_submitted`/`intervention_chosen`/`study_outcome`/`chat_turn`/`exam_finalized`/`learning_gain_computed`), external ids + a code-owned `structured_payload` only (a `chat_turn` row holds `tutor_chat_message_id`, never the message text - D-074 #5). `semantic_memory` (S25) - `status` one of `provisional`/`active`/`contested`/`superseded`, `evidence_event_ids` always a subset of real `learning_events.event_id`s belonging to the same student (D-074 #2), `superseded_by_id` self-FK (`ON DELETE SET NULL`) + `contradicts_event_count` back the two-stage contradiction model (D-074 #4). No PII in either table. **Retention, both via the daily `retention-purge` job: `semantic_memory` 90 days on `last_confirmed_at` (D-114); `learning_events` 365 days on `occurred_at` (D-153), matching `student_reports` so the product makes one "a school year of learning history" promise.** The event window must stay ≥ the fact window + one consolidation window (90 + 7 = 97 days) or a live fact cites purged evidence and silently stops being promotable — asserted by `test_learning_event_retention_clears_the_semantic_memory_floor` |
 | Generated progress reports | **PostgreSQL 16** | `student_reports` (S28) - one row per report generation (`student_external_id`, `audience`, `verified_facts` JSON = the exact payload sent to Bedrock, `interpretation_text`, `recommendations_text`, `generated` bool, `cost_cents`, `idempotency_key`); **unique on `(student_external_id, audience, idempotency_key)` since D-159/AUD-X-04** - a replay is absorbed (no second row, no second paid call) while a new key still writes history, so `list_for_student` remains newest-first history rather than a cache. Scoped to the key, never to a time window; the migration backfilled pre-existing rows as `legacy-<student_report_id>`, unique by construction. `audience` always server-resolved from the caller's role, never a request field (D-077 #1). No PII - `verified_facts` is entirely already-resolved names/numbers/counts, and the key our frontend sends is `<student external id>:<range preset>:<per-mount UUID>`, i.e. an external id and two opaque tokens |
+
+## Network egress and observability sinks (D-084, S39, D-213, D-214)
+
+The VPC's default posture is **no internet egress at all**, and this is a security property rather
+than an omission: every dependency an ECS task actually needs — ECR, CloudWatch Logs, Secrets
+Manager, Bedrock, X-Ray, and S3 for image layers — reaches it over a VPC endpoint (PrivateLink).
+The private subnets carried no `0.0.0.0/0` route and the account ran **zero NAT gateways**.
+
+| sink | how it is reached | what it receives |
+|---|---|---|
+| **CloudWatch Logs** | VPC endpoint | structured JSON, external ids only, no PII (SPEC §5.30) |
+| **CloudWatch metrics** (D-213) | derived from those logs by 4 metric filters per service — `BedrockCostCents`, `BedrockCallDurationMs`, `BedrockCallFailed`, `BedrockCircuitOpen` | numbers only |
+| **X-Ray** (S39) | `otel-collector` sidecar per task, OTLP in on `localhost:4318` → `awsxray` exporter → VPC endpoint | request spans; the S38 PII floor applies |
+| **LangSmith** (D-214) | **the public internet**, via one NAT gateway | LangGraph node trees **including prompt and response payloads** |
+
+**LangSmith is the only egress that leaves AWS, and the only reason a NAT gateway exists.** It is
+third-party SaaS with no PrivateLink equivalent, so `api.smith.langchain.com` is reachable no other
+way. One NAT, in one AZ, deliberately not one per AZ: the traffic crossing it is telemetry, and if
+that AZ fails the other AZ's tasks lose *tracing*, not function.
+
+Both the NAT and the tracing are gated on the single `langsmith_tracing_enabled` flag, so the
+gateway cannot be left billing after the feature is switched off, and "no internet egress" remains
+the default that someone has to write down to give up. Setting it to `false` removes the env vars,
+the secret grant, the gateway, and the route in one apply.
+
+The payloads LangSmith receives are PII-free by construction — Postgres holds only
+`*_external_id` references and the gateway is the only path to a model — but this is the first
+component that sends learning data outside AWS, so it is recorded here as a deliberate decision
+rather than an implementation detail.
+
+**Metric filters, not an agent.** The four per-service metrics are derived from log lines the
+application already writes. This is the layer that makes the deployed system legible: every real
+incident so far (a consolidation call burning 61.5 s with a 100% failure rate for fourteen days; an
+authoring batch reporting `circuit_open` fourteen times and $0.00 spent) was invisible in CPU and
+ALB latency and fully visible in these lines.
