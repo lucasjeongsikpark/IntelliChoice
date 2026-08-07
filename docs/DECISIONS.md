@@ -14696,8 +14696,20 @@ Three CloudWatch rules learned by rejection, each stated only in passing in the 
 Resolved by putting the service in the *namespace*, which also restores `default_value`: a quiet
 period reads as a real zero rather than a gap indistinguishable from "no data reaching CloudWatch".
 
-**Not done, and why.** X-Ray needs an ADOT sidecar plus `xray:PutTraceSegments` on the task role -
-straightforward, not started. **LangSmith is deliberately not wired**: it needs an API key (not
-mine to create or handle) and it sends LLM payloads to a third party. The payloads are PII-free by
-design, but transmitting a minors-platform's learning data to an external service is the user's
-decision to take explicitly, not one to make on their behalf.
+**X-Ray was already working, and this entry originally said it was not.** The claim was that it
+"needs an ADOT sidecar plus `xray:PutTraceSegments` on the task role - straightforward, not
+started". All of that already exists and is switched on: `ecs-service` builds an `otel-collector`
+sidecar with an `awsxray` exporter, `modules/iam` grants the five X-Ray actions, there is a VPC
+endpoint, and `enable_otel_tracing` defaults to `true` with nothing overriding it.
+
+Confirmed by asking X-Ray rather than by reading the config again: `get-trace-summaries` returns
+real traces carrying URL, method, status, and service name for both `learning-api` and `chat-api`.
+Traces are sparse only because staging has no student traffic when nobody is driving it - S39 built
+this and the earlier claim was made from an assumption instead of a measurement. Worth recording
+precisely because it is the same failure this session kept finding in the code: a conclusion drawn
+from what seemed likely rather than from what the deployed environment actually reports.
+
+**LangSmith is deliberately not wired**: it needs an API key (not mine to create or handle) and it
+sends LLM payloads to a third party. The payloads are PII-free by design, but transmitting a
+minors-platform's learning data to an external service is the user's decision to take explicitly,
+not one to make on their behalf.
