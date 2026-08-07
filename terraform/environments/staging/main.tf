@@ -608,6 +608,14 @@ module "observability" {
     learning-api = module.ecs_service_learning_api.target_group_arn_suffix
     chat-api     = module.ecs_service_chat_api.target_group_arn_suffix
   }
+  # D-213: the log groups the model-call metric filters read. Same two services, but a
+  # separate map because these are log groups rather than target groups - a worker with no
+  # load balancer still emits `bedrock_call` lines worth counting, and folding the two
+  # together would make that impossible to express.
+  log_group_names = {
+    learning-api = module.ecs_service_learning_api.log_group_name
+    chat-api     = module.ecs_service_chat_api.log_group_name
+  }
   # AUD-X-13 / criterion 7: a healthy grounded chat turn measures p95 ~16s (four sequential
   # model calls, D-115), so the shared 3s paging threshold alarmed on normal conversation.
   # 20s is the measured p95 plus 25% headroom, and is the same number recorded as criterion

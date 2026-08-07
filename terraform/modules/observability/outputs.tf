@@ -13,3 +13,8 @@ output "alarm_names" {
 output "sns_topic_arn" {
   value = aws_sns_topic.alerts.arn
 }
+
+output "dashboard_name" {
+  description = "CloudWatch dashboard showing model-call spend, failures, latency, and ALB/ECS health."
+  value       = aws_cloudwatch_dashboard.main.dashboard_name
+}

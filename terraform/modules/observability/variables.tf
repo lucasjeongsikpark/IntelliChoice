@@ -91,3 +91,13 @@ variable "account_id" {
   description = "This account's id, used in the SNS topic policy's SourceOwner/SourceAccount conditions."
   type        = string
 }
+
+# D-213: the log groups the model-call metric filters are attached to, service name ->
+# log group name. Keys should match `services`, but this is deliberately a separate
+# variable rather than being folded into it: `services` maps to ALB target groups, and a
+# worker with no load balancer (ops-task) still emits `bedrock_call` lines worth counting.
+variable "log_group_names" {
+  description = "Map of service name -> CloudWatch log group name, for the model-call metric filters."
+  type        = map(string)
+  default     = {}
+}
