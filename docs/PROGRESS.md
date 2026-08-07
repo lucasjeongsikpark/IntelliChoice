@@ -5,6 +5,74 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+### Session log — the 16 reported UI items, video seeding, and observability (2026-08-06/07, D-208–D-215)
+
+**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1035 passed, 2 skipped,
+1 xfailed** · `oxlint` clean · `tsc` clean for `learning-web`, `chat-web`, and `e2e` ·
+e2e run against **live staging**, not only locally.
+
+**Not a numbered ROADMAP session** — a continuation of D-207's UI walk. The user reported
+sixteen items; all were addressed or explicitly dispositioned.
+
+**Deployed:** `main` = `119cc69b`, both services on `gha-119cc69b6079`, health 200/200. The
+final docs-only commit (`9af3f6e`) was deliberately **not** redeployed — the application code is
+byte-identical to what is running, and a 15-minute deploy for a markdown file is waste, not rigour.
+
+| area | what shipped | decision |
+|---|---|---|
+| serving | authored word problems only; the bank file can now retire items | D-210 |
+| pipeline | preflight probes whether a model can actually be *invoked* | D-211 |
+| tests | two flow tests stop naming a skill the draw may not serve | D-212 |
+| UI | narrative overlay, hint ladder, tutor chat, study position, wider card | D-213 |
+| dashboard | "skills to strengthen" promoted from a table column to the lead section | D-213 |
+| observability | CloudWatch dashboard + 8 metric filters; X-Ray confirmed; LangSmith + NAT | D-213, D-214 |
+| video | **0 → 44 videos**, all 10 skills covered, 0 unmapped, 12.4¢ | D-209 |
+
+**Evidence, gathered rather than assumed:**
+
+- All six new UI class names present in the CloudFront-served bundle.
+- CloudWatch's four new metrics carrying real data: `BedrockCostCents` sum **4.25¢**,
+  `BedrockCallDurationMs` **max 3 655 ms**. That max is the load-bearing number — it is *not*
+  the 61.5 s flat line, which is independent confirmation D-208's consolidation fix is holding
+  in the deployed environment.
+- LangSmith reachable (`200`) from a **private** subnet with `assignPublicIp=DISABLED`, proving
+  the new NAT gateway works and that a key alone would not have.
+- e2e against staging: narrative, student journey, and hint/assistance specs pass.
+
+**Three things I got wrong, corrected rather than quietly fixed:**
+
+1. **X-Ray was already working.** I recorded it as "needs an ADOT sidecar + IAM, not started".
+   All of it existed and was switched on since S39. Corrected in DECISIONS (#153) because it is
+   the same failure this session kept finding in the code — a conclusion from what seemed likely
+   instead of from what the deployed environment reports.
+2. **D-210's "the retry ladder runs out" was overstated.** `_select_template` does
+   `pool = unused or matched`, so a thin skill re-serves a seen item rather than raising. Option B
+   (a shape-template fallback) was therefore *not* built.
+3. **DECISIONS blamed dev-Postgres state for a "flaky" test.** The real cause was which skills a
+   draw covers, which is why it reproduced on CI's fresh database too (D-212).
+
+**Two near-misses caught before applying, both pre-existing:**
+
+- `terraform apply` would have dropped five YouTube settings from the ops task — silently breaking
+  the sync and its Sunday cron. The plan said only `must be replaced`; diffing the *live* task
+  definition against the module block is what revealed it.
+- Pointing the services at Terraform's fresh revision would have **rolled the application back**,
+  because that revision carries the tfvars image tag, not the running one.
+
+**Carry-over:**
+
+- `journey-student.spec.ts` is **not isolated against staging** — both tests pass alone, both fail
+  when the file runs whole. Recorded with measurements in the carry-over section below. Stated as
+  an inference, not a conclusion: the server-side session-resume behaviour was not read.
+- Three thin bank cells (`linear_distribute` 2, `linear_both_sides` d4 2, `linear_neg_frac_coeff`
+  d2 2). Blocked on Sonnet 5 access; degrades to repetition, not failure.
+- The narrative overlay blocks input while the exam timer runs server-side. Exposure is one click
+  in a narrow window; flagged rather than silently softened.
+- **A visual pass of the deployed UI was requested and not completed** — the `chrome-devtools` MCP
+  server is configured but was installed after this session began, so its tools were never loaded.
+  It will attach on the next session.
+
+
 ### Session log — what a real UI walk found (2026-08-06, D-207)
 
 **Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1028 passed, 2 skipped,
