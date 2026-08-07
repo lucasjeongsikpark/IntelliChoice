@@ -15,7 +15,11 @@ const _FACT_LABELS: Record<string, string> = {
   weak_skill_names: "Skills to strengthen",
   hint_count: "Hints used",
   solution_count: "Solutions viewed",
-  video_count: "Videos watched",
+  // "Videos suggested", not "watched" - the counter increments when a video link is
+  // *offered* (the choice was made), and nothing verifies playback. The results screen
+  // already says "suggested" for the same number; a parent report must not claim more
+  // than the student screen does (D-216).
+  video_count: "Videos suggested",
   independent_correct_rate: "Independent correct rate",
   attempts_count: "Attempts",
   time_spent_minutes: "Time spent (minutes)",

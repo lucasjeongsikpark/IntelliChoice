@@ -4,6 +4,7 @@ interface Props {
   message: string | null | undefined;
   pendingInterrupt: PendingInterrupt | null | undefined;
   resolved: boolean;
+  error: string | null;
   onAcknowledge: () => void;
   onAskBranchManager: () => void;
   onApproveEmail: (approved: boolean) => void;
@@ -15,6 +16,7 @@ export function AttendanceScreen({
   message,
   pendingInterrupt,
   resolved,
+  error,
   onAcknowledge,
   onAskBranchManager,
   onApproveEmail,
@@ -29,6 +31,10 @@ export function AttendanceScreen({
     <div className="panel">
       <h1>Attendance check</h1>
       <p className="message">{message}</p>
+
+      {/* D-216: a failed resolve/respond used to show nothing at all on this screen -
+          the click just didn't work. Same `error` the exam screen already renders. */}
+      {error && <p className="error">{error}</p>}
 
       {emailPreview && (
         <div className="email-preview">
@@ -62,7 +68,10 @@ export function AttendanceScreen({
         </>
       )}
 
-      {!emailPreview && resolved && (
+      {/* D-216: previously only the resolved state offered a way out, but the
+          email-requested state says "once they confirm it, you can try again" and then
+          left the student parked here with no action at all. Always reachable now. */}
+      {!emailPreview && (
         <button className="secondary" onClick={onBackToStart}>
           Back to start
         </button>

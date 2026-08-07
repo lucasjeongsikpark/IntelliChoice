@@ -81,7 +81,15 @@ export function useLearningSession(token: string | null, sub: string | null) {
     sessionIdRef.current = sessionId;
   }, [sessionId]);
 
+  // D-216: bumping this re-runs the stream effect, giving a dead stream a manual way
+  // back. `EventSource` auto-reconnects only after a *successful* connection drops; a
+  // non-2xx response (an expired token, a 403) is terminal, and before this the app had
+  // no path to a fresh connection short of a full reload.
+  const [streamNonce, setStreamNonce] = useState(0);
+  const reconnectStream = useCallback(() => setStreamNonce((n) => n + 1), []);
+
   useEffect(() => {
+    void streamNonce; // dependency-only: a bump means "tear down and reconnect"
     if (!token || !sessionId || !checkpointReady) return;
     setStreamState("connecting");
     const close = openSessionStream(
@@ -91,7 +99,7 @@ export function useLearningSession(token: string | null, sub: string | null) {
       (state) => setStreamState(state),
     );
     return close;
-  }, [token, sessionId, checkpointReady]);
+  }, [token, sessionId, checkpointReady, streamNonce]);
 
   // AUD-F-22: the resolved student is *login-scoped* identity, not session state - it is
   // set at login (App.tsx's pre-session resolution) or by an explicit selection, survives
@@ -347,6 +355,7 @@ export function useLearningSession(token: string | null, sub: string | null) {
     studentId,
     snapshot,
     streamState,
+    reconnectStream,
     error,
     busy,
     startSession,

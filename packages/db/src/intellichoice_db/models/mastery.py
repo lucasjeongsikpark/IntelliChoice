@@ -1,6 +1,16 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from intellichoice_db.models.base import Base, new_uuid
@@ -65,6 +75,19 @@ class StudyAttempt(Base):
     """
 
     __tablename__ = "study_attempts"
+
+    # D-216: one attempt per served item, as the StudyItem docstring above already
+    # promises ("the current pending question is the item lacking a matching
+    # StudyAttempt"). Safe as a (session, variant) pair because every serving - including
+    # a D-210 re-serve of a seen rendering - mints a fresh variant row. The exam-side
+    # precedent is `uq_assessment_attempts_session_variant` (AUD-L-10).
+    __table_args__ = (
+        UniqueConstraint(
+            "study_session_id",
+            "question_variant_id",
+            name="uq_study_attempts_session_variant",
+        ),
+    )
 
     attempt_id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
     student_external_id: Mapped[str] = mapped_column(String, nullable=False, index=True)

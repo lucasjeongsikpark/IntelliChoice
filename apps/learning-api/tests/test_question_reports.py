@@ -16,6 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 from intellichoice_adapters.fake_auth import FakeTokenIssuer
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
+from intellichoice_db.models.assessment import AssessmentItem, AssessmentSession
 from intellichoice_db.models.questions import QuestionTemplate, QuestionVariant
 from intellichoice_db.models.reports import ProblemReport
 from intellichoice_db.repositories.questions import QuestionRepository
@@ -130,10 +131,63 @@ def throwaway_question() -> Iterator[tuple[str, str]]:
             await engine.dispose()
 
     variant_id = asyncio.run(create())
+    served_session_ids = asyncio.run(_serve_to_report_students(variant_id))
     try:
         yield template_id, variant_id
     finally:
+        asyncio.run(_cleanup_served(served_session_ids))
         asyncio.run(cleanup())
+
+
+async def _serve_to_report_students(variant_id: str) -> list[str]:
+    """D-216: reporting is scoped to variants the reporter was actually served, so the
+    fixture now serves the throwaway variant to every `report-student-N` these tests sign
+    in as - one minimal assessment session + item per student, torn down with the rest.
+    """
+    engine = create_engine()
+    session_ids: list[str] = []
+    try:
+        factory = create_session_factory(engine)
+        async with session_scope(factory) as session:
+            for i in range(1, 7):
+                exam = AssessmentSession(
+                    student_external_id=f"report-student-{i}",
+                    session_type="pre_exam",
+                )
+                session.add(exam)
+                await session.flush()
+                session.add(
+                    AssessmentItem(
+                        assessment_session_id=exam.assessment_session_id,
+                        question_variant_id=variant_id,
+                        display_order=0,
+                    )
+                )
+                session_ids.append(exam.assessment_session_id)
+            await session.commit()
+        return session_ids
+    finally:
+        await engine.dispose()
+
+
+async def _cleanup_served(session_ids: list[str]) -> None:
+    engine = create_engine()
+    try:
+        factory = create_session_factory(engine)
+        async with session_scope(factory) as session:
+            await session.execute(
+                delete(AssessmentItem).where(
+                    AssessmentItem.assessment_session_id.in_(session_ids)
+                )
+            )
+            await session.execute(
+                delete(AssessmentSession).where(
+                    AssessmentSession.assessment_session_id.in_(session_ids)
+                )
+            )
+            await session.commit()
+    finally:
+        await engine.dispose()
 
 
 def _is_active(template_id: str, difficulty: int = 1) -> bool:
@@ -248,6 +302,35 @@ def test_unknown_variant_returns_404() -> None:
             headers=_auth(_student_token("report-student-1")),
         )
     assert resp.status_code == 404
+
+
+def test_a_variant_never_served_to_the_reporter_is_indistinguishable_from_unknown(
+    throwaway_question: tuple[str, str],
+) -> None:
+    """D-216: any five student accounts could quarantine any template for everyone by
+    scripting reports against variant ids they were never served. Reporting is now scoped
+    to served variants, and the refusal is the *same* 404 (status and detail) an unknown
+    id gets, so probing ids reveals nothing about which ones exist.
+    """
+    _, variant_id = throwaway_question
+    with TestClient(app) as client:
+        unserved = client.post(
+            f"/learning/questions/{variant_id}/reports",
+            json={"report_type": "other"},
+            # A real student, but not one the fixture served this variant to.
+            headers=_auth(_student_token("report-student-never-served")),
+        )
+        unknown = client.post(
+            "/learning/questions/does-not-exist/reports",
+            json={"report_type": "other"},
+            headers=_auth(_student_token("report-student-never-served")),
+        )
+    assert unserved.status_code == 404
+    assert unknown.status_code == 404
+    # Same shape apart from the id echoed back - a prober cannot tell the cases apart.
+    assert unserved.json()["detail"].replace(variant_id, "X") == unknown.json()[
+        "detail"
+    ].replace("does-not-exist", "X")
 
 
 def test_invalid_report_type_returns_400(throwaway_question: tuple[str, str]) -> None:

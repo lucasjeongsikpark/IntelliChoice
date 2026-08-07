@@ -40,6 +40,7 @@ from learning_api.services import stage_narrative
 from learning_api.services.session_events import SessionEventBus
 
 from .sessions import (
+    InterventionContentResponse,
     LearningGainResponse,
     SessionSnapshotEvent,
     _graph_config,
@@ -198,6 +199,18 @@ async def _initial_snapshot(
         pending_interrupt=(
             await _pending_interrupt_response(pending, profile_adapter)
             if pending is not None
+            else None
+        ),
+        # D-216: re-serve the paid intervention content a refresh would otherwise discard
+        # (the student was re-shown the bare chooser, and choosing again is a second
+        # Bedrock call). Gated on `hint_ladder_awaiting_choice` - only mid-ladder is
+        # `last_intervention` guaranteed to belong to the currently-paused question;
+        # ungated, a previous question's solution could resurface over a new pause
+        # (the D-215 §4 defect, in reverse).
+        intervention=(
+            InterventionContentResponse.from_dict(state["last_intervention"])
+            if state.get("hint_ladder_awaiting_choice")
+            and state.get("last_intervention") is not None
             else None
         ),
         attendance_resolution=state.get("attendance_resolution"),

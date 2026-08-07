@@ -35,6 +35,9 @@ interface AssistancePanelProps {
   // D-213: the stem of the question this pause is about, so the tutor panel can show it
   // alongside the conversation. `null` when the snapshot no longer carries the item.
   questionText: string | null;
+  // D-216: a refused/failed choice used to show nothing at all on this panel - the same
+  // `session.error` the exam screen renders.
+  error: string | null;
 }
 
 /**
@@ -54,6 +57,7 @@ export function AssistancePanel({
   onSendChatMessage,
   chat,
   questionText,
+  error,
 }: AssistancePanelProps) {
   const chatPanel = questionVariantId && (
     <TutorChatPanel
@@ -69,6 +73,7 @@ export function AssistancePanel({
       <div className="panel">
         <h1>Not quite — want a hand?</h1>
         <p className="subtitle">Choose how you'd like to work through this one.</p>
+        {error && <p className="error">{error}</p>}
         <div className="assistance-choices">
           <button disabled={busy} onClick={() => onChoose("hint")}>
             Get a hint
@@ -108,6 +113,8 @@ export function AssistancePanel({
       {intervention.type === "hint" && <HintContent intervention={intervention} />}
       {intervention.type === "solution" && <SolutionContent intervention={intervention} />}
       {intervention.type === "video" && <VideoContent intervention={intervention} />}
+
+      {error && <p className="error">{error}</p>}
 
       {ladderOpen ? (
         <>

@@ -17,7 +17,17 @@ export function openSessionStream(
   source.onopen = () => onStateChange?.("open");
   source.onerror = () => onStateChange?.("error");
   source.onmessage = (event) => {
-    onSnapshot(JSON.parse(event.data) as SessionSnapshot);
+    // D-216: an unparsable frame must not throw inside the event handler - that kills no
+    // connection and logs nothing visible, it just silently stops snapshots from ever
+    // updating again. Skipping one frame is safe: every frame is a full snapshot, so the
+    // next one supersedes whatever this one carried.
+    let snapshot: SessionSnapshot;
+    try {
+      snapshot = JSON.parse(event.data) as SessionSnapshot;
+    } catch {
+      return;
+    }
+    onSnapshot(snapshot);
   };
 
   return () => source.close();

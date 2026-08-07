@@ -14953,3 +14953,154 @@ Three more were measurement artifacts caught before they were reported as findin
 were a full-page-screenshot limitation, a green-on-green contrast failure was my own script ignoring
 alpha compositing (recomputed: zero WCAG failures on that screen), and an empty sessions list was a
 parse error of mine, not the endpoint.
+
+## D-216 — a code-level walk of the learning flow, and the fourteen things it found (accepted, 2026-08-07)
+
+D-215 walked the deployed UI; this session walked the *code* the same way - the full backend flow
+(auth → attendance gate → pre-exam → study loop → post-exam → gain → report/SSE) and the full
+frontend flow (every screen, hook, and edge path), traced end to end and each suspicious spot read
+before it was called a defect. Everything below was verified in source before it was fixed; the
+recorded decisions (D-189, D-032, D-097, D-152, D-176, D-210) were collected first and nothing on
+their settled ground was touched.
+
+### 1. The chat path was a second, unaccounted assistance surface (the worst finding)
+
+`run_chat_turn` reuses `intervention_choice`'s exact content generators - the docstring says so,
+proudly - but it never called `update_intervention_choice`, so `study_attempts.hint_used/
+solution_used/video_used` stayed `False` for every hint, solution and video served through chat.
+Everything downstream of those flags then over-reported independence: `study_outcomes.correct_label`
+marked a chat-assisted correct answer `independent_correct`, which feeds independent mastery
+(§5.11.5's *only* mastery-counting label), `learning_gain`'s dependency rates, the parent
+dashboard's usage breakdown, history counts, and the study-outro narrative. A student who took all
+their help through chat was recorded - to their parents - as having solved everything unaided.
+Chat now sets the same flags (they OR, so mixing chat and buttons composes) and increments the same
+`SUPPORT_USAGE` metric.
+
+The same walk found the crash next door: chat computes `next_level = len(prior_events) + 1`
+unbounded, `_hint_round` indexes `ladder[level - 1]`, and authored ladders are exactly 3 - so three
+hints (button or chat, both write `hint_events`) followed by one more chat request was an
+`IndexError` → 500 on a student-facing route. The fourth request now gets a fixed, free reply
+(`HINT_LADDER_EXHAUSTED_MESSAGE`), and `_hint_round` clamps defensively - re-serving the deepest
+hint is safe; crashing is not.
+
+### 2. One attempt per study item is now enforced, not just documented
+
+`StudyItem`'s docstring has always defined the invariant - "the current pending question is the
+item lacking a matching `StudyAttempt`" - and nothing enforced it. The exam path got exactly this
+treatment in AUD-L-10 (pre-flight + flow check + `uq_assessment_attempts_session_variant`); the
+study path had only a membership check, so a stale tab re-answering a resolved item appended a
+second attempt to its skill line, re-ran `advance_study`'s labeling off an old question (which can
+*build the post-exam*), and inflated the "resolving attempt" denominators the gain's dependency
+rates divide by. Now: a flow-level check that reuses the attempts list it already loads (409, the
+exam path's own wording), plus `uq_study_attempts_session_variant` (migration `b7e42a91c503`) for
+the concurrent case - safe as a pair because every serving, including a D-210 re-serve of a seen
+rendering, mints a fresh variant row.
+
+**Accepted consequence, stated rather than hidden:** study answers have no idempotency-key replay
+(the exam path's `AssessmentAttempt.idempotency_key` has no study counterpart), so a genuine
+network-level retry of a study answer now gets the 409 instead of silently double-recording. The
+double-record corrupted parent-visible metrics; the 409 is shown by a client whose next snapshot
+is correct either way. A study-side idempotency column would close even that seam and was not
+worth a second schema change this session.
+
+### 3. A refresh mid-hint no longer discards paid content
+
+`_initial_snapshot` never set `intervention`, so a refresh mid-ladder re-showed the bare chooser
+and choosing again was a second Bedrock call for content the student had already been served. The
+snapshot now carries `last_intervention` - gated on `hint_ladder_awaiting_choice`, because only
+mid-ladder is that state field guaranteed to belong to the currently-paused question; ungated, a
+*previous* question's solution could resurface over a new pause, which is D-215 §4's defect in
+reverse. The test asserts both halves (re-served mid-ladder, absent after the round ends).
+
+### 4. The client counted help twice and froze the streak at one - the same bug, mirrored
+
+Two `App.tsx` effects keyed off snapshots, and snapshots are not one-per-event: every action
+arrives twice (the REST response and its own SSE echo - `_publish_snapshot` fans the same content
+back at the subscriber). The assistance counter keyed on `snapshot.intervention` *object identity*,
+so each hint counted twice - re-breaking the exact metric D-215 §3's `useAssistanceCounts` was
+built to fix, one session after it shipped. The streak keyed on `is_correct`, a *primitive*, so two
+consecutive corrects changed nothing and the streak never passed 1 (the chip renders at `> 1`:
+a dead feature). Both now update at the action site - `onChoose` counts a successful non-decline
+choice, `onSubmit` moves the streak off its own response - which runs exactly once per student
+action and is indifferent to how many snapshots echo it.
+
+### 5. Dead streams, dead ends, and raw wire text
+
+- **A dead stream was invisible once a snapshot existed** - the D-215 recovery screen sits inside
+  `if (!snapshot)`, and `EventSource` never retries a non-2xx, so an expired token mid-session
+  meant a stale page with no signal and no way back. Now: a banner (not a takeover - REST still
+  works in that state and sets the snapshot directly) plus `reconnectStream()`, a nonce that
+  re-runs the stream effect.
+- **`phase == "error"` rendered an empty error line** - the screen read `snapshot.message`
+  (= `last_message`) but error transitions write `last_error`. It now shows fixed age-appropriate
+  copy; the raw detail ("attendance check failed: …") was never something to put in front of a
+  student even when it *did* render. Its Back-to-start also now resets per-session UI state like
+  the other three exits. The server-side dead-end itself (no API path leaves `error`) is a
+  carry-over - a session that hits it is abandoned, and the student starts a new one.
+- **Two screens could strand a student**: the attendance screen's email-requested state said "you
+  can try again" while offering no action at all (Back to start is now always reachable), and the
+  unknown-phase panel had zero controls (same exit added; during a normal start it shows for ~2s,
+  where the button is harmless).
+- **The dashboard printed `String(err)`** - `API error 403: "Students may only access their own
+  records"` - the exact class of string `api/errors.ts` exists to suppress, with no retry control,
+  and a stale error could sit beside fresh charts because nothing cleared it on a range change.
+  Now `friendlyError`, cleared per fetch, with a retry button; the report path too. And the parent
+  report's `video_count` label said "Videos watched" where the results screen honestly says
+  "suggested" - a parent report must not claim more than the student screen does; it now matches.
+- A failed `respond`/`resolveAttendance` showed nothing on the assistance and attendance screens
+  (`session.error` was simply not passed); both render it now. `stream.ts` wrapped its
+  `JSON.parse` - an unparsable frame threw inside the handler and silently stopped all future
+  snapshots; every frame is a full snapshot, so skipping one is safe. Logout now resets
+  per-session UI state and the dashboard view, so the next sign-in on a shared device cannot land
+  on the previous family's dashboard shell.
+
+### 6. The D-215 option permutation was 78% of what its docstring claimed
+
+`_permute_options` rejected only the identity order. Measured over 20,000 seeds: **22.1% of
+post-exam items kept the correct answer on the same letter** - a shuffled distractor doesn't remove
+"I picked C" if the answer didn't move. The draw now also requires the correct option to change
+letters (rejection probability per draw ≈ 0.25, so twelve bounded attempts fail with p ≈ 0.25¹² -
+the fallthrough serves the last draw rather than crashing). And the log's `options_permuted: True`
+was a *constant* - the field whose stated purpose was distinguishing "same question entirely" from
+"same question, reordered" could not have caught the fallthrough serving the original order. It is
+now measured (`options_permuted`, `correct_letter_moved`), not asserted. The flow test gained the
+letter-moved assertion; a 2,000-seed property test pins the primitive.
+
+### 7. Question reports are scoped to questions the reporter was served
+
+`POST /learning/questions/{variant}/reports` checked only `role == STUDENT` - the one
+student-reachable route with no ownership predicate of any kind. Five scripted accounts could
+quarantine any template *for everyone* by guessing variant ids (§5.8.7's threshold, weaponised).
+Reports now require the variant to appear in one of the reporter's own exam or study sessions
+(one EXISTS query; answered-or-not deliberately doesn't matter - refusing to answer a broken
+question is a legitimate reason to report it). The refusal is the same 404, same detail, as an
+unknown id - the D-097 posture - and the test pins the indistinguishability.
+
+### 8. Small alignments, and what was deliberately left alone
+
+Aligned: the dead `StudyPlanBuildError` handler in the answers route is gone (the node converts it
+to `phase="error"` first, so it could never fire) and the same error at pre-exam finalize - plus
+`StudyPlanBuildError`/`AssessmentBuildError` through `/respond`, and `AssessmentBuildError` through
+`/answers` - now map to 503 like every sibling path instead of an unexplained 500.
+`LearningState.attendance_status` is finally *written* (both `select_topic` outcomes), so the
+`pre_intro` narrative's "Attendance:" evidence line stops being dead code.
+
+Left alone, with reasons: `POST /students/{id}/report`'s `access="read"` is a written, reasoned
+disposition (D-086's read-scope gap, owned by S43/S46) - not re-decided. `absence_acknowledged`
+says "this practice has ended" while nothing stops a later `POST /topics` from re-running the gate;
+re-gating fail-closed is safe and arguably kind (attendance marked late should unblock), so that is
+a copy/product question recorded as carry-over, along with per-week `BlockedSession` dedupe. The
+snapshot transport has no ordering field (a late REST response can overwrite a newer SSE frame) -
+§4's fixes remove both observed symptoms, and a sequence number is a transport change not worth
+making for a race with no remaining consumer. `SessionEventBus` is process-local by design
+(D-032's single-worker note) while staging runs one task per service; if `desired_count` ever
+rises past 1, SSE clients pinned to the wrong task go quiet until reconnect - recorded here so the
+scaling change can't forget it. `POST /sessions` mints an id but creates no checkpoint (so
+`SESSION_STARTS` counts mints, not sessions), `/resume` writes a checkpoint despite its "no side
+effects" comment, and `api.resumeSession` is client dead code - noted, not fixed.
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1040 passed, 2 skipped, 1 xfailed** (five
+new tests: the exhausted chat ladder + flags, the duplicate study answer, the reconnect
+intervention, the permutation property, the unserved-report 404) · `tsc` and `oxlint` clean for
+`learning-web`, `chat-web`, `e2e` · migration `b7e42a91c503` round-tripped (upgrade → downgrade →
+upgrade) against dev Postgres.

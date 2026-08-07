@@ -371,6 +371,10 @@ async def select_topic(state: LearningState, runtime: Runtime[TurnContext]) -> d
             "phase": "blocked",
             "topic_id": ctx.topic_id,
             "week_id": gate.week_id,
+            # D-216: `attendance_status` was declared in state and read by the `pre_intro`
+            # narrative evidence, but nothing ever wrote it - the "Attendance:" evidence
+            # line was dead code until this write.
+            "attendance_status": gate.status.value,
             "blocked_session_id": gate.blocked_session_id,
             "last_message": gate.message,
             "last_items": None,
@@ -393,6 +397,7 @@ async def select_topic(state: LearningState, runtime: Runtime[TurnContext]) -> d
         "phase": "pre_exam",
         "topic_id": ctx.topic_id,
         "week_id": gate.week_id,
+        "attendance_status": gate.status.value,
         "pre_assessment_session_id": pre_exam.assessment_session_id,
         "last_message": None,
         "last_items": _items_payload(items_view),
@@ -858,6 +863,10 @@ async def _hint_round(
     template = await ctx.question_repo.get_template(variant.question_template_id)
     assert template is not None
     ladder = _canonical_hint_ladder(template)
+    # A caller that miscounts (the chat path reads its level from `hint_events`, the
+    # button path from the checkpoint - D-072 records that they can drift) must get the
+    # deepest hint again, never an IndexError past the ladder.
+    level = min(level, len(ladder))
     canonical_text = ladder[level - 1]
     next_canonical_text = ladder[level] if level < len(ladder) else None
 
@@ -1183,7 +1192,9 @@ async def run_chat_turn(
     choice` flow already enforces) - absent one, chat answers with a fixed clarifying
     message rather than guessing. `request_hint`/`request_solution`/`request_video`
     reuse the exact same content-generation helpers `intervention_choice` uses, so a
-    chat-driven hint records the identical `hint_events` row a button-driven one would.
+    chat-driven hint records the identical `hint_events` row a button-driven one would -
+    and sets the same `study_attempts` support flags, so outcome labels, mastery and the
+    gain's dependency rates cannot tell the two surfaces apart (D-216).
     """
     assert ctx.tutor_chat_repo is not None
     assert ctx.student_message is not None
@@ -1283,9 +1294,31 @@ async def run_chat_turn(
 
     if intent == "request_hint":
         prior_events = await ctx.hint_event_repo.get_events_for_attempt(attempt.attempt_id)
+        variant = await ctx.question_repo.get_variant(attempt.question_variant_id)
+        assert variant is not None
+        template = await ctx.question_repo.get_template(variant.question_template_id)
+        assert template is not None
+        ladder_length = len(_canonical_hint_ladder(template))
+        if len(prior_events) >= ladder_length:
+            # The ladder is spent for this attempt (button hints count too - both paths
+            # write `hint_events`). Answer deterministically and for free rather than
+            # indexing past the ladder, which was a 500.
+            return await _finish(
+                intent=intent,
+                reply_text=tutor_chat_service.HINT_LADDER_EXHAUSTED_MESSAGE,
+                resolved=False,
+            )
         next_level = len(prior_events) + 1
         content, call_cost = await _hint_round(ctx, attempt, next_level, bedrock_spend_cents + cost)
         cost += call_cost
+        # Chat-served support must leave the same durable trace button-served support
+        # does, or everything downstream of `study_attempts.hint_used` (outcome labels,
+        # independent mastery, gain dependency rates, the parent dashboard) records a
+        # chat-assisted answer as unaided.
+        await ctx.study_repo.update_intervention_choice(
+            attempt.attempt_id, hint_used=True, video_used=False, solution_used=False
+        )
+        SUPPORT_USAGE.labels(support_type="hint").inc()
         reply_text = (
             f"{content['hint_text']} (hint {content['hint_level']} of "
             f"{content['max_hint_level']})"
@@ -1296,6 +1329,13 @@ async def run_chat_turn(
             ctx, attempt, choice_value, 0, bedrock_spend_cents + cost
         )
         cost += call_cost
+        await ctx.study_repo.update_intervention_choice(
+            attempt.attempt_id,
+            hint_used=False,
+            video_used=choice_value == "video",
+            solution_used=choice_value == "solution",
+        )
+        SUPPORT_USAGE.labels(support_type=choice_value).inc()
         reply_text = _chat_reply_from_content(content)
     else:
         assert intent in ("question_help", "why_wrong")

@@ -76,6 +76,22 @@
   margin: 0 auto 16px;
 }
 
+/* D-216: the dead-stream banner. A notice above the phase screen, not a takeover -
+   REST still works while the stream is down, so the page stays usable beneath it. */
+.panel.stream-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  margin-bottom: 12px;
+  border-color: var(--error, #b3261e);
+}
+
+.panel.stream-banner p {
+  margin: 0;
+}
+
 /* Sparse highlight device (plan BD): the brand gradient never carries text,
    only decorative bars/badges, so it never needs its own contrast check. */
 .gradient-bar {

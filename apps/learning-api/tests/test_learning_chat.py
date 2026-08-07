@@ -18,6 +18,7 @@ from intellichoice_adapters.seed.mysql_fixtures import STUDENT_UNLINKED, seed
 from intellichoice_curriculum.loader import load_curriculum_and_templates
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.models.hints import HintEvent
+from intellichoice_db.models.mastery import StudyAttempt
 from intellichoice_db.models.memory import LearningEvent
 from intellichoice_db.models.tutor_chat import TutorChatMessage
 from intellichoice_db.repositories.questions import QuestionRepository
@@ -195,6 +196,24 @@ def _chat_turn_events(session_id: str) -> list[LearningEvent]:
     return asyncio.run(fetch())
 
 
+def _study_attempts_for_variant(question_variant_id: str) -> list[StudyAttempt]:
+    async def fetch() -> list[StudyAttempt]:
+        engine = create_engine()
+        try:
+            session_factory = create_session_factory(engine)
+            async with session_scope(session_factory) as session:
+                result = await session.execute(
+                    select(StudyAttempt).where(
+                        StudyAttempt.question_variant_id == question_variant_id
+                    )
+                )
+                return list(result.scalars().all())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
 def _reach_wrong_study_answer(client: TestClient, headers: dict[str, str]) -> tuple[str, str]:
     """Drives a fresh session through a perfect pre-exam to the study phase, then
     submits a wrong answer to the first study question - the same precondition the
@@ -293,6 +312,60 @@ def test_request_hint_advances_the_real_ladder_and_records_hint_events() -> None
             json={"interrupt_type": "intervention_choice", "choice": "continue"},
         )
         assert respond.status_code == 200
+
+
+def test_chat_hint_past_the_ladder_answers_deterministically_and_flags_the_attempt() -> None:
+    """D-216, two halves of the same walk down the chat ladder.
+
+    The crash half: `run_chat_turn` computed `next_level = len(prior_events) + 1` with no
+    bound while `_hint_round` indexes `ladder[level - 1]`, so the fourth hint request on
+    one wrong attempt was an IndexError -> 500. It must instead answer with the fixed
+    exhausted-ladder message, free of charge (no new `hint_events` row).
+
+    The metrics half: chat-served support must set the same `study_attempts` flags the
+    button panel sets, or a chat-assisted correct answer is labeled `independent_correct`
+    and every downstream consumer (mastery, gain dependency rates, the parent dashboard)
+    records help that was given as help that wasn't.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, variant_id = _reach_wrong_study_answer(client, headers)
+
+        for expected_level in (1, 2, 3):
+            resp = client.post(
+                f"/learning/sessions/{session_id}/chat",
+                headers=headers,
+                json={"question_variant_id": variant_id, "message": "one more hint please"},
+            )
+            assert resp.status_code == 200
+            assert f"hint {expected_level} of 3" in resp.json()["reply_text"]
+
+        # The A2 half: the wrong attempt now carries the hint flag.
+        attempts = _study_attempts_for_variant(variant_id)
+        assert len(attempts) == 1
+        assert attempts[0].hint_used is True
+        assert attempts[0].solution_used is False
+
+        # The A1 half: a fourth request is answered, deterministically, at no cost.
+        resp4 = client.post(
+            f"/learning/sessions/{session_id}/chat",
+            headers=headers,
+            json={"question_variant_id": variant_id, "message": "another hint please"},
+        )
+        assert resp4.status_code == 200
+        assert resp4.json()["reply_text"] == tutor_chat_service.HINT_LADDER_EXHAUSTED_MESSAGE
+        assert len(_hint_events_for_variant(variant_id)) == 3
+
+        # Chat-requested solutions leave the same trace a button-chosen one would.
+        solution_resp = client.post(
+            f"/learning/sessions/{session_id}/chat",
+            headers=headers,
+            json={"question_variant_id": variant_id, "message": "just show me the solution"},
+        )
+        assert solution_resp.status_code == 200
+        assert solution_resp.json()["intent"] == "request_solution"
+        attempts = _study_attempts_for_variant(variant_id)
+        assert attempts[0].solution_used is True
 
 
 def test_why_wrong_yields_a_misconception_grounded_reply_without_leaking_the_answer() -> None:

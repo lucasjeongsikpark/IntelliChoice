@@ -916,14 +916,18 @@ async def submit_answer(
             config=_graph_config(learning_session_id),
             context=ctx,
         )
-    except StudyPlanBuildError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
-        ) from exc
     except flow.ItemAlreadyAnsweredError as exc:
-        # The pre-flight above catches the ordinary case; this is the concurrent one, where
-        # the unique constraint rejected the insert after both requests read no attempt.
+        # The pre-flight above catches the ordinary exam case; this is the concurrent one
+        # (the unique constraint rejected the insert after both requests read no attempt)
+        # and, since D-216, the study path's guard too - study answers have no pre-flight.
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except AssessmentBuildError as exc:
+        # D-216: a correct final study answer builds the post-exam inside this turn; the
+        # node converts StudyPlanBuildError to phase="error" (503 below) but this one
+        # propagated as an unexplained 500. Same treatment as /topics gives it.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
     except flow.UnknownQuestionVariantError as exc:
         raise _variant_error_from(exc) from exc
 
@@ -1176,6 +1180,13 @@ async def finalize_exam(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"unanswered_item_ids": exc.unanswered_item_ids},
         ) from exc
+    except StudyPlanBuildError as exc:
+        # D-216: `_complete_pre_exam` builds the study plan inside this turn, so a topic
+        # with no approved templates surfaced here as an uncaught 500 while the identical
+        # failure mid-study was already a handled 503. Same failure, same status.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
 
     response = FinalizeExamResponse(
         learning_session_id=learning_session_id,
@@ -1351,6 +1362,13 @@ async def respond_to_interrupt(
         )
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except (StudyPlanBuildError, AssessmentBuildError) as exc:
+        # D-216: resuming `intervention_choice` runs `flow.advance_study`, which can build
+        # the next study item or the post-exam - the same failures the /answers and
+        # /finalize paths already map to 503 rather than an unexplained 500.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
 
     next_pending = _result_interrupt(result)
     response = RespondResponse(

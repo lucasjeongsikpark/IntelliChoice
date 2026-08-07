@@ -1962,3 +1962,85 @@ def test_restart_survives_pending_child_selection_interrupt() -> None:
         )
         assert respond_resp.status_code == 200
         assert respond_resp.json()["phase"] == "student_selected"
+
+
+def test_a_study_answer_cannot_be_recorded_twice() -> None:
+    """D-216: the study counterpart of AUD-L-10's one-attempt-per-item rule.
+
+    The exam path had a pre-flight, a flow-level re-check, and a unique constraint; the
+    study path had only a membership check, so a stale tab re-answering an already-resolved
+    study item appended a second `StudyAttempt` to its skill line - re-labeling the line and
+    inflating the "resolving attempt" denominators the gain's dependency rates divide by.
+    The model docstring has always stated the invariant ("the current pending question is
+    the item lacking a matching StudyAttempt"); this pins its enforcement: 409, one row.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        pre_items = topics_resp.json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        for item in pre_items:
+            variant_id = item["question_variant_id"]
+            client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"dup-pre-{variant_id}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+        finalize = _finalize_exam(client, headers, session_id)
+        assert finalize["phase"] == "study"
+        study_variant_id = finalize["items"][0]["question_variant_id"]
+
+        first = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": f"dup-study-1-{session_id}"},
+            json={
+                "question_variant_id": study_variant_id,
+                "selected_option": _correct_options([study_variant_id])[study_variant_id],
+                "response_time_ms": 2000,
+            },
+        )
+        assert first.status_code == 200
+        assert first.json()["phase"] == "study"
+
+        # The stale-tab shape: same variant, a *different* Idempotency-Key - so this is a
+        # second answer, not a replay of the first (which would legitimately re-serve).
+        second = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": f"dup-study-2-{session_id}"},
+            json={
+                "question_variant_id": study_variant_id,
+                "selected_option": _other_option(
+                    _correct_options([study_variant_id])[study_variant_id]
+                ),
+                "response_time_ms": 2000,
+            },
+        )
+        assert second.status_code == 409
+        assert "already been answered" in second.json()["detail"]
+
+        study_session_id = _study_session_id(session_id)
+        attempts = [
+            a
+            for a in _study_attempts_all(study_session_id)
+            if a.question_variant_id == study_variant_id
+        ]
+        assert len(attempts) == 1
+        assert attempts[0].is_correct is True
