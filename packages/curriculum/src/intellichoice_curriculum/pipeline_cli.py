@@ -566,6 +566,17 @@ async def preflight(
             f"{len(taken)} of {len(plan.slots)} planned template ids already exist - "
             f"pick a fresh --seed-offset"
         )
+    configured_models = {
+        generator_model,
+        _design_model(settings),
+        solver_a,
+        solver_b,
+        settings.bedrock_judge_model_id,
+    }
+    blocked = unavailable_models(settings, configured_models)
+    for model_id, message in blocked.items():
+        failures.append(f"{model_id} cannot be invoked by this account - {message}")
+
     if plan.run_budget_cents > settings.bedrock_run_budget_cents:
         failures.append(
             f"requested budget {plan.run_budget_cents:.0f}c exceeds the configured hard "
@@ -606,10 +617,66 @@ async def preflight(
         "the run budget ceiling above is the enforced bound",
         f"solver diversity:      {'PASS' if solvers_differ else 'FAIL'}",
         f"id availability:       {'PASS' if not taken else 'FAIL'}",
+        f"model access:          {'PASS' if not blocked else 'FAIL'}"
+        + (" (not probed - mock provider)" if settings.bedrock_provider != "bedrock" else ""),
     ]
     for failure in failures:
         lines.append(f"  ! {failure}")
     return PreflightReport(text="\n".join(lines), ok=not failures, failures=tuple(failures))
+
+
+def unavailable_models(settings, model_ids: set[str]) -> dict[str, str]:
+    """Which of these model ids this account cannot actually invoke (D-211).
+
+    **Why this exists.** A run configured with `anthropic.claude-sonnet-5` produced
+    `0 accepted of 0 processed, 14 scheduled, 0.00 cents spent` and fourteen lines of
+    `circuit_open`. The real cause was one sentence Bedrock had been saying all along:
+
+        AccessDeniedException: anthropic.claude-sonnet-5 is not available for this account.
+
+    Five failures tripped the breaker and the remaining nine were skipped, so the output
+    reported the *symptom* - a breaker - and never the cause. Preflight is exactly where
+    that should have been caught, and it was checking model *names* while never asking
+    whether they could be called.
+
+    `list-foundation-models` is not the test, and that is the trap: it lists Sonnet 5 for
+    this account. Availability is about an agreement, so the only honest check is to
+    attempt the smallest possible call.
+
+    Costs a handful of output tokens per distinct model - the smallest bounded price for
+    turning a confusing run into a refusal. Skipped entirely on the mock provider.
+    """
+    if settings.bedrock_provider != "bedrock":
+        return {}
+    import boto3
+    from botocore.exceptions import ClientError
+
+    client = boto3.client("bedrock-runtime", region_name=settings.bedrock_aws_region)
+    unavailable: dict[str, str] = {}
+    for model_id in sorted(model_ids):
+        if not model_id:
+            continue
+        try:
+            client.converse(
+                modelId=model_id,
+                messages=[{"role": "user", "content": [{"text": "ok"}]}],
+                inferenceConfig={"maxTokens": 1},
+            )
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code", "")
+            # Only *access* is a preflight failure. A throttle or a transient fault says
+            # nothing about whether the model is configured correctly, and failing the run
+            # on one would be worse than the problem this check solves.
+            blocking = (
+                "AccessDeniedException",
+                "ValidationException",
+                "ResourceNotFoundException",
+            )
+            if code in blocking:
+                unavailable[model_id] = exc.response.get("Error", {}).get("Message", code)
+        except Exception:  # noqa: BLE001 - a probe must never be the thing that breaks a run
+            continue
+    return unavailable
 
 
 def _build_gateway(settings: CurriculumPipelineSettings) -> ResilientBedrockGateway:
