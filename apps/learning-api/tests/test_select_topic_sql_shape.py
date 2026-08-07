@@ -451,12 +451,13 @@ def _content(views: list[flow.QuestionItemView]) -> list[tuple[str, str, str, st
 # week reaching $48 is 8 + 5w = 48, so w = 8, and option d is 8.
 # Pinned verbatim, so the rows are not wrapped: reformatting captured content is a way
 # to change what is being pinned without noticing.
+# D-215 re-captured this. AUD-F-31 pinned it to prove a *refactor* left content untouched,
+# which it still does - but the walk of the deployed UI found 13 items whose context block was
+# reviewer meta-commentary or a restatement of the stem, and 2 that should not be served at all
+# (a duplicate pair, and one problem that compares a relative quantity against an absolute one).
+# Stripping and retiring those changes which items this seed draws, so the old capture pinned
+# content that no longer exists. Regenerated from the bank rather than hand-edited.
 _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
-    # D-210 re-pin. The previous capture was mostly `Solve for x: ...` because the serving
-    # path drew from the shape bank; it now draws only from authored word problems, and the
-    # five authored items that were themselves bare equations were removed from the bank file
-    # and retired by the loader. That every row here is a situation rather than an equation is
-    # the change being pinned, not an accident of this seed.
     (
         "Liam’s father is filling a large fish tank for a community event. The tank already has some water in it, and he adds more every day.\n\nLiam’s father is preparing a fish tank for a community event. The tank already has 30 litres of water. He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?",  # noqa: E501
         "10",
@@ -472,60 +473,60 @@ _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
         "8",
     ),
     (
-        "Maya is saving for a concert ticket. She has $60 now and spends $5 on lunch each day. She checks her wallet and sees she has $20 left. How many days has she been buying lunch?\n\nMaya has $60 saved for a concert ticket. She spends $5 on lunch each day. After some days, she checks her wallet and sees she has $20 left. For how many days has she been buying lunch?",  # noqa: E501
-        "4",
-        "8",
+        "Jamal starts with $60 and spends $4 each week on snacks. He wants to know how many weeks it will take until he has only $12 left.",  # noqa: E501
+        "3",
         "12",
-        "2",
+        "8",
+        "15",
     ),
     (
-        "Jamie is saving for a new skateboard. They already have $20 and save $5 every week. The skateboard costs $50. How many weeks will Jamie need to save?",  # noqa: E501
-        "10",
+        "Liam earns $5 each week by helping his neighbour with gardening. He already has $8 saved from his birthday. After a few weeks, he checks his savings and finds he has $48 in total. How many weeks has Liam been saving?",  # noqa: E501
         "6",
+        "10",
+        "9",
+        "8",
+    ),
+    (
+        "Marcus is training for a race. He runs 3 kilometers every morning and has already run 27 kilometers this month. His goal is to run 48 kilometers total. How many more mornings must he run to reach his goal?",  # noqa: E501
+        "7 mornings",
+        "12 mornings",
+        "5 mornings",
+        "9 mornings",
+    ),
+    (
+        "Maya has $60 and spends $8 each week at the arcade. After how many weeks will she have $12 left?",  # noqa: E501
+        "4 weeks",
+        "9 weeks",
+        "11 weeks",
+        "6 weeks",
+    ),
+    (
+        "A café is mixing two types of coffee. They pour 8 liters of cold brew and add hot coffee until the total is 3 times the cold brew amount. How many liters of hot coffee did they add?",  # noqa: E501
+        "8",
+        "24",
+        "32",
+        "16",
+    ),
+    (
+        "Lena is sewing ribbon onto a dance banner for the school festival. She already has 3/4 metres of ribbon sewn on. Each day, she adds another 1/8 metre of ribbon. The banner needs a total of 3 metres of ribbon. How many days will it take Lena to finish the banner?",  # noqa: E501
+        "18",
+        "12",
+        "6",
+        "-6",
+    ),
+    (
+        "Maya has two options for earning money. Option 1: She starts with $6 and earns $4 each week. Option 2: She starts with $18 and earns $2 each week. After how many weeks will she have the same amount of money under both options?",  # noqa: E501
+        "4 weeks",
+        "3 weeks",
+        "6 weeks",
+        "12 weeks",
+    ),
+    (
+        "Leo packs 2 identical boxes. Each box holds 4 more items than the size of Mia’s group, plus he adds 1 loose item. Mia packs 3 groups of items, each the size of her group, and adds 3 loose items. They end up with the same number of items. How many items are in one of Mia’s groups?",  # noqa: E501
+        "10",
         "4",
+        "6",
         "5",
-    ),
-    (
-        "Leo is shopping at a video game store with two special offers. \n- Offer X: Start with $80 credit, then lose $4 for every game you buy.\n- Offer Y: Start with $20 credit, then gain $1 for every game you buy.\nLeo wants to know how many games he can buy so that both offers give him the same amount of money.\n\nLeo wants to buy some games at the store, but he has two offers to choose from. \n- Offer X: He starts with $80, but $4 is taken away for every game he buys.\n- Offer Y: He starts with $20, and $1 is added for every game he buys.\nHow many games should Leo buy so that both offers give him the same amount of money?",  # noqa: E501
-        "12",
-        "10",
-        "15",
-        "20",
-    ),
-    (
-        "Lena and Jake are both reading the same book. Lena has already read 20 pages and reads 5 more pages each day. Jake has already read 32 pages and reads 3 more pages each day. The question asks when they will have read the same number of pages.\n\nLena and Jake are reading the same book. Lena has read 20 pages already and reads 5 more pages each day. Jake has read 32 pages already and reads 3 more pages each day. After how many days will they have read the same number of pages?",  # noqa: E501
-        "2",
-        "4",
-        "12",
-        "6",
-    ),
-    (
-        "Liam’s game store has 60 video games in stock. Each hour, 3 games are sold from the main shelf, but 2 new games arrive from the warehouse and are added to a different shelf. Liam wants to know after how many hours the two shelves will have the same number of games.",  # noqa: E501
-        "12",
-        "20",
-        "10",
-        "15",
-    ),
-    (
-        "Maya has a video game score. She starts one round with 36 points and loses 3 points for each mistake she makes. Her friend Kai starts the same round with 12 points and gains 1 point for each correct move. After how many moves will they have the same score?",  # noqa: E501
-        "4 games",
-        "12 games",
-        "6 games",
-        "8 games",
-    ),
-    (
-        "A student is buying cards for a game. They purchase 3 identical packs, and each pack contains some regular cards plus 5 bonus cards. They also buy 2x individual regular cards, where x is the number of regular cards in one pack. Altogether, they have 35 cards. How many regular cards are in each pack?\n\nLiam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He also buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in each pack?",  # noqa: E501
-        "4",
-        "2",
-        "8",
-        "6",
-    ),
-    (
-        "Alex saves $6 each week and has no money to start. Jamie starts with $20 and saves $2 each week. After how many weeks will they have saved the same amount of money?",  # noqa: E501
-        "2 weeks",
-        "5 weeks",
-        "20 weeks",
-        "10 weeks",
     ),
 )
 

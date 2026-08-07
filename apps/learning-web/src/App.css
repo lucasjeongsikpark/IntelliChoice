@@ -335,12 +335,28 @@ button.link {
   color: var(--accent-contrast);
 }
 
+/* Matches `.panel.wide`, and that is the point rather than a coincidence.
+
+   This carried `max-width: 480px`, and `.stack` is what wraps the assistance panel *and*
+   the exam screen while an intervention is open. Custom width does not win over a parent's
+   clamp, so D-213's 880px question card silently collapsed to 480px for the entire duration
+   of every hint, solution, video and tutor chat - exactly when the student most needs to
+   read the question and the help side by side. Measured on staging 2026-08-07: `.panel.wide`
+   computed `max-width: 880px` and `width: 480px` inside this container.
+
+   `App.tsx` already knew about this hazard - the narrative renders through a Fragment
+   specifically to avoid `.stack` "quietly narrowing the exam screen" - so the trap was
+   documented one branch above the code that fell into it. Widening here rather than adding
+   `:has()` keeps the two stacked cards the same width, which is what makes them read as one
+   column. Safe to widen because the panel's prose is already measure-capped independently -
+   `.intervention-lead` and `.intervention-aside p` both carry `max-width: 60ch` - so a wider
+   card gives the question more room without stretching a hint into an unreadable line. */
 .stack {
   display: flex;
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  max-width: 480px;
+  max-width: 880px;
 }
 
 .intervention-panel {
@@ -933,8 +949,20 @@ ul {
    chart-specific brand tokens yet, and both light and dark sets here pass the skill's
    validator (lightness band, chroma floor, CVD separation, contrast). Slots 1-4
    (blue/aqua/yellow/green) keep a fixed order across every chart on this screen so a
-   series' color means the same thing everywhere it appears. */
-.dashboard-charts {
+   series' color means the same thing everywhere it appears.
+
+   Declared on `:root`, not on `.dashboard-charts`, and that is load-bearing rather than
+   tidiness. `StudentDashboardScreen`'s `vizColor()` resolves these with
+   `getComputedStyle(document.documentElement)`, because Recharts needs a resolved value
+   and will not accept a `var()` reference. Custom properties inherit *downward*, so while
+   they were declared on the descendant `.dashboard-charts` every one of those four lookups
+   returned `""` and silently took the `|| "#2a78d6"` fallback - making all four series the
+   same blue. Measured on staging 2026-08-07: legend swatches for Post-exam/Pre-exam were
+   both `#2a78d6`, and Support usage rendered Hint/Independent/Solution/Video in one colour,
+   so the two charts whose only job is comparison could not be read. The CSS-side consumers
+   below (`.legend-swatch`, the gain classes) are unaffected: they use `var()` and inherit
+   from `:root` just as well. */
+:root {
   --viz-ink: var(--text-h);
   --viz-ink-muted: var(--text);
   --viz-grid: var(--border);
@@ -945,7 +973,7 @@ ul {
 }
 
 @media (prefers-color-scheme: dark) {
-  .dashboard-charts {
+  :root {
     --viz-series-1: #3987e5;
     --viz-series-2: #199e70;
     --viz-series-3: #c98500;

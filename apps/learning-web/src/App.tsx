@@ -3,6 +3,7 @@ import "./App.css";
 import * as api from "./api/client";
 import { friendlyError } from "./api/errors";
 import { useLearningSession } from "./hooks/useLearningSession";
+import { useAssistanceCounts } from "./hooks/useAssistanceCounts";
 import { useNarrativeGate } from "./hooks/useNarrativeGate";
 import { useTutorChat } from "./hooks/useTutorChat";
 import type { ChildCandidate, Role, SessionSnapshot, TopicOption } from "./types";
@@ -32,7 +33,9 @@ function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [view, setView] = useState<View>("session");
 
-  const session = useLearningSession(token);
+  // `sub` is passed so the hook can drop a `sessionStorage` session belonging to a previous
+  // sign-in in this tab - see `clearSessionIfOwnedByAnotherSubject`.
+  const session = useLearningSession(token, sub);
   // `fetchExamOverview`/`recordItemTime` are pulled out by name rather than read off
   // `session` at the call site: the hook returns a fresh object every render, so a
   // `useCallback` depending on `session` would be re-created every render and reintroduce
@@ -118,7 +121,15 @@ function App() {
   }, [token, topicSessionId]);
 
   const [streak, setStreak] = useState(0);
-  const [counts, setCounts] = useState({ hint: 0, solution: 0, video: 0 });
+  // Persisted per learning session rather than held in React state: a mid-session refresh
+  // used to zero these, and the results screen then under-reported how much help the student
+  // took while the study-outro narrative - computed server-side - reported the real numbers.
+  // See useAssistanceCounts.ts.
+  const {
+    counts,
+    record: recordAssistance,
+    reset: resetAssistanceCounts,
+  } = useAssistanceCounts(snapshot?.learning_session_id ?? null);
   // D-207: see useTutorChat.ts. Held here rather than inside `TutorChatPanel` because
   // `AssistancePanel` unmounts that panel on every change of intervention state.
   const { reset: resetChat, ...chat } = useTutorChat();
@@ -152,10 +163,9 @@ function App() {
   useEffect(() => {
     if (snapshot?.intervention) {
       setInterventionDismissed(false);
-      const type = snapshot.intervention.type;
-      setCounts((c) => ({ ...c, [type]: c[type] + 1 }));
+      recordAssistance(snapshot.intervention.type);
     }
-  }, [snapshot?.intervention]);
+  }, [snapshot?.intervention, recordAssistance]);
 
   // AUD-F-01: `ExamScreen` lists both of these in effect dependency arrays (the overview
   // poll and the view-time autosave), so an inline arrow - a new identity on every render -
@@ -204,7 +214,7 @@ function App() {
 
   function resetSessionUiState() {
     setStreak(0);
-    setCounts({ hint: 0, solution: 0, video: 0 });
+    resetAssistanceCounts();
     resetNarrativeGate();
     // D-207: the transcript is scoped to a learning session, so it is cleared exactly
     // where the rest of the per-session UI state is - not when `TutorChatPanel` happens
@@ -246,11 +256,25 @@ function App() {
     // interrupt) - see hooks/useLearningSession.ts's docstring for the auto-select gap.
     const dashboardStudentId = role === "student" ? sub : session.studentId;
 
+    // The child's name, for screens a *parent* reads. The candidate list is already fetched
+    // for the selection screen, so this is a lookup rather than a request. `null` for a
+    // student looking at their own dashboard - they do not need to be told who they are -
+    // and `null` while the list is still in flight, which the screens fall back from.
+    //
+    // Only ever passed to a component that renders it. Names live in MySQL and stay there
+    // (CLAUDE.md #1): nothing here writes one to Postgres, a log, or an LLM payload.
+    const dashboardStudentName =
+      role === "parent"
+        ? (childCandidates?.find((c) => c.student_external_id === dashboardStudentId)
+            ?.display_name ?? null)
+        : null;
+
     if (view === "dashboard" && dashboardStudentId) {
       return (
         <StudentDashboardScreen
           token={token}
           studentId={dashboardStudentId}
+          studentName={dashboardStudentName}
           onBack={() => setView("session")}
         />
       );
@@ -327,11 +351,36 @@ function App() {
           onLogout={handleLogout}
           canSwitchChild={role === "parent" && (childCandidates?.length ?? 0) > 1}
           onSwitchChild={() => setSwitchingChild(true)}
+          studentName={dashboardStudentName}
         />
       );
     }
 
     if (!snapshot) {
+      // A stream that errors before the first snapshot ever arrives used to leave this
+      // screen showing "Connecting…" indefinitely, across reloads, with no way out. That
+      // was measured on staging: the stream 403'd and the student saw a spinner sentence
+      // forever. `EventSource` does not retry a non-2xx at all, so this is terminal, not
+      // slow - and the only honest thing to show is that it failed plus a way to start over.
+      if (session.streamState === "error") {
+        return (
+          <div className="panel">
+            <h1>We lost the connection</h1>
+            <p>
+              Your session could not be reopened. Starting fresh will not lose any work you
+              have already submitted.
+            </p>
+            <button
+              onClick={() => {
+                session.endSession();
+                resetSessionUiState();
+              }}
+            >
+              Back to start
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="panel">
           <p>Connecting…</p>
@@ -424,7 +473,14 @@ function App() {
             items={snapshot.items ?? null}
             streak={streak}
             overview={session.examOverview}
-            busy={session.busy}
+            // `ladderOpen` as well as `busy`: while the graph is paused on
+            // `intervention_choice` an answer has nowhere to land, but the exam's options and
+            // Submit stayed clickable underneath the hint. Measured on staging 2026-08-07 -
+            // selecting an option and submitting returned "That didn't fit where the session
+            // is right now", which is an error message standing in for a disabled control.
+            // The student resolves the pause through the panel ("I'll try again now", or now
+            // "No thanks"), and only then are these live again.
+            busy={session.busy || ladderOpen}
             error={session.error}
             onSubmit={(questionVariantId, selectedOption, responseTimeMs) => {
               markInteraction();
@@ -477,11 +533,24 @@ function App() {
           return assistancePanel;
         }
         if (snapshot.intervention && !interventionDismissed) {
-          return (
+          // The question is shown beneath the help only while the pause is still *about*
+          // that question - which is exactly what `ladderOpen` means. Once the ladder is
+          // spent (hint 3 of 3, or any solution/video), the graph has already advanced and
+          // `snapshot.items` carries the **next** question, so pairing them put the help for
+          // one problem directly above a different problem.
+          //
+          // Measured on staging 2026-08-07: "Hint 3 of 3" ended with "Does your answer of 8
+          // keychains make this equation true?" while the card below it was Maya's concert
+          // ticket, with its own four options. The same happened after every solution and
+          // every video. The panel's own button already says "Got it — next question", so
+          // showing the next question before it is pressed was also contradicting the button.
+          return ladderOpen ? (
             <div className="stack">
               {assistancePanel}
               {examView}
             </div>
+          ) : (
+            assistancePanel
           );
         }
         return examView;
@@ -497,9 +566,16 @@ function App() {
         );
       }
 
+      // Every phase this app knows how to draw is handled above, so reaching here means a
+      // transitional or unrecognised one. It used to render `Phase: {snapshot.phase}` - the
+      // raw graph enum, in front of a K-12 student. Seen on staging 2026-08-07 as
+      // "Phase: created" for the two-odd seconds between starting a session and the topic
+      // screen appearing, which is the most common way a student meets this branch.
+      //
+      // The phase is kept for whoever is debugging, in a `title` the UI never speaks.
       return (
-        <div className="panel">
-          <p>Phase: {snapshot.phase}</p>
+        <div className="panel" title={`phase: ${snapshot.phase}`}>
+          <p>Getting your session ready…</p>
         </div>
       );
     }

@@ -9,10 +9,14 @@
  * - `staging` - the real CloudFront distributions. Same-origin routing (D-084) means
  *   the web URL *is* the API URL, so only the two web URLs need setting.
  *
- * On staging the app's own dev-login screen cannot work: `POST /dev/token` needs the
- * `X-Staging-Token-Secret` header (D-097) and the frontend never sends one. So the
- * staging path mints tokens out of band (fixtures/session.ts) and seeds localStorage
- * directly, which is also how a *parent* journey skips straight to a dashboard.
+ * On staging the app's own dev-login screen needs the `X-Staging-Token-Secret` header that
+ * `POST /dev/token` is gated by (D-097). The screen *does* send one now - it grew a "Staging
+ * secret" field - but only if a human types the secret into it, so an automated run still
+ * mints tokens out of band (fixtures/session.ts) and seeds localStorage directly. That is
+ * also how a *parent* journey skips straight to a dashboard.
+ *
+ * This paragraph read "the frontend never sends one" until 2026-08-07, which had stopped
+ * being true and would have sent the next person looking at the wrong half of the system.
  */
 
 export type Target = "local" | "staging";

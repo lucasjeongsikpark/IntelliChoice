@@ -79,6 +79,18 @@ export function AssistancePanel({
           <button className="secondary" disabled={busy} onClick={() => onChoose("video")}>
             Watch a video
           </button>
+          {/* The way out, which this screen did not have. Measured on staging 2026-08-07:
+              after a wrong answer the whole page was four assistance buttons and a footer
+              link - no back, no dashboard, not even sign-out - and it survived a reload, so
+              a student who wanted to carry on unaided was stuck until they accepted help.
+              Two costs, not one: it takes the choice away from the student, and every one of
+              the other three buttons is a paid Bedrock call, so "no thanks" was the only
+              option that was free and the only one missing. `"continue"` was already a valid
+              choice server-side (`intervention_choice` routes it straight to
+              `flow.advance_study`); nothing needed to be added behind this button. */}
+          <button className="secondary" disabled={busy} onClick={() => onChoose("continue")}>
+            No thanks — next question
+          </button>
         </div>
         {chatPanel}
       </div>
@@ -167,7 +179,9 @@ function HintContent({ intervention }: { intervention: InterventionContent }) {
         {showLadder && (
           <span className="hint-remaining">
             {remaining > 0
-              ? `${remaining} more ${remaining === 1 ? "hint" : "hints"} if you need them`
+              ? `${remaining} more ${remaining === 1 ? "hint" : "hints"} if you need ${
+                  remaining === 1 ? "it" : "them"
+                }`
               : "Last hint"}
           </span>
         )}

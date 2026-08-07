@@ -7,16 +7,44 @@ import type { ExamOverview, SessionSnapshot } from "../types";
 
 const SESSION_ID_KEY = "intellichoice.learning_session_id";
 const STUDENT_ID_KEY = "intellichoice.selected_student_id";
+const OWNER_KEY = "intellichoice.session_owner_sub";
+
+/**
+ * Drop a stored session that belongs to somebody else, before anything reads it.
+ *
+ * Found on staging 2026-08-07 by signing in as one fixture student and then another in the
+ * same tab. Identity lives in `localStorage` and this session state lives in
+ * `sessionStorage`; sign-in replaced only the former, so the app restored the *previous*
+ * student's `learning_session_id` and opened the stream against it. The server refused
+ * correctly - `403 "Students may only access their own records"`, fail-closed working as
+ * designed - and the client had no handler, so the app sat on "Connecting…" forever and
+ * survived every reload. On a branch's shared device that is a permanent wedge for the next
+ * student to sit down.
+ *
+ * Recording the owner is enough to prevent it: `sessionStorage` is per-tab, so the only way
+ * these keys can be stale is an identity change within the tab, which is exactly what this
+ * compares. Runs at module scope of the hook's initializers rather than in an effect so no
+ * render ever sees the other student's id.
+ */
+function clearSessionIfOwnedByAnotherSubject(sub: string | null): void {
+  const owner = sessionStorage.getItem(OWNER_KEY);
+  if (sub !== null && owner === sub) return;
+  if (owner === null && sessionStorage.getItem(SESSION_ID_KEY) === null) return;
+  sessionStorage.removeItem(SESSION_ID_KEY);
+  sessionStorage.removeItem(STUDENT_ID_KEY);
+  sessionStorage.removeItem(OWNER_KEY);
+}
 
 // The whole point of persisting `sessionId` in `sessionStorage` (survives a refresh,
 // cleared when the tab closes) is SPEC Phase 11's "Done when": a page refresh must
 // restore exact position. On mount, if a session id is already stored, opening the SSE
 // stream alone restores the snapshot - no replay of prior actions needed, since
 // `/stream` reads the live LangGraph checkpoint on connect (see D-032).
-export function useLearningSession(token: string | null) {
-  const [sessionId, setSessionId] = useState<string | null>(() =>
-    sessionStorage.getItem(SESSION_ID_KEY),
-  );
+export function useLearningSession(token: string | null, sub: string | null) {
+  const [sessionId, setSessionId] = useState<string | null>(() => {
+    clearSessionIfOwnedByAnotherSubject(sub);
+    return sessionStorage.getItem(SESSION_ID_KEY);
+  });
   const [studentId, setStudentId] = useState<string | null>(() =>
     sessionStorage.getItem(STUDENT_ID_KEY),
   );
@@ -127,6 +155,8 @@ export function useLearningSession(token: string | null) {
     return run(async () => {
       const snap = await api.createSession(token);
       sessionStorage.setItem(SESSION_ID_KEY, snap.learning_session_id);
+      // Stamped with the session, never separately, so the pair cannot drift.
+      if (sub !== null) sessionStorage.setItem(OWNER_KEY, sub);
       sessionIdRef.current = snap.learning_session_id;
       setSessionId(snap.learning_session_id);
       // A brand-new session's checkpoint doesn't exist until `chooseStudent` below
@@ -135,7 +165,7 @@ export function useLearningSession(token: string | null) {
       setSnapshot(snap);
       return snap;
     });
-  }, [token, run]);
+  }, [token, sub, run]);
 
   const chooseStudent = useCallback(
     async (explicitStudentId?: string) => {
@@ -302,6 +332,9 @@ export function useLearningSession(token: string | null) {
   // out of a session. Logout calls `forgetStudent` explicitly.
   const endSession = useCallback(() => {
     sessionStorage.removeItem(SESSION_ID_KEY);
+    // The owner stamp is meaningless without a session and would otherwise make the next
+    // `clearSessionIfOwnedByAnotherSubject` look at a key with nothing behind it.
+    sessionStorage.removeItem(OWNER_KEY);
     sessionIdRef.current = null;
     setSessionId(null);
     setCheckpointReady(false);

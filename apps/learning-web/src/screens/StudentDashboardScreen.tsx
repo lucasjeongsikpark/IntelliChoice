@@ -17,11 +17,27 @@ import { ReportView } from "../components/ReportView";
 import { SkillFocusList } from "../components/SkillFocus";
 import { splitByTarget } from "../lib/skillFocus";
 import { topicLabel } from "../topics";
-import type { DashboardData, DifficultyPoint, StudentHistory, StudentReport } from "../types";
+import type {
+  BlockedSessionSummary,
+  DashboardData,
+  DifficultyPoint,
+  StudentHistory,
+  StudentReport,
+} from "../types";
 
 interface Props {
   token: string;
   studentId: string;
+  /**
+   * The child's display name, when a parent is reading this. `null` for a student looking
+   * at their own dashboard, and `null` while the parent's children list is still loading -
+   * both fall back to the external id.
+   *
+   * Added because the parent journey showed the id: a parent picked "Ben First" by name on
+   * the previous screen and then read "Student: student-ext-2". The name was already in
+   * hand, one screen earlier.
+   */
+  studentName?: string | null;
   onBack: () => void;
 }
 
@@ -41,11 +57,73 @@ function formatDateLabel(value: unknown): string {
 // neighbors (the full name is still available via the tooltip's series value).
 const SKILL_LABEL_MAX_CHARS = 26;
 
+/**
+ * Truncates in the **middle**, because a skill name's distinguishing part is its tail.
+ *
+ * These names are built as "Solve linear equations …", so cutting off the end - which this
+ * did - collapsed different skills onto the same label. Measured on staging 2026-08-07, the
+ * "Mastery by skill" axis rendered "Solve linear equations wi…" **twice**: once for "…with
+ * variables on both sides" and once for "…with negative or fractional coefficients". Two
+ * bars, two different masteries (87% and 31%), no way to tell which was which. On a chart
+ * whose whole job is to say which skill needs work, that is the chart failing.
+ *
+ * Keeping a head and a tail costs the same horizontal space and separates every name in the
+ * current curriculum. It degrades gracefully rather than uniquely: two skills differing only
+ * in the middle would still collide, which the tooltip's full value still resolves.
+ */
 function truncateSkillLabel(value: unknown): string {
   const label = typeof value === "string" ? value : String(value);
-  return label.length > SKILL_LABEL_MAX_CHARS
-    ? `${label.slice(0, SKILL_LABEL_MAX_CHARS - 1)}…`
-    : label;
+  if (label.length <= SKILL_LABEL_MAX_CHARS) return label;
+  const head = Math.ceil((SKILL_LABEL_MAX_CHARS - 1) / 2);
+  const tail = SKILL_LABEL_MAX_CHARS - 1 - head;
+  return `${label.slice(0, head)}…${label.slice(-tail)}`;
+}
+
+interface GroupedBlock {
+  key: string;
+  week_id: string;
+  blocked_reason: string;
+  /** Most recent attempt in the group - the one a parent would ask about. */
+  latest_blocked_at: string;
+  attempts: number;
+}
+
+/**
+ * One row per blocked **week and reason**, not per blocked attempt.
+ *
+ * `blocked_sessions` is an attempt log, and rendering it directly meant a student who tried
+ * several times in one day produced several identical lines. Measured on staging 2026-08-07
+ * on a parent's dashboard: **20 rows, 6 distinct** - "Week 2026-W31 — absent (7/31/2026)"
+ * eight times and "(7/29/2026)" six times. Everything above it on that dashboard said "no
+ * data yet", so a wall of repeated blocks was the entire page, and 14 of the 20 lines
+ * carried no information the line above did not.
+ *
+ * The attempt count is kept rather than dropped - "tried 8 times and was blocked" is a
+ * different situation from "tried once", and it is the parent's cue that the child wanted to
+ * work. Grouping is display-only; the rows themselves stay as they are, since they are the
+ * evidence for a gate that refused someone.
+ */
+function groupBlockedSessions(blocked: BlockedSessionSummary[]): GroupedBlock[] {
+  const groups = new Map<string, GroupedBlock>();
+  for (const b of blocked) {
+    const key = `${b.week_id}|${b.blocked_reason}`;
+    const existing = groups.get(key);
+    if (existing === undefined) {
+      groups.set(key, {
+        key,
+        week_id: b.week_id,
+        blocked_reason: b.blocked_reason,
+        latest_blocked_at: b.blocked_at,
+        attempts: 1,
+      });
+      continue;
+    }
+    existing.attempts += 1;
+    if (b.blocked_at > existing.latest_blocked_at) existing.latest_blocked_at = b.blocked_at;
+  }
+  return [...groups.values()].sort((a, b) =>
+    b.latest_blocked_at.localeCompare(a.latest_blocked_at),
+  );
 }
 
 function formatDifficultyTooltip(value: unknown, _name: unknown, item: unknown): [string, string] {
@@ -53,10 +131,17 @@ function formatDifficultyTooltip(value: unknown, _name: unknown, item: unknown):
   return [String(value), payload?.skill_name ?? ""];
 }
 
-// Fixed chart colors (`--viz-series-*`, defined on `.dashboard-charts` in App.css) -
-// Recharts needs resolved values, not CSS var() references, so these are read once at
-// module load. Order is fixed across every chart on this screen (dataviz skill: "color
+// Fixed chart colors (`--viz-series-*`, declared on `:root` in App.css) - Recharts needs
+// resolved values, not CSS var() references, so these are read here rather than passed as
+// `var(...)`. Order is fixed across every chart on this screen (dataviz skill: "color
 // follows the entity, never its rank").
+//
+// The `:root` in that sentence is the whole point, and this comment used to say
+// `.dashboard-charts`, which is where they really were. Custom properties inherit
+// downward, so a declaration on that descendant was invisible to
+// `document.documentElement` here: all four lookups returned `""`, every series took the
+// fallback below, and the charts rendered monochrome with no error anywhere. If this
+// lookup is ever re-pointed at an element, the declaration has to move with it.
 function vizColor(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#2a78d6";
 }
@@ -78,7 +163,7 @@ function rangeStart(preset: RangePreset): string | null {
   return start.toISOString();
 }
 
-export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
+export function StudentDashboardScreen({ token, studentId, studentName = null, onBack }: Props) {
   const [history, setHistory] = useState<StudentHistory | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
@@ -193,7 +278,7 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
       <div className="dashboard-head">
         <div>
           <h1>Progress dashboard</h1>
-          <p className="subtitle">Student: {studentId}</p>
+          <p className="subtitle">Student: {studentName ?? studentId}</p>
         </div>
         <button className="secondary dashboard-back" onClick={onBack}>
           Back
@@ -476,10 +561,11 @@ export function StudentDashboardScreen({ token, studentId, onBack }: Props) {
           <h2>Blocked (attendance not confirmed)</h2>
           {history.blocked_sessions.length === 0 && <p className="dim">None.</p>}
           <ul>
-            {history.blocked_sessions.map((b) => (
-              <li key={`${b.week_id}-${b.blocked_at}`}>
+            {groupBlockedSessions(history.blocked_sessions).map((b) => (
+              <li key={b.key}>
                 Week {b.week_id} — {b.blocked_reason} (
-                {new Date(b.blocked_at).toLocaleDateString()})
+                {new Date(b.latest_blocked_at).toLocaleDateString()})
+                {b.attempts > 1 && <span className="dim"> · {b.attempts} attempts</span>}
               </li>
             ))}
           </ul>

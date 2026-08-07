@@ -18,6 +18,43 @@ from intellichoice_db.repositories.questions import QuestionRepository
 _MAX_REGENERATION_ATTEMPTS = 20
 _MAX_SEED = 2**31 - 1
 
+OPTION_KEYS = ("a", "b", "c", "d")
+# 4! = 24 orders, one of which is the identity. A handful of redraws is plenty to avoid it;
+# the bound exists so a pathological RNG cannot spin here rather than because it is expected
+# to be reached.
+_MAX_PERMUTATION_ATTEMPTS = 12
+
+
+def _permute_options(
+    *, canonical_variant: QuestionVariant, seed: int
+) -> tuple[list[str], str]:
+    """Return `canonical_variant`'s four options in a new order, plus the remapped answer key.
+
+    Seeded from `seed`, which the caller has already drawn from the session RNG, so this
+    stays inside the deterministic core (CLAUDE.md non-negotiable #2): the same session seed
+    reproduces the same order. It draws from a *private* `Random` rather than the session
+    RNG so that adding this step did not shift any later draw and change existing exams.
+
+    The identity order is rejected because "differs in option order" is the property being
+    bought; returning the original order would satisfy the type and not the requirement.
+    """
+    options = [
+        canonical_variant.option_a,
+        canonical_variant.option_b,
+        canonical_variant.option_c,
+        canonical_variant.option_d,
+    ]
+    rng = random.Random(seed)
+    order = list(range(len(options)))
+    for _ in range(_MAX_PERMUTATION_ATTEMPTS):
+        rng.shuffle(order)
+        if order != sorted(order):
+            break
+    original_index = OPTION_KEYS.index(canonical_variant.correct_option)
+    # `order[j]` is which original option now sits at position `j`, so the answer key moves
+    # to wherever the originally-correct option landed.
+    return [options[i] for i in order], OPTION_KEYS[order.index(original_index)]
+
 
 class StaticVariantUnavailableError(Exception):
     """A template whose content is stored rather than computed was asked to render
@@ -120,10 +157,29 @@ def _static_variant_row(
 ) -> QuestionVariant:
     """Serve a stored item: copy the canonical variant's content into a fresh runtime row.
 
-    **This is where the post-exam's parallel form is knowingly given up** (D-189, the
-    user's call). An authored template has exactly one rendering, so when the post-exam
-    asks for "the same template, a rendering that isn't the pre-exam's", there is no other
-    rendering to give and the student sees the identical question twice.
+    **This is where the post-exam's parallel form is partly given up** (D-189, the user's
+    call). An authored template has exactly one rendering, so when the post-exam asks for
+    "the same template, a rendering that isn't the pre-exam's", there is no other rendering
+    to give and the student sees the same stem and numbers twice.
+
+    D-189 accepted that **on the condition that the repeat rate be measurable rather than
+    assumed**. It has now been measured on staging (2026-08-07, a full journey driven
+    through the deployed UI): with D-210's authored-only bank, **10 of 10** post-exam items
+    repeated the pre-exam - stems, numeric parameters *and* option order all identical. So
+    the rate is 100%, not the rare fallback the generated path had.
+
+    What that measurement changes here is narrow and deliberate. Re-rendering with different
+    numbers is still content work D-189 costed and rejected, so it is untouched. But SPEC
+    §5.13.1 names **three** axes the post-exam must differ in - numerical parameters, option
+    order, and seed - and option order needs no new content, no schema change and no human
+    review. Serving the same four options in the same four positions was giving up an axis
+    that was free. It is now permuted, which removes pure position memory ("I picked C")
+    from the gain measurement. Numerical parameters remain D-189's open trade.
+
+    Verified safe before doing it: the authored bank contains no reference to an option
+    letter in any stem, hint or worked solution, so no text can disagree with the new order.
+    Only the post-exam path permutes - the pre-exam and the study planner pass
+    `avoid_rendered_question=None` and are byte-for-byte unchanged.
 
     Two reasons that is acceptable rather than a regression. SPEC §5.13.2 forbids reusing
     the same question *variant*, and this does mint a new row per serving. And the
@@ -138,10 +194,20 @@ def _static_variant_row(
     for provenance, and is not used to render anything.
     """
     seed = rng.randint(0, _MAX_SEED)
+    options = [
+        canonical_variant.option_a,
+        canonical_variant.option_b,
+        canonical_variant.option_c,
+        canonical_variant.option_d,
+    ]
+    correct_option = canonical_variant.correct_option
     if (
         avoid_rendered_question is not None
         and canonical_variant.rendered_question == avoid_rendered_question
     ):
+        options, correct_option = _permute_options(
+            canonical_variant=canonical_variant, seed=seed
+        )
         logger.info(
             "static_variant_repeats_rendering",
             extra={
@@ -149,6 +215,9 @@ def _static_variant_row(
                 "topic_id": template.topic_id,
                 "skill_id": template.skill_id,
                 "difficulty_label": template.difficulty_label,
+                # So the log still distinguishes "same question entirely" from "same
+                # question, re-ordered options" once this has been running a while.
+                "options_permuted": True,
             },
         )
     return QuestionVariant(
@@ -156,11 +225,11 @@ def _static_variant_row(
         question_template_id=template.question_template_id,
         random_seed=seed,
         rendered_question=canonical_variant.rendered_question,
-        option_a=canonical_variant.option_a,
-        option_b=canonical_variant.option_b,
-        option_c=canonical_variant.option_c,
-        option_d=canonical_variant.option_d,
-        correct_option=canonical_variant.correct_option,
+        option_a=options[0],
+        option_b=options[1],
+        option_c=options[2],
+        option_d=options[3],
+        correct_option=correct_option,
         parameter_values=canonical_variant.parameter_values,
     )
 

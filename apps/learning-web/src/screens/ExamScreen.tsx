@@ -200,6 +200,20 @@ export function ExamScreen({
     ? (cachedBatch?.find((item) => item.display_order === currentDisplayOrder) ?? null)
     : (items?.[0] ?? null);
 
+  /**
+   * The number the student is *shown*, so the live region and the visible label cannot
+   * disagree about which question just happened.
+   *
+   * They did. `currentDisplayOrder` indexes into this batch, and in the study phase the
+   * batch is one item long, so it is always 0 - while the heading reads the item's own
+   * `display_order`. Measured on staging 2026-08-07: the screen said "Practice question 4"
+   * and the live region announced "Answer submitted for question 1." A sighted student never
+   * saw the second number; a screen-reader user got only that one.
+   */
+  const shownQuestionNumber = isExamPhase
+    ? currentDisplayOrder + 1
+    : (currentItem?.display_order ?? currentDisplayOrder) + 1;
+
   // D-207: `answeredSelections` is consulted alongside the server's own status, and that
   // second clause is a fix rather than a convenience.
   //
@@ -236,7 +250,7 @@ export function ExamScreen({
     const responseTimeMs = Date.now() - viewStartRef.current;
     onSubmit(currentItem.question_variant_id, chosen, responseTimeMs);
     setAnsweredSelections((prev) => ({ ...prev, [currentDisplayOrder]: chosen }));
-    setStatusMessage(`Answer submitted for question ${currentDisplayOrder + 1}.`);
+    setStatusMessage(`Answer submitted for question ${shownQuestionNumber}.`);
     setSelected(null);
     if (isExamPhase) {
       onFetchOverview();
@@ -333,9 +347,9 @@ export function ExamScreen({
   // printing nothing - it would say "3 of 5" and then serve a sixth.
   const position = isExamPhase
     ? cachedBatch
-      ? `Question ${currentDisplayOrder + 1} of ${cachedBatch.length}`
+      ? `Question ${shownQuestionNumber} of ${cachedBatch.length}`
       : ""
-    : `Practice question ${currentItem.display_order + 1}`;
+    : `Practice question ${shownQuestionNumber}`;
   const rememberedSelection = answeredSelections[currentDisplayOrder];
 
   return (

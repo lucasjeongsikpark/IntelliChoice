@@ -5,6 +5,70 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+### Session log — the deployed UI, walked (2026-08-07, D-215)
+
+**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1035 passed, 2 skipped,
+1 xfailed** · `tsc` clean for `learning-web`, `chat-web` and `e2e` · `oxlint` clean · all 41
+authored templates pass the loader's §5.8.5 gate.
+
+Three tests failed first and all three were the change telling the truth, not a regression:
+`test_full_deterministic_learning_flow` asserted the old "Skills to strengthen" wording,
+`test_the_repo_bank_file_matches_what_the_database_would_export` wanted the bank loaded (the
+diff was ordering only - 41 ids, **zero** field differences), and `_PINNED_PRE_EXAM_AT_SEED`
+pinned content that the retirements removed. The capture was regenerated from the bank rather
+than hand-edited.
+
+**Not a numbered ROADMAP session** — D-214's carry-over: "a visual pass of the deployed UI was
+requested and not completed" because `chrome-devtools` was installed after that session began. It
+attached this time. Full write-up in DECISIONS.md **D-215**.
+
+**Method worth reusing.** The walk needed an authenticated session on staging without writing a
+credential into the transcript: a loopback broker fetched the secret, minted the token in-process,
+and passed it through `window.name` (survives a same-tab cross-origin navigation). Chrome silently
+stalls an HTTPS→loopback `fetch` — no console error, no preflight — which is what ruled out the
+obvious approach. A URL fragment was rejected because it would surface in every later snapshot line.
+
+**What the walk found, most consequential first.** Sixteen defects, all fixed unless noted:
+
+| | finding | evidence |
+|---|---|---|
+| §5.13.1 | **the post-exam was a byte-for-byte replay of the pre-exam** — 10/10 stems, numbers *and* option orders | captured both exams and diffed |
+| client | **switching accounts in one tab wedged the app forever** on "Connecting…" | 403 + deterministic repro |
+| reporting | results screen said 1 hint / 0 / 0 where the server said 2 / 1 / 1 | refresh mid-session zeroes React state |
+| layout | D-213's 880px card never applied during any intervention | `max-width: 880px`, `width: 480px` |
+| flow | terminal interventions showed the help for the *previous* question | hint about keychains over Maya's problem |
+| flow | answer controls live while the graph is paused | "That didn't fit where the session is right now" |
+| flow | assistance menu had no exit — 4 paid buttons and a footer link | 5 clickable elements, survives reload |
+| charts | every multi-series chart drew all series in one colour | `--viz-*` on a descendant, read from `:root` |
+| charts | two skills truncated to the identical axis label | 87% and 31% bars, indistinguishable |
+| content | 13 items showed reviewer meta-commentary or restated the stem | read 20 served items end to end |
+| content | 2 items retired — a duplicate pair and one ill-posed problem | same numbers, different name |
+| copy | attendance gate: third-person adult prose under a first-person button | |
+| copy | "skills to strengthen" = all 5 topic skills after 7/10 | `ranked[:5]` of 5 |
+| chat | the app's own first suggestion chip returned "Could you rephrase" | reproduced typed *and* clicked |
+| chat | the same citation rendered twice | |
+| a11y | live region announced "question 1" for practice question 4 | |
+
+**Two findings withdrawn after checking, which is the part worth keeping.** The SSE `?token=` is
+D-032's documented trade-off *and its stated condition is met* — `configure_logging` disables
+`uvicorn.access` for exactly this reason, both apps call it, and no ALB/CloudFront access logging
+exists; my "browser history" claim was also wrong, since an `EventSource` URL is a subresource fetch.
+Persisting the staging secret to `localStorage` is a recorded decision with a threat model, not an
+oversight. Three more never became findings at all: "empty" charts were a full-page-screenshot
+artifact, a contrast failure was my own script ignoring alpha, and an empty sessions list was my
+parse error.
+
+**Carry-over:**
+
+- **The post-exam still repeats stems and numbers.** Only the option-order axis of §5.13.1 was
+  recoverable without new content; D-189's costed trade on numerical parameters stands.
+- **The 13 re-minted items have not been read by a human since editing.** The edit only *removed*
+  text (a context block) and all 41 pass the §5.8.5 gate, but D-206's carry-over #1 — 48 approved
+  items never human-read — is now 41 items and still open.
+- `journey-student.spec.ts` isolation against staging remains open; §2 of D-215 gives it a likely
+  mechanism (session state surviving between fixture students in one browser context) but this
+  session did not take it on.
+
 ### Session log — the 16 reported UI items, video seeding, and observability (2026-08-06/07, D-208–D-215)
 
 **Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1035 passed, 2 skipped,

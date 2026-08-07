@@ -14796,3 +14796,160 @@ Env var names verified against the installed `langsmith` 0.10.5 rather than assu
 `LANGSMITH_TRACING=true` flips `tracing_is_enabled()`, and `LANGSMITH_API_KEY` is what the client
 resolves. They are deliberately **unprefixed** - the langsmith client reads the process environment
 directly and never goes through pydantic-settings, so `LEARNING_`/`CHAT_` would have done nothing.
+
+## D-215 — a visual pass of the deployed UI, and the sixteen things it found (accepted, 2026-08-07)
+
+The `chrome-devtools` MCP server attached for the first time (it was configured after the previous
+session began, which is why D-214's carry-over recorded the walk as requested-and-not-done). This
+is what driving the deployed app as a real user turned up, and what was changed as a result.
+
+### 0. How it was driven, since the method is reusable
+
+Staging's `POST /dev/token` is gated by `X-Staging-Token-Secret` (D-097), so an authenticated walk
+needs a token, and typing either the secret or the token into a browser-automation tool argument
+writes a credential into the session transcript. Neither ever appeared: a throwaway loopback broker
+fetched the secret from Secrets Manager, minted the token in-process, and handed it to the page
+through `window.name`, which survives a same-tab cross-origin navigation. A URL fragment would have
+worked too and was rejected - it shows up in every later `list_pages`/snapshot line.
+
+Chrome will not let an HTTPS page `fetch()` a loopback origin (the request stalls with no console
+error and no preflight), which is what forced the `window.name` route. Worth knowing before
+reaching for a local helper server from a deployed page again.
+
+### 1. The post-exam was a byte-for-byte replay of the pre-exam
+
+All ten stems, all ten sets of numeric parameters, and all ten option orders identical. SPEC §5.13.1
+requires the post-exam to differ in numerical parameters, option order and random seed; it differed
+in none of them, and the student is shown worked solutions for some of those items in between. The
+measured gain in the walk was 7 → 10 on exactly that mechanism.
+
+**This is D-189, not a new bug** - serving an authored item again was the user's call, weighed
+against alternatives, and accepted **on the explicit condition that the repeat rate be measurable
+rather than assumed**. It has now been measured: with D-210's authored-only bank it is **100%**, not
+the rare fallback the generated path had.
+
+Re-rendering with different numbers is still the content work D-189 costed and rejected, so it is
+untouched. **Option order is not** - it needs no new content, no schema change and no human review,
+and the authored bank contains no reference to an option letter in any stem, hint or solution, so
+nothing can disagree with a new order. `_static_variant_row` now permutes the four options and moves
+the answer key with them, seeded from the value it already drew, from a private `Random` so no later
+draw shifts and no existing exam changes. Only the post-exam path permutes.
+
+`test_the_post_exam_repeats_an_authored_stem_but_reorders_its_options` pins both halves: the stem
+still repeats, the options genuinely do not, and the answer *text* is preserved - the assertion that
+would catch a permutation applied to the options but not to `correct_option`, which would mis-grade
+every post-exam silently.
+
+### 2. Switching accounts in one tab wedged the app permanently
+
+Identity lives in `localStorage`, the learning session id in `sessionStorage`, and sign-in cleared
+only the former. The app then resumed the *previous* student's session; the server refused correctly
+(`403 "Students may only access their own records"` - fail-closed working), and the client had no
+handler, so it sat on "Connecting…" across every reload. Clearing `sessionStorage` alone fixed it,
+which made the repro deterministic.
+
+Two changes, because there were two defects. The session is now stamped with the subject that
+created it and dropped when they differ. And a stream that errors before its first snapshot renders
+a real failure with a way back instead of a spinner sentence - `EventSource` does not retry a
+non-2xx at all, so that state was terminal, not slow.
+
+Consequences beyond the fix: on a branch's shared device this is the next student's first
+experience, and it is a plausible mechanism for D-214's `journey-student.spec.ts` carry-over (one
+browser context, several fixture students, session state surviving between them).
+
+### 3. The results screen under-reported how much help the student took
+
+`hint`/`solution`/`video` counts were plain React state, so a mid-session refresh zeroed them. The
+walk ended with the results screen claiming 1 hint / 0 solutions / 0 videos for a session whose real
+usage was 2 / 1 / 1 - and the study-outro narrative in the *same* session reported 2 / 1 / 1,
+because that one is computed server-side from `study_attempts`. Two counters for one fact,
+disagreeing in front of the student, with the lower pair feeding the parent report.
+
+Moved into `useAssistanceCounts`, a `sessionStorage` record keyed by learning session id - the same
+shape `useNarrativeGate` (AUD-F-04) already uses for exactly this problem. The server has the truth
+but does not put it on the wire (`LearningGainResponse` carries dependency *rates*, not counts), and
+widening the gain payload is a bigger change than the defect warrants.
+
+### 4. Everything the intervention screen got wrong
+
+Four separate defects in one screen, all found by using it rather than reading it:
+
+- **D-213's 880px question card never applied during an intervention.** `.stack`, which wraps the
+  assistance panel and the exam screen together, carried `max-width: 480px`, and a parent's clamp
+  beats a child's `max-width`. Measured: `.panel.wide` computing `max-width: 880px` and
+  `width: 480px` simultaneously. `App.tsx` already documented this exact hazard one branch above -
+  the narrative renders through a Fragment specifically to avoid `.stack` "quietly narrowing the
+  exam screen" - so the trap was written down next to the code that fell into it.
+- **The question underneath a terminal intervention was the *next* one.** "Hint 3 of 3" ended with
+  "Does your answer of 8 keychains make this equation true?" above a card showing Maya's concert
+  ticket. Same after every solution and every video. The exam is now shown beneath the help only
+  while `ladderOpen` - i.e. while the pause is still about that question.
+- **The answer controls stayed live while the graph was paused.** Selecting an option and submitting
+  returned "That didn't fit where the session is right now", an error message standing in for a
+  disabled control.
+- **The assistance menu was a dead end.** Five clickable elements on the whole page: four
+  interventions and the footer link. No back, no dashboard, not even sign-out, and it survived a
+  reload. Every one of the four is a paid Bedrock call, so "no thanks" was simultaneously the only
+  free option and the only one missing. `"continue"` was already a valid choice server-side and
+  routes straight to `flow.advance_study`; nothing had to be built behind the new button.
+
+### 5. Every multi-series dashboard chart rendered in one colour
+
+`--viz-series-1..4` were declared on `.dashboard-charts` and read from `document.documentElement`.
+Custom properties inherit downward, so all four lookups returned `""` and took the `|| "#2a78d6"`
+fallback. "Pre vs. post accuracy" (2 series) and "Support usage" (4 series) - the two charts whose
+only job is comparison - were unreadable, and it failed silently: no error, just monochrome.
+Declarations moved to `:root`. Proven both ways in the live page before the edit.
+
+The same screen truncated two different skills to the identical label `"Solve linear equations wi…"`
+because these names share a long prefix by construction; truncation now keeps a head *and* a tail.
+
+### 6. Content the walk read, which is also part of "read the 48 live items"
+
+Twenty served items were read end to end. D-207's two carry-overs are confirmed live rather than
+inferred, and acted on:
+
+- **13 items had a context block that was reviewer meta-commentary or a restatement of the stem** -
+  "making it accessible for students in grades 6-7", "Students solve equations by combining given
+  information…", and one that states the method before the student attempts it. Each was stripped
+  and re-minted under a new id (the loader is skip-by-id, so an edit to an existing id does not
+  propagate; a removed id retires).
+- **Two items retired.** `d1-1509100` and `d2-1509200` were the same problem - 3 notebooks, a $5
+  pen, $26 - with only the name changed, and both were served in one ten-question exam. And the
+  toy-drive item is ill-posed: "12 fewer toys than he needs" is modelled as −12 toys and compared
+  against Ava's absolute count, so "the same number of toys" is not defined.
+
+41 templates remain, every tier still far above the two `build_pre_exam` needs, and all 41 pass the
+loader's own §5.8.5 gate.
+
+### 7. Smaller things, each real
+
+"Skills to strengthen" listed all five topic skills after a 7-of-10 score, because `study_plan.py`
+takes `ranked[:BASE_PROBLEM_COUNT]` and that is 5 of 5 - the list is the whole topic in priority
+order and never a subset that failed a test. Relabelled, and the narrative prompt now says a
+study-plan list is not a list of failures. The attendance gate described "the student" in the third
+person under a button reading "Confirm **I** did not attend", in prose written for an adult
+reviewer. "Videos watched" counted a link being *shown*. The live region announced "question 1" for
+practice question 4. `Phase: created` put a raw graph enum in front of a K-12 student. Chat rendered
+the same citation twice, and its own first suggestion chip for a signed-in student -
+"What should I know as a student?" - returned "Could you rephrase your question?", whose text then
+lists "student participation and learning" among the things it can help with.
+
+### 8. Two findings I raised and then withdrew
+
+Recorded because the withdrawal is the useful part.
+
+**The SSE token in the query string is already mitigated.** D-032 accepted `?token=` as a documented
+trade-off on two conditions, one being "never log full URLs at INFO". That condition is *met*:
+`configure_logging` disables `uvicorn.access` and names this leak as the reason, both apps call it,
+and neither ALB nor CloudFront access logging is enabled. My "browser history" claim was also wrong -
+an `EventSource` URL is a subresource fetch and never enters history. No change made.
+
+**Persisting the staging secret to `localStorage` is a decision, not an oversight.** `DevLoginScreen`
+carries an explicit threat model weighing it against opening `/dev/token` outright, and the secret is
+deleted at S44. Not reversed.
+
+Three more were measurement artifacts caught before they were reported as findings: "empty" charts
+were a full-page-screenshot limitation, a green-on-green contrast failure was my own script ignoring
+alpha compositing (recomputed: zero WCAG failures on that screen), and an empty sessions list was a
+parse error of mine, not the endpoint.
