@@ -14582,3 +14582,39 @@ Separately, `bedrock_classification_model_id` now defaults to Haiku 4.5. Video c
 short label-selection call, so Haiku is a fit rather than a concession — unlike authoring, which
 D-204 measured Haiku failing 9 of 11 times against the 15-field forced schema. Authoring was
 **not** re-pointed at Haiku for that reason.
+
+### D-212 addendum — the sibling ladder test had the same premise, one layer deeper
+
+The D-212 fix went green locally and CI then failed a *different* test in the same file:
+`test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite`, `assert 1 == 4`.
+
+Same root cause, and worth stating plainly because D-207 had already "fixed" this exact test
+once. D-207 changed it from "indices 2 and 3 of the pre-exam" to "the `linear_two_step` items,
+resolved by skill" — which correctly stopped inferring a skill from a position, and still assumed
+that **failing a skill makes it the one the study phase routes first**. It does not, for the same
+reason D-212 records: an unserved skill has no mastery row, scores 0.0, and is routed ahead of it.
+So the ladder ran in full, on another skill, and the assertions counted items on a line that had
+only its base question.
+
+Two premises were stacked, and removing the first left the second looking like a fix.
+
+**The fix is to stop steering the routing at all.** Every pre-exam item is now answered wrong, and
+the line under test is read from the item the flow actually served (`display_order == 0`). This
+test is about the *shape* of the retry ladder — base + 2 same-skill retries + 1 prerequisite —
+not about which skill enters it, and a student who got the whole pre-exam wrong is a coherent
+thing to be. The `pytest.skip` for "this draw served no `linear_two_step` item" is gone with it:
+there is now no draw the test cannot run on.
+
+The prerequisite assertion became **conditional**, which is not a weakening but a correction:
+`flow._advance_study` only drops to the prerequisite when one exists *and* has approved templates,
+and `linear_one_step` is the root of this topic's chain and has none. The unconditional version
+was only ever correct for the skill it happened to name.
+
+`prerequisite_items[0].difficulty == 1` was **dropped rather than generalised to "easier than the
+base"**, because that generalisation is false: `linear_both_sides` (tiers 3-5) has prerequisite
+`linear_neg_frac_coeff` (tiers 2-4), so a prerequisite item can legitimately outrank the base one.
+The remediation path passes `recommended_difficulty=None` by design (AUD-L-12), so the code makes
+no difficulty promise on this path at all — the old assertion pinned an accident of the bank.
+
+**Verified:** 10/10 green on the isolated test with zero skips; 5/5 green on the whole file; full
+suite **1035 passed, 2 skipped, 1 xfailed**; `ruff` clean; `pyright` 0 errors.

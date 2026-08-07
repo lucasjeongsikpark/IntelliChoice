@@ -19,6 +19,7 @@ from intellichoice_curriculum.authored_validation import (
     answer_text_leaked,
     leak_phrase_present,
 )
+from intellichoice_curriculum.content import load_curriculum
 from intellichoice_curriculum.loader import load_curriculum_and_templates
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.models.assessment import BlockedSession
@@ -701,30 +702,22 @@ def test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite() -> N
         pre_items = topics_resp.json()["items"]
         pre_variant_ids = [item["question_variant_id"] for item in pre_items]
         pre_correct = _correct_options(pre_variant_ids)
-        pre_skills = _skills_for(pre_variant_ids)
 
-        # D-207: fail the `linear_two_step` items *by skill*, so it becomes the weakest
-        # skill on every draw.
+        # D-212: **every** pre-exam item is answered wrong.
         #
-        # This used to say "indices 2,3 are difficulty 2 = skill `linear_two_step`". Items
-        # are still ordered by difficulty, but which skill carries a given tier is not fixed
-        # - it is whatever the exam builder drew from the bank, and the bank went from 5
-        # authored items to 48 in D-206. The assumption then silently became a coin flip:
-        # the same code produced 4, 1 and 0 line items across three CI runs.
-        target_skill = "linear_two_step"
-        wrong_variant_ids = {
-            variant_id
-            for variant_id, skill_id in pre_skills.items()
-            if skill_id == target_skill
-        }
-        if not wrong_variant_ids:
-            # A draw with no `linear_two_step` item at all cannot make it the weakest
-            # skill, so the ladder this test drives has nothing to start from. Skipping is
-            # honest; passing vacuously is what the index-based version effectively did.
-            pytest.skip(
-                f"this pre-exam draw served no {target_skill} item "
-                f"(skills drawn: {sorted(set(pre_skills.values()))})"
-            )
+        # D-207 changed this from "indices 2,3" to "the `linear_two_step` items, by skill",
+        # to stop inferring a skill from a position. That was right and still not enough:
+        # it assumed failing a skill makes it the one the study phase routes first, and
+        # `build_study_plan` ranks on `mastery.weighted_score if mastery is not None else
+        # 0.0`, so a skill the draw **never served** has no row, scores 0.0, and is routed
+        # ahead of it. That is how this test reached CI as `assert 1 == 4` - the ladder ran
+        # in full, just on a different skill than the assertions named.
+        #
+        # Failing everything removes the question. This test is about the *shape* of the
+        # retry ladder, not about which skill enters it, and a student who got the whole
+        # pre-exam wrong is a coherent thing to be. The line is then read from whichever
+        # item the flow actually served, below.
+        wrong_variant_ids = set(pre_variant_ids)
 
         body = None
         for item in pre_items:
@@ -785,15 +778,36 @@ def test_retry_ladder_reaches_unresolved_with_tutor_flag_and_prerequisite() -> N
     items = _study_items(study_session_id)
     attempts = _study_attempts_all(study_session_id)
 
-    line_items = [i for i in items if i.target_skill_id == "linear_two_step"]
+    # D-212: the line is whichever skill the flow routed first, read from the item the
+    # ladder was actually driven on, rather than a skill name this test hoped for.
+    line_skill = next(i.target_skill_id for i in items if i.display_order == 0)
+    line_items = [i for i in items if i.target_skill_id == line_skill]
     # Base + 2 same-skill retries + 1 prerequisite problem = 4 questions on the line.
     assert len(line_items) == 4
     assert line_items[0].is_remediation is False
     assert [i.is_remediation for i in line_items[1:]] == [True, True, True]
-    # The §5.11.7 3rd step serves the prerequisite skill's (easier) question.
-    prerequisite_items = [i for i in line_items if i.skill_id == "linear_one_step"]
-    assert len(prerequisite_items) == 1
-    assert prerequisite_items[0].difficulty == 1
+
+    # The §5.11.7 3rd step serves the prerequisite skill's question - but only when the
+    # routed skill *has* a prerequisite with approved templates. `flow._advance_study`
+    # falls back to another same-skill retry otherwise, and `linear_one_step` (the root of
+    # this topic's chain) has no prerequisite at all, so this cannot be unconditional.
+    prerequisite_skill = load_curriculum().prerequisite_for(line_skill)
+    if prerequisite_skill is not None:
+        prerequisite_items = [i for i in line_items if i.skill_id == prerequisite_skill]
+        assert len(prerequisite_items) == 1, (
+            f"{line_skill}'s ladder served {len(prerequisite_items)} items from its "
+            f"prerequisite {prerequisite_skill}, expected exactly one"
+        )
+        # The original `difficulty == 1` assertion is deliberately not generalised to
+        # "easier than the base". It held only because `linear_one_step` has a single tier:
+        # `linear_both_sides` (tiers 3-5) has prerequisite `linear_neg_frac_coeff` (2-4),
+        # so a prerequisite item can legitimately outrank the base one. The remediation
+        # path passes `recommended_difficulty=None` by design (AUD-L-12), so the code makes
+        # no difficulty promise here - asserting one would pin an accident of the bank.
+    else:
+        assert all(i.skill_id == line_skill for i in line_items), (
+            f"{line_skill} has no prerequisite, so every ladder item should stay on it"
+        )
 
     line_variant_ids = {i.question_variant_id for i in line_items}
     line_attempts = [a for a in attempts if a.question_variant_id in line_variant_ids]
