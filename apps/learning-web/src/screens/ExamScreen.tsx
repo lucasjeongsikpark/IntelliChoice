@@ -322,10 +322,20 @@ export function ExamScreen({
     ["c", currentItem.option_c],
     ["d", currentItem.option_d],
   ];
-  const position =
-    isExamPhase && cachedBatch
+  // D-213: the study phase used to show no position at all, so a student had no idea how
+  // far in they were.
+  //
+  // It gets a count without a denominator, and that is the honest shape rather than a
+  // limitation. An exam is a fixed batch, so "of N" is a fact the client already holds. A
+  // study session is not: `create_study_item` assigns `display_order = len(items)`, and the
+  // retry ladder adds items as the student needs them, so the total is unknown until the
+  // session ends. Printing `base_problem_count` as the denominator would be worse than
+  // printing nothing - it would say "3 of 5" and then serve a sixth.
+  const position = isExamPhase
+    ? cachedBatch
       ? `Question ${currentDisplayOrder + 1} of ${cachedBatch.length}`
-      : "";
+      : ""
+    : `Practice question ${currentItem.display_order + 1}`;
   const rememberedSelection = answeredSelections[currentDisplayOrder];
 
   return (

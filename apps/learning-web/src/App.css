@@ -85,8 +85,12 @@
   margin-bottom: 16px;
 }
 
+/* D-213: 720px -> 880px. The question card holds word problems now, not one-line
+   equations (D-210), and a multi-sentence situation at 720px wrapped into a narrow column
+   that read as cramped. 880px keeps the measure inside the ~75ch that long-form text stays
+   comfortable at, given `.question-stem`'s 17px. */
 .panel.wide {
-  max-width: 720px;
+  max-width: 880px;
 }
 
 .subtitle {
@@ -361,24 +365,78 @@ button.link {
   margin: 0;
 }
 
-/* The hint ladder as filled/empty pips: "how much help is left" at a glance, and it does
-   not grow the heading the way "(hint 2 of 3)" did. `role="img"` + `aria-label` because
-   the pips carry meaning that the shapes alone do not announce. */
-.hint-ladder {
-  display: inline-flex;
-  gap: 4px;
+/* D-213: the ladder as a named stepper rather than three anonymous pips. The pips showed
+   position but never said the ladder *had* rungs or what they were for; a student choosing
+   between "one more hint" and "show me the solution" needs to know what the next hint is.
+
+   The rung state is carried by the marker glyph and the label text as well as by colour,
+   so it survives a colour-blind reader and a monochrome print. */
+.hint-remaining {
   margin-left: auto;
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.75;
 }
 
-.hint-pip {
-  width: 7px;
-  height: 7px;
+.hint-ladder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.hint-rung {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 7px;
   border-radius: 999px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text);
 }
 
-.hint-pip.filled {
+.hint-rung-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  flex: none;
+}
+
+.hint-rung.done {
+  border-color: var(--accent);
+}
+
+.hint-rung.done .hint-rung-marker {
   background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.hint-rung.current {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.hint-rung.current .hint-rung-marker {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+/* Not yet spent: readable, but clearly not where the student is. Kept above the
+   4.5:1 contrast floor rather than dimmed into decoration. */
+.hint-rung.upcoming {
+  opacity: 0.7;
 }
 
 .intervention-lead {
@@ -619,6 +677,22 @@ button.link {
   border-radius: var(--radius-control);
   font-size: 14px;
   max-width: 85%;
+  /* D-213: honour the model's own paragraph breaks. A tutor reply is written as prose with
+     line breaks in it, and collapsing them ran a three-step explanation into one block. */
+  white-space: pre-line;
+  line-height: 1.55;
+}
+
+/* D-213: inline code inside a reply - the tutor writes equations as `2x + 5 = 12`. Sized
+   in `em` so it tracks the bubble's own font-size rather than fixing a second scale. */
+.chat-bubble code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--border);
+  /* Long expressions must not push the bubble past its max-width. */
+  overflow-wrap: anywhere;
 }
 
 .chat-bubble.student {
@@ -955,4 +1029,134 @@ ul {
 
 .report-block.facts-only {
   border-color: var(--accent);
+}
+
+/* ---------------------------------------------------------------------------
+   Stage narrative overlay
+
+   Rendered above the phase screen rather than instead of it. `position: fixed`
+   is the load-bearing property, not decoration: an absolutely-positioned child
+   is not a flex item, so this adds no gap to `.app-main` and shifts nothing in
+   the layout underneath - the screen below stays mounted, at the same child
+   index, with its dwell timer and question index intact (AUD-F-21/AUD-F-24).
+   --------------------------------------------------------------------------- */
+
+.narrative-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(12, 16, 13, 0.55);
+  /* Progressive enhancement - the dim above already does the job where this is
+     unsupported, so nothing depends on it. */
+  backdrop-filter: blur(3px);
+  overflow-y: auto;
+}
+
+.narrative-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow);
+  padding: 32px;
+}
+
+.narrative-text {
+  font-family: var(--heading);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-h);
+  /* The narrative is model-written prose and may contain its own line breaks;
+     honouring them costs nothing and reads better than collapsing them. */
+  white-space: pre-line;
+  margin: 0;
+}
+
+.narrative-evidence {
+  margin-top: 22px;
+  padding: 16px 18px;
+  background: var(--accent-bg);
+  border-radius: var(--radius-control);
+}
+
+.narrative-evidence-title {
+  margin: 0 0 10px;
+  font-family: var(--heading);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.narrative-evidence-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.narrative-evidence-list li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* A marker rather than a list bullet, so the text wraps flush with itself
+   instead of under the glyph. `aria-hidden` is unnecessary - generated content
+   from a pseudo-element is not announced. */
+.narrative-evidence-list li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.narrative-continue {
+  margin-top: 24px;
+}
+
+/* D-213: the question, inside the tutor panel.
+
+   The chat opens from the intervention screen, which does not show the question - so the
+   student was being asked to type a question about something they could no longer see.
+   `open` by default (set on the element, not here) because hiding it recreates the
+   problem; it stays a `<details>` so a long word problem can be collapsed once read. */
+.chat-question {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+}
+
+.chat-question > summary {
+  font-family: var(--heading);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.chat-question > p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-h);
+  /* Word problems carry their own paragraph breaks, same as `.question-stem`. */
+  white-space: pre-line;
 }

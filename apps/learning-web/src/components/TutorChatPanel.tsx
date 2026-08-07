@@ -1,6 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessageResult } from "../api/client";
 import type { ChatMessage } from "../hooks/useTutorChat";
+import { useProgressiveReveal } from "../hooks/useProgressiveReveal";
+import { RichText } from "./RichText";
+import { renderedLength } from "../lib/markdown";
+
+/**
+ * One message. The newest tutor reply reveals progressively; everything else renders
+ * complete, because re-revealing the whole transcript on every new message would be a
+ * distraction rather than a flourish.
+ */
+function ChatBubble({ message, reveal }: { message: ChatMessage; reveal: boolean }) {
+  const total = renderedLength(message.text);
+  const revealed = useProgressiveReveal(total, reveal);
+  return (
+    <p className={`chat-bubble ${message.role}`}>
+      <RichText text={message.text} maxChars={reveal ? revealed : undefined} />
+    </p>
+  );
+}
 
 export interface ChatTranscript {
   messages: ChatMessage[];
@@ -22,12 +40,21 @@ interface TutorChatPanelProps {
   // time `AssistancePanel` switches between its chooser and content views - which used to
   // silently discard the conversation.
   transcript: ChatTranscript;
+  // D-213: the question this conversation is about, shown inside the panel.
+  //
+  // The chat opens from the intervention screen, which does not render the question - so a
+  // student was asked to type a question about something no longer on screen, and had to
+  // remember it. `null` when the current snapshot no longer carries the item (a
+  // `/respond`-resumed ladder round can arrive without it), in which case the block is
+  // omitted rather than rendered empty.
+  questionText: string | null;
 }
 
 export function TutorChatPanel({
   questionVariantId,
   onSendMessage,
   transcript,
+  questionText,
 }: TutorChatPanelProps) {
   // Whether the panel is *expanded* is genuinely local - it is about this render of this
   // screen, not about the conversation. It opens itself once there is something to read,
@@ -72,14 +99,24 @@ export function TutorChatPanel({
           Hide
         </button>
       </div>
+      {questionText && (
+        <details className="chat-question" open>
+          <summary>The question you're working on</summary>
+          <p>{questionText}</p>
+        </details>
+      )}
       <div className="chat-messages" aria-live="polite">
         {transcript.messages.length === 0 && (
           <p className="dim">Ask me anything about this question.</p>
         )}
         {transcript.messages.map((message, index) => (
-          <p key={index} className={`chat-bubble ${message.role}`}>
-            {message.text}
-          </p>
+          <ChatBubble
+            key={index}
+            message={message}
+            // Only the newest tutor reply reveals, and only while it is the newest. A
+            // student scrolling back should not watch old replies re-type themselves.
+            reveal={message.role === "tutor" && index === transcript.messages.length - 1}
+          />
         ))}
         {/* A tutor turn takes ~3-5 s against real Bedrock (measured on staging: 4050 ms
             for the reply, 5695 ms for the whole round trip including intent
