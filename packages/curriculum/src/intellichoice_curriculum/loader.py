@@ -54,6 +54,8 @@ class LoadSummary:
     templates_created: int = 0
     templates_skipped_existing: int = 0
     variants_created: int = 0
+    # D-210: authored templates retired because the bank file no longer lists them.
+    templates_retired: int = 0
 
 
 async def _load_taxonomy(
@@ -182,6 +184,27 @@ async def _load_authored_templates(
     rather than mutating a row.
     """
     repo = QuestionRepository(session)
+
+    # D-210: **the bank file decides what is servable.** Skip-by-id means an edit never
+    # propagates, and until now a *removal* never propagated either - a template dropped
+    # from the file kept being served forever by every database that had already loaded it.
+    #
+    # That is not hypothetical. Five of the forty-eight approved items were bare equations
+    # ("Solve for x: 2x + 7 = 19"), evidently the original pre-D-186 seeds. Deleting them
+    # from the file changed nothing: a pinned pre-exam capture still served one.
+    #
+    # Retiring rather than deleting, so the row and its attempt history survive for
+    # reporting; `active_status` is what the serving path filters on.
+    #
+    # Guarded on a non-empty list on purpose. An empty `templates` means "this file failed
+    # to parse or was not found", and retiring the entire authored bank on that is a much
+    # worse failure than not retiring anything.
+    if templates:
+        wanted = {t.question_template_id for t in templates}
+        for existing in await repo.get_authored_templates():
+            if existing.question_template_id not in wanted and existing.active_status == "active":
+                await repo.set_active_status(existing.question_template_id, "retired")
+                summary.templates_retired += 1
 
     for template_def in templates:
         if await repo.get_template(template_def.question_template_id) is not None:

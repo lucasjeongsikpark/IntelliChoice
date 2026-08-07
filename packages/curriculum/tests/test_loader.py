@@ -1,4 +1,5 @@
 import asyncio
+import pathlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -93,15 +94,29 @@ def test_loading_curriculum_produces_the_expected_final_state() -> None:
             assert topic.name == "Linear Equations"
 
             question_repo = QuestionRepository(session)
-            active = await question_repo.get_active_questions("linear_equations", difficulty=1)
             # Identity, not size (D-187). This used to assert `len(active) == 10`, which made
             # the loader's contract a claim about *everything* approved at this tier - so
             # approving one authored template broke it, exactly as S20's live verification
             # found. What the loader actually promises is that its own deterministically-named
-            # bank is loaded and servable; the authored pipeline (D-186) is expected to add to
-            # this same topic and difficulty, and must be able to without touching this test.
+            # bank is loaded; the authored pipeline (D-186) adds to this same topic and
+            # difficulty and must be able to without touching this test.
+            #
+            # D-210 moved this from `get_active_questions` to `get_templates`. The loader's
+            # promise is *loaded*, and that is unchanged; what changed is that the serving
+            # path no longer hands shape templates to a student, so asking the serving query
+            # about them would now be asking the wrong question. `test_shape_templates_are_
+            # loaded_but_never_served` below pins the other half.
             hand_authored = {f"linear_equations-d1-{index:02d}" for index in range(10)}
-            assert hand_authored <= {t.question_template_id for t in active}
+            loaded = await question_repo.get_templates(sorted(hand_authored))
+            assert set(loaded) == hand_authored
+
+            served = await question_repo.get_active_questions("linear_equations", difficulty=1)
+            assert not (hand_authored & {t.question_template_id for t in served}), (
+                "a bare-equation shape template reached the serving path (D-210)"
+            )
+            assert all(t.authoring_mode == "authored" for t in served), (
+                "the serving path returned a non-authored template"
+            )
 
     asyncio.run(run())
 
@@ -164,3 +179,47 @@ def test_loader_rejects_a_template_that_fails_validation(monkeypatch: pytest.Mon
                 await load_curriculum_and_templates(session)
 
     asyncio.run(run())
+
+
+def test_no_approved_item_is_a_bare_equation() -> None:
+    """D-210: every served question must read as a situation, not as an equation.
+
+    The `authoring_mode` filter in `QuestionRepository` retires the *shape* bank, but it
+    cannot catch this: five of the forty-eight approved **authored** items were themselves
+    bare equations - `Solve for x: 2x + 7 = 19` and one sibling per difficulty tier,
+    evidently the original seeds from before D-186 taught the pipeline to write word
+    problems. They passed every gate because nothing ever asked them to be contextual, and
+    a pinned pre-exam capture caught one of them still being served after the filter went
+    in.
+
+    Asserted over the YAML rather than the database because the YAML is the source of
+    truth that every environment loads from; a database can also hold rows an older bank
+    inserted, which is a separate cleanup and not something a test can do.
+
+    The heuristic is deliberately narrow - an imperative opener *and* very little prose.
+    "Solve for the number of weeks Maya has been saving" is a legitimate word problem and
+    must not trip this.
+    """
+    import re
+
+    import yaml
+
+    bank = yaml.safe_load(
+        (
+            pathlib.Path(__file__).resolve().parents[3]
+            / "curriculum/internal_math/authored/linear_equations.yaml"
+        ).read_text()
+    )
+    offenders = []
+    for template in bank["templates"]:
+        stem = template["stem"].strip()
+        prose_words = re.findall(r"[A-Za-z]{3,}", (template.get("context_block") or "") + stem)
+        if re.match(r"^(solve|find|evaluate|simplify|what is)\b", stem, re.I) and len(
+            prose_words
+        ) < 12:
+            offenders.append((template["question_template_id"], stem[:60]))
+
+    assert not offenders, (
+        "approved items read as bare equations rather than as situations: "
+        f"{offenders}"
+    )

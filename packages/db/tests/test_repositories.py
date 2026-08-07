@@ -90,6 +90,7 @@ async def _seed_question_chain(session: AsyncSession) -> QuestionChain:
     )
     template = await questions.create_template(
         QuestionTemplate(
+            authoring_mode="authored",
             curriculum_version="v1",
             topic_id=topic.topic_id,
             skill_id=skill.skill_id,
@@ -182,6 +183,7 @@ def test_count_active_questions_by_topic_counts_only_what_an_exam_could_use() ->
             ):
                 await questions.create_template(
                     QuestionTemplate(
+                        authoring_mode="authored",
                         curriculum_version="v1",
                         topic_id=chain.topic_id,
                         skill_id=chain.skill_id,
