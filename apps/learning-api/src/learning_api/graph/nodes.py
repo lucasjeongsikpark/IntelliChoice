@@ -37,7 +37,6 @@ from intellichoice_db.repositories.stage_transition import StageTransitionReposi
 from intellichoice_db.repositories.study import StudyRepository
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_db.repositories.youtube import YoutubeRepository
-from intellichoice_memory.consolidation import consolidate_student_session
 from intellichoice_observability.metrics import (
     ATTENDANCE_CHECKS,
     EXAM_COMPLETIONS,
@@ -65,6 +64,10 @@ from learning_api.services import (
 from learning_api.services import tutor_chat as tutor_chat_service
 from learning_api.services.assessment_builder import AssessmentBuildError, build_pre_exam
 from learning_api.services.attendance import check_attendance_gate
+from learning_api.services.consolidation_scheduler import (
+    ConsolidationScheduler,
+    InlineConsolidationScheduler,
+)
 from learning_api.services.study_plan import StudyPlanBuildError
 
 from .state import LearningState
@@ -116,6 +119,11 @@ class TurnContext:
     # before this dataclass is built - the raw message never reaches this far.
     tutor_chat_repo: TutorChatMessageRepository | None = None
     student_message: str | None = None
+    # D-208: where `finalize_exam` hands memory consolidation instead of awaiting it.
+    # Bound to the session *factory* in a deployed environment, for the same reason
+    # `cost_ledger` above is - see services/consolidation_scheduler.py. `None` keeps the
+    # pre-D-208 inline behaviour, which is what every graph-level test uses.
+    consolidation_scheduler: ConsolidationScheduler | None = None
 
 
 def _ctx(runtime: Runtime[TurnContext]) -> TurnContext:
@@ -679,26 +687,38 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
             unresolved_skills=result.learning_gain.unresolved_skills,
         )
         # S25 (plan §9 trigger (a)): a post-exam completion is exactly one full
-        # pre->study->post cycle - consolidate this session's own events right away,
-        # rather than waiting for the weekly batch. Never blocks the response: a
-        # gateway failure here falls back to "no facts changed this cycle" the same
-        # way every other Bedrock caller in this codebase degrades (SPEC §5.25.3) -
-        # `consolidate_student_session` already catches `BedrockGatewayError` itself.
+        # pre->study->post cycle, so this cycle's events are consolidated now rather than
+        # waiting for the weekly batch.
+        #
+        # D-208: **scheduled, not awaited.** The comment that used to sit here said "Never
+        # blocks the response", which was true of a *failure* - `consolidate_student_session`
+        # swallows `BedrockGatewayError` - and false of the latency. Measured on staging:
+        # `POST /exam/finalize` at 65-81 s, of which 61.5 s was this one call timing out
+        # three times over. Nothing in the response depends on it; the learning gain the
+        # results screen renders was computed deterministically above.
+        #
+        # The ordering that mattered still holds. Consolidation screens each proposed
+        # ability fact against the measured mastery score for the same skill (AUD-L-13,
+        # D-156), and this still runs after the cycle's mastery recompute - the scheduler
+        # reads mastery from the database when it runs, and the recompute has committed by
+        # then, so the floor still compares against this cycle's numbers.
         assert ctx.tutor_chat_repo is not None
-        consolidation = await consolidate_student_session(
-            memory_repo=ctx.memory_repo,
-            # AUD-L-13 (D-156): consolidation screens each proposed ability fact against
-            # the measured mastery score for the same skill. Reading it here is correct
-            # *because* this call sits after the cycle's mastery recompute above - the
-            # floor compares against this cycle's numbers, not last week's.
-            mastery_repo=ctx.mastery_repo,
-            tutor_chat_repo=ctx.tutor_chat_repo,
-            gateway=ctx.bedrock_gateway,
+        scheduler: ConsolidationScheduler = ctx.consolidation_scheduler or (
+            InlineConsolidationScheduler(
+                memory_repo=ctx.memory_repo,
+                mastery_repo=ctx.mastery_repo,
+                tutor_chat_repo=ctx.tutor_chat_repo,
+                gateway=ctx.bedrock_gateway,
+            )
+        )
+        await scheduler.schedule(
             student_external_id=state.student_external_id,
             session_id=state.session_id,
-            session_spend_cents=bedrock_spend_cents,
         )
-        bedrock_spend_cents += consolidation.cost_cents
+        # Deliberately no longer added to `bedrock_spend_cents`: a scheduled call has not
+        # happened yet, so attributing its cost to this turn's total would be a guess. The
+        # background runner logs its own `cost_cents`, and the per-day chat ceiling - the
+        # only budget a student can actually exhaust - never counted consolidation anyway.
 
         # S26: `post_outro` - the full SPEC §5.13.3 gain, not just the pre-exam's
         # weakest skills, is the richest evidence source of the three narrative moments.

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from learning_api.config import get_settings
 from learning_api.graph.build import LearningGraph
+from learning_api.services.consolidation_scheduler import ConsolidationScheduler
 from learning_api.services.session_events import SessionEventBus
 
 
@@ -43,6 +44,14 @@ def get_cost_ledger(request: Request) -> CostReservationRepository:
     request session does not commit until dependency teardown, after the response.
     """
     return CostReservationRepository(request.app.state.db_session_factory)
+
+
+def get_consolidation_scheduler(request: Request) -> ConsolidationScheduler:
+    """D-208. Bound to the session *factory*, exactly like `get_cost_ledger` above and for
+    the same reason: the work outlives the request that scheduled it, so it cannot hold
+    the request's session.
+    """
+    return request.app.state.consolidation_scheduler
 
 
 def get_graph(request: Request) -> LearningGraph:
