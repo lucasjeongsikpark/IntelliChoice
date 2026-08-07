@@ -146,3 +146,34 @@ variable "org_time_confirmed" {
   type    = bool
   default = false
 }
+
+# D-214: LangGraph node-level tracing to LangSmith. Off by default and gated on a single
+# flag because turning it on has two consequences beyond the traces themselves:
+#
+#   1. It creates a NAT gateway (~$33/month), since `api.smith.langchain.com` is
+#      third-party SaaS with no PrivateLink equivalent and the private subnets otherwise
+#      have no internet route at all (D-084).
+#   2. It sends prompt and response payloads to a third party. Those payloads are PII-free
+#      by design - Postgres holds only `*_external_id` references (SPEC §5.30) - but this
+#      is a K-12 platform, so the transmission is an explicit decision rather than a
+#      default.
+#
+# Requires the secret `<name_prefix>/langsmith-api-key` to exist in Secrets Manager first;
+# the plan fails with a clear "couldn't find resource" if it does not.
+variable "langsmith_tracing_enabled" {
+  type = bool
+  # Turned on 2026-08-06 at the user's explicit request, after the secret was created by
+  # hand. Same defaulted-variable pattern as `enable_otel_tracing` above - there is no
+  # tfvars file in this environment.
+  default = true
+}
+
+# D-214: the source channel for the YouTube catalog sync. Previously set only on the live
+# task definition by hand, which meant Terraform's plan wanted to replace that definition
+# without it. `UC4a-Gbdw7vOaccHmFo40b9g` is Khan Academy - chosen (D-209) because searching
+# it per curriculum skill returns the exact intended videos, where walking its 9,308 uploads
+# newest-first would have matched none of them.
+variable "youtube_channel_id" {
+  type    = string
+  default = "UC4a-Gbdw7vOaccHmFo40b9g"
+}

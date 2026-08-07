@@ -14709,7 +14709,90 @@ this and the earlier claim was made from an assumption instead of a measurement.
 precisely because it is the same failure this session kept finding in the code: a conclusion drawn
 from what seemed likely rather than from what the deployed environment actually reports.
 
-**LangSmith is deliberately not wired**: it needs an API key (not mine to create or handle) and it
-sends LLM payloads to a third party. The payloads are PII-free by design, but transmitting a
-minors-platform's learning data to an external service is the user's decision to take explicitly,
-not one to make on their behalf.
+**LangSmith was wired after this entry was written** - see D-214, which records the NAT gateway it
+required, the two silent Terraform drifts that surfaced on the way, and what the traces contain.
+The reasoning here (a key that is not mine to handle, and a third-party transmission that is the
+user's decision to take explicitly) is what that decision was taken *against*, not a reversal of it:
+the user took it, and the key was created by hand rather than passed through this conversation.
+
+## D-214 — LangSmith, and the three things that had to be true first (accepted, 2026-08-07)
+
+The user asked for LangSmith and offered the API key. Three things had to be settled before a
+key was worth anything, and two of them were latent bugs that had nothing to do with LangSmith.
+
+### The key never passes through the assistant
+
+Created by hand with `aws secretsmanager create-secret`, exactly as the YouTube key was, and
+referenced here only by ARN via a `data` source. The value never enters the repo, a plan file, a
+log, or a conversation. `read -rs` keeps it out of shell history too.
+
+### Private subnets had no internet at all
+
+Measured, not assumed: `learning-api` runs in two subnets with `MapPublicIpOnLaunch=false` and
+`assignPublicIp=DISABLED`, and the account had **zero** NAT gateways. That is D-084 working as
+designed - ECR, Logs, Secrets Manager, Bedrock, X-Ray and S3 all reach the tasks over PrivateLink,
+so no egress was ever needed.
+
+LangSmith is third-party SaaS with no PrivateLink equivalent. A key alone would have produced
+silent trace-upload failures and, worse, a per-graph-run wait while the client timed out against an
+unreachable host. So the flag creates **one** NAT gateway (~$33/month), in one AZ, deliberately not
+one per AZ: the traffic crossing it is telemetry, and if that AZ fails the other AZ's tasks lose
+*tracing*, not function, because every path they actually need still goes through a VPC endpoint.
+
+`nat_gateway_enabled` defaults to `false` in the module and is driven by
+`langsmith_tracing_enabled`, so the NAT cannot be left billing after the feature is switched off,
+and "no internet egress" stays the default that someone has to write down to give up.
+
+Verified after applying: an ops task in a **private** subnet with `assignPublicIp=DISABLED` reached
+`https://api.smith.langchain.com/info` and got `200`.
+
+### Two silent drifts, found by diffing rather than by reading the plan
+
+`terraform plan` said only `module.ops_task.aws_ecs_task_definition.this must be replaced`. What it
+did not say is that the replacement would have dropped five settings:
+
+    YOUTUBE_CHANNEL_ID, YOUTUBE_YOUTUBE_PROVIDER, YOUTUBE_BEDROCK_PROVIDER,
+    YOUTUBE_BEDROCK_AWS_REGION, and the YOUTUBE_YOUTUBE_API_KEY secret
+
+They had been added straight to the live task definition when the sync was first run, so Terraform
+had never known they existed. Applying would have **silently broken the YouTube sync and its Sunday
+cron** - and nothing alarms on the ops task, so it would have been found the next time someone
+looked at the video catalog. The same was true of the IAM grant: the plan wanted to *remove* the
+youtube key's ARN from the execution role's `secretsmanager:GetSecretValue` resources.
+
+Both are now declared here, which is the actual fix - the drift existed independently of LangSmith
+and would have fired on the next `terraform apply` for any reason.
+
+The lesson is about method, not YAML: `Plan: 1 to add, 1 to change, 1 to destroy` looked routine.
+Diffing the *live* task definition's env/secret names against the module block is what showed what
+"replaced" meant.
+
+### The image-rollback trap, which the module had already documented
+
+`ecs-service` sets `ignore_changes = [task_definition]` because CI deploys by registering a revision
+and calling `update-service` directly. So `terraform apply` registers a new revision but leaves the
+service on the old one - a shape change needs a manual service update, which the module's comment
+says explicitly.
+
+That manual step is where the trap is. Terraform's freshly-registered revision carries the image tag
+from *tfvars* (`gha-70100623148d`), while the running service was on `gha-4b847a8c5df4` - the same
+day's deploy. Pointing the service at Terraform's revision would have rolled the application back
+and undone every change shipped that day.
+
+Resolved by registering a revision that combines Terraform's shape with the *running* image, and
+pointing the services at that. Only the app container's image is swapped; the `otel-collector`
+sidecar keeps its pinned tag. Confirmed after rollout: both services `COMPLETED` and still on
+`gha-4b847a8c5df4`.
+
+### What LangSmith actually receives
+
+Prompt and response payloads for every LangGraph run, plus node-level timing. Those payloads are
+PII-free by design - Postgres holds only `*_external_id` references (SPEC §5.30) and the gateway is
+the only path to a model - but this is a K-12 platform, so the transmission is recorded here as a
+deliberate decision rather than a default. It is reversible: `langsmith_tracing_enabled = false`
+removes the env vars, the secret grant, the NAT gateway and the route in one apply.
+
+Env var names verified against the installed `langsmith` 0.10.5 rather than assumed:
+`LANGSMITH_TRACING=true` flips `tracing_is_enabled()`, and `LANGSMITH_API_KEY` is what the client
+resolves. They are deliberately **unprefixed** - the langsmith client reads the process environment
+directly and never goes through pydantic-settings, so `LEARNING_`/`CHAT_` would have done nothing.

@@ -17,3 +17,8 @@ output "private_subnet_ids" {
 output "availability_zones" {
   value = local.azs
 }
+
+output "nat_gateway_id" {
+  description = "The NAT gateway giving private subnets internet egress, or null when disabled."
+  value       = try(aws_nat_gateway.this[0].id, null)
+}
