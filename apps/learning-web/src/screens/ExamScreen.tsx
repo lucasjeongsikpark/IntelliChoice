@@ -21,6 +21,13 @@ interface Props {
   // student works through the hint/solution/video on the right, and the Submit button says
   // so plainly instead of showing a stuck "Submitting…".
   paused?: boolean;
+  // D-217 follow-up: during the study intervention *menu* (and a chat opened from it) the
+  // snapshot arrives with `items: []` - the graph has no current item while it waits for the
+  // student's choice - so `currentItem` is null and this screen would otherwise show
+  // "Loading the next question…", which is both untrue (nothing is loading) and drops the
+  // question out of the two-column view the student is getting help with. The parent passes
+  // the last study question it saw so the left column keeps showing it, read-only, throughout.
+  pausedQuestionText?: string | null;
   error: string | null;
   onSubmit: (questionVariantId: string, selectedOption: string, responseTimeMs: number) => void;
   onSkip: (assessmentItemId: string) => void;
@@ -58,6 +65,7 @@ export function ExamScreen({
   overview,
   busy,
   paused = false,
+  pausedQuestionText = null,
   error,
   onSubmit,
   onSkip,
@@ -329,9 +337,22 @@ export function ExamScreen({
   }
 
   if (!currentItem) {
+    // Paused on the intervention menu/chat (items: []): keep the question the student is
+    // getting help with on the left, read-only, rather than a misleading "Loading…".
+    if (paused && pausedQuestionText) {
+      return (
+        <div className="panel wide">
+          <div className="progress-bar">
+            <span className="phase-chip">{PHASE_LABELS[phase] ?? phase}</span>
+          </div>
+          <QuestionStem text={pausedQuestionText} />
+          <p className="readonly-note">Work through the help on the right →</p>
+        </div>
+      );
+    }
     return (
       <div className="panel">
-        <p>Loading the next question…</p>
+        <p>{paused ? "Work through the help on the right →" : "Loading the next question…"}</p>
       </div>
     );
   }
