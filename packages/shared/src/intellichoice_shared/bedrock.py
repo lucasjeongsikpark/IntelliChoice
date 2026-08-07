@@ -1187,6 +1187,13 @@ class BedrockGenerationResult[T: BaseModel]:
     # structured-output contract, the first diagnostic question has an answer. Defaulted,
     # so every existing construction site is unaffected.
     stop_reason: str = ""
+    # D-217: prompt-cache accounting (D-203 measured the saving but the gateway dropped
+    # these). Carried and logged so a cache hit is *visible* rather than only inferable
+    # from `input_tokens` collapsing. Defaulted, so existing construction sites are
+    # unaffected. Not yet billed off separately - the cost above still rates every input
+    # token the same, which slightly over-states the cost of a warm-cache call.
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
 
 
 @dataclass(frozen=True)

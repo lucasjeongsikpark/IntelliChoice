@@ -236,6 +236,10 @@ class ResilientBedrockGateway:
             stop_reason = ""
             total_input = 0
             total_output = 0
+            # D-217: prompt-cache tokens, accumulated so a warm-cache hit is visible in the
+            # log (D-203 measured the saving but the gateway dropped these).
+            total_cache_read = 0
+            total_cache_write = 0
             attempts = 0
             for attempt in range(self._max_retries + 1):
                 attempts = attempt + 1
@@ -275,12 +279,21 @@ class ResilientBedrockGateway:
                     stop_reason = raw.stop_reason
                     total_input += raw.input_tokens
                     total_output += raw.output_tokens
+                    total_cache_read += raw.cache_read_tokens
+                    total_cache_write += raw.cache_write_tokens
                     break
 
             assert raw_text is not None
 
             try:
-                value, repaired, repair_input, repair_output = await self._validate_or_repair(
+                (
+                    value,
+                    repaired,
+                    repair_input,
+                    repair_output,
+                    repair_cache_read,
+                    repair_cache_write,
+                ) = await self._validate_or_repair(
                     raw_text=raw_text,
                     response_model=response_model,
                     model_id=model_id,
@@ -304,6 +317,8 @@ class ResilientBedrockGateway:
                 raise
             total_input += repair_input
             total_output += repair_output
+            total_cache_read += repair_cache_read
+            total_cache_write += repair_cache_write
             self._record_success()
 
             cost_cents = self._cost_cents(model_id, total_input, total_output)
@@ -314,6 +329,10 @@ class ResilientBedrockGateway:
                     "model_id": model_id,
                     "input_tokens": total_input,
                     "output_tokens": total_output,
+                    # D-217: a warm-cache hit shows as a large `cache_read_tokens` beside a
+                    # small `input_tokens` (D-203 measured 4185 read / 3 billed on Haiku).
+                    "cache_read_tokens": total_cache_read,
+                    "cache_write_tokens": total_cache_write,
                     "cost_cents": cost_cents,
                     "repaired": repaired,
                     "duration_ms": round((time.monotonic() - started_at) * 1000, 2),
@@ -327,6 +346,8 @@ class ResilientBedrockGateway:
                 model_id=model_id,
                 repaired=repaired,
                 stop_reason=stop_reason,
+                cache_read_tokens=total_cache_read,
+                cache_write_tokens=total_cache_write,
             )
 
     async def create_embedding(
@@ -440,10 +461,10 @@ class ResilientBedrockGateway:
         max_output_tokens: int,
         tokens_so_far: tuple[int, int],
         truncated: bool = False,
-    ) -> tuple[T, bool, int, int]:
+    ) -> tuple[T, bool, int, int, int, int]:
         value = self._try_validate(raw_text, response_model)
         if value is not None:
-            return value, False, 0, 0
+            return value, False, 0, 0, 0, 0
 
         already_in, already_out = tokens_so_far
         if truncated:
@@ -457,16 +478,20 @@ class ResilientBedrockGateway:
                 cost_cents=self._cost_cents(model_id, already_in, already_out),
             )
 
-        repair_prompt = (
-            f"{system_prompt}\n\nYour previous output did not match the required JSON "
+        # D-217: the correction goes in the *user* turn, leaving `system_prompt` byte-for-
+        # byte identical to the first call - so the system cache point (D-203) still hits on
+        # the repair. It used to be appended to the system prompt, which changed that block
+        # and made every repair re-write the cache instead of reading it.
+        repair_user_message = (
+            f"{user_message}\n\nYour previous output did not match the required JSON "
             "schema. Return corrected JSON only, matching the schema exactly."
         )
         try:
             repaired_raw = await asyncio.wait_for(
                 self._provider.raw_generate(
                     model_id=model_id,
-                    system_prompt=repair_prompt,
-                    user_message=user_message,
+                    system_prompt=system_prompt,
+                    user_message=repair_user_message,
                     json_schema=json_schema,
                     max_output_tokens=max_output_tokens,
                 ),
@@ -492,7 +517,14 @@ class ResilientBedrockGateway:
                     already_out + repaired_raw.output_tokens,
                 ),
             )
-        return value, True, repaired_raw.input_tokens, repaired_raw.output_tokens
+        return (
+            value,
+            True,
+            repaired_raw.input_tokens,
+            repaired_raw.output_tokens,
+            repaired_raw.cache_read_tokens,
+            repaired_raw.cache_write_tokens,
+        )
 
     @staticmethod
     def _try_validate(raw_text: str, response_model: type[T]) -> T | None:
