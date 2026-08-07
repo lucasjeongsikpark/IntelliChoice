@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import * as api from "../api/client";
+import { friendlyError } from "../api/errors";
 import { ReportView } from "../components/ReportView";
 import { SkillFocusList } from "../components/SkillFocus";
 import { splitByTarget } from "../lib/skillFocus";
@@ -197,28 +198,39 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
   const [reportNonce, setReportNonce] = useState(() => crypto.randomUUID());
   const reportKey = `${studentId}:${rangePreset}:${reportNonce}`;
 
+  // D-216: both fetches used to surface `String(err)` - the raw wire text ("API error
+  // 403: ...") that api/errors.ts exists to keep away from users - and a failure left no
+  // way to retry short of leaving the screen. `fetchNonce` re-runs both effects; the
+  // error state is cleared on every (re)fetch so a stale message cannot sit beside fresh
+  // charts after a range change.
+  const [fetchNonce, setFetchNonce] = useState(0);
+
   useEffect(() => {
+    void fetchNonce;
     let cancelled = false;
+    setHistoryError(null);
     api
       .getStudentHistory(token, studentId)
       .then((h) => !cancelled && setHistory(h))
-      .catch((err) => !cancelled && setHistoryError(String(err)));
+      .catch((err) => !cancelled && setHistoryError(friendlyError(err)));
     return () => {
       cancelled = true;
     };
-  }, [token, studentId]);
+  }, [token, studentId, fetchNonce]);
 
   useEffect(() => {
+    void fetchNonce;
     let cancelled = false;
     setDashboard(null);
+    setDashboardError(null);
     api
       .getStudentDashboard(token, studentId, start, null)
       .then((d) => !cancelled && setDashboard(d))
-      .catch((err) => !cancelled && setDashboardError(String(err)));
+      .catch((err) => !cancelled && setDashboardError(friendlyError(err)));
     return () => {
       cancelled = true;
     };
-  }, [token, studentId, start]);
+  }, [token, studentId, start, fetchNonce]);
 
   async function handleGenerateReport() {
     setReportBusy(true);
@@ -232,7 +244,7 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
         setReportNonce(crypto.randomUUID());
       }
     } catch (err) {
-      setReportError(String(err));
+      setReportError(friendlyError(err));
     } finally {
       setReportBusy(false);
     }
@@ -302,7 +314,14 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
         ))}
       </div>
 
-      {dashboardError && <p className="error">{dashboardError}</p>}
+      {dashboardError && (
+        <>
+          <p className="error">{dashboardError}</p>
+          <button className="secondary" onClick={() => setFetchNonce((n) => n + 1)}>
+            Try again
+          </button>
+        </>
+      )}
       {!dashboard && !dashboardError && <p>Loading charts…</p>}
 
       {dashboard && (
@@ -505,7 +524,14 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
 
       <ReportView report={report} busy={reportBusy} error={reportError} onGenerate={handleGenerateReport} />
 
-      {historyError && <p className="error">{historyError}</p>}
+      {historyError && (
+        <>
+          <p className="error">{historyError}</p>
+          <button className="secondary" onClick={() => setFetchNonce((n) => n + 1)}>
+            Try again
+          </button>
+        </>
+      )}
       {!history && !historyError && <p>Loading…</p>}
 
       {history && (

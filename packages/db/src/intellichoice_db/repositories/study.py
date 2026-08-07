@@ -1,4 +1,5 @@
 from sqlalchemy import desc, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_db.models.mastery import StudyAttempt, StudyItem, StudySession
@@ -19,8 +20,32 @@ class StudyRepository:
         return item
 
     async def record_attempt(self, attempt: StudyAttempt) -> StudyAttempt:
+        """Plain insert, for test seeding. The answer path goes through
+        `record_attempt_if_first`, which enforces one attempt per (session, variant).
+        """
         self._session.add(attempt)
         await self._session.flush()
+        return attempt
+
+    async def record_attempt_if_first(self, attempt: StudyAttempt) -> StudyAttempt | None:
+        """Insert, or return `None` if this item already has an attempt (D-216 - the study
+        counterpart of `AssessmentRepository.record_attempt_if_first`, AUD-L-10). Every
+        study serving mints a fresh variant row, so one attempt per (session, variant) is
+        the model's own invariant ("the current pending question is the item lacking a
+        matching StudyAttempt"); a second answer from a stale tab would re-label a resolved
+        skill line and skew the gain's dependency denominators.
+
+        The insert runs inside a SAVEPOINT so losing the race leaves the surrounding
+        request transaction usable.
+        """
+        try:
+            async with self._session.begin_nested():
+                self._session.add(attempt)
+                await self._session.flush()
+        except IntegrityError as exc:
+            if "uq_study_attempts_session_variant" in str(exc.orig):
+                return None
+            raise
         return attempt
 
     async def update_intervention_choice(

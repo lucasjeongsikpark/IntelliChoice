@@ -155,17 +155,20 @@ function App() {
     reset: resetNarrativeGate,
   } = useNarrativeGate(snapshot?.learning_session_id ?? null);
 
-  useEffect(() => {
-    if (snapshot?.is_correct === true) setStreak((s) => s + 1);
-    else if (snapshot?.is_correct === false) setStreak(0);
-  }, [snapshot?.is_correct, snapshot?.learning_session_id]);
-
+  // D-216: this effect used to also drive `recordAssistance` and the streak, and both
+  // were wrong in the same way - snapshots are not one-per-event. Every action arrives
+  // twice (the REST response and its own SSE echo, two distinct parses of the same
+  // content), so an object-identity dependency fired twice per hint and the counter
+  // this hook exists to keep truthful double-counted; while `is_correct` is a primitive,
+  // so two *consecutive* correct answers changed nothing and the streak never passed 1.
+  // Both now update at the action site (`onSubmit`/`onChoose` below), which runs exactly
+  // once per student action. Un-dismissing on new content is all that legitimately keys
+  // off the snapshot.
   useEffect(() => {
     if (snapshot?.intervention) {
       setInterventionDismissed(false);
-      recordAssistance(snapshot.intervention.type);
     }
-  }, [snapshot?.intervention, recordAssistance]);
+  }, [snapshot?.intervention]);
 
   // AUD-F-01: `ExamScreen` lists both of these in effect dependency arrays (the overview
   // poll and the view-time autosave), so an inline arrow - a new identity on every render -
@@ -210,6 +213,11 @@ function App() {
     forgetStudent();
     setChildCandidates(null);
     setSwitchingChild(false);
+    // D-216: logout previously left the per-session UI state (streak, assistance counts,
+    // narrative gate, chat transcript) and the dashboard view behind, so the *next*
+    // sign-in on this tab could land straight on a dashboard with someone else's leftovers.
+    resetSessionUiState();
+    setView("session");
   }
 
   function resetSessionUiState() {
@@ -408,6 +416,7 @@ function App() {
           message={snapshot.message}
           pendingInterrupt={pending}
           resolved={snapshot.attendance_resolution === "absence_acknowledged"}
+          error={session.error}
           busy={session.busy}
           onAcknowledge={() => void session.resolveAttendance("acknowledge")}
           onAskBranchManager={() => void session.resolveAttendance("ask_branch_manager")}
@@ -484,7 +493,15 @@ function App() {
             error={session.error}
             onSubmit={(questionVariantId, selectedOption, responseTimeMs) => {
               markInteraction();
-              void session.submitAnswer(questionVariantId, selectedOption, responseTimeMs);
+              // The streak advances here, once per submission, rather than in a
+              // snapshot effect - `is_correct` is masked (null) during exams, so only
+              // study answers move it, matching where the chip renders.
+              void session
+                .submitAnswer(questionVariantId, selectedOption, responseTimeMs)
+                .then((result) => {
+                  if (result?.is_correct === true) setStreak((s) => s + 1);
+                  else if (result?.is_correct === false) setStreak(0);
+                });
             }}
             onSkip={(assessmentItemId) => {
               markInteraction();
@@ -507,8 +524,17 @@ function App() {
             intervention={snapshot.intervention ?? null}
             ladderOpen={ladderOpen}
             busy={session.busy}
+            error={session.error}
             onChoose={(choice) =>
-              void session.respond({ interrupt_type: "intervention_choice", choice })
+              // Counted on the click that succeeded, not on the snapshot that followed -
+              // snapshots arrive twice per action (REST + SSE echo) and double-counted
+              // the exact metric `useAssistanceCounts` was built to keep truthful.
+              // "continue" is declining help, so it is not a support use.
+              void session
+                .respond({ interrupt_type: "intervention_choice", choice })
+                .then((result) => {
+                  if (result !== null && choice !== "continue") recordAssistance(choice);
+                })
             }
             onDismiss={() => setInterventionDismissed(true)}
             questionVariantId={pending?.question_variant_id ?? null}
@@ -557,11 +583,25 @@ function App() {
       }
 
       if (snapshot.phase === "error") {
+        // No `snapshot.message` here, deliberately (D-216): error transitions write
+        // `last_error` - internals like "attendance check failed: ..." - and `message`
+        // maps `last_message`, so this rendered an *empty* error line in front of a
+        // student. Fixed copy instead; the raw detail belongs in logs, not on screen.
         return (
           <div className="panel">
             <h1>Something went wrong</h1>
-            <p className="error">{snapshot.message}</p>
-            <button onClick={() => session.endSession()}>Back to start</button>
+            <p>
+              This session hit a problem on our side and cannot continue. Everything you
+              already finished is saved, and starting again is safe.
+            </p>
+            <button
+              onClick={() => {
+                session.endSession();
+                resetSessionUiState();
+              }}
+            >
+              Back to start
+            </button>
           </div>
         );
       }
@@ -573,9 +613,23 @@ function App() {
       // screen appearing, which is the most common way a student meets this branch.
       //
       // The phase is kept for whoever is debugging, in a `title` the UI never speaks.
+      //
+      // D-216: the exit exists because this branch is also where an *unrecognised* phase
+      // lands, and that used to be a panel with zero controls - a student stranded on it
+      // (e.g. `awaiting_child_selection` whose candidates never arrived) had no action
+      // but a reload. During a normal start it shows for ~2s; the button is harmless
+      // there, and starting over from it loses nothing.
       return (
         <div className="panel" title={`phase: ${snapshot.phase}`}>
           <p>Getting your session ready…</p>
+          <button
+            onClick={() => {
+              session.endSession();
+              resetSessionUiState();
+            }}
+          >
+            Back to start
+          </button>
         </div>
       );
     }
@@ -625,8 +679,24 @@ function App() {
     // duration of every narrative - and because adding no DOM node at all means the
     // no-narrative render is identical to what shipped before this change.
     const phaseContent = renderPhase(snapshot);
+    // D-216: once a snapshot exists, a dead stream used to be *invisible* - the recovery
+    // screen above sits inside `if (!snapshot)`, so the last snapshot stayed on screen,
+    // stale, with no signal and no way back. REST actions still work in that state (they
+    // set the snapshot directly), so this is a banner rather than a takeover; "error"
+    // rather than "connecting" because `EventSource` retries transient drops on its own
+    // and only a terminal failure (an expired token, a 403) needs the student's hand.
+    // A permanent slot (banner or null) for the same reconcile-by-position reason as the
+    // narrative below.
+    const streamBanner =
+      session.streamState === "error" ? (
+        <div className="panel stream-banner" role="alert">
+          <p>Live updates are disconnected — what you see here may be out of date.</p>
+          <button onClick={session.reconnectStream}>Reconnect</button>
+        </div>
+      ) : null;
     return (
       <>
+        {streamBanner}
         {showNarrative ? (
           <StageTransitionScreen
             narrative={narrative}

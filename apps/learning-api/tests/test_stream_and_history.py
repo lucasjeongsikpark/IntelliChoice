@@ -748,3 +748,107 @@ def test_stream_unsubscribes_when_the_initial_read_fails() -> None:
         "a rejected connect left its queue subscribed - every failed auth attempt "
         "would accumulate an unbounded queue the bus keeps publishing into"
     )
+
+
+def test_stream_reconnect_reserves_the_paid_intervention_content() -> None:
+    """D-216: a refresh mid-hint-ladder must re-serve the hint the student already paid a
+    Bedrock call for. `_initial_snapshot` used to omit `intervention` entirely, so the
+    student saw the bare chooser again and choosing again was a second paid call.
+
+    Gated on `hint_ladder_awaiting_choice`: only mid-ladder is `last_intervention`
+    guaranteed to belong to the currently-paused question - the second half asserts the
+    gate, because ungated, a *previous* question's solution could resurface over a new
+    pause (the D-215 §4 defect, in reverse).
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics_resp = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        )
+        pre_items = topics_resp.json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        for item in pre_items:
+            variant_id = item["question_variant_id"]
+            client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"iv-pre-{variant_id}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+        finalize = client.post(
+            f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
+        ).json()
+        assert finalize["phase"] == "study"
+        study_variant_id = finalize["items"][0]["question_variant_id"]
+
+        wrong = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": f"iv-wrong-{session_id}"},
+            json={
+                "question_variant_id": study_variant_id,
+                "selected_option": _other_option(
+                    _correct_options([study_variant_id])[study_variant_id]
+                ),
+                "response_time_ms": 2000,
+            },
+        )
+        assert wrong.json()["pending_interrupt"]["interrupt_type"] == "intervention_choice"
+
+        hint_resp = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "hint"},
+        )
+        served = hint_resp.json()["intervention"]
+        assert served["type"] == "hint"
+        # Level 1 of 3, so the ladder pauses again - the mid-ladder state a refresh hits.
+        assert hint_resp.json()["pending_interrupt"] is not None
+
+        async def _fetch_snapshot():
+            profile_adapter = MySQLProfileAdapter(MYSQL_URL)
+            engine = create_engine()
+            try:
+                session_factory = create_session_factory(engine)
+                async with session_scope(session_factory) as session:
+                    return await _initial_snapshot(
+                        session_id,
+                        app.state.learning_graph,
+                        profile_adapter,
+                        session,
+                        app.state.bedrock_gateway,
+                        token,
+                    )
+            finally:
+                await profile_adapter.close()
+                await engine.dispose()
+
+        snapshot = asyncio.run(_fetch_snapshot())
+        assert snapshot.intervention is not None
+        assert snapshot.intervention.model_dump() == served
+
+        # And once the ladder round is over ("continue" -> retry served, no pause about
+        # this hint anymore), the reconnect snapshot must NOT resurrect it.
+        cont = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "continue"},
+        )
+        assert cont.status_code == 200
+
+        after = asyncio.run(_fetch_snapshot())
+        assert after.intervention is None

@@ -33,6 +33,7 @@ from intellichoice_db.repositories.questions import QuestionRepository
 from learning_api.services.assessment_builder import build_post_exam, build_pre_exam
 from learning_api.services.variant_persistence import (
     StaticVariantUnavailableError,
+    _permute_options,
     build_variant_row,
     renders_from_canonical_variant,
 )
@@ -277,8 +278,40 @@ def test_the_post_exam_repeats_an_authored_stem_but_reorders_its_options() -> No
                 # catch a permutation applied to the options but not to `correct_option`,
                 # which would silently mis-grade every post-exam.
                 assert answer_text(after) == answer_text(before)
+                # D-216: the *letter* itself must change, not just the distractors around
+                # it - rejecting only the identity order left ~22% of draws keeping the
+                # correct answer on the same letter, which is exactly the position memory
+                # ("I picked C") the permutation exists to remove.
+                assert after.correct_option != before.correct_option
 
     _run(scenario)
+
+
+def test_the_option_permutation_always_moves_the_correct_letter() -> None:
+    """`_permute_options` over many seeds: never the identity order, and the correct
+    answer never stays on its original letter. Property-tested directly because the
+    flow-level test above only exercises the handful of seeds one exam build draws.
+    """
+    canonical = QuestionVariant(
+        origin=VARIANT_ORIGIN_CANONICAL,
+        question_template_id="t-permute",
+        random_seed=0,
+        rendered_question="stem",
+        option_a="alpha",
+        option_b="beta",
+        option_c="gamma",
+        option_d="delta",
+        correct_option="c",
+        parameter_values={},
+    )
+    originals = ["alpha", "beta", "gamma", "delta"]
+    for seed in range(2000):
+        permuted, correct_option = _permute_options(canonical_variant=canonical, seed=seed)
+        assert sorted(permuted) == sorted(originals)
+        assert permuted != originals
+        # The answer text survives the move; the letter never stays put.
+        assert permuted["abcd".index(correct_option)] == "gamma"
+        assert correct_option != "c"
 
 
 def test_building_without_a_canonical_variant_raises_rather_than_serving_nothing() -> None:

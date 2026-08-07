@@ -53,6 +53,11 @@ NEEDS_WRONG_ATTEMPT_MESSAGE = (
     "back and I can help you figure out what happened!"
 )
 
+HINT_LADDER_EXHAUSTED_MESSAGE = (
+    "You've already seen every hint for this question. Want to look at the full "
+    "solution, or give it one more try with what you know now?"
+)
+
 CEILING_EXCEEDED_RESPONSE = (
     "You've used up today's chat help for this account - come back tomorrow for more! "
     "You can still use the Hint, Solution, and Video buttons in the meantime."

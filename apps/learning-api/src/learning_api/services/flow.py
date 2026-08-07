@@ -545,6 +545,12 @@ async def _record_study_attempt(
         raise UnknownQuestionVariantError(question_variant_id, "not_served")
 
     prior_attempts = await study_repo.get_attempts(learning_session.study_session_id)
+    # D-216: one attempt per served item, mirroring the exam path's AUD-L-10 guard. A
+    # stale tab re-answering a resolved item would append a second attempt to its skill
+    # line, re-run `advance_study`'s labeling off an old question, and inflate the
+    # "resolving attempt" denominators the gain's dependency rates divide by.
+    if any(a.question_variant_id == question_variant_id for a in prior_attempts):
+        raise ItemAlreadyAnsweredError(question_variant_id)
     prior_line = [
         a
         for a in prior_attempts
@@ -552,7 +558,7 @@ async def _record_study_attempt(
     ]
 
     is_correct = grade(selected_option, variant.correct_option)
-    attempt = await study_repo.record_attempt(
+    attempt = await study_repo.record_attempt_if_first(
         StudyAttempt(
             student_external_id=student_id,
             study_session_id=learning_session.study_session_id,
@@ -562,6 +568,10 @@ async def _record_study_attempt(
             retry_count=len(prior_line),
         )
     )
+    if attempt is None:
+        # The constraint rejected the insert: a concurrent request recorded this item
+        # between the read above and here - the same race the exam path closes.
+        raise ItemAlreadyAnsweredError(question_variant_id)
     return is_correct, attempt
 
 

@@ -13,6 +13,7 @@ from learning_api.dependencies import get_current_claims, get_db_session
 from learning_api.services import question_reports
 from learning_api.services.question_reports import (
     InvalidReportTypeError,
+    QuestionNotServedError,
     UnknownQuestionError,
 )
 
@@ -56,6 +57,14 @@ async def report_problem(
             report_type=body.report_type,
         )
     except UnknownQuestionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"unknown question_variant_id {question_variant_id!r}",
+        ) from exc
+    except QuestionNotServedError as exc:
+        # D-216: the same 404 (and the same detail) as an unknown id, deliberately - a
+        # student probing ids they were never served learns nothing about which ones
+        # exist, matching the D-097 "failure is 404, not 401" posture.
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"unknown question_variant_id {question_variant_id!r}",

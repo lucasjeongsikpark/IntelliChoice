@@ -15,11 +15,14 @@ non-negotiable #2). Grading/authorization/quarantine are all threshold logic her
 
 from dataclasses import dataclass
 
+from intellichoice_db.models.assessment import AssessmentItem, AssessmentSession
+from intellichoice_db.models.mastery import StudyItem, StudySession
 from intellichoice_db.models.questions import QuestionTemplate
 from intellichoice_db.models.reports import ProblemReport
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_db.repositories.reports import ReportRepository
 from intellichoice_observability.metrics import PROBLEM_REPORTS, QUARANTINE_COUNT
+from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # SPEC §5.8.7 report reasons.
@@ -39,6 +42,14 @@ QUARANTINE_THRESHOLD = 5
 
 class UnknownQuestionError(Exception):
     """The reported question_variant_id doesn't exist."""
+
+
+class QuestionNotServedError(Exception):
+    """D-216: the variant exists but was never served to this student. Reporting is
+    scoped to questions the reporter has actually seen - without this, any five student
+    accounts could quarantine any template for everyone by guessing/scripting variant
+    ids, and every other student-scoped route in this app checks ownership.
+    """
 
 
 class InvalidReportTypeError(Exception):
@@ -66,6 +77,8 @@ async def submit_report(
     variant = await question_repo.get_variant(question_variant_id)
     if variant is None:
         raise UnknownQuestionError(question_variant_id)
+    if not await _was_served_to(session, question_variant_id, student_external_id):
+        raise QuestionNotServedError(question_variant_id)
     template_id = variant.question_template_id
 
     report_repo = ReportRepository(session)
@@ -88,6 +101,37 @@ async def submit_report(
         distinct_reporters=distinct_reporters,
         quarantined=quarantined,
     )
+
+
+async def _was_served_to(
+    session: AsyncSession, question_variant_id: str, student_external_id: str
+) -> bool:
+    """True when this variant appears as an item of one of the student's own exam or
+    study sessions - i.e. it was actually put in front of them. One indexed EXISTS query;
+    answered or not doesn't matter (a student may reasonably report a question they
+    refused to answer *because* it is broken).
+    """
+    served_in_exam = exists(
+        select(AssessmentItem.assessment_item_id)
+        .join(
+            AssessmentSession,
+            AssessmentSession.assessment_session_id == AssessmentItem.assessment_session_id,
+        )
+        .where(
+            AssessmentItem.question_variant_id == question_variant_id,
+            AssessmentSession.student_external_id == student_external_id,
+        )
+    )
+    served_in_study = exists(
+        select(StudyItem.study_item_id)
+        .join(StudySession, StudySession.study_session_id == StudyItem.study_session_id)
+        .where(
+            StudyItem.question_variant_id == question_variant_id,
+            StudySession.student_external_id == student_external_id,
+        )
+    )
+    result = await session.execute(select(or_(served_in_exam, served_in_study)))
+    return bool(result.scalar())
 
 
 async def _maybe_quarantine(

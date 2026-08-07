@@ -46,11 +46,17 @@ def _permute_options(
     ]
     rng = random.Random(seed)
     order = list(range(len(options)))
+    original_index = OPTION_KEYS.index(canonical_variant.correct_option)
+    # Rejecting the identity order alone left ~22% of draws keeping the *correct answer*
+    # on the same letter, which is the position memory ("I picked C") the docstring
+    # promises to remove - a shuffled distractor doesn't help if the answer didn't move.
+    # So the draw must also move the correct option. P(reject) per draw ≈ 0.25, so twelve
+    # bounded attempts fail with probability ~0.25^12; the fallthrough serves the last
+    # draw rather than crashing, and the caller logs whether the answer actually moved.
     for _ in range(_MAX_PERMUTATION_ATTEMPTS):
         rng.shuffle(order)
-        if order != sorted(order):
+        if order != sorted(order) and order.index(original_index) != original_index:
             break
-    original_index = OPTION_KEYS.index(canonical_variant.correct_option)
     # `order[j]` is which original option now sits at position `j`, so the answer key moves
     # to wherever the originally-correct option landed.
     return [options[i] for i in order], OPTION_KEYS[order.index(original_index)]
@@ -217,7 +223,17 @@ def _static_variant_row(
                 "difficulty_label": template.difficulty_label,
                 # So the log still distinguishes "same question entirely" from "same
                 # question, re-ordered options" once this has been running a while.
-                "options_permuted": True,
+                # Measured, not asserted: a constant `True` here could not have caught
+                # `_permute_options`'s bounded-attempts fallthrough serving the original
+                # order (D-216).
+                "options_permuted": [
+                    canonical_variant.option_a,
+                    canonical_variant.option_b,
+                    canonical_variant.option_c,
+                    canonical_variant.option_d,
+                ]
+                != options,
+                "correct_letter_moved": correct_option != canonical_variant.correct_option,
             },
         )
     return QuestionVariant(

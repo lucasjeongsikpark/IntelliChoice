@@ -5,6 +5,48 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+### Session log — the learning flow, walked in code (2026-08-07, D-216)
+
+**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1040 passed, 2 skipped,
+1 xfailed** (five new tests) · `tsc` clean for `learning-web`, `chat-web` and `e2e` · `oxlint`
+clean · migration `b7e42a91c503` round-tripped against dev Postgres.
+
+**Not a numbered ROADMAP session** — the user asked for a fresh end-to-end inspection of the
+learning flow and a fix plan; the plan was approved and executed in full. D-215 walked the deployed
+UI; this walked the *code* — backend graph/services and frontend screens/hooks traced end to end,
+every candidate defect read in source before being called one, and the settled decisions (D-189,
+D-032, D-097, D-152, D-176, D-210) collected first so none was re-litigated. Full write-up in
+DECISIONS.md **D-216**.
+
+**What the walk found, most consequential first.** Fourteen defects, all fixed:
+
+| | finding |
+|---|---|
+| metrics | **chat-served help set none of the `study_attempts` support flags** — a student helped entirely through chat was reported to parents as fully independent (mastery, gain rates, dashboard, history, narrative all downstream) |
+| crash | **a 4th hint request via chat was `IndexError` → 500** — `next_level` unbounded over a 3-rung ladder; now a fixed free reply + defensive clamp |
+| integrity | **study answers had no one-attempt-per-item guard** (exam path did since AUD-L-10) — stale tab could re-label a resolved line, skew gain denominators, even rebuild the post-exam; now flow check + `uq_study_attempts_session_variant` |
+| cost | **refresh mid-hint discarded paid content** — `_initial_snapshot` never carried `intervention`; re-choosing was a second Bedrock call |
+| client | **assistance counts double-counted** (REST + SSE echo, object-identity effect dep) — re-breaking D-215 §3's own fix one session later; **streak froze at 1** (primitive dep); both moved to the action site |
+| client | **a dead stream was invisible once a snapshot existed** — banner + `reconnectStream()`; expired token mid-session no longer a silent stale page |
+| §5.13.1 | **the option permutation kept the correct letter in place 22.1% of the time** (measured over 20k seeds) and logged a constant `options_permuted: True`; now the letter must move and the log measures |
+| abuse | **any 5 accounts could quarantine any template** — question reports now scoped to variants actually served to the reporter, refusal indistinguishable from unknown-id (D-097 posture) |
+| strand | attendance email-requested state and the unknown-phase panel had zero exits; `phase=="error"` rendered an *empty* message (`last_error` vs `last_message`) |
+| copy/errors | dashboard printed raw wire errors with no retry; parent report said "Videos watched" where the student screen says "suggested"; failed respond/resolve showed nothing on two screens; unguarded `JSON.parse` in the SSE client; logout left the previous family's UI state |
+
+**Carry-over:**
+
+- **`phase == "error"` is a server-side dead end** — no API path leaves it; the client exit makes
+  it survivable but the session is abandoned. A recovery/reset path is a product design.
+- **Study answers have no idempotency-key replay** — a genuine network retry now 409s instead of
+  double-recording (the right trade, stated in D-216 §2); a study-side idempotency column would
+  close the seam fully.
+- **`SessionEventBus` is process-local** — fine at `desired_count = 1`; if a service ever scales
+  past one task, SSE clients pinned to the wrong task go quiet until reconnect (D-216 §8).
+- `absence_acknowledged` copy says "ended" but re-gating is possible (safe, arguably kind);
+  `BlockedSession` rows are not deduped per week. Copy/product decisions, not code defects.
+- Unchanged from D-215: the post-exam still repeats stems/numbers (D-189's costed trade), ~21 bank
+  items unread + 13 unre-read since editing, `journey-student.spec.ts` staging isolation.
+
 ### Session log — the deployed UI, walked (2026-08-07, D-215)
 
 **Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1035 passed, 2 skipped,
