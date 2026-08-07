@@ -249,10 +249,17 @@ criteria apply. Total spend across the session ≈ **$5.20** in Bedrock calls.
 
 ### Next session
 
-**Read the 48 live items.** Everything else is downstream of whether the content is actually good —
-the yield doubled and the maths verifies, but nobody has read a stem for tone, clarity or
-plausibility. `make question-review` renders them, or they are live at
-`https://d35dfnjzmgrm01.cloudfront.net`.
+> **Superseded in part by D-215 (2026-08-07) — read this before acting on the paragraph below.**
+> It is **41** items now, not 48: two were retired (a duplicate pair, and one problem comparing a
+> relative quantity against an absolute one) and 13 were re-minted with their context block
+> stripped. **20 of the 41 have now been read** end to end, which is where those corrections came
+> from. What is still true is the shape of the ask: the remaining ~21 have not been read for tone,
+> clarity or plausibility, and the 13 that were edited have not been re-read *since* the edit —
+> though that edit only removed text and all 41 pass the loader's §5.8.5 gate.
+
+**Read the remaining live items.** Everything else is downstream of whether the content is actually
+good — the maths verifies, but a stem can verify and still read badly. `make question-review`
+renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
 
 
 - **✅ D-205: split the design model from the author — 7 of 11 (2026-08-06).**
