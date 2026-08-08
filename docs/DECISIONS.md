@@ -15608,3 +15608,107 @@ Two findings from the walk, neither a regression:
    id** (the D-213 wrong-question guard), so the left column keeps showing the question, read-only,
    through the menu and any chat opened from it; the misleading "Loading…" copy is replaced by "Work
    through the help on the right →" whenever paused. No backend or snapshot-contract change.
+
+## D-220 — the access hint fires; the thing that was broken is that it said itself twice (accepted, 2026-08-08)
+
+D-219's carry-over ranked first in the next-session pointer: *"the access hint is built and
+still unreachable."* **That premise is wrong**, and finding out cost less than acting on it
+would have. Walked on the deployed staging build as a logged-out guest, `explain_access`
+returned `required_role: "parent"` and `AccessHintBanner` rendered, with a working "Log in"
+button back to the sign-in screen.
+
+What D-219 hit was **one** branch-manager question that falls in the probe's deliberately-silent
+set, generalized to "unreachable". Recorded plainly because the generalization is the mistake
+worth not repeating, not the observation.
+
+### Three candidate causes, checked and killed before any of them was named
+
+1. **Staging embedding provenance.** The sharpest hypothesis: if staging's gated chunks were
+   `mock`-embedded while queries embed for real, cosine distance is meaningless, nothing lands
+   within `CANDIDATE_MAX_DISTANCE` 0.60, and the probe falls to the keyword arm - which would
+   produce exactly the observed silence. **Refuted:** all 159 rows are `bedrock` /
+   `amazon.titan-embed-text-v2:0`, the same model the query path uses. Worth stating that this
+   was a *real* gap in prior evidence rather than a wild guess - D-174 compared documents,
+   chunk counts, text `md5` and NULL-embedding counts across the two corpora and found them
+   identical, but it never compared `embedding_provider`. The gap existed; it just was not the
+   cause. (Read via a read-only `ops-task` `run-task` override, SELECTs only.)
+2. **The probe rule itself.** Replaying the shipped rule over the committed dump
+   (`--load ... --shipped`, free) reproduces the README table exactly: **27 | 0 | 11 | 0 | 0**.
+   Unchanged, so nothing to retune.
+3. **Routing.** `explain_access` runs only after a no-source refusal, and its `hint is None`
+   branch writes *the same* `answer` and `missing_information` as `qa._no_answer` - so from
+   outside the API, "the probe found nothing" and "the probe never ran" are byte-identical.
+   That ambiguity is why the carry-over's claim could be stated confidently and be wrong.
+   **7 of 8 live guest turns matched the replay's prediction.** The one that differed got a
+   real cited answer from *public* content, so synthesis never refused and the probe never ran:
+   a guest who gets a genuine answer should not be told to log in. The routing gate working,
+   not failing.
+
+### The actual defect, and it is only visible on screen
+
+`explain_access` sets `answer = hint.message`. `ChatScreen` renders the answer bubble **and**
+the banner. A logged-out parent read *"That's available to parents - log in with a parent
+account to see it."* twice, stacked.
+
+Fixed in the **rendering layer, not the API contract**: `answer` is what an SSE or non-browser
+client reads, so it must keep carrying the text; the duplication is a presentation concern.
+Compared rather than assumed equal, so a backend that ever writes a genuinely different answer
+alongside a hint still shows both.
+
+### Why a green e2e suite missed it, which is the transferable part
+
+`e2e/fixtures/chat-shapes.ts` gave the `access hint` shape an `answer` and an
+`access_hint.message` that were **two different sentences** - a shape production never emits.
+With them equal, as the backend really builds them, the locator resolves to 2 elements and the
+test fails. This is the same class the suite already warns about for AUD-C-11 ("a fixture that
+can only pass, read as evidence"), reappearing in the fixture rather than the assertion.
+
+Two assertion changes follow from it:
+
+- The shape check now **counts** (`toHaveCount(1)`) instead of checking visibility, because
+  visibility passes happily with two copies on screen. Watched failing pre-fix with
+  `Expected: 1, Received: 2`.
+- The generic "answer text rendered" assertion takes `.first()` on an access-hint shape, so the
+  duplication is reported by the assertion that *names* it. Without that, a regression trips
+  strict mode first and reports "answer text never rendered" - the opposite of what went wrong.
+- `escalate-from-refusal.spec.ts` now reads the message from the fixture instead of repeating
+  its invented wording, which is what broke when the fixture was corrected.
+
+### Measured live, end-to-end, as an anonymous guest — 38 gated questions, ~48¢
+
+Nobody had ever measured this **through routing**; the 27/38 in the policy file is the probe in
+isolation, with synthesis and the scope guard removed. Replacing a wrong claim with a number
+was the point.
+
+| outcome | n |
+|---|---|
+| correct hint | 11 |
+| **wrong tier** | **0** |
+| cited answer from public content (probe never ran) | 11 |
+| refused, probe ran and stayed silent | 16 |
+
+**22 of 38 gated questions get a useful response**, and zero wrong tiers live - the property
+`access_probe_policy.py` protects hardest, now confirmed end-to-end rather than in the harness.
+
+**⚠️ 11/38 is a sample, not a constant.** `probe-tutor-045` returned `tutor` on one live run and
+silence on another, hours apart, with nothing changed between them. That is the documented
+rerank quantization (0.05 steps) straddling the 0.9 floor - the same mechanism AUD-C-23 measured.
+Any future comparison against this table must repeat runs before reading a difference as a change.
+
+**Recommendation: do not retune.** The rule behaves as measured and designed, and
+`access_probe_policy.py` explicitly forbids moving a constant without re-running the sweep. The
+16 silences are the deliberate price of the zero in the wrong-tier row.
+
+### Two findings this measurement surfaced, both carried over rather than fixed here
+
+- **4 of 38 role-gated questions are still classified `out_of_scope`** (`intent=clarification`),
+  so they never reach retrieval at all - e.g. *"What should I tell a student to do first when
+  they ask me for help?"*, a tutor-procedure question the scope prompt explicitly lists as in
+  scope. This is the *residue* of D-219's problem class: no longer role leakage, now topical
+  misjudgement, and it caps the hint's reachable ceiling at 34/38 before the probe is consulted.
+- **The escalation draft's opening line can misreport the user.** `requested_by_user` is
+  `state.intent == "admin_contact"`, which is the model's routing decision, not a request. Live:
+  *"My kid got marked absent by mistake - how do I fix that?"* produced *"A user (role: public)
+  asked to be put in touch with an administrator"*. Milder than the failure D-219 fixed - the
+  question is quoted directly beneath - but it is the same field claiming something it does not
+  know. This is D-219's own fix, one direction over.

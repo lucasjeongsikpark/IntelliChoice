@@ -7,24 +7,72 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Two walks landed this session (D-218 learning, D-219 Q&A) and both are deployed and verified
-live.** No numbered ROADMAP session is queued; integration (S43+) stays deliberately deferred
-(D-152) until the user starts it. In rough order of value:
+**The access hint is closed (D-220): it fires, it is measured end-to-end, and the defect that was
+actually there is fixed and deployed.** No numbered ROADMAP session is queued; integration (S43+)
+stays deliberately deferred (D-152) until the user starts it. In rough order of value:
 
-1. **Chase the access hint.** D-219 removed the *wrong* refusal, but `AccessHintBanner` - the
-   "sign in to see this" affordance - is still built and unreachable: the turn now reaches
-   `explain_access`, and the probe finds no higher-tier match to name. Start at the probe's
-   `max_distance` and `build_access_hint`'s handling of the anonymous `public` role. This is the
-   last piece of the D-219 finding and the one a logged-out parent actually feels.
-2. **Stand up a dormant topic.** `fraction_operations` and `place_value` are defined with zero
+1. **The scope guard still calls 4 of 38 role-gated questions off-topic.** Measured live in D-220:
+   `out_of_scope` / `intent=clarification` for e.g. *"What should I tell a student to do first
+   when they ask me for help?"*, a tutor-procedure question the scope prompt lists as **in** scope.
+   This is the residue of D-219's problem class - no longer role leakage, now topical misjudgement
+   - and it caps the access hint's reachable ceiling at 34/38 before the probe is ever consulted.
+   The instrument already exists: `scripts/live_probe`-style 38-case sweep, ~48¢, in D-220.
+   **Do not retune the probe constants** - `access_probe_policy.py` forbids it without a sweep,
+   and D-220 measured zero wrong tiers live.
+2. **The escalation draft can misreport the user.** `requested_by_user` is
+   `state.intent == "admin_contact"` - the model's routing decision, not a request. Live:
+   *"My kid got marked absent by mistake - how do I fix that?"* produced *"asked to be put in
+   touch with an administrator"*. D-219's own fix, one direction over; smaller than item 1.
+3. **Stand up a dormant topic.** `fraction_operations` and `place_value` are defined with zero
    questions and read "Coming soon" to a student. Hand-authored, §5.8.5-gated content is the
    highest-value *product* gap; AI authoring stays blocked on Sonnet 5 (D-211).
-3. **The order-dependent flake.** `test_intervention_choice_pause_records_choice_and_blocks_skip`
-   has now failed in a full `make test` twice across two sessions and passed in isolation both
-   times, with neither session touching it. Worth one focused sitting before it trains everyone
-   to re-run and move on.
-4. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+4. **The order-dependent flake.** `test_intervention_choice_pause_records_choice_and_blocks_skip`
+   failed in a full `make test` twice across two sessions and passed in isolation both times,
+   with neither session touching it. **It did not reproduce in D-220's baseline run**, so it is
+   intermittent rather than steadily worsening - still worth one focused sitting.
+5. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
+
+### Session log — the access hint was never broken; its rendering was (2026-08-08, D-220)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1060 passed, 2 skipped, 1 xfailed**
+(baseline; **no Python changed this session**) · chat e2e **37/37** · `tsc`, `oxlint`,
+`vite build` clean for `chat-web` and `e2e` · the new count assertion watched failing pre-fix
+with `Expected: 1, Received: 2` · full write-up in DECISIONS.md **D-220**.
+
+**Not a numbered ROADMAP session** — driven by the "Next session" pointer's item 1, with the
+user's scope choice: investigate, fix, deploy, verify live.
+
+**The premise was wrong, and that is the headline.** The pointer said the access hint was
+"built and still unreachable". It fires: a logged-out guest asking a parent-tier question gets
+`required_role: "parent"` and a rendered `AccessHintBanner` with a working "Log in" button.
+D-219 had hit one branch-manager question inside the probe's deliberately-silent set and
+generalized it.
+
+**Three candidates checked and killed before naming any:** staging embedding provenance (all
+159 chunks real `bedrock`/`titan-embed-text-v2:0` — a genuine gap in D-174's comparison, just
+not the cause); the probe rule (free replay reproduces `27 | 0 | 11 | 0 | 0` exactly); and
+routing (7 of 8 live guest turns matched the replay; the eighth got a real cited answer from
+*public* content, which is the gate working).
+
+**The real defect was one line of rendering.** `explain_access` sets `answer = hint.message`
+and `ChatScreen` rendered both, so a logged-out parent read the same sentence twice. Fixed in
+the rendering layer, not the API contract — `answer` is what an SSE/non-browser client reads.
+
+**Why the green suite missed it, which is the part worth keeping.** The `access hint` e2e
+fixture gave `answer` and `access_hint.message` two *different* sentences — a shape production
+never emits. Made them equal and the assertion resolves to 2 elements. Same "fixture that can
+only pass" trap this suite already warns about for AUD-C-11.
+
+**First end-to-end measurement of this path** (38 gated questions, anonymous, ~48¢): **11
+correct hints, 0 wrong tiers, 11 answered from public content, 16 silent.** 22/38 get a useful
+response. **One case flipped between two live runs** (rerank quantization straddling the 0.9
+floor), so 11/38 is a sample, not a constant — repeat runs before reading any future
+difference as a change.
+
+**Carry-over:** the scope guard still calls 4 of 38 role-gated questions off-topic (item 1
+above); the escalation draft's `requested_by_user` reports the model's routing decision as a
+user request (item 2). Neither was fixed here — both are outside the access-hint path.
 
 ### Session log — the Q&A app, walked live for the first time (2026-08-08, D-219)
 

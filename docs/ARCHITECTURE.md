@@ -438,6 +438,19 @@ to rot, because nothing fails when it does.)*
   runs after retrieval, and a scope refusal short-circuits before it. The price of the fix is
   one extra retrieval per gated question from an anonymous user, which is what the pre-retrieval
   filter is for.
+  **Measured end-to-end since (D-220):** the banner *is* reachable - 38 gated questions asked
+  live as an anonymous guest returned **11 correct hints and 0 wrong tiers**, plus 11 answered
+  outright from public content. D-219's carry-over said it was still unreachable; that was one
+  question inside the probe's deliberately-silent set, generalized. Two limits stand: the scope
+  guard still calls 4 of the 38 off-topic on their own topical merits, capping the ceiling at
+  34/38 before the probe is consulted, and the count is a sample - one case flipped between two
+  live runs on documented rerank quantization.
+- **A backend-authored message is carried by the API and presented by exactly one component**
+  (D-220) — `explain_access` sets `answer = hint.message`, so both fields legitimately hold the
+  same string: `answer` is what an SSE or non-browser client reads, and `AccessHintBanner` is
+  what a browser shows. The client therefore suppresses the answer bubble when it would merely
+  repeat the banner, rather than the backend dropping the text. Stated as a rule because the
+  obvious-looking alternative - "stop sending it twice" - breaks every non-browser consumer.
 - **Role/branch/date filtering happens before ranking, never after** — `role_access_filter`
   builds the SPEC §5.21.3 metadata filter from the caller's *resolved* role and branch
   (never from the query text), and it is applied inside the same SQL that does keyword/
