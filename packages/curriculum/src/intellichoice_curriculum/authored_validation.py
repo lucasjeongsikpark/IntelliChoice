@@ -43,6 +43,11 @@ _DISALLOWED_WORDING = (
     "killed",
     "killing",
     "died",
+    # D-223, found by the shape half's negative controls: the list carried "died"/"dying"
+    # but not the present tense, so "the character dies after x turns" passed. Distinct
+    # from the "die" D-191 deliberately left off - that one is also the singular of dice,
+    # a math object; "dies" in a K-12 word problem is the verb. No shipped item uses it.
+    "dies",
     "dying",
     "death",
     "deaths",
@@ -567,12 +572,24 @@ def check_difficulty_rubric_compliance(
         result.fail("estimated_time_seconds must be positive")
 
 
+def disallowed_wording_found(text: str) -> list[str]:
+    """The disallowed words present in `text`, lowercased, in order of appearance.
+
+    Public so the *shape* half of the §5.8.5 gate (`validation.check_age_appropriate_wording`)
+    can call the same matcher rather than keeping its own copy - which is how it came to still
+    be running the pre-D-191 rule: a four-word tuple matched as a plain substring, so "skill"
+    read as "kill", "studies" and "diet" as "die". Sharing is the fix that holds; the same
+    list, matched two ways, drifts again the next time either side is corrected.
+    """
+    return [match.group(0).lower() for match in _DISALLOWED_WORDING_RE.finditer(text)]
+
+
 def check_age_appropriate_wording(
     item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
 ) -> None:
     for text in _text_fields(item):
-        for match in _DISALLOWED_WORDING_RE.finditer(text):
-            result.fail(f"disallowed wording found: {match.group(0).lower()!r}")
+        for word in disallowed_wording_found(text):
+            result.fail(f"disallowed wording found: {word!r}")
         for sentence in re.split(r"[.!?]", text):
             word_count = len(sentence.split())
             if word_count > _MAX_WORDS_PER_SENTENCE:

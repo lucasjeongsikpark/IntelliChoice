@@ -486,6 +486,18 @@ to rot, because nothing fails when it does.)*
   the loader on every deploy (D-206), one deploy would have left no servable question in any
   topic. The scope belongs at the caller that knows which file it is loading, and the guard is a
   test that asserts every id in *every* bank file is active after a load.
+- **A rule both halves of the §5.8.5 gate need is shared as a function, not copied** (D-223) —
+  `validation.py` gates shape variants and `authored_validation.py` gates authored items, and the
+  near-duplicate text checks between them drifted for four sessions: every correction the authored
+  half received (D-079, D-191, D-195) was made on that copy alone, so two of them were still live
+  bugs on the shape side. That side is not a backwater — `ai_pipeline.py` runs it on generated
+  variants, and a false positive there bins a generator call that has already been paid for. Where
+  the semantics really do differ the checks stay separate and say so in each other's docstrings
+  (the shape leak check is anchored to an assignment to `x`; the authored one looks for the answer
+  anywhere); where they do not, there is now one function. Stated as a rule because the duplication
+  is invisible from inside either file, and because a fix to one copy can silently *open* a hole in
+  the other — narrowing the shape half's word match would have stopped catching "dies" had the word
+  not been added to the shared list in the same change.
 - **A backend-authored message is carried by the API and presented by exactly one component**
   (D-220) — `explain_access` sets `answer = hint.message`, so both fields legitimately hold the
   same string: `answer` is what an SSE or non-browser client reads, and `AccessHintBanner` is

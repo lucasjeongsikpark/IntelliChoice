@@ -16002,3 +16002,98 @@ today because the loader validates one fixed seed per template, none of which ha
 Same class as the two bugs D-195 already recorded in `answer_text_leaked`. Left alone deliberately:
 it is a shared §5.8.5 gate, loosening it changes what the paid pipeline rejects, and that decision
 deserves its own session with its own measurement.
+
+## D-223 — one gate, two copies, and every fix applied to only one of them (accepted, 2026-08-08)
+
+Pointer item 3, plus the content half of item 4. The gate item turned out not to be one bug but a
+**pattern**: `validation.py` (shape variants) and `authored_validation.py` (authored items) are the
+two halves of the §5.8.5 gate, they carry near-duplicate text checks, and *every* correction the
+authored half has received was made on the authored copy alone. Both live bugs found this session
+are the same two bugs the authored half already fixed — the boundary bug in `answer_text_leaked`
+(D-079, then D-195's mirror image) and the word-boundary fix to the disallowed-wording list
+(D-191). Neither was ever carried across, because from inside either file there is nothing to see.
+
+### 0. A correction, because it changed how the work was scoped
+
+The PROGRESS pointer said this gate is shared with the paid pipeline. I contradicted it, on a
+`grep | head -20` whose output was truncated before `ai_pipeline.py:992`. The pointer was right.
+It matters because it inverts the stakes: at that call site a failure returns
+`PipelineOutcome(status="rejected", cost_cents=total_cost)` — the generator call is **already paid
+for** and the item is binned before the two solver calls. A false positive here is a cost bug, not
+a cosmetic one. Truncating the output of the search that decides blast radius is the same class of
+mistake as D-222's "precondition nothing re-checked".
+
+### 1. Measured in both directions, before and after
+
+`scripts/measure_shape_gate.py` (free — no AWS, no database, no paid call). Four classes with
+deliberately opposite expectations, per D-221's rule that scoring only the direction you are trying
+to improve rewards a check that stops firing:
+
+| class | what it is | before | after |
+|---|---|---|---|
+| `pipeline` | variants from `SHAPE_PARAMETER_BOUNDS` — what the paid gate sees | 52/2200 flagged (**2.36%**) | **0** |
+| `bank` | variants from the shipped shape banks — what the loader sees | 139/10000 (**1.39%**) | **0** |
+| leak controls | hand-labelled, must stay flagged | 5/6 | **6/6** |
+| clean controls | hand-labelled, must not be flagged | 4/8 | **8/8** |
+| safe wording | "a die", "studies", "skill", "diet" | 1/5 | **5/5** |
+| unsafe wording | must stay flagged | 4/4 | **4/4** |
+
+The first two rows have no independent oracle — the fixed check would be its own oracle, which
+proves nothing — so the script prints every distinct flagged rendering under `--show-flagged` and
+the labelled classes carry the ground truth. A zero flag rate is only meaningful next to 6/6.
+
+### 2. Measurement earned its keep, twice
+
+**The leading guard.** With `answer_text_leaked`'s trailing assertions alone the flag rate fell to
+0.18% and stopped. Every survivor looked like `Solve for x: 6(x + 2) + 1x = -2` with answer `-2`,
+where `1x = -2` is the equation's *own right-hand side*. An assignment a student could read the
+answer off is one whose `x` stands alone; a coefficient in front of it makes it the question being
+asked. Hence `(?<![0-9A-Za-z])`, which is this check's own and not inherited. I would not have
+written it from the code — the 0.18% is what produced it.
+
+**A gap found from the other side.** The wording controls included "the character dies after x
+turns", and the shape half caught it — for the wrong reason, by substring-matching "die". The
+authored list has `died`/`dying` but not the present tense, so fixing the substring bug would have
+silently *opened* a hole in the paid pipeline's gate had `dies` not been added in the same change.
+Distinct from the `die` D-191 deliberately left off: that one is also the singular of dice.
+
+The wording list is now shared through `authored_validation.disallowed_wording_found` rather than
+duplicated. Sharing is the fix that holds; one list matched two ways drifts again on the next
+correction. The leak checks cannot share a matcher — the shape one is anchored to an assignment,
+the authored one looks for the answer anywhere — so they share the boundary discipline and a
+docstring pointing at each other.
+
+Note the shape half's wording bug was **unreachable** today: every shipped shape renders a bare
+equation with no prose to trip on. Fixed anyway, and said plainly here rather than counted as a
+live win.
+
+### 3. `fraction_operations`: 15 → 30
+
+D-222 stood the topic up; three items per tier is thin enough that a 10-item pre-exam shows a
+student two thirds of the bank and a second session repeats it. Fifteen more hand-authored items,
+**0 of 15 failing the §5.8.5 gate on the first run**, re-exported so the file matches the database
+byte for byte.
+
+| skill | d1 | d2 | d3 | d4 | d5 | total |
+|---|---|---|---|---|---|---|
+| `fraction_add_sub_like` | 3 | 3 | 2 | 0 | 0 | 8 |
+| `fraction_add_sub_unlike` | 1 | 1 | 3 | 3 | 3 | 11 |
+| `fraction_mul_div` | 1 | 2 | 2 | 3 | 3 | 11 |
+| **total** | 5 | 6 | 7 | 6 | 6 | **30** |
+
+Correct-option spread 8/7/8/7 across a/b/c/d.
+
+**The two empty cells are deliberate.** Adding like-denominator fractions is not a difficulty-5
+skill, and inventing a hard-looking version of an easy skill would misreport difficulty rather than
+teach anything. It is safe because nothing requires a `(skill, difficulty)` pair to be non-empty:
+the pre-exam reads per *difficulty* across the topic (5/6/7/6/6, all above the floor of 2), and the
+study selector reads `get_active_questions_for_skill` unfiltered and then picks
+`_closest_to_recommended`, so an absent tier degrades to the nearest present one.
+
+### Remaining risks
+
+The bank is still hand-authored with no two-solver/judge panel behind it (D-211) — the gate is the
+quality bar, and the gate cannot check situation → equation, only equation → answer. `place_value`
+is still dormant, which the pointer's own ranking prefers over a third topic. And the shape bank
+itself is now content that loads into every environment and is filtered out of every serving read
+(D-210); this session made its gate correct without asking whether it should still exist.
