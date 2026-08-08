@@ -16365,3 +16365,53 @@ rather than a puzzle: `authoring_mode='shape'`, 50 of them, safe to delete whene
 that no longer exists; keeping a refusal for an argument the parser no longer accepts would be
 theatre. The one-day life of that guard is the correct outcome, not a wasted change — it made the
 route safe while the decision was still open.
+
+## D-227 — grade 3 was stranded between two populated bands (accepted, 2026-08-08)
+
+D-225 found it and left it: `grade_topic_candidates` had `1-2`, `4-5` and `6-7`, so a grade-3
+student matched no band and was recommended nothing. Reachable with the seeded data —
+`STUDENT_ONLY_CHILD` is grade 3.
+
+### Kumon as the reference, and what it actually settles
+
+The user named Kumon's per-grade workbooks as the source for what a grade should study. Their
+grade split is unambiguous on the question in front of us:
+
+| Kumon grade | math workbooks |
+|---|---|
+| 3 | Addition & Subtraction, **Multiplication**, **Division**, Geometry & Measurement, Word Problems |
+| 4 | **Decimals & Fractions**, Multiplication, Division, Geometry & Measurement, Word Problems |
+
+and grade 4's fractions book is explicitly *addition and subtraction of fractions with **like**
+denominators*. So grade 3 must **not** be pointed at `fraction_operations`: Kumon does not introduce
+fractions until grade 4, and our bank's harder half (`fraction_add_sub_unlike`, `fraction_mul_div`)
+is grade-5 work by that measure. Used as reference only — their table of contents is their
+expression and is not reproduced here.
+
+**The finding is the gap, not the mapping.** A grade-3 student's actual subject is multiplication
+and division, and this taxonomy has no such topic. §5.7.3 agrees with Kumon on this without anyone
+noticing: it calls the 2–3 band *"Multi-digit operations, multiplication foundations"*, and
+`place_value` is only the first half of that. Mapping the band to `place_value` gives a grade-3
+student something rather than nothing; it is a stopgap and is labelled as one in the file.
+
+### The trap this nearly walked into
+
+The obvious fix is to widen `1-2` to `1-3`. **That would silently strand grade 2.** `topics_for_grade`
+matches a grade against a band's *endpoints* — deliberately, so "K" needs no ordinal and a malformed
+key fails to match rather than swallowing a neighbour — so `"1-3"` matches 1 and 3 and not 2. The
+§5.7.3 bands overlap by design (K-1, 1-2, 2-3, 3-4, …), and the correct move is to populate the band
+that contains the grade. Caught before shipping by reading the matcher rather than the band name.
+
+### The test, on its second attempt
+
+The first version asserted that every declared band's endpoints resolve to a topic. **It passed
+against the broken mapping** — 3 was not an endpoint of any declared band, so it guarded nothing.
+Worth recording because it looked like a reasonable test and was written after the fix, which is
+exactly when a test can be shaped by the answer instead of by the failure.
+
+The property that actually holds is about a *hole*: a grade above or below everything authored
+honestly has no candidates (a grade-9 student is out of scope today), but a grade **between** two
+populated bands is inside the range this product serves and still gets nothing. The rewritten test
+computes the covered range from the file and fails on any gap inside it — verified failing against
+the old mapping with `grades [3] sit inside the range this taxonomy serves (1-7)`. It also catches
+the `1-3` mistake above, for the same reason.
