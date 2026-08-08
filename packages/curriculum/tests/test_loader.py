@@ -181,6 +181,45 @@ def test_loader_rejects_a_template_that_fails_validation(monkeypatch: pytest.Mon
     asyncio.run(run())
 
 
+def test_every_item_in_every_bank_file_is_active_after_a_load() -> None:
+    """D-222: the retirement pass must not reach across topics.
+
+    `get_authored_templates()` is deliberately unfiltered, so before this the per-topic
+    retirement retired everything the *other* topic's file did not list. The failure only
+    became reachable the day a second bank file existed: loading `fraction_operations`
+    retired all of `linear_equations`, then loading `linear_equations` retired all of
+    `fraction_operations`, and one `make curriculum-load` left no servable question in any
+    environment - `_servable()` filters on `active_status`.
+
+    Asserted as "every id the files list is active", which is the contract D-210 actually
+    states (the bank file decides what is servable) rather than a count that content
+    changes would break.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            await load_curriculum_and_templates(session)
+            repo = QuestionRepository(session)
+            by_id = {t.question_template_id: t for t in await repo.get_authored_templates()}
+
+            banks = load_authored_bank()
+            assert len(banks) >= 2, (
+                "this test is only meaningful with more than one authored bank file"
+            )
+            retired = []
+            for topic_id, templates in banks.items():
+                for template in templates:
+                    row = by_id.get(template.question_template_id)
+                    assert row is not None, (topic_id, template.question_template_id)
+                    if row.active_status != "active":
+                        retired.append((topic_id, template.question_template_id))
+            assert not retired, (
+                "a load retired items their own bank file still lists: " f"{retired[:10]}"
+            )
+
+    asyncio.run(run())
+
+
 def test_no_approved_item_is_a_bare_equation() -> None:
     """D-210: every served question must read as a situation, not as an equation.
 
@@ -199,25 +238,32 @@ def test_no_approved_item_is_a_bare_equation() -> None:
     The heuristic is deliberately narrow - an imperative opener *and* very little prose.
     "Solve for the number of weeks Maya has been saving" is a legitimate word problem and
     must not trip this.
+
+    Over *every* bank file, not just `linear_equations` (D-222). A rule about what a
+    student may be shown does not belong to one topic, and the topic added second is
+    exactly the one nothing would have been checking.
     """
     import re
 
     import yaml
 
-    bank = yaml.safe_load(
-        (
-            pathlib.Path(__file__).resolve().parents[3]
-            / "curriculum/internal_math/authored/linear_equations.yaml"
-        ).read_text()
+    authored_dir = (
+        pathlib.Path(__file__).resolve().parents[3] / "curriculum/internal_math/authored"
     )
+    paths = sorted(authored_dir.glob("*.yaml"))
+    assert paths, f"no authored bank files found under {authored_dir}"
     offenders = []
-    for template in bank["templates"]:
-        stem = template["stem"].strip()
-        prose_words = re.findall(r"[A-Za-z]{3,}", (template.get("context_block") or "") + stem)
-        if re.match(r"^(solve|find|evaluate|simplify|what is)\b", stem, re.I) and len(
-            prose_words
-        ) < 12:
-            offenders.append((template["question_template_id"], stem[:60]))
+    for path in paths:
+        bank = yaml.safe_load(path.read_text())
+        for template in bank["templates"]:
+            stem = template["stem"].strip()
+            prose_words = re.findall(
+                r"[A-Za-z]{3,}", (template.get("context_block") or "") + stem
+            )
+            if re.match(r"^(solve|find|evaluate|simplify|what is)\b", stem, re.I) and len(
+                prose_words
+            ) < 12:
+                offenders.append((template["question_template_id"], stem[:60]))
 
     assert not offenders, (
         "approved items read as bare equations rather than as situations: "

@@ -1,0 +1,721 @@
+curriculum_version: '2026.1'
+topic_id: fraction_operations
+templates:
+- question_template_id: authored-fraction_operations-d1-100101
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_like
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - Added the denominators as well as the numerators
+  - Subtracted the numerators instead of adding them
+  - Lost track of which fraction belonged to whom
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Maya ate 2/8 of a pizza. Her brother ate 3/8 of the same pizza. What fraction of the whole pizza
+    did the two of them eat altogether?
+  context_block: null
+  answer_expression: Eq(x, 2/8 + 3/8)
+  hint_ladder:
+  - The pizza was cut into equal slices, and both fractions count slices of that same size.
+  - When the bottom numbers already match, the size of a slice does not change - only how many slices
+    there are.
+  - Add the two top numbers together and keep 8 as the bottom number.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Look at the bottom numbers. Both fractions are eighths, so the slices are the same
+        size.
+      expression: 2/8 and 3/8
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the top numbers and keep the bottom number.
+      expression: 2/8 + 3/8 = (2 + 3)/8
+      common_mistake: Adding the bottom numbers too, which would turn eighths into sixteenths
+    - step_number: 3
+      explanation: Work out the top number.
+      expression: 5/8
+      common_mistake: null
+    final_answer: 5/8
+  random_seed: 100101
+  rendered_question: Maya ate 2/8 of a pizza. Her brother ate 3/8 of the same pizza. What fraction of
+    the whole pizza did the two of them eat altogether?
+  option_a: 5/8
+  option_b: 5/16
+  option_c: 1/8
+  option_d: 6/8
+  correct_option: a
+- question_template_id: authored-fraction_operations-d1-100102
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_like
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - Added when the situation called for subtracting
+  - Subtracted the bottom numbers as well as the top ones
+  - Took away the wrong amount
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A jug held 7/10 of a liter of apple juice. Jonah poured out 4/10 of a liter for his lunch. What
+    fraction of a liter is still in the jug?
+  context_block: null
+  answer_expression: Eq(x + 4/10, 7/10)
+  hint_ladder:
+  - Juice was taken out of the jug, so what is left is smaller than what started there.
+  - Both amounts are written in tenths, so you are taking away pieces of the same size.
+  - Subtract the top number that was poured out from the top number that started in the jug, and keep
+    10 underneath.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Decide on the operation. Juice left over means the poured amount is taken away from
+        the starting amount.
+      expression: 7/10 - 4/10
+      common_mistake: Adding the two amounts, which would say the jug gained juice
+    - step_number: 2
+      explanation: The bottom numbers match, so subtract the top numbers and keep the bottom number.
+      expression: (7 - 4)/10
+      common_mistake: Subtracting the bottom numbers as well
+    - step_number: 3
+      explanation: Work out the top number.
+      expression: 3/10
+      common_mistake: null
+    final_answer: 3/10
+  random_seed: 100102
+  rendered_question: A jug held 7/10 of a liter of apple juice. Jonah poured out 4/10 of a liter for his
+    lunch. What fraction of a liter is still in the jug?
+  option_a: 11/10
+  option_b: 3/10
+  option_c: 3/20
+  option_d: 1/10
+  correct_option: b
+- question_template_id: authored-fraction_operations-d1-100103
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_like
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - Added the denominators as well as the numerators
+  - Subtracted instead of adding
+  - Stopped before writing the result in lowest terms
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Ana used 5/12 of a roll of ribbon on Monday and 4/12 of the same roll on Tuesday. What fraction
+    of the roll did she use over the two days, written in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, 5/12 + 4/12)
+  hint_ladder:
+  - Both days are measured in twelfths of one roll, so the pieces being counted are the same size.
+  - Add the top numbers and keep 12 underneath, then look at whether that fraction can be written with
+    smaller numbers.
+  - A fraction is in lowest terms when the top and bottom numbers share no factor bigger than 1. Check
+    whether 3 divides both.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bottom numbers match, so add the top numbers and keep the bottom number.
+      expression: 5/12 + 4/12 = 9/12
+      common_mistake: Adding the bottom numbers, which would give twenty-fourths
+    - step_number: 2
+      explanation: Look for a number that divides both 9 and 12.
+      expression: 9 and 12 are both divisible by 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the top and the bottom by 3 to write it in lowest terms.
+      expression: 9/12 = 3/4
+      common_mistake: Leaving the fraction unsimplified when the question asked for lowest terms
+    final_answer: 3/4
+  random_seed: 100103
+  rendered_question: Ana used 5/12 of a roll of ribbon on Monday and 4/12 of the same roll on Tuesday.
+    What fraction of the roll did she use over the two days, written in lowest terms?
+  option_a: 9/24
+  option_b: 1/12
+  option_c: 3/4
+  option_d: 7/12
+  correct_option: c
+- question_template_id: authored-fraction_operations-d2-100201
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_like
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - Added the denominators as well as the numerators
+  - Used only one of the two amounts
+  - Stopped before writing the result in lowest terms
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A muffin recipe needs 3/8 of a cup of milk for the batter and 1/8 of a cup for the topping. How
+    much milk does the whole recipe need, written in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, 3/8 + 1/8)
+  hint_ladder:
+  - The recipe needs milk in two places, and the question asks for the amount for the whole recipe.
+  - Both amounts are in eighths of a cup, so add the top numbers and keep 8 underneath.
+  - Once you have a fraction in eighths, check whether its top and bottom numbers can both be divided
+    by 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The whole recipe uses both amounts, so they are added.
+      expression: 3/8 + 1/8
+      common_mistake: Answering with the batter amount alone and forgetting the topping
+    - step_number: 2
+      explanation: The bottom numbers match, so add the top numbers and keep the bottom number.
+      expression: (3 + 1)/8 = 4/8
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the top and bottom by 4 to write it in lowest terms.
+      expression: 4/8 = 1/2
+      common_mistake: Leaving the answer as an unsimplified fraction
+    final_answer: 1/2
+  random_seed: 100201
+  rendered_question: A muffin recipe needs 3/8 of a cup of milk for the batter and 1/8 of a cup for the
+    topping. How much milk does the whole recipe need, written in lowest terms?
+  option_a: 1/4
+  option_b: 3/8
+  option_c: 5/8
+  option_d: 1/2
+  correct_option: d
+- question_template_id: authored-fraction_operations-d3-100301
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Added the numerators and the denominators straight across
+  - Added the top numbers without rewriting either fraction first
+  - Subtracted instead of adding
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Leo read 1/2 of a book on Saturday and 1/6 of the same book on Sunday. What fraction of the book
+    did he read over the whole weekend, written in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, 1/2 + 1/6)
+  hint_ladder:
+  - The two fractions count pieces of different sizes, so they cannot be combined as they are written.
+  - Six is a multiple of two, so only one of the two fractions needs to be rewritten.
+  - Rewrite the halves as sixths, then add the top numbers and simplify what you get.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bottom numbers differ, so the fractions must be written over the same bottom number
+        first.
+      expression: 1/2 and 1/6
+      common_mistake: Adding straight across to get 2/8
+    - step_number: 2
+      explanation: Six is a multiple of two, so rewrite the halves as sixths.
+      expression: 1/2 = 3/6
+      common_mistake: Changing the bottom number without scaling the top number
+    - step_number: 3
+      explanation: Add the top numbers and keep the bottom number.
+      expression: 3/6 + 1/6 = 4/6
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide the top and bottom by 2 to write it in lowest terms.
+      expression: 4/6 = 2/3
+      common_mistake: null
+    final_answer: 2/3
+  random_seed: 100301
+  rendered_question: Leo read 1/2 of a book on Saturday and 1/6 of the same book on Sunday. What fraction
+    of the book did he read over the whole weekend, written in lowest terms?
+  option_a: 1/4
+  option_b: 2/3
+  option_c: 1/3
+  option_d: 3/8
+  correct_option: b
+- question_template_id: authored-fraction_operations-d3-100302
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Subtracted the top numbers without rewriting either fraction first
+  - Added when the situation called for subtracting
+  - Used the wrong common denominator
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A jug holds 7/8 of a liter of juice. Priya pours out 1/4 of a liter for her sister. What fraction
+    of a liter is left in the jug?
+  context_block: null
+  answer_expression: Eq(x + 1/4, 7/8)
+  hint_ladder:
+  - Juice is being poured out, so the amount left is what the jug started with minus what left it.
+  - Eight is a multiple of four, so rewrite the quarter as eighths before subtracting.
+  - One quarter is the same as two eighths. Subtract that from the eighths the jug started with.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: What is left is the starting amount with the poured amount taken away.
+      expression: 7/8 - 1/4
+      common_mistake: Adding the two amounts
+    - step_number: 2
+      explanation: Rewrite the quarter with the same bottom number as the eighths.
+      expression: 1/4 = 2/8
+      common_mistake: Subtracting the top numbers directly to get 6/8
+    - step_number: 3
+      explanation: Subtract the top numbers and keep the bottom number.
+      expression: 7/8 - 2/8 = 5/8
+      common_mistake: null
+    final_answer: 5/8
+  random_seed: 100302
+  rendered_question: A jug holds 7/8 of a liter of juice. Priya pours out 1/4 of a liter for her sister.
+    What fraction of a liter is left in the jug?
+  option_a: 5/8
+  option_b: 1/2
+  option_c: 3/4
+  option_d: 5/4
+  correct_option: a
+- question_template_id: authored-fraction_operations-d3-100303
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Added the numerators and the denominators straight across
+  - Added the top numbers without rewriting either fraction first
+  - Rewrote the bottom number without scaling the top number
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Sam filled 2/5 of a photo album in June and another 3/10 of the album in July. What fraction of
+    the album is filled now?
+  context_block: null
+  answer_expression: Eq(x, 2/5 + 3/10)
+  hint_ladder:
+  - Fifths and tenths are pieces of different sizes, so the two amounts cannot be added as they stand.
+  - Ten is a multiple of five, so rewriting the fifths as tenths is enough.
+  - Scale both the top and the bottom of the fifths by the same number, then add the top numbers.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bottom numbers differ, so rewrite one fraction so both match.
+      expression: 2/5 and 3/10
+      common_mistake: Adding straight across to get 5/15
+    - step_number: 2
+      explanation: Multiply the top and the bottom of the fifths by 2.
+      expression: 2/5 = 4/10
+      common_mistake: Changing 5 into 10 while leaving the 2 alone
+    - step_number: 3
+      explanation: Add the top numbers and keep the bottom number.
+      expression: 4/10 + 3/10 = 7/10
+      common_mistake: null
+    final_answer: 7/10
+  random_seed: 100303
+  rendered_question: Sam filled 2/5 of a photo album in June and another 3/10 of the album in July. What
+    fraction of the album is filled now?
+  option_a: 1/3
+  option_b: 1/2
+  option_c: 9/10
+  option_d: 7/10
+  correct_option: d
+- question_template_id: authored-fraction_operations-d4-100401
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 105
+  common_error_tags:
+  - Added the numerators and the denominators straight across
+  - Kept one of the original denominators instead of building a common one
+  - Subtracted instead of adding
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Nina spent 1/3 of an hour on her math homework and 1/4 of an hour on her reading. What fraction
+    of an hour did she spend on homework in total?
+  context_block: null
+  answer_expression: Eq(x, 1/3 + 1/4)
+  hint_ladder:
+  - Thirds and quarters are different sizes, so the two times cannot be added as they are written.
+  - Neither 3 nor 4 divides the other, so neither one can serve as the shared bottom number on its own.
+  - Multiply the two bottom numbers together to get a shared one, rewrite both fractions over it, then
+    add the top numbers.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bottom numbers share no factor, so build a common one by multiplying them.
+      expression: 3 x 4 = 12
+      common_mistake: Adding straight across to get 2/7
+    - step_number: 2
+      explanation: Rewrite each fraction over twelfths, scaling top and bottom by the same number.
+      expression: 1/3 = 4/12 and 1/4 = 3/12
+      common_mistake: Rewriting only one of the two fractions
+    - step_number: 3
+      explanation: Add the top numbers and keep the bottom number.
+      expression: 4/12 + 3/12 = 7/12
+      common_mistake: null
+    final_answer: 7/12
+  random_seed: 100401
+  rendered_question: Nina spent 1/3 of an hour on her math homework and 1/4 of an hour on her reading.
+    What fraction of an hour did she spend on homework in total?
+  option_a: 2/7
+  option_b: 7/12
+  option_c: 1/12
+  option_d: 5/12
+  correct_option: b
+- question_template_id: authored-fraction_operations-d4-100402
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 105
+  common_error_tags:
+  - Subtracted the top numbers without rewriting either fraction first
+  - Answered with the amount remaining instead of the amount used
+  - Used the wrong common denominator
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A water tank was 5/6 full in the morning. By the evening it was only 1/2 full. What fraction of
+    the full tank was used during the day?
+  context_block: null
+  answer_expression: Eq(5/6 - x, 1/2)
+  hint_ladder:
+  - The amount used is the difference between how full the tank was in the morning and in the evening.
+  - Sixths and halves are different sizes, so rewrite one of them before subtracting.
+  - Two divides into six, so write the half as sixths and then subtract the top numbers.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The water used is the morning level with the evening level taken away.
+      expression: 5/6 - 1/2
+      common_mistake: Answering with the evening level, which is what is left rather than what was used
+    - step_number: 2
+      explanation: Rewrite the half over the same bottom number as the sixths.
+      expression: 1/2 = 3/6
+      common_mistake: Subtracting the top numbers directly to get 4/6
+    - step_number: 3
+      explanation: Subtract the top numbers and keep the bottom number.
+      expression: 5/6 - 3/6 = 2/6
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide the top and bottom by 2 to write it in lowest terms.
+      expression: 2/6 = 1/3
+      common_mistake: null
+    final_answer: 1/3
+  random_seed: 100402
+  rendered_question: A water tank was 5/6 full in the morning. By the evening it was only 1/2 full. What
+    fraction of the full tank was used during the day?
+  option_a: 2/3
+  option_b: 1/6
+  option_c: 1/3
+  option_d: 5/12
+  correct_option: c
+- question_template_id: authored-fraction_operations-d5-100503
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - Answered with the part already finished instead of the part left
+  - Added the numerators and the denominators straight across
+  - Forgot that the whole course counts as one
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A relay team ran 2/5 of a course before lunch and another 1/3 of the course after lunch. What
+    fraction of the course is still left to run?
+  context_block: null
+  answer_expression: Eq(2/5 + 1/3 + x, 1)
+  hint_ladder:
+  - The whole course counts as one, and two parts of it have already been run.
+  - Combine the two parts that were run first, which needs a shared bottom number because fifths and thirds
+    differ.
+  - Once the two parts are combined, take that total away from one whole course.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Build a shared bottom number for fifths and thirds by multiplying them.
+      expression: 5 x 3 = 15
+      common_mistake: Adding straight across to get 3/8
+    - step_number: 2
+      explanation: Rewrite both parts over fifteenths and add them.
+      expression: 6/15 + 5/15 = 11/15
+      common_mistake: null
+    - step_number: 3
+      explanation: The whole course is 15/15, so take the part already run away from it.
+      expression: 15/15 - 11/15
+      common_mistake: Answering with the part already run instead of the part left
+    - step_number: 4
+      explanation: Subtract the top numbers and keep the bottom number.
+      expression: 4/15
+      common_mistake: null
+    final_answer: 4/15
+  random_seed: 100503
+  rendered_question: A relay team ran 2/5 of a course before lunch and another 1/3 of the course after
+    lunch. What fraction of the course is still left to run?
+  option_a: 11/15
+  option_b: 4/15
+  option_c: 3/8
+  option_d: 1/15
+  correct_option: b
+- question_template_id: authored-fraction_operations-d2-100202
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - Multiplied the bottom number as well as the top one
+  - Added the whole number instead of multiplying by it
+  - Multiplied by the wrong number of batches
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Each batch of granola bars uses 2/3 of a cup of oats. Kwame is making 4 batches. How many cups
+    of oats does he need in total?
+  context_block: null
+  answer_expression: Eq(x, 4*2/3)
+  hint_ladder:
+  - Making four batches means using that same amount of oats four times over.
+  - Repeated addition of the same fraction is the same as multiplying it by the whole number.
+  - Multiply only the top number by 4. The size of each third does not change, so the bottom number stays
+    as it is.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Four batches each use the same amount, so this is 2/3 taken four times.
+      expression: 2/3 + 2/3 + 2/3 + 2/3
+      common_mistake: Adding 4 to the fraction instead of multiplying by it
+    - step_number: 2
+      explanation: Write the repeated addition as a multiplication.
+      expression: 4 x 2/3
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the top number by 4 and keep the bottom number.
+      expression: (4 x 2)/3 = 8/3
+      common_mistake: Multiplying the bottom number by 4 as well, which would leave the total unchanged
+    final_answer: 8/3
+  random_seed: 100202
+  rendered_question: Each batch of granola bars uses 2/3 of a cup of oats. Kwame is making 4 batches.
+    How many cups of oats does he need in total?
+  option_a: 8/3
+  option_b: 2/3
+  option_c: 4/3
+  option_d: 14/3
+  correct_option: a
+- question_template_id: authored-fraction_operations-d2-100203
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - Multiplied the bottom number as well as the top one
+  - Added the whole number instead of multiplying by it
+  - Stopped before writing the result in lowest terms
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A craft project uses ribbons that are each 5/6 of a meter long. Ravi cuts 3 of these ribbons.
+    What is their total length in meters, written in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, 3*5/6)
+  hint_ladder:
+  - Three ribbons of the same length means that length used three times over.
+  - Multiply the top number by 3 and leave the bottom number alone, because the size of each sixth does
+    not change.
+  - After multiplying, check whether the top and bottom numbers share a factor you can divide out.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Three equal ribbons means the single length is multiplied by 3.
+      expression: 3 x 5/6
+      common_mistake: Adding 3 to the fraction instead of multiplying
+    - step_number: 2
+      explanation: Multiply the top number by 3 and keep the bottom number.
+      expression: (3 x 5)/6 = 15/6
+      common_mistake: Multiplying the bottom number as well
+    - step_number: 3
+      explanation: Divide the top and bottom by 3 to write it in lowest terms.
+      expression: 15/6 = 5/2
+      common_mistake: null
+    final_answer: 5/2
+  random_seed: 100203
+  rendered_question: A craft project uses ribbons that are each 5/6 of a meter long. Ravi cuts 3 of these
+    ribbons. What is their total length in meters, written in lowest terms?
+  option_a: 5/18
+  option_b: 5/6
+  option_c: 5/2
+  option_d: 4/3
+  correct_option: c
+- question_template_id: authored-fraction_operations-d4-100403
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 105
+  common_error_tags:
+  - Added the two fractions instead of multiplying them
+  - Added the numerators and the denominators straight across
+  - Stopped before writing the result in lowest terms
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A rectangular garden bed is 3/4 of a meter wide and 2/3 of a meter long. What is the area of the
+    bed in square meters, written in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, 3/4 * 2/3)
+  hint_ladder:
+  - The area of a rectangle comes from combining its two side lengths, not from adding them.
+  - Multiplying fractions does not need a common bottom number, which makes it more direct than adding
+    them.
+  - Multiply the two top numbers together and the two bottom numbers together, then simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Area of a rectangle is its width multiplied by its length.
+      expression: 3/4 x 2/3
+      common_mistake: Adding the two side lengths instead of multiplying them
+    - step_number: 2
+      explanation: Multiply the top numbers together and the bottom numbers together.
+      expression: (3 x 2)/(4 x 3) = 6/12
+      common_mistake: Looking for a common bottom number first, which multiplication does not need
+    - step_number: 3
+      explanation: Divide the top and bottom by 6 to write it in lowest terms.
+      expression: 6/12 = 1/2
+      common_mistake: null
+    final_answer: 1/2
+  random_seed: 100403
+  rendered_question: A rectangular garden bed is 3/4 of a meter wide and 2/3 of a meter long. What is
+    the area of the bed in square meters, written in lowest terms?
+  option_a: 17/12
+  option_b: 5/7
+  option_c: 1/4
+  option_d: 1/2
+  correct_option: d
+- question_template_id: authored-fraction_operations-d5-100501
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - Multiplied the two fractions instead of dividing
+  - Turned over the wrong fraction before multiplying
+  - Divided the wrong way round
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A jar holds 3/4 of a cup of honey. Each batch of granola uses 1/8 of a cup of honey. How many
+    whole batches can be made from a full jar?
+  context_block: null
+  answer_expression: Eq(x*1/8, 3/4)
+  hint_ladder:
+  - The question asks how many small amounts fit inside a larger one, which is a division.
+  - Dividing by a fraction can be turned into a multiplication by turning the second fraction over.
+  - Turn the eighth over to get 8, then multiply the jar's amount by it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: How many batches fit into the jar is the jar's honey divided by one batch's honey.
+      expression: 3/4 / 1/8
+      common_mistake: Multiplying the two amounts, which would make the result smaller than either of
+        them
+    - step_number: 2
+      explanation: Turn the second fraction over and multiply instead of dividing.
+      expression: 3/4 x 8/1
+      common_mistake: Turning the first fraction over instead of the second
+    - step_number: 3
+      explanation: Multiply the top numbers and the bottom numbers, then simplify.
+      expression: 24/4 = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 100501
+  rendered_question: A jar holds 3/4 of a cup of honey. Each batch of granola uses 1/8 of a cup of honey.
+    How many whole batches can be made from a full jar?
+  option_a: 3/32
+  option_b: '12'
+  option_c: 1/6
+  option_d: '6'
+  correct_option: d
+- question_template_id: authored-fraction_operations-d5-100502
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - Multiplied the two fractions instead of dividing
+  - Turned over the wrong fraction before multiplying
+  - Divided the wrong way round
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Ravi has 2/3 of a liter of paint left. Painting one birdhouse uses 1/6 of a liter. How many whole
+    birdhouses can he paint with the paint he has?
+  context_block: null
+  answer_expression: Eq(x*1/6, 2/3)
+  hint_ladder:
+  - Ask how many of the smaller amounts fit inside the amount of paint that is left.
+  - That question is a division, and dividing by a fraction becomes multiplying by that fraction turned
+    over.
+  - Turn the sixth over to get 6, then multiply the paint that is left by it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The number of birdhouses is the paint available divided by the paint one birdhouse
+        needs.
+      expression: 2/3 / 1/6
+      common_mistake: Multiplying the two amounts instead of dividing
+    - step_number: 2
+      explanation: Turn the second fraction over and multiply.
+      expression: 2/3 x 6/1
+      common_mistake: Turning the first fraction over instead of the second
+    - step_number: 3
+      explanation: Multiply the top numbers and the bottom numbers, then simplify.
+      expression: 12/3 = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 100502
+  rendered_question: Ravi has 2/3 of a liter of paint left. Painting one birdhouse uses 1/6 of a liter.
+    How many whole birdhouses can he paint with the paint he has?
+  option_a: 1/9
+  option_b: '4'
+  option_c: '8'
+  option_d: 1/4
+  correct_option: b

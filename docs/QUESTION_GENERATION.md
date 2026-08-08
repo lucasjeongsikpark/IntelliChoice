@@ -282,11 +282,41 @@ Not built. Each waits on evidence from a real pilot rather than on a schedule.
 | Auto-approval for a narrow slice | a near-zero human rejection rate over a real sample |
 | Resume | an interrupted run that a fresh seed offset could not recover |
 
+## 9a. Hand-authoring, when the pipeline is not available (D-222)
+
+`fraction_operations`' 15 items were written by hand, not generated. The route matters more than
+the fact: **a new topic's content has to be authored-mode YAML**, because `_servable()` filters on
+`authoring_mode == "authored"` (D-210). A shape bank for a new topic loads and is then filtered out
+of every serving read, so the topic stays unavailable no matter how many templates it holds. This
+was tried first and reverted.
+
+What a hand-authored item gets, and what it does not:
+
+| | authored by the pipeline | authored by hand |
+|---|---|---|
+| deterministic §5.8.5 gate | ✅ at generation *and* every load | ✅ every load |
+| two independent solvers | ✅ | ❌ |
+| blind judge + difficulty gate | ✅ | ❌ |
+| human approval before export | ✅ | ✅ (the author is the reviewer) |
+| provenance | model ids in `review_model_versions` | `generator_model: hand-authored-v1`, empty `review_model_versions` |
+
+The two missing gates are the ones that cost money, and they are the ones that catch what
+determinism cannot: an under-specified stem (the solver panel) and an implausible scale or a
+mis-tiered item (the judge). Hand-authoring therefore carries an obligation the pipeline does not
+put on the author — state every quantity the question asks the student to use, in the stem — and it
+leaves the difficulty tiers as one person's judgement, which is what `difficulty_confidence` and
+SPEC §5.8.4's empirical calibration exist to supersede.
+
+The file is still the artifact: write it, load it, then `make question-export` so it matches what
+the database would produce, byte for byte. `test_the_repo_bank_file_matches_what_the_database_would_export`
+compares the whole list, order included, and the export orders by `(skill_id, difficulty_label, id)`.
+
 ## 10. State
 
-The bank holds 5 approved authored items (`curriculum/internal_math/authored/linear_equations.yaml`)
-and 50 hand-authored shape templates. Twelve authored candidates sit at `pending` as the pilot's
-human-review comparison set; eight equation-first candidates were retired in D-193.
+The bank holds 47 approved authored `linear_equations` items and 50 hand-authored shape templates,
+plus 15 hand-authored `fraction_operations` items (D-222). Twelve authored candidates sit at
+`pending` as the pilot's human-review comparison set; eight equation-first candidates were retired
+in D-193.
 
 ### The first paid pilot (D-195, 2026-08-06)
 

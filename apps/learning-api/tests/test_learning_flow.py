@@ -1471,15 +1471,31 @@ def test_intervention_choice_pause_records_choice_and_blocks_skip() -> None:
         assert respond_resp.status_code == 200
         respond_body = respond_resp.json()
         assert respond_body["phase"] == "study"
-        # SPEC §5.11.6/§5.18.3: real Postgres-backed catalog (S15) - this HTTP test runs
-        # against the live shared dev Postgres with no `youtube_videos` row seeded for
-        # this skill, so the correct, deterministic outcome here is the fallback
-        # message (no real-time YouTube call either way). The "a real catalog match is
-        # returned" path is covered by `test_video_catalog.py`'s rollback-isolated,
-        # deterministically-seeded unit tests.
+        # SPEC §5.11.6/§5.18.3: real Postgres-backed catalog (S15), so *which* of the two
+        # valid shapes comes back is not this test's business (D-222). It used to assert
+        # the fallback message on a precondition this file only stated in a comment - "no
+        # `youtube_videos` row seeded for this skill" - which nothing enforces and which
+        # is false on any machine where `make youtube-sync` has been run against the fake
+        # provider: 4 approved rows, `difficulty` 2-4, covering 4 of this topic's 5
+        # skills. Serving picks the study item with an unseeded `random.Random()`
+        # (`routers/sessions.py`, correct for production), and `search_video` filters
+        # hard on skill_id + difficulty, so ~1 round in 12 landed inside that window and
+        # got a real match. CI never saw it: its database is fresh, so the table is empty.
+        # The verbatim-fallback proof belongs to `test_video_catalog.py`, which owns it
+        # deterministically inside a rollback transaction. What this flow test is *about*
+        # is that choosing "video" resolves the pause and is recorded on the attempt.
         intervention = respond_body["intervention"]
         assert intervention["type"] == "video"
-        assert intervention["message"] == video_catalog.FALLBACK_MESSAGE
+        # On the *value*, not on the key: `InterventionContentResponse` declares
+        # `video_title`/`video_url` as optional fields, so both keys are always present in
+        # the JSON and `"video_url" in intervention` is true even for the fallback. Getting
+        # that wrong is how the first version of this fix passed a rigged catalog 8/8 while
+        # never once exercising the branch it was written for.
+        if intervention["video_url"]:
+            assert intervention["video_title"]
+            assert intervention["video_source"]
+        else:
+            assert intervention["message"] == video_catalog.FALLBACK_MESSAGE
 
         # `_study_session_id` reads via `app.state.learning_graph`, so it must run while
         # this block's checkpointer connection is still open.

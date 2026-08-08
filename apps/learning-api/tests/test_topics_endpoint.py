@@ -99,9 +99,17 @@ def _bound_session(client: TestClient, headers: dict[str, str], student_id: str)
 
 
 def test_the_topic_list_reflects_the_bank_and_never_recommends_an_empty_topic() -> None:
-    """`STUDENT_UNLINKED` is grade 4, whose §5.7.3 band (4-5) names `fraction_operations` -
-    a topic with **zero** templates (D-185's count). The grade map alone would have offered
-    it; conjoining it with the bank is what stops that.
+    """`STUDENT_UNLINKED` is grade 4, whose §5.7.3 band (4-5) names `fraction_operations`.
+
+    D-185 wrote this test when that topic had **zero** templates, so the grade map alone
+    would have offered a topic the exam builder then refused to build, and the assertions
+    pinned "grade 4 is recommended nothing". D-222 authored the topic, and the same
+    conjunction now has to be checked in the *other* direction: the recommendation follows
+    the bank when the bank fills, not only when it is empty. `place_value` is still empty
+    and carries the original half of the check.
+
+    The general invariant below is the one that must never break either way, and it is
+    written over every topic rather than over named ones, so it survives content changes.
     """
     token = issuer.issue(sub=STUDENT_UNLINKED, role=Role.STUDENT, audience=Audience.LEARNING)
     headers = _auth_header(token)
@@ -114,9 +122,12 @@ def test_the_topic_list_reflects_the_bank_and_never_recommends_an_empty_topic() 
     topics = {t["topic_id"]: t for t in response.json()["topics"]}
 
     assert topics["linear_equations"]["available"] is True
-    assert topics["fraction_operations"]["available"] is False
+    # Authored in D-222, and this student's own grade band names it.
+    assert topics["fraction_operations"]["available"] is True
+    assert topics["fraction_operations"]["recommended_for_grade"] is True
+    # Still no templates, so still offered-but-disabled rather than hidden.
     assert topics["place_value"]["available"] is False
-    assert topics["fraction_operations"]["recommended_for_grade"] is False
+    assert topics["place_value"]["recommended_for_grade"] is False
     for topic in topics.values():
         assert not (topic["recommended_for_grade"] and not topic["available"])
     # Every topic is still listed - "your grade has no stocked topic" must not read as

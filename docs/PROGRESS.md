@@ -7,42 +7,81 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Pointer items 1 and 2 are closed (D-221).** The scope guard is measured in both directions and
-fixed topically (gated 34/38 → 37/38, controls held at 20/20), and the escalation draft now reports
-what the system knows. No numbered ROADMAP session is queued; integration (S43+) stays deliberately
-deferred (D-152) until the user starts it. In rough order of value:
+**Pointer items 1 and 3 are closed (D-222).** The flake is reproduced, root-caused and fixed —
+it was never about semantic memory — and `fraction_operations` is standing: 15 hand-authored,
+§5.8.5-gated items, `available=True` and recommended for a grade-4 student. No numbered ROADMAP
+session is queued; integration (S43+) stays deliberately deferred (D-152) until the user starts it.
+In rough order of value:
 
-1. **The flake, now with a name and a leading hypothesis.**
-   `test_intervention_choice_pause_records_choice_and_blocks_skip` failed once in a full
-   `make test` during D-221 and passed on the immediate rerun, in isolation, and in CI — the
-   fourth occurrence across three sessions, and **the first with the name captured**, because
-   the run was not piped through a short `tail`. The assertion is
-   `intervention["message"] == FALLBACK_MESSAGE` and it got `None`: a verified video *was*
-   found, so the study target skill differed between runs. `build_study_plan` ranks on
-   `(weighted_score, weak-skill memory tie-break, curriculum position)` and is deterministic
-   given those, so the varying input is **state** — and `test_learning_flow.py` shares one
-   `STUDENT_UNLINKED` external id across dozens of tests, several of which write semantic
-   memory for it. An `active weak_skill` fact left by an earlier test flips the tie-break,
-   which flips the skill, which flips whether a video exists. **Confirm before fixing** — this
-   is a hypothesis from one traceback, not a diagnosis. Ranked first now because it is the
-   only item with a live lead. ⚠️ **Do not pipe `make test` through a short `tail`.**
+1. **Deploy the new topic to staging, if this was not already done.** The deploy runs the
+   curriculum loader itself (D-206), so `fraction_operations` reaches staging by deploying —
+   nothing extra to run. **Do not deploy the loader change and the bank file separately:** the
+   retirement fix (D-222 §3) must be in the same image, or the first load retires every
+   `linear_equations` item in staging.
 2. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-3. **Stand up a dormant topic.** `fraction_operations` and `place_value` are defined with zero
-   questions and read "Coming soon" to a student. Hand-authored, §5.8.5-gated content is the
-   highest-value *product* gap; AI authoring stays blocked on Sonnet 5 (D-211).
-4. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+3. **`check_no_answer_leakage` over-rejects on a substring match** (D-222, found not fixed).
+   `Solve for x: 11x = -55` with answer `-5` reads as a leak because `x = -5` is inside
+   `x = -55`; 63 of 5 000 sampled variants trip it. Fail-closed and currently invisible, since
+   the loader validates one fixed seed per template. It is a shared §5.8.5 gate, so loosening it
+   changes what the paid pipeline rejects — measure both directions before and after, and treat
+   the over-rejection count as a first-class number rather than a footnote (D-221's rule).
+4. **`place_value` is still dormant**, and `fraction_operations` is thinner than it looks: 3
+   items per tier against `linear_equations`' 8–12, and no two-solver/judge panel behind them
+   (D-211). More items for tiers a student actually reaches beats a third topic.
+5. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-5. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+6. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
+
+**Before writing content for a new topic, read D-222 §2.** A shape bank (`templates/*.py`) is
+*not* how a topic is stood up any more — `_servable()` filters on `authoring_mode == "authored"`
+(D-210), so shape templates load and are then never served. Authored-mode YAML under
+`curriculum/internal_math/authored/` is the only route, and the file must match `make
+question-export` byte for byte, order included.
 
 **Instruments now available, and cheap enough to rerun before assuming anything:**
 `scripts/measure_scope_guard.py` (~15¢/repeat, scope + intent in both directions, no database),
 and `scripts/measure_access_probe_rules.py --load ... --shipped` (free replay of the probe).
 **Do not retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and
 D-220 measured zero wrong tiers live.
+
+### Session log — a precondition nothing re-checked, three times (2026-08-08, D-222)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · full suite green · **169 curriculum tests**
+including 2 new · the new loader regression test watched failing against the old code, naming all
+15 items · the flake reproduced at **1 in 12** and the fix proven against a catalog rigged to
+match on **7 of 8** rounds · a full `fraction_operations` session driven end to end · full
+write-up in DECISIONS.md **D-222**.
+
+**Not a numbered ROADMAP session** — the "Next session" pointer's items 1 and 3, with the user's
+scope choice: fix the flake, then stand up `fraction_operations`.
+
+**The flake was never about semantic memory.** Last session's hypothesis could not have been
+right — the conftest sweep deletes `semantic_memory` before every test. The real precondition was
+in the test's own comment: *"no `youtube_videos` row seeded for this skill"*, which nothing
+enforces and which is false on any machine where `make youtube-sync` has run (4 approved rows,
+difficulty 2–4, 4 of the topic's 5 skills). Serving draws the study item from an **unseeded**
+`random.Random()` and `search_video` filters on skill **and** difficulty, so ~1 round in 12 lands
+inside the seeded window. **CI's database is fresh, so CI could never have caught it.**
+
+**`fraction_operations` took the wrong route first, and the database said so.** A shape bank was
+built, validated across 20 000 generated variants — and is filtered out of every serving read,
+because `_servable()` requires `authoring_mode == "authored"` (D-210). Four approved templates per
+tier, and the topic still reported `available=False`. Reverted; the topic is stood up with 15
+hand-authored authored-mode items, **0 of 15 failing the §5.8.5 gate on the first run**.
+
+**A defect that would have emptied staging.** The authored retirement pass read every authored
+template regardless of topic, so two bank files retire each other: `fraction_operations` retires
+all 47 `linear_equations` items, then `linear_equations` retires the 15 new ones — and the deploy
+runs the loader on every deploy (D-206). One deploy, no servable question in any topic. Invisible
+while exactly one topic had authored content; now scoped to the topic being loaded.
+
+**Carry-over:** the substring over-rejection in `check_no_answer_leakage` (found, deliberately not
+fixed — it is a shared gate); `place_value` still dormant; the new bank is 3 items per tier against
+`linear_equations`' 8–12 and has no solver/judge panel behind it (D-211).
 
 ### Session log — a model's judgement reported as fact, twice (2026-08-08, D-221)
 

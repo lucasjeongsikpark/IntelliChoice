@@ -470,6 +470,22 @@ to rot, because nothing fails when it does.)*
   returned the same value and the failure-naming opening was unreachable through the graph while
   three unit tests passed. Those tests called the builder directly; the guard is now a test that
   drives both paths through the real router.
+- **A topic becomes servable by gaining *authored* items, never by gaining templates**
+  (D-210, proven the hard way in D-222) — `_servable()` filters on
+  `authoring_mode == "authored"`, so a shape bank for a new topic loads into every environment
+  and is then filtered out of every serving read. `fraction_operations` was first given 9 shapes
+  and 20 templates, 4 at every difficulty, and `build_topic_options` still answered
+  `available=False` — which is D-210's stated cost working as designed, not a bug. Standing a
+  topic up means authored-mode YAML under `curriculum/internal_math/authored/`, gated by
+  `validate_authored_item` on every load. Stated as a rule because the shape bank is the visible,
+  documented, 50-template-strong path, and `loader.py`'s own comment pointed at it.
+- **A per-file sync rule is scoped to that file's own domain** (D-222) — the authored loader
+  retires "everything this bank file no longer lists", reading a repository method that is
+  deliberately unfiltered by topic. Correct while one topic had authored content; the day a
+  second bank file existed the two loads retired each other, and since the staging deploy runs
+  the loader on every deploy (D-206), one deploy would have left no servable question in any
+  topic. The scope belongs at the caller that knows which file it is loading, and the guard is a
+  test that asserts every id in *every* bank file is active after a load.
 - **A backend-authored message is carried by the API and presented by exactly one component**
   (D-220) — `explain_access` sets `answer = hint.message`, so both fields legitimately hold the
   same string: `answer` is what an SSE or non-browser client reads, and `AccessHintBanner` is
