@@ -182,6 +182,22 @@ class AssessmentRepository:
         await self._session.flush()
         return session_row
 
+    async def mark_first_viewed(
+        self, assessment_session_id: str, at: datetime
+    ) -> AssessmentSession:
+        """Idempotent: the first report wins, later ones are no-ops (D-218).
+
+        The client reports this every time the exam screen becomes unblocked, including
+        after a refresh mid-exam, so a last-write-wins version would hand back the whole
+        time limit on every reload.
+        """
+        session_row = await self.get_session(assessment_session_id)
+        assert session_row is not None
+        if session_row.first_viewed_at is None:
+            session_row.first_viewed_at = at
+            await self._session.flush()
+        return session_row
+
     async def get_student_assessment_summary(self, student_id: str) -> list[AssessmentSession]:
         """SPEC §5.26.1 predefined method. Full scoring/aggregation (weighted bootstrap
         score, gain) lands in S5; this proves the parameterized-query shape the runtime

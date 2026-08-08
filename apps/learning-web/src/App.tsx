@@ -42,7 +42,16 @@ function App() {
   // AUD-F-01. The two functions themselves are memoized on `[token]` (useLearningSession.ts).
   // `rememberStudent`/`forgetStudent` are pulled out for the same reason - the
   // pre-session-resolution effect below lists them as dependencies.
-  const { snapshot, fetchExamOverview, recordItemTime, rememberStudent, forgetStudent } = session;
+  // `markExamViewed` joins them for the same reason: `ExamScreen` lists it in an effect's
+  // dependency array (D-218), and it is memoized on `[token]` in the hook.
+  const {
+    snapshot,
+    fetchExamOverview,
+    recordItemTime,
+    rememberStudent,
+    forgetStudent,
+    markExamViewed,
+  } = session;
 
   // AUD-F-22: resolve a parent's child *before* any session, so `dashboardStudentId`
   // below is non-null on the start screen and the existing dashboard button is reachable
@@ -346,8 +355,6 @@ function App() {
 
       return (
         <StartScreen
-          sub={sub}
-          role={role}
           studentId={dashboardStudentId}
           busy={session.busy}
           error={session.error}
@@ -451,7 +458,10 @@ function App() {
     // Takes `snapshot` as a parameter rather than closing over it: TypeScript drops the
     // `!snapshot` narrowing established above once the read happens inside a nested
     // function, and a parameter is the honest way to say "non-null by the time this runs".
-    function renderPhase(snapshot: SessionSnapshot): ReactNode {
+    // `overlayOpen` is `showNarrative`, computed below and passed in for the same reason
+    // `snapshot` is a parameter rather than a closure read: the value it needs is declared
+    // after this function and only correct at call time (D-218).
+    function renderPhase(snapshot: SessionSnapshot, overlayOpen: boolean): ReactNode {
       if (snapshot.phase === "student_selected") {
         return (
           <TopicSelectScreen
@@ -522,6 +532,7 @@ function App() {
             // `busy || ladderOpen` produced (it read as a request stuck in flight forever).
             // The student proceeds through the panel on the right ("I'll try again now").
             paused={ladderOpen}
+            overlayOpen={overlayOpen}
             error={session.error}
             onSubmit={(questionVariantId, selectedOption, responseTimeMs) => {
               markInteraction();
@@ -545,6 +556,7 @@ function App() {
             }}
             onRecordTime={recordItemTime}
             onFetchOverview={handleFetchOverview}
+            onExamViewed={markExamViewed}
             onFinalize={async (confirmUnanswered) =>
               (await session.finalizeExam(confirmUnanswered)) !== null
             }
@@ -712,7 +724,7 @@ function App() {
     // `max-width: 480px`, which would have quietly narrowed the exam screen for the
     // duration of every narrative - and because adding no DOM node at all means the
     // no-narrative render is identical to what shipped before this change.
-    const phaseContent = renderPhase(snapshot);
+    const phaseContent = renderPhase(snapshot, showNarrative);
     // D-216: once a snapshot exists, a dead stream used to be *invisible* - the recovery
     // screen above sits inside `if (!snapshot)`, so the last snapshot stayed on screen,
     // stale, with no signal and no way back. REST actions still work in that state (they

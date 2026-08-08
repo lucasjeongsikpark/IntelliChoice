@@ -331,6 +331,20 @@ to rot, because nothing fails when it does.)*
   exit when its whole unit of work failed, and a summary line that distinguishes "nothing to do" from
   "nothing worked". Budget exhaustion is *not* a failure and must not trip it, or the alarm gets
   disabled within a month.
+- **An exam's clock starts when the student can actually see it, not when the row is written**
+  (D-218) — `assessment_sessions.started_at` is stamped at row creation, and `build_post_exam` runs
+  in the same graph turn that generates the stage-transition narrative, whose overlay is
+  `aria-modal` with a scroll lock. Measuring the deadline from `started_at` therefore billed reading
+  time against a graded assessment: staging measured a 20-minute post-exam down to 18:46 before
+  question 1 was reachable. Every deadline read now goes through `flow.exam_clock_start`
+  (`is_exam_expired` **and** `exam/overview`'s `remaining_seconds`, so the enforced deadline and the
+  displayed timer cannot disagree), which prefers the client-reported `first_viewed_at`. Two
+  properties are load-bearing and both close a hole the naive version has: the reporting endpoint is
+  **first-write-wins**, because the client reports on every unblock including after a mid-exam
+  refresh; and the deferral is **capped at `EXAM_VIEW_GRACE_SECONDS` past `started_at`**, because
+  the questions are mounted in the DOM *behind* the overlay and an unbounded deferral would reward
+  never dismissing it. A null `first_viewed_at` falls back to `started_at`, so an old row or a
+  client that never reports gets the previous behaviour rather than an exam with no deadline.
 - **One attempt per exam item, enforced by the database** — `assessment_attempts` is unique on
   `(assessment_session_id, question_variant_id)`; the `Idempotency-Key` deduplicates a retry of the
   same submission and does not license a second answer (S42, AUD-L-10, D-110 §1). Scoring counts

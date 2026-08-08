@@ -5,6 +5,64 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+### Session log — the third UI walk: the legs nobody had walked live (2026-08-08, D-218)
+
+**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1052 passed, 2 skipped, 1 xfailed**
+(8 new tests) · `tsc`, `oxlint` and `vite build` clean for `learning-web`, `chat-web`, `e2e` ·
+migration `c4a1e07b93df` round-tripped (down → up) against dev Postgres · full write-up in
+DECISIONS.md **D-218**.
+
+**Not a numbered ROADMAP session** — `/start-session` with the user's instruction to load
+`chrome-devtools` and check the deployed UI directly, and their choice of the *learning* app's
+untested legs over the never-walked Q&A app.
+
+**Scope, and why it was this.** D-215 walked the deployed UI, D-216 walked the code, D-217 walked
+the UI again for the eight things the user reported — all three along the student happy path. This
+walked what was still unwalked in a **deployed** build: post-exam → learning gain → report, the
+**parent journey** end to end (child picker, blocked-attendance view, zero-data dashboard, report),
+narrow viewport, and the keyboard/focus path.
+
+**Ten candidates, four killed by checking them.** That ratio is the D-216 rule working, and three
+of the four would have been plausible bug reports: the "three empty charts" were `take_screenshot
+fullPage: true` resizing the viewport under recharts' `ResponsiveContainer`; the transition dialog
+does have `aria-labelledby`; the SSE `?token=` is settled twice (D-032, D-215); and D-217's middle
+truncation had already separated the axis labels. One claim of mine also needed correcting
+mid-walk — there **is** a 20 s overview poll, so the navigator self-corrects rather than staying
+stale forever.
+
+**What was measured live, and what changed:**
+
+| # | finding (staging) | fix |
+|---|---|---|
+| 1 | the post-exam timer read **19:57** at the phase flip and **18:46** when the modal transition overlay was dismissed — 74 s of a 20-minute limit spent on a screen the student could not answer from | nullable `first_viewed_at` + `flow.exam_clock_start` behind every deadline read, fed by an idempotent `POST /exam/viewed`, capped 120 s past `started_at` so stalling behind the overlay buys nothing; falls back to `started_at` when never reported |
+| 2 | pressing `2` on arriving at the post-exam did nothing — focus was on `<body>` after the overlay closed, and again after every submit, so the `1`–`4`/Enter shortcuts every option advertises were inert | `tabIndex={-1}` on the exam panel plus focus restoration when focus is loose (never while the overlay is up, never over a deliberate tab) |
+| 3 | questions 4–9 announced "not yet answered" while `GET exam/overview` at the same moment returned `answered` | the overview GET raced the un-awaited answer POST; the refresh moved into `submitAnswer` after the await, matching `skipExamItem`/`flagExamItem`. Also fixes the submit dialog deriving "unanswered" from that window |
+| 4 | "Signed in as parent-ext-2 (parent)." and "Student: student-ext-1" — internal ids printed at the people they identify, the second against its own code's stated intent | the debug line removed; the dashboard subtitle renders only when there is a name |
+| 5 | all four date-range chips computed to `rgb(124, 200, 128)`; only one carried `aria-pressed="true"` | `.selected` was setting the colour the base button already was — the *unselected* chips are now outlined |
+| 6 | `Solve two-ste…ar equations` (polish, not correctness) | both cuts land on word boundaries, head growing *forward* so D-217's separation survives |
+| 7 | a child with zero attempts still produced a real, paid LLM report | written per-audience no-activity template, guarded on `attempts_count == 0` **and** no pre-exam score, after the replay lookup; `_ExplodingGateway` asserts the short-circuit lands *before* the call |
+
+**Carry-over:**
+
+- **The post-exam repeated two study items verbatim** (questions 4 and 9 were items practised
+  minutes earlier). This is **D-189**'s known consequence — `build_post_exam` draws the same
+  template family and avoids only the *pre-exam's* rendering, and a statically-rendered template
+  has just the one. The observed rate (2 of 10) is recorded because D-189 asked for exactly that;
+  reopening it is a product decision, not this session's.
+- **Every completed session shows "⚠️ Flagged".** `tutor_review_flagged` aggregates per session
+  from attempts that exhausted the retry ladder unresolved, so one unresolved skill flags the whole
+  session. Plausible on fixture data hammered by load runs; calling it a defect needs
+  production-shaped data rather than this database.
+- **The Q&A app has still never been walked in a deployed build.** It is the only major surface
+  with zero live verification — built and unit/e2e tested only. The user chose the learning app's
+  untested legs for this session; the chat walk remains available and is the largest remaining
+  coverage gap.
+- One test needed a data change rather than an assertion change:
+  `test_a_replayed_report_request_pays_once_and_serves_the_stored_report` is AUD-X-04's *money*
+  assertion and its subject had no attempts, so the new short-circuit took it off the paid path.
+  It now seeds one graded study attempt (plus the `study_items` row the dashboard's inner join
+  needs) rather than having its reservation assertions weakened.
+
 ### Session log — the second UI walk: latency, layout, text, chat viz, content (2026-08-07, D-217)
 
 **Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1044 passed, 2 skipped, 1 xfailed** · `tsc`

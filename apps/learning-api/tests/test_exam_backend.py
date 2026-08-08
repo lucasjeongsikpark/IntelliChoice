@@ -7,6 +7,7 @@ surface's own edge cases.
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,10 +15,12 @@ from intellichoice_adapters.fake_auth import FakeTokenIssuer
 from intellichoice_adapters.seed.mysql_fixtures import STUDENT_UNLINKED, seed
 from intellichoice_curriculum.loader import load_curriculum_and_templates
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
+from intellichoice_db.models.assessment import AssessmentSession
 from intellichoice_db.repositories.assessment import AssessmentRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_shared.auth import Audience, Role
 from learning_api.main import app
+from learning_api.services import flow
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -964,3 +967,94 @@ def test_resume_and_overview_restore_item_statuses_after_restart() -> None:
     assert by_id[item_ids[1]]["status"] == "flagged"
     assert by_id[item_ids[2]]["status"] == "answered"
     assert overview["remaining_seconds"] is not None
+
+
+def _timed_session(
+    *, started_at: datetime, first_viewed_at: datetime | None, limit: int | None = 1200
+) -> AssessmentSession:
+    return AssessmentSession(
+        assessment_session_id="clock-test",
+        student_external_id="clock-student",
+        session_type="post_exam",
+        started_at=started_at,
+        first_viewed_at=first_viewed_at,
+        time_limit_seconds=limit,
+    )
+
+
+def test_exam_clock_falls_back_to_started_at_when_never_viewed() -> None:
+    """Rows created before D-218, and any client that never reports the view, keep the old
+    behaviour rather than getting an exam with no deadline at all.
+    """
+    started = datetime(2026, 8, 8, 12, 0, tzinfo=UTC)
+    row = _timed_session(started_at=started, first_viewed_at=None)
+
+    assert flow.exam_clock_start(row) == started
+    assert flow.is_exam_expired(row, started + timedelta(seconds=1199)) is False
+    assert flow.is_exam_expired(row, started + timedelta(seconds=1200)) is True
+
+
+def test_exam_clock_starts_when_the_student_first_saw_the_exam() -> None:
+    """D-218's whole point. The row is assembled one graph turn before the student can reach
+    a question - the stage-transition overlay is modal - so time spent reading it used to
+    come out of the limit. Measured on staging 2026-08-07: 20:00 down to 18:46 before
+    question 1 was reachable.
+    """
+    started = datetime(2026, 8, 8, 12, 0, tzinfo=UTC)
+    viewed = started + timedelta(seconds=74)
+    row = _timed_session(started_at=started, first_viewed_at=viewed)
+
+    assert flow.exam_clock_start(row) == viewed
+    # The 74 s spent behind the overlay are given back: still running at what would have
+    # been the old deadline.
+    assert flow.is_exam_expired(row, started + timedelta(seconds=1200)) is False
+    assert flow.is_exam_expired(row, viewed + timedelta(seconds=1200)) is True
+
+
+def test_exam_clock_deferral_is_capped_so_stalling_buys_nothing() -> None:
+    """The questions are mounted in the DOM behind the overlay, so an unbounded deferral
+    would reward never dismissing it.
+    """
+    started = datetime(2026, 8, 8, 12, 0, tzinfo=UTC)
+    row = _timed_session(
+        started_at=started,
+        first_viewed_at=started + timedelta(hours=3),
+    )
+
+    assert flow.exam_clock_start(row) == started + timedelta(
+        seconds=flow.EXAM_VIEW_GRACE_SECONDS
+    )
+
+
+def test_an_untimed_exam_never_expires_whatever_the_clock_says() -> None:
+    started = datetime(2026, 8, 8, 12, 0, tzinfo=UTC)
+    row = _timed_session(started_at=started, first_viewed_at=None, limit=None)
+
+    assert flow.is_exam_expired(row, started + timedelta(days=7)) is False
+
+
+def test_exam_viewed_is_idempotent_across_a_refresh() -> None:
+    """D-218. The client reports the view every time the exam screen becomes unblocked,
+    including after a mid-exam refresh, so a last-write-wins version would hand the student
+    the whole time limit again on every reload.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    with TestClient(app) as client:
+        session_id, _ = _start_pre_exam(client, headers)
+
+        first = client.post(f"/learning/sessions/{session_id}/exam/viewed", headers=headers)
+        assert first.status_code == 200
+        first_remaining = first.json()["remaining_seconds"]
+        assert first_remaining is not None
+
+        second = client.post(f"/learning/sessions/{session_id}/exam/viewed", headers=headers)
+        assert second.status_code == 200
+        # The clock kept running rather than restarting: the second report cannot buy time.
+        assert second.json()["remaining_seconds"] <= first_remaining
+
+        # And the plain read agrees with it - both go through `exam_clock_start`.
+        overview = client.get(
+            f"/learning/sessions/{session_id}/exam/overview", headers=headers
+        ).json()
+        assert overview["remaining_seconds"] <= first_remaining
+        assert overview["phase"] == first.json()["phase"]

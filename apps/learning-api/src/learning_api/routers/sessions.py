@@ -1137,23 +1137,23 @@ async def record_exam_item_time(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
-@router.get("/{learning_session_id}/exam/overview", response_model=ExamOverviewResponse)
-async def exam_overview(
+async def _exam_overview_view(
+    *,
     learning_session_id: str,
-    claims: Annotated[TokenClaims, Depends(get_current_claims)],
-    profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
-    db: Annotated[AsyncSession, Depends(get_db_session)],
-    graph: Annotated[LearningGraph, Depends(get_graph)],
+    exam_session_id: str,
+    phase: str,
+    db: AsyncSession,
+    mark_viewed: bool,
 ) -> ExamOverviewResponse:
-    """Plain read (no `ainvoke`) - lets the exam nav bar restore item statuses after a
-    mid-exam refresh (SPEC §5.16's checkpoint-restore property, extended to nav state).
+    """Shared by `GET exam/overview` and `POST exam/viewed` so both report the same
+    `remaining_seconds` from the same clock (D-218).
     """
-    state, exam_session_id = await _exam_phase_state(
-        graph, learning_session_id, claims, profile_adapter, db
-    )
     assessment_repo = AssessmentRepository(db)
     question_repo = QuestionRepository(db)
-    session_row = await assessment_repo.get_session(exam_session_id)
+    if mark_viewed:
+        session_row = await assessment_repo.mark_first_viewed(exam_session_id, datetime.now(UTC))
+    else:
+        session_row = await assessment_repo.get_session(exam_session_id)
     assert session_row is not None
     items = await assessment_repo.get_items(exam_session_id)
     item_state_rows = await assessment_repo.get_item_states(exam_session_id)
@@ -1179,14 +1179,64 @@ async def exam_overview(
 
     remaining_seconds: int | None = None
     if session_row.time_limit_seconds is not None:
-        elapsed = (datetime.now(UTC) - session_row.started_at).total_seconds()
+        elapsed = (datetime.now(UTC) - flow.exam_clock_start(session_row)).total_seconds()
         remaining_seconds = max(0, int(session_row.time_limit_seconds - elapsed))
 
     return ExamOverviewResponse(
         learning_session_id=learning_session_id,
-        phase=state["phase"],
+        phase=phase,
         items=item_responses,
         remaining_seconds=remaining_seconds,
+    )
+
+
+@router.get("/{learning_session_id}/exam/overview", response_model=ExamOverviewResponse)
+async def exam_overview(
+    learning_session_id: str,
+    claims: Annotated[TokenClaims, Depends(get_current_claims)],
+    profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    graph: Annotated[LearningGraph, Depends(get_graph)],
+) -> ExamOverviewResponse:
+    """Plain read (no `ainvoke`) - lets the exam nav bar restore item statuses after a
+    mid-exam refresh (SPEC §5.16's checkpoint-restore property, extended to nav state).
+    """
+    state, exam_session_id = await _exam_phase_state(
+        graph, learning_session_id, claims, profile_adapter, db
+    )
+    return await _exam_overview_view(
+        learning_session_id=learning_session_id,
+        exam_session_id=exam_session_id,
+        phase=state["phase"],
+        db=db,
+        mark_viewed=False,
+    )
+
+
+@router.post("/{learning_session_id}/exam/viewed", response_model=ExamOverviewResponse)
+async def exam_viewed(
+    learning_session_id: str,
+    claims: Annotated[TokenClaims, Depends(get_current_claims)],
+    profile_adapter: Annotated[ProfileAdapter, Depends(get_profile_adapter)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    graph: Annotated[LearningGraph, Depends(get_graph)],
+) -> ExamOverviewResponse:
+    """D-218: the client reports that the exam is on screen with nothing over it, and the
+    time limit starts counting from here rather than from row creation.
+
+    Idempotent (`mark_first_viewed` keeps the first report), so a refresh mid-exam cannot
+    hand the student the whole limit again. Returns the overview so the caller gets a
+    `remaining_seconds` measured from the clock it just started, in one round trip.
+    """
+    state, exam_session_id = await _exam_phase_state(
+        graph, learning_session_id, claims, profile_adapter, db
+    )
+    return await _exam_overview_view(
+        learning_session_id=learning_session_id,
+        exam_session_id=exam_session_id,
+        phase=state["phase"],
+        db=db,
+        mark_viewed=True,
     )
 
 

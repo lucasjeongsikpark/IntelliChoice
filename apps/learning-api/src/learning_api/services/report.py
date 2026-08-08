@@ -300,6 +300,36 @@ def build_report_facts(
     )
 
 
+def _no_activity_texts(payload: ReportInterpretationPayload) -> tuple[str, str]:
+    """D-218: what a report says when there is provably nothing to interpret.
+
+    Separate from `_fallback_texts`, which exists for a *failure* (gateway down, ceiling hit,
+    grounding check refused) and reads like one - "No verified activity in this date range
+    yet." is accurate but terse, and this is the first thing a new family sees rather than a
+    degraded path. Written per audience because a student reads their own report (SPEC
+    §5.10.3: growth-oriented, age-appropriate, no internal skill ids) and a parent reads a
+    different one.
+
+    Only reached for an audience whose payload actually carries `attempts_count`; the tutor
+    audience does not, and "no activity" is not something to infer from a withheld field.
+    """
+    if payload.audience == "student":
+        return (
+            "There's no practice to look back on for this period yet — you haven't finished "
+            "any graded questions in this range.",
+            "Start a session whenever you're ready. Once you've worked through a pre-exam and "
+            "some practice, this page will show what you're getting stronger at and what to "
+            "work on next.",
+        )
+    return (
+        "Your student has not completed any graded work in this period, so there is no "
+        "progress to report for this range yet.",
+        "Encourage them to start a session in the app. After one full cycle — a pre-exam, "
+        "some guided practice, and a post-exam — this report will show which skills are "
+        "building and which need more time.",
+    )
+
+
 def _fallback_texts(payload: ReportInterpretationPayload) -> tuple[str, str]:
     parts = []
     if payload.pre_raw_score is not None and payload.post_raw_score is not None:
@@ -403,6 +433,27 @@ async def generate_student_report(
         if stored_range_label != payload.date_range_label:
             raise IdempotencyKeyReusedError(stored_range_label, payload.date_range_label)
         return _result_from_row(replay)
+
+    # D-218: a student with nothing to interpret does not need a model to say so. Walked on
+    # staging 2026-08-07 - a child with zero attempts produced a real, paid generation whose
+    # content was fully determined by "no data". The per-day ceiling and the idempotency key
+    # already bounded the spend; this removes it. Deliberately *after* the replay lookup, so a
+    # student who has since done work is not served a stale no-activity row.
+    if payload.attempts_count == 0 and payload.pre_raw_score is None:
+        interpretation_text, recommendations_text = _no_activity_texts(payload)
+        return await _persist_or_serve_winner(
+            repo=repo,
+            report=StudentReport(
+                student_external_id=student_external_id,
+                audience=payload.audience,
+                verified_facts=evidence,
+                interpretation_text=interpretation_text,
+                recommendations_text=recommendations_text,
+                generated=False,
+                cost_cents=0.0,
+                idempotency_key=idempotency_key,
+            ),
+        )
 
     try:
         reservation = await cost_ledger.reserve(

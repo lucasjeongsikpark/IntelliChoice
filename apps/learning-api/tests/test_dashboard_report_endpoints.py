@@ -166,6 +166,124 @@ def test_report_endpoint_gates_verified_facts_by_caller_role() -> None:
         assert isinstance(body["generated"], bool)
 
 
+def _seed_one_study_attempt(student_id: str) -> str:
+    """D-218 made a zero-attempt report short-circuit past the model, and therefore past the
+    cost ledger. The replay test below is AUD-X-04's *money* assertion, so it has to run on
+    the paid path - which means this student needs something to interpret. One graded attempt
+    is enough; the aggregation itself is `test_dashboard.py`'s job, not this file's.
+
+    Returns the study_session_id so the caller can delete both rows again.
+    """
+
+    async def run() -> str:
+        engine = create_engine()
+        try:
+            async with engine.begin() as conn:
+                variant_id = (
+                    await conn.execute(
+                        text("SELECT question_variant_id FROM question_variants LIMIT 1")
+                    )
+                ).scalar_one()
+                topic_id = (
+                    await conn.execute(text("SELECT topic_id FROM topics LIMIT 1"))
+                ).scalar_one()
+                study_session_id = f"d218-replay-{student_id}"
+                # Idempotent: two tests in this file seed the same subject, and a failure
+                # that skipped a `finally` must not make the next run collide on the key.
+                await conn.execute(
+                    text("DELETE FROM study_attempts WHERE study_session_id = :sid"),
+                    {"sid": study_session_id},
+                )
+                await conn.execute(
+                    text("DELETE FROM study_items WHERE study_session_id = :sid"),
+                    {"sid": study_session_id},
+                )
+                await conn.execute(
+                    text("DELETE FROM study_sessions WHERE study_session_id = :sid"),
+                    {"sid": study_session_id},
+                )
+                await conn.execute(
+                    text(
+                        "INSERT INTO study_sessions (study_session_id, student_external_id, "
+                        "topic_id, target_skill_ids, starting_difficulty, base_problem_count, "
+                        "maximum_attempts_per_skill, intervention_policy, status) "
+                        "VALUES (:sid, :student, :topic, '[]'::json, 2, 5, 4, "
+                        "'{}'::json, 'completed')"
+                    ),
+                    {"sid": study_session_id, "student": student_id, "topic": topic_id},
+                )
+                # The dashboard's study query inner-joins `study_items` on the variant, so an
+                # attempt without a matching item is invisible to `attempts_count`.
+                skill_id = (
+                    await conn.execute(
+                        text(
+                            "SELECT skill_id FROM question_templates t "
+                            "JOIN question_variants v "
+                            "ON v.question_template_id = t.question_template_id "
+                            "WHERE v.question_variant_id = :variant"
+                        ),
+                        {"variant": variant_id},
+                    )
+                ).scalar_one()
+                await conn.execute(
+                    text(
+                        "INSERT INTO study_items (study_item_id, study_session_id, "
+                        "question_variant_id, display_order, target_skill_id, skill_id, "
+                        "difficulty, is_remediation) VALUES (:iid, :sid, :variant, 0, :skill, "
+                        ":skill, 2, false)"
+                    ),
+                    {
+                        "iid": f"d218-replay-item-{student_id}",
+                        "sid": study_session_id,
+                        "variant": variant_id,
+                        "skill": skill_id,
+                    },
+                )
+                await conn.execute(
+                    text(
+                        "INSERT INTO study_attempts (attempt_id, student_external_id, "
+                        "study_session_id, question_variant_id, selected_option, is_correct, "
+                        "hint_used, video_used, solution_used, retry_count, outcome_label, "
+                        "tutor_review_flagged) VALUES (:aid, :student, :sid, :variant, 'a', true, "
+                        "false, false, false, 0, 'independent_correct', false)"
+                    ),
+                    {
+                        "aid": f"d218-replay-attempt-{student_id}",
+                        "student": student_id,
+                        "sid": study_session_id,
+                        "variant": variant_id,
+                    },
+                )
+                return str(study_session_id)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(run())
+
+
+def _clear_seeded_study_attempt(study_session_id: str) -> None:
+    async def run() -> None:
+        engine = create_engine()
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text("DELETE FROM study_attempts WHERE study_session_id = :sid"),
+                    {"sid": study_session_id},
+                )
+                await conn.execute(
+                    text("DELETE FROM study_items WHERE study_session_id = :sid"),
+                    {"sid": study_session_id},
+                )
+                await conn.execute(
+                    text("DELETE FROM study_sessions WHERE study_session_id = :sid"),
+                    {"sid": study_session_id},
+                )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
+
+
 def test_the_report_route_consults_this_students_spend_ledger() -> None:
     """S42/AUD-X-08 wiring: the route reads *this student's* ledger spend, and another
     student's spend does not deny them a report. The ceiling's own behaviour and its
@@ -233,6 +351,7 @@ def test_the_report_route_consults_this_students_spend_ledger() -> None:
         return resp.json()
 
     asyncio.run(clear())
+    seeded_study_session = _seed_one_study_attempt(subject)
     try:
         # Another student's spend must not deny this one a report.
         asyncio.run(seed(unrelated, DAILY_REPORT_COST_CEILING_CENTS))
@@ -242,6 +361,7 @@ def test_the_report_route_consults_this_students_spend_ledger() -> None:
         asyncio.run(seed(subject, DAILY_REPORT_COST_CEILING_CENTS))
         assert request_report("ledger-own-spend")["generated"] is False
     finally:
+        _clear_seeded_study_attempt(seeded_study_session)
         asyncio.run(clear())
 
 
@@ -336,6 +456,7 @@ def test_a_replayed_report_request_pays_once_and_serves_the_stored_report() -> N
     token = _token(subject, Role.STUDENT)
     _clear_report_reservations(subject)
     _clear_reports_with_key_prefix(subject, "report-key-")
+    seeded_study_session = _seed_one_study_attempt(subject)
     try:
         rows_before = _report_row_count(subject)
         reservations_before = _report_reservation_count(subject)
@@ -368,6 +489,7 @@ def test_a_replayed_report_request_pays_once_and_serves_the_stored_report() -> N
             assert _report_row_count(subject) == rows_before + 2
             assert _report_reservation_count(subject) == reservations_before + 2
     finally:
+        _clear_seeded_study_attempt(seeded_study_session)
         _clear_report_reservations(subject)
         _clear_reports_with_key_prefix(subject, "report-key-")
 

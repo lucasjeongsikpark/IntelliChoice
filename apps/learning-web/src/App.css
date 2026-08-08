@@ -1133,16 +1133,34 @@ ul {
   flex-wrap: wrap;
 }
 
+/* D-218: the exam panel carries `tabIndex={-1}` so focus can be put back inside it after the
+   stage-transition overlay closes or a submit unmounts the focused option - without that,
+   focus lands on `<body>` and the `1`-`4`/Enter shortcuts stop working. It is never a tab
+   stop, so WCAG 2.4.7's visible-focus requirement (which is about *user-navigable*
+   components) does not apply, and a ring around the whole panel after every answer would be
+   noise. The live region is what announces the change. */
+.panel.wide:focus {
+  outline: none;
+}
+
+/* D-218: the *unselected* chips are what needed styling. `.selected` already set
+   `background: var(--accent)` - which is the colour the base button style already is, so all
+   four rendered identically and only a screen reader (`aria-pressed`) could tell which range
+   was active. Measured on staging 2026-08-07: all four computed to rgb(124, 200, 128). */
 .date-range-controls button {
   width: auto;
   margin-top: 0;
   padding: 8px 14px;
   font-size: 13px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
 }
 
 .date-range-controls button.selected {
   background: var(--accent);
   color: var(--accent-contrast);
+  border-color: var(--accent);
 }
 
 .chart-section {
