@@ -330,9 +330,9 @@ Two things do *not* have to be filled in, and treating them as targets would cos
 
 ## 10. State
 
-The bank holds **102 approved authored items** — 47 `linear_equations`, 30
-`fraction_operations` (15 in D-222, 15 more in D-223) and 25 `place_value` (D-225), so every topic
-in the taxonomy is stocked. **That is now the whole bank**: D-226 deleted the 50 hand-authored
+The bank holds **127 approved authored items** — 47 `linear_equations`, 30 `fraction_operations`
+(15 in D-222, 15 more in D-223), 25 `place_value` (D-225) and 25 `multiplication_division`
+(D-228) — so every topic in the taxonomy is stocked and grades 1-7 all resolve to one. **That is now the whole bank**: D-226 deleted the 50 hand-authored
 shape templates and the machinery behind them, which `_servable()` had filtered out of every serving
 read since D-210. Fifty inert `authoring_mode='shape'` rows remain in databases that already loaded
 them; nothing reads them. Twelve authored

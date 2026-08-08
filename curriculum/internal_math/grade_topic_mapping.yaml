@@ -15,20 +15,23 @@
 # D-227 added "2-3", because grade 3 was in no populated band and was therefore recommended
 # nothing while every topic in the taxonomy was stocked. §5.7.3 calls that band "Multi-digit
 # operations, multiplication foundations", and `place_value` - identifying and comparing
-# digits in multi-digit whole numbers - is the first half of it.
+# digits in multi-digit whole numbers - is only the first half of it.
 #
-# **The second half is missing, and that is the real finding.** Kumon's grade-3 math
-# workbooks (the reference the user named) are addition/subtraction, multiplication,
-# division, geometry and word problems; fractions do not appear until grade 4, and even
-# there only with *like* denominators. So grade 3 must not be pointed at
-# `fraction_operations`, whose harder half is grade-5 work by that measure - and what a
-# grade-3 student should actually be studying, multiplication and division, is a topic this
-# taxonomy does not have. Mapping the band to `place_value` gives them something rather
-# than nothing. See D-227.
+# D-228 authored the second half. `multiplication_division` is listed first because it is
+# what a grade-3 student's own year is about: Kumon's grade-3 math workbooks (the reference
+# the user named) carry multiplication and division as separate books, and fractions do not
+# appear until grade 4 - and even there only with *like* denominators, which is why grade 3
+# must still not be pointed at `fraction_operations`.
+#
+# **Do not add a "3-4" band.** The §5.7.3 bands overlap and `topics_for_grade` returns the
+# *first* match, so a "3-4" key placed above "4-5" would take grade 4 away from
+# `fraction_operations`, and placed below it would never be reached by grade 3. Pinned by
+# `test_adding_a_band_never_steals_a_grade_from_an_existing_one`.
 grade_topic_candidates:
   "1-2":
     - place_value
   "2-3":
+    - multiplication_division
     - place_value
   "4-5":
     - fraction_operations

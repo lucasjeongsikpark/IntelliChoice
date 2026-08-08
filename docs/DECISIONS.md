@@ -16415,3 +16415,62 @@ populated bands is inside the range this product serves and still gets nothing. 
 computes the covered range from the file and fails on any gap inside it — verified failing against
 the old mapping with `grades [3] sit inside the range this taxonomy serves (1-7)`. It also catches
 the `1-3` mistake above, for the same reason.
+
+## D-228 — the multiplication/division topic, and the band-ordering trap it had to avoid (accepted, 2026-08-08)
+
+The pointer's top item, and the last real hole in the K-7 span this product serves. D-227 established
+the need: Kumon's grade-3 workbooks are addition/subtraction, multiplication, division, geometry and
+word problems, and §5.7.3 independently calls the 2-3 band *"Multi-digit operations, multiplication
+foundations"* — of which `place_value` was only the first half.
+
+**25 hand-authored items, 0 of 25 failing the §5.8.5 gate on the first run**, five per tier.
+
+| skill | d1 | d2 | d3 | d4 | d5 | total |
+|---|---|---|---|---|---|---|
+| `mult_facts` | 4 | 3 | 0 | 0 | 0 | 7 |
+| `mult_multi_digit` | 0 | 0 | 3 | 1 | 1 | 5 |
+| `div_basic` | 1 | 2 | 2 | 1 | 1 | 7 |
+| `div_remainder` | 0 | 0 | 0 | 3 | 3 | 6 |
+
+### The prerequisite graph is a fork, not a chain
+
+`mult_multi_digit` and `div_basic` both take `mult_facts` and neither takes the other: dividing
+within 100 is the inverse of the facts, and needing multi-digit *multiplication* first would be a
+made-up dependency. The other three topics are single chains because their content genuinely is one;
+this one is not, and `prerequisites.yaml` supports it because the edges are per-skill.
+
+### The trap: band order is load-bearing
+
+The obvious way to give grade 3 a topic is a new `3-4` band — §5.7.3 has one, and it reads
+"Multiplication, division, remainders, fractions". **It would have taken grade 4 away from
+`fraction_operations`.** §5.7.3's bands overlap by design and `topics_for_grade` returns the *first*
+match, so a `3-4` key above `4-5` captures grade 4, and below it is never reached by grade 3 (which
+matches `2-3` first). Same class as D-227's `1-3` mistake, one level up: there the failure was a
+grade *dropped*, here it would have been a grade *stolen*.
+
+So the topic joins the already-populated `2-3` band, listed **before** `place_value` because a
+grade-3 student's own year is multiplication and division. Pinned by
+`test_adding_a_band_never_steals_a_grade_from_an_existing_one`, written per *grade* rather than per
+band — the failure is a grade resolving to the wrong topic, and a band-shaped assertion would not
+show it.
+
+### A count assertion replaced rather than incremented
+
+`test_topics_endpoint.py` asserted `len(topics) == 3`. Bumping it to 4 would have preserved the
+same defect it had at 3: the property is "the picker lists *every* topic", not "the picker lists
+three". It now compares against `load_curriculum().topic_ids()`, so the next topic extends it
+instead of breaking it. This is the third time in six sessions that a literal count coupled a
+contract to how much content exists (D-187, D-190, and here).
+
+### Verified live
+
+Grade-3 `STUDENT_ONLY_CHILD` sees `multiplication_division` and `place_value` both
+`recommended_for_grade=True`, in that order, and a real 10-item pre-exam was built and served.
+The exam was built by the grade-4 student for the same fixture reason D-225 recorded — the grade-3
+fixture's attendance is *present*, but this keeps the two drives comparable.
+
+### What this does not do
+
+The items are hand-authored: deterministic gate, no two-solver/judge panel (D-211). And the K-12
+span is now continuous from grade 1 to grade 7 but stops there — grades 8-12 have no topic, which is
+scope rather than a gap.

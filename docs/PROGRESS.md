@@ -7,28 +7,22 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Pointer items 3 and the content half of 4 are closed (D-223).** The shape half of the §5.8.5 gate
-no longer over-rejects — measured in both directions, 2.36% of the paid pipeline's population down
-to 0 with the positive controls going 5/6 → 6/6 — and `fraction_operations` is 30 items instead of
-15. **Verified live in staging**, not merely deployed: as a signed-in grade-4 student
-`fraction_operations` reports `available=True, recommended_for_grade=True`, `linear_equations` is
-still `available=True` (the D-222 retirement bug did not bite), and a real pre-exam built 10 items
-of which **4 were authored this session**. No numbered ROADMAP session is queued; integration
-(S43+) stays deliberately deferred (D-152) until the user starts it. In rough order of value:
+**The content track is done for the grades this product serves (D-228).** Four topics, **127
+authored items**, and grades 1 through 7 all resolve to a stocked topic — `multiplication_division`
+was the last hole, and it closed the one D-227 named. Every one of the 127 went through the
+deterministic §5.8.5 gate; none went through a two-solver/judge panel (D-211), so this is content
+rather than calibrated content. No numbered ROADMAP session is queued; integration (S43+) stays
+deliberately deferred (D-152) until the user starts it.
+
+What is left is no longer content. In rough order of value:
 
 1. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-2. **The taxonomy has no multiplication/division topic**, which is what a grade-3 student should
-   actually be studying (D-227). Grade 3 no longer gets nothing — the `2-3` band is populated with
-   `place_value` — but that is a labelled stopgap. Kumon's grade-3 workbooks are
-   addition/subtraction, multiplication, division, geometry and word problems, and §5.7.3 calls the
-   same band "Multi-digit operations, multiplication foundations"; `place_value` is only its first
-   half. Authoring that topic closes the last real hole in the K-7 span this product serves.
-3. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+2. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-4. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+3. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under
@@ -51,6 +45,33 @@ both directions, no database) and `scripts/measure_access_probe_rules.py --load 
 replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D-226. **Do not
 retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
 measured zero wrong tiers live.
+
+### Session log — the multiplication/division topic, and a band that would have stolen grade 4 (2026-08-08, D-228)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1027 passed, 2 skipped, 1 xfailed** ·
+**0 of 25 items failing the §5.8.5 gate on the first run** · bank exported and the parity test
+green · driven live · full write-up in DECISIONS.md **D-228**.
+
+**The last real hole in the K-7 span is closed.** A new `multiplication_division` topic with four
+skills — `mult_facts`, `mult_multi_digit`, `div_basic`, `div_remainder` — and 25 items, five per
+tier. The prerequisite graph is a **fork, not a chain**: multi-digit multiplication and dividing
+within 100 both take the facts and neither takes the other, because dividing is the inverse of the
+facts and needing multi-digit multiplication first would be an invented dependency.
+
+**The obvious implementation would have stolen grade 4.** §5.7.3 has a `3-4` band that reads
+"Multiplication, division, remainders, fractions" — and adding it above `4-5` captures grade 4 away
+from `fraction_operations`, while adding it below is never reached by grade 3 (which matches `2-3`
+first). Band order is load-bearing because the bands overlap and `topics_for_grade` returns the
+first match. Same class as D-227's `1-3` mistake one level up: there a grade was *dropped*, here one
+would have been *stolen*. The topic joined the populated `2-3` band instead, listed first.
+
+**A count assertion replaced rather than incremented.** `len(topics) == 3` would have kept its
+defect at 4 — the property is "the picker lists *every* topic". It now compares against
+`topic_ids()`. Third time in six sessions a literal count coupled a contract to how much content
+exists (D-187, D-190, here).
+
+**Carry-over:** grades 8-12 have no topic, which is scope rather than a gap; and these 25 items,
+like the other 102, went through the deterministic gate but no solver/judge panel (D-211).
 
 ### Session log — grade 3 was stranded, and the first test for it guarded nothing (2026-08-08, D-227)
 
