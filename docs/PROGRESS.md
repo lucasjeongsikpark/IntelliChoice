@@ -20,11 +20,16 @@ of which **4 were authored this session**. No numbered ROADMAP session is queued
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-2. **Does the shape bank still deserve to exist?** D-223 made its gate correct without asking this.
-   Fifty templates load into every environment and `_servable()` filters every one of them out of
-   every serving read (D-210); the only thing that still *runs* them is `ai_pipeline`, which builds
-   generated items from shapes. So the answer is not an obvious "delete" — it is a real question
-   about whether the paid pipeline's shape-based route is the one to keep. Decide it deliberately.
+2. **Should *any* of the shape apparatus remain — the bank, the machinery, or the route?**
+   Half-answered by D-224, which found the thing the question did not anticipate: the pipeline's
+   shape mode wrote rows `_servable()` filters out, because `generate_candidate` never set
+   `authoring_mode` and the column defaults to `"shape"`. That mode now refuses and the default
+   flipped to `authored`, so nothing can spend on it — but the 50 templates, `SHAPES`,
+   `generate_variant` and the route itself are all still there, deliberately. **0 servable
+   templates take the generated rendering path**, so `build_variant_row`'s generate branch and
+   `SHAPE_HINT_LADDERS` are unreachable *today* — though not by construction, since six retired
+   rows are authored-mode carrying a real shape. Deleting is a product call about whether the
+   parameterized-template design the SPEC still describes is coming back. The evidence is in D-224.
 3. **`place_value` is still dormant.** The K-3 band has no topic at all. Against that,
    `fraction_operations` and `linear_equations` are now both comfortably stocked, so a third topic
    is finally the better marginal item — the reverse of D-222's ranking, because the thinness that
@@ -54,6 +59,32 @@ the shape half in both directions for free — run it before and after, not only
 and `scripts/measure_access_probe_rules.py --load ... --shipped` (free replay of the probe).
 **Do not retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and
 D-220 measured zero wrong tiers live.
+
+### Session log — the pipeline's default mode could not produce a servable item (2026-08-08, D-224)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · full suite green · the new guard test watched
+failing against the pre-fix CLI · the chain confirmed against the database (**0 servable templates
+take the generated rendering path**) · full write-up in DECISIONS.md **D-224**.
+
+**Answering the pointer's own question turned up something bigger than the question.** It asked
+whether the 50-template shape *bank* should still exist. The chain underneath: `generate_candidate`
+persists without setting `authoring_mode`; the column defaults to `"shape"`; `_servable()` requires
+`"authored"` (D-210). So the pipeline's **shape mode — the CLI default, behind the unqualified
+`make question-gen-run`** — paid for a generator call, two solvers and three reviewers per candidate
+to write rows that no serving read can return.
+
+`--mode shape` now refuses before any setting is read or connection opened, and the default flipped
+to `authored` — a default nobody passes explicitly is how this stayed unnoticed. **Nothing was
+deleted**: the bank, the machinery and the route stay, because removing them is a product call about
+whether the parameterized-template design the SPEC still describes is coming back.
+
+**And it re-reads D-223, one day earlier.** That entry fixed a 2.36% false-rejection rate in the
+gate this route runs and called it a cost bug. True — and it was an efficiency fix to a route whose
+*every* output is unservable. Same file, same day; the difference is that D-223 asked "is this check
+correct?" and this asked "who consumes what this produces?"
+
+**Carry-over:** whether any of the shape apparatus should remain, now a clean question with evidence
+attached (pointer item 2).
 
 ### Session log — one gate, two copies, and every fix on only one of them (2026-08-08, D-223)
 

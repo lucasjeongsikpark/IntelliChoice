@@ -30,6 +30,11 @@ curriculum-load:
 #     --seed-offset 40000 --run-budget-cents 100"
 QUESTION_GEN_ARGS ?=
 
+# D-224: this used to be the unqualified "run the generator" target *and* to default to
+# --mode shape, whose output `_servable()` filters out of every serving read (D-210) - so
+# the obvious target was the one that could only waste money. It now runs the authored
+# mode, which is what every servable item in the bank came through; `question-gen-authored`
+# below is kept as the explicit name.
 question-gen-run:
 	uv run python -m intellichoice_curriculum.pipeline_cli $(QUESTION_GEN_ARGS)
 
