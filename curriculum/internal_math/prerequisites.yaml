@@ -26,3 +26,15 @@ prerequisites:
 
   - skill_id: place_value_compare
     prerequisite_skill_id: place_value_identify
+
+  # multiplication_division (D-228). Two branches off the facts rather than one chain:
+  # dividing within 100 uses the inverse of multiplication, so it needs the facts, but it
+  # does not need multi-digit multiplication first.
+  - skill_id: mult_multi_digit
+    prerequisite_skill_id: mult_facts
+
+  - skill_id: div_basic
+    prerequisite_skill_id: mult_facts
+
+  - skill_id: div_remainder
+    prerequisite_skill_id: div_basic

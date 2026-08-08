@@ -18,6 +18,7 @@ from intellichoice_adapters.seed.mysql_fixtures import (
     STUDENT_UNLINKED,
     seed,
 )
+from intellichoice_curriculum.content import load_curriculum
 from intellichoice_curriculum.loader import load_curriculum_and_templates
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_shared.auth import Audience, Role
@@ -131,11 +132,14 @@ def test_the_topic_list_reflects_the_bank_and_never_recommends_an_empty_topic() 
     # Authored in D-222, and this student's own grade band names it.
     assert topics["fraction_operations"]["available"] is True
     assert topics["fraction_operations"]["recommended_for_grade"] is True
-    # D-225: stocked, but band 1-2, so available to browse and not recommended to *this*
-    # student. The pair matters - "available" is a fact about the bank, "recommended" is a
-    # fact about the student, and conflating them is what D-185 found.
+    # D-225/D-228: both stocked, both outside this student's band, so both are available to
+    # browse and neither is recommended. The pair matters - "available" is a fact about the
+    # bank, "recommended" is a fact about the student, and conflating them is what D-185
+    # found.
     assert topics["place_value"]["available"] is True
     assert topics["place_value"]["recommended_for_grade"] is False
+    assert topics["multiplication_division"]["available"] is True
+    assert topics["multiplication_division"]["recommended_for_grade"] is False
     for topic in topics.values():
         assert not (topic["recommended_for_grade"] and not topic["available"])
     # Exactly one topic is recommended to a grade-4 student, and it is the one their band
@@ -143,8 +147,9 @@ def test_the_topic_list_reflects_the_bank_and_never_recommends_an_empty_topic() 
     recommended = [t for t, v in topics.items() if v["recommended_for_grade"]]
     assert recommended == ["fraction_operations"]
     # Every topic is still listed - "your grade has no stocked topic" must not read as
-    # "there is nothing to study".
-    assert len(topics) == 3
+    # "there is nothing to study". Asserted against the taxonomy rather than a literal
+    # (D-228 made it 4): the invariant is "all of them", not "three of them".
+    assert set(topics) == load_curriculum().topic_ids()
 
 
 def test_a_parent_cannot_read_the_topic_list_of_a_child_it_is_not_linked_to() -> None:

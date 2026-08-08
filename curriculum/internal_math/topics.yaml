@@ -19,6 +19,13 @@ topics:
       Adding, subtracting, multiplying, and dividing fractions, including unlike
       denominators and mixed numbers.
 
+  - topic_id: multiplication_division
+    name: "Multiplication and Division"
+    grade_band: "2-3"
+    description: >
+      Multiplication facts, multiplying multi-digit numbers by a one-digit number,
+      dividing using the inverse of multiplication, and division with remainders.
+
   - topic_id: place_value
     name: "Place Value"
     grade_band: "1-2"

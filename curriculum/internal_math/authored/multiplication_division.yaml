@@ -1,0 +1,1069 @@
+curriculum_version: '2026.1'
+topic_id: multiplication_division
+templates:
+- question_template_id: authored-multiplication_division-d1-300105
+  topic_id: multiplication_division
+  skill_id: div_basic
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Subtracted instead of sharing equally
+  - Answered with the number of friends
+  - Shared the wrong total
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Sam shares 10 grapes equally between 2 friends. How many grapes does each friend get?
+  context_block: null
+  answer_expression: Eq(2*x, 10)
+  hint_ladder:
+  - Sharing equally means both friends end up with the same amount.
+  - Two equal shares together make the whole ten grapes.
+  - Find the number that, counted twice, makes ten.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Two friends share, so the grapes split into two equal parts.
+      expression: 10 split into 2 equal parts
+      common_mistake: Taking 2 grapes away from 10
+    - step_number: 2
+      explanation: Find what number added to itself makes ten.
+      expression: 5 and 5 make 10
+      common_mistake: null
+    final_answer: '5'
+  random_seed: 300105
+  rendered_question: Sam shares 10 grapes equally between 2 friends. How many grapes does each friend
+    get?
+  option_a: '5'
+  option_b: '8'
+  option_c: '2'
+  option_d: '20'
+  correct_option: a
+- question_template_id: authored-multiplication_division-d2-300203
+  topic_id: multiplication_division
+  skill_id: div_basic
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 55
+  common_error_tags:
+  - Subtracted instead of sharing equally
+  - Answered with the number of tables
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A teacher seats 24 students equally at 4 tables. How many students sit at each table?
+  context_block: null
+  answer_expression: Eq(4*x, 24)
+  hint_ladder:
+  - Seating them equally means every table gets the same number of students.
+  - Four equal groups together make the whole class of twenty-four.
+  - Find the number that, counted four times, makes twenty-four.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Four tables share the class, so it splits into four equal groups.
+      expression: 24 split into 4 equal groups
+      common_mistake: Taking 4 away from 24
+    - step_number: 2
+      explanation: Use the times table backwards. Which number times four makes twenty-four?
+      expression: 4 x ? = 24
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 300203
+  rendered_question: A teacher seats 24 students equally at 4 tables. How many students sit at each table?
+  option_a: '20'
+  option_b: '4'
+  option_c: '8'
+  option_d: '6'
+  correct_option: d
+- question_template_id: authored-multiplication_division-d2-300204
+  topic_id: multiplication_division
+  skill_id: div_basic
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 55
+  common_error_tags:
+  - Answered with the number in each bunch instead of the number of bunches
+  - Subtracted instead of grouping
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A florist ties 35 roses into bunches of 5. How many bunches does the florist make?
+  context_block: null
+  answer_expression: Eq(5*x, 35)
+  hint_ladder:
+  - The question asks how many bunches are made, not how many roses are in one.
+  - Each bunch takes five roses away from the pile, and the pile runs out exactly.
+  - Count by fives until you reach thirty-five, keeping track of how many counts that takes.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Every bunch is a group of five roses.
+      expression: 35 grouped into fives
+      common_mistake: Answering with the size of a bunch
+    - step_number: 2
+      explanation: Count by fives and keep track of how many counts it takes.
+      expression: 5, 10, 15, 20, 25, 30, 35
+      common_mistake: null
+    final_answer: '7'
+  random_seed: 300204
+  rendered_question: A florist ties 35 roses into bunches of 5. How many bunches does the florist make?
+  option_a: '7'
+  option_b: '5'
+  option_c: '30'
+  option_d: '8'
+  correct_option: a
+- question_template_id: authored-multiplication_division-d3-300303
+  topic_id: multiplication_division
+  skill_id: div_basic
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Answered with the size of a group instead of the number of groups
+  - Subtracted instead of grouping
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A baker packs 63 rolls into bags of 9. Every bag is filled completely. How many bags does the
+    baker fill?
+  context_block: null
+  answer_expression: Eq(9*x, 63)
+  hint_ladder:
+  - The question asks how many bags there are, not how many rolls are in one.
+  - Every bag takes nine rolls, and the rolls run out exactly.
+  - Use the nine times table backwards to find how many nines make sixty-three.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Every bag is a group of nine rolls.
+      expression: 63 grouped into nines
+      common_mistake: Answering with the size of a bag
+    - step_number: 2
+      explanation: Use the times table backwards. Which number times nine makes sixty-three?
+      expression: 9 x ? = 63
+      common_mistake: null
+    final_answer: '7'
+  random_seed: 300303
+  rendered_question: A baker packs 63 rolls into bags of 9. Every bag is filled completely. How many bags
+    does the baker fill?
+  option_a: '9'
+  option_b: '7'
+  option_c: '8'
+  option_d: '54'
+  correct_option: b
+- question_template_id: authored-multiplication_division-d3-300304
+  topic_id: multiplication_division
+  skill_id: div_basic
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Answered with the number of shelves instead of the books on each
+  - Subtracted instead of sharing equally
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A librarian spreads 72 books equally across 8 shelves. How many books go on each shelf?
+  context_block: null
+  answer_expression: Eq(8*x, 72)
+  hint_ladder:
+  - Spreading them equally means every shelf ends up with the same number.
+  - Eight equal groups together make the whole seventy-two books.
+  - Use the eight times table backwards to find what number times eight makes seventy-two.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Eight shelves share the books, so they split into eight equal groups.
+      expression: 72 split into 8 equal groups
+      common_mistake: Taking 8 away from 72
+    - step_number: 2
+      explanation: Use the times table backwards.
+      expression: 8 x ? = 72
+      common_mistake: Answering with the number of shelves
+    final_answer: '9'
+  random_seed: 300304
+  rendered_question: A librarian spreads 72 books equally across 8 shelves. How many books go on each
+    shelf?
+  option_a: '64'
+  option_b: '8'
+  option_c: '9'
+  option_d: '7'
+  correct_option: c
+- question_template_id: authored-multiplication_division-d4-300405
+  topic_id: multiplication_division
+  skill_id: div_basic
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Answered with the number of vans instead of the seats in each
+  - Subtracted instead of sharing equally
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A trip organiser seats 96 people equally into 8 vans. Every van ends up with the same number of
+    people. How many people travel in each van?
+  context_block: null
+  answer_expression: Eq(8*x, 96)
+  hint_ladder:
+  - Seating them equally means every van ends up with the same number.
+  - Eight equal groups together make the whole ninety-six people.
+  - Ninety-six is more than ten eights, so start from eighty and work up.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Eight vans share the group, so it splits into eight equal parts.
+      expression: 96 split into 8 equal groups
+      common_mistake: Taking 8 away from 96
+    - step_number: 2
+      explanation: Ten vans would hold eighty, so try counting on from there.
+      expression: 8 x 10 = 80, and 8 x 12 = 96
+      common_mistake: Answering with the number of vans
+    final_answer: '12'
+  random_seed: 300405
+  rendered_question: A trip organiser seats 96 people equally into 8 vans. Every van ends up with the
+    same number of people. How many people travel in each van?
+  option_a: '12'
+  option_b: '8'
+  option_c: '11'
+  option_d: '88'
+  correct_option: a
+- question_template_id: authored-multiplication_division-d5-300504
+  topic_id: multiplication_division
+  skill_id: div_basic
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Answered with the number of crates instead of the apples in each
+  - Divided by the wrong number
+  - Subtracted instead of sharing equally
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A grower fills 144 apples equally into 12 crates. Every crate holds the same number of apples.
+    How many apples go into each crate?
+  context_block: null
+  answer_expression: Eq(12*x, 144)
+  hint_ladder:
+  - Filling them equally means every crate ends up with the same number.
+  - Twelve equal groups together make the whole hundred and forty-four apples.
+  - Ten crates would hold a hundred and twenty, so count on from there.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Twelve crates share the apples, so they split into twelve equal groups.
+      expression: 144 split into 12 equal groups
+      common_mistake: Taking 12 away from 144
+    - step_number: 2
+      explanation: Ten crates would hold a hundred and twenty, so try counting on.
+      expression: 12 x 10 = 120, and 12 x 12 = 144
+      common_mistake: Answering with the number of crates
+    final_answer: '12'
+  random_seed: 300504
+  rendered_question: A grower fills 144 apples equally into 12 crates. Every crate holds the same number
+    of apples. How many apples go into each crate?
+  option_a: '11'
+  option_b: '14'
+  option_c: '132'
+  option_d: '12'
+  correct_option: d
+- question_template_id: authored-multiplication_division-d4-300401
+  topic_id: multiplication_division
+  skill_id: div_remainder
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Counted the leftover as a full group
+  - Answered with the leftover instead of the number of full groups
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A teacher packs 29 pencils into cases of 6. After filling as many cases as possible she has 5
+    pencils left over. How many cases did the teacher fill?
+  context_block: null
+  answer_expression: Eq(6*x + 5, 29)
+  hint_ladder:
+  - The leftover pencils were not enough to fill another case.
+  - Take the leftover away first, so what remains divides exactly into cases.
+  - Once the leftover is set aside, count how many sixes make up the rest.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set the five leftover pencils aside first.
+      expression: 29 - 5 = 24
+      common_mistake: Counting the leftover as another case
+    - step_number: 2
+      explanation: What is left divides exactly into cases of six.
+      expression: 6 x ? = 24
+      common_mistake: Answering with the leftover
+    final_answer: '4'
+  random_seed: 300401
+  rendered_question: A teacher packs 29 pencils into cases of 6. After filling as many cases as possible
+    she has 5 pencils left over. How many cases did the teacher fill?
+  option_a: '4'
+  option_b: '5'
+  option_c: '6'
+  option_d: '24'
+  correct_option: a
+- question_template_id: authored-multiplication_division-d4-300402
+  topic_id: multiplication_division
+  skill_id: div_remainder
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Answered with the number of full boxes instead of the leftover
+  - Counted the leftover as a full box
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A gardener has 38 bulbs and plants them in beds of 7. He fills 5 beds completely. How many bulbs
+    are left over after those beds are planted?
+  context_block: null
+  answer_expression: Eq(7*5 + x, 38)
+  hint_ladder:
+  - The question asks about the bulbs that did not fit into a full bed.
+  - Work out how many bulbs the five full beds used up between them.
+  - Take that amount away from the bulbs the gardener started with.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Five beds of seven bulbs each use up thirty-five bulbs.
+      expression: 5 x 7 = 35
+      common_mistake: Answering with the number of beds
+    - step_number: 2
+      explanation: Take that away from the bulbs he started with.
+      expression: 38 - 35
+      common_mistake: null
+    final_answer: '3'
+  random_seed: 300402
+  rendered_question: A gardener has 38 bulbs and plants them in beds of 7. He fills 5 beds completely.
+    How many bulbs are left over after those beds are planted?
+  option_a: '5'
+  option_b: '3'
+  option_c: '7'
+  option_d: '35'
+  correct_option: b
+- question_template_id: authored-multiplication_division-d4-300404
+  topic_id: multiplication_division
+  skill_id: div_remainder
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Counted the leftover as a full group
+  - Answered with the leftover instead of the number of full groups
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A club has 50 badges to share into sets of 8. After making as many complete sets as possible there
+    are 2 badges left over. How many complete sets did the club make?
+  context_block: null
+  answer_expression: Eq(8*x + 2, 50)
+  hint_ladder:
+  - The two leftover badges were not enough to make another complete set.
+  - Take the leftover away first, so what remains divides exactly into sets.
+  - Once the leftover is set aside, count how many eights make up the rest.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set the two leftover badges aside first.
+      expression: 50 - 2 = 48
+      common_mistake: Counting the leftover as another set
+    - step_number: 2
+      explanation: What is left divides exactly into sets of eight.
+      expression: 8 x ? = 48
+      common_mistake: Answering with the leftover
+    final_answer: '6'
+  random_seed: 300404
+  rendered_question: A club has 50 badges to share into sets of 8. After making as many complete sets
+    as possible there are 2 badges left over. How many complete sets did the club make?
+  option_a: '8'
+  option_b: '2'
+  option_c: '7'
+  option_d: '6'
+  correct_option: d
+- question_template_id: authored-multiplication_division-d5-300501
+  topic_id: multiplication_division
+  skill_id: div_remainder
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Answered with the number of full coaches instead of the number needed
+  - Ignored the students left over
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A school takes 100 students on a trip. Each coach seats 30 students. Three coaches are filled
+    completely and the rest of the students need one more coach. How many students travel on that last
+    coach?
+  context_block: null
+  answer_expression: Eq(30*3 + x, 100)
+  hint_ladder:
+  - The last coach carries only the students who did not fit on the full ones.
+  - Work out how many students the three full coaches carry between them.
+  - Take that amount away from the whole group going on the trip.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Three full coaches of thirty students each carry ninety students.
+      expression: 3 x 30 = 90
+      common_mistake: Answering with the number of coaches
+    - step_number: 2
+      explanation: Take that away from the whole group.
+      expression: 100 - 90
+      common_mistake: Forgetting the students left over
+    final_answer: '10'
+  random_seed: 300501
+  rendered_question: A school takes 100 students on a trip. Each coach seats 30 students. Three coaches
+    are filled completely and the rest of the students need one more coach. How many students travel on
+    that last coach?
+  option_a: '30'
+  option_b: '10'
+  option_c: '4'
+  option_d: '90'
+  correct_option: b
+- question_template_id: authored-multiplication_division-d5-300502
+  topic_id: multiplication_division
+  skill_id: div_remainder
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Counted the leftover as a full tray
+  - Answered with the leftover instead of the number of full trays
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A cafe bakes 87 cookies and arranges them on trays of 12. After filling as many trays as possible
+    there are 3 cookies left over. How many trays were filled completely?
+  context_block: null
+  answer_expression: Eq(12*x + 3, 87)
+  hint_ladder:
+  - The three leftover cookies were not enough to fill another tray.
+  - Take the leftover away first, so what remains divides exactly into trays.
+  - Once the leftover is set aside, count how many twelves make up the rest.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set the three leftover cookies aside first.
+      expression: 87 - 3 = 84
+      common_mistake: Counting the leftover as another tray
+    - step_number: 2
+      explanation: What is left divides exactly into trays of twelve.
+      expression: 12 x ? = 84
+      common_mistake: Answering with the leftover
+    final_answer: '7'
+  random_seed: 300502
+  rendered_question: A cafe bakes 87 cookies and arranges them on trays of 12. After filling as many trays
+    as possible there are 3 cookies left over. How many trays were filled completely?
+  option_a: '12'
+  option_b: '8'
+  option_c: '7'
+  option_d: '3'
+  correct_option: c
+- question_template_id: authored-multiplication_division-d5-300505
+  topic_id: multiplication_division
+  skill_id: div_remainder
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Answered with the number of full rows instead of the plants left over
+  - Counted the leftover as a full row
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A nursery has 115 plants and sets them out in rows of 15. Seven rows are completed. How many plants
+    are left after those rows are set out?
+  context_block: null
+  answer_expression: Eq(15*7 + x, 115)
+  hint_ladder:
+  - The question asks about the plants that did not fill a whole row.
+  - Work out how many plants the seven completed rows used up between them.
+  - Take that amount away from the plants the nursery started with.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Seven rows of fifteen plants each use up a hundred and five plants.
+      expression: 7 x 15 = 105
+      common_mistake: Answering with the number of rows
+    - step_number: 2
+      explanation: Take that away from the plants the nursery started with.
+      expression: 115 - 105
+      common_mistake: null
+    final_answer: '10'
+  random_seed: 300505
+  rendered_question: A nursery has 115 plants and sets them out in rows of 15. Seven rows are completed.
+    How many plants are left after those rows are set out?
+  option_a: '10'
+  option_b: '7'
+  option_c: '15'
+  option_d: '105'
+  correct_option: a
+- question_template_id: authored-multiplication_division-d1-300101
+  topic_id: multiplication_division
+  skill_id: mult_facts
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Added the two numbers instead of multiplying them
+  - Counted only one group
+  - Counted the groups instead of the items
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Leo puts 4 stickers on each page of his book. He fills 3 pages. How many stickers has Leo used
+    altogether?
+  context_block: null
+  answer_expression: Eq(x, 3*4)
+  hint_ladder:
+  - Every page holds the same number of stickers, so the pages are equal groups.
+  - Three equal groups of four can be counted by adding four three times.
+  - Multiplying is the quicker way to count equal groups.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: There are three pages, and each page is one equal group of four.
+      expression: 3 groups of 4
+      common_mistake: Adding 3 and 4
+    - step_number: 2
+      explanation: Count the four stickers three times over.
+      expression: 4 + 4 + 4
+      common_mistake: null
+    final_answer: '12'
+  random_seed: 300101
+  rendered_question: Leo puts 4 stickers on each page of his book. He fills 3 pages. How many stickers
+    has Leo used altogether?
+  option_a: '12'
+  option_b: '7'
+  option_c: '9'
+  option_d: '16'
+  correct_option: a
+- question_template_id: authored-multiplication_division-d1-300102
+  topic_id: multiplication_division
+  skill_id: mult_facts
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Added the two numbers instead of multiplying them
+  - Used the wrong number of groups
+  - Counted one group short
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A tray holds 5 muffins. Mia takes 4 full trays to a picnic. How many muffins does Mia take in
+    total?
+  context_block: null
+  answer_expression: Eq(x, 4*5)
+  hint_ladder:
+  - Every tray holds the same number, so the trays are equal groups.
+  - Counting by fives is a quick way to count groups of five.
+  - Count on by five once for each tray Mia takes.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Four trays of five muffins each are four equal groups.
+      expression: 4 groups of 5
+      common_mistake: Adding 4 and 5
+    - step_number: 2
+      explanation: Count by fives, once for each tray.
+      expression: 5, 10, 15, 20
+      common_mistake: Stopping one tray early
+    final_answer: '20'
+  random_seed: 300102
+  rendered_question: A tray holds 5 muffins. Mia takes 4 full trays to a picnic. How many muffins does
+    Mia take in total?
+  option_a: '9'
+  option_b: '20'
+  option_c: '15'
+  option_d: '25'
+  correct_option: b
+- question_template_id: authored-multiplication_division-d1-300103
+  topic_id: multiplication_division
+  skill_id: mult_facts
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Added the two numbers instead of multiplying them
+  - Multiplied by the wrong number
+  - Counted the rows instead of the seats
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A classroom has 6 rows of chairs with 2 chairs in each row. How many chairs are in the classroom?
+  context_block: null
+  answer_expression: Eq(x, 6*2)
+  hint_ladder:
+  - Every row has the same number of chairs, so the rows are equal groups.
+  - Six rows with two chairs each can be counted two at a time.
+  - Count by twos, once for each row.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Six rows of two chairs each are six equal groups.
+      expression: 6 groups of 2
+      common_mistake: Adding 6 and 2
+    - step_number: 2
+      explanation: Count by twos for each of the six rows.
+      expression: 2, 4, 6, 8, 10, 12
+      common_mistake: null
+    final_answer: '12'
+  random_seed: 300103
+  rendered_question: A classroom has 6 rows of chairs with 2 chairs in each row. How many chairs are in
+    the classroom?
+  option_a: '8'
+  option_b: '10'
+  option_c: '12'
+  option_d: '14'
+  correct_option: c
+- question_template_id: authored-multiplication_division-d1-300104
+  topic_id: multiplication_division
+  skill_id: mult_facts
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Added the two numbers instead of multiplying them
+  - Answered with the number of packs
+  - Counted one pack short
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Ana buys 3 packs of pencils. Each pack holds 8 pencils. How many pencils does Ana have?
+  context_block: null
+  answer_expression: Eq(x, 3*8)
+  hint_ladder:
+  - Every pack holds the same number, so the packs are equal groups.
+  - Three groups of eight is the same as eight counted three times.
+  - Work out how much eight, and eight again, and eight once more come to.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Three packs of eight pencils each are three equal groups.
+      expression: 3 groups of 8
+      common_mistake: Adding 3 and 8
+    - step_number: 2
+      explanation: Add eight three times over.
+      expression: 8 + 8 + 8
+      common_mistake: Adding it only twice
+    final_answer: '24'
+  random_seed: 300104
+  rendered_question: Ana buys 3 packs of pencils. Each pack holds 8 pencils. How many pencils does Ana
+    have?
+  option_a: '11'
+  option_b: '16'
+  option_c: '32'
+  option_d: '24'
+  correct_option: d
+- question_template_id: authored-multiplication_division-d2-300201
+  topic_id: multiplication_division
+  skill_id: mult_facts
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 55
+  common_error_tags:
+  - Added the two numbers instead of multiplying them
+  - Used a nearby times-table fact by mistake
+  - Answered with the number of boxes
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A shop stacks 7 boxes of tins. Each box holds 6 tins. How many tins are in the stack altogether?
+  context_block: null
+  answer_expression: Eq(x, 7*6)
+  hint_ladder:
+  - Every box holds the same number of tins, so the boxes are equal groups.
+  - Seven groups of six can be built from a fact you may already know, six groups of six.
+  - Six groups of six make thirty-six, and one more group of six follows.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Seven boxes of six tins each are seven equal groups.
+      expression: 7 groups of 6
+      common_mistake: Adding 7 and 6
+    - step_number: 2
+      explanation: Start from six groups of six and add one more group.
+      expression: 36 + 6
+      common_mistake: Stopping at six groups
+    final_answer: '42'
+  random_seed: 300201
+  rendered_question: A shop stacks 7 boxes of tins. Each box holds 6 tins. How many tins are in the stack
+    altogether?
+  option_a: '13'
+  option_b: '42'
+  option_c: '36'
+  option_d: '48'
+  correct_option: b
+- question_template_id: authored-multiplication_division-d2-300202
+  topic_id: multiplication_division
+  skill_id: mult_facts
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 55
+  common_error_tags:
+  - Added the two numbers instead of multiplying them
+  - Used a nearby times-table fact by mistake
+  - Counted one group short
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A gardener plants 9 rows of tulips with 4 tulips in each row. How many tulips does the gardener
+    plant?
+  context_block: null
+  answer_expression: Eq(x, 9*4)
+  hint_ladder:
+  - Every row holds the same number, so the rows are equal groups.
+  - Nine groups of four is one group less than ten groups of four.
+  - Ten groups of four make forty, so take one group of four away from that.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Nine rows of four tulips each are nine equal groups.
+      expression: 9 groups of 4
+      common_mistake: Adding 9 and 4
+    - step_number: 2
+      explanation: Ten groups of four would be forty.
+      expression: 10 x 4 = 40
+      common_mistake: null
+    - step_number: 3
+      explanation: There is one group fewer, so take four away.
+      expression: 40 - 4
+      common_mistake: Answering with the ten-group total
+    final_answer: '36'
+  random_seed: 300202
+  rendered_question: A gardener plants 9 rows of tulips with 4 tulips in each row. How many tulips does
+    the gardener plant?
+  option_a: '13'
+  option_b: '40'
+  option_c: '36'
+  option_d: '32'
+  correct_option: c
+- question_template_id: authored-multiplication_division-d2-300205
+  topic_id: multiplication_division
+  skill_id: mult_facts
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 55
+  common_error_tags:
+  - Added the two numbers instead of multiplying them
+  - Multiplied by the wrong number
+  - Answered with one week instead of the whole time
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Ravi reads 8 pages every day. He keeps this up for a whole week of 7 days. How many pages does
+    Ravi read that week?
+  context_block: null
+  answer_expression: Eq(x, 7*8)
+  hint_ladder:
+  - Every day he reads the same number, so the days are equal groups.
+  - A week here is seven days, so there are seven groups.
+  - Seven groups of eight is one group more than six groups of eight.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Seven days of eight pages each are seven equal groups.
+      expression: 7 groups of 8
+      common_mistake: Adding 7 and 8
+    - step_number: 2
+      explanation: Six groups of eight would be forty-eight, and one more group follows.
+      expression: 48 + 8
+      common_mistake: Answering with a single day's pages
+    final_answer: '56'
+  random_seed: 300205
+  rendered_question: Ravi reads 8 pages every day. He keeps this up for a whole week of 7 days. How many
+    pages does Ravi read that week?
+  option_a: '15'
+  option_b: '56'
+  option_c: '48'
+  option_d: '64'
+  correct_option: b
+- question_template_id: authored-multiplication_division-d3-300301
+  topic_id: multiplication_division
+  skill_id: mult_multi_digit
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Multiplied only the tens and forgot the ones
+  - Multiplied only the ones and forgot the tens
+  - Added the two numbers instead of multiplying them
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A school orders 23 boxes of crayons. Each box holds 3 crayons. How many crayons does the school
+    order in total?
+  context_block: null
+  answer_expression: Eq(x, 23*3)
+  hint_ladder:
+  - Break the larger number into its tens and its ones before multiplying.
+  - Twenty-three is two tens and three ones, and each part gets multiplied by three.
+  - Multiply the tens part, multiply the ones part, then put the two results together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Split twenty-three into twenty and three.
+      expression: 23 = 20 + 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply each part by three.
+      expression: 20 x 3 = 60 and 3 x 3 = 9
+      common_mistake: Multiplying only one of the two parts
+    - step_number: 3
+      explanation: Add the two results together.
+      expression: 60 + 9
+      common_mistake: null
+    final_answer: '69'
+  random_seed: 300301
+  rendered_question: A school orders 23 boxes of crayons. Each box holds 3 crayons. How many crayons does
+    the school order in total?
+  option_a: '26'
+  option_b: '60'
+  option_c: '69'
+  option_d: '96'
+  correct_option: c
+- question_template_id: authored-multiplication_division-d3-300302
+  topic_id: multiplication_division
+  skill_id: mult_multi_digit
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Forgot to carry into the tens
+  - Multiplied only one part of the larger number
+  - Added the two numbers instead of multiplying them
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A bus carries 34 passengers on each trip. It makes 2 trips in the morning. How many passengers
+    does the bus carry that morning?
+  context_block: null
+  answer_expression: Eq(x, 34*2)
+  hint_ladder:
+  - Break the larger number into its tens and its ones before multiplying.
+  - Thirty-four is three tens and four ones, and each part gets multiplied by two.
+  - Multiply the tens part, multiply the ones part, then put the two results together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Split thirty-four into thirty and four.
+      expression: 34 = 30 + 4
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply each part by two.
+      expression: 30 x 2 = 60 and 4 x 2 = 8
+      common_mistake: Multiplying only the tens
+    - step_number: 3
+      explanation: Add the two results together.
+      expression: 60 + 8
+      common_mistake: null
+    final_answer: '68'
+  random_seed: 300302
+  rendered_question: A bus carries 34 passengers on each trip. It makes 2 trips in the morning. How many
+    passengers does the bus carry that morning?
+  option_a: '68'
+  option_b: '36'
+  option_c: '60'
+  option_d: '86'
+  correct_option: a
+- question_template_id: authored-multiplication_division-d3-300305
+  topic_id: multiplication_division
+  skill_id: mult_multi_digit
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Multiplied only one part of the larger number
+  - Forgot to carry into the tens
+  - Added the two numbers instead of multiplying them
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A farmer collects 15 eggs from each of his hens every month. He keeps 4 hens. How many eggs does
+    the farmer collect in a month?
+  context_block: null
+  answer_expression: Eq(x, 15*4)
+  hint_ladder:
+  - Every hen gives the same number of eggs, so the hens are equal groups.
+  - Break fifteen into ten and five before multiplying by four.
+  - Multiply the ten part, multiply the five part, then put the two results together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Split fifteen into ten and five.
+      expression: 15 = 10 + 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply each part by four.
+      expression: 10 x 4 = 40 and 5 x 4 = 20
+      common_mistake: Multiplying only the ten
+    - step_number: 3
+      explanation: Add the two results together.
+      expression: 40 + 20
+      common_mistake: null
+    final_answer: '60'
+  random_seed: 300305
+  rendered_question: A farmer collects 15 eggs from each of his hens every month. He keeps 4 hens. How
+    many eggs does the farmer collect in a month?
+  option_a: '19'
+  option_b: '45'
+  option_c: '40'
+  option_d: '60'
+  correct_option: d
+- question_template_id: authored-multiplication_division-d4-300403
+  topic_id: multiplication_division
+  skill_id: mult_multi_digit
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Multiplied only one part of the larger number
+  - Forgot to carry into the hundreds
+  - Added the two numbers instead of multiplying them
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A hall has 46 rows of seats with 5 seats in every row. How many seats does the hall have in total?
+  context_block: null
+  answer_expression: Eq(x, 46*5)
+  hint_ladder:
+  - Break the larger number into its tens and its ones before multiplying.
+  - Forty-six is four tens and six ones, and each part gets multiplied by five.
+  - Multiplying forty by five crosses into the hundreds, so keep track of that part.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Split forty-six into forty and six.
+      expression: 46 = 40 + 6
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply each part by five.
+      expression: 40 x 5 = 200 and 6 x 5 = 30
+      common_mistake: Multiplying only the tens
+    - step_number: 3
+      explanation: Add the two results together.
+      expression: 200 + 30
+      common_mistake: null
+    final_answer: '230'
+  random_seed: 300403
+  rendered_question: A hall has 46 rows of seats with 5 seats in every row. How many seats does the hall
+    have in total?
+  option_a: '51'
+  option_b: '200'
+  option_c: '230'
+  option_d: '2030'
+  correct_option: c
+- question_template_id: authored-multiplication_division-d5-300503
+  topic_id: multiplication_division
+  skill_id: mult_multi_digit
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Multiplied only one part of the larger number
+  - Forgot to carry into the hundreds
+  - Answered with a single week instead of the whole period
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A workshop makes 128 chairs every week. It runs at that rate for 3 weeks without stopping. How
+    many chairs does the workshop make over those weeks?
+  context_block: null
+  answer_expression: Eq(x, 128*3)
+  hint_ladder:
+  - Every week produces the same number, so the weeks are equal groups.
+  - Break the larger number into hundreds, tens and ones before multiplying.
+  - Multiply each part by three in turn, then put all three results together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Split one hundred and twenty-eight into its parts.
+      expression: 128 = 100 + 20 + 8
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply each part by three.
+      expression: 300, then 60, then 24
+      common_mistake: Multiplying only the hundreds
+    - step_number: 3
+      explanation: Add all three results together.
+      expression: 300 + 60 + 24
+      common_mistake: Answering with a single week
+    final_answer: '384'
+  random_seed: 300503
+  rendered_question: A workshop makes 128 chairs every week. It runs at that rate for 3 weeks without
+    stopping. How many chairs does the workshop make over those weeks?
+  option_a: '131'
+  option_b: '360'
+  option_c: '384'
+  option_d: '324'
+  correct_option: c

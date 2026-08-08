@@ -1,10 +1,15 @@
 from intellichoice_curriculum.content import CurriculumContent, load_curriculum
 
 
-def test_loads_three_seeded_topics() -> None:
+def test_loads_every_seeded_topic() -> None:
     content = load_curriculum()
 
-    assert content.topic_ids() == {"linear_equations", "fraction_operations", "place_value"}
+    assert content.topic_ids() == {
+        "linear_equations",
+        "fraction_operations",
+        "multiplication_division",
+        "place_value",
+    }
     assert content.curriculum_version
 
 
@@ -56,6 +61,27 @@ def test_topics_for_grade_resolves_a_single_grade_through_its_band() -> None:
     assert content.topics_for_grade("6") == ["linear_equations"]
     assert content.topics_for_grade("7") == ["linear_equations"]
     assert content.topics_for_grade("2") == ["place_value"]
+    # D-228: a band may name more than one topic, and the order is the recommendation
+    # order. Grade 3's own year is multiplication and division; `place_value` follows as
+    # the review half of the same §5.7.3 band.
+    assert content.topics_for_grade("3") == ["multiplication_division", "place_value"]
+
+
+def test_adding_a_band_never_steals_a_grade_from_an_existing_one() -> None:
+    """§5.7.3's bands overlap, and `topics_for_grade` returns the *first* match.
+
+    So band ordering is load-bearing, and the obvious way to add a topic for grade 3 - a
+    new "3-4" band - would sit above "4-5" and silently take grade 4 away from
+    `fraction_operations` (D-228 chose the already-populated "2-3" band for exactly this
+    reason). Pinned per grade rather than per band, because the failure is a *grade*
+    resolving to the wrong topic and a band-shaped assertion would not show it.
+    """
+    content = load_curriculum()
+
+    assert content.topics_for_grade("4") == ["fraction_operations"]
+    assert content.topics_for_grade("5") == ["fraction_operations"]
+    assert "multiplication_division" not in content.topics_for_grade("4")
+    assert "fraction_operations" not in content.topics_for_grade("3")
 
 
 def test_topics_for_grade_is_empty_for_a_grade_no_band_covers() -> None:
