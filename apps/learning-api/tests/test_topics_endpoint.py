@@ -104,12 +104,18 @@ def test_the_topic_list_reflects_the_bank_and_never_recommends_an_empty_topic() 
     D-185 wrote this test when that topic had **zero** templates, so the grade map alone
     would have offered a topic the exam builder then refused to build, and the assertions
     pinned "grade 4 is recommended nothing". D-222 authored the topic, and the same
-    conjunction now has to be checked in the *other* direction: the recommendation follows
-    the bank when the bank fills, not only when it is empty. `place_value` is still empty
-    and carries the original half of the check.
+    conjunction had to be checked in the *other* direction: the recommendation follows the
+    bank when the bank fills, not only when it is empty.
 
-    The general invariant below is the one that must never break either way, and it is
-    written over every topic rather than over named ones, so it survives content changes.
+    D-225 authored `place_value`, which was the last empty topic and had been carrying the
+    original "offered but disabled" half of this check. **Every topic in the taxonomy is now
+    stocked**, so no named topic can carry that half any more and the test no longer tries
+    to keep one: what remains is the general invariant below, written over every topic
+    rather than over named ones. The empty case keeps its coverage in
+    `test_topic_availability.py`, against synthetic banks
+    (`test_a_topic_with_a_full_bank_is_available_and_an_empty_one_is_not`,
+    `test_the_grade_map_can_never_recommend_a_topic_the_bank_cannot_serve`) - where
+    authoring content cannot invalidate it, which is exactly what happened here.
     """
     token = issuer.issue(sub=STUDENT_UNLINKED, role=Role.STUDENT, audience=Audience.LEARNING)
     headers = _auth_header(token)
@@ -125,11 +131,17 @@ def test_the_topic_list_reflects_the_bank_and_never_recommends_an_empty_topic() 
     # Authored in D-222, and this student's own grade band names it.
     assert topics["fraction_operations"]["available"] is True
     assert topics["fraction_operations"]["recommended_for_grade"] is True
-    # Still no templates, so still offered-but-disabled rather than hidden.
-    assert topics["place_value"]["available"] is False
+    # D-225: stocked, but band 1-2, so available to browse and not recommended to *this*
+    # student. The pair matters - "available" is a fact about the bank, "recommended" is a
+    # fact about the student, and conflating them is what D-185 found.
+    assert topics["place_value"]["available"] is True
     assert topics["place_value"]["recommended_for_grade"] is False
     for topic in topics.values():
         assert not (topic["recommended_for_grade"] and not topic["available"])
+    # Exactly one topic is recommended to a grade-4 student, and it is the one their band
+    # names - not "whatever is stocked", now that everything is.
+    recommended = [t for t, v in topics.items() if v["recommended_for_grade"]]
+    assert recommended == ["fraction_operations"]
     # Every topic is still listed - "your grade has no stocked topic" must not read as
     # "there is nothing to study".
     assert len(topics) == 3

@@ -30,10 +30,13 @@ of which **4 were authored this session**. No numbered ROADMAP session is queued
    `SHAPE_HINT_LADDERS` are unreachable *today* — though not by construction, since six retired
    rows are authored-mode carrying a real shape. Deleting is a product call about whether the
    parameterized-template design the SPEC still describes is coming back. The evidence is in D-224.
-3. **`place_value` is still dormant.** The K-3 band has no topic at all. Against that,
-   `fraction_operations` and `linear_equations` are now both comfortably stocked, so a third topic
-   is finally the better marginal item — the reverse of D-222's ranking, because the thinness that
-   outranked it has been fixed.
+3. **Grade 3 is recommended nothing** (D-225, found not fixed). `grade_topic_candidates` has bands
+   `1-2`, `4-5` and `6-7`, so a grade-3 student matches none — and `STUDENT_ONLY_CHILD` is grade 3,
+   so it is reachable with the seeded data today. The §5.7.3 table has 12 bands and the file says
+   only seeded ones are populated, so the mapping is *incomplete*, not wrong. It has become worth
+   fixing only now: while every topic was empty, "recommended nothing" was honest; with all three
+   stocked it reads as a defect. The cheap fix is a band boundary; the real question is what a
+   grade-3 student should be offered, which is content, not config.
 4. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
 5. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
@@ -59,6 +62,32 @@ the shape half in both directions for free — run it before and after, not only
 and `scripts/measure_access_probe_rules.py --load ... --shipped` (free replay of the probe).
 **Do not retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and
 D-220 measured zero wrong tiers live.
+
+### Session log — `place_value` stood up, and the taxonomy is fully stocked (2026-08-08, D-225)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1086 passed, 2 skipped, 1 xfailed** ·
+**0 of 25 items failing the §5.8.5 gate on the first run** · bank re-exported and the parity test
+green · driven live · full write-up in DECISIONS.md **D-225**.
+
+**The K-3 end of a K-12 product now has a topic.** 25 hand-authored items, 5 per tier, across both
+skills — `place_value_identify` 11 and `place_value_compare` 12, weighted so identify carries the
+low tiers and compare the high ones, because `prerequisites.yaml` makes compare *require* identify.
+Grade-2 `STUDENT_SECOND_CHILD` is the first seeded student ever recommended a K-3 topic.
+
+**Modelling was the work, not the arithmetic.** `derive_answer` needs a relation with one unknown,
+and place value invites the exact failure D-191 exists for: "what is the 4 in 47 worth?" encodes
+naturally as `Eq(x, 40)`, which parses, solves, and checks nothing. So identify items compute the
+value from the place (`Eq(x, 4*10)`, `Eq(x*10, 80)`) and compare items ask "how many more?"
+(`Eq(34 + x, 43)`) rather than "which is bigger".
+
+**A test lost its subject.** `test_the_topic_list_reflects_the_bank...` had used a real empty topic
+as its empty case, and there are no empty topics left. Not replaced with a synthetic permanently-
+empty topic: that case is already covered in `test_topic_availability.py` where content cannot
+invalidate it. The endpoint test now pins the thing only it can — that `available` is a fact about
+the bank and `recommended_for_grade` a fact about the student.
+
+**Carry-over:** grade 3 matches no band in `grade_topic_candidates`, so a grade-3 student is
+recommended nothing — reachable with the seeded data, and only now worth calling a defect.
 
 ### Session log — the pipeline's default mode could not produce a servable item (2026-08-08, D-224)
 

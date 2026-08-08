@@ -17,6 +17,7 @@ from intellichoice_adapters.seed.mysql_fixtures import (
 )
 from intellichoice_curriculum.authored_validation import (
     answer_text_leaked,
+    answers_agree,
     leak_phrase_present,
 )
 from intellichoice_curriculum.content import load_curriculum
@@ -1877,7 +1878,20 @@ def test_intervention_choice_solution_content_is_verified_correct() -> None:
 
     assert intervention["type"] == "solution"
     assert intervention["steps"]
-    assert intervention["final_answer"] == correct_option_text
+    # `answers_agree`, not `==` (D-225). The contract this asserts is D-207's: a solution
+    # that answers "16 liters" to a question whose option reads "16" is *correct*, and
+    # comparing with `==` is the exact bug D-207 fixed on the serving path after it
+    # discarded a correct model solution live on staging.
+    #
+    # It failed as a flake rather than as a wrong assertion because which study item is
+    # served is drawn from an unseeded rng, so this only fires when the draw lands on one
+    # of the bank items whose `final_answer` carries a unit - which the §5.8.5 gate allows,
+    # deliberately. Same shape as D-222's video flake: a test asserting something stricter
+    # than the contract, protected by luck rather than by a precondition.
+    assert answers_agree(intervention["final_answer"], correct_option_text), (
+        f"{intervention['final_answer']!r} does not name the same value as "
+        f"{correct_option_text!r}"
+    )
 
 
 def test_attendance_ask_branch_manager_end_to_end() -> None:
