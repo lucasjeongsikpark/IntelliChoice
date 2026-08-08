@@ -139,6 +139,10 @@ test("an access hint offers no escalation (D-164's precedence rule)", async ({ p
   await page.goto(CHAT_WEB);
   await ask(page, "What is the branch escalation procedure?");
 
-  await expect(page.getByText(/sign in as a tutor/i)).toBeVisible();
+  // D-220: read from the fixture rather than repeating its wording. This used to assert
+  // /sign in as a tutor/i, which was the shape file's own invented sentence - when the
+  // fixture was corrected to the message `explain_access` really emits, the assertion
+  // broke while the property it guards had not changed at all.
+  await expect(page.getByText(SHAPES["access hint"].access_hint!.message)).toBeVisible();
   await expect(page.getByRole("button", { name: /ask an administrator/i })).toHaveCount(0);
 });
