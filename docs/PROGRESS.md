@@ -10,29 +10,28 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 **Pointer items 3 and the content half of 4 are closed (D-223).** The shape half of the §5.8.5 gate
 no longer over-rejects — measured in both directions, 2.36% of the paid pipeline's population down
 to 0 with the positive controls going 5/6 → 6/6 — and `fraction_operations` is 30 items instead of
-15. No numbered ROADMAP session is queued; integration (S43+) stays deliberately deferred (D-152)
-until the user starts it. In rough order of value:
+15. **Verified live in staging**, not merely deployed: as a signed-in grade-4 student
+`fraction_operations` reports `available=True, recommended_for_grade=True`, `linear_equations` is
+still `available=True` (the D-222 retirement bug did not bite), and a real pre-exam built 10 items
+of which **4 were authored this session**. No numbered ROADMAP session is queued; integration
+(S43+) stays deliberately deferred (D-152) until the user starts it. In rough order of value:
 
-1. **Confirm `fraction_operations` in staging through an authenticated call.** Two deploys have now
-   carried it (D-222, D-223) and both curriculum-load ops tasks exited 0, but nothing has read
-   staging's topic list as a signed-in grade-4 student. Needs an `aws login` session, which is
-   interactive — so it is the user's step, not a blocker on code.
-2. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+1. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-3. **Does the shape bank still deserve to exist?** D-223 made its gate correct without asking this.
+2. **Does the shape bank still deserve to exist?** D-223 made its gate correct without asking this.
    Fifty templates load into every environment and `_servable()` filters every one of them out of
    every serving read (D-210); the only thing that still *runs* them is `ai_pipeline`, which builds
    generated items from shapes. So the answer is not an obvious "delete" — it is a real question
    about whether the paid pipeline's shape-based route is the one to keep. Decide it deliberately.
-4. **`place_value` is still dormant.** The K-3 band has no topic at all. Against that,
+3. **`place_value` is still dormant.** The K-3 band has no topic at all. Against that,
    `fraction_operations` and `linear_equations` are now both comfortably stocked, so a third topic
    is finally the better marginal item — the reverse of D-222's ranking, because the thinness that
    outranked it has been fixed.
-5. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+4. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-6. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+5. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic, read D-222 §2 and D-223 §3.** A shape bank

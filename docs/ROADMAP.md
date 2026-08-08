@@ -1560,10 +1560,14 @@ directly. Coverage gap, not a break.
    passed review — but approving them exists only as a row update in whatever database the pipeline
    was pointed at. CI proved it: the suite went green locally with them approved and **failed on CI**,
    whose database is seeded by `load_curriculum_and_templates` and therefore has none of them.
-   **Authored content has no versioned home**, so there is no path by which a reviewed item reaches
-   staging or production. That is the track's next step, ahead of authoring more, and it is a design
-   question rather than a chore: export approved items into a versioned file the loader reads, run
-   the pipeline per environment and review per environment, or promote rows between databases.
+   **Authored content had no versioned home**, so there was no path by which a reviewed item
+   reached staging or production. ~~That is the track's next step~~ — **done: approved items export
+   to `curriculum/internal_math/authored/*.yaml`, which `loader.py` reads and re-validates on every
+   load, in every environment** (`make question-export`; pinned by `test_authored_bank.py`, and
+   `fraction_operations` reached staging by exactly this route in D-222/D-223). Struck through
+   rather than deleted because this paragraph told two later sessions to build something that
+   already existed. The remaining ⏸ below is about *multi-tier content from the pipeline*, which is
+   a different thing and is still open.
    Serving them was the previous blocker and is now built: `build_variant_row` copies an authored
    template's canonical variant into a runtime row instead of rendering a shape it does not have.
    The post-exam **knowingly repeats** an authored item — SPEC §5.13.2 forbids reusing the same

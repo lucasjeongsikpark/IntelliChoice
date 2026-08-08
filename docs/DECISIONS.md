@@ -16097,3 +16097,34 @@ quality bar, and the gate cannot check situation → equation, only equation →
 is still dormant, which the pointer's own ranking prefers over a third topic. And the shape bank
 itself is now content that loads into every environment and is filtered out of every serving read
 (D-210); this session made its gate correct without asking whether it should still exist.
+
+## D-190, D-191, D-192 — referenced everywhere, never written (recorded 2026-08-08, while closing D-223)
+
+**These three ids have no entry.** The log jumps from D-189 straight to D-193, yet the ids are cited
+**18 times in code and 8 times in docs** — including in `authored_validation.py`'s own docstrings,
+in `test_authored_bank.py`'s module docstring, and in D-223 above. Nothing is wrong with the *work*;
+what is missing is the record, so a reader following a citation lands on nothing.
+
+What they refer to, reconstructed from the code and tests that cite them, and verifiable there:
+
+- **D-190 — approved authored content as a versioned file.** `curriculum/internal_math/authored/
+  *.yaml`, written by `make question-export`, read and re-validated by `loader.py` on every load in
+  every environment. Closes what D-189 found: approval was a row update in one database, so a
+  reviewed item could not reach CI, staging or production. Pinned by `test_authored_bank.py`
+  (parses, validates, and matches what the database would export, order included).
+- **D-191 — the gate made independent, and the wording list made word-boundary.** `answer_expression`
+  became a required *relation* so `derive_answer` solves the question rather than accepting the
+  generator's own claim (all five items from the first run had the answer itself in that field);
+  and `_DISALLOWED_WORDING` moved from substring to boundary matching after it destroyed a question
+  about rolling a **die**. Both are quoted at length in `authored_validation.py`.
+- **D-192 — the id nothing in the tree explains.** Cited in 4 code files and 2 docs; unlike the
+  other two, no citation states what it decided. Left as a known unknown rather than guessed at.
+
+**Not reconstructed into full entries here.** The point of the log is that a decision was recorded
+*when it was made*, by whoever made it; writing three retrospective entries from inference would
+produce exactly the confident-looking, unverified prose this project keeps finding bugs inside. The
+citations now resolve to this note, which says what is known and what is not.
+
+**Worth a habit, not a fix:** the two sessions before this one both shipped a decision entry, so the
+gap is not a standing process failure — it is three ids burned in a stretch of work that moved fast.
+`grep -c "^## D-$n" docs/DECISIONS.md` before citing an id costs nothing.
