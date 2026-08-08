@@ -97,7 +97,19 @@ export function ChatScreen({
                 <div className="bubble">
                   {/* D-219: was raw text, so `**bold**` showed its asterisks and the
                       branch locator's "- " lines collapsed into one run. */}
-                  <RichText text={turn.response.answer} />
+                  {/* D-220: suppressed when the banner below is already saying it.
+                      `explain_access` sets `answer = hint.message`, so an access-hint turn
+                      rendered the same sentence twice - once here, once in
+                      `AccessHintBanner` - which is what a logged-out parent actually saw
+                      the first time this path was walked live. The API contract is left
+                      alone deliberately: `answer` is what an SSE or non-browser client
+                      reads, so it must keep carrying the text, and the duplication is a
+                      rendering concern. Compared rather than assumed equal, so a backend
+                      that ever writes a *different* answer alongside a hint still shows
+                      both. */}
+                  {turn.response.answer !== turn.response.access_hint?.message && (
+                    <RichText text={turn.response.answer} />
+                  )}
                   {turn.response.citations.length > 0 && (
                     <div className="citations">
                       {turn.response.citations.map((c, i) => (

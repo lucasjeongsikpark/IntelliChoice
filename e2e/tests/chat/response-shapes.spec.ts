@@ -64,6 +64,16 @@ for (const name of SHAPE_NAMES) {
         `${interruptType} produced no visible modal - the composer is disabled with nothing to resolve it`,
       ).toBeVisible();
       audit.note(`${interruptType}: modal rendered`);
+    } else if (shape.access_hint?.message === shape.answer) {
+      // D-220: an access-hint turn carries its text in the banner, not in a second answer
+      // bubble, so `.first()` here rather than a strict single match - the block below is
+      // what asserts the text appears exactly once, and it names the duplication when it
+      // does not. Without this, a regression trips the strict-mode check first and reports
+      // "answer text never rendered", which is the opposite of what went wrong.
+      await expect(
+        page.getByText(shape.answer!.slice(0, 40), { exact: false }).first(),
+        `answer text for "${name}" never rendered`,
+      ).toBeVisible();
     } else {
       // An answer shape must show its own text. A shape whose answer never reaches the
       // DOM is the S22.5 blank-turn class.
@@ -80,7 +90,17 @@ for (const name of SHAPE_NAMES) {
       await expect(page.locator(".escalation-banner")).toBeVisible();
     }
     if (shape.access_hint) {
-      await expect(page.getByText(shape.access_hint.message)).toBeVisible();
+      // D-220: `toHaveCount(1)`, not `toBeVisible()`. The backend sets
+      // `answer = hint.message`, so before the fix this sentence reached the DOM twice -
+      // once as the answer bubble, once inside `AccessHintBanner` - and a logged-out
+      // parent read the same line back to back. Counting is what makes that a failure;
+      // visibility passes happily with two copies on screen.
+      await expect(
+        page.getByText(shape.access_hint.message),
+        "the access-hint message rendered more than once - the answer bubble and the " +
+          "banner are both showing it",
+      ).toHaveCount(1);
+      await expect(page.locator(".access-hint-banner")).toBeVisible();
     }
     if (shape.ics_content) {
       await expect(page.getByRole("button", { name: /download \.ics/i })).toBeVisible();

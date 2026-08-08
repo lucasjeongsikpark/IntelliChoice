@@ -126,13 +126,19 @@ export const SHAPES: Record<string, Shape> = {
     suggested_followups: ["Baton Rouge", "Online program"],
   },
 
+  // D-220: `answer` and `access_hint.message` are the SAME string, because that is what
+  // `chat_api.graph.nodes.explain_access` returns - it sets `answer = hint.message`. This
+  // fixture used to give them two different sentences, which is a shape production never
+  // emits, and that is precisely why the duplicate-render defect survived a green e2e run
+  // and was found by walking the deployed build instead. Keep them equal: with the two
+  // different, the `renders:` assertions below cannot see the duplication at all.
   "access hint": {
     ...base,
-    answer: "That information is available to tutors and branch managers.",
+    answer: "That's available to tutors - log in with a tutor account to see it.",
     citations: [],
     access_hint: {
       required_role: "tutor",
-      message: "Sign in as a tutor to see branch procedures.",
+      message: "That's available to tutors - log in with a tutor account to see it.",
     },
   },
 
