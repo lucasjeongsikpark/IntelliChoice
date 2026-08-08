@@ -15699,6 +15699,19 @@ Any future comparison against this table must repeat runs before reading a diffe
 `access_probe_policy.py` explicitly forbids moving a constant without re-running the sweep. The
 16 silences are the deliberate price of the zero in the wrong-tier row.
 
+### Live re-walk after deploying (2026-08-08, run 31240646599, `7278b68`)
+
+Re-checked on the deployed build rather than assumed from a green suite - the D-218 habit, which
+is what caught that session's half-landed focus fix.
+
+- **The duplication is gone.** The same guest question renders the message **once**, counted in
+  the DOM rather than read off a snapshot: `occurrences: 1, inBanner: 1, bannerPresent: true`.
+  Pre-fix the same probe on the same build returned two.
+- **The banner is intact**, with a working "Log in" button that returns to the sign-in screen.
+- **No regression on the ordinary path**, which is what the changed render condition risked: a
+  public question still renders its full answer, its citation chip ("About IntelliChoice - About
+  Us"), and D-219's `RichText` bullets on their own lines.
+
 ### Two findings this measurement surfaced, both carried over rather than fixed here
 
 - **4 of 38 role-gated questions are still classified `out_of_scope`** (`intent=clarification`),

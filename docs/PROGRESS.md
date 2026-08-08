@@ -70,6 +70,12 @@ response. **One case flipped between two live runs** (rerank quantization stradd
 floor), so 11/38 is a sample, not a constant — repeat runs before reading any future
 difference as a change.
 
+**Re-walked live after deploying** (run 31240646599, `7278b68`, all gates green): the message
+now renders **once**, counted in the DOM (`occurrences: 1, inBanner: 1`) where the same probe
+returned two before; the "Log in" button still returns to the sign-in screen; and a public
+question still renders its full answer, citation chip and `RichText` bullets — the regression
+the changed render condition actually risked.
+
 **Carry-over:** the scope guard still calls 4 of 38 role-gated questions off-topic (item 1
 above); the escalation draft's `requested_by_user` reports the model's routing decision as a
 user request (item 2). Neither was fixed here — both are outside the access-hint path.
