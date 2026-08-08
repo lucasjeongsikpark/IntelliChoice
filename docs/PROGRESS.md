@@ -5,11 +5,34 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+### Next session
+
+**Two walks landed this session (D-218 learning, D-219 Q&A) and both are deployed and verified
+live.** No numbered ROADMAP session is queued; integration (S43+) stays deliberately deferred
+(D-152) until the user starts it. In rough order of value:
+
+1. **Chase the access hint.** D-219 removed the *wrong* refusal, but `AccessHintBanner` - the
+   "sign in to see this" affordance - is still built and unreachable: the turn now reaches
+   `explain_access`, and the probe finds no higher-tier match to name. Start at the probe's
+   `max_distance` and `build_access_hint`'s handling of the anonymous `public` role. This is the
+   last piece of the D-219 finding and the one a logged-out parent actually feels.
+2. **Stand up a dormant topic.** `fraction_operations` and `place_value` are defined with zero
+   questions and read "Coming soon" to a student. Hand-authored, §5.8.5-gated content is the
+   highest-value *product* gap; AI authoring stays blocked on Sonnet 5 (D-211).
+3. **The order-dependent flake.** `test_intervention_choice_pause_records_choice_and_blocks_skip`
+   has now failed in a full `make test` twice across two sessions and passed in isolation both
+   times, with neither session touching it. Worth one focused sitting before it trains everyone
+   to re-run and move on.
+4. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+   10.62 s). Needs a product decision, not a patch.
+
 ### Session log — the Q&A app, walked live for the first time (2026-08-08, D-219)
 
-**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1059 passed, 3 skipped,
-1 xfailed** (7 new tests) · `tsc`, `oxlint` and `vite build` clean for `chat-web`,
-`learning-web`, `e2e` · full write-up in DECISIONS.md **D-219**.
+**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1060 passed, 2 skipped,
+1 xfailed** (7 new tests) at end-of-session; the mid-session run read 1059/3 - the totals match
+(1062) and the difference is one environment-gated skip, not a lost test · `tsc`, `oxlint` and
+`vite build` clean for `chat-web`, `learning-web`, `e2e` · full write-up in DECISIONS.md
+**D-219**.
 
 **Not a numbered ROADMAP session** — the user's "let's move on to the q&a app" after D-218, and
 their two scope decisions: take the role out of the scope prompt, and finish the walk before
@@ -483,7 +506,7 @@ criteria apply. Total spend across the session ≈ **$5.20** in Bedrock calls.
 7. Only `linear_equations` is generation-capable; `fraction_operations` and `place_value` have no
    entry in either authoring map (D-197 §1).
 
-### Next session
+### Next session *(historical — this was the pointer as of D-206; the live one is at the top of this file)*
 
 > **Superseded in part by D-215 (2026-08-07) — read this before acting on the paragraph below.**
 > It is **41** items now, not 48: two were retired (a duplicate pair, and one problem comparing a
