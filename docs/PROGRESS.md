@@ -20,48 +20,69 @@ of which **4 were authored this session**. No numbered ROADMAP session is queued
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-2. **Should *any* of the shape apparatus remain — the bank, the machinery, or the route?**
-   Half-answered by D-224, which found the thing the question did not anticipate: the pipeline's
-   shape mode wrote rows `_servable()` filters out, because `generate_candidate` never set
-   `authoring_mode` and the column defaults to `"shape"`. That mode now refuses and the default
-   flipped to `authored`, so nothing can spend on it — but the 50 templates, `SHAPES`,
-   `generate_variant` and the route itself are all still there, deliberately. **0 servable
-   templates take the generated rendering path**, so `build_variant_row`'s generate branch and
-   `SHAPE_HINT_LADDERS` are unreachable *today* — though not by construction, since six retired
-   rows are authored-mode carrying a real shape. Deleting is a product call about whether the
-   parameterized-template design the SPEC still describes is coming back. The evidence is in D-224.
-3. **Grade 3 is recommended nothing** (D-225, found not fixed). `grade_topic_candidates` has bands
+2. **Grade 3 is recommended nothing** (D-225, found not fixed). `grade_topic_candidates` has bands
    `1-2`, `4-5` and `6-7`, so a grade-3 student matches none — and `STUDENT_ONLY_CHILD` is grade 3,
    so it is reachable with the seeded data today. The §5.7.3 table has 12 bands and the file says
    only seeded ones are populated, so the mapping is *incomplete*, not wrong. It has become worth
    fixing only now: while every topic was empty, "recommended nothing" was honest; with all three
    stocked it reads as a defect. The cheap fix is a band boundary; the real question is what a
    grade-3 student should be offered, which is content, not config.
-4. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+3. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-5. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+4. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
-**Before writing content for a new topic, read D-222 §2 and D-223 §3.** A shape bank
-(`templates/*.py`) is *not* how a topic is stood up — `_servable()` filters on
-`authoring_mode == "authored"` (D-210), so shape templates load and are then never served.
-Authored-mode YAML under `curriculum/internal_math/authored/` is the only route, and the file must
-match `make question-export` byte for byte, order included. On how much to write: the 2-per-tier
-availability floor is a floor, not a target — a topic sitting on it serves a student its whole bank
-and repeats it next session (D-223 measured this).
+**Before writing content for a new topic:** authored-mode YAML under
+`curriculum/internal_math/authored/` is the only route, and the file must match `make
+question-export` byte for byte, order included. This used to carry a warning that a shape bank
+(`templates/*.py`) is *not* how a topic is stood up — the trap that cost D-222 a build-and-revert
+cycle. **D-226 deleted the shape bank, so the trap is gone rather than documented.** On how much to
+write: the 2-per-tier availability floor is a floor, not a target — a topic sitting on it serves a
+student its whole bank and repeats it next session (D-223 measured this).
 
-**Before changing either half of the §5.8.5 gate, read D-223.** `validation.py` (shape) and
-`authored_validation.py` (authored) are two copies of near-identical text checks, and every fix
-until now landed on one copy only. Shared rules live in `authored_validation` as public helpers
-(`leak_phrase_present`, `answer_text_leaked`, `disallowed_wording_found`); anything genuinely
-different stays separate *and* says why in both docstrings. `scripts/measure_shape_gate.py` scores
-the shape half in both directions for free — run it before and after, not only after.
+**Before changing the §5.8.5 gate, read D-223.** There is one implementation of each check now
+(D-226 removed the second), but the reason D-223 exists still applies to anything else in this
+codebase that gets copied: every fix to the duplicated gate had landed on one copy only, and
+narrowing one half would have silently opened a hole in the other. Shared string rules live in
+`authored_validation` as public helpers — `leak_phrase_present`, `answer_text_leaked`,
+`disallowed_wording_found`.
 
-**Instruments now available, and cheap enough to rerun before assuming anything:**
-`scripts/measure_scope_guard.py` (~15¢/repeat, scope + intent in both directions, no database),
-and `scripts/measure_access_probe_rules.py --load ... --shipped` (free replay of the probe).
-**Do not retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and
-D-220 measured zero wrong tiers live.
+**Instruments still available:** `scripts/measure_scope_guard.py` (~15¢/repeat, scope + intent in
+both directions, no database) and `scripts/measure_access_probe_rules.py --load ... --shipped` (free
+replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D-226. **Do not
+retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
+measured zero wrong tiers live.
+
+### Session log — the shape apparatus deleted (2026-08-08, D-226)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1025 passed, 2 skipped, 1 xfailed** ·
+the loader now creates **102 templates instead of 152** · a live `place_value` session driven end
+to end after the deletion · full write-up in DECISIONS.md **D-226**.
+
+**The user's call on D-224's evidence: delete it.** ~2,000 lines — the 50-template bank, the
+`SHAPES` registry and generators, `generation.py`, `validation.py`, `hint_ladders.py`, the
+pipeline's shape route, the CLI's `--mode`, and the serving branch that rendered from a seed.
+
+**Deletion rather than the smaller options, because the smaller options leave the trap.** D-222 lost
+a whole build-and-revert cycle building a shape bank for a new topic — the shape path is the
+visible, documented, 50-template-strong one that *looks* like how a topic is added. Retiring only
+the bank would have left exactly that code in place.
+
+**Three things the deletion found, each a test or document that was true about the wrong thing:**
+
+- A **TRACEABILITY row** tracing SPEC's generation chain onto `generate_candidate`. Every claim true,
+  about code no student could reach — traced against the wrong implementation, which the document's
+  method section does not currently name as a failure mode.
+- `test_mock_hint_is_leak_clean.py` proving the mock leak-clean against `SHAPE_HINT_LADDERS`.
+  Re-pointed at the authored ladders it failed instantly and correctly: *"keep 8 as the bottom
+  number"* trips the check because the 8 is the question's own denominator. Rescoped to what the
+  mock controls — it may not *introduce* a leak the canonical text did not already have.
+- **Four eval-registry rows** pointing at shape tests. "Parameter constraints" became
+  `not_applicable` with a reason rather than re-pointed at something adjacent.
+
+**Left alone deliberately:** the 50 `authoring_mode='shape'` rows already in every database. They
+are inert and retiring them costs either a migration or permanent cleanup code on every deploy.
+Documented as a leftover rather than a puzzle.
 
 ### Session log — `place_value` stood up, and the taxonomy is fully stocked (2026-08-08, D-225)
 

@@ -1282,7 +1282,7 @@ def test_the_plan_the_preflight_reports_is_the_plan_the_runner_executes() -> Non
     asked for, which is worse than the divergence the duplication guarded against. So the
     plan is shared and the agreement is asserted here instead.
     """
-    plan = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=0)
+    plan = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=0)
     ids = plan.template_ids
     assert len(ids) == len(set(ids)), "a run cannot claim the same id twice"
     assert len(ids) == sum(
@@ -1293,14 +1293,12 @@ def test_the_plan_the_preflight_reports_is_the_plan_the_runner_executes() -> Non
         assert slot.question_template_id.endswith(str(slot.seed))
 
     # A fresh offset must claim an entirely disjoint range - that is what it is for.
-    shifted = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=400_000)
+    shifted = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=400_000)
     assert not set(ids) & set(shifted.template_ids)
 
 
 def test_cli_filters_generate_only_the_requested_skills_and_difficulties() -> None:
-    plan = pipeline_cli.build_plan(
-        "authored",
-        topic_id="linear_equations",
+    plan = pipeline_cli.build_plan(topic_id="linear_equations",
         skill_ids=["linear_both_sides"],
         difficulties=[3, 4],
         candidates_per_slot=3,
@@ -1314,21 +1312,21 @@ def test_cli_filters_generate_only_the_requested_skills_and_difficulties() -> No
     # topic precisely so that a filtered run and a full run propose the *same* ids for the
     # slots they share - otherwise narrowing a run would silently make it collide with an
     # earlier full one.
-    full = pipeline_cli.build_plan("authored", candidates_per_slot=3, seed_offset=40_000)
+    full = pipeline_cli.build_plan(candidates_per_slot=3, seed_offset=40_000)
     assert set(plan.template_ids) <= set(full.template_ids)
 
 
 def test_unsupported_requested_skill_or_difficulty_fails_before_anything_is_called() -> None:
     with pytest.raises(pipeline_cli.PlanError, match="outside the 1-5 scale"):
-        pipeline_cli.build_plan("authored", difficulties=[7])
+        pipeline_cli.build_plan(difficulties=[7])
     with pytest.raises(pipeline_cli.PlanError, match="not in the selected topic"):
-        pipeline_cli.build_plan("authored", skill_ids=["fraction_add_sub_like"])
+        pipeline_cli.build_plan(skill_ids=["fraction_add_sub_like"])
     with pytest.raises(pipeline_cli.PlanError, match="no registered generation plan"):
-        pipeline_cli.build_plan("authored", topic_id="place_value")
+        pipeline_cli.build_plan(topic_id="place_value")
     # A pair that is individually valid but is not in the authoring plan: tier 1 exists and
     # `linear_distribute` exists, but D-186 only plans that skill at tier 5.
     with pytest.raises(pipeline_cli.PlanError, match="no generation slots match"):
-        pipeline_cli.build_plan("authored", skill_ids=["linear_distribute"], difficulties=[1])
+        pipeline_cli.build_plan(skill_ids=["linear_distribute"], difficulties=[1])
 
 
 def test_preflight_fails_when_the_two_solvers_are_one_model() -> None:
@@ -1344,7 +1342,7 @@ def test_preflight_fails_when_the_two_solvers_are_one_model() -> None:
             # made this test fail on any machine whose database had seen that run. A test
             # asserting "these ids are free" must claim a range nothing else will.
             plan = pipeline_cli.build_plan(
-                "authored", candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET
+                candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET
             )
             report = await pipeline_cli.preflight(
                 session, _settings(solver_a="model-x", solver_b="model-x"), plan
@@ -1378,7 +1376,7 @@ def test_two_inference_profiles_for_one_model_are_not_two_solvers() -> None:
 
     async def run() -> None:
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=870_000)
+            plan = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=870_000)
             report = await pipeline_cli.preflight(
                 session,
                 _settings(solver_a=f"us.{haiku}", solver_b=f"global.{haiku}"),
@@ -1402,7 +1400,7 @@ def test_preflight_sees_a_taken_id_before_the_run_pays_for_it() -> None:
     async def run() -> None:
         curriculum = load_curriculum()
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=900_000)
+            plan = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=900_000)
             report = await pipeline_cli.preflight(session, _settings(), plan)
             assert report.ok, "a fresh offset should be clear"
 
@@ -1438,7 +1436,7 @@ def test_preflight_sees_a_taken_id_before_the_run_pays_for_it() -> None:
             assert "id availability:       FAIL" in report.text
 
             # And the documented remedy works without deleting anything.
-            fresh = pipeline_cli.build_plan("authored", candidates_per_slot=1, seed_offset=950_000)
+            fresh = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=950_000)
             assert (await pipeline_cli.preflight(session, _settings(), fresh)).ok
 
     asyncio.run(run())
@@ -1448,7 +1446,7 @@ def test_preflight_refuses_a_budget_above_the_configured_hard_cap() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
             plan = pipeline_cli.build_plan(
-                "authored", candidates_per_slot=1, seed_offset=820_000, run_budget_cents=500.0
+                candidates_per_slot=1, seed_offset=820_000, run_budget_cents=500.0
             )
             report = await pipeline_cli.preflight(session, _settings(cap=100.0), plan)
             assert not report.ok
@@ -1473,7 +1471,7 @@ def test_preflight_and_dry_run_make_no_provider_call() -> None:
 
     async def run() -> None:
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan("authored", candidates_per_slot=2, seed_offset=830_000)
+            plan = pipeline_cli.build_plan(candidates_per_slot=2, seed_offset=830_000)
             report = await pipeline_cli.preflight(session, _settings(), plan)
             assert report.text  # it produced a report...
             # ...and the gateway it never touched still refuses to be touched.
@@ -1500,9 +1498,7 @@ def test_preflight_and_dry_run_make_no_provider_call() -> None:
 def test_preflight_reports_every_field_a_paid_decision_needs() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan(
-                "authored",
-                topic_id="linear_equations",
+            plan = pipeline_cli.build_plan(topic_id="linear_equations",
                 skill_ids=["linear_both_sides"],
                 difficulties=[4],
                 candidates_per_slot=2,
@@ -1543,9 +1539,7 @@ def test_per_candidate_settlement_survives_a_duplicate_id() -> None:
     async def run() -> None:
         curriculum = load_curriculum()
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan(
-                "authored",
-                skill_ids=["linear_one_step"],
+            plan = pipeline_cli.build_plan(skill_ids=["linear_one_step"],
                 difficulties=[1],
                 candidates_per_slot=1,
                 seed_offset=860_000,
@@ -1617,7 +1611,7 @@ def test_run_summary_separates_processed_from_scheduled() -> None:
     # The budget skips are outside `rejected` entirely, so the quality denominator is the
     # 34 candidates a model actually saw.
     assert summary.pending / summary.processed == pytest.approx(8 / 34)
-    rendered = summary.format("authored")
+    rendered = summary.format()
     assert "8 accepted of 34 processed (24%)" in rendered
     assert "50 scheduled" in rendered
     assert "solver=17" in rendered
@@ -2523,40 +2517,3 @@ def test_a_circuit_open_candidate_is_never_repaired() -> None:
         )
         is None
     )
-
-
-def test_shape_mode_is_refused_before_anything_is_spent() -> None:
-    """D-224: `--mode shape` produces content that can never be served.
-
-    `generate_candidate` persists its template without setting `authoring_mode`, so the
-    column default `"shape"` applies, and `_servable()` requires `"authored"` (D-210).
-    Every row that mode creates is filtered out of every serving read - after paying for a
-    generator call, two independent solvers and three reviewer calls.
-
-    Pinned at the CLI rather than deeper because the refusal has to land *before* anything
-    is read or built: the assertion below is about `SystemExit`, but the property that
-    matters is that no settings, gateway or database connection were touched to reach it.
-    """
-    import asyncio
-
-    parsed = pipeline_cli.build_parser().parse_args([])
-    assert parsed.mode == "authored", (
-        "the default mode must be the one that can produce a servable item"
-    )
-
-    with pytest.raises(SystemExit) as excinfo:
-        asyncio.run(_run_main_with_argv(["--mode", "shape"]))
-    message = str(excinfo.value)
-    assert "cannot be served" in message
-    assert "--mode authored" in message
-
-
-async def _run_main_with_argv(argv: list[str]) -> None:
-    import sys
-
-    original = sys.argv
-    sys.argv = ["pipeline_cli", *argv]
-    try:
-        await pipeline_cli.main()
-    finally:
-        sys.argv = original

@@ -85,11 +85,23 @@ EXECUTABLE_EVALUATORS = EvalCategory(
             "Mathematical answer",
             ("packages/curriculum/tests/test_authored_validation.py",),
         ),
-        EvalItem("Distractor uniqueness", ("packages/curriculum/tests/test_validation.py",)),
+        EvalItem(
+            "Distractor uniqueness",
+            ("packages/curriculum/tests/test_authored_validation.py",),
+        ),
         EvalItem(
             "Equation solution", ("packages/curriculum/tests/test_authored_validation.py",)
         ),
-        EvalItem("Parameter constraints", ("packages/curriculum/tests/test_generation.py",)),
+        EvalItem(
+            "Parameter constraints",
+            not_applicable_reason=(
+                "D-226 removed the parameterized shape templates, which were the only "
+                "content with numeric parameters to constrain. An authored item is a fixed "
+                "piece of text with one canonical variant - there is no parameter schema "
+                "to satisfy at serving time, and the constraints that remain are on the "
+                "item's own fields, covered by 'Mathematical answer' above."
+            ),
+        ),
         EvalItem(".ics syntax", ("packages/adapters/tests/test_ics.py",)),
         EvalItem(
             "SQL parser validation",
@@ -115,7 +127,12 @@ EXECUTABLE_EVALUATORS = EvalCategory(
             # already enforces its own contract on every HTTP-level test in both apps'
             # test suites; there is no separate OpenAPI-snapshot test in this codebase.
         ),
-        EvalItem("Question variant generation", ("packages/curriculum/tests/test_generation.py",)),
+        EvalItem(
+            "Question variant generation",
+            ("apps/learning-api/tests/test_authored_serving.py",),
+            # D-226: a served variant is now a copy of the item's canonical variant rather
+            # than a rendering from a seed, so the evidence moved with the mechanism.
+        ),
     ),
 )
 
@@ -127,11 +144,18 @@ GOLDEN_DATASET_LEARNING = EvalCategory(
         EvalItem(
             "Difficulty-specific questions", ("packages/curriculum/tests/test_loader.py",)
         ),
-        EvalItem("Common errors", ("packages/curriculum/tests/test_templates.py",)),
+        # D-226: both used to point at the shape bank's tests (`test_templates.py`,
+        # `test_hint_ladders.py`), which covered content `_servable()` had filtered out of
+        # every serving read since D-210 - so this category was evidencing questions and
+        # hints no student could be shown. Re-pointed at the authored bank, which is what
+        # is actually served: its per-item `common_error_tags` and `hint_ladder` are gated
+        # by `validate_authored_item` on every load in every environment.
+        EvalItem("Common errors", ("packages/curriculum/tests/test_authored_bank.py",)),
         EvalItem(
             "Hints",
             (
-                "packages/curriculum/tests/test_hint_ladders.py",
+                "packages/curriculum/tests/test_authored_validation.py",
+                "packages/curriculum/tests/test_mock_hint_is_leak_clean.py",
                 "packages/evals/tests/test_leak_sample.py",
             ),
         ),

@@ -33,12 +33,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.ai_pipeline import (
-    DIFFICULTY_SHAPES,
-    TOPIC_DIFFICULTY_SKILLS,
     TOPIC_SKILL_DIFFICULTIES,
     PipelineOutcome,
     generate_authored_candidate,
-    generate_candidate,
 )
 from intellichoice_curriculum.ai_pipeline import (
     PipelineOutcome as _PipelineOutcome,  # noqa: F401  (RunSummary.record's annotation)
@@ -154,10 +151,10 @@ class RunSummary:
         attribute = f"rejected_{outcome.rejected_at or 'generator'}"
         setattr(self, attribute, getattr(self, attribute) + 1)
 
-    def format(self, mode: str) -> str:
+    def format(self) -> str:
         yield_rate = (self.pending / self.processed * 100) if self.processed else 0.0
         return (
-            f"Pipeline run complete ({mode}): {self.pending} accepted of {self.processed} "
+            f"Pipeline run complete: {self.pending} accepted of {self.processed} "
             f"processed ({yield_rate:.0f}%), {self.scheduled} scheduled, "
             f"{self.total_cost_cents:.2f} cents spent.\n"
             f"  rejected: generator={self.rejected_generator} "
@@ -232,7 +229,6 @@ class PlanError(Exception):
 
 @dataclass(frozen=True)
 class GenerationPlan:
-    mode: str
     slots: tuple[GenerationSlot, ...]
     candidates_per_slot: int
     seed_offset: int
@@ -261,7 +257,6 @@ _MODEL_CALLS_PER_AUTHORED_CANDIDATE = 5
 
 
 def build_plan(
-    mode: str,
     *,
     topic_id: str | None = None,
     skill_ids: Sequence[str] | None = None,
@@ -295,21 +290,9 @@ def build_plan(
                 f"difficulty {difficulty} is outside the 1-5 scale the whole system uses"
             )
 
-    plan_by_topic: dict[str, dict[str, list[int]]]
-    if mode == "authored":
-        plan_by_topic = {t: dict(s) for t, s in TOPIC_SKILL_DIFFICULTIES.items()}
-    else:
-        # The shape pipeline has no skill dimension of its own - its skill follows from the
-        # tier (D-186's "native ladder"). Expressed in the same shape so one planner covers
-        # both modes instead of two loops drifting apart.
-        plan_by_topic = {}
-        for topic, tiers in DIFFICULTY_SHAPES.items():
-            by_skill: dict[str, list[int]] = {}
-            for tier in sorted(tiers):
-                skill = TOPIC_DIFFICULTY_SKILLS.get(topic, {}).get(tier)
-                if skill is not None:
-                    by_skill.setdefault(skill, []).append(tier)
-            plan_by_topic[topic] = by_skill
+    plan_by_topic: dict[str, dict[str, list[int]]] = {
+        t: dict(s) for t, s in TOPIC_SKILL_DIFFICULTIES.items()
+    }
 
     if topic_id is not None:
         if topic_id not in plan_by_topic:
@@ -321,8 +304,6 @@ def build_plan(
 
     requested_skills = tuple(skill_ids or ())
     if requested_skills:
-        if mode != "authored":
-            raise PlanError("--skill-id applies to authored mode only; shape mode plans by tier")
         known = {skill for skills in plan_by_topic.values() for skill in skills}
         for skill in requested_skills:
             if skill not in known:
@@ -348,17 +329,13 @@ def build_plan(
                 if requested_difficulties and difficulty_label not in requested_difficulties:
                     continue
                 for index in range(candidates_per_slot):
-                    if mode == "authored":
-                        seed = authored_seed(
-                            skill_index=skill_index,
-                            difficulty_label=difficulty_label,
-                            index=index,
-                            seed_offset=seed_offset,
-                        )
-                        template_id = f"authored-{topic}-d{difficulty_label}-{seed}"
-                    else:
-                        seed = _SEED_BASE + seed_offset + difficulty_label * 100 + index
-                        template_id = f"ai-{topic}-d{difficulty_label}-{seed}"
+                    seed = authored_seed(
+                        skill_index=skill_index,
+                        difficulty_label=difficulty_label,
+                        index=index,
+                        seed_offset=seed_offset,
+                    )
+                    template_id = f"authored-{topic}-d{difficulty_label}-{seed}"
                     slots.append(
                         GenerationSlot(
                             topic_id=topic,
@@ -376,7 +353,6 @@ def build_plan(
             "not in the authoring plan"
         )
     return GenerationPlan(
-        mode=mode,
         slots=tuple(slots),
         candidates_per_slot=candidates_per_slot,
         max_repair_attempts=max_repair_attempts,
@@ -396,9 +372,9 @@ async def run_plan(
 ) -> RunSummary:
     """Execute a plan, one committed candidate at a time.
 
-    Both modes share this loop now; the only difference is which candidate function runs,
-    because everything that used to differ - which (skill, tier) pairs to visit, what seed
-    each gets, what id it claims - is decided by `build_plan` and identical in structure.
+    One candidate function, since D-226 removed the shape route. Everything that used to
+    differ between the two modes - which (skill, tier) pairs to visit, what seed each gets,
+    what id it claims - was already decided by `build_plan`.
     """
     curriculum = load_curriculum()
     summary = RunSummary()
@@ -410,32 +386,21 @@ async def run_plan(
             print(f"run budget of {plan.run_budget_cents} cents reached - stopping early")
             return summary
         try:
-            if plan.mode == "authored":
-                outcome: PipelineOutcome = await generate_authored_candidate(
-                    session=session,
-                    gateway=gateway,
-                    curriculum=curriculum,
-                    topic_id=slot.topic_id,
-                    difficulty_label=slot.difficulty_label,
-                    seed=slot.seed,
-                    session_spend_cents=spend,
-                    skill_id=slot.skill_id,
-                    max_repair_attempts=plan.max_repair_attempts,
-                    design_attempts=plan.design_attempts,
-                    # The slot may not spend past the run's own ceiling; without this the
-                    # between-slot check only notices after the money is gone.
-                    budget_ceiling_cents=plan.run_budget_cents,
-                )
-            else:
-                outcome = await generate_candidate(
-                    session=session,
-                    gateway=gateway,
-                    curriculum=curriculum,
-                    topic_id=slot.topic_id,
-                    difficulty_label=slot.difficulty_label,
-                    seed=slot.seed,
-                    session_spend_cents=spend,
-                )
+            outcome: PipelineOutcome = await generate_authored_candidate(
+                session=session,
+                gateway=gateway,
+                curriculum=curriculum,
+                topic_id=slot.topic_id,
+                difficulty_label=slot.difficulty_label,
+                seed=slot.seed,
+                session_spend_cents=spend,
+                skill_id=slot.skill_id,
+                max_repair_attempts=plan.max_repair_attempts,
+                design_attempts=plan.design_attempts,
+                # The slot may not spend past the run's own ceiling; without this the
+                # between-slot check only notices after the money is gone.
+                budget_ceiling_cents=plan.run_budget_cents,
+            )
         except IntegrityError as exc:
             # The collision surfaces HERE, not at commit: `QuestionRepository.create_template`
             # flushes, so the unique-violation is raised while the candidate is still being
@@ -543,8 +508,6 @@ async def preflight(
     )
     generator_model = (
         settings.bedrock_authored_generation_model_id
-        if plan.mode == "authored"
-        else settings.bedrock_generation_model_id
     )
     solver_a = settings.bedrock_generation_model_id
     solver_b = settings.bedrock_review_model_id
@@ -584,7 +547,6 @@ async def preflight(
         )
 
     lines = [
-        f"mode:                  {plan.mode}",
         f"provider:              {settings.bedrock_provider}",
         f"generator model:       {generator_model}",
         f"design model:          {_design_model(settings)}"
@@ -719,17 +681,6 @@ def build_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(description="Run the AI question-generation pipeline")
     parser.add_argument(
-        "--mode",
-        choices=["shape", "authored"],
-        # D-224: `authored` is the default because it is the only mode that can produce a
-        # servable item. `shape` was the default until it was found to be unservable, and
-        # a default nobody passes explicitly is exactly how it stayed unnoticed.
-        default="authored",
-        help="'authored' (S20, the model writes the whole item) - default. 'shape' (S9, "
-        "parameterized templates) is refused: its output is filtered out of every serving "
-        "read by D-210, so running it spends money for nothing",
-    )
-    parser.add_argument(
         "--topic-id",
         default=None,
         help="Restrict generation to one topic (default: every topic with a plan)",
@@ -823,35 +774,8 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-SHAPE_MODE_IS_UNSERVABLE = (
-    "--mode shape is refused: it spends money producing content that cannot be served.\n"
-    "\n"
-    "`generate_candidate` persists its template without setting `authoring_mode`, so the\n"
-    "column default 'shape' applies, and `_servable()` requires 'authored' (D-210). Every\n"
-    "row this mode creates is filtered out of every serving read - after paying for the\n"
-    "generator call, two independent solvers, and three reviewer calls.\n"
-    "\n"
-    "This is not a filter to loosen. D-210 excludes shape-rendered content because it reads\n"
-    "as a bare equation ('Solve for x: 2x + 7 = 19') rather than as a situation, which is\n"
-    "the product rule, not an implementation detail.\n"
-    "\n"
-    "Use `--mode authored` (`make question-gen-authored`), which writes authoring_mode=\n"
-    "'authored' and is the route every servable item in the bank came through.\n"
-    "\n"
-    "Refused rather than removed (D-224): the shape machinery is still what this mode and\n"
-    "the loader's 50 templates are built on, and whether any of it should remain is a\n"
-    "decision that has not been made."
-)
-
-
 async def main() -> None:
     args = build_parser().parse_args()
-
-    # D-224. A cost guard, first thing after parsing: no settings read, no gateway built,
-    # no database connection opened, nothing written.
-    if args.mode == "shape":
-        raise SystemExit(SHAPE_MODE_IS_UNSERVABLE)
-
     settings = get_pipeline_settings()
 
     candidates_per_slot = (
@@ -863,7 +787,6 @@ async def main() -> None:
     )
     try:
         plan = build_plan(
-            args.mode,
             topic_id=args.topic_id,
             skill_ids=args.skill_id,
             difficulties=args.difficulty,
@@ -918,7 +841,7 @@ async def main() -> None:
             # Every candidate has already committed itself (`_settle`); this only flushes
             # anything the runner left uncommitted on an early return.
             await session.commit()
-        print(summary.format(args.mode))
+        print(summary.format())
         for topic_id, difficulty_label, reasons in summary.rejections:
             print(f"  rejected {topic_id} d{difficulty_label}: {reasons}")
     finally:

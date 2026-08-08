@@ -1,12 +1,18 @@
-"""CLI loader: curriculum/internal_math YAML + hand-authored templates -> Postgres.
+"""CLI loader: curriculum/internal_math YAML -> Postgres.
 
 Run with: uv run python -m intellichoice_curriculum.loader
 
-Idempotent — safe to re-run (mirrors the MySQL seed fixtures' upsert-by-natural-key
-pattern, D-002). Topics/skills use the YAML-defined ids as their primary key; each
-template gets a deterministic id (`<topic_id>-d<difficulty>-<index>`) so a second run
-recognizes and skips what already exists instead of inserting duplicates. A template
-that fails the §5.8.5 validation suite is never inserted — the whole run aborts.
+Loads the taxonomy (topics/skills) and the approved authored items from
+`curriculum/internal_math/authored/*.yaml`. Idempotent — safe to re-run (mirrors the MySQL
+seed fixtures' upsert-by-natural-key pattern, D-002): ids come from the files, so a second
+run recognizes and skips what already exists instead of inserting duplicates. An item that
+fails the §5.8.5 validation suite is never inserted — the whole run aborts.
+
+D-226 removed the second thing this loaded. Until then it also generated and validated 50
+parameterized *shape* templates from `templates/linear_equations.py`, which `_servable()`
+had filtered out of every serving read since D-210 — so every deploy paid to build and
+validate content no student could be shown. Nothing here renders from a seed any more; an
+authored item *is* its content.
 """
 
 import asyncio
@@ -31,20 +37,15 @@ from intellichoice_curriculum.authored_bank import (
 )
 from intellichoice_curriculum.authored_validation import validate_authored_item
 from intellichoice_curriculum.content import CurriculumContent, load_curriculum
-from intellichoice_curriculum.generation import generate_variant
-from intellichoice_curriculum.templates.linear_equations import LINEAR_EQUATIONS_TEMPLATES
-from intellichoice_curriculum.templates.model import QuestionTemplateDef
-from intellichoice_curriculum.validation import validate_variant
-
-# topic_id -> hand-authored templates for that topic. Only linear_equations has a
-# seed bank so far (D-003); fraction_operations/place_value are filled by S9.
-TEMPLATE_BANKS: dict[str, list[QuestionTemplateDef]] = {
-    "linear_equations": LINEAR_EQUATIONS_TEMPLATES,
-}
 
 
 class CurriculumLoadError(Exception):
-    """A hand-authored template failed the §5.8.5 validation suite - never inserted."""
+    """An authored item failed the §5.8.5 validation suite - never inserted.
+
+    D-226 removed the shape bank this also used to guard. The remaining source of a load
+    failure is `curriculum/internal_math/authored/*.yaml`, which is hand-editable and is
+    re-validated on every load in every environment (D-190) rather than trusted.
+    """
 
 
 @dataclass
@@ -85,83 +86,6 @@ async def _load_taxonomy(
         summary.skills_created += 1
 
 
-def _template_id(topic_id: str, index: int, template: QuestionTemplateDef) -> str:
-    return f"{topic_id}-d{template.difficulty_label}-{index:02d}"
-
-
-async def _load_templates(
-    session: AsyncSession,
-    curriculum: CurriculumContent,
-    topic_id: str,
-    templates: list[QuestionTemplateDef],
-    summary: LoadSummary,
-) -> None:
-    repo = QuestionRepository(session)
-    seen_questions: set[str] = set()
-
-    for index, template_def in enumerate(templates):
-        template_id = _template_id(topic_id, index, template_def)
-        if await repo.get_template(template_id) is not None:
-            summary.templates_skipped_existing += 1
-            continue
-
-        variant = generate_variant(
-            shape_key=template_def.solution_function,
-            parameter_schema=template_def.parameter_schema,
-            correct_option_generator=template_def.correct_option_generator,
-            distractor_generator_keys=template_def.distractor_generators,
-            seed=index,
-        )
-        result = validate_variant(template_def, variant, curriculum, seen_questions)
-        seen_questions.add(variant.rendered_question)
-        if not result.passed:
-            raise CurriculumLoadError(
-                f"template {template_id} failed validation: {result.failures}"
-            )
-
-        template = await repo.create_template(
-            QuestionTemplate(
-                question_template_id=template_id,
-                curriculum_version=curriculum.curriculum_version,
-                topic_id=template_def.topic_id,
-                skill_id=template_def.skill_id,
-                grade_band=template_def.grade_band,
-                difficulty_label=template_def.difficulty_label,
-                difficulty_confidence=template_def.difficulty_confidence,
-                question_type=template_def.question_type,
-                parameter_schema=template_def.parameter_schema,
-                generation_constraints=template_def.generation_constraints,
-                solution_function=template_def.solution_function,
-                correct_option_generator=template_def.correct_option_generator,
-                distractor_generators=template_def.distractor_generators,
-                common_error_tags=template_def.common_error_tags,
-                estimated_time_seconds=template_def.estimated_time_seconds,
-                generator_model=template_def.generator_model,
-                review_model_versions=template_def.review_model_versions,
-                validation_status="approved",
-                active_status="active",
-            )
-        )
-        summary.templates_created += 1
-
-        await repo.create_variant(
-            QuestionVariant(
-                # The seed bank's one defining rendering per template (D-106).
-                origin=VARIANT_ORIGIN_CANONICAL,
-                question_template_id=template.question_template_id,
-                random_seed=variant.random_seed,
-                rendered_question=variant.rendered_question,
-                option_a=variant.option_a,
-                option_b=variant.option_b,
-                option_c=variant.option_c,
-                option_d=variant.option_d,
-                correct_option=variant.correct_option,
-                parameter_values=variant.parameter_values,
-            )
-        )
-        summary.variants_created += 1
-
-
 async def _load_authored_templates(
     session: AsyncSession,
     curriculum: CurriculumContent,
@@ -171,18 +95,16 @@ async def _load_authored_templates(
 ) -> None:
     """Load approved authored items from their versioned file (D-190).
 
-    Two differences from `_load_templates` above, both following from what an authored
-    item *is*. There is no rendering to generate - the content is the artifact, so the
-    canonical variant is written from the file rather than recomputed from a seed. And the
-    validation run is `validate_authored_item`, the same §5.8.5 gate the pipeline applied,
-    because this file is hand-editable YAML that is loaded into every environment
-    including production. A file whose options no longer agree with its answer fails the
-    load rather than reaching a student.
+    There is no rendering to generate - the content is the artifact, so the canonical
+    variant is written from the file rather than recomputed from a seed. Validation is
+    `validate_authored_item`, the same §5.8.5 gate the pipeline applied, because this file
+    is hand-editable YAML that is loaded into every environment including production. A
+    file whose options no longer agree with its answer fails the load rather than reaching
+    a student.
 
-    Skip-by-id, like the shape bank: a re-run is a no-op. **An edit to an item already in
-    a database therefore does not propagate** - same limitation the shape bank has always
-    had, and the reason `review_cli`'s edit-and-rerun mints a new id with a bumped version
-    rather than mutating a row.
+    Skip-by-id: a re-run is a no-op. **An edit to an item already in a database therefore
+    does not propagate**, which is the reason `review_cli`'s edit-and-rerun mints a new id
+    with a bumped version rather than mutating a row.
     """
     repo = QuestionRepository(session)
 
@@ -292,8 +214,6 @@ async def load_curriculum_and_templates(session: AsyncSession) -> LoadSummary:
     curriculum = load_curriculum()
     summary = LoadSummary()
     await _load_taxonomy(session, curriculum, summary)
-    for topic_id, templates in TEMPLATE_BANKS.items():
-        await _load_templates(session, curriculum, topic_id, templates, summary)
     for topic_id, authored_templates in load_authored_bank().items():
         await _load_authored_templates(session, curriculum, topic_id, authored_templates, summary)
     return summary
