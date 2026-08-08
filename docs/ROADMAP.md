@@ -1560,6 +1560,20 @@ directly. Coverage gap, not a break.
    off-native tier would draw another skill's math forms — the shape pipeline is untouched.
    ⚠️ `review_cli.rerun_with_edit` now carries `skill_id` from the superseded row; re-deriving it
    would have silently swapped the skill on the first multi-tier re-run.
+> **Scope note, 2026-08-08 (D-226/D-227).** Two things below are now history rather than
+> instructions. **The shape pipeline named in steps 2 and 3 no longer exists** — D-226 deleted it,
+> along with its 50-template bank, because `_servable()` had filtered everything it produced out of
+> every serving read since D-210, so "the shape pipeline is untouched" is no longer a caveat to
+> preserve. And step 3's ⏸ is now **only** about multi-tier content from the *authored* pipeline;
+> its versioned-home half was closed long ago (struck through in place below).
+>
+> **The track's measured position also moved past this block's framing.** Every topic in the
+> taxonomy is stocked — 102 authored items across three topics — and grades 1-7 all resolve to one
+> (D-227). What the coverage requirement now lacks is not a mechanism but a *topic*:
+> multiplication and division, which is what a grade-3 student should be studying and which
+> §5.7.3's own 2-3 band names. That is the next content item, and it is authoring work rather than
+> pipeline work.
+
 3. **⏸ Ran 2026-08-05. The pipeline works and serving is built (D-188, D-189); the content is still
    not anywhere but one laptop.** The run produced eight items covering 7 of 11 pairs, five of which
    passed review — but approving them exists only as a row update in whatever database the pipeline
