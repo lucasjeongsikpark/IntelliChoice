@@ -2523,3 +2523,40 @@ def test_a_circuit_open_candidate_is_never_repaired() -> None:
         )
         is None
     )
+
+
+def test_shape_mode_is_refused_before_anything_is_spent() -> None:
+    """D-224: `--mode shape` produces content that can never be served.
+
+    `generate_candidate` persists its template without setting `authoring_mode`, so the
+    column default `"shape"` applies, and `_servable()` requires `"authored"` (D-210).
+    Every row that mode creates is filtered out of every serving read - after paying for a
+    generator call, two independent solvers and three reviewer calls.
+
+    Pinned at the CLI rather than deeper because the refusal has to land *before* anything
+    is read or built: the assertion below is about `SystemExit`, but the property that
+    matters is that no settings, gateway or database connection were touched to reach it.
+    """
+    import asyncio
+
+    parsed = pipeline_cli.build_parser().parse_args([])
+    assert parsed.mode == "authored", (
+        "the default mode must be the one that can produce a servable item"
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        asyncio.run(_run_main_with_argv(["--mode", "shape"]))
+    message = str(excinfo.value)
+    assert "cannot be served" in message
+    assert "--mode authored" in message
+
+
+async def _run_main_with_argv(argv: list[str]) -> None:
+    import sys
+
+    original = sys.argv
+    sys.argv = ["pipeline_cli", *argv]
+    try:
+        await pipeline_cli.main()
+    finally:
+        sys.argv = original

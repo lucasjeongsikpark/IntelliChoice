@@ -721,9 +721,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--mode",
         choices=["shape", "authored"],
-        default="shape",
-        help="'shape' (S9, parameterized templates) or 'authored' (S20, the model "
-        "writes the whole item) - default: shape",
+        # D-224: `authored` is the default because it is the only mode that can produce a
+        # servable item. `shape` was the default until it was found to be unservable, and
+        # a default nobody passes explicitly is exactly how it stayed unnoticed.
+        default="authored",
+        help="'authored' (S20, the model writes the whole item) - default. 'shape' (S9, "
+        "parameterized templates) is refused: its output is filtered out of every serving "
+        "read by D-210, so running it spends money for nothing",
     )
     parser.add_argument(
         "--topic-id",
@@ -819,8 +823,35 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+SHAPE_MODE_IS_UNSERVABLE = (
+    "--mode shape is refused: it spends money producing content that cannot be served.\n"
+    "\n"
+    "`generate_candidate` persists its template without setting `authoring_mode`, so the\n"
+    "column default 'shape' applies, and `_servable()` requires 'authored' (D-210). Every\n"
+    "row this mode creates is filtered out of every serving read - after paying for the\n"
+    "generator call, two independent solvers, and three reviewer calls.\n"
+    "\n"
+    "This is not a filter to loosen. D-210 excludes shape-rendered content because it reads\n"
+    "as a bare equation ('Solve for x: 2x + 7 = 19') rather than as a situation, which is\n"
+    "the product rule, not an implementation detail.\n"
+    "\n"
+    "Use `--mode authored` (`make question-gen-authored`), which writes authoring_mode=\n"
+    "'authored' and is the route every servable item in the bank came through.\n"
+    "\n"
+    "Refused rather than removed (D-224): the shape machinery is still what this mode and\n"
+    "the loader's 50 templates are built on, and whether any of it should remain is a\n"
+    "decision that has not been made."
+)
+
+
 async def main() -> None:
     args = build_parser().parse_args()
+
+    # D-224. A cost guard, first thing after parsing: no settings read, no gateway built,
+    # no database connection opened, nothing written.
+    if args.mode == "shape":
+        raise SystemExit(SHAPE_MODE_IS_UNSERVABLE)
+
     settings = get_pipeline_settings()
 
     candidates_per_slot = (

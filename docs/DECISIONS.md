@@ -16128,3 +16128,68 @@ citations now resolve to this note, which says what is known and what is not.
 **Worth a habit, not a fix:** the two sessions before this one both shipped a decision entry, so the
 gap is not a standing process failure — it is three ids burned in a stretch of work that moved fast.
 `grep -c "^## D-$n" docs/DECISIONS.md` before citing an id costs nothing.
+
+## D-224 — the paid pipeline's default mode produced content that could never be served (accepted, 2026-08-08)
+
+The next-session pointer asked whether the shape bank should still exist. Answering it turned up
+something the question did not anticipate: **the shape half of the AI pipeline — the CLI's default
+mode, behind the unqualified `make question-gen-run` — writes rows that `_servable()` filters out.**
+
+### The chain, each link read from the code and confirmed against the database
+
+1. `generate_candidate` persists its template (`ai_pipeline.py:1128`) **without setting
+   `authoring_mode`**, so the column default applies: `models/questions.py:58`,
+   `default="shape"`.
+2. `_servable()` requires `authoring_mode == SERVABLE_AUTHORING_MODE`, and that constant is
+   `"authored"` (`repositories/questions.py:35`). D-210.
+3. So every row that mode creates is unservable — **after** paying for the generator call, two
+   independent solver calls, and three reviewer calls (difficulty, ambiguity, alignment).
+4. `pipeline_cli`'s `--mode` defaulted to `shape`, and `make question-gen-run` passes no mode. The
+   obvious target was the one that could only waste money; `question-gen-authored` was the live one.
+
+Counted in the dev database:
+
+| authoring_mode | active | validation | n |
+|---|---|---|---|
+| `authored` | active | approved | **77** ← everything servable |
+| `shape` | active | approved | 50 ← the loader's bank, filtered out of every read |
+| `authored` | retired | approved | 21 |
+| `authored` | retired | rejected/pending | 13 |
+| `authored` | retired | approved | 6 with a **real shape** `solution_function` |
+
+**Servable templates that would take the generated rendering path: 0.** So `build_variant_row`'s
+`generate_variant` branch, its regeneration retry loop, and `SHAPE_HINT_LADDERS` are all unreachable
+today. Note *today*, not by construction — the six retired rows in the last line are authored-mode
+rows carrying `one_step_add`, so the combination has existed and `renders_from_canonical_variant`
+keys on the shape registry precisely to keep handling it.
+
+### What was changed, and what deliberately was not
+
+`--mode shape` now **refuses**, first thing after argument parsing — no settings read, no gateway
+built, no database connection opened. The default flipped to `authored`, because a default nobody
+passes explicitly is exactly how this stayed unnoticed. `make question-gen-run` now runs the
+authored mode.
+
+**Not deleted:** the 50-template bank, the shape machinery (`SHAPES`, the generators,
+`generate_variant`), or the shape route itself. Three reasons. The machinery is what `validation.py`
+and the refused route are built on, so removing it is a wider change than it looks. The pointer
+asked a question, and answering it with a deletion in the same breath would skip the decision. And
+`ai_pipeline`'s shape route is the only worked example of the parameterized-template design the
+SPEC still describes — deleting it is a product call about whether that design is coming back.
+
+**Refusing is the right shape of fix, not loosening the filter.** D-210 excludes shape-rendered
+content because it reads as a bare equation ("Solve for x: 2x + 7 = 19") rather than as a situation.
+Making these rows servable would undo a deliberate product rule to make a dead route look alive.
+
+### What this says about D-223, one day earlier
+
+D-223 fixed a 2.36% false-rejection rate in the gate `generate_candidate` runs, and justified it as
+a cost bug: paid generator calls binned by a bad regex. That was true. It was also **an efficiency
+improvement to a route whose every output is unservable** — the 2.36% was the small waste sitting
+inside the 100%. Both facts were reachable from the same file on the same day; the difference is
+that D-223 asked "is this check correct?" and this entry asked "who consumes what this produces?"
+
+### Still open
+
+Whether *any* of the shape apparatus should remain — the bank, the machinery, the route — is now a
+clean question with the evidence attached, and it is the user's call rather than a cleanup.
