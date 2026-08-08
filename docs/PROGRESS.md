@@ -28,8 +28,12 @@ stays deliberately deferred (D-152) until the user starts it. In rough order of 
    highest-value *product* gap; AI authoring stays blocked on Sonnet 5 (D-211).
 4. **The order-dependent flake.** `test_intervention_choice_pause_records_choice_and_blocks_skip`
    failed in a full `make test` twice across two sessions and passed in isolation both times,
-   with neither session touching it. **It did not reproduce in D-220's baseline run**, so it is
-   intermittent rather than steadily worsening - still worth one focused sitting.
+   with neither session touching it. In D-220 the baseline run was clean, **a later full run
+   failed once, and the immediate rerun and CI were both green on identical code** - so it is
+   intermittent, not steadily worsening. ⚠️ That later failure's *name was not captured*: the
+   command was piped through `tail -2`, which discarded the `FAILED` line, so it cannot be
+   attributed to this test rather than another. **Do not pipe `make test` through a short
+   `tail`** - the summary survives and the evidence does not. Still worth one focused sitting.
 5. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
 
