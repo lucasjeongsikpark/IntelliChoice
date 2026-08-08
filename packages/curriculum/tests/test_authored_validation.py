@@ -196,7 +196,16 @@ def test_banned_wording_matches_words_not_substrings() -> None:
         result = validate_authored_item(1, item)
         assert not any("disallowed wording" in f for f in result.failures), harmless
 
-    for banned in ["The plants died after a week.", "That answer is stupid."]:
+    # "dies" added in D-223. The list carried "died"/"dying" but not the present tense, and
+    # the gap surfaced from the *other* side: the shape half's negative controls only caught
+    # it because that half was still substring-matching, so "dies" tripped on "die". Fixing
+    # the substring bug there would have silently opened this hole here had the word not been
+    # added at the same time.
+    for banned in [
+        "The plants died after a week.",
+        "The character dies after four turns.",
+        "That answer is stupid.",
+    ]:
         item = _good_item(stem=banned)
         result = validate_authored_item(1, item)
         assert any("disallowed wording" in f for f in result.failures), banned

@@ -7,46 +7,101 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Pointer items 1 and 3 are closed (D-222).** The flake is reproduced, root-caused and fixed —
-it was never about semantic memory — and `fraction_operations` is standing: 15 hand-authored,
-§5.8.5-gated items, `available=True` and recommended for a grade-4 student. No numbered ROADMAP
-session is queued; integration (S43+) stays deliberately deferred (D-152) until the user starts it.
-In rough order of value:
+**Pointer items 3 and the content half of 4 are closed (D-223).** The shape half of the §5.8.5 gate
+no longer over-rejects — measured in both directions, 2.36% of the paid pipeline's population down
+to 0 with the positive controls going 5/6 → 6/6 — and `fraction_operations` is 30 items instead of
+15. No numbered ROADMAP session is queued; integration (S43+) stays deliberately deferred (D-152)
+until the user starts it. In rough order of value:
 
-1. **Deploy the new topic to staging, if this was not already done.** The deploy runs the
-   curriculum loader itself (D-206), so `fraction_operations` reaches staging by deploying —
-   nothing extra to run. **Do not deploy the loader change and the bank file separately:** the
-   retirement fix (D-222 §3) must be in the same image, or the first load retires every
-   `linear_equations` item in staging.
+1. **Confirm `fraction_operations` in staging through an authenticated call.** Two deploys have now
+   carried it (D-222, D-223) and both curriculum-load ops tasks exited 0, but nothing has read
+   staging's topic list as a signed-in grade-4 student. Needs an `aws login` session, which is
+   interactive — so it is the user's step, not a blocker on code.
 2. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-3. **`check_no_answer_leakage` over-rejects on a substring match** (D-222, found not fixed).
-   `Solve for x: 11x = -55` with answer `-5` reads as a leak because `x = -5` is inside
-   `x = -55`; 63 of 5 000 sampled variants trip it. Fail-closed and currently invisible, since
-   the loader validates one fixed seed per template. It is a shared §5.8.5 gate, so loosening it
-   changes what the paid pipeline rejects — measure both directions before and after, and treat
-   the over-rejection count as a first-class number rather than a footnote (D-221's rule).
-4. **`place_value` is still dormant**, and `fraction_operations` is thinner than it looks: 3
-   items per tier against `linear_equations`' 8–12, and no two-solver/judge panel behind them
-   (D-211). More items for tiers a student actually reaches beats a third topic.
+3. **Does the shape bank still deserve to exist?** D-223 made its gate correct without asking this.
+   Fifty templates load into every environment and `_servable()` filters every one of them out of
+   every serving read (D-210); the only thing that still *runs* them is `ai_pipeline`, which builds
+   generated items from shapes. So the answer is not an obvious "delete" — it is a real question
+   about whether the paid pipeline's shape-based route is the one to keep. Decide it deliberately.
+4. **`place_value` is still dormant.** The K-3 band has no topic at all. Against that,
+   `fraction_operations` and `linear_equations` are now both comfortably stocked, so a third topic
+   is finally the better marginal item — the reverse of D-222's ranking, because the thinness that
+   outranked it has been fixed.
 5. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
 6. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
-**Before writing content for a new topic, read D-222 §2.** A shape bank (`templates/*.py`) is
-*not* how a topic is stood up any more — `_servable()` filters on `authoring_mode == "authored"`
-(D-210), so shape templates load and are then never served. Authored-mode YAML under
-`curriculum/internal_math/authored/` is the only route, and the file must match `make
-question-export` byte for byte, order included.
+**Before writing content for a new topic, read D-222 §2 and D-223 §3.** A shape bank
+(`templates/*.py`) is *not* how a topic is stood up — `_servable()` filters on
+`authoring_mode == "authored"` (D-210), so shape templates load and are then never served.
+Authored-mode YAML under `curriculum/internal_math/authored/` is the only route, and the file must
+match `make question-export` byte for byte, order included. On how much to write: the 2-per-tier
+availability floor is a floor, not a target — a topic sitting on it serves a student its whole bank
+and repeats it next session (D-223 measured this).
+
+**Before changing either half of the §5.8.5 gate, read D-223.** `validation.py` (shape) and
+`authored_validation.py` (authored) are two copies of near-identical text checks, and every fix
+until now landed on one copy only. Shared rules live in `authored_validation` as public helpers
+(`leak_phrase_present`, `answer_text_leaked`, `disallowed_wording_found`); anything genuinely
+different stays separate *and* says why in both docstrings. `scripts/measure_shape_gate.py` scores
+the shape half in both directions for free — run it before and after, not only after.
 
 **Instruments now available, and cheap enough to rerun before assuming anything:**
 `scripts/measure_scope_guard.py` (~15¢/repeat, scope + intent in both directions, no database),
 and `scripts/measure_access_probe_rules.py --load ... --shipped` (free replay of the probe).
 **Do not retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and
 D-220 measured zero wrong tiers live.
+
+### Session log — one gate, two copies, and every fix on only one of them (2026-08-08, D-223)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1085 passed, 2 skipped, 1 xfailed** (was
+1063; +22) · **191 curriculum tests** · 11 of the new tests watched failing against the pre-fix
+source · all 15 new items passed the §5.8.5 gate on the first run · bank re-exported and the
+parity test green · three pre-exams driven live · full write-up in DECISIONS.md **D-223**.
+
+**Not a numbered ROADMAP session** — the pointer's item 3 and the content half of item 4, with the
+user's scope choice: fix the gate, then thicken the bank.
+
+**I contradicted the pointer and the pointer was right.** It said the leak check is shared with the
+paid pipeline; I said it had one caller, on a `grep | head -20` truncated before
+`ai_pipeline.py:992`. That inverts the stakes rather than lowering them: there, a false positive
+returns `PipelineOutcome(status="rejected", cost_cents=total_cost)` — the generator call is already
+paid for and the item is binned before the solver calls. A cost bug.
+
+**It was not one bug, it was a pattern.** `validation.py` and `authored_validation.py` are the two
+halves of the §5.8.5 gate, and *every* correction the authored half received (D-079, D-191, D-195)
+was made on that copy alone. Both live bugs found this session are those same two bugs, still
+unfixed on the shape side. The disallowed-wording list is now shared through one function;
+the leak checks stay separate because their semantics genuinely differ, and each says so.
+
+| | before | after |
+|---|---|---|
+| flagged, `ai_pipeline` population | 52/2200 (**2.36%**) | **0** |
+| flagged, shipped shape banks | 139/10000 (**1.39%**) | **0** |
+| leak positive controls | 5/6 | **6/6** |
+| leak negative controls | 4/8 | **8/8** |
+| safe wording ("a die", "skill") | 1/5 | **5/5** |
+| unsafe wording | 4/4 | **4/4** |
+
+**Measurement wrote part of the fix.** `answer_text_leaked`'s trailing guards alone left 0.18%, and
+every survivor was the equation's *own* right-hand side (`1x = -2`, answer `-2`) — which is what
+produced the leading `(?<![0-9A-Za-z])`. Separately, the wording controls exposed that the shared
+list had `died`/`dying` but not `dies`: narrowing the shape half would have silently opened that
+hole in the paid gate had the word not been added in the same change.
+
+**`fraction_operations` 15 → 30**, 0 of 15 failing the gate on the first run. Three live pre-exams
+covered **19 of 30** distinct questions with **3/10 and 6/10** overlap; at 3 items per tier two
+exams had to share at least 5 of 10. Two `(skill, difficulty)` cells are deliberately empty —
+adding like-denominator fractions is not a difficulty-5 skill, and nothing requires the cell.
+
+**Carry-over:** whether the shape bank should still exist at all (D-223 fixed its gate without
+asking); `place_value` still dormant, and now the better marginal item; the bank still has no
+two-solver/judge panel behind it (D-211); staging's topic list still unverified through an
+authenticated call.
 
 ### Session log — a precondition nothing re-checked, three times (2026-08-08, D-222)
 

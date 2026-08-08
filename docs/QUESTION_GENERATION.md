@@ -282,9 +282,9 @@ Not built. Each waits on evidence from a real pilot rather than on a schedule.
 | Auto-approval for a narrow slice | a near-zero human rejection rate over a real sample |
 | Resume | an interrupted run that a fresh seed offset could not recover |
 
-## 9a. Hand-authoring, when the pipeline is not available (D-222)
+## 9a. Hand-authoring, when the pipeline is not available (D-222, extended in D-223)
 
-`fraction_operations`' 15 items were written by hand, not generated. The route matters more than
+`fraction_operations`' 30 items were written by hand, not generated. The route matters more than
 the fact: **a new topic's content has to be authored-mode YAML**, because `_servable()` filters on
 `authoring_mode == "authored"` (D-210). A shape bank for a new topic loads and is then filtered out
 of every serving read, so the topic stays unavailable no matter how many templates it holds. This
@@ -311,12 +311,28 @@ The file is still the artifact: write it, load it, then `make question-export` s
 the database would produce, byte for byte. `test_the_repo_bank_file_matches_what_the_database_would_export`
 compares the whole list, order included, and the export orders by `(skill_id, difficulty_label, id)`.
 
+### How many items a topic needs (D-223)
+
+The availability floor is 2 per difficulty (`QUESTIONS_PER_DIFFICULTY`), and it is a floor, not a
+target: a pre-exam draws 2 per tier, so a topic sitting on the floor serves a student *its whole
+bank* and repeats it in full on the next session. Measured on `fraction_operations` at 3 per tier,
+two independently-built exams had to share at least 5 of 10 items; at 5–7 per tier, three exams
+covered **19 of 30** distinct questions with **3/10 and 6/10** overlap.
+
+Two things do *not* have to be filled in, and treating them as targets would cost content quality:
+
+- **Every `(skill, difficulty)` cell.** Adding like-denominator fractions is not a difficulty-5
+  skill. Nothing requires the cell to be non-empty — the pre-exam reads per difficulty across the
+  topic, and the study selector reads the skill's whole pool and takes `_closest_to_recommended`,
+  so an absent tier degrades to the nearest present one.
+- **An equal count per skill.** The bank should follow where the skill actually spans.
+
 ## 10. State
 
 The bank holds 47 approved authored `linear_equations` items and 50 hand-authored shape templates,
-plus 15 hand-authored `fraction_operations` items (D-222). Twelve authored candidates sit at
-`pending` as the pilot's human-review comparison set; eight equation-first candidates were retired
-in D-193.
+plus 30 hand-authored `fraction_operations` items (15 in D-222, 15 more in D-223). Twelve authored
+candidates sit at `pending` as the pilot's human-review comparison set; eight equation-first
+candidates were retired in D-193.
 
 ### The first paid pilot (D-195, 2026-08-06)
 
