@@ -158,22 +158,6 @@ export function ExamScreen({
     onExamViewed();
   }, [isExamPhase, phase, overlayOpen, onExamViewed]);
 
-  // D-218: put focus back inside the panel whenever the thing that had it went away - the
-  // overlay closing, or the previous question's option unmounting on submit. Without this
-  // focus lands on `<body>` and the keyboard shortcuts silently stop working (see `panelRef`).
-  //
-  // Deliberately not while `overlayOpen`: the overlay owns focus while it is up, and stealing
-  // it would drop a screen-reader user out of a dialog they have not dismissed.
-  useEffect(() => {
-    if (!isExamPhase || overlayOpen) return;
-    const panel = panelRef.current;
-    if (!panel) return;
-    // Only when focus is loose. A student who has tabbed to "Flag for review" keeps it.
-    const active = document.activeElement;
-    if (active && active !== document.body && panel.contains(active)) return;
-    panel.focus({ preventScroll: true });
-  }, [isExamPhase, phase, overlayOpen, currentDisplayOrder]);
-
   // AUD-F-03: restore the student's place after a mid-exam refresh. `currentDisplayOrder` is
   // this component's state, so a reload used to restore the session, the answers and the
   // read-only locks and still drop the student to question 1 - measured going from
@@ -256,6 +240,30 @@ export function ExamScreen({
   const currentItem = isExamPhase
     ? (cachedBatch?.find((item) => item.display_order === currentDisplayOrder) ?? null)
     : (items?.[0] ?? null);
+
+  // D-218: put focus back inside the panel whenever the thing that had it went away - the
+  // overlay closing, or the previous question's option unmounting on submit. Without this
+  // focus lands on `<body>` and the keyboard shortcuts silently stop working (see `panelRef`).
+  //
+  // Deliberately not while `overlayOpen`: the overlay owns focus while it is up, and stealing
+  // it would drop a screen-reader user out of a dialog they have not dismissed.
+  //
+  // `currentItem` is in the dependency list, and has to be - which is why this effect sits
+  // *below* its declaration rather than up with the others. The first deployed version keyed
+  // on `currentDisplayOrder` alone and silently did nothing on arrival: before the batch
+  // lands, `currentItem` is null and the early return above renders a plain `.panel` with no
+  // ref, so `panelRef.current` was null when the effect ran, and nothing in the dependency
+  // list changed when the real panel appeared a render later. Confirmed against the deployed
+  // build 2026-08-08 - focus was restored after every submit and never on arrival.
+  useEffect(() => {
+    if (!isExamPhase || overlayOpen || !currentItem) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    // Only when focus is loose. A student who has tabbed to "Flag for review" keeps it.
+    const active = document.activeElement;
+    if (active && active !== document.body && panel.contains(active)) return;
+    panel.focus({ preventScroll: true });
+  }, [isExamPhase, phase, overlayOpen, currentDisplayOrder, currentItem]);
 
   /**
    * The number the student is *shown*, so the live region and the visible label cannot
