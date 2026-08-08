@@ -5,6 +5,82 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ## Current status
 
+### Session log — the Q&A app, walked live for the first time (2026-08-08, D-219)
+
+**Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1059 passed, 3 skipped,
+1 xfailed** (7 new tests) · `tsc`, `oxlint` and `vite build` clean for `chat-web`,
+`learning-web`, `e2e` · full write-up in DECISIONS.md **D-219**.
+
+**Not a numbered ROADMAP session** — the user's "let's move on to the q&a app" after D-218, and
+their two scope decisions: take the role out of the scope prompt, and finish the walk before
+fixing anything.
+
+**Why this surface.** D-215, D-216, D-217 and D-218 were all the learning app. `chat.intellichoice.org`
+had been built (S16/S19) and unit- and e2e-tested since, but **never driven in a deployed build** —
+the largest remaining coverage gap, and the one carried over from D-218.
+
+**The finding that changed the session.** The scope guard was making an **access decision inside a
+prompt**. `user_role` was passed to a classifier whose system prompt never mentions roles or
+access, so the model improvised an authorization judgement from an attribute it had no
+instructions for. Same question, measured live: `out_of_scope` for a guest — byte-identical to
+the refusal for "What is the capital of France?" — and `in_scope` with a cited answer from the
+Branch Operations Manual for a signed-in branch manager. That is CLAUDE.md #3 decided in a
+prompt, and it collapsed "not our topic" into "not your topic": the `AccessHintBanner` built to
+say "sign in to see this" could never fire, because `explain_access` runs *after* retrieval and
+the scope guard short-circuits *before* it.
+
+**No content leaked.** `role_access_filter` — the real, pre-retrieval gate — was correct in every
+phrasing tried. The defect was the *wrong refusal*, plus where the judgement was being made.
+
+**Nine fixes, ten candidates, one killed by checking it** (the calendar *listing* path is
+implemented; staging just has no seeded org events):
+
+| # | finding (staging) | fix |
+|---|---|---|
+| 1 | guest `out_of_scope` vs branch_manager `in_scope`, same question | `user_role` removed from `ScopeAndIntentPayload` entirely; `extra="forbid"` makes a re-introduction a test failure, and a second test keeps access vocabulary out of the prompt |
+| 2 | a cited answer with "I couldn't answer that from an approved source" beneath it | citations discriminate a partial answer from a total refusal |
+| 3 | `**bold**` and `- ` lists rendered literally | `RichText` ported to `chat-web` — deliberately duplicated, with the trade and the trigger to extract it written into the file |
+| 4 | "Based on the provided context", "the passages provided" | the answer prompt names the phrasings to avoid |
+| 5 | header read `branch_manager (branch_manager-ext-1)` | external id dropped, role kept |
+| 6 | all three approval modals: no `role`, no `aria-modal`, no accessible name, focus on `<body>` | one `ApprovalModal` shell — semantics, focus in and back out, scroll lock, Escape bound to the **safe** choice |
+| 7 | "612.1 km away, about 918 min drive" for a Dallas TX audience | miles, and hours past sixty minutes; `distance_km` stays metric internally |
+| 8 | "SPEC §5.1.4" and "SPEC §5.19.1" in user-facing copy | promises kept, citations removed |
+| 9 | the escalation email reported a failure that had not happened | `requested_by_user` distinguishes the two entry paths; both are tested |
+
+**Re-walked live after deploying.** All nine confirmed against the deployed build: the guest's
+role-gated question went `out_of_scope` → `in_scope`/`document_qa` (reaches retrieval, filter
+withholds, escalation offered), the locator reads "380.3 miles away, about 15 hr 18 min drive"
+with "• " bullets on their own lines, answers no longer mention "provided context" or emit
+markdown, the header reads `branch manager`, all three dialogs announce themselves and take
+focus with Escape bound to the safe choice, and the escalation draft says "asked to be put in
+touch with an administrator".
+
+**Carry-over:**
+
+- **The access hint still does not appear.** Fix 1 removed the wrong refusal but `access_hint`
+  is still `null` for a guest - the turn now reaches `explain_access`, which it could not before,
+  and the probe found no higher-tier match to name. Whether that is the probe's `max_distance`,
+  the corpus, or `build_access_hint`'s handling of the anonymous `public` role is the next
+  question. The "sign in to see this" affordance is built and still unreachable in practice.
+- **Focus is not always restored when an approval dialog closes.** `ApprovalModal` returns focus
+  to the element that had it, but that is usually the Send button, `disabled` while the turn is
+  in flight, so `focus()` is a no-op and focus lands on `<body>`. Strictly better than before;
+  same shape as the gap D-218 fixed on the exam screen.
+- **Fix 2's partial-answer wording was not reproduced live** - it needs a compound question the
+  model half-answers, which is not reliable on demand.
+- **`RichText` now exists twice**, in `learning-web` and `chat-web`, with no shared TypeScript
+  package between them. A future fix has to land in both. The file header records the trade and
+  the trigger to revisit: a third consumer.
+- **`test_intervention_choice_pause_records_choice_and_blocks_skip` is order-dependent.** It has
+  now failed in a full `make test` run twice (the D-218 session and this one) and passed in
+  isolation and on re-run both times. Nothing in either session touched it — D-219 is entirely
+  chat-app — so it is a pre-existing flake in the learning suite worth chasing on its own.
+- **A cited answer still takes ~10 s** (10.0 s measured live). That is D-115's logged carry-over
+  (`rag_answer` p95 10.62 s), still needing a product decision on answer brevity — deliberately
+  not folded into this session.
+- **The Q&A app's `.ics` download and Google Calendar paths were not exercised** — staging has no
+  seeded org events to add, so the approval modal could not be reached with real content.
+
 ### Session log — the third UI walk: the legs nobody had walked live (2026-08-08, D-218)
 
 **Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1052 passed, 2 skipped, 1 xfailed**
