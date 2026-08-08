@@ -1,0 +1,1104 @@
+curriculum_version: '2026.1'
+topic_id: place_value
+templates:
+- question_template_id: authored-place_value-d1-200104
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Added the two amounts instead of comparing them
+  - Compared the ones digits and ignored the tens
+  - Subtracted in the wrong order
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Ben has 34 stickers. Ana has 43 stickers. How many more stickers does Ana have than Ben?
+  context_block: null
+  answer_expression: Eq(34 + x, 43)
+  hint_ladder:
+  - The two numbers use the same digits, so look at which place each digit sits in.
+  - Ana has more groups of ten than Ben, which is what makes her number larger.
+  - Find what has to be added to Ben's amount to reach Ana's amount.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Compare the tens first. Ana has four tens and Ben has three.
+      expression: 43 has more tens than 34
+      common_mistake: Comparing only the ones digits
+    - step_number: 2
+      explanation: Find the gap between the two amounts.
+      expression: 34 plus something makes 43
+      common_mistake: Adding the two amounts together
+    final_answer: '9'
+  random_seed: 200104
+  rendered_question: Ben has 34 stickers. Ana has 43 stickers. How many more stickers does Ana have than
+    Ben?
+  option_a: '11'
+  option_b: '77'
+  option_c: '7'
+  option_d: '9'
+  correct_option: d
+- question_template_id: authored-place_value-d2-200203
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 55
+  common_error_tags:
+  - Added the two scores instead of comparing them
+  - Compared the ones digits and ignored the tens
+  - Subtracted in the wrong order
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Ravi scored 58 points in a game. Tara scored 85 points. How many more points did Tara score than
+    Ravi?
+  context_block: null
+  answer_expression: Eq(58 + x, 85)
+  hint_ladder:
+  - Both scores use the same two digits, so the order of the digits is what matters.
+  - Tara has more groups of ten, which is what makes her score the larger one.
+  - Find what has to be added to Ravi's score to reach Tara's score.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Compare the tens first. Tara has eight tens and Ravi has five.
+      expression: 85 has more tens than 58
+      common_mistake: Comparing only the ones digits
+    - step_number: 2
+      explanation: Find the gap between the two scores.
+      expression: 58 plus something makes 85
+      common_mistake: Adding the two scores together
+    final_answer: '27'
+  random_seed: 200203
+  rendered_question: Ravi scored 58 points in a game. Tara scored 85 points. How many more points did
+    Tara score than Ravi?
+  option_a: '33'
+  option_b: '143'
+  option_c: '27'
+  option_d: '37'
+  correct_option: c
+- question_template_id: authored-place_value-d2-200205
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 55
+  common_error_tags:
+  - Added the two totals instead of comparing them
+  - Compared the ones digits and ignored the tens
+  - Answered with the larger total instead of the difference
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Two classes collected cans for a food drive. Class A collected 76 cans and Class B collected 67
+    cans. How many more cans did Class A collect?
+  context_block: null
+  answer_expression: Eq(67 + x, 76)
+  hint_ladder:
+  - Both totals use the same two digits, so look at which place each digit sits in.
+  - Class A has more groups of ten, which is what makes its total the larger one.
+  - Find what has to be added to the smaller total to reach the larger one.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Compare the tens first. Class A has seven tens and Class B has six.
+      expression: 76 has more tens than 67
+      common_mistake: Comparing only the ones digits
+    - step_number: 2
+      explanation: Find the gap between the two totals.
+      expression: 67 plus something makes 76
+      common_mistake: Answering with the larger total
+    final_answer: '9'
+  random_seed: 200205
+  rendered_question: Two classes collected cans for a food drive. Class A collected 76 cans and Class
+    B collected 67 cans. How many more cans did Class A collect?
+  option_a: '11'
+  option_b: '9'
+  option_c: '143'
+  option_d: '19'
+  correct_option: b
+- question_template_id: authored-place_value-d3-200302
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Added the two counts instead of comparing them
+  - Compared the ones digits and ignored the tens
+  - Answered with the larger count instead of the difference
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A library counted 348 books on one shelf and 384 books on another shelf. How many more books are
+    on the second shelf?
+  context_block: null
+  answer_expression: Eq(348 + x, 384)
+  hint_ladder:
+  - Both counts have the same hundreds digit, so the hundreds do not decide this.
+  - Move to the tens place next, because that is the first place where the counts differ.
+  - Find what has to be added to the smaller count to reach the larger one.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The hundreds match, so compare the tens.
+      expression: both have 3 hundreds
+      common_mistake: Stopping at the hundreds and calling them equal
+    - step_number: 2
+      explanation: The second shelf has more groups of ten.
+      expression: 8 tens against 4 tens
+      common_mistake: null
+    - step_number: 3
+      explanation: Find the gap between the two counts.
+      expression: 348 plus something makes 384
+      common_mistake: Adding the two counts together
+    final_answer: '36'
+  random_seed: 200302
+  rendered_question: A library counted 348 books on one shelf and 384 books on another shelf. How many
+    more books are on the second shelf?
+  option_a: '44'
+  option_b: '732'
+  option_c: '46'
+  option_d: '36'
+  correct_option: d
+- question_template_id: authored-place_value-d3-200304
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Added the two totals instead of comparing them
+  - Compared the ones digits and ignored the tens
+  - Subtracted in the wrong order
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: On Monday a shop sold 128 apples. On Tuesday the same shop sold 182 apples. How many more apples
+    were sold on Tuesday?
+  context_block: null
+  answer_expression: Eq(128 + x, 182)
+  hint_ladder:
+  - Both totals have the same hundreds digit, so the hundreds do not decide this.
+  - Move to the tens place next, because that is the first place where the totals differ.
+  - Find what has to be added to Monday's total to reach Tuesday's total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The hundreds match, so compare the tens.
+      expression: both have 1 hundred
+      common_mistake: Stopping at the hundreds and calling them equal
+    - step_number: 2
+      explanation: Tuesday has more groups of ten.
+      expression: 8 tens against 2 tens
+      common_mistake: null
+    - step_number: 3
+      explanation: Find the gap between the two totals.
+      expression: 128 plus something makes 182
+      common_mistake: Adding the two totals together
+    final_answer: '54'
+  random_seed: 200304
+  rendered_question: On Monday a shop sold 128 apples. On Tuesday the same shop sold 182 apples. How many
+    more apples were sold on Tuesday?
+  option_a: '64'
+  option_b: '54'
+  option_c: '310'
+  option_d: '46'
+  correct_option: b
+- question_template_id: authored-place_value-d3-200305
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Treated the zero as if it made the number larger
+  - Added the two numbers instead of comparing them
+  - Subtracted in the wrong order
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Ben wrote the number 703 and Ana wrote the number 730. How much larger is Ana's number than Ben's
+    number?
+  context_block: null
+  answer_expression: Eq(703 + x, 730)
+  hint_ladder:
+  - Both numbers use the same three digits, so their order is what makes them differ.
+  - The hundreds digits match, so the tens place is where the two numbers part company.
+  - A zero in the tens place means no groups of ten at all, not a large amount.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The hundreds match, so compare the tens.
+      expression: both have 7 hundreds
+      common_mistake: null
+    - step_number: 2
+      explanation: Ben's number has no groups of ten, and Ana's has three.
+      expression: 0 tens against 3 tens
+      common_mistake: Reading the zero as a large amount
+    - step_number: 3
+      explanation: Find the gap between the two numbers.
+      expression: 703 plus something makes 730
+      common_mistake: Adding the two numbers together
+    final_answer: '27'
+  random_seed: 200305
+  rendered_question: Ben wrote the number 703 and Ana wrote the number 730. How much larger is Ana's number
+    than Ben's number?
+  option_a: '37'
+  option_b: '1433'
+  option_c: '27'
+  option_d: '33'
+  correct_option: c
+- question_template_id: authored-place_value-d4-200402
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Added the two counts instead of comparing them
+  - Compared the last digits and ignored the hundreds
+  - Subtracted in the wrong order
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A stadium counted 2,610 fans on Friday and 2,160 fans on Saturday. How many more fans came on
+    Friday?
+  context_block: null
+  answer_expression: Eq(2160 + x, 2610)
+  hint_ladder:
+  - Both counts have the same thousands digit, so the thousands do not decide this.
+  - Move to the hundreds place next, because that is the first place where the counts differ.
+  - Find what has to be added to Saturday's count to reach Friday's count.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The thousands match, so compare the hundreds.
+      expression: both have 2 thousands
+      common_mistake: Stopping at the thousands and calling them equal
+    - step_number: 2
+      explanation: Friday has more groups of one hundred.
+      expression: 6 hundreds against 1 hundred
+      common_mistake: null
+    - step_number: 3
+      explanation: Find the gap between the two counts.
+      expression: 2160 plus something makes 2610
+      common_mistake: Adding the two counts together
+    final_answer: '450'
+  random_seed: 200402
+  rendered_question: A stadium counted 2,610 fans on Friday and 2,160 fans on Saturday. How many more
+    fans came on Friday?
+  option_a: '450'
+  option_b: '550'
+  option_c: '4770'
+  option_d: '350'
+  correct_option: a
+- question_template_id: authored-place_value-d4-200403
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Compared the wrong pair of people
+  - Added the two amounts instead of comparing them
+  - Compared the ones digits and ignored the hundreds
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Three friends saved coins. Nina saved 415 coins, Leo saved 451 coins and Sam saved 145 coins.
+    How many more coins did Leo save than Sam?
+  context_block: null
+  answer_expression: Eq(145 + x, 451)
+  hint_ladder:
+  - Three amounts are given, but the question names only two of them.
+  - All three use the same digits, so the place each digit sits in decides their size.
+  - Compare the hundreds place of the two named amounts first, then find the gap.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The question names Leo and Sam, so Nina's amount is not needed.
+      expression: compare 451 and 145
+      common_mistake: Comparing the wrong pair
+    - step_number: 2
+      explanation: Leo has four groups of one hundred and Sam has one.
+      expression: 4 hundreds against 1 hundred
+      common_mistake: Comparing the ones digits
+    - step_number: 3
+      explanation: Find the gap between the two amounts.
+      expression: 145 plus something makes 451
+      common_mistake: Adding the two amounts together
+    final_answer: '306'
+  random_seed: 200403
+  rendered_question: Three friends saved coins. Nina saved 415 coins, Leo saved 451 coins and Sam saved
+    145 coins. How many more coins did Leo save than Sam?
+  option_a: '296'
+  option_b: '306'
+  option_c: '596'
+  option_d: '270'
+  correct_option: b
+- question_template_id: authored-place_value-d4-200405
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Added the two counts instead of comparing them
+  - Stopped comparing before reaching the place where they differ
+  - Answered with the larger count instead of the difference
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A school counted 1,089 pencils in one store room and 1,098 pencils in another. How many more pencils
+    are in the second room?
+  context_block: null
+  answer_expression: Eq(1089 + x, 1098)
+  hint_ladder:
+  - The thousands and the hundreds match, so neither of those places decides this.
+  - Keep moving right until you reach the first place where the two counts differ.
+  - Find what has to be added to the smaller count to reach the larger one.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The thousands match and the hundreds match, so keep going right.
+      expression: both start with 1 thousand and 0 hundreds
+      common_mistake: Calling the two counts equal
+    - step_number: 2
+      explanation: The second room has more groups of ten.
+      expression: 9 tens against 8 tens
+      common_mistake: null
+    - step_number: 3
+      explanation: Find the gap between the two counts.
+      expression: 1089 plus something makes 1098
+      common_mistake: Adding the two counts together
+    final_answer: '9'
+  random_seed: 200405
+  rendered_question: A school counted 1,089 pencils in one store room and 1,098 pencils in another. How
+    many more pencils are in the second room?
+  option_a: '11'
+  option_b: '2187'
+  option_c: '19'
+  option_d: '9'
+  correct_option: d
+- question_template_id: authored-place_value-d5-200502
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Stopped comparing before reaching the place where they differ
+  - Added the two counts instead of comparing them
+  - Compared the ones digits and ignored the hundreds
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A city counted 12,340 visitors in June and 12,430 visitors in July. How many more visitors came
+    in July?
+  context_block: null
+  answer_expression: Eq(12340 + x, 12430)
+  hint_ladder:
+  - The first three places from the left match, so none of them decides this.
+  - Keep moving right until you reach the first place where the two counts differ.
+  - Find what has to be added to June's count to reach July's count.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Compare from the left. The first three digits are the same.
+      expression: both begin with 1, 2 and 3 in the same places
+      common_mistake: Calling the two counts equal
+    - step_number: 2
+      explanation: July has more groups of one hundred.
+      expression: 4 hundreds against 3 hundreds
+      common_mistake: null
+    - step_number: 3
+      explanation: Find the gap between the two counts.
+      expression: 12340 plus something makes 12430
+      common_mistake: Adding the two counts together
+    final_answer: '90'
+  random_seed: 200502
+  rendered_question: A city counted 12,340 visitors in June and 12,430 visitors in July. How many more
+    visitors came in July?
+  option_a: '110'
+  option_b: '90'
+  option_c: '24770'
+  option_d: '190'
+  correct_option: b
+- question_template_id: authored-place_value-d5-200503
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Stopped comparing before reaching the place where they differ
+  - Added the two amounts instead of comparing them
+  - Subtracted in the wrong order
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Two towns recorded their rainfall for the year. Town A recorded 4,507 millimeters and Town B recorded
+    4,570 millimeters. How much more did Town B record?
+  context_block: null
+  answer_expression: Eq(4507 + x, 4570)
+  hint_ladder:
+  - The thousands and the hundreds match, so neither of those places decides this.
+  - Both amounts use the same four digits, so their order is what makes them differ.
+  - Compare the tens place, then find the gap between the two amounts.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The thousands match and the hundreds match, so keep going right.
+      expression: both start with 4 thousands and 5 hundreds
+      common_mistake: Calling the two amounts equal
+    - step_number: 2
+      explanation: Town A has no groups of ten, and Town B has six.
+      expression: 0 tens against 6 tens
+      common_mistake: Reading the zero as a large amount
+    - step_number: 3
+      explanation: Find the gap between the two amounts.
+      expression: 4507 plus something makes 4570
+      common_mistake: Adding the two amounts together
+    final_answer: '63'
+  random_seed: 200503
+  rendered_question: Two towns recorded their rainfall for the year. Town A recorded 4,507 millimeters
+    and Town B recorded 4,570 millimeters. How much more did Town B record?
+  option_a: '73'
+  option_b: '9077'
+  option_c: '63'
+  option_d: '67'
+  correct_option: c
+- question_template_id: authored-place_value-d5-200504
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Built one of the two numbers in the wrong order
+  - Added the two numbers instead of comparing them
+  - Used the digits in the order they were listed
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Leo and Mia are given the digits 8, 3 and 6. Leo arranges them into the largest number he can
+    make. Mia arranges the same digits into the smallest number she can make. How much larger is Leo's
+    number than Mia's?
+  context_block: null
+  answer_expression: Eq(368 + x, 863)
+  hint_ladder:
+  - The largest number puts the biggest digit where it is worth the most.
+  - The place worth the most is the leftmost one, and the place worth the least is the rightmost.
+  - Build both numbers first, then find the gap between them.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: For the largest number, put the digits in order from biggest to smallest.
+      expression: 8, then 6, then 3
+      common_mistake: Using the digits in the order they were listed
+    - step_number: 2
+      explanation: For the smallest number, put the digits in order from smallest to biggest.
+      expression: 3, then 6, then 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Find the gap between the two numbers that were built.
+      expression: 368 plus something makes 863
+      common_mistake: Adding the two numbers together
+    final_answer: '495'
+  random_seed: 200504
+  rendered_question: Leo and Mia are given the digits 8, 3 and 6. Leo arranges them into the largest number
+    he can make. Mia arranges the same digits into the smallest number she can make. How much larger is
+    Leo's number than Mia's?
+  option_a: '505'
+  option_b: '1231'
+  option_c: '395'
+  option_d: '495'
+  correct_option: d
+- question_template_id: authored-place_value-d1-200101
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Read the digit on its own instead of the value of its place
+  - Named the other digit in the number
+  - Added the two digits together
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Leo writes the number 47 on his card. His teacher points to the 4. What is that digit worth?
+  context_block: null
+  answer_expression: Eq(x, 4*10)
+  hint_ladder:
+  - A digit is worth different amounts depending on where it sits in the number.
+  - The digit on the left of a two digit number counts groups of ten.
+  - Work out how much four groups of ten come to.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Look at where the digit sits. It is in the tens place.
+      expression: 47 has a tens digit and a ones digit
+      common_mistake: Reading the digit as a plain 4
+    - step_number: 2
+      explanation: A digit in the tens place counts that many groups of ten.
+      expression: 4 groups of ten
+      common_mistake: null
+    final_answer: '40'
+  random_seed: 200101
+  rendered_question: Leo writes the number 47 on his card. His teacher points to the 4. What is that digit
+    worth?
+  option_a: '40'
+  option_b: '4'
+  option_c: '7'
+  option_d: '11'
+  correct_option: a
+- question_template_id: authored-place_value-d1-200102
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Swapped the tens and the ones
+  - Counted the bags instead of the pencils
+  - Added the two numbers instead of building a number from them
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Mia has 6 bags with ten pencils in each bag. She also has 3 loose pencils. How many pencils does
+    Mia have in total?
+  context_block: null
+  answer_expression: Eq(x, 6*10 + 3)
+  hint_ladder:
+  - Each bag holds ten, so the bags tell you how many groups of ten there are.
+  - The loose pencils are the ones that did not fill a bag.
+  - Put the groups of ten first and the loose ones after them to build the number.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Six bags of ten make six groups of ten.
+      expression: 6 groups of ten
+      common_mistake: Counting only the bags
+    - step_number: 2
+      explanation: The three loose pencils go in the ones place.
+      expression: 6 tens and 3 ones
+      common_mistake: Putting the 3 in front of the 6
+    final_answer: '63'
+  random_seed: 200102
+  rendered_question: Mia has 6 bags with ten pencils in each bag. She also has 3 loose pencils. How many
+    pencils does Mia have in total?
+  option_a: '36'
+  option_b: '63'
+  option_c: '9'
+  option_d: '60'
+  correct_option: b
+- question_template_id: authored-place_value-d1-200103
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Answered with the whole number instead of the number of tens
+  - Counted the zero as a group
+  - Added the two digits together
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A shop sign shows the number 80. Ana says the number is made only of groups of ten. How many groups
+    of ten are in that number?
+  context_block: null
+  answer_expression: Eq(x*10, 80)
+  hint_ladder:
+  - The question asks how many whole groups of ten fit inside the number.
+  - There are no loose ones here, because the ones place holds a zero.
+  - Count up by tens until you reach the number on the sign.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ones place holds a zero, so nothing is left over.
+      expression: no loose ones
+      common_mistake: Treating the zero as a group of ten
+    - step_number: 2
+      explanation: Count the groups of ten that make the number.
+      expression: ten, twenty, thirty, and so on
+      common_mistake: Answering with the whole number
+    final_answer: '8'
+  random_seed: 200103
+  rendered_question: A shop sign shows the number 80. Ana says the number is made only of groups of ten.
+    How many groups of ten are in that number?
+  option_a: '80'
+  option_b: '18'
+  option_c: '8'
+  option_d: '0'
+  correct_option: c
+- question_template_id: authored-place_value-d1-200105
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Wrote the number of packs instead of the number of crayons
+  - Put the digits in the wrong places
+  - Added an extra group of ten
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Sam counts 5 packs of crayons with ten crayons in each pack. He has no loose crayons left over.
+    What number of crayons does Sam write down?
+  context_block: null
+  answer_expression: Eq(x, 5*10)
+  hint_ladder:
+  - Each pack holds ten, so the packs count groups of ten.
+  - Nothing is left over, so the ones place holds a zero.
+  - Work out how much five groups of ten come to.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Five packs of ten make five groups of ten.
+      expression: 5 groups of ten
+      common_mistake: Writing the number of packs
+    - step_number: 2
+      explanation: There are no loose crayons, so a zero fills the ones place.
+      expression: 5 tens and 0 ones
+      common_mistake: null
+    final_answer: '50'
+  random_seed: 200105
+  rendered_question: Sam counts 5 packs of crayons with ten crayons in each pack. He has no loose crayons
+    left over. What number of crayons does Sam write down?
+  option_a: '50'
+  option_b: '5'
+  option_c: '15'
+  option_d: '55'
+  correct_option: a
+- question_template_id: authored-place_value-d2-200201
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 55
+  common_error_tags:
+  - Read the digit on its own instead of the value of its place
+  - Used the tens place instead of the hundreds place
+  - Answered with the whole number
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Nina writes the number 356 in her notebook. She draws a circle around the 3. What is the circled
+    digit worth?
+  context_block: null
+  answer_expression: Eq(x, 3*100)
+  hint_ladder:
+  - In a three digit number the leftmost digit counts the largest groups.
+  - That leftmost place counts groups of one hundred, not groups of ten.
+  - Work out how much three groups of one hundred come to.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The circled digit sits in the hundreds place.
+      expression: 356 has hundreds, tens and ones
+      common_mistake: Using the tens place
+    - step_number: 2
+      explanation: A digit in the hundreds place counts that many groups of one hundred.
+      expression: 3 groups of one hundred
+      common_mistake: Reading the digit as a plain 3
+    final_answer: '300'
+  random_seed: 200201
+  rendered_question: Nina writes the number 356 in her notebook. She draws a circle around the 3. What
+    is the circled digit worth?
+  option_a: '300'
+  option_b: '3'
+  option_c: '30'
+  option_d: '356'
+  correct_option: a
+- question_template_id: authored-place_value-d2-200202
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 55
+  common_error_tags:
+  - Left out the empty tens place
+  - Added the two numbers instead of building a number from them
+  - Put the loose marbles in the wrong place
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A box holds one hundred marbles. Jonah has 4 full boxes and 2 loose marbles. How many marbles
+    does Jonah have in total?
+  context_block: null
+  answer_expression: Eq(x, 4*100 + 2)
+  hint_ladder:
+  - Each box holds one hundred, so the boxes count groups of one hundred.
+  - There are no groups of ten here, so a zero has to hold the tens place open.
+  - Build the number with the boxes first, then the empty tens place, then the loose marbles.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Four boxes make four groups of one hundred.
+      expression: 4 hundreds
+      common_mistake: null
+    - step_number: 2
+      explanation: No groups of ten were made, so the tens place holds a zero.
+      expression: 4 hundreds, 0 tens
+      common_mistake: Leaving the tens place out and writing a two digit number
+    - step_number: 3
+      explanation: The two loose marbles go in the ones place.
+      expression: 4 hundreds, 0 tens and 2 ones
+      common_mistake: null
+    final_answer: '402'
+  random_seed: 200202
+  rendered_question: A box holds one hundred marbles. Jonah has 4 full boxes and 2 loose marbles. How
+    many marbles does Jonah have in total?
+  option_a: '42'
+  option_b: '402'
+  option_c: '420'
+  option_d: '6'
+  correct_option: b
+- question_template_id: authored-place_value-d2-200204
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 55
+  common_error_tags:
+  - Read the digit on its own instead of the value of its place
+  - Used the hundreds place instead of the tens place
+  - Named the other digit in the number
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Priya writes the number 470 on the board. Her teacher points at the 7. What is that digit worth?
+  context_block: null
+  answer_expression: Eq(x, 7*10)
+  hint_ladder:
+  - The middle digit of a three digit number does not count the largest groups.
+  - The middle place counts groups of ten, and the place to its left counts hundreds.
+  - Work out how much seven groups of ten come to.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The digit sits in the middle place, which is the tens place.
+      expression: 470 has hundreds, tens and ones
+      common_mistake: Treating it as the hundreds place
+    - step_number: 2
+      explanation: A digit in the tens place counts that many groups of ten.
+      expression: 7 groups of ten
+      common_mistake: Reading the digit as a plain 7
+    final_answer: '70'
+  random_seed: 200204
+  rendered_question: Priya writes the number 470 on the board. Her teacher points at the 7. What is that
+    digit worth?
+  option_a: '7'
+  option_b: '700'
+  option_c: '47'
+  option_d: '70'
+  correct_option: d
+- question_template_id: authored-place_value-d3-200301
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Read the digit on its own instead of the value of its place
+  - Counted the places from the wrong end
+  - Used the thousands place instead of the hundreds place
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Kai reads the number 5,214 aloud in class. His teacher asks him about the 2. What is that digit
+    worth in the number?
+  context_block: null
+  answer_expression: Eq(x, 2*100)
+  hint_ladder:
+  - Start from the right hand end, where the ones place sits, and work leftwards.
+  - The places from the right are ones, then tens, then hundreds, then thousands.
+  - The digit in question sits in the hundreds place, so count groups of one hundred.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the places from the right. The digit is third from the right.
+      expression: ones, tens, hundreds
+      common_mistake: Counting from the left instead
+    - step_number: 2
+      explanation: The third place from the right counts groups of one hundred.
+      expression: 2 groups of one hundred
+      common_mistake: Using the thousands place
+    final_answer: '200'
+  random_seed: 200301
+  rendered_question: Kai reads the number 5,214 aloud in class. His teacher asks him about the 2. What
+    is that digit worth in the number?
+  option_a: '2000'
+  option_b: '20'
+  option_c: '200'
+  option_d: '2'
+  correct_option: c
+- question_template_id: authored-place_value-d3-200303
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Left the empty tens place out of the number
+  - Put the digits in the wrong order
+  - Added the three amounts together
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Maya builds a number out of blocks. She uses 3 hundreds, no tens at all, and 9 ones. What number
+    has Maya built?
+  context_block: null
+  answer_expression: Eq(x, 3*100 + 0*10 + 9)
+  hint_ladder:
+  - Every place needs a digit, even a place with nothing in it.
+  - A place with nothing in it is written with a zero so the other digits stay where they belong.
+  - Write the hundreds digit, then the empty tens place, then the ones digit.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Three hundreds go in the hundreds place.
+      expression: 3 hundreds
+      common_mistake: null
+    - step_number: 2
+      explanation: There are no tens, so a zero holds the tens place open.
+      expression: 3 hundreds, 0 tens
+      common_mistake: Leaving the tens place out and writing a two digit number
+    - step_number: 3
+      explanation: Nine ones go in the ones place.
+      expression: 3 hundreds, 0 tens and 9 ones
+      common_mistake: null
+    final_answer: '309'
+  random_seed: 200303
+  rendered_question: Maya builds a number out of blocks. She uses 3 hundreds, no tens at all, and 9 ones.
+    What number has Maya built?
+  option_a: '309'
+  option_b: '39'
+  option_c: '390'
+  option_d: '93'
+  correct_option: a
+- question_template_id: authored-place_value-d4-200401
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Read the digit on its own instead of the value of its place
+  - Used the hundreds place instead of the thousands place
+  - Answered with the whole number
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Tara writes the number 6,405 on the board for the class. She points at the 6. What is that digit
+    worth in the number?
+  context_block: null
+  answer_expression: Eq(x, 6*1000)
+  hint_ladder:
+  - Count the places from the right hand end, starting with the ones place.
+  - The places from the right are ones, then tens, then hundreds, then thousands.
+  - The digit in question sits in the fourth place, so count groups of one thousand.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the places from the right. The digit is fourth from the right.
+      expression: ones, tens, hundreds, thousands
+      common_mistake: Counting from the left instead
+    - step_number: 2
+      explanation: The fourth place from the right counts groups of one thousand.
+      expression: 6 groups of one thousand
+      common_mistake: Using the hundreds place
+    final_answer: '6000'
+  random_seed: 200401
+  rendered_question: Tara writes the number 6,405 on the board for the class. She points at the 6. What
+    is that digit worth in the number?
+  option_a: '600'
+  option_b: '6'
+  option_c: '60'
+  option_d: '6000'
+  correct_option: d
+- question_template_id: authored-place_value-d4-200404
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Left the empty tens place out of the number
+  - Put the digits in the wrong order
+  - Added the four amounts together
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Jonah makes a number with blocks. He uses 2 thousands, 7 hundreds, no tens at all, and 4 ones.
+    What number does Jonah make?
+  context_block: null
+  answer_expression: Eq(x, 2*1000 + 7*100 + 0*10 + 4)
+  hint_ladder:
+  - Every place needs a digit, even a place with nothing in it.
+  - A place with nothing in it is written with a zero so the other digits stay where they belong.
+  - Write the thousands, then the hundreds, then the empty tens place, then the ones.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Two thousands and seven hundreds fill the first two places.
+      expression: 2 thousands, 7 hundreds
+      common_mistake: null
+    - step_number: 2
+      explanation: There are no tens, so a zero holds the tens place open.
+      expression: 2 thousands, 7 hundreds, 0 tens
+      common_mistake: Leaving the tens place out and writing a three digit number
+    - step_number: 3
+      explanation: Four ones go in the last place.
+      expression: 2 thousands, 7 hundreds, 0 tens and 4 ones
+      common_mistake: null
+    final_answer: '2704'
+  random_seed: 200404
+  rendered_question: Jonah makes a number with blocks. He uses 2 thousands, 7 hundreds, no tens at all,
+    and 4 ones. What number does Jonah make?
+  option_a: '274'
+  option_b: '2740'
+  option_c: '2704'
+  option_d: '2074'
+  correct_option: c
+- question_template_id: authored-place_value-d5-200501
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Counted the places from the wrong end
+  - Skipped over the zero when counting the places
+  - Read the digit on its own instead of the value of its place
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Ana writes the number 30,502 in her workbook. Her teacher points at the 5. What is that digit
+    worth in the number?
+  context_block: null
+  answer_expression: Eq(x, 5*100)
+  hint_ladder:
+  - Count the places from the right hand end, starting with the ones place.
+  - A zero still takes up a place, so it has to be counted like any other digit.
+  - The digit in question sits in the third place from the right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the places from the right, including every zero.
+      expression: ones, tens, hundreds
+      common_mistake: Skipping the zero and landing on the wrong place
+    - step_number: 2
+      explanation: The third place from the right counts groups of one hundred.
+      expression: 5 groups of one hundred
+      common_mistake: Counting the places from the left
+    final_answer: '500'
+  random_seed: 200501
+  rendered_question: Ana writes the number 30,502 in her workbook. Her teacher points at the 5. What is
+    that digit worth in the number?
+  option_a: '500'
+  option_b: '50'
+  option_c: '5000'
+  option_d: '5'
+  correct_option: a
+- question_template_id: authored-place_value-d5-200505
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Left one of the empty places out of the number
+  - Put the digits in the wrong order
+  - Added the amounts together
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Sam builds a number with blocks. He uses 4 thousands, no hundreds, 6 tens and no ones. What number
+    does Sam build?
+  context_block: null
+  answer_expression: Eq(x, 4*1000 + 0*100 + 6*10 + 0)
+  hint_ladder:
+  - Two of the four places have nothing in them, and both still need a digit.
+  - A place with nothing in it is written with a zero so the other digits stay where they belong.
+  - Write all four places in order, from thousands down to ones.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Four thousands go in the first place.
+      expression: 4 thousands
+      common_mistake: null
+    - step_number: 2
+      explanation: There are no hundreds, so a zero holds the hundreds place open.
+      expression: 4 thousands, 0 hundreds
+      common_mistake: Leaving the hundreds place out
+    - step_number: 3
+      explanation: Six tens follow, and a zero fills the empty ones place.
+      expression: 4 thousands, 0 hundreds, 6 tens and 0 ones
+      common_mistake: Dropping the final zero
+    final_answer: '4060'
+  random_seed: 200505
+  rendered_question: Sam builds a number with blocks. He uses 4 thousands, no hundreds, 6 tens and no
+    ones. What number does Sam build?
+  option_a: '460'
+  option_b: '4600'
+  option_c: '4006'
+  option_d: '4060'
+  correct_option: d

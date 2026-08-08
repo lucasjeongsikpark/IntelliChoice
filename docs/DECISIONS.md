@@ -16193,3 +16193,111 @@ that D-223 asked "is this check correct?" and this entry asked "who consumes wha
 
 Whether *any* of the shape apparatus should remain — the bank, the machinery, the route — is now a
 clean question with the evidence attached, and it is the user's call rather than a cleanup.
+
+## D-225 — `place_value` stood up, and the last topic that was empty on purpose (accepted, 2026-08-08)
+
+Pointer item 3. The K-3 end of a K-12 product had no topic at all: `place_value` has been in the
+taxonomy since S4 with a comment reading *"no templates authored yet"*, and the §5.7.3 band `1-2`
+named a topic the exam builder would have refused to build.
+
+**25 hand-authored items, 0 of 25 failing the §5.8.5 gate on the first run.**
+
+| skill | d1 | d2 | d3 | d4 | d5 | total |
+|---|---|---|---|---|---|---|
+| `place_value_identify` | 4 | 2 | 1 | 2 | 2 | 11 |
+| `place_value_compare` | 1 | 3 | 2 | 3 | 3 | 12 |
+| **total** | 5 | 5 | 5 | 5 | 5 | **25** |
+
+Correct-option spread 6/6/6/7 across a/b/c/d. Five per tier rather than the floor of two, for
+D-223's reason: a topic sitting on the floor shows a student its whole bank and repeats it next
+session.
+
+**The skill mix follows the prerequisite, not a quota.** `prerequisites.yaml` makes
+`place_value_compare` require `place_value_identify`, so identify is weighted into the low tiers
+(4 of 5 at d1) and compare into the high ones (3 of 5 at d4 and d5). An even split per tier would
+have put a comparison item in front of a student who has not been shown what a place is.
+
+### Every question models a real relation, which for this topic took work
+
+`derive_answer` requires a solvable relation with exactly one unknown — the rule D-191 added after
+a generator wrote the *answer* into `answer_expression` and the gate confirmed the answer against
+itself. Place value invites exactly that failure: "what is the 4 in 47 worth?" has the natural
+encoding `Eq(x, 40)`, which parses, solves, and checks nothing.
+
+So the items are modelled the way the mathematics actually works:
+
+- identify → `Eq(x, 4*10)`, `Eq(x, 3*100 + 0*10 + 9)`, `Eq(x*10, 80)` — the place *computes* the
+  value rather than restating it.
+- compare → `Eq(34 + x, 43)` rather than "which is bigger". "How many more?" is a real relation, it
+  is the comparison a grade-2 student is actually being taught, and the answer cannot be read off
+  the stem.
+
+### One test lost its subject, and it is not the same as losing coverage
+
+`test_the_topic_list_reflects_the_bank_and_never_recommends_an_empty_topic` used a real topic as its
+empty case: D-185 wrote it when all three were empty, D-222 left `place_value` carrying that half,
+and this entry stocked it. **Every topic in the taxonomy is now stocked**, so no named topic can
+carry it.
+
+The fix is not to invent a permanently-empty topic. The empty case already has coverage where
+content cannot invalidate it — `test_topic_availability.py` builds synthetic banks — and what that
+endpoint test uniquely proves is the *pairing*: `available` is a fact about the bank, and
+`recommended_for_grade` is a fact about the student. So it now asserts `place_value` is
+`available=True, recommended_for_grade=False` for a grade-4 student, plus that exactly one topic is
+recommended and it is the band's own. Conflating those two fields is the failure D-185 exists for,
+and that is now tested more sharply than before rather than less.
+
+### Verified live
+
+Grade-2 `STUDENT_SECOND_CHILD` sees `place_value` `available=True, recommended_for_grade=True` — the
+first time any seeded student has been recommended a K-3 topic. A pre-exam was built and served
+through the real flow.
+
+Note *which* student built it: the grade-2 fixture's attendance is **unknown**, which the gate
+treats as not-present (D-152), so the exam was built by the grade-4 student, for whom this topic is
+available-but-not-recommended. That split is the honest state of the fixtures, not a workaround —
+and it is a small live demonstration that `available` and `recommended_for_grade` really are
+independent.
+
+### Found, not fixed
+
+**Grade 3 falls in a gap.** `grade_topic_candidates` has bands `1-2`, `4-5` and `6-7`; a grade-3
+student matches none, so they are recommended nothing while every topic is stocked. `STUDENT_ONLY_CHILD`
+is grade 3, so this is reachable with the seeded data today. The §5.7.3 table has 12 bands and the
+file says only the seeded ones are populated, so this is the mapping being incomplete rather than
+wrong — but "recommended nothing" now reads as a defect to a user rather than as an honest empty
+bank, because the bank is no longer empty.
+
+### D-225 addendum — a second flake of D-222's exact shape, caught by CI
+
+The PR's first CI run failed where local passed:
+
+```
+assert intervention["final_answer"] == correct_option_text
+E   AssertionError: assert '16 liters' == '16'
+```
+
+**The test was asserting something stricter than the contract.** D-207 decided precisely this: a
+solution answering `'8 weeks'` to a question whose option reads `'8'` is correct, and comparing with
+`!=` on stripped strings is the bug D-207 fixed on the *serving* path after it discarded a correct
+model solution live on staging. `answers_agree` is the rule, `check_hint_solution_answer_agreement`
+enforces it on every load, and the bank legitimately contains items whose `final_answer` carries a
+unit. The test used `==`.
+
+It survived as luck, not as correctness: which study item is served is drawn from an **unseeded**
+`random.Random()`, so the assertion only fires when the draw lands on one of those items. Identical
+in shape to D-222's video flake — a comment-free precondition ("the served item's answer has no
+unit") that nothing enforces — and the second time in three sessions that the unseeded serving draw
+has turned a wrong assertion into an intermittent one.
+
+**Not caused by this PR's content**, as far as can be established: the test builds a
+`linear_equations` exam and the study item is drawn from that topic's pool, which these 25
+`place_value` items do not touch. What changed was the draw, not the population. The fix is
+`answers_agree`, and the proof is that the assertion is now a pure function of the two strings:
+`('16 liters', '16')` → True, `('18', '16')` → False. Six local reruns passed, which proves nothing
+by itself — the local draw was not the failing one, and mistaking that for evidence is the error
+D-223 recorded.
+
+**Worth noting for the next flake:** both this and D-222 were found by a test *failing*, and in both
+cases the app was right and the test was wrong. The pattern to look for first is not "what broke"
+but "what precondition is this assertion silently relying on".
