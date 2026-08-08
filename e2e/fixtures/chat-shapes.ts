@@ -206,14 +206,30 @@ export const SHAPES: Record<string, Shape> = {
     missing_information: "No location provided.",
   },
 
+  // D-221: subject and body are the *real* output of
+  // `chat_api.services.admin_escalation.build_escalation_draft` for the escalate path -
+  // generated from it, not written here - for the same reason D-220 made `answer` and
+  // `access_hint.message` equal: this file's header says the Pydantic model is the
+  // authority, but `pending_interrupt` is typed `Record<string, unknown>`, so the one thing
+  // the modal actually shows a human was the one thing nothing checked. Both fields used to
+  // be invented prose about a student and Saturday hours, which no code path can emit.
+  //
+  // Worth keeping honest specifically here: the opening line is the administrator's only
+  // statement of *why* this arrived, and D-219 shipped a version of it that was unreachable
+  // in the graph while three unit tests passed. A fixture that paraphrases the template
+  // cannot show that, and a person reading the modal in a trace is the last check left.
   "email_approval interrupt": {
     ...base,
     intent: "escalation",
     answer: null,
     pending_interrupt: {
       interrupt_type: "email_approval",
-      email_subject: "Question from a student about Saturday hours",
-      email_body: "A student asked about Saturday hours at Baton Rouge and I could not answer it.",
+      email_subject: `IntelliChoice Q&A escalation - session ${SESSION_ID}`,
+      email_body:
+        "A user (role: public) asked a question the assistant could not answer:\n\n" +
+        "Question: Do you offer transport from the middle school to the Dallas branch?\n" +
+        "Missing information: No effective, approved document covers this topic.\n\n" +
+        `Chat session: ${SESSION_ID}`,
     },
   },
 

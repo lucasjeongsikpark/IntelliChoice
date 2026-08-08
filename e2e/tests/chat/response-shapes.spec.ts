@@ -211,7 +211,14 @@ test("AUD-C-04 rendered: a paused turn shows the previous turn's answer and cita
   const bubble = page.locator(".message-row.assistant .bubble").last();
   await expect(bubble).toContainText("open 9am to 1pm on Saturdays");
   await expect(bubble.locator(".citation-chip")).toHaveCount(1);
-  await expect(page.getByText(/Question from a student about Saturday hours/)).toBeVisible();
+  // D-221: read the subject off the fixture rather than repeating a sentence from it. This
+  // used to assert /Question from a student about Saturday hours/, which was the fixture's
+  // own invented wording - when the fixture was corrected to what `build_escalation_draft`
+  // really emits, the assertion broke while the property it guards (the approval modal is
+  // open above a stale answer) had not changed at all. Same repair as D-220's.
+  const subject = SHAPES["email_approval interrupt"].pending_interrupt!
+    .email_subject as string;
+  await expect(page.locator(".email-preview").getByText(subject)).toBeVisible();
   audit.note(
     "AUD-C-04 reproduced in a browser: the paused turn's bubble shows the prior answer + citation while the approval modal is open",
   );

@@ -93,6 +93,21 @@ test("a no-source refusal offers a real escalation, and it reaches the approval 
   await expect(page.getByRole("button", { name: /approve & send/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /^decline$/i })).toBeVisible();
 
+  // D-221: the modal asks a person to approve a message written about them, so what it
+  // shows has to be the message. The fixture now carries the real `build_escalation_draft`
+  // output rather than invented prose, which makes these two assertions meaningful: the
+  // user's own question is quoted back, and the opening states the reason this escalation
+  // exists - the reason D-219 got wrong and shipped unreachable.
+  // Scoped to `.email-preview` on purpose: the question is also on screen in the user's own
+  // message bubble, so an unscoped locator resolves to two elements and fails strict mode
+  // with a message about duplication rather than about the draft (D-220's exact trap).
+  const preview = page.locator(".email-preview");
+  await expect(preview.getByText(QUESTION, { exact: false })).toBeVisible();
+  await expect(
+    preview.getByText(/asked a question the assistant could not answer/i),
+    "the draft no longer says why this escalation was raised",
+  ).toBeVisible();
+
   // What the button actually sent: the *original* question, flagged as an escalation.
   // Posting a new/empty query here would email the administrator the wrong text, and
   // omitting the flag would send it back through the scope guard as a fresh question.
