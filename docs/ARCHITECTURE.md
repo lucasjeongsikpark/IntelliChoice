@@ -445,6 +445,31 @@ to rot, because nothing fails when it does.)*
   guard still calls 4 of the 38 off-topic on their own topical merits, capping the ceiling at
   34/38 before the probe is consulted, and the count is a sample - one case flipped between two
   live runs on documented rerank quantization.
+  **That ceiling is now 37/38 (D-221)**, measured with `scripts/measure_scope_guard.py`. The
+  four refusals were not missing topics - the prompt already listed "tutor/branch procedures" -
+  but three unstated assumptions the model filled in for itself: that an in-scope question would
+  *name* IntelliChoice, that a public library could not be a branch venue, and that a "how do I
+  fix this" question is a request for a person. Scored in both directions on every run, because
+  a guard that admits everything scores perfectly on recall alone; the off-topic controls held
+  at 20/20 across all four sweeps.
+- **A prompt is widened by naming what it may assume about the subject, never about the asker**
+  (D-221) — the fix above sits entirely on the *topic* side of the line the invariant above
+  draws. "Read 'my students' as IntelliChoice's" tells the classifier what a question is about;
+  it tells it nothing about who is asking or what they may read, and the gated corpus is still
+  filtered pre-retrieval by `role_access_filter`. Both halves are enforced statically:
+  `test_scope_prompt_defines_intents` pins each added clause to the measurement that justified
+  it, and `test_the_scope_prompt_says_nothing_about_roles_or_access` fails if access vocabulary
+  reappears. The distinction is easy to lose precisely when recall is the thing being improved.
+- **A message to a human states what the system did, not what it inferred the user wanted**
+  (D-221) — `build_escalation_draft`'s opening line is what an administrator reads to decide how
+  to reply, so it may only assert things this system knows. `origin` is derived from
+  `QAState.escalate`, a flag the *request* carried, and the other path says "the assistant routed
+  it to an administrator" rather than claiming the user asked for contact. Stated as a rule
+  because the previous attempt at it (D-219) chose `state.intent == "admin_contact"` as the
+  discriminator - which `resolve_role` also sets on the escalate path (D-164), so both branches
+  returned the same value and the failure-naming opening was unreachable through the graph while
+  three unit tests passed. Those tests called the builder directly; the guard is now a test that
+  drives both paths through the real router.
 - **A backend-authored message is carried by the API and presented by exactly one component**
   (D-220) — `explain_access` sets `answer = hint.message`, so both fields legitimately hold the
   same string: `answer` is what an SSE or non-browser client reads, and `AccessHintBanner` is
