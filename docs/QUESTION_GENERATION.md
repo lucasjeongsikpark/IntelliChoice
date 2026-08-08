@@ -329,8 +329,11 @@ Two things do *not* have to be filled in, and treating them as targets would cos
 
 ## 10. State
 
-The bank holds 47 approved authored `linear_equations` items and 50 hand-authored shape templates,
-plus 30 hand-authored `fraction_operations` items (15 in D-222, 15 more in D-223). Twelve authored
+The bank holds **102 approved authored items** — 47 `linear_equations`, 30
+`fraction_operations` (15 in D-222, 15 more in D-223) and 25 `place_value` (D-225), so every topic
+in the taxonomy is stocked — plus 50 hand-authored shape templates that `_servable()` filters out
+of every serving read (D-210) and that the pipeline's shape mode can no longer be run against
+(D-224). Twelve authored
 candidates sit at `pending` as the pilot's human-review comparison set; eight equation-first
 candidates were retired in D-193.
 

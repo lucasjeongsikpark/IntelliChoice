@@ -1525,12 +1525,17 @@ three claims.** `fraction_operations` now has **30 hand-authored, §5.8.5-gated 
 `recommended_for_grade=True` for a grade-4 student. D-223 doubled it because the availability floor
 of 2 per tier is a floor, not a target: at 3 per tier a 10-item pre-exam had to repeat at least half
 of itself next session; at 5-7 per tier, three live exams covered 19 of 30 distinct questions.
-Grade bands served: **4-5 and 6-7**. `place_value` (band 1-2) is still zero, so
-the K-12 span is still short at the bottom. Two things the count above does not say and that matter
-more than the number: the templates line counts **shape** templates, which `_servable()` has not
-served since D-210 — the servable bank is `linear_equations`' 47 authored items plus these 30 — and
-all 30 went through the deterministic gate but **not** the two-solver/judge panel (D-211), so
-they are content, not calibrated content. Multi-tier for `linear_equations` (rule 2) is unchanged
+**Every topic in the taxonomy is now stocked (D-225).** `place_value` was the last empty one and
+has 25 hand-authored items, five at every tier across both its skills, weighted so `identify`
+carries the low tiers and `compare` the high ones because the prerequisite requires it. Grade bands
+served: **1-2, 4-5 and 6-7** — the K-12 span is no longer short at the bottom, though it is still a
+three-band product rather than a twelve-band one, and grade 3 matches no band at all.
+
+Two things the count above does not say and that matter more than the number: the templates line
+counts **shape** templates, which `_servable()` has not served since D-210 — the servable bank is
+`linear_equations`' 47 authored items plus 30 and 25 — and every one of those 102 items went
+through the deterministic gate but **not** the two-solver/judge panel (D-211), so they are content,
+not calibrated content. Multi-tier for `linear_equations` (rule 2) is unchanged
 and still inert.
 
 **Not a live defect:** `topics.ts` no longer decides this at all (D-187) — availability comes from
