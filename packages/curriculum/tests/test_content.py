@@ -61,11 +61,48 @@ def test_topics_for_grade_resolves_a_single_grade_through_its_band() -> None:
 def test_topics_for_grade_is_empty_for_a_grade_no_band_covers() -> None:
     content = load_curriculum()
 
-    # Grade 3's band (2-3 in the §5.7.3 table) has no seeded topic, so the honest answer is
-    # "no candidates" - which callers must not read as "no topics" (see topic_availability).
-    assert content.topics_for_grade("3") == []
+    # D-227 populated grade 3's band (2-3 in the §5.7.3 table), so the real taxonomy no
+    # longer has a covered-grade-with-no-candidates case. What is left here is the shape of
+    # the answer for input no band can cover, which callers must not read as "no topics"
+    # (see topic_availability). The populated-band cases are asserted above.
     assert content.topics_for_grade("") == []
     assert content.topics_for_grade("not-a-grade") == []
+    assert content.topics_for_grade("12") == []
+
+
+def test_no_grade_is_stranded_between_two_populated_bands() -> None:
+    """D-227: grade 3 sat between the populated `1-2` and `4-5` bands and got nothing.
+
+    The failure mode is a *hole*, not an uncovered edge. A grade above or below everything
+    we have authored honestly has no candidates - a grade-9 student is simply out of scope
+    today. A grade **between** two populated bands is different: the student is inside the
+    range this product serves and still gets "recommended nothing", which reads as an empty
+    bank right up until the bank fills, and then reads as a defect.
+
+    An earlier version of this test asserted every declared band's endpoints resolve. That
+    passed against the broken mapping, because 3 was not an endpoint of any declared band -
+    it guarded nothing. This one fails against it.
+
+    It also indirectly pins the endpoint-matching trap: bands match by explicit endpoint
+    membership, not by range, so "fixing" a hole by renaming `1-2` to `1-3` would strand
+    grade 2 and fail here for the same reason.
+    """
+    content = load_curriculum()
+    numeric = sorted(
+        int(part)
+        for band in content.grade_topic_candidates
+        for part in band.split("-")
+        if part.strip().isdigit()
+    )
+    stranded = [
+        grade
+        for grade in range(numeric[0], numeric[-1] + 1)
+        if not content.topics_for_grade(str(grade))
+    ]
+    assert not stranded, (
+        f"grades {stranded} sit inside the range this taxonomy serves "
+        f"({numeric[0]}-{numeric[-1]}) and are recommended nothing"
+    )
 
 
 def test_topics_for_grade_matches_band_endpoints_rather_than_substrings() -> None:

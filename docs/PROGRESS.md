@@ -20,13 +20,12 @@ of which **4 were authored this session**. No numbered ROADMAP session is queued
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-2. **Grade 3 is recommended nothing** (D-225, found not fixed). `grade_topic_candidates` has bands
-   `1-2`, `4-5` and `6-7`, so a grade-3 student matches none — and `STUDENT_ONLY_CHILD` is grade 3,
-   so it is reachable with the seeded data today. The §5.7.3 table has 12 bands and the file says
-   only seeded ones are populated, so the mapping is *incomplete*, not wrong. It has become worth
-   fixing only now: while every topic was empty, "recommended nothing" was honest; with all three
-   stocked it reads as a defect. The cheap fix is a band boundary; the real question is what a
-   grade-3 student should be offered, which is content, not config.
+2. **The taxonomy has no multiplication/division topic**, which is what a grade-3 student should
+   actually be studying (D-227). Grade 3 no longer gets nothing — the `2-3` band is populated with
+   `place_value` — but that is a labelled stopgap. Kumon's grade-3 workbooks are
+   addition/subtraction, multiplication, division, geometry and word problems, and §5.7.3 calls the
+   same band "Multi-digit operations, multiplication foundations"; `place_value` is only its first
+   half. Authoring that topic closes the last real hole in the K-7 span this product serves.
 3. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
 4. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
