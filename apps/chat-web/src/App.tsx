@@ -103,7 +103,11 @@ function App() {
     );
   }
 
-  const who = token && role && sub ? `${role} (${sub})` : "guest";
+  // D-219: the external id used to ride along - "branch_manager (branch_manager-ext-1)".
+  // That is an internal identifier printed at the person it identifies, the same thing
+  // D-218 removed from the learning app's start screen and dashboard. The role is the part
+  // that means something to the reader: it is what decides which documents they can see.
+  const who = token && role ? role.replace(/_/g, " ") : "guest";
   const pending = lastResponse?.pending_interrupt ?? null;
 
   return (

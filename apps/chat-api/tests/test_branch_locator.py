@@ -8,12 +8,18 @@ not retrieval.
 import asyncio
 
 import pytest
+from chat_api.graph import nodes
 from chat_api.graph.build import AskInput, build_graph
 from chat_api.graph.nodes import (
     LOCATION_CONSENT_NOTICE,
     LOCATION_DECLINED_MESSAGE,
     LOCATION_MISSING_MESSAGE,
     TurnContext,
+)
+from chat_api.services.branch_locator import (
+    BranchDistance,
+    BranchLocatorResult,
+    BranchLocatorStatus,
 )
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
@@ -287,7 +293,8 @@ def test_maps_geocode_failure_falls_back_to_address_list() -> None:
             answer = result["answer"]
             assert "100 Learning Way, Springfield" in answer
             assert "45 Oakridge Ave, Springfield" in answer
-            assert "km away" not in answer
+            # D-219 changed the unit; the property is still "no distance was claimed".
+            assert "miles away" not in answer
 
     asyncio.run(run())
 
@@ -313,7 +320,7 @@ def test_route_failure_falls_back_to_labeled_straight_line_estimate() -> None:
                 context=_ctx(session, maps_provider=maps_provider),
             )
             answer = result["answer"]
-            assert "km away" in answer
+            assert "miles away" in answer
             assert "estimated straight-line distance" in answer
 
     asyncio.run(run())
@@ -361,3 +368,42 @@ def test_precise_coordinates_never_land_in_checkpointed_state() -> None:
             assert "longitude" not in snapshot.values
 
     asyncio.run(run())
+
+
+def test_drive_time_reads_as_time_not_as_a_minute_count() -> None:
+    """D-219. The deployed build said "about 918 min drive" - a true number nobody can read
+    at a glance. Under an hour stays in minutes, which is the common case for a real nearest
+    branch; beyond that it becomes hours.
+    """
+    assert nodes._format_drive_time(0) == "0 min"
+    assert nodes._format_drive_time(45) == "45 min"
+    assert nodes._format_drive_time(59.4) == "59 min"
+    # The boundary rounds into hours rather than reading "60 min".
+    assert nodes._format_drive_time(60) == "1 hr"
+    assert nodes._format_drive_time(90) == "1 hr 30 min"
+    assert nodes._format_drive_time(918) == "15 hr 18 min"
+
+
+def test_distance_is_shown_in_miles_while_the_internal_figure_stays_metric() -> None:
+    """IntelliChoice is a Dallas, TX organization and its audience is US families. Only the
+    user-facing string converts: `distance_km` is what the Maps route and `haversine_km` both
+    return, and nothing downstream should have to know which unit it is looking at.
+    """
+    result = BranchLocatorResult(
+        status=BranchLocatorStatus.OK,
+        branches=[
+            BranchDistance(
+                branch_external_id="branch-ext-1",
+                name="Main Branch",
+                address="100 Learning Way, Springfield",
+                distance_km=16.09344,
+                duration_minutes=25,
+                is_estimate=False,
+            )
+        ],
+    )
+    answer = nodes._format_branch_locator_answer(result)
+
+    assert "10.0 miles away" in answer
+    assert "about 25 min drive" in answer
+    assert "km" not in answer

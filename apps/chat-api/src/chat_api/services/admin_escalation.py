@@ -24,11 +24,30 @@ class EmailDraftState(BaseModel):
 
 
 def build_escalation_draft(
-    *, query: str, missing_information: str | None, user_role: str, chat_session_id: str
+    *,
+    query: str,
+    missing_information: str | None,
+    user_role: str,
+    chat_session_id: str,
+    requested_by_user: bool = False,
 ) -> EmailDraftState:
+    """`requested_by_user` distinguishes the two ways this draft gets built (D-219).
+
+    The body used to open with "asked a question the assistant could not answer" for *every*
+    escalation - including the `admin_contact` path, where the user simply asked to be put in
+    touch and the assistant answered them correctly. Walked on staging 2026-08-08: "Please
+    send a message to an administrator asking about volunteer training dates" produced a draft
+    telling the administrator the assistant had failed. The administrator reads this line to
+    decide how to reply, so a wrong reason is worse than a vague one.
+    """
     subject = f"IntelliChoice Q&A escalation - session {chat_session_id}"
+    opening = (
+        f"A user (role: {user_role}) asked to be put in touch with an administrator:"
+        if requested_by_user
+        else f"A user (role: {user_role}) asked a question the assistant could not answer:"
+    )
     lines = [
-        f"A user (role: {user_role}) asked a question the assistant could not answer:",
+        opening,
         "",
         f"Question: {query}",
     ]

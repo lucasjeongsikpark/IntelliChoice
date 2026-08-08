@@ -1,3 +1,4 @@
+import { ApprovalModal } from "../components/ApprovalModal";
 import type { CalendarActionInterrupt } from "../types";
 
 interface Props {
@@ -19,30 +20,29 @@ export function CalendarActionModal({ pending, busy, onChoose }: Props) {
   const description = typeof event.description === "string" ? event.description : "";
 
   return (
-    <div className="modal-overlay">
-      <div className="modal">
-        <h2>Add to your calendar?</h2>
-        <div className="email-preview">
-          <strong>{title}</strong>
-          <p className="dim">
-            {formatDateTime(event.start_datetime)} – {formatDateTime(event.end_datetime)}
-            {event.timezone ? ` (${String(event.timezone)})` : ""}
-          </p>
-          {location && <p className="dim">Location: {location}</p>}
-          {description && <p>{description}</p>}
-        </div>
-        <div className="modal-actions">
-          <button className="secondary" disabled={busy} onClick={() => onChoose("cancel")}>
-            Cancel
-          </button>
-          <button disabled={busy} onClick={() => onChoose("ics")}>
-            Download .ics
-          </button>
-          <button disabled={busy} onClick={() => onChoose("google")}>
-            Add to Google Calendar
-          </button>
-        </div>
+    // Escape cancels: the other two buttons both act on the user's calendar (D-219).
+    <ApprovalModal titleId="calendar-action-title" onDismiss={() => onChoose("cancel")}>
+      <h2 id="calendar-action-title">Add to your calendar?</h2>
+      <div className="email-preview">
+        <strong>{title}</strong>
+        <p className="dim">
+          {formatDateTime(event.start_datetime)} – {formatDateTime(event.end_datetime)}
+          {event.timezone ? ` (${String(event.timezone)})` : ""}
+        </p>
+        {location && <p className="dim">Location: {location}</p>}
+        {description && <p>{description}</p>}
       </div>
-    </div>
+      <div className="modal-actions">
+        <button className="secondary" disabled={busy} onClick={() => onChoose("cancel")}>
+          Cancel
+        </button>
+        <button disabled={busy} onClick={() => onChoose("ics")}>
+          Download .ics
+        </button>
+        <button disabled={busy} onClick={() => onChoose("google")}>
+          Add to Google Calendar
+        </button>
+      </div>
+    </ApprovalModal>
   );
 }

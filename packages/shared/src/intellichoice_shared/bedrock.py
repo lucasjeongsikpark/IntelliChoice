@@ -655,10 +655,27 @@ class QuestionJudgeResponse(BaseModel):
 
 
 class ScopeAndIntentPayload(BaseModel):
+    """D-219: `user_role` was removed, and its absence is the point.
+
+    The field used to be sent to a classifier whose system prompt never mentions roles or
+    access - so the model was handed an attribute it had no instructions for, and used it to
+    make an *authorization* judgement. Measured on staging 2026-08-08: "What does the branch
+    manager manual say about monthly reporting?" came back `out_of_scope` for an anonymous
+    visitor, with wording byte-identical to the refusal for "What is the capital of France?",
+    and `in_scope` with a cited answer for a signed-in branch manager.
+
+    That is CLAUDE.md #3 ("authorization in the backend/query layer, never in prompts") being
+    decided in a prompt, and it also collapsed "not our topic" into "not your topic" - the
+    `AccessHintBanner` that exists to say "sign in to see this" could never fire, because
+    `explain_access` runs *after* retrieval and the scope guard short-circuits before it.
+
+    Scope is now a property of the question alone. Whether the asker may read the answer stays
+    where it always belonged: `role_access.role_access_filter`, applied pre-retrieval.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     standalone_query: str
-    user_role: str  # "public" for anonymous, else Role.value (§5.19.1)
 
 
 class ScopeAndIntentResponse(BaseModel):

@@ -261,7 +261,20 @@ async def answer_question(
                 "disagree with each other, set sources_conflict=true instead of "
                 "picking a side. If the passages do not answer the question, say so "
                 "in missing_information and set escalation_recommended=true rather "
-                "than guessing."
+                "than guessing.\n"
+                # D-219: the retrieval machinery was narrating itself to the reader.
+                # Walked on staging 2026-08-08: "Based on the provided context, I can
+                # partially answer your question", "This information is not available in
+                # the passages provided." A parent on a public page has no idea what a
+                # passage is, and the phrasing reads as a system talking about itself
+                # rather than an organization answering a question.
+                "Write the answer as IntelliChoice speaking to the person who asked. "
+                "Never mention the context, the passages, the sources, or your own "
+                "retrieval process - no 'based on the provided context', no 'the "
+                "passages provided'. If something is not covered, say plainly that "
+                "IntelliChoice does not have that information here. Write plain text: no "
+                "markdown headings and no bold or italic markers. A short '- ' list is "
+                "fine; the client renders those."
             ),
             payload=RagAnswerPayload(
                 query=query,
