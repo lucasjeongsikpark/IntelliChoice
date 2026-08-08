@@ -15221,6 +15221,42 @@ worse than a vague one. `requested_by_user` now distinguishes the two entry path
 tested - the failure wording has to survive, or the administrator loses the signal that says the
 corpus has a gap.
 
+### Live re-walk against the deployed build
+
+Every fix re-checked on the deployed staging build, not assumed from a green suite:
+
+| fix | evidence |
+|---|---|
+| 1 scope | the same guest question went `out_of_scope` → **`in_scope` / `document_qa`**: it now reaches retrieval, the pre-retrieval filter withholds (0 citations), and the user gets "I don't have an approved source for that yet. I can pass this on to a branch manager if you'd like." |
+| 2 banner | the no-citation branch reads "I couldn't answer that from an approved source." unchanged - **the partial-answer branch was not reproduced live** (see caveats) |
+| 3 RichText | the locator's `- ` lines arrive as dashes and render as "• " on separate lines; the literal-dash run is gone |
+| 4 prompt | "We have multiple branches with varying hours…" - no "provided context", no "passages", and no markdown emitted at all |
+| 5 header | `branch manager · new chat · sign out` |
+| 6 modals | `role="dialog"`, `aria-modal="true"`, `aria-labelledby` resolving to "Find your nearest branch" / "Send to an administrator?", focus moved onto the first control, `body.style.overflow` locked and released; **Escape declined the send** ("Okay, the message was not sent.") |
+| 7 units | "380.3 miles away, about 15 hr 18 min drive" |
+| 8 copy | no "SPEC §" anywhere on the sign-in screen or the approval dialog |
+| 9 draft | "A user (role: branch_manager) **asked to be put in touch with an administrator**" |
+
+**Three things this did not establish, stated because the table above reads as complete.**
+
+1. **The access hint still does not appear.** Fix 1 removed the *wrong* refusal - a role-gated
+   question is no longer called off-topic - but `access_hint` came back `null`, so
+   `AccessHintBanner` still never rendered. The turn now reaches `explain_access`, which is what
+   it could not do before; the probe simply found no higher-tier match to name, and
+   `build_access_hint` correctly returns `None` rather than inventing one. Whether that is the
+   probe's `max_distance`, the corpus, or `build_access_hint`'s handling of the anonymous
+   `public` role is the next question, and it is a separate investigation rather than a loose
+   end of this one.
+2. **Fix 2's partial-answer wording was not seen live.** It needs a compound question the model
+   half-answers, which is not reliably reproducible on demand. The no-citation branch - the one
+   that was already correct - is what the re-walk exercised.
+3. **Focus is not always restored when a dialog closes.** `ApprovalModal` returns focus to the
+   element that had it, but that element is usually the Send button, which is `disabled` while
+   the turn is in flight - and `focus()` on a disabled control is a no-op, so focus lands on
+   `<body>`. Strictly better than before (focus is now *taken* correctly, and the dialog
+   announces itself), and the same class of gap D-218 fixed on the exam screen, so the fix shape
+   is known if it proves to matter.
+
 ### What held up
 
 The pre-retrieval role filter, throughout and in every phrasing tried. The branch locator

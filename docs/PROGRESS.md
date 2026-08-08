@@ -47,8 +47,27 @@ implemented; staging just has no seeded org events):
 | 8 | "SPEC §5.1.4" and "SPEC §5.19.1" in user-facing copy | promises kept, citations removed |
 | 9 | the escalation email reported a failure that had not happened | `requested_by_user` distinguishes the two entry paths; both are tested |
 
+**Re-walked live after deploying.** All nine confirmed against the deployed build: the guest's
+role-gated question went `out_of_scope` → `in_scope`/`document_qa` (reaches retrieval, filter
+withholds, escalation offered), the locator reads "380.3 miles away, about 15 hr 18 min drive"
+with "• " bullets on their own lines, answers no longer mention "provided context" or emit
+markdown, the header reads `branch manager`, all three dialogs announce themselves and take
+focus with Escape bound to the safe choice, and the escalation draft says "asked to be put in
+touch with an administrator".
+
 **Carry-over:**
 
+- **The access hint still does not appear.** Fix 1 removed the wrong refusal but `access_hint`
+  is still `null` for a guest - the turn now reaches `explain_access`, which it could not before,
+  and the probe found no higher-tier match to name. Whether that is the probe's `max_distance`,
+  the corpus, or `build_access_hint`'s handling of the anonymous `public` role is the next
+  question. The "sign in to see this" affordance is built and still unreachable in practice.
+- **Focus is not always restored when an approval dialog closes.** `ApprovalModal` returns focus
+  to the element that had it, but that is usually the Send button, `disabled` while the turn is
+  in flight, so `focus()` is a no-op and focus lands on `<body>`. Strictly better than before;
+  same shape as the gap D-218 fixed on the exam screen.
+- **Fix 2's partial-answer wording was not reproduced live** - it needs a compound question the
+  model half-answers, which is not reliable on demand.
 - **`RichText` now exists twice**, in `learning-web` and `chat-web`, with no shared TypeScript
   package between them. A future fix has to land in both. The file header records the trade and
   the trigger to revisit: a third consumer.
