@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ApprovalModal } from "../components/ApprovalModal";
 import type { LocationConsentInterrupt } from "../types";
 import type { RespondBody } from "../api/client";
 
@@ -44,37 +45,36 @@ export function LocationConsentModal({ pending, busy, onRespond }: Props) {
     );
   }
 
+  const decline = () =>
+    onRespond({ interrupt_type: "location_consent", approved: false });
+
   return (
-    <div className="modal-overlay">
-      <div className="modal">
-        <h2>Find your nearest branch</h2>
-        <p className="notice">{pending.notice}</p>
+    // Escape withholds the location, which is the only safe reading of "get me out of here"
+    // on a consent dialog (D-219).
+    <ApprovalModal titleId="location-consent-title" onDismiss={decline}>
+      <h2 id="location-consent-title">Find your nearest branch</h2>
+      <p className="notice">{pending.notice}</p>
 
-        <button disabled={busy} onClick={shareBrowserLocation}>
-          Use my current location
-        </button>
-        {geoError && <p className="error">{geoError}</p>}
+      <button disabled={busy} onClick={shareBrowserLocation}>
+        Use my current location
+      </button>
+      {geoError && <p className="error">{geoError}</p>}
 
-        <label className="field">
-          <span>ZIP code</span>
-          <input value={zipCode} onChange={(e) => setZipCode(e.target.value)} />
-        </label>
-        <label className="field">
-          <span>or city</span>
-          <input value={city} onChange={(e) => setCity(e.target.value)} />
-        </label>
-        <button disabled={busy || (!zipCode && !city)} onClick={shareTypedLocation}>
-          Share location
-        </button>
+      <label className="field">
+        <span>ZIP code</span>
+        <input value={zipCode} onChange={(e) => setZipCode(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>or city</span>
+        <input value={city} onChange={(e) => setCity(e.target.value)} />
+      </label>
+      <button disabled={busy || (!zipCode && !city)} onClick={shareTypedLocation}>
+        Share location
+      </button>
 
-        <button
-          className="secondary"
-          disabled={busy}
-          onClick={() => onRespond({ interrupt_type: "location_consent", approved: false })}
-        >
-          Don't use my location
-        </button>
-      </div>
-    </div>
+      <button className="secondary" disabled={busy} onClick={decline}>
+        Don't use my location
+      </button>
+    </ApprovalModal>
   );
 }

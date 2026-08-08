@@ -14,6 +14,7 @@ from chat_api.graph.nodes import (
     RATE_LIMITED_MESSAGE,
     TurnContext,
 )
+from chat_api.services import admin_escalation
 from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_db.models.interrupts import InterruptApproval
@@ -254,3 +255,54 @@ def test_rate_limit_blocks_repeated_anonymous_escalation() -> None:
             assert second["answer"] == RATE_LIMITED_MESSAGE
 
     asyncio.run(run())
+
+
+def test_a_user_who_asked_for_an_administrator_is_not_reported_as_a_failure() -> None:
+    """D-219. The draft opened with "asked a question the assistant could not answer" for
+    every escalation, including the `admin_contact` path where the user simply asked to be
+    put in touch and the assistant answered them correctly. Walked on staging 2026-08-08.
+
+    The administrator reads that line to decide how to reply, so a wrong reason is worse
+    than a vague one.
+    """
+    requested = admin_escalation.build_escalation_draft(
+        query="Please send a message to an administrator about volunteer training dates.",
+        missing_information=None,
+        user_role="parent",
+        chat_session_id="session-1",
+        requested_by_user=True,
+    )
+    assert "could not answer" not in requested.body
+    assert "asked to be put in touch with an administrator" in requested.body
+
+
+def test_an_unanswerable_question_still_says_so() -> None:
+    """The other half of the same distinction: the escalation-banner path is a genuine
+    failure and must keep saying that, or the administrator loses the one signal that tells
+    them the corpus has a gap.
+    """
+    failed = admin_escalation.build_escalation_draft(
+        query="What is the refund policy for the summer program?",
+        missing_information="No approved source covers refunds.",
+        user_role="parent",
+        chat_session_id="session-2",
+        requested_by_user=False,
+    )
+    assert "asked a question the assistant could not answer" in failed.body
+    assert "No approved source covers refunds." in failed.body
+
+
+def test_the_draft_never_carries_a_recipient() -> None:
+    """Unchanged by D-219, asserted here because this file now edits the body: `QAState`
+    promises no names or email addresses are checkpointed (SPEC §5.30), and the real
+    recipient is built from config at send time.
+    """
+    draft = admin_escalation.build_escalation_draft(
+        query="Anything",
+        missing_information=None,
+        user_role="student",
+        chat_session_id="session-3",
+        requested_by_user=True,
+    )
+    assert "@" not in draft.body
+    assert "@" not in draft.subject

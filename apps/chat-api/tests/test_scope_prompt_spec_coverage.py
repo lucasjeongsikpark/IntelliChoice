@@ -10,10 +10,13 @@ Asserting the prompt string itself is the only guard CI can enforce; behaviour
 is verified separately by the CHAT_EVAL_REAL_BEDROCK coverage run.
 """
 
+import pytest
 from chat_api.graph.nodes import (
     SCOPE_AND_INTENT_SYSTEM_PROMPT,
     UNAVAILABLE_INTENT_MESSAGES,
 )
+from intellichoice_shared.bedrock import ScopeAndIntentPayload
+from pydantic import ValidationError
 
 # SPEC §5.19.4 topic -> phrase the prompt must contain to claim coverage.
 SPEC_5_19_4_TOPICS = {
@@ -68,3 +71,36 @@ def test_scope_prompt_defines_intents() -> None:
     assert not missing, (
         f"SCOPE_AND_INTENT_SYSTEM_PROMPT lost intent definitions: {missing}"
     )
+
+
+def test_the_scope_payload_cannot_carry_a_role() -> None:
+    """D-219: scope is a property of the *question*, never of who is asking.
+
+    `user_role` used to be sent to this classifier, whose prompt says nothing about roles or
+    access - so the model improvised an authorization judgement from an attribute it had no
+    instructions for. Measured on staging 2026-08-08: "What does the branch manager manual
+    say about monthly reporting?" came back `out_of_scope` for an anonymous visitor, with
+    wording byte-identical to the refusal for "What is the capital of France?", and
+    `in_scope` with a cited answer for a signed-in branch manager.
+
+    That is CLAUDE.md #3 ("authorization in the backend/query layer, never in prompts") being
+    decided inside a prompt. It also made the `AccessHintBanner` unreachable: `explain_access`
+    runs after retrieval, and this short-circuits before it, so "sign in to see this" could
+    never be said.
+
+    `extra="forbid"` is what makes this a guard rather than a comment - a future caller that
+    passes a role fails here instead of silently reintroducing the behaviour.
+    """
+    with pytest.raises(ValidationError):
+        ScopeAndIntentPayload(standalone_query="anything", user_role="branch_manager")  # type: ignore[call-arg]
+
+    assert "user_role" not in ScopeAndIntentPayload.model_fields
+
+
+def test_the_scope_prompt_says_nothing_about_roles_or_access() -> None:
+    """The other half of the same rule. If a future edit teaches this prompt about who is
+    asking, the payload guard above would still pass while the behaviour came back.
+    """
+    lowered = SCOPE_AND_INTENT_SYSTEM_PROMPT.lower()
+    for forbidden in ("user_role", "signed in", "logged in", "permission", "authorized"):
+        assert forbidden not in lowered, f"the scope prompt now reasons about access: {forbidden}"

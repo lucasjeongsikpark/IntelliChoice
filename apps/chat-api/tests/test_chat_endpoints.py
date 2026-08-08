@@ -482,7 +482,7 @@ def test_resume_coordinates_do_not_outlive_the_locator_turn_in_checkpoint_writes
         ).json()
         # The coordinates really were used - the locator answered with distances.
         assert result["answer"] is not None
-        assert "km away" in result["answer"]
+        assert "miles away" in result["answer"]
 
         # The audit measured the coordinates surviving two further turns; the purge
         # must not break the thread for them either.

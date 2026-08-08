@@ -308,9 +308,8 @@ async def scope_guard(state: QAState, runtime: Runtime[TurnContext]) -> dict:
         result = await ctx.bedrock_gateway.generate_structured(
             task=BedrockTask.SCOPE_AND_INTENT,
             system_prompt=SCOPE_AND_INTENT_SYSTEM_PROMPT,
-            payload=ScopeAndIntentPayload(
-                standalone_query=state.standalone_query, user_role=state.user_role
-            ),
+            # D-219: `user_role` deliberately not passed - see `ScopeAndIntentPayload`.
+            payload=ScopeAndIntentPayload(standalone_query=state.standalone_query),
             response_model=ScopeAndIntentResponse,
             max_output_tokens=512,
             session_spend_cents=state.bedrock_spend_cents,
@@ -630,6 +629,10 @@ async def prepare_admin_escalation(state: QAState, runtime: Runtime[TurnContext]
         missing_information=state.missing_information,
         user_role=state.user_role,
         chat_session_id=state.session_id,
+        # D-219: this node is reached both from an explicit "contact an administrator"
+        # request and from a turn that could not be answered. Only the second is a failure,
+        # and the draft says which.
+        requested_by_user=state.intent == "admin_contact",
     )
     return {"rate_limited": False, "email_draft": draft.model_dump()}
 
@@ -885,6 +888,25 @@ async def calendar_action(state: QAState, runtime: Runtime[TurnContext]) -> dict
     }
 
 
+_KM_PER_MILE = 1.609344
+
+
+def _format_drive_time(minutes: float) -> str:
+    """D-219: "about 918 min drive" is a true number nobody can read.
+
+    Measured on staging 2026-08-08 against the seeded branches. Under an hour stays in
+    minutes, which is the common case for a real "nearest branch" result; beyond that it
+    becomes hours, because the figure is there to be judged at a glance.
+    """
+    rounded = round(minutes)
+    if rounded < 60:
+        return f"{rounded} min"
+    hours, remainder = divmod(rounded, 60)
+    if remainder == 0:
+        return f"{hours} hr"
+    return f"{hours} hr {remainder} min"
+
+
 def _format_branch_locator_answer(result: BranchLocatorResult) -> str:
     if result.status == BranchLocatorStatus.MAPS_UNAVAILABLE:
         lines = ["Distance lookup isn't available right now - here are all branch addresses:"]
@@ -900,12 +922,16 @@ def _format_branch_locator_answer(result: BranchLocatorResult) -> str:
             continue
         estimate_note = " (estimated straight-line distance)" if b.is_estimate else ""
         duration = (
-            f", about {b.duration_minutes:.0f} min drive"
+            f", about {_format_drive_time(b.duration_minutes)} drive"
             if b.duration_minutes is not None
             else ""
         )
+        # D-219: miles, not kilometres. IntelliChoice is a Dallas, TX organization and its
+        # audience is US families; the internal figure stays metric (`distance_km`, what the
+        # Maps route and `haversine_km` both return) and only the user-facing string converts.
+        miles = b.distance_km / _KM_PER_MILE
         lines.append(
-            f"- {b.name}: {b.distance_km:.1f} km away{duration}{estimate_note} - {b.address}"
+            f"- {b.name}: {miles:.1f} miles away{duration}{estimate_note} - {b.address}"
         )
     return "\n".join(lines)
 

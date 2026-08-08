@@ -49,11 +49,15 @@ export function DevLoginScreen({ onLogin, onContinueAsGuest, busy, error }: Prop
     <div className="panel">
       <img src={logoUrl} alt="IntelliChoice" className="login-logo" />
       <h1>IntelliChoice Q&amp;A</h1>
+      {/* D-219: the SPEC section number is gone from the reader's sentence. This screen is
+          a dev stand-in for the real go.intellichoice.org sign-in, so it may legitimately
+          talk about `POST /dev/token` - but "SPEC §5.19.1:" as the opening words of a
+          user-facing paragraph is the codebase talking to itself. */}
       <p className="subtitle">
-        SPEC §5.19.1: anonymous access covers FAQ, branch locator, calendar, and admin
-        contact. Sign in for role-gated documents (parent/student handbooks, tutor
-        procedures, branch-manager manuals). Dev sign-in mints a token via{" "}
-        <code>POST /dev/token</code>, standing in for the real go.intellichoice.org auth.
+        Anonymous access covers FAQ, branch locator, calendar, and admin contact. Sign in for
+        role-gated documents (parent/student handbooks, tutor procedures, branch-manager
+        manuals). Dev sign-in mints a token via <code>POST /dev/token</code>, standing in for
+        the real go.intellichoice.org auth.
       </p>
 
       <label className="field">

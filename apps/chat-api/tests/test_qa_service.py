@@ -41,6 +41,7 @@ class _FakeGateway:
         self._outcome = outcome
         self.max_output_tokens: int | None = None
         self.payload: BaseModel | None = None
+        self.system_prompt: str | None = None
 
     async def generate_structured[T: BaseModel](
         self,
@@ -54,6 +55,7 @@ class _FakeGateway:
     ) -> BedrockGenerationResult[T]:
         self.max_output_tokens = max_output_tokens
         self.payload = payload
+        self.system_prompt = system_prompt
         if isinstance(self._outcome, BedrockGatewayError):
             raise self._outcome
         assert isinstance(self._outcome.value, response_model)
@@ -960,5 +962,43 @@ def test_a_synthesis_failure_says_why_it_became_an_outage_message(
             assert len(records) == 1
             assert records[0].context_chunk_count == 1  # type: ignore[attr-defined]
             assert "max_output_tokens" in records[0].detail  # type: ignore[attr-defined]
+
+    asyncio.run(run())
+
+
+def test_the_answer_prompt_forbids_narrating_the_retrieval_machinery() -> None:
+    """D-219. The deployed build answered a guest with "Based on the provided context, I can
+    partially answer your question" and "This information is not available in the passages
+    provided." A parent on a public page has no idea what a passage is, and the phrasing
+    reads as a system describing itself rather than an organization answering a question.
+
+    Asserted on the prompt string because no mock-backed test can see the model's wording -
+    the same reasoning `test_scope_prompt_spec_coverage.py` records for AUD-C-02.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            repo = RagRepository(session)
+            chunk = await _seed_chunk(session, chunk_text="Sessions run on Saturday mornings.")
+            gateway = _FakeGateway(
+                BedrockGatewayError("unused - the prompt is what this asserts", cost_cents=0.0)
+            )
+
+            await qa.answer_question(
+                repo,
+                gateway,
+                query="When are sessions?",
+                user_role="parent",
+                chunks=[chunk],
+                session_spend_cents=0.0,
+                confidence_threshold=0.4,
+            )
+
+            prompt = gateway.system_prompt or ""
+            lowered = prompt.lower()
+            assert "never mention the context, the passages, the sources" in lowered
+            assert "based on the provided context" in lowered  # named as the thing to avoid
+            # The instruction that keeps `RichText` from having to undo headings.
+            assert "no markdown headings" in lowered
 
     asyncio.run(run())

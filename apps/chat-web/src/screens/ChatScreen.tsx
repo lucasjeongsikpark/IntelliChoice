@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChatMeta, ChatTurn } from "../types";
 import logoUrl from "../../../../packages/ui-brand/assets/logo.png";
 import { AccessHintBanner } from "./AccessHintBanner";
+import { RichText } from "../components/RichText";
 import { WelcomeCard } from "./WelcomeCard";
 
 function downloadIcs(icsContent: string) {
@@ -94,7 +95,9 @@ export function ChatScreen({
             {turn.response?.answer && (
               <div className="message-row assistant">
                 <div className="bubble">
-                  {turn.response.answer}
+                  {/* D-219: was raw text, so `**bold**` showed its asterisks and the
+                      branch locator's "- " lines collapsed into one run. */}
+                  <RichText text={turn.response.answer} />
                   {turn.response.citations.length > 0 && (
                     <div className="citations">
                       {turn.response.citations.map((c, i) => (
@@ -116,7 +119,20 @@ export function ChatScreen({
                       with an offer to email a human about content that already exists. */}
                   {turn.response.escalation_recommended && (
                     <div className="escalation-banner">
-                      <span>I couldn't answer that from an approved source.</span>
+                      {/* D-219: one wording for two different outcomes. `escalation_
+                          recommended` comes straight from the model, which sets it when it
+                          could not answer *any part* of the question - so a half-answered
+                          compound question got a cited answer with "I couldn't answer that
+                          from an approved source" directly beneath it. Walked on staging
+                          2026-08-08: a tutor-onboarding answer citing the Volunteer Guide,
+                          sitting above a flat claim that nothing had been answered.
+                          Citations are the honest discriminator here: the model can only
+                          produce one by quoting a real approved passage. */}
+                      <span>
+                        {turn.response.citations.length > 0
+                          ? "I couldn't answer all of that from an approved source."
+                          : "I couldn't answer that from an approved source."}
+                      </span>
                       <button
                         className="secondary escalate"
                         disabled={busy}

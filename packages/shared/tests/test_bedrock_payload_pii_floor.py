@@ -174,7 +174,8 @@ _MEMORY_EXISTING_FACT_ALLOWED_FIELDS = {
 # redacted before the wire is a separate, live finding (AUD-C-24), not something these
 # allowlists assert.** Kept as an exact match anyway: it is the mechanism by which a future
 # session adding, say, `student_external_id` for "personalized answers" trips a test.
-_SCOPE_AND_INTENT_ALLOWED_FIELDS = {"standalone_query", "user_role"}
+# D-219 removed `user_role`: it was making an authorization judgement inside a prompt.
+_SCOPE_AND_INTENT_ALLOWED_FIELDS = {"standalone_query"}
 
 _RERANK_ALLOWED_FIELDS = {"query", "candidates"}
 
