@@ -36,7 +36,26 @@ skills:
     topic_id: fraction_operations
     name: "Multiply and divide fractions"
 
-  # place_value — no templates authored yet (S9 pipeline volume target).
+  # multiplication_division — grade band 2-3, authored in D-228. The ladder follows
+  # Kumon's own grade-3/4 split: facts first, then multi-digit multiplication and
+  # division as two branches off it, then remainders.
+  - skill_id: mult_facts
+    topic_id: multiplication_division
+    name: "Multiply within 10 by 10"
+
+  - skill_id: mult_multi_digit
+    topic_id: multiplication_division
+    name: "Multiply a multi-digit number by a one-digit number"
+
+  - skill_id: div_basic
+    topic_id: multiplication_division
+    name: "Divide within 100 using the inverse of multiplication"
+
+  - skill_id: div_remainder
+    topic_id: multiplication_division
+    name: "Divide with remainders"
+
+  # place_value
   - skill_id: place_value_identify
     topic_id: place_value
     name: "Identify the place value of a digit in a multi-digit number"

@@ -1568,11 +1568,11 @@ directly. Coverage gap, not a break.
 > its versioned-home half was closed long ago (struck through in place below).
 >
 > **The track's measured position also moved past this block's framing.** Every topic in the
-> taxonomy is stocked — 102 authored items across three topics — and grades 1-7 all resolve to one
-> (D-227). What the coverage requirement now lacks is not a mechanism but a *topic*:
-> multiplication and division, which is what a grade-3 student should be studying and which
-> §5.7.3's own 2-3 band names. That is the next content item, and it is authoring work rather than
-> pipeline work.
+> taxonomy is stocked — **127 authored items across four topics** — and grades 1 through 7 all
+> resolve to one. D-228 authored `multiplication_division`, the topic §5.7.3's own 2-3 band names
+> and the last hole in that range. **The coverage requirement's content half is met for the grades
+> this product serves;** what remains is calibration (the two-solver/judge panel, D-211) and grades
+> 8-12, which are scope rather than gap.
 
 3. **⏸ Ran 2026-08-05. The pipeline works and serving is built (D-188, D-189); the content is still
    not anywhere but one laptop.** The run produced eight items covering 7 of 11 pairs, five of which
