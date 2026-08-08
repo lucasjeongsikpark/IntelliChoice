@@ -16247,10 +16247,14 @@ endpoint test uniquely proves is the *pairing*: `available` is a fact about the 
 recommended and it is the band's own. Conflating those two fields is the failure D-185 exists for,
 and that is now tested more sharply than before rather than less.
 
-### Verified live
+### Verified live, in staging as well as locally
 
 Grade-2 `STUDENT_SECOND_CHILD` sees `place_value` `available=True, recommended_for_grade=True` — the
-first time any seeded student has been recommended a K-3 topic. A pre-exam was built and served
+first time any seeded student has been recommended a K-3 topic. Confirmed **through CloudFront on
+staging** as a signed-in grade-2 student after deploy run `31274948351` (curriculum load exit 0),
+where a real 10-item pre-exam was also built from the new bank. Stated separately from the local
+run because "deployed" and "verified" are different claims, which is the distinction the pointer
+item that led here was about. A pre-exam was built and served
 through the real flow.
 
 Note *which* student built it: the grade-2 fixture's attendance is **unknown**, which the gate
