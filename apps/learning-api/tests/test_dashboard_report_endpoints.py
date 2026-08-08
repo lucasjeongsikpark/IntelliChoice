@@ -166,164 +166,6 @@ def test_report_endpoint_gates_verified_facts_by_caller_role() -> None:
         assert isinstance(body["generated"], bool)
 
 
-def test_the_report_route_consults_this_students_spend_ledger() -> None:
-    """S42/AUD-X-08 wiring: the route reads *this student's* ledger spend, and another
-    student's spend does not deny them a report. The ceiling's own behaviour and its
-    serialization are covered by `test_report.py` and
-    `packages/db/tests/test_cost_reservation.py`; what only an HTTP test can show is that
-    the route is wired to the ledger at all, under the right subject.
-
-    Deliberately not claiming more than that. The route makes *two* ledger reads - the
-    per-day ceiling in the service, and `session_spend_cents` for the gateway's own budget
-    check - and at 50 cents each they trip together, so this cannot isolate one from the
-    other. It was confirmed to fail only when both are bypassed.
-
-    Two false-pass traps were found writing it, both the D-101 §5 shape. Using
-    `STUDENT_UNLINKED` for the capped arm passed with the ceiling *disabled*, because that
-    student has no dashboard data and its report never generates - so `generated is False`
-    proved nothing. And bypassing the ceiling alone still passed, because the gateway's
-    session budget caught it instead.
-    """
-    subject = STUDENT_ONLY_CHILD
-    unrelated = STUDENT_SECOND_CHILD
-
-    # Each helper builds and disposes its own engine: every `asyncio.run` below is a
-    # fresh event loop, and an asyncpg connection pool cannot outlive the loop it was
-    # created on.
-    async def seed(target: str, cents: float) -> None:
-        engine = create_engine()
-        try:
-            ledger = CostReservationRepository(create_session_factory(engine))
-            reservation = await ledger.reserve(
-                scope=SCOPE_STUDENT_REPORT,
-                subject_external_id=target,
-                estimate_cents=cents,
-                ceiling_cents=float("inf"),
-            )
-            await ledger.settle(reservation.reservation_id, cents)
-        finally:
-            await engine.dispose()
-
-    async def clear() -> None:
-        engine = create_engine()
-        try:
-            async with engine.begin() as conn:
-                await conn.execute(
-                    text("DELETE FROM cost_reservations WHERE subject_external_id = ANY(:ids)"),
-                    {"ids": [subject, unrelated]},
-                )
-        finally:
-            await engine.dispose()
-
-    def request_report(key: str) -> dict:
-        with TestClient(app) as client:
-            resp = client.post(
-                f"/learning/students/{subject}/report",
-                headers={
-                    **_auth_header(_token(subject, Role.STUDENT)),
-                    # A fresh key per arm, which this test genuinely needs: under one key the
-                    # second call would be an AUD-X-04 replay and return the first arm's stored
-                    # `generated: True` row without consulting the ledger at all.
-                    "Idempotency-Key": key,
-                },
-            )
-        # Always 200 - the ceiling degrades to the facts-only template rather than
-        # erroring (SPEC §5.25.3), so `generated` is the signal, not the status code.
-        assert resp.status_code == 200
-        return resp.json()
-
-    asyncio.run(clear())
-    try:
-        # Another student's spend must not deny this one a report.
-        asyncio.run(seed(unrelated, DAILY_REPORT_COST_CEILING_CENTS))
-        assert request_report("ledger-unrelated-spend")["generated"] is True
-
-        # This student's own spend must.
-        asyncio.run(seed(subject, DAILY_REPORT_COST_CEILING_CENTS))
-        assert request_report("ledger-own-spend")["generated"] is False
-    finally:
-        asyncio.run(clear())
-
-
-def _report_row_count(student_id: str) -> int:
-    async def fetch() -> int:
-        engine = create_engine()
-        try:
-            async with engine.connect() as conn:
-                result = await conn.execute(
-                    text("SELECT count(*) FROM student_reports WHERE student_external_id = :sid"),
-                    {"sid": student_id},
-                )
-                return int(result.scalar_one())
-        finally:
-            await engine.dispose()
-
-    return asyncio.run(fetch())
-
-
-def _report_reservation_count(student_id: str) -> int:
-    """Reservations in the AUD-X-08 ledger for this student's reports - i.e. how many times a
-    paid call was *committed to*, which is the money question AUD-X-04 asks. Counting rows in
-    `student_reports` alone cannot distinguish "one call, one row" from "two calls, one row".
-    """
-
-    async def fetch() -> int:
-        engine = create_engine()
-        try:
-            async with engine.connect() as conn:
-                result = await conn.execute(
-                    text(
-                        "SELECT count(*) FROM cost_reservations "
-                        "WHERE scope = :scope AND subject_external_id = :sid"
-                    ),
-                    {"scope": SCOPE_STUDENT_REPORT, "sid": student_id},
-                )
-                return int(result.scalar_one())
-        finally:
-            await engine.dispose()
-
-    return asyncio.run(fetch())
-
-
-def _clear_report_reservations(student_id: str) -> None:
-    async def run() -> None:
-        engine = create_engine()
-        try:
-            async with engine.begin() as conn:
-                await conn.execute(
-                    text("DELETE FROM cost_reservations WHERE subject_external_id = :sid"),
-                    {"sid": student_id},
-                )
-        finally:
-            await engine.dispose()
-
-    asyncio.run(run())
-
-
-def _clear_reports_with_key_prefix(student_id: str, prefix: str) -> None:
-    """`conftest.py`'s sweep does not cover `student_reports` (they are the parent-visible
-    history, and D-114 gives them a year's retention), so rows from previous runs are still
-    there - which means an idempotency-key test would replay *last run's* row and see its first
-    call create nothing. Found exactly that way.
-    """
-
-    async def run() -> None:
-        engine = create_engine()
-        try:
-            async with engine.begin() as conn:
-                await conn.execute(
-                    text(
-                        "DELETE FROM student_reports WHERE student_external_id = :sid "
-                        "AND idempotency_key LIKE :prefix"
-                    ),
-                    {"sid": student_id, "prefix": f"{prefix}%"},
-                )
-        finally:
-            await engine.dispose()
-
-    asyncio.run(run())
-
-
 def _seed_one_study_attempt(student_id: str) -> str:
     """D-218 made a zero-attempt report short-circuit past the model, and therefore past the
     cost ledger. The replay test below is AUD-X-04's *money* assertion, so it has to run on
@@ -346,6 +188,20 @@ def _seed_one_study_attempt(student_id: str) -> str:
                     await conn.execute(text("SELECT topic_id FROM topics LIMIT 1"))
                 ).scalar_one()
                 study_session_id = f"d218-replay-{student_id}"
+                # Idempotent: two tests in this file seed the same subject, and a failure
+                # that skipped a `finally` must not make the next run collide on the key.
+                await conn.execute(
+                    text("DELETE FROM study_attempts WHERE study_session_id = :sid"),
+                    {"sid": study_session_id},
+                )
+                await conn.execute(
+                    text("DELETE FROM study_items WHERE study_session_id = :sid"),
+                    {"sid": study_session_id},
+                )
+                await conn.execute(
+                    text("DELETE FROM study_sessions WHERE study_session_id = :sid"),
+                    {"sid": study_session_id},
+                )
                 await conn.execute(
                     text(
                         "INSERT INTO study_sessions (study_session_id, student_external_id, "
@@ -421,6 +277,166 @@ def _clear_seeded_study_attempt(study_session_id: str) -> None:
                 await conn.execute(
                     text("DELETE FROM study_sessions WHERE study_session_id = :sid"),
                     {"sid": study_session_id},
+                )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
+
+
+def test_the_report_route_consults_this_students_spend_ledger() -> None:
+    """S42/AUD-X-08 wiring: the route reads *this student's* ledger spend, and another
+    student's spend does not deny them a report. The ceiling's own behaviour and its
+    serialization are covered by `test_report.py` and
+    `packages/db/tests/test_cost_reservation.py`; what only an HTTP test can show is that
+    the route is wired to the ledger at all, under the right subject.
+
+    Deliberately not claiming more than that. The route makes *two* ledger reads - the
+    per-day ceiling in the service, and `session_spend_cents` for the gateway's own budget
+    check - and at 50 cents each they trip together, so this cannot isolate one from the
+    other. It was confirmed to fail only when both are bypassed.
+
+    Two false-pass traps were found writing it, both the D-101 §5 shape. Using
+    `STUDENT_UNLINKED` for the capped arm passed with the ceiling *disabled*, because that
+    student has no dashboard data and its report never generates - so `generated is False`
+    proved nothing. And bypassing the ceiling alone still passed, because the gateway's
+    session budget caught it instead.
+    """
+    subject = STUDENT_ONLY_CHILD
+    unrelated = STUDENT_SECOND_CHILD
+
+    # Each helper builds and disposes its own engine: every `asyncio.run` below is a
+    # fresh event loop, and an asyncpg connection pool cannot outlive the loop it was
+    # created on.
+    async def seed(target: str, cents: float) -> None:
+        engine = create_engine()
+        try:
+            ledger = CostReservationRepository(create_session_factory(engine))
+            reservation = await ledger.reserve(
+                scope=SCOPE_STUDENT_REPORT,
+                subject_external_id=target,
+                estimate_cents=cents,
+                ceiling_cents=float("inf"),
+            )
+            await ledger.settle(reservation.reservation_id, cents)
+        finally:
+            await engine.dispose()
+
+    async def clear() -> None:
+        engine = create_engine()
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text("DELETE FROM cost_reservations WHERE subject_external_id = ANY(:ids)"),
+                    {"ids": [subject, unrelated]},
+                )
+        finally:
+            await engine.dispose()
+
+    def request_report(key: str) -> dict:
+        with TestClient(app) as client:
+            resp = client.post(
+                f"/learning/students/{subject}/report",
+                headers={
+                    **_auth_header(_token(subject, Role.STUDENT)),
+                    # A fresh key per arm, which this test genuinely needs: under one key the
+                    # second call would be an AUD-X-04 replay and return the first arm's stored
+                    # `generated: True` row without consulting the ledger at all.
+                    "Idempotency-Key": key,
+                },
+            )
+        # Always 200 - the ceiling degrades to the facts-only template rather than
+        # erroring (SPEC §5.25.3), so `generated` is the signal, not the status code.
+        assert resp.status_code == 200
+        return resp.json()
+
+    asyncio.run(clear())
+    seeded_study_session = _seed_one_study_attempt(subject)
+    try:
+        # Another student's spend must not deny this one a report.
+        asyncio.run(seed(unrelated, DAILY_REPORT_COST_CEILING_CENTS))
+        assert request_report("ledger-unrelated-spend")["generated"] is True
+
+        # This student's own spend must.
+        asyncio.run(seed(subject, DAILY_REPORT_COST_CEILING_CENTS))
+        assert request_report("ledger-own-spend")["generated"] is False
+    finally:
+        _clear_seeded_study_attempt(seeded_study_session)
+        asyncio.run(clear())
+
+
+def _report_row_count(student_id: str) -> int:
+    async def fetch() -> int:
+        engine = create_engine()
+        try:
+            async with engine.connect() as conn:
+                result = await conn.execute(
+                    text("SELECT count(*) FROM student_reports WHERE student_external_id = :sid"),
+                    {"sid": student_id},
+                )
+                return int(result.scalar_one())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _report_reservation_count(student_id: str) -> int:
+    """Reservations in the AUD-X-08 ledger for this student's reports - i.e. how many times a
+    paid call was *committed to*, which is the money question AUD-X-04 asks. Counting rows in
+    `student_reports` alone cannot distinguish "one call, one row" from "two calls, one row".
+    """
+
+    async def fetch() -> int:
+        engine = create_engine()
+        try:
+            async with engine.connect() as conn:
+                result = await conn.execute(
+                    text(
+                        "SELECT count(*) FROM cost_reservations "
+                        "WHERE scope = :scope AND subject_external_id = :sid"
+                    ),
+                    {"scope": SCOPE_STUDENT_REPORT, "sid": student_id},
+                )
+                return int(result.scalar_one())
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(fetch())
+
+
+def _clear_report_reservations(student_id: str) -> None:
+    async def run() -> None:
+        engine = create_engine()
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text("DELETE FROM cost_reservations WHERE subject_external_id = :sid"),
+                    {"sid": student_id},
+                )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())
+
+
+def _clear_reports_with_key_prefix(student_id: str, prefix: str) -> None:
+    """`conftest.py`'s sweep does not cover `student_reports` (they are the parent-visible
+    history, and D-114 gives them a year's retention), so rows from previous runs are still
+    there - which means an idempotency-key test would replay *last run's* row and see its first
+    call create nothing. Found exactly that way.
+    """
+
+    async def run() -> None:
+        engine = create_engine()
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text(
+                        "DELETE FROM student_reports WHERE student_external_id = :sid "
+                        "AND idempotency_key LIKE :prefix"
+                    ),
+                    {"sid": student_id, "prefix": f"{prefix}%"},
                 )
         finally:
             await engine.dispose()
