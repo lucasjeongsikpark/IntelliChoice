@@ -424,6 +424,20 @@ to rot, because nothing fails when it does.)*
   document at ingestion time; every retrieval method (`search_document_chunks`,
   `hybrid_search`) hardcodes `status == "approved"`, so a draft document's chunks exist in
   Postgres (provably, via ingestion) but are structurally unreachable by any query (S12).
+- **Scope is a property of the question; access is a property of the asker, and they are
+  decided in different places** (D-219) — `scope_guard` classifies *what was asked* and is given
+  nothing about *who asked it*. `ScopeAndIntentPayload` carries only `standalone_query`, and
+  `extra="forbid"` makes a future caller that passes a role fail validation rather than quietly
+  restore the behaviour. The rule exists because it was broken: `user_role` used to be sent to a
+  classifier whose prompt never mentions roles, so the model improvised an authorization
+  judgement from it. Measured on staging 2026-08-08, "What does the branch manager manual say
+  about monthly reporting?" was `out_of_scope` for a guest - the same refusal as "What is the
+  capital of France?" - and `in_scope` with a cited answer for a signed-in branch manager. No
+  content leaked (the filter below was correct throughout), but a topic refusal is the wrong
+  answer to an access question, and it made `AccessHintBanner` unreachable: `explain_access`
+  runs after retrieval, and a scope refusal short-circuits before it. The price of the fix is
+  one extra retrieval per gated question from an anonymous user, which is what the pre-retrieval
+  filter is for.
 - **Role/branch/date filtering happens before ranking, never after** — `role_access_filter`
   builds the SPEC §5.21.3 metadata filter from the caller's *resolved* role and branch
   (never from the query text), and it is applied inside the same SQL that does keyword/

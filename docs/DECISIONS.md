@@ -15105,6 +15105,130 @@ intervention, the permutation property, the unserved-report 404) · `tsc` and `o
 `learning-web`, `chat-web`, `e2e` · migration `b7e42a91c503` round-tripped (upgrade → downgrade →
 upgrade) against dev Postgres.
 
+## D-219 — the Q&A app, and an access decision that had moved into a prompt (accepted, 2026-08-08)
+
+Four consecutive walks (D-215, D-216, D-217, D-218) had all been the learning app. The Q&A app
+was built in S16/S19 and unit- and e2e-tested since, but had **never been driven in a deployed
+build**. This walked it: guest mode, the RAG path, role-aware access, the three human-approval
+interrupts, the branch locator, and narrow viewport.
+
+Ten candidates, one killed by checking it: the calendar *listing* path looked unimplemented
+("I couldn't find a specific dated event to add - try asking about it directly first" in answer
+to "What events are coming up?"), but `calendar_event_listing` exists and line 817 picks
+`NO_UPCOMING_EVENTS_MESSAGE` vs `NO_EVENT_FOUND_MESSAGE` on `has_event_history` - staging simply
+has no seeded org events. A content state, not a code defect.
+
+### 1. The scope guard was deciding access, inside a prompt
+
+Same question, measured on staging 2026-08-08:
+
+| role | `scope` | result |
+|---|---|---|
+| guest | `out_of_scope` | byte-identical to the refusal for "What is the capital of France?" |
+| branch_manager | `in_scope` / `document_qa` | cited answer from **Branch Operations Manual** + **Attendance Procedure** |
+
+`scope_guard` passed `user_role` into `ScopeAndIntentPayload`. `SCOPE_AND_INTENT_SYSTEM_PROMPT`
+never mentions roles or access, and explicitly lists "tutor/branch procedures" as in scope. So
+the model was handed an attribute it had no instructions for, and used it to make an
+authorization judgement.
+
+Two things follow, and the second is the one a user feels:
+
+- **CLAUDE.md #3 says authorization lives in the backend/query layer, never in prompts.** This
+  was a prompt deciding who may ask about what.
+- **It collapsed "not our topic" into "not your topic."** `AccessHintBanner` exists to say
+  "sign in to see this", and it could never fire on this path: `explain_access` runs *after*
+  retrieval (D-164/AUD-C-06 established that deliberately), and the scope guard short-circuits
+  *before* retrieval. The most ordinary real entry point - a parent or tutor arriving
+  logged-out - got the one message that tells them nothing.
+
+**Stated precisely, because the failure mode matters: no content leaked.** The actual
+authorization is `role_access.role_access_filter`, applied pre-retrieval, and it was correct
+throughout - the guest never received gated text, in any phrasing tried. This is the *wrong
+refusal*, plus a rule violation about *where* the judgement is made.
+
+The field is gone from `ScopeAndIntentPayload` entirely rather than merely unused, and the model
+already had `extra="forbid"`, so a future caller that passes a role fails validation instead of
+quietly restoring the behaviour. A second test asserts the prompt itself stays free of
+access vocabulary, because a payload guard alone would pass while the behaviour returned through
+the prompt.
+
+The cost of the fix is one extra retrieval per gated question from an anonymous user: scope no
+longer refuses them early, so the turn now runs the filter that was always the real gate.
+
+### 2. One bubble, two contradictory claims
+
+A cited answer about tutor onboarding, and directly beneath it "I couldn't answer that from an
+approved source." with an "Ask an administrator" button. `escalation_recommended` comes straight
+from the model, which sets it when it could not answer *any part* of a question - reasonable for
+a compound question half-answered, but the banner's wording assumes a total refusal.
+
+Citations are the discriminator: the model can only produce one by quoting a real approved
+passage that survived `_verify_citations`. With citations the banner now says "I couldn't answer
+**all** of that from an approved source"; without them the original wording is still exactly
+right. The offer to escalate stays in both cases.
+
+### 3. The chat app never got D-217's text renderer
+
+`**Tutor Onboarding Procedure:**` rendered with its asterisks, and the branch locator's `- `
+lines collapsed into one run. D-217 built `RichText` + `lib/markdown.ts` for `learning-web` and
+the chat app was never wired to it - it had no `lib/` directory at all.
+
+Ported rather than shared, **and that is a decision rather than laziness**: the two web apps have
+no shared TypeScript package, and creating one means Vite and tsconfig wiring in both for ~100
+lines. The cost is real - a future fix has to land twice - and is written into the file header
+along with the trigger to revisit it ("if a third consumer appears, extract it"). The RAG prompt
+now also asks for plain text, so the renderer is the guarantee rather than the only defence.
+
+### 4. The retrieval machinery was narrating itself to the reader
+
+"Based on the provided context, I can partially answer your question." "This information is not
+available in the passages provided." A parent on a public page has no idea what a passage is,
+and the phrasing reads as a system describing its own internals rather than an organization
+answering a question. Same class as the meta-commentary D-215 and D-217 removed from the
+learning side; the prompt now names the exact phrasings to avoid.
+
+### 5-8. Four smaller ones, each with a precedent in this codebase
+
+- **The header printed `branch_manager (branch_manager-ext-1)`** at the person it identifies -
+  what D-218 fix 4 removed from the learning app's start screen and dashboard. The role stays,
+  since that is the part that means something: it decides which documents they can see.
+- **All three approval modals had no dialog semantics** - no `role`, no `aria-modal`, no
+  accessible name, and `document.activeElement` still on `<body>`. These are the screens that
+  gate every external action (CLAUDE.md #4): a screen-reader user got no announcement, was never
+  moved into the dialog, and could tab through to the page behind, on the one screen where a
+  mis-click sends real email. `learning-web`'s `SubmitConfirmationModal` already did this
+  correctly, so this was the codebase disagreeing with itself. One `ApprovalModal` shell now
+  carries the semantics, focus in *and back out*, a scroll lock, and Escape - bound in each case
+  to the **safe** choice (decline, cancel, withhold location), never the one that acts.
+- **Distances read "612.1 km away, about 918 min drive"** to the audience of a Dallas, TX
+  non-profit. Miles now, and hours past sixty minutes; under an hour stays in minutes, which is
+  the common case for a real nearest-branch result. The internal `distance_km` is untouched -
+  only the user-facing string converts, so nothing downstream has to know which unit it holds.
+- **SPEC section numbers were in user-facing copy** - "SPEC §5.1.4: no email is sent without
+  your approval" on the send-approval dialog, "SPEC §5.19.1: anonymous access covers..." as the
+  opening words of the sign-in screen. The promises are worth keeping; the citations are for the
+  codebase.
+
+### 9. The escalation email told the administrator the wrong thing
+
+`build_escalation_draft` opened every draft with "asked a question the assistant could not
+answer" - including the `admin_contact` path, where the user simply asked to be put in touch and
+the assistant had answered them correctly. Walked live: "Please send a message to an
+administrator asking about volunteer training dates" produced a draft reporting a failure that
+had not happened. The administrator reads that line to decide how to reply, so a wrong reason is
+worse than a vague one. `requested_by_user` now distinguishes the two entry paths, and both are
+tested - the failure wording has to survive, or the administrator loses the signal that says the
+corpus has a gap.
+
+### What held up
+
+The pre-retrieval role filter, throughout and in every phrasing tried. The branch locator
+(deterministic, 303 ms, no model call). Location consent - notice shown *before* any collection,
+ZIP/city offered as an alternative to the browser API, and a decline that works. The email
+decline path. No horizontal overflow at 500 px. And the guest genuinely could not reach gated
+content, which is the property that mattered most going in.
+
 ## D-218 — a third UI walk: the legs nobody had walked live (accepted, 2026-08-08)
 
 D-215 walked the deployed UI, D-216 walked the code, D-217 walked the UI again for the eight things
