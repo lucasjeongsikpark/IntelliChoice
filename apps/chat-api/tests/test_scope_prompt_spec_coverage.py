@@ -60,6 +60,32 @@ INTENT_DEFINITION_PHRASES = {
         "'tell me about the people who run intellichoice' -> in_scope, document_qa"
     ),
     "hours example pinned": "'what are the saturday hours?' -> in_scope, document_qa",
+    # D-221. Same convention as the six above, and the same reason they exist: each of
+    # these pins one classification measured wrong on real Bedrock, so deleting the
+    # clause fails here rather than quietly costing recall that only a paid sweep sees.
+    # `scripts/measure_scope_guard.py` is the instrument; the prompt's own comment
+    # carries the numbers and the model's stated reasoning for each.
+    "a question need not name the organization": "does not have to name the organization",
+    "first-person possessives resolve to IntelliChoice": "read 'my child', 'my students'",
+    "branches are hosted inside other venues": "public libraries, churches and community",
+    "keyword fragments are questions": "a bare keyword phrase is still a question",
+    "a named city is not the user's location": (
+        "a city or area named in the question is not the user's location"
+    ),
+    "how-to-fix stays document_qa": "including how to fix, correct or resolve something",
+    "clarification is not for casual phrasing": (
+        "never because a question is casual, first-person, or written as keywords"
+    ),
+    "tutor-procedure example pinned": (
+        "'what should i tell a student to do first when they ask me for help?' -> "
+        "in_scope, document_qa"
+    ),
+    "branch-keyword example pinned": (
+        "'carrollton public library saturday hours' -> in_scope, document_qa"
+    ),
+    "how-to-fix example pinned": (
+        "'my kid got marked absent by mistake - how do i fix that?' -> in_scope, document_qa"
+    ),
 }
 
 

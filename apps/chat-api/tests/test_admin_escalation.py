@@ -257,7 +257,57 @@ def test_rate_limit_blocks_repeated_anonymous_escalation() -> None:
     asyncio.run(run())
 
 
-def test_a_user_who_asked_for_an_administrator_is_not_reported_as_a_failure() -> None:
+def test_the_node_picks_the_origin_from_the_request_not_from_the_intent() -> None:
+    """D-221, and the test that would have caught the defect: every other test in this file
+    calls `build_escalation_draft` directly with the boolean it wants, so none of them could
+    ever see `prepare_admin_escalation` choosing that boolean wrongly - which is what it did.
+
+    Watched failing against the D-219 discriminator before this was written. With
+    `origin` chosen by `state.intent == "admin_contact"`, the second half of this test fails:
+    `resolve_role` sets that intent on the escalate path too (D-164), so both branches
+    produced the same value and the "could not answer" opening was unreachable through the
+    graph. Every escalation email said the user had asked to be put in touch, including the
+    ones raised from a no-source refusal, where that is the opposite of what happened.
+
+    Both paths are driven through the real graph here for exactly that reason. A model's
+    classification and a recorded user action can only be told apart by a run that actually
+    goes through the router.
+    """
+
+    async def run() -> None:
+        async with rollback_session() as session:
+            graph = build_graph(InMemorySaver())
+            transport = RecordingEmailTransport()
+
+            # No `escalate`: the scope guard classified this `admin_contact`, which is a
+            # model decision, so the draft must not assert what the user wanted.
+            routed = await graph.ainvoke(
+                AskInput(session_id="chat-zqxv-origin-1", query=ADMIN_QUERY),
+                config=_config("chat-zqxv-origin-1"),
+                context=_ctx(session, email_transport=transport),
+            )
+            body = routed["email_draft"]["body"]
+            assert "the assistant routed it to an administrator" in body
+            assert "asked to be put in touch" not in body
+
+            # `escalate=True` is the "Contact an administrator" button - a user action on
+            # the request itself, so naming the reason is reporting, not guessing.
+            forwarded = await graph.ainvoke(
+                AskInput(
+                    session_id="chat-zqxv-origin-2", query=ADMIN_QUERY, escalate=True
+                ),
+                config=_config("chat-zqxv-origin-2"),
+                context=_ctx(session, email_transport=transport),
+            )
+            assert (
+                "asked a question the assistant could not answer"
+                in forwarded["email_draft"]["body"]
+            )
+
+    asyncio.run(run())
+
+
+def test_a_routed_question_is_not_reported_as_a_failure() -> None:
     """D-219. The draft opened with "asked a question the assistant could not answer" for
     every escalation, including the `admin_contact` path where the user simply asked to be
     put in touch and the assistant answered them correctly. Walked on staging 2026-08-08.
@@ -265,28 +315,58 @@ def test_a_user_who_asked_for_an_administrator_is_not_reported_as_a_failure() ->
     The administrator reads that line to decide how to reply, so a wrong reason is worse
     than a vague one.
     """
-    requested = admin_escalation.build_escalation_draft(
+    routed = admin_escalation.build_escalation_draft(
         query="Please send a message to an administrator about volunteer training dates.",
         missing_information=None,
         user_role="parent",
         chat_session_id="session-1",
-        requested_by_user=True,
+        origin="assistant_routed",
     )
-    assert "could not answer" not in requested.body
-    assert "asked to be put in touch with an administrator" in requested.body
+    assert "could not answer" not in routed.body
+    assert "the assistant routed it to an administrator" in routed.body
+
+
+def test_a_routed_question_does_not_claim_the_user_asked_for_contact() -> None:
+    """D-221, and the reason this file's D-219 assertion changed rather than gained a
+    sibling: the fix above replaced one unfounded claim with another.
+
+    `assistant_routed` is reached when a *classifier* decided the turn was an
+    admin-contact request. The scope-guard sweep measured that decision being wrong -
+    "My kid got marked absent by mistake - how do I fix that?" routed here - and the draft
+    then told an administrator the user had asked to be put in touch. The wording now
+    reports what this system did, which stays true either way.
+
+    Asserted as an absence, because the defect was a sentence being *present*: a future
+    edit that reinstates the friendlier phrasing reinstates the false claim with it.
+    """
+    routed = admin_escalation.build_escalation_draft(
+        query="My kid got marked absent by mistake - how do I fix that?",
+        missing_information=None,
+        user_role="public",
+        chat_session_id="session-4",
+        origin="assistant_routed",
+    )
+    assert "asked to be put in touch" not in routed.body
+    assert "requested" not in routed.body
+    # The question itself is still quoted verbatim - the administrator's actual evidence.
+    assert "My kid got marked absent by mistake - how do I fix that?" in routed.body
 
 
 def test_an_unanswerable_question_still_says_so() -> None:
     """The other half of the same distinction: the escalation-banner path is a genuine
     failure and must keep saying that, or the administrator loses the one signal that tells
     them the corpus has a gap.
+
+    D-221 kept this wording deliberately. Here the reason is *recorded* - `QAState.escalate`
+    arrived on the request - rather than inferred by a model, so naming it is a statement of
+    fact and not a guess.
     """
     failed = admin_escalation.build_escalation_draft(
         query="What is the refund policy for the summer program?",
         missing_information="No approved source covers refunds.",
         user_role="parent",
         chat_session_id="session-2",
-        requested_by_user=False,
+        origin="user_escalated",
     )
     assert "asked a question the assistant could not answer" in failed.body
     assert "No approved source covers refunds." in failed.body
@@ -302,7 +382,7 @@ def test_the_draft_never_carries_a_recipient() -> None:
         missing_information=None,
         user_role="student",
         chat_session_id="session-3",
-        requested_by_user=True,
+        origin="assistant_routed",
     )
     assert "@" not in draft.body
     assert "@" not in draft.subject

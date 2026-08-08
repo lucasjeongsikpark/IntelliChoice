@@ -101,6 +101,36 @@ UNAVAILABLE_INTENT_MESSAGES = {
 # see any of this (it routes on its own keyword gate); the static guard is
 # test_scope_prompt_defines_intents, behaviour is CHAT_EVAL_REAL_BEDROCK's paraphrase
 # cases.
+#
+# D-221: the three paragraphs after the topic list, and the last three examples, each
+# pin a failure measured by `scripts/measure_scope_guard.py` (2026-08-08, 76 cases x 2
+# repeats, real Haiku 4.5). The model's own `reasoning` said why each time, and none of
+# the three causes is a topic this prompt had *omitted* - which is what AUD-C-02 was:
+#
+#   1. It required the question to NAME IntelliChoice. "What do I need to put in my
+#      monthly report for my manager?" -> "the user's personal workplace reporting to
+#      their own manager"; "What happens if my kid is absent for a whole week?" ->
+#      "asking about a child's regular school". Every example below named the
+#      organization explicitly, so an unqualified first-person question read as being
+#      about somewhere else entirely.
+#   2. It did not know where branches meet. "Carrollton Public Library Keller Springs
+#      Road Saturday hours" -> "a public library facility and not related to
+#      IntelliChoice". Every non-online branch in `knowledge-content/documents/public/
+#      branch-directory` is hosted inside a library, church or community center, and
+#      nothing here said so. Three `grounded` cases - the class this prompt was tuned
+#      against - were being refused on that gap alone.
+#   3. `admin_contact` and `branch_locator` each swallowed a document_qa question the
+#      definitions already excluded, and the model said so while doing it ("While it's
+#      framed as a 'how do I' question... this is best handled as admin_contact"). A
+#      definition the model argues itself past needs the counter-example, not more
+#      emphasis.
+#
+# All three fixes are TOPICAL on purpose. Nothing here tells the model who is asking or
+# what they may read - that is D-219's rule and CLAUDE.md #3, guarded by
+# `test_the_scope_prompt_says_nothing_about_roles_or_access`. "Read 'my students' as
+# IntelliChoice's" is a statement about the subject of the question, not about the
+# asker's permissions, and the gated corpus is still filtered pre-retrieval by
+# `role_access_filter` exactly as before.
 SCOPE_AND_INTENT_SYSTEM_PROMPT = (
     "Classify whether this question is in scope for IntelliChoice's "
     "organizational Q&A assistant (the IntelliChoice organization itself, "
@@ -108,6 +138,16 @@ SCOPE_AND_INTENT_SYSTEM_PROMPT = (
     "parent information, tutor/branch procedures, the academic calendar, and "
     "learning-app support). Any question about what IntelliChoice is, who runs "
     "it, what it offers, or how to take part is in scope.\n"
+    "Questions come from people already taking part in IntelliChoice, so a "
+    "question does not have to name the organization to be about it: read 'my "
+    "child', 'my students', 'my manager', 'my report', 'a session' and 'the "
+    "program' as IntelliChoice's unless the question names a different "
+    "organization. What to do about a missed session, a student asking for "
+    "help, or a report that is due is in scope.\n"
+    "IntelliChoice branches meet inside public libraries, churches and "
+    "community centers, so a question naming a library, an address or a city "
+    "alongside hours, a schedule or a location is asking about a branch. A "
+    "bare keyword phrase is still a question.\n"
     "If in scope, also classify which workflow intent it needs:\n"
     "- document_qa: answerable from organizational documents - the organization "
     "itself, its programs, enrollment and participation, branch hours, "
@@ -115,18 +155,26 @@ SCOPE_AND_INTENT_SYSTEM_PROMPT = (
     "- branch_locator: ONLY finding or comparing branches by distance from the "
     "user's own location ('nearest branch', 'branches near me'). A question "
     "about a branch's hours, schedule, address, or programs that does not need "
-    "the user's location is document_qa.\n"
+    "the user's location is document_qa, and a city or area named in the "
+    "question is not the user's location.\n"
     "- calendar: adding an organizational event to the user's calendar, or "
     "listing upcoming scheduled events.\n"
     "- admin_contact: ONLY an explicit request to send a message to, or be put "
     "in contact with, a person or administrator. Questions about people, or "
-    "how-do-I questions, are document_qa.\n"
-    "- clarification: in scope but too vague to route.\n"
+    "how-do-I questions, are document_qa - including how to fix, correct or "
+    "resolve something, even when the answer may end in contacting someone.\n"
+    "- clarification: in scope but too vague to route. Use it only when the "
+    "topic itself is unclear, never because a question is casual, "
+    "first-person, or written as keywords.\n"
     "Examples: 'What is IntelliChoice?' -> in_scope, document_qa. 'Tell me "
     "about the people who run IntelliChoice' -> in_scope, document_qa. 'What "
     "are the Saturday hours?' -> in_scope, document_qa. 'Which branch is "
     "closest to me?' -> in_scope, branch_locator. 'Please send a message to an "
-    "administrator' -> in_scope, admin_contact."
+    "administrator' -> in_scope, admin_contact. 'What should I tell a student "
+    "to do first when they ask me for help?' -> in_scope, document_qa. "
+    "'Carrollton Public Library Saturday hours' -> in_scope, document_qa. 'My "
+    "kid got marked absent by mistake - how do I fix that?' -> in_scope, "
+    "document_qa."
 )
 
 # AUD-C-27: "from this session" was wrong, and the probe that found the cap's real ceiling
@@ -632,7 +680,27 @@ async def prepare_admin_escalation(state: QAState, runtime: Runtime[TurnContext]
         # D-219: this node is reached both from an explicit "contact an administrator"
         # request and from a turn that could not be answered. Only the second is a failure,
         # and the draft says which.
-        requested_by_user=state.intent == "admin_contact",
+        #
+        # D-221: read off `state.escalate`, the flag the *request* carried, rather than
+        # `state.intent == "admin_contact"`, which is what a model decided.
+        #
+        # The intent test was wrong twice over, and the second way is the one that matters.
+        # It was wrong when the classifier was: "My kid got marked absent by mistake - how
+        # do I fix that?" routed here on staging, and the draft told an administrator the
+        # user had asked for contact. But it was *also* true on the escalate path, because
+        # `resolve_role` sets `intent = "admin_contact"` there (D-164, and correctly - the
+        # caller did declare that intent). So the discriminator returned the same value on
+        # both branches, and D-219's "asked a question the assistant could not answer"
+        # opening became unreachable through the graph the moment it was written: every
+        # escalation email, including one raised from a no-source refusal, told the
+        # administrator the user had asked to be put in touch. Its three unit tests all
+        # passed - each one calls `build_escalation_draft` directly with the boolean it
+        # wants, so none of them could see the node choosing that boolean wrongly.
+        #
+        # Positive-signal form on purpose: this says "a user did this" only when a user
+        # action is on record, and every other route into this node - including any added
+        # later - falls to `assistant_routed`, which claims nothing about the user.
+        origin="user_escalated" if state.escalate else "assistant_routed",
     )
     return {"rate_limited": False, "email_draft": draft.model_dump()}
 
