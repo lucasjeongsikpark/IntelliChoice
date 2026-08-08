@@ -11,9 +11,9 @@ flip weighted by an unseeded per-request RNG's variant choice. That is not hypot
 `Level {level} hint` collided with the answer "1" and made
 `test_hint_reflects_the_students_actual_wrong_option` fail 8 times in 60 standalone runs.
 
-The check is data-driven from `SHAPE_HINT_LADDERS` rather than a frozen string, so it
-also covers the canonical text the mock embeds - if a future ladder edit introduces a
-digit, this fails here instead of as an intermittent flake three files away.
+The check is data-driven from the authored bank's own hint ladders rather than a frozen
+string, so it also covers the canonical text the mock embeds - if a future content edit
+introduces a digit, this fails here instead of as an intermittent flake three files away.
 """
 
 from __future__ import annotations
@@ -22,19 +22,34 @@ import asyncio
 import json
 
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
+from intellichoice_curriculum.authored_bank import load_authored_bank
 from intellichoice_curriculum.authored_validation import (
     answer_text_leaked,
     leak_phrase_present,
 )
-from intellichoice_curriculum.hint_ladders import SHAPE_HINT_LADDERS
 
 _PERSONALIZATION_SCHEMA = {"title": "HintPersonalizationResponse"}
 
-# Every answer text the shape bank actually renders for a one-unknown linear equation:
-# `format_integer` stringifies a `Fraction`, so single digits, negatives, and reduced
-# fractions are all reachable. The single digits are the collision-prone ones - they are
-# short enough to appear incidentally in any prose a hint might carry.
+# Answer texts a served item can actually carry. Single digits are the collision-prone
+# ones - short enough to appear incidentally in any prose a hint might carry - and the
+# fractions and negatives come from `fraction_operations` and `linear_equations`.
 _REACHABLE_ANSWER_TEXTS = [str(n) for n in range(-9, 10)] + ["1/2", "-1/2", "3/4", "10"]
+
+
+def _canonical_ladders() -> list[tuple[str, list[str]]]:
+    """Every canonical hint ladder a student can actually be shown, keyed by item id.
+
+    D-226 re-pointed this at the authored bank. It used to read `SHAPE_HINT_LADDERS`, the
+    per-shape static ladders, which were the ladders for templates `_servable()` had
+    filtered out of every serving read since D-210 - so this was proving the mock provider
+    leak-clean against text no student could receive. The authored ladders are the ones the
+    serving path actually personalises, and there are now far more of them.
+    """
+    return [
+        (t.question_template_id, list(t.hint_ladder))
+        for templates in load_authored_bank().values()
+        for t in templates
+    ]
 
 
 def _personalized_hint(*, level: int, canonical: str, misconception: str) -> dict:
@@ -60,24 +75,43 @@ def _personalized_hint(*, level: int, canonical: str, misconception: str) -> dic
     return asyncio.run(run())
 
 
-def test_mock_personalized_hint_never_trips_the_answer_leak_check() -> None:
-    for shape, ladder in SHAPE_HINT_LADDERS.items():
+def test_mock_personalization_introduces_no_answer_the_canonical_text_did_not() -> None:
+    """The mock's own wrapper text must never make a hint leak an answer.
+
+    Scoped to what the mock is responsible for (D-226). It used to assert the personalized
+    hint leaks *no* answer in `_REACHABLE_ANSWER_TEXTS`, which held while the corpus was
+    `SHAPE_HINT_LADDERS` - those ladders are per-shape and carry no numbers at all, so any
+    digit in the output came from the mock. Against the authored ladders that premise is
+    simply false: `"Add the two top numbers together and keep 8 as the bottom number"` is a
+    correct hint for an item about eighths, and the 8 is the question's own denominator.
+
+    So the property is stated as an implication instead: the mock may not *introduce* a
+    leak. Whether the canonical text names one of the question's own numbers is content's
+    business, and `check_no_answer_leakage` already gates it on every load with the context
+    to judge it - it compares against that item's actual answer, which this test cannot.
+
+    This still pins the collision the docstring above describes. The mock writes `Hint L3`
+    rather than `Level 3` precisely so its level digit is glued to a letter and cannot match
+    as a standalone token; write it the other way and this fails.
+    """
+    for item_id, ladder in _canonical_ladders():
         for index, canonical in enumerate(ladder):
             level = index + 1
             hint_text = _personalized_hint(
                 level=level, canonical=canonical, misconception="sign_error"
             )["hint_text"]
             for answer in _REACHABLE_ANSWER_TEXTS:
-                assert not answer_text_leaked(hint_text, answer), (
-                    shape,
-                    level,
-                    answer,
-                    hint_text,
-                )
+                if answer_text_leaked(hint_text, answer):
+                    assert answer_text_leaked(canonical, answer), (
+                        item_id,
+                        level,
+                        answer,
+                        hint_text,
+                    )
 
 
 def test_mock_personalized_hint_never_trips_the_leak_phrase_check() -> None:
-    for shape, ladder in SHAPE_HINT_LADDERS.items():
+    for shape, ladder in _canonical_ladders():
         for index, canonical in enumerate(ladder):
             hint_text = _personalized_hint(
                 level=index + 1, canonical=canonical, misconception="sign_error"
@@ -90,7 +124,7 @@ def test_mock_personalized_hint_still_names_the_misconception_and_varies_by_leve
     a "fix" that made the text leak-clean by dropping either one would defeat the tests
     this mock supports.
     """
-    ladder = SHAPE_HINT_LADDERS["one_step_add"]
+    _, ladder = _canonical_ladders()[0]
     texts = [
         _personalized_hint(
             level=index + 1, canonical=canonical, misconception="off_by_one"

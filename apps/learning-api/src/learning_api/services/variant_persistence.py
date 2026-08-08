@@ -4,10 +4,7 @@ and the study-plan builder (SPEC §5.8.1, §5.8.6 generation; §5.13.1 parallel-
 
 import logging
 import random
-from typing import cast
 
-from intellichoice_curriculum.generation import SHAPES, generate_variant
-from intellichoice_curriculum.templates.registry import ParameterSchema
 from intellichoice_db.models.questions import (
     VARIANT_ORIGIN_RUNTIME,
     QuestionTemplate,
@@ -71,19 +68,6 @@ class StaticVariantUnavailableError(Exception):
 logger = logging.getLogger(__name__)
 
 
-def renders_from_canonical_variant(template: QuestionTemplate) -> bool:
-    """True when `template`'s content is stored rather than computed.
-
-    S20's authored templates carry `solution_function="authored"`, a
-    `parameter_schema` of `{}` and no distractor generators: the item is a fixed piece of
-    text with one canonical `QuestionVariant`, not a parameterized shape. Keyed on the
-    shape registry rather than on `authoring_mode` so the predicate stays about what can
-    actually be rendered - a future authored template registered as a real shape would
-    correctly take the generated path.
-    """
-    return template.solution_function not in SHAPES
-
-
 def build_variant_row(
     *,
     template: QuestionTemplate,
@@ -99,58 +83,24 @@ def build_variant_row(
     caller that keeps its loop order keeps its exam identical - which is the property the
     deterministic core requires (CLAUDE.md non-negotiable #2).
 
-    `canonical_variant` is required for a statically-rendered template and ignored
-    otherwise; see `_static_variant_row` for what "serving" one means and what it costs.
+    **Every servable template is served from its canonical variant** (D-226). This used to
+    branch: a template whose `solution_function` named a registered shape was *generated*
+    from a seed instead. That branch had been unreachable since D-210 made `_servable()`
+    require `authoring_mode == "authored"`, and the shape registry it keyed on no longer
+    exists. `canonical_variant` is therefore required rather than conditional, and its
+    absence is a programming error rather than a content shape - see `_static_variant_row`
+    for what serving one means and what it costs.
     """
-    if renders_from_canonical_variant(template):
-        if canonical_variant is None:
-            raise StaticVariantUnavailableError(
-                f"template {template.question_template_id!r} has solution_function="
-                f"{template.solution_function!r}, which has no shape to render from, and "
-                f"no canonical variant was supplied to serve instead"
-            )
-        return _static_variant_row(
-            template=template,
-            rng=rng,
-            canonical_variant=canonical_variant,
-            avoid_rendered_question=avoid_rendered_question,
+    if canonical_variant is None:
+        raise StaticVariantUnavailableError(
+            f"template {template.question_template_id!r} was asked to render with no "
+            f"canonical variant; every servable template stores its content (D-226)"
         )
-    candidate = generate_variant(
-        shape_key=template.solution_function,
-        parameter_schema=cast(ParameterSchema, template.parameter_schema),
-        correct_option_generator=template.correct_option_generator,
-        distractor_generator_keys=template.distractor_generators,
-        seed=rng.randint(0, _MAX_SEED),
-    )
-    attempts = 1
-    while (
-        avoid_rendered_question is not None
-        and candidate.rendered_question == avoid_rendered_question
-        and attempts < _MAX_REGENERATION_ATTEMPTS
-    ):
-        candidate = generate_variant(
-            shape_key=template.solution_function,
-            parameter_schema=cast(ParameterSchema, template.parameter_schema),
-            correct_option_generator=template.correct_option_generator,
-            distractor_generator_keys=template.distractor_generators,
-            seed=rng.randint(0, _MAX_SEED),
-        )
-        attempts += 1
-
-    return QuestionVariant(
-        # One row per question served, so this is the unbounded population and must
-        # never enter SPEC §5.8.3's dedup check (D-106). Matches the column default;
-        # stated anyway because this is the write site that made the difference.
-        origin=VARIANT_ORIGIN_RUNTIME,
-        question_template_id=template.question_template_id,
-        random_seed=candidate.random_seed,
-        rendered_question=candidate.rendered_question,
-        option_a=candidate.option_a,
-        option_b=candidate.option_b,
-        option_c=candidate.option_c,
-        option_d=candidate.option_d,
-        correct_option=candidate.correct_option,
-        parameter_values=candidate.parameter_values,
+    return _static_variant_row(
+        template=template,
+        rng=rng,
+        canonical_variant=canonical_variant,
+        avoid_rendered_question=avoid_rendered_question,
     )
 
 
@@ -266,14 +216,12 @@ async def generate_and_store_variant(
     study planner's per-item selection). Exam builders use `build_variant_row` plus a
     batched write instead - see AUD-F-31.
 
-    The canonical-variant read is conditional so the common path keeps its statement
-    count: a shape template needs no extra query, and a statically-rendered one costs
-    exactly one (D-189).
+    The canonical-variant read costs exactly one query (D-189). It used to be conditional
+    on `renders_from_canonical_variant`, which D-226 removed along with the shape templates
+    that were its only False case.
     """
-    canonical_variant = (
-        await question_repo.get_variant_for_template(template.question_template_id)
-        if renders_from_canonical_variant(template)
-        else None
+    canonical_variant = await question_repo.get_variant_for_template(
+        template.question_template_id
     )
     return await question_repo.create_variant(
         build_variant_row(

@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from intellichoice_curriculum.hint_ladders import SHAPE_HINT_LADDERS
 from intellichoice_db.models.cost_reservation import SCOPE_TUTOR_CHAT
 from intellichoice_db.models.hints import HintEvent
 from intellichoice_db.models.interrupts import InterruptApproval
@@ -844,14 +843,18 @@ async def _resolve_relevant_fact(
 
 
 def _canonical_hint_ladder(template: QuestionTemplate) -> list[str]:
-    """SPEC §5.11.4/S21: authored templates carry their own S20-generated ladder;
-    shape templates use the hand-authored, per-shape static ladder (`hint_ladders.py`) -
-    never invented, never varying by the specific sampled numbers.
+    """SPEC §5.11.4/S21: the template's own ladder - never invented at serving time.
+
+    D-226 removed the second branch. Shape templates used a hand-authored per-shape static
+    ladder (`hint_ladders.py`), and that branch was unreachable long before it was deleted:
+    `_servable()` has filtered every non-authored template out of every serving read since
+    D-210, so a template reaching here can only be an authored one. The assert below is
+    what actually guards this now, and it is a real invariant rather than a leftover -
+    `authoring_mode == "authored"` and a non-null `hint_ladder` are both written by the
+    same loader path.
     """
-    if template.authoring_mode == "authored":
-        assert template.hint_ladder is not None, "authored template missing its hint_ladder"
-        return template.hint_ladder
-    return SHAPE_HINT_LADDERS[template.solution_function]
+    assert template.hint_ladder is not None, "authored template missing its hint_ladder"
+    return template.hint_ladder
 
 
 async def _hint_round(

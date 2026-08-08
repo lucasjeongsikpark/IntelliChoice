@@ -29,7 +29,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.ai_pipeline import PipelineConfigError, generate_authored_candidate
 from intellichoice_curriculum.content import load_curriculum
-from intellichoice_curriculum.generation import SHAPES
 from intellichoice_curriculum.pipeline_cli import _build_gateway
 from intellichoice_curriculum.settings import get_pipeline_settings
 
@@ -178,29 +177,27 @@ async def approve(session: AsyncSession, question_template_id: str) -> str:
     also where "would this content actually serve?" has to be answered.
 
     D-188 measured what happens without this, by approving five authored templates and
-    running the suite: 34 tests failed with `VariantGenerationError: unknown shape
-    'authored'`, because every served question went through
-    `generation.generate_variant(shape_key=template.solution_function)` and an authored
-    template has no shape. D-189 built the serving path, so the question is no longer
-    "does this render?" but "is there anything to serve?" - a template with no shape is
-    served from its canonical variant, and one with neither is unservable.
+    running the suite: 34 tests failed because every served question was rendered from a
+    parameterized shape and an authored template has none. D-189 built the serving path,
+    so the question became "is there anything to serve?" rather than "does this render?".
+
+    D-226 removed the shapes entirely, which makes the check *unconditional* rather than
+    weaker: every servable template is now served from its canonical variant, so a template
+    without one is unservable, full stop. There is no longer a second kind of template for
+    which the missing variant would have been fine.
 
     Refusing here is the fail-closed direction (CLAUDE.md rule 5): a reviewer working
     through `make question-review` cannot silently brick exam building for real students.
-    It is deliberately not a repository-level guard - `intellichoice_db` importing
-    `intellichoice_curriculum`'s shape registry would invert the dependency (curriculum
-    already imports the repositories).
     """
     repo = QuestionRepository(session)
     template = await repo.get_template(question_template_id)
-    if template is not None and template.solution_function not in SHAPES:
+    if template is not None:
         canonical_variant = await repo.get_variant_for_template(question_template_id)
         if canonical_variant is None:
             raise UnservableTemplateError(
-                f"{question_template_id} has solution_function="
-                f"{template.solution_function!r}, which the runtime variant generator has "
-                f"no shape for, and no canonical variant to serve instead - approving it "
-                f"would make exam building raise for any student who draws it."
+                f"{question_template_id} has no canonical variant to serve - every "
+                f"servable template stores its content (D-226), so approving it would "
+                f"make exam building raise for any student who draws it."
             )
     await repo.activate_template(question_template_id)
     await session.commit()
