@@ -166,7 +166,7 @@ def test_loading_is_idempotent_and_lands_approved_and_servable() -> None:
             item = _item()
 
             summary = LoadSummary()
-            await _load_authored_templates(session, curriculum, [item], summary)
+            await _load_authored_templates(session, curriculum, item.topic_id, [item], summary)
             assert (summary.templates_created, summary.variants_created) == (1, 1)
 
             template = await repo.get_template(item.question_template_id)
@@ -186,7 +186,7 @@ def test_loading_is_idempotent_and_lands_approved_and_servable() -> None:
             assert item.question_template_id in {t.question_template_id for t in active}
 
             again = LoadSummary()
-            await _load_authored_templates(session, curriculum, [item], again)
+            await _load_authored_templates(session, curriculum, item.topic_id, [item], again)
             assert (again.templates_created, again.templates_skipped_existing) == (0, 1)
 
     asyncio.run(run())
@@ -209,7 +209,9 @@ def test_an_edited_item_whose_answer_no_longer_matches_fails_the_load() -> None:
                 answer_expression="Eq(x + 3, 8)",
             )
             with pytest.raises(CurriculumLoadError) as excinfo:
-                await _load_authored_templates(session, curriculum, [broken], LoadSummary())
+                await _load_authored_templates(
+                    session, curriculum, broken.topic_id, [broken], LoadSummary()
+                )
             assert "does not match declared correct option" in str(excinfo.value)
 
             repo = QuestionRepository(session)

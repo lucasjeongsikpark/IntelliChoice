@@ -165,6 +165,7 @@ async def _load_templates(
 async def _load_authored_templates(
     session: AsyncSession,
     curriculum: CurriculumContent,
+    topic_id: str,
     templates: list[AuthoredTemplateDef],
     summary: LoadSummary,
 ) -> None:
@@ -199,9 +200,22 @@ async def _load_authored_templates(
     # Guarded on a non-empty list on purpose. An empty `templates` means "this file failed
     # to parse or was not found", and retiring the entire authored bank on that is a much
     # worse failure than not retiring anything.
+    #
+    # **Scoped to this file's own topic (D-222).** `get_authored_templates()` is
+    # deliberately unfiltered - a retired row must still be found so it can be reactivated -
+    # so the topic check belongs here, at the one caller that knows which file it is
+    # loading. Without it, the very first day a second authored bank file exists, the two
+    # loads retire each other: `fraction_operations` retires all 47 `linear_equations`
+    # items for not being in its file, then `linear_equations` retires the 15 items
+    # `fraction_operations` just created. One `make curriculum-load` and no topic is
+    # servable at all, because `_servable()` filters on `active_status`. The bug was
+    # invisible while exactly one topic had authored content, and its blast radius is
+    # every environment, production included.
     if templates:
         wanted = {t.question_template_id for t in templates}
         for existing in await repo.get_authored_templates():
+            if existing.topic_id != topic_id:
+                continue
             if existing.question_template_id not in wanted and existing.active_status == "active":
                 await repo.set_active_status(existing.question_template_id, "retired")
                 summary.templates_retired += 1
@@ -280,8 +294,8 @@ async def load_curriculum_and_templates(session: AsyncSession) -> LoadSummary:
     await _load_taxonomy(session, curriculum, summary)
     for topic_id, templates in TEMPLATE_BANKS.items():
         await _load_templates(session, curriculum, topic_id, templates, summary)
-    for authored_templates in load_authored_bank().values():
-        await _load_authored_templates(session, curriculum, authored_templates, summary)
+    for topic_id, authored_templates in load_authored_bank().items():
+        await _load_authored_templates(session, curriculum, topic_id, authored_templates, summary)
     return summary
 
 

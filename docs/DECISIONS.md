@@ -15893,3 +15893,112 @@ an anonymous guest, in one session:
   facility and not related to IntelliChoice"*. That is a `grounded` eval case which had been
   failing silently, in the class the prompt was supposedly tuned against, because the coverage
   eval scores citations and never sees a turn that dies before retrieval.
+
+## D-222 — a flake with a global precondition, and a topic that could not be stood up the way it looked like it should (accepted, 2026-08-08)
+
+Pointer items 1 and 3. They are unrelated in subject and identical in shape: **a claim that was
+true when it was written, held in a place nothing re-checks.** A test comment asserting the state
+of a shared database; a loader comment promising a bank that never arrived; a retirement rule
+correct for exactly one topic.
+
+### 1. The flake, reproduced and root-caused
+
+Four occurrences across three sessions, never reproducible, always passing on rerun and in CI.
+`test_intervention_choice_pause_records_choice_and_blocks_skip` asserts the §5.11.6 fallback
+message, on a precondition stated only in its own comment: *"no `youtube_videos` row seeded for
+this skill"*. **Nothing enforces it, and it is false on any machine where `make youtube-sync` has
+been run** — this one holds 4 approved rows from `fake_youtube.py`, `difficulty` 2–4, covering 4 of
+the topic's 5 skills.
+
+The rest follows from two facts that are each correct on their own: serving picks the study item
+with an unseeded `random.Random()` (`routers/sessions.py`, right for production), and
+`video_catalog.search_video` filters hard on `skill_id` **and** `difficulty`. So the test passes
+whenever the draw lands outside the seeded window and fails when it lands inside.
+
+Measured with a driver that replays the flow and records what was served:
+
+| served | rounds | video matched |
+|---|---|---|
+| `linear_one_step` d1 | 6 | no — d1 is below `difficulty_min` |
+| `linear_distribute` d5 | 4 | no — no video for that skill |
+| `linear_two_step` d1 | 1 | no |
+| `linear_neg_frac_coeff` d2 | 1 | **yes → the failing round** |
+
+**1 in 12.** Widening the seeded rows' difficulty window to 1–5 turned that into **7 of 8**, and
+the fixed test passed 8/8 against it — the fix proven on the failing path rather than on the
+happy one. **CI never saw it because CI's database is fresh**, so the table is empty there and the
+assertion is trivially true.
+
+The fix is in the assertion, not the app. A flow test asserting a *catalog* outcome makes a shared
+table part of its contract; `test_video_catalog.py` already owns the verbatim-fallback proof
+deterministically, inside a rollback transaction. The flow test now asserts the §5.11.6 contract —
+`type == "video"`, exactly one of the two valid shapes, `video_used` recorded — and the real
+precondition is written down instead of assumed.
+
+Last session's hypothesis (semantic-memory pollution flipping the study plan's tie-break) was
+wrong: the conftest sweep deletes `semantic_memory` before every test, so it could never have been
+the carrier. Recorded because a plausible mechanism that survives one session becomes the next
+session's premise.
+
+### 2. `fraction_operations`, and the route that looked right and was not
+
+The obvious reading of "stand up a dormant topic" is a shape bank — `templates/linear_equations.py`
+has 50 of them, and `loader.py`'s own comment said `fraction_operations` was S9's job. So that is
+what was built first: 9 fraction shapes with exact-rational answers, fraction-specific distractors
+modelling real errors, 9 hint ladders, 20 templates, 20 000 generated variants validating clean.
+
+It loads, and it is then filtered out of every serving read. **`_servable()` requires
+`authoring_mode == "authored"` (D-210, the user's own decision):** a shape renders a bare exercise,
+an authored item is a situation a student has to model. With 4 approved templates at every tier,
+`build_topic_options` still answered `available=False`, which is D-210's stated intent working
+exactly as designed. The shape work was reverted rather than left in the tree as 20 rows every
+environment would load and nothing would serve.
+
+**What actually stands a topic up is authored-mode YAML.** 15 hand-written word problems, three per
+tier, all three skills, each passing the same `validate_authored_item` §5.8.5 gate the pipeline
+applies — SymPy deriving the answer from the item's own equation, exactly-one-correct, hint
+monotonicity, leak phrases, readability, meta-commentary. **0 of 15 failed on the first gate run.**
+
+Three per tier rather than two: `topic_availability` needs two, and two would hand every student
+the same pair at that tier in both the pre- *and* post-exam.
+
+What these items do **not** have is the paid pipeline's two independent solvers and its blind
+judge (D-211 blocks that path). That difference is recorded in the provenance fields
+(`generator_model: hand-authored-v1`, empty `review_model_versions`) and in
+[QUESTION_GENERATION.md](QUESTION_GENERATION.md) §9a rather than glossed: the panel's unique catch
+is an under-specified stem, so every item states every quantity it asks the student to use.
+
+### 3. The defect that would have taken staging down with it
+
+`_load_authored_templates` retires "every authored template this file does not list". It read
+`get_authored_templates()`, which is **deliberately unfiltered by topic** — correct for its own
+purpose, since a retired row must still be findable to be reactivated. Correct, too, while exactly
+one topic had authored content. The day a second bank file exists:
+
+1. `fraction_operations` loads → all 47 `linear_equations` items are not in its file → **retired**.
+2. `linear_equations` loads → the 15 items just created are not in its file → **retired**.
+
+`_servable()` filters on `active_status`, so after one `make curriculum-load` **no topic is
+servable at all**. And the staging deploy runs the loader on every deploy (D-206), so this would
+have emptied staging the moment the file landed — found by running it locally, not by reading it.
+
+Fixed by scoping the retirement to the topic being loaded, at the one caller that knows which file
+it is. `test_every_item_in_every_bank_file_is_active_after_a_load` was watched failing against the
+old code first, naming all 15 fraction items.
+
+### Verified
+
+`fraction_operations` reports `available=True` and `recommended_for_grade=True` for a grade-4
+student, `linear_equations` stayed active through the same load, a 10-item pre-exam builds,
+finalize advances to study, and a study item is served and graded. `linear_equations.yaml`
+re-exported **byte-identically**, which is independent evidence the export path is faithful.
+
+### Found but not fixed
+
+`validation.check_no_answer_leakage` matches the answer as a **substring**: `Solve for x: 11x = -55`
+with answer `-5` is rejected because `x = -5` occurs inside `x = -55`. 63 of 5 000 sampled
+`linear_equations` variants trip it. It is fail-closed — it can only over-reject — and invisible
+today because the loader validates one fixed seed per template, none of which happen to collide.
+Same class as the two bugs D-195 already recorded in `answer_text_leaked`. Left alone deliberately:
+it is a shared §5.8.5 gate, loosening it changes what the paid pipeline rejects, and that decision
+deserves its own session with its own measurement.
