@@ -1519,14 +1519,17 @@ print(Counter((t.skill_id, t.difficulty_label) for t in T))"
 × 10). `fraction_operations` and `place_value` have **zero**. Via `grade_topic_mapping.yaml` that is
 **grade band 6-7 only**, on a K-12 product.
 
-**Re-measured 2026-08-08 (D-222) — the count above is superseded on two of its three claims.**
-`fraction_operations` now has **15 hand-authored, §5.8.5-gated items, three at every tier 1-5**,
-covering all three of its skills, and reports `available=True` and `recommended_for_grade=True` for
-a grade-4 student. Grade bands served: **4-5 and 6-7**. `place_value` (band 1-2) is still zero, so
+**Re-measured 2026-08-08 (D-222, extended D-223) — the count above is superseded on two of its
+three claims.** `fraction_operations` now has **30 hand-authored, §5.8.5-gated items** spread
+5/6/7/6/6 across tiers 1-5 and covering all three of its skills, and reports `available=True` and
+`recommended_for_grade=True` for a grade-4 student. D-223 doubled it because the availability floor
+of 2 per tier is a floor, not a target: at 3 per tier a 10-item pre-exam had to repeat at least half
+of itself next session; at 5-7 per tier, three live exams covered 19 of 30 distinct questions.
+Grade bands served: **4-5 and 6-7**. `place_value` (band 1-2) is still zero, so
 the K-12 span is still short at the bottom. Two things the count above does not say and that matter
 more than the number: the templates line counts **shape** templates, which `_servable()` has not
-served since D-210 — the servable bank is `linear_equations`' 47 authored items plus these 15 — and
-these 15 went through the deterministic gate but **not** the two-solver/judge panel (D-211), so
+served since D-210 — the servable bank is `linear_equations`' 47 authored items plus these 30 — and
+all 30 went through the deterministic gate but **not** the two-solver/judge panel (D-211), so
 they are content, not calibrated content. Multi-tier for `linear_equations` (rule 2) is unchanged
 and still inert.
 

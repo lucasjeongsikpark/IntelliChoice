@@ -192,6 +192,288 @@ templates:
   option_c: 5/8
   option_d: 1/2
   correct_option: d
+- question_template_id: authored-fraction_operations-d2-100204
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_like
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - Added the two amounts instead of taking one away
+  - Subtracted the bottom numbers as well as the top ones
+  - Stopped before writing the result in lowest terms
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A ribbon was 9/12 of a meter long. Mia cut off 3/12 of a meter to tie a gift. How long is the
+    ribbon now, written in lowest terms?
+  context_block: null
+  answer_expression: Eq(x + 3/12, 9/12)
+  hint_ladder:
+  - Ribbon was cut off, so what is left is shorter than what Mia started with.
+  - Both lengths are written in twelfths, so take the top numbers away from each other and keep 12 underneath.
+  - Once you have a length in twelfths, check whether its top and bottom numbers can both be divided by
+    6.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: A piece was cut off, so the two lengths are subtracted.
+      expression: 9/12 - 3/12
+      common_mistake: Adding the two lengths to get 12/12
+    - step_number: 2
+      explanation: The bottom numbers match, so subtract the top numbers and keep the bottom number.
+      expression: (9 - 3)/12 = 6/12
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the top and bottom by 6 to write it in lowest terms.
+      expression: 6/12
+      common_mistake: Leaving the answer unsimplified
+    final_answer: 1/2
+  random_seed: 100204
+  rendered_question: A ribbon was 9/12 of a meter long. Mia cut off 3/12 of a meter to tie a gift. How
+    long is the ribbon now, written in lowest terms?
+  option_a: 3/4
+  option_b: 1/2
+  option_c: 1/4
+  option_d: 12/12
+  correct_option: b
+- question_template_id: authored-fraction_operations-d2-100205
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_like
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - Added the denominators as well as the numerators
+  - Used only two of the three amounts
+  - Stopped before writing the result in lowest terms
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A class read 2/9 of a book on Monday, 3/9 on Tuesday and 1/9 on Wednesday. What fraction of the
+    book has the class read so far, written in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, 2/9 + 3/9 + 1/9)
+  hint_ladder:
+  - Three separate amounts were read, and the question asks how much has been read in total.
+  - All three amounts are in ninths, so the pieces are the same size and only the top numbers change.
+  - Add all three top numbers, keep 9 underneath, then check whether the result can be simplified by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: All three days count toward the total, so all three amounts are added.
+      expression: 2/9 + 3/9 + 1/9
+      common_mistake: Using only the first two days
+    - step_number: 2
+      explanation: The bottom numbers match, so add the top numbers and keep the bottom number.
+      expression: (2 + 3 + 1)/9 = 6/9
+      common_mistake: Adding the bottom numbers to get 6/27
+    - step_number: 3
+      explanation: Divide the top and bottom by 3 to write it in lowest terms.
+      expression: 6/9
+      common_mistake: null
+    final_answer: 2/3
+  random_seed: 100205
+  rendered_question: A class read 2/9 of a book on Monday, 3/9 on Tuesday and 1/9 on Wednesday. What fraction
+    of the book has the class read so far, written in lowest terms?
+  option_a: 2/3
+  option_b: 6/27
+  option_c: 5/9
+  option_d: 1/3
+  correct_option: a
+- question_template_id: authored-fraction_operations-d3-100304
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_like
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Added the two readings instead of finding the difference
+  - Answered with a reading rather than with the change between them
+  - Stopped before writing the result in lowest terms
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A water tank is filled in two stages. After the first stage it held 5/16 of its capacity, and
+    after the second stage it held 13/16. What fraction of the capacity was added during the second stage,
+    written in lowest terms?
+  context_block: null
+  answer_expression: Eq(5/16 + x, 13/16)
+  hint_ladder:
+  - The two readings describe the tank before and after the second stage, and the question asks about
+    the change between them.
+  - The amount added is the later reading with the earlier reading taken away.
+  - Both readings are in sixteenths, so subtract the top numbers and then simplify by 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The second stage added the difference between the two readings.
+      expression: 13/16 - 5/16
+      common_mistake: Adding the two readings to get 18/16
+    - step_number: 2
+      explanation: The bottom numbers match, so subtract the top numbers and keep the bottom number.
+      expression: (13 - 5)/16 = 8/16
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the top and bottom by 8 to write it in lowest terms.
+      expression: 8/16
+      common_mistake: Leaving the answer unsimplified
+    final_answer: 1/2
+  random_seed: 100304
+  rendered_question: A water tank is filled in two stages. After the first stage it held 5/16 of its capacity,
+    and after the second stage it held 13/16. What fraction of the capacity was added during the second
+    stage, written in lowest terms?
+  option_a: 9/8
+  option_b: 5/8
+  option_c: 1/4
+  option_d: 1/2
+  correct_option: d
+- question_template_id: authored-fraction_operations-d3-100305
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_like
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Added both distances instead of taking the second one away
+  - Subtracted the bottom numbers as well as the top ones
+  - Stopped before writing the result in lowest terms
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A trail is marked in tenths. Ben walked 7/10 of the trail away from the start, then turned around
+    and walked back 3/10 of the trail. How far along the trail is Ben now, written in lowest terms?
+  context_block: null
+  answer_expression: Eq(x, 7/10 - 3/10)
+  hint_ladder:
+  - Walking back toward the start moves Ben to a smaller distance, not a larger one.
+  - Both distances are in tenths, so the pieces are the same size and only the top numbers change.
+  - Take the second distance away from the first, then simplify the result by 2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Turning around means the second distance is taken away from the first.
+      expression: 7/10 - 3/10
+      common_mistake: Adding both distances to get a whole trail
+    - step_number: 2
+      explanation: The bottom numbers match, so subtract the top numbers and keep the bottom number.
+      expression: (7 - 3)/10 = 4/10
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the top and bottom by 2 to write it in lowest terms.
+      expression: 4/10
+      common_mistake: Leaving the answer unsimplified
+    final_answer: 2/5
+  random_seed: 100305
+  rendered_question: A trail is marked in tenths. Ben walked 7/10 of the trail away from the start, then
+    turned around and walked back 3/10 of the trail. How far along the trail is Ben now, written in lowest
+    terms?
+  option_a: 2/5
+  option_b: '1'
+  option_c: 1/5
+  option_d: 4/5
+  correct_option: a
+- question_template_id: authored-fraction_operations-d1-100104
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - Added the numerators and the denominators straight across
+  - Kept halves and quarters as if they were the same size
+  - Used only one of the two amounts
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Nina drank 1/2 of a bottle of water in the morning and 1/4 of the same bottle in the afternoon.
+    What fraction of the bottle did Nina drink altogether?
+  context_block: null
+  answer_expression: Eq(x, 1/2 + 1/4)
+  hint_ladder:
+  - A half of a bottle and a quarter of a bottle are different sizes, so they cannot be counted together
+    yet.
+  - Two quarters fill the same space as one half, so the half can be rewritten in quarters.
+  - Once both amounts are written in quarters, add the top numbers and keep 4 underneath.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bottom numbers are 2 and 4, so the pieces are different sizes.
+      expression: 1/2 and 1/4
+      common_mistake: Adding straight across to get 2/6
+    - step_number: 2
+      explanation: Rewrite the half as quarters.
+      expression: 1/2 = 2/4
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the top numbers and keep the bottom number.
+      expression: 2/4 + 1/4
+      common_mistake: null
+    final_answer: 3/4
+  random_seed: 100104
+  rendered_question: Nina drank 1/2 of a bottle of water in the morning and 1/4 of the same bottle in
+    the afternoon. What fraction of the bottle did Nina drink altogether?
+  option_a: 3/4
+  option_b: 2/6
+  option_c: 1/8
+  option_d: 2/4
+  correct_option: a
+- question_template_id: authored-fraction_operations-d2-100206
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - Added the numerators and the denominators straight across
+  - Left the two amounts in different sized pieces
+  - Used only one of the two amounts
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Sam filled 1/6 of a jar with marbles, then added enough marbles to fill another 1/2 of the jar.
+    What fraction of the jar is filled now?
+  context_block: null
+  answer_expression: Eq(x, 1/6 + 1/2)
+  hint_ladder:
+  - Sixths of a jar and halves of a jar are different sizes, so they cannot be counted together yet.
+  - Three sixths fill the same space as one half, so the half can be rewritten in sixths.
+  - Once both amounts are written in sixths, add the top numbers and then simplify by 2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bottom numbers are 6 and 2, so the pieces are different sizes.
+      expression: 1/6 and 1/2
+      common_mistake: Adding straight across to get 2/8
+    - step_number: 2
+      explanation: Rewrite the half in sixths.
+      expression: 1/2 = 3/6
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the top numbers, keep 6 underneath, then simplify by 2.
+      expression: 1/6 + 3/6 = 4/6
+      common_mistake: Leaving the answer unsimplified
+    final_answer: 2/3
+  random_seed: 100206
+  rendered_question: Sam filled 1/6 of a jar with marbles, then added enough marbles to fill another 1/2
+    of the jar. What fraction of the jar is filled now?
+  option_a: 2/8
+  option_b: 1/8
+  option_c: 2/3
+  option_d: 1/3
+  correct_option: c
 - question_template_id: authored-fraction_operations-d3-100301
   topic_id: fraction_operations
   skill_id: fraction_add_sub_unlike
@@ -432,6 +714,52 @@ templates:
   option_c: 1/3
   option_d: 5/12
   correct_option: c
+- question_template_id: authored-fraction_operations-d4-100404
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 105
+  common_error_tags:
+  - Added the two amounts instead of taking one away
+  - Subtracted the numerators and the denominators straight across
+  - Left the two amounts in different sized pieces
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A jug held 5/6 of a liter of lemonade. Kai poured out 1/4 of a liter for a glass. What fraction
+    of a liter is still in the jug?
+  context_block: null
+  answer_expression: Eq(x + 1/4, 5/6)
+  hint_ladder:
+  - Lemonade was poured out, so what is left is less than what the jug started with.
+  - Sixths and quarters are different sizes, so both amounts need rewriting over a shared bottom number.
+  - Twelve works as a shared bottom number for both, since 6 and 4 each divide into it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Lemonade left is what started there with the poured amount taken away.
+      expression: 5/6 - 1/4
+      common_mistake: Adding the two amounts to get 13/12
+    - step_number: 2
+      explanation: Rewrite both amounts over twelfths.
+      expression: 5/6 = 10/12 and 1/4 = 3/12
+      common_mistake: Subtracting straight across
+    - step_number: 3
+      explanation: Subtract the top numbers and keep the bottom number.
+      expression: 10/12 - 3/12
+      common_mistake: null
+    final_answer: 7/12
+  random_seed: 100404
+  rendered_question: A jug held 5/6 of a liter of lemonade. Kai poured out 1/4 of a liter for a glass.
+    What fraction of a liter is still in the jug?
+  option_a: 13/12
+  option_b: 2/5
+  option_c: 1/2
+  option_d: 7/12
+  correct_option: d
 - question_template_id: authored-fraction_operations-d5-100503
   topic_id: fraction_operations
   skill_id: fraction_add_sub_unlike
@@ -483,6 +811,141 @@ templates:
   option_c: 3/8
   option_d: 1/15
   correct_option: b
+- question_template_id: authored-fraction_operations-d5-100504
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - Added the two readings instead of finding the difference
+  - Subtracted the numerators and the denominators straight across
+  - Answered with a reading rather than with the amount used
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A tank was 7/8 full at the start of the day. Water was used until the tank was only 1/3 full.
+    What fraction of the tank's capacity was used during the day?
+  context_block: null
+  answer_expression: Eq(1/3 + x, 7/8)
+  hint_ladder:
+  - The two readings describe the tank before and after, and the question asks about the amount used between
+    them.
+  - The amount used is the starting reading with the ending reading taken away.
+  - Eighths and thirds are different sizes, so rewrite both over twenty-fourths before subtracting.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The water used is the difference between the starting and ending readings.
+      expression: 7/8 - 1/3
+      common_mistake: Adding the readings to get 29/24
+    - step_number: 2
+      explanation: Build a shared bottom number for eighths and thirds by multiplying them.
+      expression: 8 x 3 = 24
+      common_mistake: Subtracting straight across to get 6/5
+    - step_number: 3
+      explanation: Rewrite both readings over twenty-fourths and subtract.
+      expression: 21/24 - 8/24
+      common_mistake: null
+    final_answer: 13/24
+  random_seed: 100504
+  rendered_question: A tank was 7/8 full at the start of the day. Water was used until the tank was only
+    1/3 full. What fraction of the tank's capacity was used during the day?
+  option_a: 13/24
+  option_b: 29/24
+  option_c: 6/5
+  option_d: 1/2
+  correct_option: a
+- question_template_id: authored-fraction_operations-d5-100505
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - Answered with the two named groups instead of the remaining group
+  - Added the numerators and the denominators straight across
+  - Forgot that the whole group counts as one
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: On a school trip, 1/3 of the students chose the museum and 1/4 chose the aquarium. Every other
+    student chose the zoo. What fraction of the students chose the zoo?
+  context_block: null
+  answer_expression: Eq(1/3 + 1/4 + x, 1)
+  hint_ladder:
+  - Every student made one choice, so the whole group counts as one.
+  - Combine the two named groups first, which needs a shared bottom number because thirds and quarters
+    differ.
+  - Take that combined amount away from the whole group to find the group that is left.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Build a shared bottom number for thirds and quarters by multiplying them.
+      expression: 3 x 4 = 12
+      common_mistake: Adding straight across to get 2/7
+    - step_number: 2
+      explanation: Rewrite both named groups over twelfths and add them.
+      expression: 4/12 + 3/12 = 7/12
+      common_mistake: null
+    - step_number: 3
+      explanation: The whole group is 12/12, so take the named groups away from it.
+      expression: 12/12 - 7/12
+      common_mistake: Answering with the named groups instead of the rest
+    final_answer: 5/12
+  random_seed: 100505
+  rendered_question: On a school trip, 1/3 of the students chose the museum and 1/4 chose the aquarium.
+    Every other student chose the zoo. What fraction of the students chose the zoo?
+  option_a: 7/12
+  option_b: 2/7
+  option_c: 5/12
+  option_d: 1/12
+  correct_option: c
+- question_template_id: authored-fraction_operations-d1-100105
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - Divided by the top number instead of the bottom number
+  - Answered with the number left behind rather than the number taken
+  - Treated the fraction as a subtraction
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A bag holds 6 apples. Leo takes half of the apples to school. How many apples does Leo take?
+  context_block: null
+  answer_expression: Eq(x, 1/2 * 6)
+  hint_ladder:
+  - Taking half of a group means splitting it into two equal parts and keeping one of them.
+  - Six apples split into two equal parts gives two groups of the same size.
+  - Work out how many apples are in one of those two equal groups.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Half of a group means the group split into two equal parts.
+      expression: 6 divided into 2 equal parts
+      common_mistake: Taking away 2 apples instead of splitting the group
+    - step_number: 2
+      explanation: Split six apples into two equal groups.
+      expression: 6 / 2
+      common_mistake: null
+    final_answer: '3'
+  random_seed: 100105
+  rendered_question: A bag holds 6 apples. Leo takes half of the apples to school. How many apples does
+    Leo take?
+  option_a: '12'
+  option_b: '4'
+  option_c: '3'
+  option_d: '2'
+  correct_option: c
 - question_template_id: authored-fraction_operations-d2-100202
   topic_id: fraction_operations
   skill_id: fraction_mul_div
@@ -577,6 +1040,97 @@ templates:
   option_c: 5/2
   option_d: 4/3
   correct_option: c
+- question_template_id: authored-fraction_operations-d3-100306
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Divided by the top number instead of the bottom number
+  - Answered with the size of one part instead of the size of three parts
+  - Subtracted the top number from the group instead of multiplying
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A jar holds 24 beads. Priya uses 3/8 of the beads for a bracelet. How many beads does Priya use?
+  context_block: null
+  answer_expression: Eq(x, 3/8 * 24)
+  hint_ladder:
+  - Taking eighths of a group means splitting the group into eight equal parts first.
+  - Twenty-four beads split into eight equal parts gives eight groups of the same size.
+  - Priya uses three of those equal groups, not one.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Split the whole group into eight equal parts.
+      expression: 24 / 8
+      common_mistake: Splitting into three parts instead of eight
+    - step_number: 2
+      explanation: One eighth of the beads is one of those parts.
+      expression: 24 / 8 = 3 beads
+      common_mistake: null
+    - step_number: 3
+      explanation: Three eighths is three of those parts.
+      expression: 3 x 3
+      common_mistake: Stopping after one part
+    final_answer: '9'
+  random_seed: 100306
+  rendered_question: A jar holds 24 beads. Priya uses 3/8 of the beads for a bracelet. How many beads
+    does Priya use?
+  option_a: '3'
+  option_b: '8'
+  option_c: '9'
+  option_d: '15'
+  correct_option: c
+- question_template_id: authored-fraction_operations-d3-100307
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Added the two fractions instead of multiplying them
+  - Added the numerators and the denominators straight across
+  - Looked for a common bottom number that multiplying does not need
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A recipe uses 2/3 of a cup of flour. Dan makes only half of the recipe. How much flour does Dan
+    need?
+  context_block: null
+  answer_expression: Eq(x, 1/2 * 2/3)
+  hint_ladder:
+  - Making half of a recipe means taking half of every amount it lists, not taking an amount away.
+  - Half of a fraction is found by multiplying the two fractions together.
+  - Multiplying does not need a shared bottom number, so multiply the top numbers and the bottom numbers.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Half of an amount is that amount multiplied by one half.
+      expression: 1/2 x 2/3
+      common_mistake: Adding the two fractions to get 7/6
+    - step_number: 2
+      explanation: Multiply the top numbers together and the bottom numbers together.
+      expression: (1 x 2)/(2 x 3) = 2/6
+      common_mistake: Adding straight across to get 3/5
+    - step_number: 3
+      explanation: Divide the top and bottom by 2 to write it in lowest terms.
+      expression: 2/6
+      common_mistake: null
+    final_answer: 1/3
+  random_seed: 100307
+  rendered_question: A recipe uses 2/3 of a cup of flour. Dan makes only half of the recipe. How much
+    flour does Dan need?
+  option_a: 7/6
+  option_b: 1/3
+  option_c: 3/5
+  option_d: 4/3
+  correct_option: b
 - question_template_id: authored-fraction_operations-d4-100403
   topic_id: fraction_operations
   skill_id: fraction_mul_div
@@ -624,6 +1178,98 @@ templates:
   option_c: 1/4
   option_d: 1/2
   correct_option: d
+- question_template_id: authored-fraction_operations-d4-100405
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 105
+  common_error_tags:
+  - Multiplied by the number of pieces instead of dividing by it
+  - Divided the bottom number instead of splitting the whole amount
+  - Answered with the length of the rope rather than one piece
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A rope is 3/4 of a meter long. Nora cuts the rope into 3 pieces of equal length. How long is each
+    piece?
+  context_block: null
+  answer_expression: Eq(x * 3, 3/4)
+  hint_ladder:
+  - Cutting into equal pieces splits the rope, so each piece is shorter than the whole rope.
+  - Three equal pieces together make up the whole rope, so three of the answer make 3/4 of a meter.
+  - Splitting three quarters into three equal parts leaves one quarter in each part.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Three equal pieces together make the whole rope.
+      expression: 3 pieces make 3/4 of a meter
+      common_mistake: Multiplying by 3 to get 9/4
+    - step_number: 2
+      explanation: Split three quarters into three equal parts.
+      expression: 3/4 / 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Each part holds one of the three quarters.
+      expression: 3/12
+      common_mistake: Dividing the bottom number to get 1/12
+    final_answer: 1/4
+  random_seed: 100405
+  rendered_question: A rope is 3/4 of a meter long. Nora cuts the rope into 3 pieces of equal length.
+    How long is each piece?
+  option_a: 1/4
+  option_b: 9/4
+  option_c: 1/12
+  option_d: 1/2
+  correct_option: a
+- question_template_id: authored-fraction_operations-d4-100406
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 105
+  common_error_tags:
+  - Multiplied the two fractions instead of dividing them
+  - Counted trays instead of counting boxes
+  - Multiplied the bottom numbers together
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A baker has 5/6 of a tray of rolls. Each box holds 1/6 of a tray. How many boxes can the baker
+    fill?
+  context_block: null
+  answer_expression: Eq(x * 1/6, 5/6)
+  hint_ladder:
+  - The question asks how many box sized portions fit inside the amount the baker has.
+  - Both amounts are measured in sixths of a tray, so the boxes and the rolls come in the same size pieces.
+  - Count how many sixths there are in the amount the baker has.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each box holds one sixth of a tray, so the question is how many sixths fit.
+      expression: how many 1/6 fit into 5/6
+      common_mistake: Multiplying the two amounts to get 5/36
+    - step_number: 2
+      explanation: The amount the baker has is made of sixths.
+      expression: 5/6 is five pieces of size 1/6
+      common_mistake: null
+    - step_number: 3
+      explanation: Count those pieces.
+      expression: five pieces
+      common_mistake: null
+    final_answer: '5'
+  random_seed: 100406
+  rendered_question: A baker has 5/6 of a tray of rolls. Each box holds 1/6 of a tray. How many boxes
+    can the baker fill?
+  option_a: '30'
+  option_b: 5/36
+  option_c: '5'
+  option_d: '6'
+  correct_option: c
 - question_template_id: authored-fraction_operations-d5-100501
   topic_id: fraction_operations
   skill_id: fraction_mul_div
@@ -719,3 +1365,49 @@ templates:
   option_c: '8'
   option_d: 1/4
   correct_option: b
+- question_template_id: authored-fraction_operations-d5-100506
+  topic_id: fraction_operations
+  skill_id: fraction_mul_div
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - Divided the two fractions instead of multiplying them
+  - Added the two fractions instead of multiplying them
+  - Took the second fraction of the whole field rather than of the planted part
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A farm has 5/6 of a field planted. Of the planted part, 2/5 is corn. What fraction of the whole
+    field is planted with corn?
+  context_block: null
+  answer_expression: Eq(x, 5/6 * 2/5)
+  hint_ladder:
+  - The second fraction describes a part of the planted area, not a part of the whole field.
+  - Taking a fraction of a fraction is done by multiplying the two together.
+  - Multiply the top numbers together and the bottom numbers together, then simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Corn is a part of the planted part, so the two fractions are multiplied.
+      expression: 5/6 x 2/5
+      common_mistake: Dividing to get 25/12
+    - step_number: 2
+      explanation: Multiply the top numbers together and the bottom numbers together.
+      expression: (5 x 2)/(6 x 5) = 10/30
+      common_mistake: Adding to get 37/30
+    - step_number: 3
+      explanation: Divide the top and bottom by 10 to write it in lowest terms.
+      expression: 10/30
+      common_mistake: null
+    final_answer: 1/3
+  random_seed: 100506
+  rendered_question: A farm has 5/6 of a field planted. Of the planted part, 2/5 is corn. What fraction
+    of the whole field is planted with corn?
+  option_a: 37/30
+  option_b: 7/11
+  option_c: 25/12
+  option_d: 1/3
+  correct_option: d
