@@ -9,7 +9,8 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 **Verification:** `ruff` clean · `pyright` 0 errors, 0 warnings · **1052 passed, 2 skipped, 1 xfailed**
 (8 new tests) · `tsc`, `oxlint` and `vite build` clean for `learning-web`, `chat-web`, `e2e` ·
-migration `c4a1e07b93df` round-tripped (down → up) against dev Postgres · full write-up in
+migration `c4a1e07b93df` round-tripped (down → up) against dev Postgres · **deployed to staging
+(both gates green) and re-walked live**, which caught one half-landed fix (below) · full write-up in
 DECISIONS.md **D-218**.
 
 **Not a numbered ROADMAP session** — `/start-session` with the user's instruction to load
@@ -41,6 +42,20 @@ stale forever.
 | 5 | all four date-range chips computed to `rgb(124, 200, 128)`; only one carried `aria-pressed="true"` | `.selected` was setting the colour the base button already was — the *unselected* chips are now outlined |
 | 6 | `Solve two-ste…ar equations` (polish, not correctness) | both cuts land on word boundaries, head growing *forward* so D-217's separation survives |
 | 7 | a child with zero attempts still produced a real, paid LLM report | written per-audience no-activity template, guarded on `attempts_count == 0` **and** no pre-exam score, after the replay lookup; `_ExplodingGateway` asserts the short-circuit lands *before* the call |
+
+**The live re-walk earned its keep.** Fix 2 (focus) had shipped working *after a submit* and doing
+nothing *on arrival* — the case it was written for. The effect keyed on `currentDisplayOrder`, and
+before the item batch lands `currentItem` is null, so the panel it wanted to focus did not exist
+yet and no dependency changed when it appeared. Caught by pressing `3` on the deployed build and
+watching nothing happen; fixed in a follow-up (#164), redeployed, and re-verified live — the same
+keypress now selects option C and the live region announces it. The frontend has no unit
+tests by design, so a React dependency-array mistake is invisible to everything except running it.
+
+The other six were confirmed against the deployed build: the exam clock did not reset on a second
+`/exam/viewed` (1178 s → 1175 s, not 1200), the navigator matched the server immediately after an
+answer, the raw-id lines were gone while the parent still read "Student: Ava Only", the selected
+range chip was the only filled one, the axis read `Solve two-step…equations`, and a zero-attempt
+report came back `generated: false` with the written wording.
 
 **Carry-over:**
 
