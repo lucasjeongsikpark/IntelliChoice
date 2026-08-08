@@ -52,6 +52,33 @@ replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D
 retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
 measured zero wrong tiers live.
 
+### Session log — grade 3 was stranded, and the first test for it guarded nothing (2026-08-08, D-227)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1026 passed, 2 skipped, 1 xfailed** · the
+new test watched failing against the pre-fix mapping · deployed and **confirmed live in staging**
+for grades 2, 3 and 4 · full write-up in DECISIONS.md **D-227**.
+
+**Kumon settled which topic, and named the real gap.** The user's reference: their grade-3 math
+workbooks are addition/subtraction, multiplication, division, geometry and word problems, and
+fractions do not appear until grade 4 — and even there only with *like* denominators. So grade 3
+must not be pointed at `fraction_operations`, whose harder half is grade-5 work by that measure.
+**What a grade-3 student should actually study — multiplication and division — is a topic this
+taxonomy does not have**, and §5.7.3 has said so all along by calling the 2-3 band "Multi-digit
+operations, multiplication foundations". The mapping is labelled a stopgap in the file itself.
+
+**The obvious fix would have shipped a bug.** Widening `1-2` to `1-3` silently strands grade 2:
+`topics_for_grade` matches a grade against a band's *endpoints*, not as a range. §5.7.3's bands
+overlap by design, so the correct move is to populate the band that contains the grade. Caught by
+reading the matcher rather than the band name.
+
+**The first test passed against the broken mapping.** It asserted every declared band's endpoints
+resolve to a topic — and 3 was not an endpoint of any declared band, so it guarded nothing. Written
+after the fix, which is exactly when a test gets shaped by the answer instead of by the failure. The
+rewritten one computes the covered range from the file and fails on any *hole* inside it, verified
+failing with `grades [3] sit inside the range this taxonomy serves (1-7)`.
+
+**Carry-over:** the missing multiplication/division topic, now the pointer's top item.
+
 ### Session log — the shape apparatus deleted (2026-08-08, D-226)
 
 **Verification:** `ruff` clean · `pyright` 0 errors · **1025 passed, 2 skipped, 1 xfailed** ·
