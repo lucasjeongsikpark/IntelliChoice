@@ -218,25 +218,6 @@ export function useLearningSession(token: string | null, sub: string | null) {
     [token, run],
   );
 
-  const submitAnswer = useCallback(
-    async (questionVariantId: string, selectedOption: string, responseTimeMs: number) => {
-      const sid = sessionIdRef.current;
-      if (!token || !sid) return null;
-      return run(async () => {
-        const snap = await api.submitAnswer(
-          token,
-          sid,
-          questionVariantId,
-          selectedOption,
-          responseTimeMs,
-        );
-        setSnapshot(snap);
-        return snap;
-      });
-    },
-    [token, run],
-  );
-
   const [examOverview, setExamOverview] = useState<ExamOverview | null>(null);
 
   // Read-only, deliberately outside the `run()` busy gate - the nav bar polls this
@@ -253,6 +234,50 @@ export function useLearningSession(token: string | null, sub: string | null) {
       // Best-effort - a transient failure just leaves the nav bar showing stale state
       // until the next successful poll.
       return null;
+    }
+  }, [token]);
+
+  // Declared after `fetchExamOverview` so it can await it: D-218 moved the post-answer
+  // refresh here, out of `ExamScreen.handleSubmitClick`, where it fired *alongside* the
+  // un-awaited POST and therefore stored a pre-answer overview. Same await-then-refetch
+  // shape as `skipExamItem`/`flagExamItem` below.
+  const submitAnswer = useCallback(
+    async (questionVariantId: string, selectedOption: string, responseTimeMs: number) => {
+      const sid = sessionIdRef.current;
+      if (!token || !sid) return null;
+      const snap = await run(async () => {
+        const result = await api.submitAnswer(
+          token,
+          sid,
+          questionVariantId,
+          selectedOption,
+          responseTimeMs,
+        );
+        setSnapshot(result);
+        return result;
+      });
+      // Only the exam phases have an overview to refresh; the study phase serves one item at
+      // a time and has no nav bar. `snap` is null when `run` swallowed a failure, and a
+      // failed answer has nothing to re-read.
+      if (snap && (snap.phase === "pre_exam" || snap.phase === "post_exam")) {
+        await fetchExamOverview();
+      }
+      return snap;
+    },
+    [token, run, fetchExamOverview],
+  );
+
+  const markExamViewed = useCallback(async () => {
+    const sid = sessionIdRef.current;
+    if (!token || !sid) return;
+    // D-218. Outside the `run()` busy gate for the same reason `fetchExamOverview` is: this
+    // fires on arriving at the exam and must not block or be blocked by the student's first
+    // answer. Best-effort - a failure just means the clock keeps its old start, which is the
+    // pre-D-218 behaviour rather than a broken exam.
+    try {
+      setExamOverview(await api.markExamViewed(token, sid));
+    } catch {
+      // Intentionally silent, as above.
     }
   }, [token]);
 
@@ -369,6 +394,7 @@ export function useLearningSession(token: string | null, sub: string | null) {
     endSession,
     examOverview,
     fetchExamOverview,
+    markExamViewed,
     skipExamItem,
     flagExamItem,
     recordItemTime,

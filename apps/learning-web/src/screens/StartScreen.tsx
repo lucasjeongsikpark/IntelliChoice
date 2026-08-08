@@ -1,6 +1,4 @@
 interface Props {
-  sub: string;
-  role: string;
   studentId: string | null;
   onStart: () => void;
   onViewDashboard: () => void;
@@ -28,8 +26,6 @@ interface Props {
 }
 
 export function StartScreen({
-  sub,
-  role,
   studentId,
   onStart,
   onViewDashboard,
@@ -43,9 +39,10 @@ export function StartScreen({
   return (
     <div className="panel">
       <h1>Ready to learn</h1>
-      <p className="subtitle">
-        Signed in as <strong>{sub}</strong> ({role}).
-      </p>
+      {/* D-218: this used to read "Signed in as parent-ext-2 (parent)." - an internal
+          external id, printed verbatim to the person it identifies. It was debug text that
+          survived into the product. Nothing is lost by dropping it: a parent is told which
+          child the session is for below, and "Sign out" already says someone is signed in. */}
       {studentName && (
         <p className="subtitle">
           This session is for <strong>{studentName}</strong>.

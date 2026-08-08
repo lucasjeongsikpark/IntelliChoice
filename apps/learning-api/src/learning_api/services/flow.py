@@ -167,6 +167,36 @@ class FinalizeResult:
     target_skill_ids: list[str] | None = None
 
 
+# D-218. How long the clock may be deferred past `started_at` while the student has not yet
+# reported seeing the exam. The questions are mounted in the DOM behind the stage-transition
+# overlay, so an *unbounded* deferral would reward never dismissing it; two minutes is longer
+# than any narrative takes to read and short enough that stalling buys nothing worth having.
+EXAM_VIEW_GRACE_SECONDS = 120
+
+
+def exam_clock_start(session_row: AssessmentSession) -> datetime:
+    """The instant an exam's time limit starts counting (D-218).
+
+    Not `started_at`: that is when the row was assembled, which is one graph turn before the
+    student can reach a question. `build_post_exam` runs in the same turn that generates the
+    stage-transition narrative, and that overlay is `aria-modal` with a scroll lock - so the
+    exam genuinely is unreachable while it is up. Measured on staging 2026-08-07: a 20-minute
+    post-exam read 18:46 the moment the overlay was dismissed, 74 s of the limit spent on a
+    screen the student could not answer from.
+
+    `first_viewed_at` is reported by the client the first time the exam is on screen with
+    nothing over it. It is `None` for rows created before D-218 and for any client that never
+    reports it, and those fall back to the old behaviour rather than getting an exam with no
+    deadline at all.
+    """
+    if session_row.first_viewed_at is None:
+        return session_row.started_at
+    return min(
+        session_row.first_viewed_at,
+        session_row.started_at + timedelta(seconds=EXAM_VIEW_GRACE_SECONDS),
+    )
+
+
 def is_exam_expired(session_row: AssessmentSession, now: datetime) -> bool:
     """SPEC §5.9/§5.13 `AssessmentPolicy.time_limit_seconds` (D-064: timed by default).
     Enforcement is lazy - checked on the next request, not pushed the instant the clock
@@ -174,7 +204,7 @@ def is_exam_expired(session_row: AssessmentSession, now: datetime) -> bool:
     """
     if session_row.time_limit_seconds is None:
         return False
-    deadline = session_row.started_at + timedelta(seconds=session_row.time_limit_seconds)
+    deadline = exam_clock_start(session_row) + timedelta(seconds=session_row.time_limit_seconds)
     return now >= deadline
 
 

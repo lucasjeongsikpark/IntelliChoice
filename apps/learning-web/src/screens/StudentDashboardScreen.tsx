@@ -71,13 +71,39 @@ const SKILL_LABEL_MAX_CHARS = 26;
  * Keeping a head and a tail costs the same horizontal space and separates every name in the
  * current curriculum. It degrades gracefully rather than uniquely: two skills differing only
  * in the middle would still collide, which the tooltip's full value still resolves.
+ *
+ * D-218 then made both cuts land on **word boundaries**. The character-exact version was
+ * readable only in the sense that it was unambiguous - the staging axis rendered
+ * "Solve two-ste…ar equations" and "Solve linear …g like terms", which a parent has to
+ * decode rather than read. The head grows forward to finish the word it is cutting through
+ * (snapping *backward* would collapse "Solve two-step…" and "Solve one-step…" onto the same
+ * "Solve…", undoing the fix above); the tail drops its leading part-word.
  */
+const SKILL_LABEL_HEAD_OVERFLOW = 8;
+
 function truncateSkillLabel(value: unknown): string {
   const label = typeof value === "string" ? value : String(value);
   if (label.length <= SKILL_LABEL_MAX_CHARS) return label;
-  const head = Math.ceil((SKILL_LABEL_MAX_CHARS - 1) / 2);
-  const tail = SKILL_LABEL_MAX_CHARS - 1 - head;
-  return `${label.slice(0, head)}…${label.slice(-tail)}`;
+  const budget = SKILL_LABEL_MAX_CHARS - 1; // the ellipsis itself
+  const headBudget = Math.ceil(budget / 2);
+  const tailBudget = budget - headBudget;
+
+  // Finish the word the head budget lands inside, unless doing so costs more than
+  // `SKILL_LABEL_HEAD_OVERFLOW` characters - a single very long word then falls back to the
+  // hard cut rather than stretching the axis gutter.
+  const nextSpace = label.indexOf(" ", headBudget);
+  const headEnd =
+    nextSpace !== -1 && nextSpace - headBudget <= SKILL_LABEL_HEAD_OVERFLOW
+      ? nextSpace
+      : headBudget;
+  const head = label.slice(0, headEnd).trimEnd();
+
+  // Drop the tail's leading part-word. No space means the tail is one whole word already.
+  const tailRaw = label.slice(-tailBudget);
+  const firstSpace = tailRaw.indexOf(" ");
+  const tail = (firstSpace === -1 ? tailRaw : tailRaw.slice(firstSpace + 1)).trimStart();
+
+  return `${head}…${tail}`;
 }
 
 interface GroupedBlock {
@@ -290,7 +316,12 @@ export function StudentDashboardScreen({ token, studentId, studentName = null, o
       <div className="dashboard-head">
         <div>
           <h1>Progress dashboard</h1>
-          <p className="subtitle">Student: {studentName ?? studentId}</p>
+          {/* D-218: no `?? studentId` fallback. App.tsx passes `null` for a student looking
+              at their own dashboard *on purpose* - "they do not need to be told who they
+              are" - and the fallback then printed "Student: student-ext-1" at them anyway,
+              which is the opposite of what the caller asked for. A parent still gets the
+              child's name, which is the case this line exists for. */}
+          {studentName && <p className="subtitle">Student: {studentName}</p>}
         </div>
         <button className="secondary dashboard-back" onClick={onBack}>
           Back

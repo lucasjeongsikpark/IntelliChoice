@@ -653,3 +653,122 @@ def test_the_ceiling_is_scoped_to_this_student() -> None:
                 await engine.dispose()
 
     asyncio.run(run())
+
+
+def _empty_dashboard() -> DashboardData:
+    """A student who has not answered anything yet - the case D-218 walked on staging."""
+    return DashboardData(
+        mastery_by_skill=[],
+        pre_post_by_skill=[],
+        gains_over_time=[],
+        accuracy_trend=[],
+        difficulty_progression=[],
+        usage=UsageBreakdown(
+            hint_count=0, solution_count=0, video_count=0, independent_count=0, total_attempts=0
+        ),
+        attempts_count=0,
+        time_spent_minutes=0.0,
+        latest_pre_raw_score=None,
+        latest_post_raw_score=None,
+        latest_raw_gain=None,
+        tutor_review_flagged=False,
+    )
+
+
+def _empty_payload(audience: str) -> ReportInterpretationPayload:
+    return build_report_facts(
+        audience=audience,
+        grade="2nd grade",
+        date_range_label="last 30 days",
+        dashboard=_empty_dashboard(),
+        relevant_learning_facts=[],
+    )
+
+
+def test_zero_attempt_report_never_reaches_the_model() -> None:
+    """D-218. Walked on staging 2026-08-07: a child with zero attempts produced a real, paid
+    generation whose entire content was determined by "there is no data". `_ExplodingGateway`
+    is the assertion - the short-circuit has to land before the call, not refund it after.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            repo = StudentReportRepository(session)
+            result = await generate_student_report(
+                gateway=_ExplodingGateway(),
+                repo=repo,
+                cost_ledger=_cost_ledger(),
+                student_external_id=STUDENT_ID,
+                payload=_empty_payload("parent"),
+                idempotency_key="report-zero-attempts",
+                session_spend_cents=0.0,
+            )
+
+            assert result.generated is False
+            assert result.cost_cents == 0.0
+            assert "not completed any graded work" in result.interpretation_text
+
+            stored = await repo.list_for_student(STUDENT_ID)
+            assert len(stored) == 1
+            assert stored[0].generated is False
+
+    asyncio.run(run())
+
+
+def test_zero_attempt_report_speaks_to_the_student_in_their_own_report() -> None:
+    """SPEC §5.10.3: the student's own report addresses them, not a third party. The parent
+    wording ("your student has not...") would be strange read by the child it is about.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            result = await generate_student_report(
+                gateway=_ExplodingGateway(),
+                repo=StudentReportRepository(session),
+                cost_ledger=_cost_ledger(),
+                student_external_id=STUDENT_ID,
+                payload=_empty_payload("student"),
+                idempotency_key="report-zero-attempts-student",
+                session_spend_cents=0.0,
+            )
+
+            assert result.generated is False
+            assert "your student" not in result.interpretation_text.lower()
+            assert "you haven't finished" in result.interpretation_text
+
+    asyncio.run(run())
+
+
+def test_a_student_with_scores_but_no_attempts_still_gets_a_generated_report() -> None:
+    """The short-circuit is `attempts_count == 0` **and** no pre-exam score, deliberately.
+    A completed cycle is something to interpret even if the attempt counter disagrees, and
+    silently serving "no activity" over a real score would be the worse failure.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            dashboard = replace(_empty_dashboard(), latest_pre_raw_score=4.0)
+            payload = build_report_facts(
+                audience="parent",
+                grade="7th grade",
+                date_range_label="last 30 days",
+                dashboard=dashboard,
+                relevant_learning_facts=[],
+            )
+            # A gateway *error* rather than a success, so this asserts that the model path was
+            # entered without also depending on the grounding check passing. The 0.2c is
+            # billed by the failing call and cannot appear on the short-circuit path, which
+            # never touches the gateway and always reports 0.0.
+            result = await generate_student_report(
+                gateway=_FakeGateway([BedrockGatewayError("simulated failure", cost_cents=0.2)]),
+                repo=StudentReportRepository(session),
+                cost_ledger=_cost_ledger(),
+                student_external_id=STUDENT_ID,
+                payload=payload,
+                idempotency_key="report-scores-without-attempts",
+                session_spend_cents=0.0,
+            )
+
+            assert result.cost_cents == 0.2
+
+    asyncio.run(run())

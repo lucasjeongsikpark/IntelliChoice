@@ -15105,6 +15105,168 @@ intervention, the permutation property, the unserved-report 404) · `tsc` and `o
 `learning-web`, `chat-web`, `e2e` · migration `b7e42a91c503` round-tripped (upgrade → downgrade →
 upgrade) against dev Postgres.
 
+## D-218 — a third UI walk: the legs nobody had walked live (accepted, 2026-08-08)
+
+D-215 walked the deployed UI, D-216 walked the code, D-217 walked the UI again for the eight things
+the user reported. All three followed the student's happy path. This one walked the legs that were
+still unwalked in a *deployed* build: **post-exam → learning gain → report**, the **parent journey**
+end to end, narrow-viewport layout, and the keyboard/focus path. Integration with the production
+system stays deferred (D-152).
+
+**Method, and why it is worth stating.** Ten candidate defects came out of the walk; **four were
+killed by checking them** before any code was touched. That ratio is the point of the D-216 rule
+("read the source before calling something a bug"), and three of the four would have been plausible
+bug reports:
+
+- *"Three of the six dashboard charts render nothing."* They render fine. `take_screenshot
+  fullPage: true` resizes the viewport, and recharts' `ResponsiveContainer` re-measured to a 14x14
+  SVG during the capture. The defect was in the instrument.
+- *"The stage-transition dialog has no accessible name."* It has `aria-labelledby="narrative-text"`.
+  My probe read `aria-label` only.
+- *"The SSE token rides in the query string."* Settled twice already - D-032 accepted it, D-215
+  re-examined it (access logs strip it, an `EventSource` URL never enters history).
+- *"Two skills collapse onto the same axis label."* D-217's middle-truncation already separated
+  them; the five labels *are* distinguishable. What remained was that they cut mid-word, which is
+  polish, not a correctness defect, and is recorded as such below.
+
+One more claim of mine needed correcting mid-walk: I wrote that nothing re-polls the exam overview.
+There is a 20-second poll (`OVERVIEW_POLL_MS`), so the navigator self-corrects rather than staying
+stale forever - which shrinks §3 below from "wrong until reload" to "wrong for up to 20 s per
+answer, and wrong in the submit dialog inside that window".
+
+### 1. The post-exam clock was running while the student was locked out of the exam
+
+Measured on staging: the timer read **19:57** the instant the phase flipped to `post_exam`, and
+**18:46** the moment the blocking stage-transition overlay was dismissed. Seventy-four seconds of a
+twenty-minute limit spent on a screen the student could not answer from. (That figure includes my
+own inspection latency; a real student loses whatever they spend reading, which is the defect
+either way.)
+
+The mechanism is not subtle once seen. `AssessmentSession.started_at` is
+`server_default=func.now()`, so it is stamped when the row is *created* - and `build_post_exam`
+runs in the same graph turn that generates the transition narrative. The overlay is `aria-modal`
+with a `body` scroll lock, so the exam behind it genuinely is unreachable. `is_exam_expired`
+measured the deadline from `started_at`, so reading time was billed as exam time. For a graded
+assessment whose whole product claim is a measured learning gain, and whose users are minors, that
+is a fairness defect rather than a rounding error.
+
+**Fix (the user chose this option over deferring assembly):** a nullable `first_viewed_at` column
+(migration `c4a1e07b93df`, additive, never backfilled) and a new `flow.exam_clock_start`, which
+every deadline read now goes through - `is_exam_expired` and `exam/overview`'s `remaining_seconds`
+alike, so the enforced deadline and the displayed timer cannot disagree. The client reports the
+view through a new idempotent `POST /exam/viewed`, fired by `ExamScreen` when the exam is on screen
+with nothing over it, and that endpoint returns the overview so the corrected `remaining_seconds`
+arrives in the same round trip.
+
+Two properties were built in deliberately, because the naive version has two holes:
+
+- **Idempotent, first-write-wins.** The client reports the view on every unblock, including after a
+  mid-exam refresh. Last-write-wins would hand the student the entire time limit back on every
+  reload.
+- **Capped at `EXAM_VIEW_GRACE_SECONDS` (120 s) past `started_at`.** The questions are mounted in
+  the DOM *behind* the overlay, so an unbounded deferral would reward never dismissing it. Two
+  minutes is longer than any narrative takes to read and short enough that stalling buys nothing.
+
+`first_viewed_at is None` falls back to `started_at`, so rows created before this migration and any
+client that never reports keep the old behaviour rather than getting an exam with no deadline.
+
+### 2. Focus was dropped to `<body>`, which silently disabled the keyboard shortcuts
+
+Every option renders a shortcut digit (`1`-`4`), and `handleContainerKeyDown` handles them plus
+Enter. It is bound to the panel `div`, which had no `tabIndex` - so it only ever saw a keypress
+when focus was already inside it. Focus routinely was not: `StageTransitionScreen` focuses its own
+Continue button and that button unmounts on dismiss, and each submit unmounts the focused option.
+Both land focus on `<body>`.
+
+Verified both directions on staging: pressing `2` on arriving at the post-exam did nothing;
+focusing an option by hand made `2` and Enter work immediately. So this is two defects with one
+cause - an a11y failure (WCAG 2.4.3: focus lost on a view change) *and* an advertised affordance
+that does not work.
+
+`tabIndex={-1}` on the panel plus an effect that puts focus back inside it when focus is loose -
+never while the overlay is up (it owns focus), and never when the student has deliberately tabbed
+somewhere inside (a student on "Flag for review" keeps it). `.panel.wide:focus { outline: none }`
+because the panel is never a tab stop, so WCAG 2.4.7's visible-focus requirement - which is about
+*user-navigable* components - does not apply, and a ring around the whole panel after every answer
+would be noise. The live region is what announces the change.
+
+### 3. The question navigator lagged one answer behind, and so did the submit dialog
+
+After submitting questions 4 through 9 the navigator kept announcing each just-answered item as
+"not yet answered", while `GET exam/overview` at the same moment returned `answered`.
+
+`handleSubmitClick` fired `onFetchOverview()` **alongside** the un-awaited `onSubmit`, so the GET
+raced the answer POST and usually won; the overview it stored still said the question was
+unanswered, and the 20 s poll was what eventually corrected it. `skipExamItem` and `flagExamItem`
+had always awaited-then-refetched; `submitAnswer` was the one that did not.
+
+The refresh moved into `submitAnswer`, after the POST resolves, and the racing call was deleted -
+one request instead of two, with the right answer. This was not only cosmetic: `handleFinalizeConfirm`
+derives `hasUnanswered` from the same overview, so inside that window the submit-exam dialog could
+warn a student about questions they had just answered.
+
+### 4. Raw internal ids were printed at the people they identify
+
+Two places, and the second contradicts its own code:
+
+- `StartScreen` read **"Signed in as parent-ext-2 (parent)."** - debug text that survived into the
+  product. Removed outright: a parent is told which child the session is for on the next line, and
+  "Sign out" already establishes that someone is signed in.
+- The dashboard read **"Student: student-ext-1"**. `App.tsx` passes `studentName = null` for a
+  student looking at their own dashboard *on purpose* - the comment says "they do not need to be
+  told who they are" - and the `?? studentId` fallback then printed the id at them anyway. The
+  subtitle now renders only when there is a name, which is the parent case it exists for.
+
+### 5. The selected date range was announced but not shown
+
+All four range chips computed to `rgb(124, 200, 128)`; only "Last 30 days" carried `class="selected"`
+and `aria-pressed="true"`. `.date-range-controls button.selected` set `background: var(--accent)` -
+the colour the base button style already was. A screen-reader user could tell which range was
+active and a sighted user could not, which is an unusual direction for that failure to run. The
+*unselected* chips are what needed styling; they are now outlined rather than filled.
+
+### 6. Axis labels cut mid-word (polish, not correctness)
+
+`Solve two-ste…ar equations`, `Solve linear …g like terms`. D-217's middle truncation had already
+solved the ambiguity this could have caused, so the labels were decodable - just not readable. Both
+cuts now land on word boundaries, with the head growing *forward* to finish the word it is cutting
+through: snapping backward would collapse "Solve two-step…" and "Solve one-step…" onto the same
+"Solve…", undoing D-217.
+
+### 7. A student with zero attempts still paid for an LLM report
+
+Walked as a parent of a child with no activity: `GENERATE REPORT` produced a real, generated,
+grounded report whose entire content was determined by "there is no data". The spend was already
+bounded - idempotency key, per-day ceiling, reservation ledger - so this is a small cost bug rather
+than a leak, but the output was fully determined and the deterministic-fallback machinery already
+existed.
+
+The user chose to fix it **with a written template rather than by reusing `_fallback_texts`**, and
+that distinction is the whole design: `_fallback_texts` exists for a *failure* (gateway down,
+ceiling hit, grounding refused) and reads like one, and this is the first thing a new family sees.
+`_no_activity_texts` is written per audience, because a student reads their own report (SPEC
+§5.10.3) and a parent reads a different one. `_ExplodingGateway` is the test - the short-circuit has
+to land before the call, not refund one after.
+
+The guard is `attempts_count == 0` **and** no pre-exam score, deliberately: a completed cycle is
+something to interpret even if the attempt counter disagrees, and silently serving "no activity"
+over a real score would be the worse failure. It is also *after* the replay lookup, so a student who
+has since done work is never served a stale no-activity row. The tutor audience does not carry
+`attempts_count` at all, so it never short-circuits - "no activity" is not something to infer from a
+field that was withheld.
+
+### What was observed and deliberately not changed
+
+- **The post-exam repeated study items verbatim.** Questions 4 and 9 of the post-exam were items
+  practised minutes earlier in study. This is D-189's known consequence - `build_post_exam` draws
+  the same template family and avoids only the *pre-exam's* rendering, and a statically-rendered
+  template has just the one. Reopening it was not this session's call; the observed rate (2 of 10)
+  is recorded here because D-189 asked for exactly that.
+- **Every completed session showed "⚠️ Flagged".** `tutor_review_flagged` aggregates per session
+  from attempts that exhausted the retry ladder unresolved, so a single unresolved skill flags a
+  whole session. Plausible on fixture data that has been hammered by load runs, and calling it a
+  defect needs production-shaped data rather than this database. Left alone.
+
 ## D-217 — a second UI walk: latency, a two-column study screen, cleaner text, chat viz, and content (accepted, 2026-08-07)
 
 The user re-walked the app and reported eight things; I re-walked the deployed staging UI with

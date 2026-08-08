@@ -179,6 +179,13 @@ export function getExamOverview(token: string, sessionId: string): Promise<ExamO
   return request(`/learning/sessions/${sessionId}/exam/overview`, token);
 }
 
+// D-218: reports that the exam is on screen with nothing over it, which is when its time
+// limit starts counting. Idempotent server-side, and it returns the overview so the caller
+// gets a `remaining_seconds` measured from the clock it just started.
+export function markExamViewed(token: string, sessionId: string): Promise<ExamOverview> {
+  return request(`/learning/sessions/${sessionId}/exam/viewed`, token, { method: "POST" });
+}
+
 export function skipExamItem(
   token: string,
   sessionId: string,

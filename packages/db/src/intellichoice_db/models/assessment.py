@@ -27,6 +27,12 @@ class AssessmentSession(Base):
     session_type: Mapped[str] = mapped_column(String, nullable=False)  # pre_exam | post_exam
     status: Mapped[str] = mapped_column(String, nullable=False, default="in_progress")
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # D-218: when the exam was first actually *on screen*, which is not when the row was
+    # created. The row is assembled one graph turn before the student can reach a question -
+    # the stage-transition overlay is modal - so `started_at` bills reading time against the
+    # time limit. Null for rows created before D-218 and for any client that never reports
+    # it; `flow.exam_clock_start` falls back to `started_at` in that case.
+    first_viewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # S22 (SPEC §5.9/§5.13, AssessmentPolicy): informational only, not backfilled for rows
     # created before this session - only discoverable via items before now.

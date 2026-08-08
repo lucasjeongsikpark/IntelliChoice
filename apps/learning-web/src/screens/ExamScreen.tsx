@@ -28,12 +28,19 @@ interface Props {
   // question out of the two-column view the student is getting help with. The parent passes
   // the last study question it saw so the left column keeps showing it, read-only, throughout.
   pausedQuestionText?: string | null;
+  // D-218: true while a stage-transition narrative is over this screen. The overlay is
+  // `aria-modal` with a scroll lock, so the exam behind it is genuinely unreachable - which
+  // is why the time limit must not be counting yet, and why focus must not be moved into a
+  // screen the student cannot see.
+  overlayOpen?: boolean;
   error: string | null;
   onSubmit: (questionVariantId: string, selectedOption: string, responseTimeMs: number) => void;
   onSkip: (assessmentItemId: string) => void;
   onFlag: (assessmentItemId: string, flagged: boolean) => void;
   onRecordTime: (assessmentItemId: string, elapsedMs: number) => void;
   onFetchOverview: () => void;
+  // D-218: reports that the exam is on screen with nothing over it. Idempotent server-side.
+  onExamViewed: () => void;
   onFinalize: (confirmUnanswered: boolean) => Promise<boolean>;
 }
 
@@ -66,12 +73,14 @@ export function ExamScreen({
   busy,
   paused = false,
   pausedQuestionText = null,
+  overlayOpen = false,
   error,
   onSubmit,
   onSkip,
   onFlag,
   onRecordTime,
   onFetchOverview,
+  onExamViewed,
   onFinalize,
 }: Props) {
   const isExamPhase = phase === "pre_exam" || phase === "post_exam";
@@ -94,6 +103,16 @@ export function ExamScreen({
   // Cleared on every phase change, so the post-exam gets its own guard rather than
   // inheriting the pre-exam's.
   const finalizedRef = useRef(false);
+
+  // D-218. The panel is the element `handleContainerKeyDown` is bound to, so the `1`-`4` and
+  // Enter shortcuts every option advertises only fire while focus is inside it. Focus was
+  // routinely *not* inside it: the stage-transition overlay focuses its own Continue button
+  // and that button unmounts on dismiss, and each submit unmounts the focused option - both
+  // drop focus to `<body>`. Measured on staging 2026-08-07: pressing `2` on arriving at the
+  // post-exam did nothing; focusing an option by hand made `2` and Enter work immediately.
+  //
+  // `tabIndex={-1}` makes the panel programmatically focusable without adding a tab stop.
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Reset all per-phase-instance state when the phase itself changes (pre_exam -> study
   // -> post_exam) - this screen stays mounted across all three, so state from the prior
@@ -130,6 +149,30 @@ export function ExamScreen({
   useEffect(() => {
     setSelected(null);
   }, [currentDisplayOrder, phase]);
+
+  // D-218: the exam is now genuinely on screen, so start its clock. Idempotent server-side
+  // (`mark_first_viewed` keeps the first report), which is what lets this fire again after a
+  // mid-exam refresh without handing back the whole time limit.
+  useEffect(() => {
+    if (!isExamPhase || overlayOpen) return;
+    onExamViewed();
+  }, [isExamPhase, phase, overlayOpen, onExamViewed]);
+
+  // D-218: put focus back inside the panel whenever the thing that had it went away - the
+  // overlay closing, or the previous question's option unmounting on submit. Without this
+  // focus lands on `<body>` and the keyboard shortcuts silently stop working (see `panelRef`).
+  //
+  // Deliberately not while `overlayOpen`: the overlay owns focus while it is up, and stealing
+  // it would drop a screen-reader user out of a dialog they have not dismissed.
+  useEffect(() => {
+    if (!isExamPhase || overlayOpen) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    // Only when focus is loose. A student who has tabbed to "Flag for review" keeps it.
+    const active = document.activeElement;
+    if (active && active !== document.body && panel.contains(active)) return;
+    panel.focus({ preventScroll: true });
+  }, [isExamPhase, phase, overlayOpen, currentDisplayOrder]);
 
   // AUD-F-03: restore the student's place after a mid-exam refresh. `currentDisplayOrder` is
   // this component's state, so a reload used to restore the session, the answers and the
@@ -267,7 +310,17 @@ export function ExamScreen({
     setStatusMessage(`Answer submitted for question ${shownQuestionNumber}.`);
     setSelected(null);
     if (isExamPhase) {
-      onFetchOverview();
+      // D-218: no `onFetchOverview()` here any more. It used to fire alongside the
+      // un-awaited `onSubmit`, so it raced the answer POST and usually won - the overview it
+      // stored still said the question was unanswered, and the 20 s poll was what eventually
+      // corrected it. Measured on staging 2026-08-07: after answering questions 4 through 9
+      // the navigator kept announcing each as "not yet answered" while `GET exam/overview` at
+      // the same moment returned `answered`. The refresh now happens inside `submitAnswer`,
+      // after the POST resolves, which is what `skipExamItem`/`flagExamItem` already did.
+      //
+      // The stale window was not only cosmetic: `handleFinalizeConfirm` derives
+      // `hasUnanswered` from this same overview, so the submit-exam dialog could warn about
+      // questions the student had just answered.
       if (cachedBatch && currentDisplayOrder < cachedBatch.length - 1) {
         setCurrentDisplayOrder((d) => d + 1);
       }
@@ -380,7 +433,7 @@ export function ExamScreen({
   const rememberedSelection = answeredSelections[currentDisplayOrder];
 
   return (
-    <div className="panel wide" onKeyDown={handleContainerKeyDown}>
+    <div className="panel wide" ref={panelRef} tabIndex={-1} onKeyDown={handleContainerKeyDown}>
       <div className="progress-bar">
         <span className="phase-chip">{PHASE_LABELS[phase] ?? phase}</span>
         <span>{position}</span>
