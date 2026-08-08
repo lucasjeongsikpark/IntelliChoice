@@ -16267,3 +16267,37 @@ is grade 3, so this is reachable with the seeded data today. The §5.7.3 table h
 file says only the seeded ones are populated, so this is the mapping being incomplete rather than
 wrong — but "recommended nothing" now reads as a defect to a user rather than as an honest empty
 bank, because the bank is no longer empty.
+
+### D-225 addendum — a second flake of D-222's exact shape, caught by CI
+
+The PR's first CI run failed where local passed:
+
+```
+assert intervention["final_answer"] == correct_option_text
+E   AssertionError: assert '16 liters' == '16'
+```
+
+**The test was asserting something stricter than the contract.** D-207 decided precisely this: a
+solution answering `'8 weeks'` to a question whose option reads `'8'` is correct, and comparing with
+`!=` on stripped strings is the bug D-207 fixed on the *serving* path after it discarded a correct
+model solution live on staging. `answers_agree` is the rule, `check_hint_solution_answer_agreement`
+enforces it on every load, and the bank legitimately contains items whose `final_answer` carries a
+unit. The test used `==`.
+
+It survived as luck, not as correctness: which study item is served is drawn from an **unseeded**
+`random.Random()`, so the assertion only fires when the draw lands on one of those items. Identical
+in shape to D-222's video flake — a comment-free precondition ("the served item's answer has no
+unit") that nothing enforces — and the second time in three sessions that the unseeded serving draw
+has turned a wrong assertion into an intermittent one.
+
+**Not caused by this PR's content**, as far as can be established: the test builds a
+`linear_equations` exam and the study item is drawn from that topic's pool, which these 25
+`place_value` items do not touch. What changed was the draw, not the population. The fix is
+`answers_agree`, and the proof is that the assertion is now a pure function of the two strings:
+`('16 liters', '16')` → True, `('18', '16')` → False. Six local reruns passed, which proves nothing
+by itself — the local draw was not the failing one, and mistaking that for evidence is the error
+D-223 recorded.
+
+**Worth noting for the next flake:** both this and D-222 were found by a test *failing*, and in both
+cases the app was right and the test was wrong. The pattern to look for first is not "what broke"
+but "what precondition is this assertion silently relying on".
