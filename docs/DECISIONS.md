@@ -15255,6 +15255,40 @@ has since done work is never served a stale no-activity row. The tutor audience 
 `attempts_count` at all, so it never short-circuits - "no activity" is not something to infer from a
 field that was withheld.
 
+### Live re-walk against the deployed build (post-deploy, chrome-devtools)
+
+Every fix was re-checked on the deployed staging build rather than assumed from a green suite,
+and **that caught a half-landed fix**:
+
+| fix | how it was checked | result |
+|---|---|---|
+| 1 exam clock | read `remaining_seconds`, waited, POSTed `/exam/viewed` a second time | app called it **once**; 1178 s → **1175 s** on the replay, not a reset to 1200 — first-write-wins holds |
+| 2 focus | `document.activeElement` on arrival and after a submit, plus a real keypress | **half-landed — see below** |
+| 3 navigator | compared the nav's `aria-label`s against `GET exam/overview` right after answering | server `answered`, nav "answered, locked" — no lag |
+| 4 raw ids | start screen and both dashboards | id line gone; parent still reads "Student: Ava Only" |
+| 5 range chips | computed styles of all four | selected `rgb(124, 200, 128)` filled, other three transparent with a border |
+| 6 axis labels | screenshot of "Mastery by skill" | `Solve two-step…equations`, was `Solve two-ste…ar equations` |
+| 7 zero-data report | `POST /students/student-ext-3/report` with a fresh key | `generated: false` and the written no-activity wording — the model was never called |
+
+**Fix 2 shipped working after a submit and doing nothing on arrival**, which is the case it was
+written for. Pressing `3` on the first pre-exam question did nothing (focus on `<body>`); after
+submitting, focus was inside the panel and `2` selected option B. The effect keyed on
+`currentDisplayOrder` alone, and before the item batch lands `currentItem` is null - `ExamScreen`'s
+early return renders a plain `.panel` with no ref, so `panelRef.current` was null when the effect
+ran, and nothing in the dependency list changed when the real panel appeared a render later. Fixed
+by adding `currentItem` to the dependency list, which is why the effect now sits *below* its
+declaration: the array is evaluated during render, so referencing it from the old position would
+have been a TDZ error rather than a working fix.
+
+That is the argument for re-walking rather than trusting the suite: the frontend has no unit tests
+by design (its verification is `tsc`/`oxlint`/build plus Playwright), so a React dependency-array
+mistake is invisible to everything except running it.
+
+The follow-up (#164) was deployed and re-walked in turn: on arriving at question 1 of a fresh
+pre-exam, `document.activeElement` is now the `.panel.wide` div, pressing `3` selects option C, and
+the live region announces "Option C selected." - the exact interaction that did nothing an hour
+earlier.
+
 ### What was observed and deliberately not changed
 
 - **The post-exam repeated study items verbatim.** Questions 4 and 9 of the post-exam were items
