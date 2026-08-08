@@ -15725,3 +15725,171 @@ is what caught that session's half-landed focus fix.
   asked to be put in touch with an administrator"*. Milder than the failure D-219 fixed - the
   question is quoted directly beneath - but it is the same field claiming something it does not
   know. This is D-219's own fix, one direction over.
+
+## D-221 — the scope guard's topical blind spots, and an escalation line nobody could reach (accepted, 2026-08-08)
+
+Pointer items 1 and 2, taken together because they are the same defect shape one level apart:
+**a model's judgement reported as fact.** Item 1 is a classifier's topical verdict treated as
+the last word on whether a question is ours; item 2 is a classifier's routing decision written
+into an email as a statement about what a person wanted.
+
+### The instrument, and why D-220's could not be reused
+
+D-220 measured this path by driving the whole pipeline against staging: 38 questions, ~48
+cents, ~20 minutes. That is the right instrument for "does the access hint work end to end"
+and the wrong one for iterating on the scope guard, because every re-measurement pays for
+retrieval, reranking and synthesis to re-answer a question that was rejected in the *first*
+call. `scripts/measure_scope_guard.py` measures that one call: ~15 cents per repeat over 82
+cases, which is what makes before/after affordable at all.
+
+**Three classes with deliberately opposite expectations**, because scoring only the questions
+that should get *in* rewards a guard that admits everything, and the guard exists to refuse
+early and cheaply:
+
+| class | source | must be |
+|---|---|---|
+| `gated` | `probe_eval.yaml`, `human_query` | `in_scope` **and** `document_qa` |
+| `in_scope` | `qa_coverage_eval.yaml` grounded/paraphrase/no_answer | `in_scope` |
+| `off_topic` | `qa_coverage_eval.yaml` out_of_scope | `out_of_scope` — **the controls** |
+
+The user's scope decision was explicit: *protect the controls*. A change that recovers gated
+questions by losing off-topic ones has not improved the guard, it has removed it.
+
+### Measured, twice before and twice after
+
+| class | scope ok | reaches retrieval |
+|---|---|---|
+| `gated` | 68/76 → **74/76** | 66/76 → **74/76** |
+| `in_scope` | 50/56 → **56/56** | 48/56 → **56/56** |
+| `off_topic` | 20/20 → **20/20** | — |
+| `intent_probe` | — → **12/12** | added mid-session, see below |
+
+### The model said why, and none of it was a missing topic
+
+That last part is the finding. AUD-C-02 was an *omission* — SPEC §5.19.4 topics the prompt
+never listed. Nothing here was omitted; the prompt lists "tutor/branch procedures" and still
+refused a tutor-procedure question. The `reasoning` field named all three causes:
+
+1. **It required the question to name IntelliChoice.** *"What do I need to put in my monthly
+   report for my manager?"* → *"the user's personal workplace reporting to their own
+   manager"*. *"What happens if my kid is absent for a whole week?"* → *"asking about a
+   child's regular school"*. All five examples named the organization explicitly, so an
+   unqualified first-person question read as being about somewhere else entirely.
+2. **It did not know where branches meet.** *"Carrollton Public Library Keller Springs Road
+   Saturday hours"* → *"a public library facility and not related to IntelliChoice"*. Every
+   non-online branch in `knowledge-content/documents/public/branch-directory` is hosted inside
+   a library, church or community center — verified in the corpus, not assumed. Three
+   `grounded` cases, **the class this prompt was tuned against**, were being refused on that
+   gap alone, which no one had measured because the coverage eval scores citations and never
+   sees a turn that dies before retrieval.
+3. **Two intents swallowed questions their own definitions excluded**, and the model argued
+   itself past the definition on the way: *"While it's framed as a 'how do I' question... this
+   is best handled as admin_contact."* A rule a model talks itself out of needs the
+   counter-example, not more emphasis.
+
+**All three fixes are topical, and that is load-bearing.** Nothing added tells the model who
+is asking or what they may read — D-219's rule and CLAUDE.md #3, still guarded by
+`test_the_scope_prompt_says_nothing_about_roles_or_access`. "Read 'my students' as
+IntelliChoice's" is a statement about the *subject* of a question; the gated corpus is still
+filtered pre-retrieval by `role_access_filter`, untouched.
+
+### The regression the table could not have shown
+
+Narrowing `branch_locator` ("a city named in the question is not the user's location") moved
+the only `branch_locator` case in the entire sweep to `document_qa` — and with it gone, an
+edit that deleted the intent outright would have scored as a *clean improvement*. Neither
+fixture contains a question whose intent is the point: `probe_eval.yaml` is corpus-derived
+(every case is a document question) and `qa_coverage_eval.yaml` scores refusal and grounding.
+
+`INTENT_PROBES` is six obvious questions across the three non-document workflows, written in
+the script rather than a fixture, and deliberately a smoke test rather than a measurement:
+**12/12 routed**. Confirmed, not assumed.
+
+### Not fixed, reported
+
+One gated question still classifies out of scope on both repeats: *"Should I try to figure
+stuff out myself before asking someone for help?"* Read cold it is a general question about
+studying, and the model's refusal is defensible. Tuning until that single case passes would be
+fitting the prompt to it. **34 of 38 was the ceiling D-220 measured; it is now 37 of 38.**
+
+### Item 2 — and D-219's fix was not merely imprecise, it was inert
+
+The report was that `requested_by_user = state.intent == "admin_contact"` reports a model's
+routing decision as a user request. True, and measured: *"My kid got marked absent by mistake
+- how do I fix that?"* routed there and the draft told an administrator the user had asked for
+contact. (D-221's prompt fix now routes that exact question to `document_qa`, which makes the
+misroute rarer — it does not make the claim true.)
+
+**The larger half was invisible from outside.** `resolve_role` sets `intent = "admin_contact"`
+on the escalate path too (D-164, and correctly — the caller declared it). So the discriminator
+returned the same value on *both* branches, and D-219's "asked a question the assistant could
+not answer" opening was **unreachable through the graph from the day it shipped**. Every
+escalation email, including one raised from a no-source refusal, told the administrator the
+user had asked to be put in touch — the exact failure D-219 believed it had fixed.
+
+Its three unit tests passed throughout, because each calls `build_escalation_draft` directly
+with the boolean it wants. None of them could see the node choosing that boolean wrongly.
+`test_the_node_picks_the_origin_from_the_request_not_from_the_intent` drives both paths through
+the real graph and was watched failing against the old discriminator first.
+
+`origin` now reads **`state.escalate`** — the flag the request carried, which cannot be wrong
+in that way — and is written in positive-signal form, so any route added later falls to
+`assistant_routed` and claims nothing about the user. The routed opening reports the *system's*
+action ("the assistant routed it to an administrator"), which stays true whether or not the
+classification was right. `user_escalated` keeps naming the failure: there the reason is
+recorded, not inferred, and it is the one signal telling an administrator the corpus has a gap.
+
+### The fixture that would have hidden it, again
+
+`e2e/fixtures/chat-shapes.ts` invented both the subject and the body of the draft the approval
+modal shows a human. The file's own header says the Pydantic model is the authority — but
+`pending_interrupt` is typed `Record<string, unknown>`, so the one thing a person is asked to
+approve was the one thing nothing checked. It now carries the real `build_escalation_draft`
+output, generated from it. Two assertions that quoted the invented prose are rebound to the
+fixture, and one is scoped to `.email-preview` because the question also appears in the user's
+own message bubble — D-220's strict-mode trap, avoided by having been bitten by it.
+
+### The flake, finally named
+
+`test_intervention_choice_pause_records_choice_and_blocks_skip` failed in one full `make test`
+and passed on the immediate rerun, in isolation, and in CI. **This time the name survived**,
+because the run was not piped through a short `tail` — the habit D-220 wrote down after losing
+it. The assertion is `intervention["message"] == FALLBACK_MESSAGE`, and it got `None`: a
+verified video *was* found, so the study target skill differed between runs.
+
+`build_study_plan`'s ranking is deterministic given its inputs — `(weighted_score, weak-skill
+memory tie-break, curriculum position)` — so the varying thing is state, and the file shares
+one `STUDENT_UNLINKED` external id across dozens of tests, several of which write semantic
+memory for it. An `active weak_skill` fact left by an earlier test flips the tie-break, which
+flips the target skill, which flips whether a video exists. **Named as the leading hypothesis,
+not a diagnosis** — nothing was changed, and the next session should confirm it before fixing.
+
+### Spend
+
+~$1.02 of Bedrock across four sweeps (two before, two after including the intent probes). The
+policy constants in `access_probe_policy.py` were not touched: D-220 measured zero wrong tiers
+live, and that file forbids moving a constant without re-running its own sweep.
+
+### Live re-walk after deploying (2026-08-08, run 31243444321, `1bfc768`)
+
+Re-checked on the deployed build rather than inferred from a green sweep — the D-218 habit. As
+an anonymous guest, in one session:
+
+- **The scope fix is visible where it matters.** *"What should I tell a student to do first when
+  they ask me for help?"* — the pointer's own example — now **reaches retrieval**: it returns the
+  no-source refusal *"I don't have an approved source for that yet. I can pass this on to a
+  branch manager if you'd like."* with a working ASK AN ADMINISTRATOR button, where before it
+  got the off-topic refusal and never left the gate. (The probe stays silent on this case by
+  design; the point is that it is now the *probe's* decision rather than the scope guard's.)
+- **The escalation opening is reachable.** Clicking through produced a draft reading **"A user
+  (role: public) asked a question the assistant could not answer:"** with the question quoted
+  beneath — the sentence that could not be produced through the graph before this session.
+  Declined, not sent.
+- **The controls hold live, not just in the sweep.** *"Who won the World Cup in 2018?"* still
+  gets the out-of-scope refusal verbatim.
+- **The sharpest one.** *"Carrollton Public Library Keller Springs Road Saturday hours"* now
+  returns a real cited answer — *"open on Saturdays from 10 am to 12 Noon"*, citing **Branch
+  Directory — Branch List**. Pre-deploy the same query was refused as *"a public library
+  facility and not related to IntelliChoice"*. That is a `grounded` eval case which had been
+  failing silently, in the class the prompt was supposedly tuned against, because the coverage
+  eval scores citations and never sees a turn that dies before retrieval.

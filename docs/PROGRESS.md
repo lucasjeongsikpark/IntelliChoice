@@ -7,35 +7,104 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**The access hint is closed (D-220): it fires, it is measured end-to-end, and the defect that was
-actually there is fixed and deployed.** No numbered ROADMAP session is queued; integration (S43+)
-stays deliberately deferred (D-152) until the user starts it. In rough order of value:
+**Pointer items 1 and 2 are closed (D-221).** The scope guard is measured in both directions and
+fixed topically (gated 34/38 → 37/38, controls held at 20/20), and the escalation draft now reports
+what the system knows. No numbered ROADMAP session is queued; integration (S43+) stays deliberately
+deferred (D-152) until the user starts it. In rough order of value:
 
-1. **The scope guard still calls 4 of 38 role-gated questions off-topic.** Measured live in D-220:
-   `out_of_scope` / `intent=clarification` for e.g. *"What should I tell a student to do first
-   when they ask me for help?"*, a tutor-procedure question the scope prompt lists as **in** scope.
-   This is the residue of D-219's problem class - no longer role leakage, now topical misjudgement
-   - and it caps the access hint's reachable ceiling at 34/38 before the probe is ever consulted.
-   The instrument already exists: `scripts/live_probe`-style 38-case sweep, ~48¢, in D-220.
-   **Do not retune the probe constants** - `access_probe_policy.py` forbids it without a sweep,
-   and D-220 measured zero wrong tiers live.
-2. **The escalation draft can misreport the user.** `requested_by_user` is
-   `state.intent == "admin_contact"` - the model's routing decision, not a request. Live:
-   *"My kid got marked absent by mistake - how do I fix that?"* produced *"asked to be put in
-   touch with an administrator"*. D-219's own fix, one direction over; smaller than item 1.
+1. **The flake, now with a name and a leading hypothesis.**
+   `test_intervention_choice_pause_records_choice_and_blocks_skip` failed once in a full
+   `make test` during D-221 and passed on the immediate rerun, in isolation, and in CI — the
+   fourth occurrence across three sessions, and **the first with the name captured**, because
+   the run was not piped through a short `tail`. The assertion is
+   `intervention["message"] == FALLBACK_MESSAGE` and it got `None`: a verified video *was*
+   found, so the study target skill differed between runs. `build_study_plan` ranks on
+   `(weighted_score, weak-skill memory tie-break, curriculum position)` and is deterministic
+   given those, so the varying input is **state** — and `test_learning_flow.py` shares one
+   `STUDENT_UNLINKED` external id across dozens of tests, several of which write semantic
+   memory for it. An `active weak_skill` fact left by an earlier test flips the tie-break,
+   which flips the skill, which flips whether a video exists. **Confirm before fixing** — this
+   is a hypothesis from one traceback, not a diagnosis. Ranked first now because it is the
+   only item with a live lead. ⚠️ **Do not pipe `make test` through a short `tail`.**
+2. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+   *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
+   a general question about studying, and the refusal is defensible — deliberately left rather
+   than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
 3. **Stand up a dormant topic.** `fraction_operations` and `place_value` are defined with zero
    questions and read "Coming soon" to a student. Hand-authored, §5.8.5-gated content is the
    highest-value *product* gap; AI authoring stays blocked on Sonnet 5 (D-211).
-4. **The order-dependent flake.** `test_intervention_choice_pause_records_choice_and_blocks_skip`
-   failed in a full `make test` twice across two sessions and passed in isolation both times,
-   with neither session touching it. In D-220 the baseline run was clean, **a later full run
-   failed once, and the immediate rerun and CI were both green on identical code** - so it is
-   intermittent, not steadily worsening. ⚠️ That later failure's *name was not captured*: the
-   command was piped through `tail -2`, which discarded the `FAILED` line, so it cannot be
-   attributed to this test rather than another. **Do not pipe `make test` through a short
-   `tail`** - the summary survives and the evidence does not. Still worth one focused sitting.
-5. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+4. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
+5. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+   The trigger to extract it is written into the file; a third copy is that trigger.
+
+**Instruments now available, and cheap enough to rerun before assuming anything:**
+`scripts/measure_scope_guard.py` (~15¢/repeat, scope + intent in both directions, no database),
+and `scripts/measure_access_probe_rules.py --load ... --shipped` (free replay of the probe).
+**Do not retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and
+D-220 measured zero wrong tiers live.
+
+### Session log — a model's judgement reported as fact, twice (2026-08-08, D-221)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1062 passed, 2 skipped, 1 xfailed**
+(2 new) · chat e2e **37/37** · `tsc` + `oxlint` clean for `chat-web` and `e2e` · the new
+graph-level escalation test watched failing against the old discriminator · CI green on #173 ·
+deployed and re-walked live · full write-up in DECISIONS.md **D-221**.
+
+**Not a numbered ROADMAP session** — the "Next session" pointer's items 1 and 2, with the
+user's two scope decisions: take both, and **protect the controls** if the prompt fix trades
+in-scope recall for off-topic precision.
+
+**A cheaper instrument was the precondition for the work.** D-220 measured this path by driving
+the whole pipeline (~48¢/run); `scripts/measure_scope_guard.py` measures the one Haiku call the
+scope guard makes (~15¢/repeat, no database), over three classes with deliberately opposite
+expectations. Scoring only the questions that should get *in* rewards a guard that admits
+everything.
+
+| class | scope ok (before → after) | reaches retrieval |
+|---|---|---|
+| `gated` | 68/76 → **74/76** | 66/76 → **74/76** |
+| `in_scope` | 50/56 → **56/56** | 48/56 → **56/56** |
+| `off_topic` (controls) | 20/20 → **20/20** | — |
+| `intent_probe` | — → **12/12** | added mid-session |
+
+**The model said why, and none of it was a missing topic** — which is what AUD-C-02 was. It
+required the question to *name* IntelliChoice ("my manager" → *"the user's personal
+workplace"*); it did not know branches meet inside public libraries, so three `grounded` cases
+— the class this prompt was tuned against — were refused on that gap alone; and two intents
+swallowed `document_qa` questions their own definitions excluded, the model arguing itself past
+the definition on the way. All three fixes are topical; nothing added tells the model who is
+asking (D-219's rule, still guarded).
+
+**A regression the table could not have shown.** Narrowing `branch_locator` moved the only
+`branch_locator` case in the whole sweep to `document_qa` — after which deleting that intent
+outright would have scored as a clean improvement. `INTENT_PROBES` is the six-question smoke
+test added to notice: **12/12 routed**.
+
+**Item 2 was worse than reported.** D-219's fix discriminated on
+`state.intent == "admin_contact"`, and `resolve_role` sets that intent on the escalate path too
+(D-164). Both branches returned the same value, so the *"could not answer"* opening was
+**unreachable through the graph from the day it shipped** — every escalation email, including
+one raised from a no-source refusal, told the administrator the user had asked to be put in
+touch. Its three unit tests passed because each calls the builder directly with the boolean it
+wants. `origin` now reads `state.escalate`.
+
+**The fixture that would have hidden it, again.** `chat-shapes.ts` invented the subject and body
+of the draft the approval modal shows a human — the one thing a person is asked to approve was
+the one thing nothing checked, because `pending_interrupt` is typed `Record<string, unknown>`.
+It now carries the real `build_escalation_draft` output.
+
+**Re-walked live after deploying** (run 31243444321, `1bfc768`, all gates green). The pointer's
+own example — *"What should I tell a student to do first when they ask me for help?"* — now
+reaches retrieval and offers escalation instead of being refused at the gate; the draft reads
+*"asked a question the assistant could not answer"*, the sentence that was unreachable before;
+*"Who won the World Cup in 2018?"* is still refused; and *"Carrollton Public Library Keller
+Springs Road Saturday hours"* now returns a **cited** answer from the Branch Directory where it
+had been refused as *"not related to IntelliChoice"*.
+
+**Carry-over:** the flake finally has a name and a mechanism worth checking (item 1 above); one
+gated question is still refused and was deliberately not tuned for (item 2). Bedrock spend
+~$1.02 across four sweeps.
 
 ### Session log — the access hint was never broken; its rendering was (2026-08-08, D-220)
 
