@@ -35,7 +35,6 @@ from learning_api.services.variant_persistence import (
     StaticVariantUnavailableError,
     _permute_options,
     build_variant_row,
-    renders_from_canonical_variant,
 )
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -328,8 +327,9 @@ def test_building_without_a_canonical_variant_raises_rather_than_serving_nothing
             repo = QuestionRepository(session)
             template = await repo.get_template(authored_ids[0])
             assert template is not None
-            assert renders_from_canonical_variant(template)
-
+            # `renders_from_canonical_variant` used to be asserted here; D-226 deleted it
+            # along with the shape templates that were its only False case. Every servable
+            # template stores its content now, so the guard below is unconditional.
             with pytest.raises(StaticVariantUnavailableError):
                 build_variant_row(template=template, rng=random.Random(SEED))
 

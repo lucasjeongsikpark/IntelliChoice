@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 import pytest
 from intellichoice_curriculum.authored_bank import load_authored_bank
-from intellichoice_curriculum.loader import TEMPLATE_BANKS, load_curriculum_and_templates
+from intellichoice_curriculum.loader import load_curriculum_and_templates
 from intellichoice_db.engine import create_engine
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.questions import QuestionRepository
@@ -59,14 +59,14 @@ pytestmark = pytest.mark.skipif(
 
 
 def _expected_template_count() -> int:
-    """Everything `load_curriculum_and_templates` is responsible for: the hand-authored
-    shape banks plus the approved authored items exported to `curriculum/internal_math/
-    authored/` (D-190). Reads the same sources the loader does, so content changes move
-    both together.
+    """Everything `load_curriculum_and_templates` is responsible for: the approved authored
+    items exported to `curriculum/internal_math/authored/` (D-190). Reads the same source
+    the loader does, so content changes move both together.
+
+    D-226 removed the other half. The loader also used to generate and validate 50 shape
+    templates that `_servable()` had filtered out of every serving read since D-210.
     """
-    shape = sum(len(templates) for templates in TEMPLATE_BANKS.values())
-    authored = sum(len(templates) for templates in load_authored_bank().values())
-    return shape + authored
+    return sum(len(templates) for templates in load_authored_bank().values())
 
 
 def test_loading_curriculum_produces_the_expected_final_state() -> None:
@@ -79,10 +79,10 @@ def test_loading_curriculum_produces_the_expected_final_state() -> None:
             # against this same dev DB) depends on prior state - what must always
             # hold is the created+skipped total and the resulting data shape.
             #
-            # Derived from the banks rather than written as a literal (D-190). It was 50,
-            # and adding five authored items broke it - the third time in this file that a
-            # count coupled the loader's contract to how much content exists. The loader
-            # promises to load *its banks*; how big they are is content's business.
+            # Derived from the bank files rather than written as a literal (D-190). It
+            # was a literal 50, and adding five authored items broke it - a count coupling
+            # the loader's contract to how much content exists. The loader promises to load
+            # *its files*; how big they are is content's business.
             assert (
                 summary.templates_created + summary.templates_skipped_existing
                 == _expected_template_count()
@@ -93,29 +93,19 @@ def test_loading_curriculum_produces_the_expected_final_state() -> None:
             assert topic is not None
             assert topic.name == "Linear Equations"
 
+            # Everything loaded is servable now (D-226). This assertion used to be the
+            # opposite: it named the ten `linear_equations-d1-NN` shape templates and
+            # checked they were loaded *and* never served, which was D-210's contract while
+            # the loader still built them. Those templates no longer exist, so what is left
+            # to pin is that the loader's output and the serving query agree.
             question_repo = QuestionRepository(session)
-            # Identity, not size (D-187). This used to assert `len(active) == 10`, which made
-            # the loader's contract a claim about *everything* approved at this tier - so
-            # approving one authored template broke it, exactly as S20's live verification
-            # found. What the loader actually promises is that its own deterministically-named
-            # bank is loaded; the authored pipeline (D-186) adds to this same topic and
-            # difficulty and must be able to without touching this test.
-            #
-            # D-210 moved this from `get_active_questions` to `get_templates`. The loader's
-            # promise is *loaded*, and that is unchanged; what changed is that the serving
-            # path no longer hands shape templates to a student, so asking the serving query
-            # about them would now be asking the wrong question. `test_shape_templates_are_
-            # loaded_but_never_served` below pins the other half.
-            hand_authored = {f"linear_equations-d1-{index:02d}" for index in range(10)}
-            loaded = await question_repo.get_templates(sorted(hand_authored))
-            assert set(loaded) == hand_authored
-
             served = await question_repo.get_active_questions("linear_equations", difficulty=1)
-            assert not (hand_authored & {t.question_template_id for t in served}), (
-                "a bare-equation shape template reached the serving path (D-210)"
-            )
+            assert served, "the loader loaded nothing servable at linear_equations d1"
             assert all(t.authoring_mode == "authored" for t in served), (
                 "the serving path returned a non-authored template"
+            )
+            assert all(t.solution_function == "authored" for t in served), (
+                "a template that would need a shape to render reached the serving path"
             )
 
     asyncio.run(run())
@@ -135,43 +125,33 @@ def test_loader_is_idempotent() -> None:
     asyncio.run(run())
 
 
-def test_loader_rejects_a_template_that_fails_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_loader_rejects_an_authored_item_that_fails_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A hand-edited bank file that no longer passes §5.8.5 aborts the whole run.
+
+    D-226 rewrote this against the authored gate. It used to force
+    `validation.validate_variant` to fail and feed the loader a synthetic *shape* bank -
+    both of which are gone. The property is unchanged and is the one that matters in
+    production: these files are hand-editable YAML loaded into every environment, so the
+    loader validates rather than trusts them.
+    """
     from intellichoice_curriculum import loader
-    from intellichoice_curriculum.templates.model import QuestionTemplateDef
-    from intellichoice_curriculum.validation import ValidationResult
+    from intellichoice_curriculum.authored_validation import AuthoredValidationResult
 
     def _always_fails(*args: object, **kwargs: object) -> object:
-        result = ValidationResult()
+        result = AuthoredValidationResult()
         result.fail("forced failure for this test")
         return result
 
-    monkeypatch.setattr(loader, "validate_variant", _always_fails)
-    # A synthetic topic_id guarantees this template can never already exist in the
-    # DB (unlike the real linear_equations bank, which `make curriculum-load` may
-    # have already persisted), so the loader is forced to actually attempt it.
-    monkeypatch.setattr(
-        loader,
-        "TEMPLATE_BANKS",
-        {
-            "zzz_test_topic_never_loaded": [
-                QuestionTemplateDef(
-                    topic_id="linear_equations",
-                    skill_id="linear_one_step",
-                    grade_band="6-7",
-                    difficulty_label=1,
-                    parameter_schema={"b": {"min": 1, "max": 9}, "x": {"min": 1, "max": 9}},
-                    solution_function="one_step_add",
-                    correct_option_generator="format_integer",
-                    distractor_generators=[
-                        "distractor_sign_flip",
-                        "distractor_off_by_one",
-                        "distractor_scaled",
-                    ],
-                    estimated_time_seconds=25,
-                )
-            ]
-        },
+    monkeypatch.setattr(loader, "validate_authored_item", _always_fails)
+    # A synthetic id guarantees the item cannot already exist in this database - the loader
+    # skips by id, so a bank the dev DB has already loaded would never reach validation.
+    bank = load_authored_bank()
+    template = bank["linear_equations"][0].model_copy(
+        update={"question_template_id": "zzz-never-loaded-authored-item"}
     )
+    monkeypatch.setattr(loader, "load_authored_bank", lambda: {"linear_equations": [template]})
 
     async def run() -> None:
         async with _rollback_session() as session:

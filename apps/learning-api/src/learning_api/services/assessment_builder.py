@@ -16,10 +16,7 @@ from intellichoice_db.repositories.assessment import AssessmentRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 
 from learning_api.services import exam_policy
-from learning_api.services.variant_persistence import (
-    build_variant_row,
-    renders_from_canonical_variant,
-)
+from learning_api.services.variant_persistence import build_variant_row
 
 DIFFICULTIES = (1, 2, 3, 4, 5)
 QUESTIONS_PER_DIFFICULTY = 2
@@ -106,7 +103,6 @@ async def build_pre_exam(
             template.question_template_id
             for templates in templates_by_difficulty.values()
             for template in templates
-            if renders_from_canonical_variant(template)
         ]
     )
     variant_rows = []
@@ -177,7 +173,6 @@ async def build_post_exam(
         [
             template.question_template_id
             for template in templates.values()
-            if renders_from_canonical_variant(template)
         ]
     )
     variant_rows = []

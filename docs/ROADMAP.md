@@ -1531,11 +1531,11 @@ carries the low tiers and `compare` the high ones because the prerequisite requi
 served: **1-2, 4-5 and 6-7** — the K-12 span is no longer short at the bottom, though it is still a
 three-band product rather than a twelve-band one, and grade 3 matches no band at all.
 
-Two things the count above does not say and that matter more than the number: the templates line
-counts **shape** templates, which `_servable()` has not served since D-210 — the servable bank is
-`linear_equations`' 47 authored items plus 30 and 25 — and every one of those 102 items went
-through the deterministic gate but **not** the two-solver/judge panel (D-211), so they are content,
-not calibrated content. Multi-tier for `linear_equations` (rule 2) is unchanged
+The count at the top of this block is now **obsolete rather than merely superseded**: it counted
+50 *shape* templates, which `_servable()` had not served since D-210 and which D-226 deleted along
+with the machinery behind them. The bank is 102 authored items — 47 + 30 + 25 — and every one of
+them went through the deterministic gate but **not** the two-solver/judge panel (D-211), so they are
+content, not calibrated content. Multi-tier for `linear_equations` (rule 2) is unchanged
 and still inert.
 
 **Not a live defect:** `topics.ts` no longer decides this at all (D-187) — availability comes from

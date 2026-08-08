@@ -260,26 +260,42 @@ accounted but not threaded is decoration, so each row below was checked for thre
 
 ### §5.8.3 / §5.8.4 / §5.8.5 — AI generation pipeline
 
-**Traced.** SPEC's eleven-stage chain maps stage-for-stage onto
-[ai_pipeline.py](../packages/curriculum/src/intellichoice_curriculum/ai_pipeline.py): generator
-(line 314) → two **independent** solvers (417, 430, sharing `_SOLVER_SYSTEM_PROMPT`) → difficulty,
-ambiguity and alignment reviewers (465, 497, 522, all on `BedrockTask.QUESTION_REVIEW`) →
-deterministic validation → deduplication (685–709) → activate-or-quarantine.
+**Traced.** SPEC's stage chain maps onto the **authored** route in
+[ai_pipeline.py](../packages/curriculum/src/intellichoice_curriculum/ai_pipeline.py):
+equation design → generator → two **independent** solvers (sharing `_SOLVER_SYSTEM_PROMPT`) →
+difficulty judge → deterministic §5.8.5 validation (`validate_authored_item`) → near-duplicate
+check → activate-or-quarantine.
+
+**Rewritten in D-226, and the reason matters for reading this row.** Until then this block traced
+the *shape* route — `generate_candidate`, parameterized templates rendered from a seed — and cited
+`test_ai_pipeline.py`. That route was deleted because nothing it produced could ever be served:
+it never set `authoring_mode`, the column defaults to `"shape"`, and `_servable()` has required
+`"authored"` since D-210 (D-224 measured this; D-226 removed it). So the previous version of this
+row was **evidence for a requirement satisfied by code no student could reach** — traced against
+the wrong implementation rather than untraced. The authored route below is the one that produces
+every one of the 102 items now serving.
 
 SPEC's "do not place free-form LLM-generated questions directly into production" is enforced
-structurally, not by convention: nothing is auto-approved — the module's own docstring (line 29)
-points at `QuestionRepository.activate_template` for why — and every rejecting stage has a test that
-proves it rejects: `test_solver_disagreement_rejects_without_persisting`,
-`test_ambiguity_reviewer_flag_rejects`, `test_alignment_reviewer_flag_rejects`,
-`test_difficulty_reviewer_far_off_rejects`, `test_generator_proposing_unregistered_shape_rejects`,
-`test_duplicate_rendered_question_rejects`, `test_activate_template_refuses_a_non_pending_template`.
+structurally, not by convention: nothing is auto-approved, and every rejecting stage has a test that
+proves it rejects — `test_disagreeing_solver_rejected_with_persisted_reasons`,
+`test_a_solver_that_cannot_find_its_answer_rejects_even_though_both_agree`,
+`test_one_solver_flagging_ambiguity_is_enough_to_reject`,
+`test_two_level_difficulty_disagreement_rejects_with_both_rationales_persisted`,
+`test_near_duplicate_rejected_with_persisted_reasons`,
+`test_judge_flags_reject_and_borderline_score_sets_high_priority`,
+`test_review_cli_approve_reject_and_rerun`.
 
-**Cost ceiling verified reachable, not merely present.** A `_spend` accumulator (line 308) updates a
-running `spend`, and **every one of the twelve downstream call sites passes `spend`** — the running
-total — rather than the initial `session_spend_cents`. That is precisely the distinction AUD-L-02
-cost a P0 to learn, and it is implemented correctly here. Test:
-`test_ai_pipeline.py:208` asserts `outcome.cost_cents > 0` with the comment "six real calls were
-accounted for".
+**Cost ceiling verified reachable, not merely present.** A `_spend` accumulator updates a running
+`spend`, and every downstream call site passes that running total rather than the initial
+`session_spend_cents` — precisely the distinction AUD-L-02 cost a P0 to learn. Per-slot spending is
+additionally bounded by `budget_ceiling_cents`, so a single candidate cannot spend past the run's
+ceiling between the loop's checks. Tests: `test_authored_pipeline.py`'s budget and preflight cases.
+
+**One gate lost its second half, deliberately.** §5.8.5's deterministic checks used to exist twice —
+`validation.py` for shape variants and `authored_validation.py` for authored items — and D-223 found
+that every fix had been applied to one copy only. D-226 deleted the shape copy along with the
+content it gated, so there is now exactly one implementation of each check and no drift to guard
+against.
 
 **§5.8.4's recalibration is future work by SPEC's own wording** ("as production data accumulates"),
 and there is no production data. The bootstrap half — LLM ensemble + deterministic complexity

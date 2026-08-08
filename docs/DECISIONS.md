@@ -16305,3 +16305,63 @@ D-223 recorded.
 **Worth noting for the next flake:** both this and D-222 were found by a test *failing*, and in both
 cases the app was right and the test was wrong. The pattern to look for first is not "what broke"
 but "what precondition is this assertion silently relying on".
+
+## D-226 — the shape apparatus deleted (accepted, 2026-08-08)
+
+The user's call, on D-224's evidence: **delete it.** About 2,000 lines removed — the 50-template
+bank, the `SHAPES` registry and its generators, `generation.py`, `validation.py`, `hint_ladders.py`,
+the pipeline's shape route, the CLI's `--mode`, and the serving branch that would have rendered
+from a seed. Nothing it produced could reach a student, and D-224 had already established why:
+`generate_candidate` never set `authoring_mode`, the column defaults to `"shape"`, and `_servable()`
+has required `"authored"` since D-210.
+
+### Why deletion rather than the smaller options
+
+D-224 offered three. Keeping it accepted 50 dead rows loaded and validated on every deploy in every
+environment, an unreachable serving branch, and the failure that actually happened: D-222 lost a
+full build-and-revert cycle building a shape bank for `fraction_operations`, because the shape path
+is the visible, documented, 50-template-strong one that *looks* like how a topic is added. Retiring
+only the bank would have left exactly that misleading code in place.
+
+The question underneath was whether the parameterized-template design is coming back. It cannot come
+back as-is: D-210 excludes shape-rendered content because a bare equation reads as an equation
+rather than as a situation, and anything that renders a real word problem is what the authored route
+already does. The SPEC still lists the columns (§5.8.2), and they still exist — an authored item
+sets `parameter_schema={}` and `solution_function="authored"` — so the schema did not diverge from
+the SPEC; only the mechanism that used them is gone.
+
+### What the deletion found
+
+**A traceability row that was evidence for the wrong implementation.** §5.8.3/§5.8.4/§5.8.5 in
+TRACEABILITY.md traced SPEC's generation chain stage-for-stage onto `generate_candidate` and cited
+`test_ai_pipeline.py`. Every claim in it was true about code no student could reach. It is not that
+the requirement was untraced — it is that "traced" was measured against the wrong route, which is a
+failure mode the document's own method section does not currently name. Rewritten against the
+authored route, with the reason left in place rather than quietly corrected.
+
+**A test proving the mock leak-clean against text nobody receives.**
+`test_mock_hint_is_leak_clean.py` drew its corpus from `SHAPE_HINT_LADDERS`. Re-pointed at the
+authored bank's ladders, it failed immediately — and correctly: `"Add the two top numbers together
+and keep 8 as the bottom number"` trips `answer_text_leaked(hint, "8")`, because the 8 is the
+question's own denominator. The old assertion held only because shape ladders carry no numbers at
+all. The property was rescoped to what the mock is actually responsible for: it may not *introduce*
+a leak the canonical text did not already have. Whether an authored hint names one of its own
+question's numbers is content's business, and `check_no_answer_leakage` already judges it with the
+context to do so - against that item's real answer, which this test cannot know.
+
+**Two eval-registry rows pointing at shape tests** (§5.31.4 "Common errors" and "Hints") and two
+more under §5.31.2. "Parameter constraints" became `not_applicable` with a reason rather than being
+re-pointed at something adjacent: there are no numeric parameters to constrain any more.
+
+### What was deliberately not done
+
+**The 50 rows already in every database are left alone.** They are inert — `_servable()` filters
+them, and nothing renders from `solution_function` any more — so retiring them buys tidiness at the
+cost of either a one-off migration or permanent cleanup code running on every deploy forever. For a
+solo-maintained system that is the wrong trade. Stated here so the rows are a documented leftover
+rather than a puzzle: `authoring_mode='shape'`, 50 of them, safe to delete whenever someone wants to.
+
+**D-224's `--mode shape` refusal is gone too**, along with its test. It was a cost guard on a route
+that no longer exists; keeping a refusal for an argument the parser no longer accepts would be
+theatre. The one-day life of that guard is the correct outcome, not a wasted change — it made the
+route safe while the decision was still open.

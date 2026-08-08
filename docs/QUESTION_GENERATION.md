@@ -284,11 +284,12 @@ Not built. Each waits on evidence from a real pilot rather than on a schedule.
 
 ## 9a. Hand-authoring, when the pipeline is not available (D-222, extended in D-223)
 
-`fraction_operations`' 30 items were written by hand, not generated. The route matters more than
-the fact: **a new topic's content has to be authored-mode YAML**, because `_servable()` filters on
-`authoring_mode == "authored"` (D-210). A shape bank for a new topic loads and is then filtered out
-of every serving read, so the topic stays unavailable no matter how many templates it holds. This
-was tried first and reverted.
+`fraction_operations`' 30 items and `place_value`'s 25 were written by hand, not generated.
+**A topic's content has to be authored-mode YAML** under `curriculum/internal_math/authored/`.
+D-222 tried a shape bank for `fraction_operations` first and had to revert it — `_servable()`
+filters on `authoring_mode == "authored"` (D-210), so those templates loaded and were then filtered
+out of every serving read. D-226 deleted that route entirely, so this is now the only route rather
+than the correct one of two.
 
 What a hand-authored item gets, and what it does not:
 
@@ -331,9 +332,10 @@ Two things do *not* have to be filled in, and treating them as targets would cos
 
 The bank holds **102 approved authored items** — 47 `linear_equations`, 30
 `fraction_operations` (15 in D-222, 15 more in D-223) and 25 `place_value` (D-225), so every topic
-in the taxonomy is stocked — plus 50 hand-authored shape templates that `_servable()` filters out
-of every serving read (D-210) and that the pipeline's shape mode can no longer be run against
-(D-224). Twelve authored
+in the taxonomy is stocked. **That is now the whole bank**: D-226 deleted the 50 hand-authored
+shape templates and the machinery behind them, which `_servable()` had filtered out of every serving
+read since D-210. Fifty inert `authoring_mode='shape'` rows remain in databases that already loaded
+them; nothing reads them. Twelve authored
 candidates sit at `pending` as the pilot's human-review comparison set; eight equation-first
 candidates were retired in D-193.
 
