@@ -7,23 +7,31 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**The content track is done for the grades this product serves (D-228).** Four topics, **127
-authored items**, and grades 1 through 7 all resolve to a stocked topic — `multiplication_division`
-was the last hole, and it closed the one D-227 named. Every one of the 127 went through the deterministic
-§5.8.5 gate **and, as of D-229, the two-solver panel** — 127 of 127 agreed, with a 12/12 negative
-control behind that number. What is still untouched is the *judge*: `difficulty_confidence` is 1.0
-by authorial assertion on all 80 hand-authored items, so the tiers are one person's judgement. No numbered ROADMAP session is queued; integration (S43+) stays
-deliberately deferred (D-152) until the user starts it.
+**Both quality panels have now run over the whole bank.** Four topics, 127 authored items, grades
+1-7 all resolving. The solver panel agrees with the author on **127 of 127** with a 12/12 negative
+control (D-229); the judge has been run over **125 of 127** (D-234) after three sessions of making it
+runnable at all (D-231, D-232, D-233). No numbered ROADMAP session is queued; integration (S43+)
+stays deliberately deferred (D-152) until the user starts it.
 
-What is left is no longer content. In rough order of value:
+What is left is no longer authoring. In rough order of value:
 
-1. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+1. **Adjudicate the 25 tier disputes (D-234), and start with `linear_equations`.** 25 items would be
+   rejected by the pipeline's own difficulty gate, and **24 of the 25 are the judge calling the item
+   easier than declared** — a 24:1 split that is not noise. Two explanations, which that pass cannot
+   separate: my tiers inflate (`place_value` was stratified by digit count, which may not be a
+   difficulty ladder), or the rubric's top anchors are unreachable (`linear_equations` has **16 fours
+   and zero fives** across 47 items, including 8 declared d5 whose anchor is "distribution is
+   required before like terms can be combined" — which those items demonstrably do). **Checking
+   whether those 8 items really require distribution resolves most of the list in one answer.**
+   Nothing was re-tiered: 127/127 solver agreement says the content is mathematically sound, and a
+   three-day-old instrument does not overrule that.
+2. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-2. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+3. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-3. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+4. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under
