@@ -58,19 +58,35 @@ def _verdict(**overrides: object) -> Adjudication:
     return Adjudication(**base)  # type: ignore[arg-type]
 
 
-def test_fingerprint_covers_the_prompt_and_the_anchors_not_only_the_item() -> None:
-    """The claim a verdict makes is "this judge is wrong about this item", so all three
-    inputs to that judgement are in scope. The prompt half is the one that would be easy to
-    leave out and is the reason the tier-5 reachability sentence will lapse every verdict on
-    file - which is the intended behaviour, not a regression.
+ANCHORS = {1: "one step", 5: "distribution required"}
+
+
+def test_the_fingerprint_hashes_what_the_claim_actually_depends_on() -> None:
+    """D-237: scope by verdict type, because over-hashing is not the safe direction.
+
+    An `upheld` verdict is a claim about a specific instrument, so the prompt is in scope and
+    a prompt change must lapse it. A `retiered` verdict is a human reading of content against
+    a rubric, so the prompt is not an input - hashing it in made one shipped sentence lapse
+    16 verdicts it had no bearing on, and a lapse that happens for no reason is one people
+    learn to clear without reading.
     """
     payload, prompt = _payload(), "system prompt v1"
-    base = fingerprint(payload, prompt)
+    instrument = fingerprint(payload, ANCHORS, prompt)
+    content = fingerprint(payload, ANCHORS)
 
-    assert fingerprint(payload, prompt) == base, "must be stable for identical inputs"
-    assert fingerprint(_payload(option_b="6"), prompt) != base, "an option changed"
-    assert fingerprint(_payload(hint_ladder=["different"]), prompt) != base, "a hint changed"
-    assert fingerprint(payload, "system prompt v2") != base, "the instrument changed"
+    assert fingerprint(payload, ANCHORS, prompt) == instrument, "stable for identical inputs"
+    assert content != instrument, "the two scopes must not collide"
+
+    # Both scopes move with the item and with the rubric it was judged against.
+    for scope in (lambda p, a: fingerprint(p, a), lambda p, a: fingerprint(p, a, prompt)):
+        base = scope(payload, ANCHORS)
+        assert scope(_payload(option_b="6"), ANCHORS) != base, "an option changed"
+        assert scope(_payload(hint_ladder=["x"]), ANCHORS) != base, "a hint changed"
+        assert scope(payload, {1: "one step", 5: "REWORDED"}) != base, "the rubric changed"
+
+    # Only the instrument scope moves with the prompt. This is the D-237 correction.
+    assert fingerprint(payload, ANCHORS, "system prompt v2") != instrument
+    assert fingerprint(payload, ANCHORS) == content
 
 
 def test_a_verdict_stops_applying_when_its_item_or_its_instrument_moves() -> None:
@@ -201,8 +217,13 @@ def test_the_shipped_record_is_live() -> None:
     stale = []
     for template_id, verdict in load_adjudications().items():
         item = by_id[template_id]
-        payload, prompt = judge_inputs(item)
-        if verdict.fingerprint != fingerprint(payload, prompt):
+        payload, anchors, prompt = judge_inputs(item)
+        current = (
+            fingerprint(payload, anchors)
+            if verdict.decision == "retiered"
+            else fingerprint(payload, anchors, prompt)
+        )
+        if verdict.fingerprint != current:
             stale.append(template_id)
         elif verdict.declared_difficulty != item.difficulty_label:
             stale.append(f"{template_id} (tier {item.difficulty_label})")
@@ -231,18 +252,18 @@ def test_partition_reports_new_and_lapsed_and_suppresses_only_known() -> None:
         "retiered-1": _verdict(
             question_template_id="retiered-1",
             decision="retiered",
-            fingerprint="fp",
+            fingerprint="content",
             declared_difficulty=4,
         ),
         "moot-1": _verdict(question_template_id="moot-1", fingerprint="fp", declared_difficulty=5),
     }
     judged = [
-        JudgedItem("known-1", 5, 2, flagged=True, fingerprint="fp"),
-        JudgedItem("lapsed-1", 5, 2, flagged=True, fingerprint="fp"),
-        JudgedItem("retiered-1", 4, 2, flagged=True, fingerprint="fp"),
-        JudgedItem("moot-1", 5, 5, flagged=False, fingerprint="fp"),
-        JudgedItem("never-seen", 3, 1, flagged=True, fingerprint="fp"),
-        JudgedItem("clean", 2, 2, flagged=False, fingerprint="fp"),
+        JudgedItem("known-1", 5, 2, True, "content", "fp"),
+        JudgedItem("lapsed-1", 5, 2, True, "content", "fp"),
+        JudgedItem("retiered-1", 4, 2, True, "content", "fp"),
+        JudgedItem("moot-1", 5, 5, False, "content", "fp"),
+        JudgedItem("never-seen", 3, 1, True, "content", "fp"),
+        JudgedItem("clean", 2, 2, False, "content", "fp"),
     ]
 
     findings = partition_findings(judged, verdicts)
@@ -263,7 +284,7 @@ def test_an_empty_record_reports_every_finding_as_new() -> None:
     If adding the mechanism changed what a bank with no verdicts reports, the mechanism
     would be doing something other than filtering.
     """
-    judged = [JudgedItem(f"item-{n}", 5, 2, flagged=True, fingerprint="fp") for n in range(3)]
+    judged = [JudgedItem(f"item-{n}", 5, 2, True, "content", "fp") for n in range(3)]
     findings = partition_findings(judged, {})
     assert len(findings.new) == 3
     assert (findings.known, findings.lapsed, findings.moot) == ([], [], [])

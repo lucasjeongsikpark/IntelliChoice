@@ -16,30 +16,12 @@ stays deliberately deferred (D-152) until the user starts it.
 **The 25 disputes are adjudicated (D-235)** — 12 upheld, 13 re-tiered, plus 3 the gate never flagged,
 so 16 items changed tier and 2 wrong `skill_id`s were fixed. What is left, in order of value:
 
-1. **Run the tier-5 reachability measurement. It is prepared and blocked only on `aws login`.**
-   D-235 proved the judge refuses the top of its own scale: four `linear_equations` items match the
-   tier-5 anchor in the same algebraic form as the anchor's worked example and were all rated 4, and
-   the topic scored **16 fours and zero fives** across 47 items. The intended change is one sentence
-   in `judge_system_prompt` saying the top tier is ordinary rather than exceptional. **It was
-   deliberately not shipped**, because shipping an unmeasured prompt change is exactly what D-231 and
-   D-233 did twice. The protocol, ~44¢ under `--run-budget-cents`:
-
-   ```
-   uv run python scripts/audit_authored_bank.py --run --judge --difficulty 5
-   uv run python scripts/audit_authored_bank.py --run --judge --difficulty 1 --difficulty 2 --per-cell 2
-   ```
-
-   Run both **before** the edit and again after; `_plan` slices in file order, so the same 33 items
-   are hit each time. The d1/d2 half is the control and it must be read first: if those drift up too,
-   the sentence inflated the whole scale instead of opening its top, and it gets reverted. Success is
-   narrow — the four distribution items reach 5 **and** the 16 control items do not move. Note the
-   two anchors D-235 tightened are already in the baseline, so the only difference between the runs
-   is the sentence.
-
-   **Expect the after-run to report all 28 verdicts lapsed (D-236), and do not "fix" that.** The
-   fingerprint covers the judge prompt, so changing it invalidates every recorded verdict by design
-   — the audit will say so with a reason. The remedy is to re-decide on what it now reports, never
-   to regenerate the hashes, which would re-assert judgements nobody made.
+1. **Adjudicate the 4 verdicts still disputed after D-237.** Re-judging the 12 items D-235 called
+   "the judge is wrong here" resolved 8 of them outright — but `multiplication_division-d4-300404`,
+   `-d5-300501`, `place_value-d4-200401` and `-d5-200504` still disagree by >= 2, and the judge
+   rates **all four a 2**. Both topics were already the weakest on the D-234 histogram. The
+   question is whether their anchors discriminate at all in the 3-5 range, which is the same
+   question D-232 answered for `linear_equations` and never re-asked for these two.
 
 2. **`QUESTION_JUDGE` has no branch in `mock_provider`** (D-236), so every local judge call fails
    structured-output validation and the whole `--judge` path can only be exercised by paying. Every
@@ -93,6 +75,35 @@ both directions, no database) and `scripts/measure_access_probe_rules.py --load 
 replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D-226. **Do not
 retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
 measured zero wrong tiers live.
+
+### Session log — the judge's top tier opened, and n=2 caught me out (2026-08-09, D-237)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1041 passed, 2 skipped, 1 xfailed** ·
+15 Bedrock runs, **$1.87** · staging's 16 re-tiered rows confirmed from CloudWatch · full write-up
+in DECISIONS.md **D-237**.
+
+**The judge was refusing the top of its own scale across the whole bank, not just
+`linear_equations`:** zero fives out of 17 tier-5 items, twice, with an identical histogram both
+times, while scoring 12-13/16 on the d1/d2 control. One sentence fixed it — 4-5 fives, and d5 exact
+agreement 0/17 → 4-5/17.
+
+**The methodological finding cost more than the fix.** At n=2 the control read `[12,13]` before and
+`[9,9]` after and I announced the degradation was real because the ranges did not overlap. A
+*rejected* variant then produced control scores of **6 and 13** — a range of 7 on identical inputs.
+Re-measured at n=4: before `[9,13]`, after `[8,11]`. **The cost was never established.** The
+criterion was answered by better measurement rather than relaxed after the fact.
+
+**Independent confirmation:** re-judging exactly the 12 items D-235 called "the judge is wrong
+here" found **8 of 12 now moot**. `3/4 ÷ 1/8` went 3 → 5 and `128 × 3` went 3 → 5. The sentence
+resolved disagreements that were the instrument's fault — which D-235 argued and could not test.
+
+**D-236's fingerprint was over-scoped and this is what showed it.** The prompt change lapsed all 28
+verdicts; correct for the 12 about the instrument, wrong for the 16 that are a human reading of
+content against a rubric. Scope now follows the claim. Over-hashing is not the safe direction: a
+lapse that happens for no reason is one people learn to clear without reading.
+
+**Carry-over:** 4 verdicts still disputed, all rated 2 by the judge; the missing
+`QUESTION_JUDGE` mock branch, now more clearly worth fixing given how much this cost to measure.
 
 ### Session log — the audit now reports what is new, and fails open (2026-08-09, D-236)
 
