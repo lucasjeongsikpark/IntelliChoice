@@ -67,9 +67,10 @@ the same id, which makes `pipeline_cli`'s preflight refuse a paid run outright. 
 and "the panel can be run" have not been the same thing, which is part of why D-211 stayed open.
 
 **Carry-over:** difficulty calibration is untouched (`difficulty_confidence` is 1.0 by assertion on
-all 80 hand-authored items); and both solvers are Anthropic models, so correlated error is possible
-where a second vendor — Llama, Mistral, DeepSeek and Nova are all available to this account —
-would reduce it.
+all 80 hand-authored items). The cross-vendor solver D-229 recommended turned out to be **blocked by
+the provider, not by model access** (D-230): `AnthropicBedrockProvider` forces
+`toolChoice: {tool: …}`, which is how structured output is guaranteed, and no non-Anthropic Bedrock
+model supports forcing a specific tool. It needs a second provider path, not a config change.
 
 ### Session log — the multiplication/division topic, and a band that would have stolen grade 4 (2026-08-08, D-228)
 

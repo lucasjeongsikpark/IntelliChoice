@@ -16532,3 +16532,60 @@ twice"). So the authored pipeline as documented cannot start. The staging Terraf
 task role only the tutor model plus embeddings, for the same reason. Nothing is broken — the guard
 is doing its job — but "the panel exists" and "the panel can be run" have not been the same thing,
 and that is part of why D-211 stayed open so long.
+
+## D-230 — the cross-vendor solver is blocked by design, and the control had a defect that would have hidden it (accepted, 2026-08-08)
+
+Two follow-ups to D-229. One is a configuration fix. The other found a defect in the very control
+D-229 introduced to make its own result trustworthy.
+
+### 1. `.env.example` documented a pipeline that could not start
+
+All four curriculum model slots named one id. `ai_pipeline` deliberately reuses the generation and
+review slots as **Solver A and Solver B** rather than adding a third setting, so one id makes the
+panel one opinion counted twice — and `pipeline_cli --preflight` refuses a paid run when they match.
+Fixed, with the reason written next to the two keys rather than in a changelog nobody reads at the
+moment they are editing an env file.
+
+### 2. The negative control counted a failed call as a catch
+
+D-229's `--self-test` marked an item "caught" whenever `verdict.agrees` was False — and that is False
+for **both** an objection and a call failure. **A Solver B that failed every single call would have
+scored a perfect negative control.** The exact inversion the control exists to prevent, inside the
+control.
+
+Found by smoke-testing a cross-vendor Solver B, which failed that way: Nova printed
+`bedrock_call_failed` on every item and the control reported 4/4 caught. Fixed to score objections
+and failures separately, and to say so:
+
+```
+negative control: 0/0 deliberately-wrong items caught (4 call failures, not scored), 0.75 cents
+4 call(s) failed. A failure is not evidence either way.
+```
+
+**D-229's published numbers survive, and were re-measured rather than argued.** The 127-item run
+recorded zero errors, and the 12-item control re-run under the corrected accounting is
+**12/12 caught, 0 call failures**. So the defect was live but never fired. Stated this way because
+"it did not matter this time" is a measurement, not a defence.
+
+### 3. The cross-vendor Solver B is blocked by the provider, not by model access
+
+D-229 recommended a non-Anthropic Solver B to reduce correlated error, on the evidence that the
+account can list Llama, Mistral, DeepSeek and Nova profiles. **Listing is not capability.** Measured
+directly:
+
+| model | result |
+|---|---|
+| `us.mistral.pixtral-large-2502-v1:0` | `ValidationException: This model doesn't support the toolConfig.toolChoice.tool field` |
+| `us.meta.llama3-3-70b-instruct-v1:0` | same |
+| `us.amazon.nova-premier-v1:0` | `ResourceNotFoundException: ... marked by provider as Legacy` |
+
+`AnthropicBedrockProvider` forces `toolChoice: {tool: emit_result}` on every call — that forced tool
+*is* how structured output is guaranteed before Pydantic validation (CLAUDE.md non-negotiable #6),
+and **non-Anthropic Bedrock models do not support forcing a specific tool.** The class is honestly
+named; the constraint is in its first line.
+
+So a cross-vendor solver is not a config change. It needs a second provider path — `toolChoice:
+{any: {}}` or schema-in-prompt plus the existing repair loop — which is a change to the component
+that makes every structured call safe, for a benefit (decorrelated solver error) that is real but
+unmeasured. **Not attempted here.** Recorded so the next person does not repeat the 1.6¢ of probing,
+and so D-229's recommendation is corrected where it was made rather than quietly dropped.
