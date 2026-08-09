@@ -35,7 +35,18 @@ so 16 items changed tier and 2 wrong `skill_id`s were fixed. What is left, in or
    narrow — the four distribution items reach 5 **and** the 16 control items do not move. Note the
    two anchors D-235 tightened are already in the baseline, so the only difference between the runs
    is the sentence.
-2. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
+
+   **Expect the after-run to report all 28 verdicts lapsed (D-236), and do not "fix" that.** The
+   fingerprint covers the judge prompt, so changing it invalidates every recorded verdict by design
+   — the audit will say so with a reason. The remedy is to re-decide on what it now reports, never
+   to regenerate the hashes, which would re-assert judgements nobody made.
+
+2. **`QUESTION_JUDGE` has no branch in `mock_provider`** (D-236), so every local judge call fails
+   structured-output validation and the whole `--judge` path can only be exercised by paying. Every
+   other Bedrock task has a mock. The decision logic was moved into a pure, unit-tested
+   `partition_findings` to shrink what this blocks, but the report assembly, the tier histogram and
+   the dispersion control are all still verifiable only with money.
+3. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
    for twelve decisions behind the line `"127 already existed, 0 created"` — and that line is not
    in any deploy log, because `deploy-staging.yml` only runs `test "$EXIT_CODE" = "0"`. The loader
    now distinguishes created / updated / unchanged / retired, which is exactly the signal worth
@@ -45,13 +56,13 @@ so 16 items changed tier and 2 wrong `skill_id`s were fixed. What is left, in or
    read), then echo the ops task's log stream after `aws ecs wait`. Same treatment is worth giving
    the migration and seed steps, which are equally silent. **Until this exists, "the deploy loaded
    the bank" means only that the loader exited 0** — which is what D-206 already learned once.
-3. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+4. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-4. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+5. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-5. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+6. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under
@@ -82,6 +93,33 @@ both directions, no database) and `scripts/measure_access_probe_rules.py --load 
 replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D-226. **Do not
 retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
 measured zero wrong tiers live.
+
+### Session log — the audit now reports what is new, and fails open (2026-08-09, D-236)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1041 passed, 2 skipped, 1 xfailed** (up
+from 1030 by the 11 tests this added) · the lapse control verified by perturbing one anchor word,
+which lapsed exactly the 6 `linear_equations` verdicts and none of the other 22 · full write-up in
+DECISIONS.md **D-236**.
+
+**D-235's 12 known-wrong judgements were recorded nowhere**, so the next `--judge` run would have
+re-reported them as twelve fresh findings. The real cost is not the re-reading: a reader who sees
+the same twelve every run learns the flagged list is mostly noise, and an audit whose output is not
+trusted has stopped working while continuing to run and cost money.
+
+**`adjudications.yaml` holds 28 verdicts, and the fingerprint includes the judge prompt.** So the
+tier-5 sentence will lapse all 28 at once — correct, since that change exists to alter exactly
+these judgements, and a suppression surviving it would hide whether it worked.
+
+**Every part of it is built to fail open.** `retiered` suppresses nothing (those items are now
+*expected* to agree, so a disagreement is news); `moot` reports an `upheld` verdict the judge has
+started agreeing with, which otherwise produces no flag to notice it by; a lapsed verdict is
+printed with its reason rather than dropped.
+
+**A gap found on the way:** `QUESTION_JUDGE` has no branch in `mock_provider`, so the judge path
+can only be run by paying. The decision logic was moved into a pure `partition_findings` and
+unit-tested rather than left in the script.
+
+**Carry-over:** the missing mock branch; the tier-5 measurement, still blocked on credentials.
 
 ### Session log — the disputes adjudicated, and the loader that was discarding the verdict (2026-08-09, D-235)
 
