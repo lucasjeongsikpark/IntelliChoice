@@ -1581,9 +1581,11 @@ directly. Coverage gap, not a break.
 > rubric written for `linear_equations` that graded four topics), and has now judged 125 of 127.
 >
 > Its result was **not** a clean bill: 25 items would have been rejected by the pipeline's own
-> difficulty gate, 24 of them the judge calling the item easier than declared. Either the
-> hand-authored tiers inflated or the rubric's top anchors were unreachable; that pass could not
-> separate them, and nothing was re-tiered on it.
+> difficulty gate as it then stood, 24 of them the judge calling the item easier than declared.
+> Either the hand-authored tiers inflated or the rubric's top anchors were unreachable; that pass
+> could not separate them, and nothing was re-tiered on it. *(That gate no longer rejects on this
+> criterion — D-239 changed it to re-tier the candidate to the judge's reading, gated on the judge's
+> own dispersion. The sentence above records what the D-234 measurement meant at the time.)*
 >
 > **Settled 2026-08-09 (D-235 to D-237), and it was both.** Adjudicating all 25 against their
 > topic's anchors: **12 upheld, 13 re-tiered** (16 items changed tier once three the gate never
