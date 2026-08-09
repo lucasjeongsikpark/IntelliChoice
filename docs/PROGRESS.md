@@ -66,11 +66,15 @@ What is left, in order of value:
    ever measured it, and D-238 is the third session to leave it standing. D-239 gave it a real
    meaning for *pipeline* items — 1.0 only when two readings agree, 0.5 for a flag or a re-tier —
    which sharpens the contrast with the 83 hand-authored ones asserting 1.0 on nobody's evidence.
-4. **`ruff` is unpinned (`ruff>=0.16.0`) and CI resolves a newer one than local.** D-239's first
-   CI run failed `lint` on two `UP037` violations that the local 0.16.0 does not report, after a
-   clean local `make lint`. Harmless this time — the fix was to delete two pairs of quotes — but
-   **a green local lint is not evidence that CI's lint is green**, and the gap will keep widening
-   until the version is pinned or the local one is refreshed as part of `make lint`.
+4. ~~`ruff` is unpinned and CI resolves a newer one than local.~~ **That diagnosis was wrong and
+   D-240 found the real one.** `uv.lock` pins ruff 0.16.0 and local had exactly that. The cause was
+   a `.gitignore` line: a bare `curriculum/` matches **`packages/curriculum/` as well**, gitignore
+   patterns being unanchored by default, and **ruff respects `.gitignore`** — so `ruff check .`
+   silently stopped reading the entire package, and a local `make lint` went green on the one
+   package D-239 was editing. CI caught it only because the line was uncommitted, so CI's checkout
+   still linted it. Fixed by anchoring to `/curriculum/`, which ignores exactly the intended content
+   directory. **The general shape is the lesson: a tool that respects `.gitignore` silently narrows
+   what your verification covers, and it reports the narrowed result as success.**
 5. **D-239's re-tier has never run against a real judge.** Every branch is covered on the mock path,
    but the numbers that decide a move — how often a real run clears the dispersion floor, how many
    candidates actually move — are unmeasured. One paid batch would answer it; budget it against the
