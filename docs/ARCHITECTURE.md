@@ -494,6 +494,18 @@ to rot, because nothing fails when it does.)*
   could serve. Stated as a rule because the duplication was invisible from inside either file, and
   because a fix to one copy could silently *open* a hole in the other. If a second gate is ever
   needed again, share the predicate rather than the intent.
+- **Grade-band order in `grade_topic_mapping.yaml` is load-bearing** (D-227, D-228) — §5.7.3's bands
+  *overlap* (K-1, 1-2, 2-3, 3-4, …), so most grades belong to two of them, and `topics_for_grade`
+  returns the **first** band whose endpoints contain the grade. Two consequences that have each
+  nearly shipped a bug: a band cannot be widened by renaming it (`1-2` → `1-3` matches grades 1 and
+  3 and silently **drops** grade 2, D-227), and adding a band can **steal** a grade from an existing
+  one (a `3-4` key above `4-5` captures grade 4 away from `fraction_operations`, D-228). Matching is
+  by explicit endpoint membership rather than by range on purpose, so "K" needs no ordinal and a
+  malformed key fails to match rather than swallowing a neighbour — the cost is that the file's
+  *order* is part of its meaning. Guarded per **grade**, not per band, by
+  `test_adding_a_band_never_steals_a_grade_from_an_existing_one` and
+  `test_no_grade_is_stranded_between_two_populated_bands`: the failure is always a grade resolving
+  to the wrong topic or to none, and a band-shaped assertion cannot see it.
 - **Every servable question is stored, never rendered at serving time** (D-210, completed by D-226)
   — an authored item *is* its content, so `build_variant_row` copies its canonical variant into a
   runtime row. The alternative existed until D-226: parameterized shape templates rendered from a
