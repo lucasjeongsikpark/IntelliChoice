@@ -64,23 +64,45 @@ Three values, answering different questions:
 
 | value | source | what it is |
 |---|---|---|
-| `requested` | the slot being generated for | an instruction — decides where the item is stored and what its template id says |
+| `requested` | the slot being generated for | an instruction — it fixes the template id permanently, and it is where the item is stored *unless* the judge moves it (D-239). The `d{n}` in a template id is always the tier the item was **authored** at; read `difficulty_label` for its current one (D-235) |
 | `proposed` | the Generator | **anchored** — the Generator is told the target, so the number is weak evidence and the rationale beside it is the part worth reading |
 | `reviewed` | the judge | the only independent reading. `QuestionJudgePayload` carries neither of the others |
 
-Two gates, both rejecting at a gap of 2:
+**One gate decides, and since D-239 it moves the item rather than discarding it.**
 
-- `|proposed − reviewed| ≥ 2` — two readers of the same item disagree and nothing can say which is
-  wrong.
-- `|reviewed − requested| ≥ 2` — the item does not belong in the slot it would be stored at, which
-  would offer it to students who have earned a different tier.
+`|reviewed − requested| ≥ 2` — the item does not belong in the slot it would be stored at, which
+would offer it to students who have earned a different tier. The item is **kept and stored at
+`reviewed`**, `validation_status="pending"`, `review_priority="high"`, and the move is recorded in
+`stage_results["difficulty"]` as `stored_at_difficulty` / `retiered_from`. The run counts it as
+`retiered` — a filled slot, reported separately from a clean pass and from a rejection.
 
-A gap of 1 on either keeps the item and sets `review_priority="high"`. Rejections land in their own
-`rejected_at="difficulty"` bucket: a judge rejection says the question is bad, this one says the
+Rejecting it destroyed a question that had already passed the generator, both solvers and every
+judge flag, because one number was two away from the slot it happened to be generated for. D-238
+measured what that number is worth: `place_value` items sat two tiers from where the judge read them
+because the *rubric* conflated two skills, and the repair was to move tiers without touching a single
+item's content. The tier is the cheap thing to change; the item is the expensive one.
+
+**The move is gated on the judge discriminating.** A judge answering the same tier for everything
+produces small gaps on any bank centred near that tier and reads as excellent calibration, so
+re-tiering on it would quietly restack a run onto one tier and report a high yield for doing it.
+`JudgeDispersion` accumulates the run's own `reviewed` values; a move needs ≥ 5 observations with the
+dominant tier holding < 80% of them (D-231 — dispersion, not distinctness: its first version passed
+`{2: 20, 5: 1}`). Below that the item is **rejected exactly as before**, and the reason says so.
+Consequence worth knowing: the first few candidates of any run can never be re-tiered, and a short
+run moves nothing.
+
+**`|proposed − reviewed|` no longer rejects (D-239).** Over all 41 pipeline candidates carrying a
+difficulty stage it rejected independently of the slot gap **zero** times, and `requested == proposed`
+in **30** of them — the Generator is anchored, so its number was never independent evidence. Kept as
+a rejection it would have fired on the same items the re-tier exists to save. It still contributes to
+`review_priority="high"`, and `proposed` plus its rationale stay in the evidence as provenance.
+
+A gap of 1 on either keeps the item and sets `review_priority="high"`. Rejections still land in their
+own `rejected_at="difficulty"` bucket: a judge rejection says the question is bad, this one says the
 question may be fine.
 
-Both values, both rationales, both gaps and the decision are written to
-`question_validation_runs.stage_results["difficulty"]`. The Generator's value is never silently
+Both values, both rationales, both gaps, the decision, and the tier the item was actually stored at
+are written to `question_validation_runs.stage_results["difficulty"]`. The Generator's value is never silently
 overwritten.
 
 **Acceptability is computed, not asked of the model.** A judge blind to the proposal cannot say

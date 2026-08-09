@@ -243,6 +243,13 @@ async def edit_and_rerun(
         await session.rollback()
         return f"edit-and-rerun for {question_template_id} failed: {exc}"
     await session.commit()
+    if outcome.status == "retiered":
+        # Worth saying out loud rather than folding into "new candidate": the reviewer
+        # asked for a rerun at one tier and got a usable item at another (D-239).
+        return (
+            f"superseded {question_template_id} -> new candidate "
+            f"{outcome.question_template_id}, re-tiered to the judge's reading"
+        )
     if outcome.status == "pending":
         return f"superseded {question_template_id} -> new candidate {outcome.question_template_id}"
     return f"superseded {question_template_id} -> rerun rejected: {outcome.reasons}"

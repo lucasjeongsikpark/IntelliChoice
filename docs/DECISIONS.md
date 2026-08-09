@@ -17233,3 +17233,95 @@ the day the bug is fixed, and here it cannot.
 **$2.63** of Bedrock across 12 runs, 0 call failures. Roughly a third went to taking
 `place_value` to n=4 twice rather than comparing an n=4 baseline against an n=2 result -
 the asymmetry D-237 paid to learn about.
+
+## D-239 — the difficulty gate moves the item instead of discarding it (accepted, 2026-08-09)
+
+D-194's difficulty stage rejected a candidate when the judge's tier sat 2 or more from the
+slot's. This replaces that with a re-tier, and removes one of the two gates outright.
+
+### Why rejecting was the wrong verb
+
+A rejected candidate here had already passed the generator, the equation-design pre-stage,
+both solvers and **every** judge flag — ambiguity, alignment, age-appropriateness, internal
+consistency, hint quality. The only thing wrong with it was a number saying it belonged at a
+different tier than the slot that happened to produce it.
+
+D-238 measured what that number is worth. `place_value` items were sitting two tiers from
+where the judge read them because the *rubric* conflated two skills with different difficulty
+ranges — and the repair was to move eight items' tiers **without touching a single item's
+content**. The tier is the cheap thing to change and the item is the expensive one, so the
+gate now stores the candidate at `reviewed`, `pending`, `review_priority="high"`, with
+`stored_at_difficulty` and `retiered_from` written into `stage_results`.
+
+### Gate 1 was removed, and the measurement decided it
+
+`|proposed − reviewed| ≥ 2` also rejected. Over **all 41** pipeline candidates in
+`question_validation_runs` that carry a difficulty stage:
+
+| | |
+|---|---|
+| `requested == proposed` | **30 / 41** |
+| proposal_gap distribution | `{0: 22, 1: 12, 2: 6, 3: 1}` |
+| slot_gap distribution | `{0: 16, 1: 17, 2: 5, 3: 3}` |
+| **rejected by gate 1 alone** | **0** |
+| rejected by gate 2 alone | 1 |
+
+The Generator sees `requested`, so it is anchored — D-194's own docstring says as much, and
+73% agreement with the instruction is what that looks like. Gate 1 has never rejected anything
+gate 2 would not have. Under the new policy that stops being a curiosity: **kept as a
+rejection, it would fire on the same items the re-tier exists to save**, silently restoring
+the old behaviour for exactly those candidates. Removed as a rejection, retained as a `flagged`
+input, with `proposed` and its rationale still recorded — the number was never the value there,
+the rationale beside it is.
+
+n=41 is small. It is also the entire population of pipeline evidence that exists, not a sample.
+
+### The move is gated on the instrument, which is the part that could have gone wrong
+
+A judge answering the same tier for everything produces small gaps on any bank centred near
+that tier and reads as excellent calibration. Re-tiering on that judge would quietly restack a
+whole run onto one tier **and report a high yield for having done it** — a worse failure than
+the rejections this replaces, because it is invisible in the summary.
+
+So a move requires `JudgeDispersion`: ≥ 5 observations from this run with the dominant tier
+holding < 80% of them. That is D-231's rule and deliberately its *second* version — the first
+fired only when the judge returned one tier for everything, and the first real run returned
+`{2: 20, 5: 1}`, which passed while being a constant for every practical purpose.
+
+**The histogram is run-scoped and threaded, not global.** Dispersion is a run-level statistic
+and the decision is per-item, so `run_plan` owns one instance and each candidate observes into
+it before asking it. Two consequences, both stated rather than discovered: **the first
+candidates of a run can never be re-tiered**, and a short run moves nothing. That is the
+fail-closed direction. Not persisted across runs on purpose — a histogram accumulated over
+months would let an instrument that has since drifted authorise today's moves.
+
+`generate_authored_candidate(dispersion=None)` is the default, so every existing caller keeps
+D-194's behaviour until a run opts in by owning a histogram.
+
+### RunSummary
+
+`retiered` is its own counter, and `filled = pending + retiered` is the honest yield numerator.
+D-192's lesson applied to a new bucket: "the run produced this many usable questions" and "the
+run moved this many off the tier it aimed at" are different claims, and a plan that keeps
+missing its own tiers is worth seeing. It appears in the headline rather than only on its own
+line, because a re-tier rate that is easy to skim past is one nobody reads.
+
+### Two things this touched that were not obvious
+
+The repair loop's success test was `status == "pending"`. A re-tiered candidate would have
+fallen through it into a **paid rewrite of an item that had just passed every gate**. And
+`_settle` logged anything not `"pending"` as a rejection, which would have put every re-tier in
+the rejections list while `RunSummary` counted it as filled — the two disagreeing in the same
+report.
+
+### Verification
+
+No paid run. The mock provider drives every branch, which is only true because D-238 repaired
+`QUESTION_JUDGE`'s mock branch — before that this change could not have been verified without
+spending. `ruff` clean, `pyright` 0 errors, **1073 passed, 2 skipped, 1 xfailed**.
+
+Five hole-detection tests were written first and watched failing: a gap-2 item persisting at the
+reviewed tier, a collapsed histogram blocking the move, an empty histogram blocking it,
+`RunSummary` counting a re-tier as a filled slot, and — the one the others could not reach —
+`run_plan` actually building and feeding its own histogram, confirmed by deleting the threading
+and watching that test alone fail.

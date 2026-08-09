@@ -154,6 +154,10 @@ class _ScriptedAuthoredGateway:
         solver_b_option: str | None = None,
         solver_objection: dict[str, object] | None = None,
         judge: QuestionJudgeResponse | None = None,
+        # Varies the judge per call, so a test can build a run whose judge actually
+        # discriminates - `judge=` alone is a constant, which is the one histogram D-239's
+        # dispersion control refuses to re-tier on.
+        judge_factory: Callable[[], QuestionJudgeResponse] | None = None,
         embedding_vector: list[float] | None = None,
     ) -> None:
         self._item = item
@@ -164,6 +168,7 @@ class _ScriptedAuthoredGateway:
         # enough - the whole point of the flags is that they don't need a second vote.
         self._solver_objection = solver_objection or {}
         self._judge = judge
+        self._judge_factory = judge_factory
         self._embedding_vector = embedding_vector
         self._last_item: AuthoredGeneratedItemResponse | None = None
         # response_model name -> the ceiling that stage was called with. Recorded rather
@@ -252,7 +257,9 @@ class _ScriptedAuthoredGateway:
         elif name == "QuestionJudgeResponse":
             assert isinstance(payload, QuestionJudgePayload)
             assert self._last_item is not None
-            value = self._judge or QuestionJudgeResponse(
+            value = self._judge or (
+                self._judge_factory() if self._judge_factory else None
+            ) or QuestionJudgeResponse(
                 reasoning="scripted judge",
                 # The judge no longer receives a proposed difficulty (D-194), so the
                 # double cannot echo one. Agreeing with the item's own proposal is what
@@ -1136,6 +1143,11 @@ def test_difficulty_agreement_accepts_disagreement_flags_and_wide_gaps_reject() 
     assert one_off.decision == "flagged"
     assert one_off.reasons == []
 
+    # D-239 removed the proposal gap's rejection arm. Two readers disagreeing by 2 about an
+    # item that still sits within 1 of its slot is a flag, not a discard: measured over all
+    # 41 pipeline candidates carrying a difficulty stage, this gate rejected independently
+    # of the slot gap ZERO times, and the Generator agreed with the requested tier outright
+    # in 30 of them - it is anchored, so its number was never independent evidence.
     two_off = ai_pipeline.judge_difficulty(
         proposed=2,
         proposed_rationale=rationale,
@@ -1143,28 +1155,49 @@ def test_difficulty_agreement_accepts_disagreement_flags_and_wide_gaps_reject() 
         reviewed_rationale=rationale,
         requested=3,
     )
-    assert two_off.decision == "rejected"
-    assert any("difficulty disagreement" in r for r in two_off.reasons)
+    assert two_off.decision == "flagged"
+    assert two_off.proposal_gap == 2
+    assert two_off.reasons == []
+    assert two_off.effective_difficulty == 3, "a flag never moves the item"
 
-    # The second gate: the two models can agree with each other and still both be far from
-    # the tier the slot asked for. Storing that item at the requested tier would offer it
-    # to students who have earned a different one, so it is rejected on its own terms.
+    # The slot gap: the two models can agree with each other and still both be far from the
+    # tier the slot asked for. Storing that item at the requested tier would offer it to
+    # students who have earned a different one - so the tier moves to meet the item.
     wrong_slot = ai_pipeline.judge_difficulty(
         proposed=1,
         proposed_rationale=rationale,
         reviewed=1,
         reviewed_rationale=rationale,
         requested=5,
+        may_retier=True,
     )
-    assert wrong_slot.decision == "rejected"
-    assert any("too far from the requested tier" in r for r in wrong_slot.reasons)
+    assert wrong_slot.decision == "retiered"
+    assert wrong_slot.effective_difficulty == 1
+    assert wrong_slot.reasons == []
+
+    # ...but only when the judge has earned it. Without dispersion the old behaviour
+    # stands, and the reason says which of the two failed.
+    collapsed = ai_pipeline.judge_difficulty(
+        proposed=1,
+        proposed_rationale=rationale,
+        reviewed=1,
+        reviewed_rationale=rationale,
+        requested=5,
+        may_retier=False,
+    )
+    assert collapsed.decision == "rejected"
+    assert collapsed.effective_difficulty == 5
+    assert any("too collapsed to re-tier on" in r for r in collapsed.reasons)
 
     # Both numbers and both rationales survive into the evidence whatever the outcome.
     evidence = two_off.as_evidence()
     assert evidence["generator_proposed_difficulty"] == 2
     assert evidence["judge_reviewed_difficulty"] == 4
     assert evidence["proposal_vs_review_difference"] == 2
-    assert evidence["decision"] == "rejected"
+    assert evidence["decision"] == "flagged"
+    assert evidence["stored_at_difficulty"] == 3
+    assert evidence["retiered_from"] is None
+    assert wrong_slot.as_evidence()["retiered_from"] == 5
 
 
 def test_one_level_difficulty_disagreement_keeps_the_item_at_high_priority() -> None:
@@ -1242,15 +1275,19 @@ def test_two_level_difficulty_disagreement_rejects_with_both_rationales_persiste
                 seed=1022,
                 session_spend_cents=0.0,
             )
+            # No `dispersion` passed, so the caller has not opted into re-tiering and the
+            # candidate takes D-194's path unchanged. This is the default every existing
+            # caller gets, and it is the fail-closed one (D-239).
             assert outcome.status == "rejected"
             assert outcome.rejected_at == "difficulty"
-            assert any("difficulty disagreement" in r for r in outcome.reasons)
+            assert any("too far from the requested tier" in r for r in outcome.reasons)
 
             run_row = await _latest_validation_run(session)
             evidence = run_row.stage_results["difficulty"]
             assert evidence["generator_difficulty_rationale"].startswith("a single addition")
             assert evidence["judge_difficulty_reasoning"].startswith("reads as multi-step")
             assert evidence["proposal_vs_review_difference"] == 2
+            assert evidence["stored_at_difficulty"] == 1, "a rejection never moves the tier"
 
     asyncio.run(run())
 
@@ -1612,7 +1649,7 @@ def test_run_summary_separates_processed_from_scheduled() -> None:
     # 34 candidates a model actually saw.
     assert summary.pending / summary.processed == pytest.approx(8 / 34)
     rendered = summary.format()
-    assert "8 accepted of 34 processed (24%)" in rendered
+    assert "8 accepted of 34 processed (24%, of which retiered=0)" in rendered
     assert "50 scheduled" in rendered
     assert "solver=17" in rendered
     assert "budget=16" in rendered
@@ -2541,3 +2578,232 @@ def test_a_circuit_open_candidate_is_never_repaired() -> None:
         )
         is None
     )
+
+
+def _dispersed() -> "ai_pipeline.JudgeDispersion":
+    """A judge that has been answering across the scale, so a re-tier is permitted."""
+    dispersion = ai_pipeline.JudgeDispersion()
+    for tier in (1, 2, 3, 4, 5, 2, 4):
+        dispersion.observe(tier)
+    return dispersion
+
+
+def _collapsed() -> "ai_pipeline.JudgeDispersion":
+    """D-231's real failure, not the strawman: two distinct values, still a constant.
+
+    The first version of this control fired only when the judge returned ONE tier for
+    everything, and the first real run returned {2: 20, 5: 1} - which passed it while
+    being a constant for every practical purpose.
+    """
+    dispersion = ai_pipeline.JudgeDispersion()
+    for _ in range(9):
+        dispersion.observe(2)
+    dispersion.observe(5)
+    return dispersion
+
+
+def test_a_two_level_slot_gap_now_persists_at_the_tier_the_judge_read() -> None:
+    """D-239: the item is kept and moved, not thrown away.
+
+    Rejecting it destroyed a question that had already passed the generator, both solvers
+    and every judge flag, on the strength of one number being two away from the slot it
+    happened to be generated for. D-238 measured what that number is worth: `place_value`
+    items were sitting two tiers from where the judge read them because the *rubric* was
+    wrong, not the item. The tier is the cheap thing to change and the item is the
+    expensive one.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(
+                    item=_good_item(
+                        stem="Solve: re-tier fixture, what is 2 + 2?",
+                        proposed_difficulty=1,
+                        difficulty_rationale="a single addition with no equation to rearrange",
+                    ),
+                    judge=QuestionJudgeResponse(
+                        reasoning="scripted judge",
+                        reviewed_difficulty=3,
+                        difficulty_reasoning="reads as multi-step with a negative coefficient",
+                        is_ambiguous=False,
+                        is_aligned=True,
+                        is_age_appropriate=True,
+                        hint_quality_score=5,
+                    ),
+                ),
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=1,
+                seed=1301,
+                session_spend_cents=0.0,
+                dispersion=_dispersed(),
+            )
+            assert outcome.status == "retiered"
+            assert outcome.rejected_at is None
+            assert outcome.question_template_id is not None
+
+            repo = QuestionRepository(session)
+            template = await repo.get_template(outcome.question_template_id)
+            assert template is not None
+            # Stored where the judge read it, not where the slot asked for it.
+            assert template.difficulty_label == 3
+            assert template.validation_status == "pending"
+            assert template.review_priority == "high"
+            # Not two readings agreeing, so not full confidence.
+            assert template.difficulty_confidence == 0.5
+            # D-235's rule, unchanged and now load-bearing: the `d{n}` in the id is the
+            # tier the item was AUTHORED at. Read `difficulty_label` for the current one.
+            assert "-d1-" in template.question_template_id
+
+            run_row = await _latest_validation_run(session)
+            evidence = run_row.stage_results["difficulty"]
+            assert evidence["decision"] == "retiered"
+            assert evidence["requested_difficulty"] == 1
+            assert evidence["judge_reviewed_difficulty"] == 3
+            assert evidence["stored_at_difficulty"] == 3
+
+    asyncio.run(run())
+
+
+def test_a_collapsed_judge_histogram_moves_nothing() -> None:
+    """The re-tier is only as good as the number it moves the item to (D-231, D-239).
+
+    A judge answering the same tier for everything produces small gaps on any bank centred
+    near that tier and would read as excellent calibration - so re-tiering on it would
+    quietly restack the whole run onto one tier and report a high yield for doing it. The
+    control is dispersion, not distinctness, and below it the item takes the old path.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=_ScriptedAuthoredGateway(
+                    item=_good_item(
+                        stem="Solve: collapsed-control fixture, what is 2 + 2?",
+                        proposed_difficulty=1,
+                        difficulty_rationale="a single addition with no equation to rearrange",
+                    ),
+                    judge=QuestionJudgeResponse(
+                        reasoning="scripted judge",
+                        reviewed_difficulty=3,
+                        difficulty_reasoning="reads as multi-step with a negative coefficient",
+                        is_ambiguous=False,
+                        is_aligned=True,
+                        is_age_appropriate=True,
+                        hint_quality_score=5,
+                    ),
+                ),
+                curriculum=curriculum,
+                topic_id="linear_equations",
+                difficulty_label=1,
+                seed=1302,
+                session_spend_cents=0.0,
+                dispersion=_collapsed(),
+            )
+            assert outcome.status == "rejected"
+            assert outcome.rejected_at == "difficulty"
+
+    asyncio.run(run())
+
+
+def test_no_dispersion_evidence_at_all_moves_nothing() -> None:
+    """Fail closed at the start of a run, where there is nothing to judge the judge by.
+
+    The first items a run judges have no histogram behind them. Permitting a move there
+    would make re-tiering most likely exactly when it is least supported.
+    """
+    empty = ai_pipeline.JudgeDispersion()
+    assert not empty.permits_retier()
+    for tier in (1, 5, 2):
+        empty.observe(tier)
+    assert not empty.permits_retier(), "three observations is not evidence of dispersion"
+
+
+def test_run_summary_counts_a_retier_as_a_filled_slot_under_its_own_name() -> None:
+    """A re-tiered slot produced a usable question, so it must not read as a rejection -
+    and it is not the same event as a clean pass, so it must not hide inside `pending`.
+
+    D-192's lesson applied to a new bucket: one number was hiding two, and the fix was
+    separate denominators rather than a better-chosen single number.
+    """
+    summary = pipeline_cli.RunSummary()
+    summary.record(ai_pipeline.PipelineOutcome(status="pending", cost_cents=1.0))
+    summary.record(ai_pipeline.PipelineOutcome(status="retiered", cost_cents=1.0))
+    summary.record(
+        ai_pipeline.PipelineOutcome(
+            status="rejected", rejected_at="solver", reasons=["x"], cost_cents=1.0
+        )
+    )
+
+    assert summary.pending == 1
+    assert summary.retiered == 1
+    assert summary.rejected == 1
+    assert summary.processed == 3
+    # A re-tier is a filled slot: it counts toward what the run produced.
+    assert summary.filled == 2
+    assert "retiered=1" in summary.format()
+
+
+def test_a_real_run_builds_its_own_dispersion_and_then_retiers_on_it() -> None:
+    """The threading, end to end - the part the unit tests above cannot reach (D-239).
+
+    Every other test here hands `judge_difficulty` or `generate_authored_candidate` a
+    `JudgeDispersion` it built itself, so all of them would still pass if `run_plan` never
+    created one. This drives the real loop with a judge that answers across the scale and
+    asserts two things that only hold if the histogram is genuinely owned by the run and
+    genuinely fed: **early slots do not move** (no evidence yet) and **later ones do**.
+    """
+    tiers = iter([1, 2, 3, 4, 5] * 8)
+    # Distinct stems, or the dedup stage eats the run before difficulty is ever reached -
+    # which is exactly what the first version of this test measured instead.
+    stems = iter(range(100))
+
+    def judge() -> QuestionJudgeResponse:
+        return QuestionJudgeResponse(
+            reasoning="scripted judge",
+            reviewed_difficulty=next(tiers),
+            difficulty_reasoning="a reasoning long enough to clear the length floor",
+            is_ambiguous=False,
+            is_aligned=True,
+            is_age_appropriate=True,
+            hint_quality_score=5,
+        )
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            plan = pipeline_cli.build_plan(
+                skill_ids=["linear_one_step"],
+                difficulties=[1],
+                candidates_per_slot=12,
+                seed_offset=870_000,
+            )
+            summary = await pipeline_cli.run_plan(
+                session,
+                _ScriptedAuthoredGateway(
+                    item_factory=lambda payload: _good_item(
+                        stem=f"Solve: dispersion run fixture {next(stems)}, what is 2 + 2?",
+                        proposed_difficulty=payload.target_difficulty,
+                    ),
+                    judge_factory=judge,
+                ),
+                plan,
+            )
+            # The judge cycles 1..5 against a slot that always asks for 1, so two of every
+            # five candidates sit >= 2 away and are re-tier candidates.
+            assert summary.retiered > 0, (
+                "run_plan never re-tiered, so it is not feeding its own histogram"
+            )
+            # ...but not all of them: the first slots are judged before the histogram has
+            # _MIN_JUDGE_OBSERVATIONS behind it, and those fail closed.
+            assert summary.rejected_difficulty > 0, (
+                "every re-tier candidate moved, so the run is not failing closed early"
+            )
+            assert summary.filled == summary.pending + summary.retiered
+            assert summary.processed == summary.filled + summary.rejected
+
+    asyncio.run(run())

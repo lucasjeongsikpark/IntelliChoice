@@ -133,13 +133,68 @@ _SOLVER_SYSTEM_PROMPT = (
 )
 
 
-# D-194 difficulty policy. `_DIFFICULTY_REJECT_AT` is the gap at which two independent
-# readings of the same item stop being a judgement call and start being a contradiction:
-# one of them is wrong about what the item demands, and neither the pipeline nor a
-# reviewer can tell which. `_DIFFICULTY_FLAG_AT` is a real but survivable disagreement -
-# the item is kept and a human is pointed at it.
+# D-194 difficulty policy, changed in D-239 from reject-on-gap-2 to re-tier-and-flag.
+#
+# `_DIFFICULTY_FLAG_AT` is a real but survivable disagreement - the item is kept and a
+# human is pointed at it. `_DIFFICULTY_RETIER_AT` is the gap at which the two readings stop
+# being a judgement call: one of them is wrong about what the item demands.
+#
+# **What changed and why.** D-194 rejected at that gap. That threw away a question which
+# had already passed the generator, both solvers and every judge flag, on the strength of
+# one number being two away from the slot it happened to be generated for - and D-238
+# measured what that number is worth. `place_value` items sat two tiers from where the
+# judge read them because the *rubric* conflated two skills, not because the items were
+# bad; the fix was to move tiers, and no item's content changed. The tier is the cheap
+# thing to change and the item is the expensive one, so the gap now moves the item instead
+# of discarding it - to the tier the judge read, held pending at `review_priority="high"`
+# so a human still sees every one.
 _DIFFICULTY_FLAG_AT = 1
-_DIFFICULTY_REJECT_AT = 2
+_DIFFICULTY_RETIER_AT = 2
+
+# D-231's dispersion control, and the reason a re-tier is not unconditional. A judge
+# answering the same tier for everything produces small gaps on any bank centred near that
+# tier and reads as excellent calibration; re-tiering on it would quietly restack a whole
+# run onto one tier and report a high yield for having done so. So a move requires evidence
+# that the instrument doing the moving is discriminating at all.
+#
+# **Dispersion, not distinctness** - D-231's first version fired only when the judge
+# returned ONE tier for everything, and the first real run returned `{2: 20, 5: 1}`, which
+# passed it while being a constant for every practical purpose.
+_JUDGE_COLLAPSE_SHARE = 0.8
+# Below this there is no histogram to speak of, and permitting a move would make re-tiering
+# likeliest exactly where it is least supported - the first items of a run.
+_MIN_JUDGE_OBSERVATIONS = 5
+
+
+class JudgeDispersion:
+    """The spread of the judge's own ratings so far in a run (D-231, D-239).
+
+    Run-level evidence consumed by a per-item decision, so it is threaded through the run
+    rather than recomputed: `run_plan` owns one instance and every candidate observes into
+    it and asks it. That ordering has a property worth stating rather than discovering -
+    **the first items in a run can never be re-tiered**, because the evidence that would
+    justify moving them does not exist yet. A short run therefore moves nothing, which is
+    the fail-closed direction (CLAUDE.md rule 5).
+
+    Deliberately not persisted across runs. A histogram accumulated over months would let
+    an instrument that has since drifted authorise today's moves.
+    """
+
+    def __init__(self) -> None:
+        self._counts: dict[int, int] = {}
+
+    def observe(self, reviewed: int) -> None:
+        self._counts[reviewed] = self._counts.get(reviewed, 0) + 1
+
+    @property
+    def histogram(self) -> dict[int, int]:
+        return dict(sorted(self._counts.items()))
+
+    def permits_retier(self) -> bool:
+        total = sum(self._counts.values())
+        if total < _MIN_JUDGE_OBSERVATIONS:
+            return False
+        return max(self._counts.values()) / total < _JUDGE_COLLAPSE_SHARE
 
 
 @dataclass(frozen=True)
@@ -156,8 +211,12 @@ class DifficultyVerdict:
     requested: int
     proposal_gap: int
     slot_gap: int
-    decision: Literal["accepted", "flagged", "rejected"]
+    decision: Literal["accepted", "flagged", "retiered", "rejected"]
     reasons: list[str]
+    # The tier the item is actually stored at: `reviewed` when it moved, `requested`
+    # otherwise. Computed here with the decision so the branch and the column cannot
+    # disagree - the same reason the rest of this dataclass exists.
+    effective_difficulty: int
 
     def as_evidence(self) -> dict:
         return {
@@ -169,6 +228,11 @@ class DifficultyVerdict:
             "proposal_vs_review_difference": self.proposal_gap,
             "review_vs_requested_difference": self.slot_gap,
             "decision": self.decision,
+            # The move itself, recorded rather than inferable. A reviewer opening this row
+            # should not have to reconstruct which tier the row's own template ended up at
+            # from two other fields and a rule about template ids.
+            "stored_at_difficulty": self.effective_difficulty,
+            "retiered_from": self.requested if self.decision == "retiered" else None,
         }
 
 
@@ -179,6 +243,7 @@ def judge_difficulty(
     reviewed: int,
     reviewed_rationale: str,
     requested: int,
+    may_retier: bool = False,
 ) -> DifficultyVerdict:
     """Compare the Generator's difficulty claim with the judge's independent one.
 
@@ -193,9 +258,19 @@ def judge_difficulty(
       (`QuestionJudgePayload` no longer carries them). This is the only independent one.
 
     So `proposal_gap` asks "do two readers agree about this item?" and `slot_gap` asks
-    "does this item belong in the slot it was generated for?". Both reject at 2. An item
-    the judge calls tier 1 stored in the tier-5 slot would be selected for students who
-    have earned tier 5, which is a worse failure than a wasted candidate.
+    "does this item belong in the slot it was generated for?". An item the judge calls tier
+    1 stored in the tier-5 slot would be selected for students who have earned tier 5 - but
+    the answer to that is to store it at tier 1, which is what `slot_gap >= 2` now does when
+    `may_retier` says the judge is discriminating (D-239).
+
+    **`proposal_gap` no longer rejects, and the measurement is why (D-239).** Over all 41
+    pipeline candidates that carry a difficulty stage, `requested == proposed` in **30** -
+    the Generator is anchored, exactly as the note above predicts - and `proposal_gap`
+    rejected independently of `slot_gap` **zero** times. Kept as a rejection it would have
+    fired on the same items the re-tier exists to save, silently restoring the old
+    behaviour for precisely those candidates. It still contributes to `flagged` and both
+    numbers stay in the evidence, because `proposed`'s value was never the number: it is
+    the *rationale* beside it, which is what a reviewer reads when the two readings differ.
 
     Acceptability is decided here rather than asked of the model, deliberately. A judge
     blind to the proposal *cannot* say whether it is acceptable, and a judge shown the
@@ -206,19 +281,20 @@ def judge_difficulty(
     proposal_gap = abs(proposed - reviewed)
     slot_gap = abs(reviewed - requested)
     reasons: list[str] = []
-    if proposal_gap >= _DIFFICULTY_REJECT_AT:
-        reasons.append(
-            f"difficulty disagreement: generator proposed {proposed} "
-            f"({proposed_rationale}), judge independently rated {reviewed} "
-            f"({reviewed_rationale})"
-        )
-    if slot_gap >= _DIFFICULTY_REJECT_AT:
-        reasons.append(
-            f"judge rated difficulty {reviewed} ({reviewed_rationale}), too far from the "
-            f"requested tier {requested} this candidate would be stored at"
-        )
-    if reasons:
-        decision: Literal["accepted", "flagged", "rejected"] = "rejected"
+    decision: Literal["accepted", "flagged", "retiered", "rejected"]
+    effective = requested
+
+    if slot_gap >= _DIFFICULTY_RETIER_AT:
+        if may_retier:
+            decision = "retiered"
+            effective = reviewed
+        else:
+            decision = "rejected"
+            reasons.append(
+                f"judge rated difficulty {reviewed} ({reviewed_rationale}), too far from "
+                f"the requested tier {requested} this candidate would be stored at, and "
+                f"the judge's own ratings in this run are too collapsed to re-tier on"
+            )
     elif proposal_gap >= _DIFFICULTY_FLAG_AT or slot_gap >= _DIFFICULTY_FLAG_AT:
         decision = "flagged"
     else:
@@ -233,6 +309,7 @@ def judge_difficulty(
         slot_gap=slot_gap,
         decision=decision,
         reasons=reasons,
+        effective_difficulty=effective,
     )
 
 
@@ -800,7 +877,11 @@ RejectionStage = Literal[
 
 @dataclass
 class PipelineOutcome:
-    status: Literal["pending", "rejected"]
+    # `retiered` is a pending candidate that was stored at the tier the judge read rather
+    # than the one its slot asked for (D-239). Its own status rather than a flag on
+    # `pending`, because the run summary must be able to report it without the two
+    # collapsing into one number - D-192's lesson, applied to a new bucket.
+    status: Literal["pending", "retiered", "rejected"]
     reasons: list[str] = field(default_factory=list)
     rejected_at: RejectionStage | None = None
     question_template_id: str | None = None
@@ -1310,6 +1391,7 @@ async def _attempt_authored_candidate(
     attempt: int = 1,
     repair: RepairContext | None = None,
     design: EquationDesignResponse | None = None,
+    dispersion: "JudgeDispersion | None" = None,
 ) -> PipelineOutcome:
     """One pass: generate an item and run it through every gate (D-198 split this out of
     `generate_authored_candidate`, which is now the bounded repair loop around it).
@@ -1612,20 +1694,32 @@ async def _attempt_authored_candidate(
     # Difficulty is its own stage from here (D-194) rather than one more judge flag. Both
     # numbers and both rationales are persisted whatever the outcome, so a reviewer reading
     # a rejection can see the two readings that disagreed instead of a verdict.
+    # The judge's rating joins this run's histogram BEFORE the gate reads it, so an item
+    # contributes to the evidence that governs it. Excluding it would make the control
+    # depend on arrival order for no gain: one observation cannot rescue a collapsed
+    # histogram, and cannot collapse a dispersed one.
+    if dispersion is not None:
+        dispersion.observe(judge.reviewed_difficulty)
     difficulty = judge_difficulty(
         proposed=item.proposed_difficulty,
         proposed_rationale=item.difficulty_rationale,
         reviewed=judge.reviewed_difficulty,
         reviewed_rationale=judge.difficulty_reasoning,
         requested=difficulty_label,
+        may_retier=dispersion is not None and dispersion.permits_retier(),
     )
     stage_results["difficulty"] = difficulty.as_evidence()
     stage_results["prerequisites"] = item.required_prerequisites
     if difficulty.decision == "rejected":
         return await _reject(difficulty.reasons, stage_results, "difficulty")
 
+    # A re-tier is a disagreement a human still has to look at - the judge decided where
+    # the item goes, and nobody has confirmed it belongs there.
     review_priority = "normal"
-    if judge.hint_quality_score <= _HINT_QUALITY_BORDERLINE_AT or difficulty.decision == "flagged":
+    if (
+        judge.hint_quality_score <= _HINT_QUALITY_BORDERLINE_AT
+        or difficulty.decision in ("flagged", "retiered")
+    ):
         review_priority = "high"
 
     # --- 6. Persist as pending (never auto-approved - see module docstring) -----
@@ -1639,7 +1733,10 @@ async def _attempt_authored_candidate(
             topic_id=topic_id,
             skill_id=skill_id,
             grade_band=topic.grade_band,
-            difficulty_label=difficulty_label,
+            # Where the judge read it when it moved, where the slot asked otherwise
+            # (D-239). The `d{n}` in `template_id` still names the tier it was AUTHORED
+            # at - D-235's rule, and the reason this column is the one to read.
+            difficulty_label=difficulty.effective_difficulty,
             # Two independent readings agreeing is the only thing here worth calling
             # confidence; the requested tier is an instruction, not a second opinion.
             difficulty_confidence=1.0 if difficulty.decision == "accepted" else 0.5,
@@ -1701,7 +1798,9 @@ async def _attempt_authored_candidate(
     )
 
     return PipelineOutcome(
-        status="pending",
+        # A re-tiered candidate is pending too - it is the *slot* that changed, not the
+        # approval state - but the run has to be able to say how many moved (D-239).
+        status="retiered" if difficulty.decision == "retiered" else "pending",
         question_template_id=template.question_template_id,
         question_variant_id=persisted_variant.question_variant_id,
         cost_cents=total_cost,
@@ -1733,6 +1832,9 @@ async def generate_authored_candidate(
     max_repair_attempts: int = DEFAULT_MAX_REPAIR_ATTEMPTS,
     budget_ceiling_cents: float | None = None,
     design_attempts: int = DEFAULT_DESIGN_ATTEMPTS,
+    # Defaults to None - "no re-tiering" - so every existing caller keeps D-194's
+    # behaviour unless a run explicitly opts in by owning a histogram (D-239).
+    dispersion: "JudgeDispersion | None" = None,
 ) -> PipelineOutcome:
     """One slot, with a bounded repair loop: when a candidate is rejected for something a
     rewrite could fix, the Generator is told what was wrong and tries again (D-198).
@@ -1823,13 +1925,18 @@ async def generate_authored_candidate(
             # repair a different equation - contradicting "keep what was sound and fix
             # the defect", which is the whole instruction a repair is given.
             design=design,
+            dispersion=dispersion,
         )
         spent += outcome.cost_cents
         # Every attempt's spend counts, including the failed ones: the caller is paying for
         # the slot, not for its last try.
         outcome = replace(outcome, cost_cents=spent, attempts=attempt)
 
-        if outcome.status == "pending" or attempt > max_repair_attempts:
+        # `retiered` is a success and must not fall into the repair loop: there is nothing
+        # to repair - the item was accepted and the tier moved to meet it. Testing for
+        # "pending" alone here would have paid for a rewrite of a candidate that had just
+        # passed every gate.
+        if outcome.status in ("pending", "retiered") or attempt > max_repair_attempts:
             return outcome
 
         defects = repair_feedback(

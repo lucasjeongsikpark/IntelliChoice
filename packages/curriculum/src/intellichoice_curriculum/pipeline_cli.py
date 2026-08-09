@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.ai_pipeline import (
     TOPIC_SKILL_DIFFICULTIES,
+    JudgeDispersion,
     PipelineOutcome,
     generate_authored_candidate,
 )
@@ -97,6 +98,12 @@ class RunSummary:
     # D-200: the cheap pre-stage could not build an equation that solves evenly. Its own
     # bucket because it is the one rejection that costs almost nothing.
     rejected_design: int = 0
+    # D-239: passed every gate but was stored at the tier the judge read rather than the
+    # one the slot asked for. Separate from `pending` because "the run produced this many
+    # usable questions" and "the run moved this many off the tier it aimed at" are
+    # different claims, and a plan that keeps missing its own tiers is worth seeing;
+    # separate from `rejected` because nothing was thrown away.
+    retiered: int = 0
     # D-198. Two separate facts, because one number would hide the thing worth knowing:
     # how many Generator calls the run actually paid for, and how many candidates only
     # became publishable *because* a repair ran. A repair loop that fixes nothing still
@@ -111,6 +118,12 @@ class RunSummary:
     skipped_duplicate_id: int = 0
     total_cost_cents: float = 0.0
     rejections: list[tuple[str, int, list[str]]] = field(default_factory=list)
+
+    @property
+    def filled(self) -> int:
+        """Slots that produced a usable question. A re-tiered candidate is one of them -
+        it is pending review exactly like any other, at a different tier (D-239)."""
+        return self.pending + self.retiered
 
     @property
     def rejected(self) -> int:
@@ -129,9 +142,12 @@ class RunSummary:
         # Generator calls, and a run whose yield looks fine while this number is triple the
         # candidate count is not the same run as one that got there first time.
         self.generator_calls += outcome.attempts
-        if outcome.status == "pending":
+        if outcome.status in ("pending", "retiered"):
             self.processed += 1
-            self.pending += 1
+            if outcome.status == "retiered":
+                self.retiered += 1
+            else:
+                self.pending += 1
             if outcome.attempts > 1:
                 self.repaired_to_pending += 1
             return
@@ -152,16 +168,18 @@ class RunSummary:
         setattr(self, attribute, getattr(self, attribute) + 1)
 
     def format(self) -> str:
-        yield_rate = (self.pending / self.processed * 100) if self.processed else 0.0
+        yield_rate = (self.filled / self.processed * 100) if self.processed else 0.0
         return (
-            f"Pipeline run complete: {self.pending} accepted of {self.processed} "
-            f"processed ({yield_rate:.0f}%), {self.scheduled} scheduled, "
+            f"Pipeline run complete: {self.filled} accepted of {self.processed} "
+            f"processed ({yield_rate:.0f}%, of which retiered={self.retiered}), "
+            f"{self.scheduled} scheduled, "
             f"{self.total_cost_cents:.2f} cents spent.\n"
             f"  rejected: generator={self.rejected_generator} "
             f"design={self.rejected_design} "
             f"validation={self.rejected_validation} dedup={self.rejected_dedup} "
             f"solver={self.rejected_solver} judge={self.rejected_judge} "
             f"difficulty={self.rejected_difficulty}\n"
+            f"  retiered: {self.retiered} (stored at the judge's tier, not the slot's)\n"
             f"  repair: generator_calls={self.generator_calls} "
             f"fixed={self.repaired_to_pending} still_rejected={self.repaired_still_rejected}\n"
             f"  skipped: budget={self.skipped_budget} circuit_open={self.skipped_circuit_open} "
@@ -201,7 +219,7 @@ async def _settle(
         )
         return
     summary.record(outcome)
-    if outcome.status != "pending":
+    if outcome.status not in ("pending", "retiered"):
         summary.rejections.append((topic_id, difficulty_label, outcome.reasons))
 
 
@@ -380,6 +398,12 @@ async def run_plan(
     summary = RunSummary()
     summary.scheduled = len(plan.slots)
     spend = 0.0
+    # One histogram per run, owned here (D-239). Run-scoped rather than persisted: a
+    # histogram accumulated over months would let an instrument that has since drifted
+    # authorise today's re-tiers. Its consequence is worth stating - the first
+    # `_MIN_JUDGE_OBSERVATIONS` candidates of any run can never be re-tiered, because the
+    # evidence that would justify moving them does not exist yet.
+    dispersion = JudgeDispersion()
 
     for slot in plan.slots:
         if spend >= plan.run_budget_cents:
@@ -400,6 +424,7 @@ async def run_plan(
                 # The slot may not spend past the run's own ceiling; without this the
                 # between-slot check only notices after the money is gone.
                 budget_ceiling_cents=plan.run_budget_cents,
+                dispersion=dispersion,
             )
         except IntegrityError as exc:
             # The collision surfaces HERE, not at commit: `QuestionRepository.create_template`
