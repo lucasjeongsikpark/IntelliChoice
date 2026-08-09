@@ -16653,3 +16653,70 @@ correcting after it reported success (D-230 was the first).
 The remaining 102 items were **not** judged. The instrument had already been shown not to
 discriminate on this axis, so a larger sample buys a more precise version of an uninterpretable
 number — about $1.50 for it. Stopping is the finding.
+
+## D-232 — the difficulty rubric belongs to the topic, not to the judge (accepted, 2026-08-09)
+
+D-231 found the judge rating 20 of 21 `place_value` items "2" and concluded it rates absolute
+difficulty. **That diagnosis was incomplete, and the correction matters.** The prompt already told
+the judge the scale is relative to the grade band — D-200 added that after measuring the identical
+symptom ("2 in 15 of 17 items"). What D-200 could not anticipate is that its fix was a *single global
+rubric*:
+
+```
+1: one operation undoes the equation (x + 8 = 20, or 4x = 20)
+3: a negative or fractional coefficient appears
+4: the variable appears on BOTH sides
+5: distribution is required before like terms can be combined
+```
+
+Those anchors are **linear algebra**. They were correct — D-200 measured them — and `linear_equations`
+was the only topic that existed. Three topics were then authored (D-222, D-225, D-228) containing no
+equation of that shape at all, and the judge, instructed to "rate the EQUATION the student must
+solve" against them, found nothing above the first anchor and returned 2. **The rubric became wrong
+the moment a second topic existed, and the three sessions that added topics never touched it.**
+
+### The structural fix, not just the content one
+
+`difficulty_anchors` moved into `topics.yaml`, on the topic it describes. A rubric kept beside the
+prompt is one nobody edits when they add content; kept beside the topic, its absence is visible in
+the file being edited — and `test_every_topic_declares_a_full_difficulty_rubric` makes a topic
+without one a failure rather than a silent fallback to somebody else's ladder. Each new rubric is
+derived from that topic's own skills in `skills.yaml`, which is where its tiers came from.
+
+`_JUDGE_SYSTEM_PROMPT` became `judge_system_prompt(topic)`. The generator's tier reference moved to
+the same source, so the two stages the gate compares still read one scale — the property D-200
+established, preserved while making the scale per-topic.
+
+### Measured, before and after, on the same 24 items
+
+Stratified 3 items at d1 and 3 at d5 from each of the four topics — the sharp version of the
+question, since a rubric that cannot separate a topic's easiest tier from its hardest is not
+calibrating anything.
+
+| | before | after |
+|---|---|---|
+| **items the pipeline's own gate would reject** (slot gap ≥ 2) | **9** | **3** |
+| `declared 5 → judge 2` | **7** | **0** |
+| judge's tier distribution | `{1:6, 2:12, 3:2, 4:3}` | `{1:5, 2:6, 3:3, 4:10}` |
+| exact tier agreement | 6/23 | 5/24 |
+| call failures | 1 | 0 |
+
+**No tier-5 item is rated 2 any more** — the exact failure D-200 described ("no tier-4 or tier-5 item
+could ever pass, however good it was"), which had returned for every topic added since.
+
+**Exact agreement did not improve, and that is not the metric.** The sample is only d1 and d5, so
+exact agreement requires the judge to answer exactly 1 or exactly 5, while the pipeline tolerates a
+gap of 1 and rejects at 2. Reported anyway rather than dropped, because a table showing only the
+number that moved is the kind of table this project keeps finding to be wrong.
+
+### The one new flag is worth more than the six it replaced
+
+`place_value-d1-200104` — *"Ben has 34 stickers. Ana has 43. How many more?"* — is declared **d1** and
+judged **3**. The new `place_value` rubric puts that shape at tier 2 ("two two-digit numbers compared
+when they are made of the same digits"). So the judge disagrees with the tier I assigned, **and my
+own rubric agrees with the judge**. That is a content finding the instrument could not previously
+produce, because before this it disagreed with everything by returning 2.
+
+The item is left as authored. One disagreement is not a re-tiering, and the honest next step is to
+judge the full bank now that the instrument discriminates — which will produce a list of tier
+disputes to work through rather than a single anecdote.

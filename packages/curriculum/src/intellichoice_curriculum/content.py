@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Repo root is four levels up from this file: src/intellichoice_curriculum/content.py
 # -> intellichoice_curriculum -> src -> curriculum (package dir) -> packages -> repo root.
@@ -15,6 +15,16 @@ class TopicDef(BaseModel):
     name: str
     grade_band: str
     description: str = ""
+    # The 1-5 difficulty rubric the judge rates this topic against (D-232). It lives here,
+    # next to the topic it describes, rather than beside the judge prompt - because the
+    # single global rubric that used to live there was written for `linear_equations`, was
+    # correct for it, and silently became wrong for every topic added after (D-231: the
+    # judge rated 20 of 21 `place_value` items "2", since none of them contain a negative
+    # coefficient or a variable on both sides). A rubric kept next to the prompt is one
+    # nobody edits when they add content; kept here, a topic without one is visible in the
+    # same file the topic is declared in, and `test_every_topic_declares_difficulty_anchors`
+    # makes it a failure rather than a silent fallback.
+    difficulty_anchors: dict[int, str] = Field(default_factory=dict)
 
 
 class SkillDef(BaseModel):
