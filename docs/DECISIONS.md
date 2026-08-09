@@ -16793,3 +16793,59 @@ next experiment is a middle bound (~250 words) rather than either extreme.
 D-231 raised 1200 → 3000 and called it fixed. D-233 raised it again and it was still not fixed. The
 number was never the variable — an unbounded output field was. Three sessions of ceiling arithmetic
 would have been one measurement of *why the response was long*.
+
+## D-234 — the whole bank judged, and 24 of 25 disagreements run one way (accepted, 2026-08-09)
+
+The first full judge pass over all 127 approved items, at the 250-word prose bound D-233 left open.
+
+### The bound was measured, not chosen
+
+Three settings over the same 25 `place_value` items — the topic where the judge writes most, because
+its rubric is the least equation-like:
+
+| bound | failures | cost | judge's tiers | exact |
+|---|---|---|---|---|
+| unbounded | 4 | 37.4¢ | `{1:1, 2:8, 3:7, 4:4, 5:1}` | 10/21 |
+| **250 words** | **1** | **16.8¢** | `{1:6, 2:10, 3:4, 4:3, 5:1}` | **10/24** |
+| 150 words | 0 | 14.5¢ | `{1:8, 2:12, 3:2, 4:3}` | 8/25 |
+
+**The 150-word row is the one worth keeping in view.** It is best on failures and cost and is the
+wrong choice: the judge loses a tier outright and collapses back toward 2. A table with only the
+first and last rows would have justified it.
+
+### The full pass
+
+| topic | judged | failures | cost | exact | judge's tiers |
+|---|---|---|---|---|---|
+| `place_value` | 24 | 1 | 16.8¢ | 10/24 | `{1:6, 2:10, 3:4, 4:3, 5:1}` |
+| `multiplication_division` | 25 | 0 | 15.9¢ | 8/25 | `{1:3, 2:15, 3:6, 4:1}` |
+| `fraction_operations` | 29 | 1 | 19.5¢ | 10/29 | `{1:1, 2:13, 3:10, 4:4, 5:1}` |
+| `linear_equations` | 47 | 0 | 30.4¢ | 19/47 | `{1:5, 2:19, 3:7, 4:16}` |
+| **total** | **125** | **2** | **82.6¢** | **47/125 (38%)** | |
+
+Controls pass everywhere (no tier above 80%), though `multiplication_division` is weakest at 60% on
+tier 2 and never reaches 5.
+
+### The finding: the disagreement is directional
+
+**25 items would be rejected by the pipeline's own gate (|declared − judge| ≥ 2), and 24 of those 25
+are the judge rating the item EASIER than declared.** They cluster hard at d4/d5. A 24:1 split is not
+noise; one of two things is true and this pass cannot distinguish them:
+
+- **My tiers inflate.** I stratified `place_value` by digit count and `multiplication_division` by
+  operation size, and neither may be a real difficulty ladder — "what is the 6 in 6,405 worth" is
+  arguably no harder than the same question about 47.
+- **The rubric's top anchors are unreachable.** `linear_equations` has **16 fours and zero fives**
+  across 47 items, including 8 declared d5, whose anchor is "distribution is required before like
+  terms can be combined" — a thing those items demonstrably do. That looks like the judge refusing
+  the top of the scale rather than reading the items wrongly.
+
+The second reading is the more likely one for `linear_equations` and the first is more likely for
+`place_value`, which is exactly why this is **not** an automatic re-tiering. 20% of the bank is in
+dispute; resolving it means reading items against anchors, item by item, with a human deciding.
+
+### What was deliberately not done
+
+No item was re-tiered, retired or edited. The audit still changes nothing — it produced a list, and
+a list of 25 disagreements from an instrument three days old is a starting point for adjudication,
+not a verdict on content that 127/127 solver agreement says is mathematically sound.

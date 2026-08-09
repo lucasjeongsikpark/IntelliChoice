@@ -47,6 +47,29 @@ replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D
 retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
 measured zero wrong tiers live.
 
+### Session log — the whole bank judged, and the disagreement has a direction (2026-08-09, D-234)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **125 of 127 items judged, 2 call failures,
+82.6¢** · controls pass on all four topics · full write-up in DECISIONS.md **D-234**.
+
+**The prose bound was settled by measurement.** Three settings on the same 25 items: unbounded (4
+failures, 37.4¢, 5 tiers), **250 words (1 failure, 16.8¢, 5 tiers)**, 150 words (0 failures, 14.5¢,
+**4 tiers**). The 150 row looks best on failures and cost and is the wrong choice — the judge loses a
+tier and collapses toward 2.
+
+**25 items would be rejected by the pipeline's own difficulty gate, and 24 of the 25 are the judge
+rating the item EASIER than declared.** A 24:1 split is not noise. Either my tiers inflate — I
+stratified `place_value` by digit count, which may not be a difficulty ladder — or the rubric's top
+anchors are unreachable, which is what `linear_equations` looks like: **16 fours and zero fives**
+across 47 items including 8 declared d5, whose anchor those items demonstrably meet.
+
+**Nothing was re-tiered.** 20% of the bank is in dispute and resolving it means reading items against
+anchors with a human deciding, not trusting a three-day-old instrument over content that 127/127
+solver agreement says is mathematically sound.
+
+**Carry-over:** adjudicate the 25 disputes; `multiplication_division` never reaches tier 5 and is the
+weakest control at 60%.
+
 ### Session log — three ceilings, one moving target (2026-08-09, D-233)
 
 **Verification:** `ruff` clean · `pyright` 0 errors · **1028 passed, 2 skipped, 1 xfailed** · four
