@@ -39,9 +39,9 @@ from dataclasses import dataclass, field
 from intellichoice_curriculum.ai_pipeline import (
     _AUTHORED_JUDGE_MAX_TOKENS,
     _AUTHORED_SOLVER_MAX_TOKENS,
-    _JUDGE_SYSTEM_PROMPT,
     _SOLVER_SYSTEM_PROMPT,
     _call,
+    judge_system_prompt,
     solver_objections,
 )
 from intellichoice_curriculum.authored_bank import AuthoredTemplateDef, load_authored_bank
@@ -159,7 +159,7 @@ async def _judge_item(
     response, cost, error = await _call(
         gateway,
         task=BedrockTask.QUESTION_JUDGE,
-        system_prompt=_JUDGE_SYSTEM_PROMPT,
+        system_prompt=judge_system_prompt(topic),
         payload=payload,
         response_model=QuestionJudgeResponse,
         session_spend_cents=spend,
@@ -254,7 +254,11 @@ async def _judge(items: list[AuthoredTemplateDef], budget_cents: float) -> int:
     return 0
 
 
-def _plan(topic_id: str | None) -> list[AuthoredTemplateDef]:
+def _plan(
+    topic_id: str | None,
+    difficulties: list[int] | None = None,
+    per_cell: int | None = None,
+) -> list[AuthoredTemplateDef]:
     banks = load_authored_bank()
     if topic_id is not None:
         if topic_id not in banks:
@@ -262,10 +266,25 @@ def _plan(topic_id: str | None) -> list[AuthoredTemplateDef]:
                 f"no authored bank file for topic {topic_id!r} (have: {sorted(banks)})"
             )
         banks = {topic_id: banks[topic_id]}
-    return [item for templates in banks.values() for item in templates]
+
+    selected: list[AuthoredTemplateDef] = []
+    for templates in banks.values():
+        if difficulties is None:
+            selected.extend(templates)
+            continue
+        # Stratified by (topic, tier) so a before/after runs on the same cells rather than
+        # on whatever the file order happens to put first. `--difficulty 1 --difficulty 5`
+        # is the sharp version of the calibration question: a rubric that cannot separate
+        # the easiest tier from the hardest *within one topic* is not calibrating anything.
+        for tier in difficulties:
+            in_tier = [t for t in templates if t.difficulty_label == tier]
+            selected.extend(in_tier[:per_cell] if per_cell else in_tier)
+    return selected
 
 
-def _preflight(items: list[AuthoredTemplateDef], budget_cents: float) -> int:
+def _preflight(
+    items: list[AuthoredTemplateDef], budget_cents: float, *, judge: bool = False
+) -> int:
     settings = get_pipeline_settings()
     solver_a = settings.bedrock_generation_model_id
     solver_b = settings.bedrock_review_model_id
@@ -280,10 +299,11 @@ def _preflight(items: list[AuthoredTemplateDef], budget_cents: float) -> int:
     for topic, count in sorted(by_topic.items()):
         print(f"  {topic:<24} {count} items")
     print(f"  items:               {len(items)}")
-    print(f"  max calls:           {len(items) * _CALLS_PER_ITEM} ({_CALLS_PER_ITEM} per item)")
+    per_item = 1 if judge else _CALLS_PER_ITEM
+    print(f"  max calls:           {len(items) * per_item} ({per_item} per item)")
     print(f"  run budget ceiling:  {budget_cents:.0f} cents")
 
-    if underlying_model(solver_a) == underlying_model(solver_b):
+    if not judge and underlying_model(solver_a) == underlying_model(solver_b):
         print(
             "\nREFUSED: Solver A and Solver B resolve to the same model, so their agreement "
             "would be one opinion counted twice."
@@ -391,6 +411,19 @@ def main() -> int:
         "--topic-id", default=None, help="audit one topic instead of the whole bank"
     )
     parser.add_argument(
+        "--difficulty",
+        type=int,
+        action="append",
+        default=None,
+        help="restrict to these tiers; repeat the flag. Use with --per-cell to stratify",
+    )
+    parser.add_argument(
+        "--per-cell",
+        type=int,
+        default=None,
+        help="at most N items per (topic, tier) cell, so a before/after runs on the same set",
+    )
+    parser.add_argument(
         "--judge",
         action="store_true",
         help=(
@@ -422,11 +455,11 @@ def main() -> int:
         if args.run_budget_cents is not None
         else get_pipeline_settings().bedrock_run_budget_cents
     )
-    items = _plan(args.topic_id)
+    items = _plan(args.topic_id, args.difficulty, args.per_cell)
 
     if args.self_test:
         items = items[: args.self_test]
-    status = _preflight(items, budget)
+    status = _preflight(items, budget, judge=args.judge)
     if status != 0 or not args.run:
         if status == 0:
             print("\npreflight only. Re-run with --run to spend.")

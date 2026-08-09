@@ -5,12 +5,28 @@
 curriculum_version: "2026.1"
 
 topics:
+  # `difficulty_anchors` is the 1-5 rubric the §5.8.5 judge rates this topic against
+  # (D-232). Each tier names a STRUCTURAL feature visible in the item, not how hard it
+  # feels: every item in this bank is a word problem, so "it is a word problem" is a
+  # constant and a constant cannot discriminate. The ladders mirror each topic's own
+  # skills in skills.yaml, which is where the tiers came from in the first place.
   - topic_id: linear_equations
     name: "Linear Equations"
     grade_band: "6-7"
     description: >
       Solving one-variable linear equations: one-step, two-step, variables on both
       sides, and equations requiring distribution/combining like terms.
+    # Measured and validated in D-200: these anchors moved the judge off a constant 2
+    # for this topic. They were the *only* anchors until D-232, which is why they were
+    # also applied to three topics containing no equations at all.
+    difficulty_anchors:
+      1: "one operation undoes the equation (x + 8 = 20, or 4x = 20)"
+      2: "two operations, the variable on one side only, whole-number coefficients (18 + 6w = 60)"
+      3: "a negative or fractional coefficient appears (60 - 4x = 12, or x/3 + 5 = 11)"
+      4: "the variable appears on BOTH sides, so terms must be collected before the equation
+        can be solved at all (8 + 2m = 18 + m)"
+      5: "distribution is required before like terms can be combined (5(c + 2) + 12 = 42), or
+        the situation needs two coupled relationships set up together"
 
   - topic_id: fraction_operations
     name: "Fraction Operations"
@@ -18,6 +34,17 @@ topics:
     description: >
       Adding, subtracting, multiplying, and dividing fractions, including unlike
       denominators and mixed numbers.
+    difficulty_anchors:
+      1: "the two fractions already share a denominator and the answer is left as it comes
+        out (2/8 + 3/8)"
+      2: "denominators still share, but the result must be written in lowest terms, or three
+        like fractions are combined"
+      3: "one denominator divides the other, so only one fraction has to be rewritten
+        (1/6 + 1/2)"
+      4: "neither denominator divides the other, so both must be rewritten (5/6 - 1/4), or two
+        fractions are multiplied together"
+      5: "the whole counts as 1 and the remaining part must be found, or a fraction is divided
+        by a fraction, or two operations are chained"
 
   - topic_id: multiplication_division
     name: "Multiplication and Division"
@@ -25,9 +52,31 @@ topics:
     description: >
       Multiplication facts, multiplying multi-digit numbers by a one-digit number,
       dividing using the inverse of multiplication, and division with remainders.
+    difficulty_anchors:
+      1: "one multiplication fact within 10 by 10, or a total shared into equal groups using
+        a fact the student knows (10 shared between 2)"
+      2: "a fact reached from a neighbouring one (7 x 6 built from 6 x 6), or a grouping where
+        the NUMBER OF GROUPS is what is asked rather than the group size"
+      3: "a two-digit number multiplied by a one-digit number, so it must be split into tens
+        and ones and the parts recombined (23 x 3)"
+      4: "a division that leaves a remainder, or a multiplication whose partial products cross
+        into the hundreds (46 x 5)"
+      5: "a remainder that must be interpreted in the situation rather than reported, or a
+        three-digit number multiplied by a one-digit number (128 x 3)"
 
   - topic_id: place_value
     name: "Place Value"
     grade_band: "1-2"
     description: >
       Identifying and comparing the value of digits in multi-digit whole numbers.
+    difficulty_anchors:
+      1: "what a digit is worth in a TWO-digit number, or a two-digit number built from a
+        count of tens and a count of ones"
+      2: "the same in a THREE-digit number, or two two-digit numbers compared when they are
+        made of the same digits"
+      3: "a zero must hold an empty place, or a three-digit comparison decided by the tens
+        rather than the hundreds"
+      4: "FOUR-digit numbers, or a comparison whose first differing place is not the leading
+        one, so earlier places must be ruled out first"
+      5: "five digits or more, or numbers built from the same digits where the arrangement
+        itself decides the answer"
