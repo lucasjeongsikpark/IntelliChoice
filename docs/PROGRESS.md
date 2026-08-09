@@ -144,6 +144,19 @@ it caught a second stale branch immediately.
 **Nine of twenty verdicts lapsed and seven resolved.** Two `upheld` entries were deleted as moot —
 both items whose *content* this session rewrote, so the judge had been right about them all along.
 
+**The first deploy failed and the failure is worth keeping.** `Waiter ServicesStable failed` — ECS
+created task definition `:94`, left the PRIMARY deployment at **desired 0 with no events for 25
+minutes**, and kept serving `:93`. No stopped tasks, no capacity pressure (3 tasks cluster-wide),
+no `rolloutStateReason`: an ECS-side stall, not a config or image fault. A plain re-run went green.
+**What it exposed is an ordering property worth knowing:** the ops-task steps — migrations, the
+curriculum load — all run *before* the service update, so a service-update failure leaves
+**staging's database ahead of its running code**, here for about half an hour. Nothing broke,
+because this session's change was additive content. A migration that the old code cannot read would
+not be so forgiving, and the rollback step is conditional on the *canary bake* failing, which never
+ran. Confirmed the load itself landed by reading `/ecs/intellichoice-staging-ops-task` directly:
+`3 templates created (14 updated, 113 unchanged, 0 retired)`, identical to local — which is still
+carry-over item 4's point, that the deploy log itself will not tell you this.
+
 ### Session log — the judge's top tier opened, and n=2 caught me out (2026-08-09, D-237)
 
 **Verification:** `ruff` clean · `pyright` 0 errors · **1041 passed, 2 skipped, 1 xfailed** ·
