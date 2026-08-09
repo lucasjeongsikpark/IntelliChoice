@@ -47,6 +47,37 @@ replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D
 retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
 measured zero wrong tiers live.
 
+### Session log — three ceilings, one moving target (2026-08-09, D-233)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1028 passed, 2 skipped, 1 xfailed** · four
+configurations measured on the same 25 items · full write-up in DECISIONS.md **D-233**.
+
+**D-232 made the judge discriminate; running it over a whole topic showed it could not finish.**
+7 of 25 calls failed with an *empty* error string — because `str(asyncio.TimeoutError())` is `""` and
+the judge was sitting on the global 20s `bedrock_call_timeout_s`. Measured: 15.0s, 15.2s, 18.8s and
+**34.3s**. Fixed with a per-call timeout, forwarded only when set, so the fast serving-path calls
+keep their 20s guard.
+
+**Then the ceiling stopped being the problem, and that is the finding.** The same items produced
+~2263 tokens at a 3000 ceiling, 4370 at 6000, then over 5000 — `QuestionJudgeResponse.reasoning` has
+no length bound, so **the judge expands to fill whatever it is given**. Every raise bought one more
+round of truncation at a higher price. The cap went back to 4000 and the bound moved into the
+prompt: **0 failures, 37.4¢ → 14.5¢.**
+
+**And a guard that rewrote its caller silently.** `_HARD_MAX_OUTPUT_TOKENS` reduced a request for
+5000 to 4000 with no signal; it was noticed only because a truncation error printed the capped
+number rather than the requested one. It now logs.
+
+**The honest cost:** bounding the prose partially undid D-232's calibration — tiers went from
+`{1:1, 2:8, 3:7, 4:4, 5:1}` back to `{1:8, 2:12, 3:2, 4:3}`. Cutting the judge's reasoning cuts its
+discrimination, which is D-193's finding again. Kept because a 16% unjudgeable remainder is biased
+toward exactly the hardest items, and you cannot audit what you cannot judge. The next experiment is
+a middle bound (~250 words), not either extreme.
+
+**What it says about the last three entries:** D-231 raised 1200 → 3000 and called it fixed; D-233
+raised it again and it still was not. The number was never the variable — an unbounded output field
+was.
+
 ### Session log — the difficulty rubric belonged to one topic and graded four (2026-08-09, D-232)
 
 **Verification:** `ruff` clean · `pyright` 0 errors · full suite green · **before/after measured on

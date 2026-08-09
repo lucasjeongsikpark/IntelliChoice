@@ -16720,3 +16720,76 @@ produce, because before this it disagreed with everything by returning 2.
 The item is left as authored. One disagreement is not a re-tiering, and the honest next step is to
 judge the full bank now that the instrument discriminates — which will produce a list of tier
 disputes to work through rather than a single anecdote.
+
+## D-233 — three ceilings, one moving target: the judge's prose expands to fill whatever it is given (accepted, 2026-08-09)
+
+D-232 made the judge discriminate. Running it over a whole topic then exposed that it could not
+finish: **7 of 25 calls failed with an empty error string.** This entry is the chain that followed,
+and it corrects two of this session's own fixes.
+
+### The empty error was a timeout, and the timeout was global
+
+`str(asyncio.TimeoutError())` is `""`. The judge was hitting `bedrock_call_timeout_s = 20.0`.
+Measured, one item per topic:
+
+| topic | tokens | latency |
+|---|---|---|
+| `linear_equations` | 1922 | 15.0s |
+| `multiplication_division` | 1985 | 15.2s |
+| `fraction_operations` | 2407 | 18.8s |
+| `place_value` | 4370 | **34.3s** |
+
+So the judge sat *on* the 20s line and failed intermittently. Fixed with a **per-call** timeout
+(`generate_structured(timeout_s=...)`, forwarded only when set so the `BedrockGateway` Protocol stays
+narrow — the same pattern `tools` already uses). Raising the global value would have weakened the
+guard on every fast serving-path call to accommodate the slowest offline one, which is the mistake
+D-231 had to split a token ceiling to undo.
+
+### The cap silently rewrote its caller
+
+`_HARD_MAX_OUTPUT_TOKENS = 4000` reduced a request for 5000 to 4000 **with no signal anywhere**. It
+was noticed only because the truncation error happened to print the capped number rather than the
+requested one. A guard that quietly rewrites its caller's argument makes every constant upstream of
+it a guess. It now logs when it caps.
+
+### And then the ceiling stopped being the problem
+
+Raising it did not help, and measuring why is the finding. The **same `place_value` items** produced:
+
+| ceiling | tokens produced | failures |
+|---|---|---|
+| 1200 | truncated | 25/25 |
+| 3000 | ~2263 | 7/25 |
+| 5000/6000 | 4370, then >5000 | 4/25 |
+
+`QuestionJudgeResponse.reasoning` has no length bound, so **the judge expands to fill whatever it is
+given**. Every raise bought one more round of truncation at a higher price. So the cap goes back to
+4000 and the bound moves into the prompt: *"keep `reasoning` under about 150 words."*
+
+Result on the same 25 items: **0 failures, and 37.4¢ → 14.5¢.**
+
+### The part that is a trade-off, not a win
+
+Bounding the prose **partially undid D-232's calibration gain**:
+
+| `place_value`, 25 items | failures | cost | judge's tiers | exact |
+|---|---|---|---|---|
+| pre-D-232 global rubric | — | — | `{2:20, 5:1}` | 6/21 |
+| per-topic rubric | 7 | 21.9¢ | `{1:3, 2:7, 3:7, 4:1}` | 10/18 |
+| + longer timeout, bigger ceiling | 4 | 37.4¢ | `{1:1, 2:8, 3:7, 4:4, 5:1}` | 10/21 |
+| **+ prose bound** | **0** | **14.5¢** | `{1:8, 2:12, 3:2, 4:3}` | 8/25 |
+
+Cutting the judge's reasoning cuts its discrimination — consistent with D-193, which established
+that the reasoning is load-bearing for the verdicts that follow it.
+
+**Kept anyway, and the reason is about the sample, not the score.** A 16% unjudgeable remainder is
+biased toward exactly the items the judge thinks longest about, and you cannot audit what you cannot
+judge. A complete, mildly compressed reading beats a partial, better-spread one. This is a judgement
+call rather than a measurement, the table above is the evidence for revisiting it, and the obvious
+next experiment is a middle bound (~250 words) rather than either extreme.
+
+### What this says about the last three entries
+
+D-231 raised 1200 → 3000 and called it fixed. D-233 raised it again and it was still not fixed. The
+number was never the variable — an unbounded output field was. Three sessions of ceiling arithmetic
+would have been one measurement of *why the response was long*.
