@@ -62,6 +62,16 @@ class AuthoredTemplateDef(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # Minted once as "authored-{topic_id}-d{difficulty_label}-{seed}" and then never
+    # recomputed, so the `d{n}` segment records the tier the item was AUTHORED AT, not the
+    # tier it currently carries. D-235 re-tiered 16 items against their topic's anchors and
+    # deliberately left every id alone: the id is the key attempt rows in Postgres point at,
+    # and renaming it to stay descriptive would orphan the history of every student who has
+    # already answered the item, to fix a string nothing reads. Only the trailing seed is
+    # ever parsed (`review_cli._seed_from_template_id`).
+    #
+    # **Read `difficulty_label` for the tier. Never the id.**
+    # `test_difficulty_comes_from_the_field_not_the_id` fails if that stops being true.
     question_template_id: str
     topic_id: str
     skill_id: str

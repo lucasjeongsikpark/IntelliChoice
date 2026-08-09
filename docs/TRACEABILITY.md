@@ -273,7 +273,17 @@ it never set `authoring_mode`, the column defaults to `"shape"`, and `_servable(
 `"authored"` since D-210 (D-224 measured this; D-226 removed it). So the previous version of this
 row was **evidence for a requirement satisfied by code no student could reach** — traced against
 the wrong implementation rather than untraced. The authored route below is the one that produces
-every one of the 102 items now serving.
+every one of the 127 items now serving.
+
+**The load-time half of §5.8.5 was traced to a call that most edits never reached (D-235).** The
+same `validate_authored_item` runs in `loader._load_authored_templates`, which is what makes the
+hand-editable bank file safe to load into every environment — but the loader skipped by id *above*
+that call, so for any item a database already had, the gate was unreachable and the edit was
+discarded silently. Fixed by re-gating and updating in place; `test_editing_an_item_already_in_the_
+database_propagates` covers both halves (the edit lands, and an edit that breaks the item fails the
+load). Worth recording as a method note as much as a fix: the pre-existing test that appeared to
+cover this passed because it used a **new** id, so it proved the gate fires on insert and was read
+as proving it fires on edit.
 
 SPEC's "do not place free-form LLM-generated questions directly into production" is enforced
 structurally, not by convention: nothing is auto-approved, and every rejecting stage has a test that

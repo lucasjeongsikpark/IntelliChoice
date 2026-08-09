@@ -9,8 +9,10 @@ Real Postgres via a rollback session (D-013), same pattern as `test_loader.py`.
 """
 
 import asyncio
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import pytest
 import yaml
@@ -216,5 +218,96 @@ def test_an_edited_item_whose_answer_no_longer_matches_fails_the_load() -> None:
 
             repo = QuestionRepository(session)
             assert await repo.get_template(broken.question_template_id) is None
+
+    asyncio.run(run())
+
+
+def test_difficulty_comes_from_the_field_not_the_id(tmp_path: Path) -> None:
+    """D-235: the `d{n}` in a template id is provenance, and the tier is `difficulty_label`.
+
+    Ids are minted once as `authored-{topic}-d{difficulty_label}-{seed}` and never
+    recomputed, so re-tiering an item leaves the segment behind. D-235 re-tiered 16 items
+    and kept every id, because the id is what attempt rows point at and renaming it would
+    orphan a student's history to fix a string nothing reads.
+
+    Both halves matter and both can fail. The first pins the round trip: an item whose id
+    says 1 and whose field says 5 comes back as a 5. The second is the one that protects
+    the rule going forward - it fails the day someone recovers a tier by parsing the id,
+    which would quietly make every re-tiered item wrong in whatever they built on it.
+    """
+    stale = _item(question_template_id="authored-linear_equations-d1-990001", difficulty_label=5)
+    bank = AuthoredBankFile(
+        curriculum_version="2026.1", topic_id="linear_equations", templates=[stale]
+    )
+    (tmp_path / "linear_equations.yaml").write_text(render_bank_file(bank))
+
+    (loaded,) = load_authored_bank(tmp_path)["linear_equations"]
+    assert loaded.question_template_id == "authored-linear_equations-d1-990001"
+    assert loaded.difficulty_label == 5
+
+    # Nothing outside the tests may read the tier back out of the id. Written as a search
+    # over the shipped source because the rule is about code that does not exist yet: the
+    # ways to recover "5" from "authored-linear_equations-d5-306500" all take the
+    # second-from-last dash-segment or split on the literal "-d".
+    tier_from_id = re.compile(r"""rsplit\(["']-["'],\s*2\)|split\(["']-d["']\)|-d\(\\d""")
+    repo_root = Path(__file__).resolve().parents[3]
+    offenders = sorted(
+        str(path.relative_to(repo_root))
+        for path in repo_root.glob("**/src/**/*.py")
+        if "authored-" in (source := path.read_text()) and tier_from_id.search(source)
+    )
+    assert not offenders, f"these parse a tier out of a template id: {offenders}"
+
+
+def test_editing_an_item_already_in_the_database_propagates() -> None:
+    """D-235: the load-time gate has to apply to edits, not only to first inserts.
+
+    Two documents in this package disagreed about this. `authored_bank`'s module docstring
+    says the file "is re-validated on load, not trusted", and that "editing a correct answer
+    in the file without editing its options fails the load rather than reaching a student".
+    `loader._load_authored_templates` skipped by id *before* validating, so both halves were
+    true only for an item the environment had never seen. In a long-lived database - staging,
+    and later production - an edit was silently discarded and the load still reported success.
+
+    The consequence is not theoretical: D-235 re-tiered 16 items and `make curriculum-load`
+    reported "127 already existed, 0 created". The file said one thing, every environment
+    served another, and nothing anywhere said so.
+    """
+
+    async def run() -> None:
+        curriculum = load_curriculum()
+        async with _rollback_session() as session:
+            repo = QuestionRepository(session)
+            original = _item(question_template_id="authored-bank-test-edit", difficulty_label=1)
+            await _load_authored_templates(
+                session, curriculum, original.topic_id, [original], LoadSummary()
+            )
+
+            edited = _item(
+                question_template_id="authored-bank-test-edit",
+                difficulty_label=4,
+                skill_id="linear_two_step",
+            )
+            summary = LoadSummary()
+            await _load_authored_templates(
+                session, curriculum, edited.topic_id, [edited], summary
+            )
+
+            row = await repo.get_template("authored-bank-test-edit")
+            assert row is not None
+            assert row.difficulty_label == 4, "the file's tier never reached the database"
+            assert row.skill_id == "linear_two_step"
+            assert summary.templates_updated == 1
+
+            # And an edit that breaks the item must fail the load rather than be applied,
+            # which is the half the skip made unreachable.
+            broken = _item(
+                question_template_id="authored-bank-test-edit",
+                answer_expression="Eq(x + 3, 8)",
+            )
+            with pytest.raises(CurriculumLoadError):
+                await _load_authored_templates(
+                    session, curriculum, broken.topic_id, [broken], LoadSummary()
+                )
 
     asyncio.run(run())

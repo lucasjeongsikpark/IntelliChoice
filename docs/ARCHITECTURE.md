@@ -587,6 +587,31 @@ to rot, because nothing fails when it does.)*
   avoiding a registration race between concurrent requests on the shared, long-lived
   `app.state.mcp_registry` (S15, D-047).
 
+- **A load applies the file or refuses it — "already exists" is not a third option** (D-235).
+  `_load_authored_templates` re-gates and updates an item whose file content has changed, writing
+  only the columns the *file* owns; `active_status` and `validation_status` are lifecycle state the
+  database owns, so a load can never resurrect a D-210 retirement by listing the item. The version
+  before this skipped by id **above** the §5.8.5 gate, which made two documented promises false
+  everywhere it mattered: a hand-edit to an existing item was silently discarded, and the load still
+  reported success. The generalization is the part worth keeping: **a guard placed above a
+  validation step does not weaken the validation, it removes it** — and it removes it exactly where
+  the data is oldest and the environment longest-lived, so CI's fresh database proves nothing about
+  the case that can actually hurt.
+- **A key records where a row came from; a column records what it is** (D-235). Authored template
+  ids embed the tier they were minted at (`authored-linear_equations-d5-306500`) and are never
+  recomputed, so `difficulty_label` and the id disagree for every re-tiered item — by choice, since
+  the id is what attempt rows point at and renaming it would orphan a student's history to keep a
+  string tidy. Read the column. `test_difficulty_comes_from_the_field_not_the_id` searches the
+  shipped source for the ways a tier could be parsed back out of an id, which is a test about code
+  that does not exist yet — the only kind that protects a convention rather than a behaviour.
+- **A rating scale needs its top defended as explicitly as its bottom** (D-200, D-235). D-200 found
+  the judge collapsing onto a constant 2 because it read 1-5 as "how hard is mathematics" and was
+  told what the numbers meant only in the abstract; anchors fixed that. D-235 found the mirror image
+  at the other end — four items matching the tier-5 anchor in the same algebraic form as the
+  anchor's own worked example, all rated 4, and `linear_equations` scoring **16 fours and zero
+  fives** across 47 items. An anchored scale whose top tier is never used is not a five-point scale,
+  and the failure is invisible in aggregate agreement numbers.
+
 ## 1. System architecture
 
 ```mermaid

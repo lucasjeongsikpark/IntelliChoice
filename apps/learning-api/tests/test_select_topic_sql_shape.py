@@ -466,6 +466,14 @@ def _content(views: list[flow.QuestionItemView]) -> list[tuple[str, str, str, st
 # linear_distribute d5, linear_neg_frac_coeff d2, each 2 -> 4). More candidates at those
 # difficulties reshuffles the d2/d4/d5 draws, so several rows here are those new items. Same
 # discipline: regenerated from the bank, and every drawn item still passed the §5.8.5 gate.
+# D-235 re-captured rows 5, 6 and 7. No item's *content* changed this time - 16 items were
+# re-tiered against their topic's difficulty anchors, which moves them between candidate
+# pools without altering a single character a student reads. Row 6 is the tell: the
+# two-water-tanks problem is `authored-linear_equations-d5-205500` re-tiered 5 -> 4 (the
+# variable is on both sides, which is the tier-4 anchor; nothing in it requires
+# distribution), so it now appears in the difficulty-4 slot. Rows 8 and 9 are unchanged,
+# and that is the check worth keeping: both are genuine distribution items that stayed at
+# tier 5, so the draw moved for the reason claimed and not for some other one.
 _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
     (
         'Liam’s father is filling a large fish tank for a community event. The tank already has some water in it, and he adds more every day.\n\nLiam’s father is preparing a fish tank for a community event. The tank already has 30 litres of water. He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?',  # noqa: E501
@@ -503,11 +511,18 @@ _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
         '9 mornings',
     ),
     (
-        'Two gardeners are planting flowers along a path. Asha plants 3 flowers per minute and started with 5 already planted. Jasmine plants 2 flowers per minute and started with 11 already planted. After how many minutes will they have planted the same total number of flowers?',  # noqa: E501
+        'Liam and Zoe are training for a track meet. Liam has already run 1200 metres and continues at 150 metres per minute. Zoe runs the entire 2400 metres at a steady pace. How many minutes will it take for Liam to have run as far as Zoe?',  # noqa: E501
         '4 minutes',
-        '6 minutes',
+        '-4 minutes',
         '8 minutes',
-        '10 minutes',
+        '16 minutes',
+    ),
+    (
+        'Two water tanks are filling up. Tank A starts empty and fills at 8 liters per minute. Tank B starts with 20 liters and fills at 3 liters per minute. After how many minutes will both tanks have the same amount of water?',  # noqa: E501
+        '3 minutes',
+        '4 minutes',
+        '5 minutes',
+        '6 minutes',
     ),
     (
         'Pool A holds 40 liters and fills at 4 liters per minute. Pool B holds 100 liters and drains at 2 liters per minute. After how many minutes do the pools hold the same amount?',  # noqa: E501
@@ -515,13 +530,6 @@ _PINNED_PRE_EXAM_AT_SEED: tuple[tuple[str, str, str, str, str], ...] = (
         '15',
         '20',
         '5',
-    ),
-    (
-        'Taxi A charges $5 plus $3 for each mile. Taxi B charges $11 plus $2 for each mile. After how many miles do the two taxis cost the same?',  # noqa: E501
-        '6',
-        '16',
-        '4',
-        '8',
     ),
     (
         'Liam buys 3 identical packs of game cards. Each pack has x regular cards and 5 bonus cards. He also buys 2x individual regular cards. Altogether, he has 35 cards. How many regular cards are in each pack?',  # noqa: E501

@@ -41,8 +41,14 @@ topics:
         like fractions are combined"
       3: "one denominator divides the other, so only one fraction has to be rewritten
         (1/6 + 1/2)"
+      # D-235: dividing a fraction by a WHOLE number was in no tier at all. Tier 5 says
+      # "a fraction is divided by a fraction", so an item like "3/4 of a metre cut into 3
+      # equal pieces" could be read as tier 5 by anyone matching on the word "divided",
+      # when it is the same amount of work as multiplying by 1/3. Named here so the
+      # boundary between the two divisions is stated rather than inferred.
       4: "neither denominator divides the other, so both must be rewritten (5/6 - 1/4), or two
-        fractions are multiplied together"
+        fractions are multiplied together, or a fraction is divided by a WHOLE number
+        (3/4 of a metre shared into 3 equal pieces)"
       5: "the whole counts as 1 and the remaining part must be found, or a fraction is divided
         by a fraction, or two operations are chained"
 
@@ -78,5 +84,11 @@ topics:
         rather than the hundreds"
       4: "FOUR-digit numbers, or a comparison whose first differing place is not the leading
         one, so earlier places must be ruled out first"
-      5: "five digits or more, or numbers built from the same digits where the arrangement
-        itself decides the answer"
+      # D-235: the second clause used to read "numbers built from the same digits where
+      # the arrangement itself decides the answer", which also fired on a plain
+      # three-digit comparison that merely happened to reuse digits (415 / 451 / 145) -
+      # so an item whose real work is one subtraction could be argued up to the top tier.
+      # The clause is about the STUDENT doing the arranging, which is a different task
+      # from reading numbers someone else arranged.
+      5: "five digits or more, or the student must BUILD the numbers from a given set of
+        digits before comparing them, so choosing the arrangement is itself the work"
