@@ -66,11 +66,16 @@ What is left, in order of value:
    ever measured it, and D-238 is the third session to leave it standing. D-239 gave it a real
    meaning for *pipeline* items — 1.0 only when two readings agree, 0.5 for a flag or a re-tier —
    which sharpens the contrast with the 83 hand-authored ones asserting 1.0 on nobody's evidence.
-4. **D-239's re-tier has never run against a real judge.** Every branch is covered on the mock path,
+4. **`ruff` is unpinned (`ruff>=0.16.0`) and CI resolves a newer one than local.** D-239's first
+   CI run failed `lint` on two `UP037` violations that the local 0.16.0 does not report, after a
+   clean local `make lint`. Harmless this time — the fix was to delete two pairs of quotes — but
+   **a green local lint is not evidence that CI's lint is green**, and the gap will keep widening
+   until the version is pinned or the local one is refreshed as part of `make lint`.
+5. **D-239's re-tier has never run against a real judge.** Every branch is covered on the mock path,
    but the numbers that decide a move — how often a real run clears the dispersion floor, how many
    candidates actually move — are unmeasured. One paid batch would answer it; budget it against the
    D-237 rule that n=2 establishes nothing.
-5. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
+6. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
    for twelve decisions behind the line `"127 already existed, 0 created"` — and that line is not
    in any deploy log, because `deploy-staging.yml` only runs `test "$EXIT_CODE" = "0"`. The loader
    now distinguishes created / updated / unchanged / retired, which is exactly the signal worth
@@ -80,13 +85,13 @@ What is left, in order of value:
    read), then echo the ops task's log stream after `aws ecs wait`. Same treatment is worth giving
    the migration and seed steps, which are equally silent. **Until this exists, "the deploy loaded
    the bank" means only that the loader exited 0** — which is what D-206 already learned once.
-6. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+7. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-7. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+8. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-8. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+9. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under

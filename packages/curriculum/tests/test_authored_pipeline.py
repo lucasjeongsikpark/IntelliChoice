@@ -2580,7 +2580,7 @@ def test_a_circuit_open_candidate_is_never_repaired() -> None:
     )
 
 
-def _dispersed() -> "ai_pipeline.JudgeDispersion":
+def _dispersed() -> ai_pipeline.JudgeDispersion:
     """A judge that has been answering across the scale, so a re-tier is permitted."""
     dispersion = ai_pipeline.JudgeDispersion()
     for tier in (1, 2, 3, 4, 5, 2, 4):
@@ -2588,7 +2588,7 @@ def _dispersed() -> "ai_pipeline.JudgeDispersion":
     return dispersion
 
 
-def _collapsed() -> "ai_pipeline.JudgeDispersion":
+def _collapsed() -> ai_pipeline.JudgeDispersion:
     """D-231's real failure, not the strawman: two distinct values, still a constant.
 
     The first version of this control fired only when the judge returned ONE tier for

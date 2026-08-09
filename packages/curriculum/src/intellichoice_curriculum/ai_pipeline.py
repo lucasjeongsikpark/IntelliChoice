@@ -1391,7 +1391,7 @@ async def _attempt_authored_candidate(
     attempt: int = 1,
     repair: RepairContext | None = None,
     design: EquationDesignResponse | None = None,
-    dispersion: "JudgeDispersion | None" = None,
+    dispersion: JudgeDispersion | None = None,
 ) -> PipelineOutcome:
     """One pass: generate an item and run it through every gate (D-198 split this out of
     `generate_authored_candidate`, which is now the bounded repair loop around it).
@@ -1834,7 +1834,7 @@ async def generate_authored_candidate(
     design_attempts: int = DEFAULT_DESIGN_ATTEMPTS,
     # Defaults to None - "no re-tiering" - so every existing caller keeps D-194's
     # behaviour unless a run explicitly opts in by owning a histogram (D-239).
-    dispersion: "JudgeDispersion | None" = None,
+    dispersion: JudgeDispersion | None = None,
 ) -> PipelineOutcome:
     """One slot, with a bounded repair loop: when a candidate is rejected for something a
     rewrite could fix, the Generator is told what was wrong and tries again (D-198).
