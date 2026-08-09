@@ -133,7 +133,7 @@ async def _judge_item(
     """One blind judge call. The judge never sees the declared tier (D-194), which is what
     makes the comparison below worth making at all.
     """
-    payload, system_prompt = judge_inputs(item)
+    payload, anchors, system_prompt = judge_inputs(item)
     response, cost, error = await _call(
         gateway,
         task=BedrockTask.QUESTION_JUDGE,
@@ -172,7 +172,8 @@ async def _judge_item(
         "hint_quality": response.hint_quality_score,
         "flags": flags,
         "reasoning": response.difficulty_reasoning,
-        "fingerprint": fingerprint(payload, system_prompt),
+        "content_fingerprint": fingerprint(payload, anchors),
+        "instrument_fingerprint": fingerprint(payload, anchors, system_prompt),
     }, spend
 
 
@@ -236,7 +237,8 @@ async def _judge(items: list[AuthoredTemplateDef], budget_cents: float) -> int:
                 declared_difficulty=r["declared"],
                 reviewed_difficulty=r["reviewed"],
                 flagged=bool(r["flags"]),
-                fingerprint=r["fingerprint"],
+                content_fingerprint=r["content_fingerprint"],
+                instrument_fingerprint=r["instrument_fingerprint"],
             )
             for r in scored
         ],

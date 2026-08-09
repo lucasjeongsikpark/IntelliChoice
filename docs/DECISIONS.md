@@ -17028,3 +17028,81 @@ mock branch is recorded as a carry-over rather than fixed here.
 beside the fingerprint that hashes it. Assembled in two places they drift, and that failure is
 silent in the worst direction: a verdict going on suppressing a finding about content the
 judge no longer reads.
+
+## D-237 — the judge's top tier, and what four samples cost me to learn (accepted, 2026-08-09)
+
+D-235 found the §5.8.5 judge refusing the top of its own scale. This tests the one-sentence fix
+D-235 deliberately left unshipped, and the testing is the part worth reading.
+
+### The finding was bigger than D-235 could see
+
+Measured over **every** tier-5 item in the bank, not just `linear_equations`:
+
+| condition | d5 tiers (17 items) | d5 exact | fives |
+|---|---|---|---|
+| before | `{2:4, 3:4, 4:9}` | 0/17 | **0** |
+| before ×2 | `{2:4, 3:4, 4:9}` | 0/17 | **0** |
+| after | `{2:1, 3:5, 4:6, 5:5}` | 5/17 | 5 |
+| after ×2 | `{3:5, 4:8, 5:4}` | 4/17 | 4 |
+
+Zero fives out of seventeen, twice, with an **identical histogram** both times. Meanwhile the
+d1/d2 control scored 12-13/16 exact. The scale was not generally miscalibrated; it was
+specifically refusing its top. That is the mirror of D-200, which defended the *bottom* of the
+scale and left the top undefended.
+
+### The methodological finding, which cost more than the fix
+
+The pre-registered criterion was: the four distribution items reach 5 **and** the control does
+not move. After two runs per condition the control read `[12, 13]` before and `[9, 9]` after, and
+I called the degradation real on the grounds that the ranges did not overlap.
+
+**That was wrong, and a rejected variant is what exposed it.** A narrowed sentence — dropping the
+clause asserting a prior on the distribution — produced control scores of **6 and 13**. A range of
+7 on identical inputs. Run-to-run variance is not small and is not even constant across prompts,
+so two samples per condition can establish nothing.
+
+Re-measured at n=4 on the disputed metric only:
+
+| condition | control exact, 4 runs | range | mean |
+|---|---|---|---|
+| before | 13, 12, 9, 10 | [9, 13] | 11.00 |
+| after | 9, 9, 8, 11 | [8, 11] | 9.25 |
+
+The ranges overlap heavily. **The control cost is not established**, and my n=2 conclusion had
+been an artifact of the two tightest draws landing in the same pair of runs. The criterion was
+answered by better measurement, not by relaxing it after seeing a result I liked.
+
+The narrowed variant was rejected on its own merits too: worse on both metrics (2-3 fives vs 4-5,
+control 6/13 vs 9/9) and unstable. The hypothesis behind it — that the distribution-prior clause
+was doing the damage — was simply wrong.
+
+### Independent confirmation the instrument was the problem
+
+Re-judging exactly the 12 items D-235 recorded as "the judge is wrong here": **8 of 12 became
+moot** — the judge now agrees within 1. `3/4 ÷ 1/8` went 3 → **5** and `128 × 3` went 3 → **5**,
+both tier-5-anchor items it had been refusing. The sentence did not merely add fives; it resolved
+disagreements that were the instrument's fault, which is what D-235 argued and could not test.
+
+Four remain disputed and are re-affirmed against the new prompt. The other eight were **deleted**,
+not carried: a verdict that suppresses nothing is not a decision, it is clutter that reads as
+coverage.
+
+### D-236's fingerprint was over-scoped, and shipping this is what showed it
+
+The prompt change lapsed all 28 verdicts. Correct for the 12 `upheld` ones — those are claims
+about a specific instrument. Wrong for the 16 `retiered` ones: *"this item's tier should be X by
+its anchors"* is a human reading of content against a rubric, and the judge prompt is not an input
+to it.
+
+The scope now follows the claim: `upheld` hashes payload + anchors + prompt, `retiered` hashes
+payload + anchors. **Over-hashing is not the safe direction** — it produces routine mass lapses,
+and a lapse that happens for no reason is one people learn to clear without reading, which is how
+a record stops being read at all.
+
+D-236 was one session old and its central design decision needed correcting the first time it met
+a real change. The rule it was defending survived; the scope it applied that rule at did not.
+
+### Cost
+
+**$1.87** of Bedrock across 15 runs, of which roughly two thirds went to establishing that a
+difference I had already announced was not there.

@@ -10,23 +10,31 @@ twelve new ones, so either a human re-adjudicates decisions already made or - mu
 likely, and much worse - learns that the flagged list is mostly noise and stops reading it.
 An audit whose output is not trusted is an audit that has stopped working.
 
-**A verdict is a claim about a specific instrument, and it is not inherited.** The
-fingerprint below covers three things, and a change to any of them lapses the record:
+**A verdict is not inherited by an instrument that has changed** - but only the verdicts that
+were about the instrument in the first place. The fingerprint's scope depends on what the
+verdict claims (D-237, and see `fingerprint` for how running the tier-5 change exposed it):
 
-- the item's judge payload - the question, options, hints, answer, topic/skill/grade;
-- the topic's `difficulty_anchors`, which is the rubric the verdict was reached against;
-- the judge system prompt itself.
+- `upheld` says *the judge is wrong about this item*, so it hashes the item's judge payload,
+  its topic's `difficulty_anchors`, **and the judge system prompt**. Change the prompt and it
+  lapses, correctly - that claim is about a specific instrument.
+- `retiered` says *this item's tier should be X by its anchors*, which is a human reading of
+  content against a rubric. Prompt excluded: it is not an input, and must not be able to
+  invalidate one.
 
-The third is the one worth defending, because it makes the record deliberately fragile: the
-tier-5 reachability sentence that D-235 left prepared will lapse all of these at once. That
-is correct. That change exists precisely to alter these judgements, and a suppression that
-survived it would be hiding the evidence of whether it worked. The alternative - pinning
-only the content - buys a stable-looking file by silently carrying stale verdicts across
-exactly the changes designed to invalidate them.
+The first version hashed the prompt into everything, and shipping one prompt sentence lapsed
+all 28 records at once - 16 of them for a reason with no bearing on what they said. **Over-
+hashing is not the safe direction.** It produces routine mass lapses, and a lapse that
+happens for no reason is one people learn to clear without reading, which is how a record
+stops being read at all.
 
-So lapsing is expected, and the reporting is built for it: a lapsed record is printed with
-its reason rather than dropped, because "27 adjudications lapsed: the judge prompt changed"
-is information, and silence is not.
+So lapsing is expected but must be *earned*, and the reporting is built for it: a lapsed
+record is printed with its reason rather than dropped, because "12 verdicts lapsed: the judge
+prompt changed" is information, and silence is not.
+
+**What that lapse then obliges.** D-237's re-run of exactly the 12 lapsed verdicts found 8
+had become moot - the instrument now agreed - so those entries were deleted rather than
+carried, and 4 were re-affirmed against the new prompt. A fingerprint refreshed without
+re-deciding would have re-asserted twelve judgements nobody made, eight of them wrong.
 """
 
 import hashlib
@@ -78,21 +86,45 @@ class AdjudicationFile(BaseModel):
     adjudications: list[Adjudication]
 
 
-def fingerprint(payload: QuestionJudgePayload, system_prompt: str) -> str:
-    """Everything the judge reads, hashed. See the module docstring for why the prompt is in.
+def fingerprint(
+    payload: QuestionJudgePayload,
+    anchors: dict[int, str],
+    system_prompt: str | None = None,
+) -> str:
+    """What a verdict depends on, hashed - and the scope differs by what the verdict claims.
+
+    **D-237 corrected this, and running the tier-5 change is what exposed it.** The first
+    version hashed the judge prompt into every verdict, so changing one sentence in the
+    prompt lapsed all 28 - including 16 the prompt has no bearing on:
+
+    - `upheld` says *the judge is wrong about this item*. That is a claim about the item, its
+      anchors **and the instrument**, so all three are hashed and a prompt change lapses it.
+      This half was right, and it is why the tier-5 sentence correctly invalidated 12.
+    - `retiered` says *this item's tier should be X by its anchors*. That is a human reading
+      of content against a rubric. The judge prompt is not an input to it and must not be
+      able to invalidate it, or the record churns for reasons unrelated to its content.
+
+    The general rule this is an instance of: **hash what the claim actually depends on.**
+    Over-hashing is not the safe direction - it produces routine mass lapses, and a lapse that
+    happens for no reason is one people learn to clear without reading.
 
     Pydantic serializes in field-declaration order, so this is stable across runs without
-    needing a sort; adding a field to `QuestionJudgePayload` changes every fingerprint,
-    which is the correct outcome - the judge would be reading something new.
+    needing a sort; adding a field to `QuestionJudgePayload` changes every fingerprint, which
+    is the correct outcome - the judge would be reading something new.
     """
     digest = hashlib.sha256()
     digest.update(payload.model_dump_json().encode())
     digest.update(b"\x00")
-    digest.update(system_prompt.encode())
+    digest.update(repr(sorted(anchors.items())).encode())
+    if system_prompt is not None:
+        digest.update(b"\x00")
+        digest.update(system_prompt.encode())
     return digest.hexdigest()[:16]
 
 
-def judge_inputs(item: AuthoredTemplateDef) -> tuple[QuestionJudgePayload, str]:
+def judge_inputs(
+    item: AuthoredTemplateDef,
+) -> tuple[QuestionJudgePayload, dict[int, str], str]:
     """Exactly what the blind judge is given for one item.
 
     Lives here rather than in the audit script because the fingerprint above is only
@@ -118,7 +150,7 @@ def judge_inputs(item: AuthoredTemplateDef) -> tuple[QuestionJudgePayload, str]:
         skill_name=skills[item.skill_id].name,
         grade_band=topic.grade_band,
     )
-    return payload, judge_system_prompt(topic)
+    return payload, topic.difficulty_anchors, judge_system_prompt(topic)
 
 
 def load_adjudications(path: Path | None = None) -> dict[str, Adjudication]:
@@ -188,7 +220,9 @@ class JudgedItem:
     declared_difficulty: int
     reviewed_difficulty: int
     flagged: bool
-    fingerprint: str
+    # Two scopes, because two kinds of verdict depend on different things (D-237).
+    content_fingerprint: str
+    instrument_fingerprint: str
 
 
 @dataclass
@@ -218,10 +252,15 @@ def partition_findings(
     """
     findings = Findings()
     for item in items:
+        verdict = verdicts.get(item.question_template_id)
         status = classify(
-            adjudication=verdicts.get(item.question_template_id),
+            adjudication=verdict,
             declared_difficulty=item.declared_difficulty,
-            current_fingerprint=item.fingerprint,
+            current_fingerprint=(
+                item.content_fingerprint
+                if verdict is not None and verdict.decision == "retiered"
+                else item.instrument_fingerprint
+            ),
             disagrees=item.flagged,
         )
         findings.status[item.question_template_id] = status

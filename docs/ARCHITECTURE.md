@@ -604,6 +604,19 @@ to rot, because nothing fails when it does.)*
   string tidy. Read the column. `test_difficulty_comes_from_the_field_not_the_id` searches the
   shipped source for the ways a tier could be parsed back out of an id, which is a test about code
   that does not exist yet — the only kind that protects a convention rather than a behaviour.
+- **Two samples per condition establish nothing about a stochastic instrument** (D-237). Measuring
+  the tier-5 prompt change, the control read `[12, 13]` before and `[9, 9]` after and the
+  non-overlapping ranges looked conclusive. A *rejected* variant then produced `6` and `13` on
+  identical inputs — a range of 7 — proving run-to-run variance is neither small nor constant
+  across prompts. At n=4 the two conditions overlapped and the difference dissolved. The rule:
+  **before believing a difference between two conditions, measure the spread within one.** The
+  corollary is what makes it cheap — repeat the disputed metric only, not the whole matrix.
+- **A cache key, fingerprint, or invalidation scope must cover what the claim depends on and
+  nothing more** (D-237). D-236 hashed the judge prompt into every adjudication, so shipping one
+  prompt sentence lapsed all 28 records — 16 of which assert a human reading of content against a
+  rubric that the prompt is not an input to. Over-scoping is not the safe direction: it produces
+  routine mass invalidation, and an invalidation that fires for no reason is one people learn to
+  clear without reading, which is how the mechanism stops working while still appearing to run.
 - **A recurring audit must distinguish what is new from what has been ruled on, and the record
   that lets it must fail open** (D-236). `adjudications.yaml` holds human verdicts on judge
   findings; `--judge` splits its flagged list into new / already-adjudicated / lapsed. The
