@@ -1568,7 +1568,7 @@ directly. Coverage gap, not a break.
 > its versioned-home half was closed long ago (struck through in place below).
 >
 > **The track's measured position also moved past this block's framing.** Every topic in the
-> taxonomy is stocked — **127 authored items across four topics** — and grades 1 through 7 all
+> taxonomy is stocked — **130 authored items across four topics** (127 until D-238 authored three more) — and grades 1 through 7 all
 > resolve to one. D-228 authored `multiplication_division`, the topic §5.7.3's own 2-3 band names
 > and the last hole in that range. **The coverage requirement's content half is met for the grades
 > this product serves;** what remains is calibration and grades 8-12, which are scope rather than gap.
@@ -1593,11 +1593,31 @@ directly. Coverage gap, not a break.
 > refusing the top of its own scale, not misreading the items. One prompt sentence fixed it, and
 > re-judging the 12 upheld verdicts found **8 of 12 had become moot**.
 >
-> **The calibration half is now settled for this bank**, with two honest remainders: four verdicts
-> still disputed (all rated 2, all in `multiplication_division`/`place_value`, whose anchors may not
-> discriminate in the 3-5 range), and `difficulty_confidence` still 1.0 by assertion on all 80
-> hand-authored items — a number nothing has ever measured, and the last unearned claim in this
-> requirement.
+> **Both weak topics diagnosed 2026-08-09 (D-238), and the two causes were unrelated.** The
+> question left above — do those two topics' anchors discriminate in the 3-5 range — was answered
+> by splitting the same data **per skill**, which is what made it legible. `place_value`'s rubric
+> was two ladders in one coat: `place_value_compare` climbed 2.50 → 3.38 → 3.67 across declared
+> 3/4/5 while `place_value_identify` sat **flat at every tier**, because tiers 4 and 5 each led
+> with a bare digit-count clause — real work when you are ruling out places, none at all when you
+> are reading one digit's place. `multiplication_division` was not an anchor problem: the skill is
+> *"Divide with remainders"* and **all six of its items stated the remainder in the stem**, so no
+> item exercised the skill it was filed under. Anchors split per skill, eight items re-tiered,
+> three authored, six stems rewritten; both topics now pass the pre-registered discrimination
+> criterion that neither passed before.
+>
+> **What is still unearned in this requirement**, and it is smaller than it was:
+>
+> - **Two rungs that do not separate**, both clause-level rather than item-level:
+>   `place_value_compare` d4 (3.58) vs d5 (3.55), and `place_value_identify` d3 (2.35) vs d4 (2.12).
+>   The pooled ladder is monotone partly *because* identify's low d4 items drag the pooled figure
+>   down, so **never read this bank's calibration pooled across skills** — that is what hid the
+>   original defect and it flatters the fix too.
+> - **`difficulty_confidence` is still 1.0 by assertion** on all 83 hand-authored items. Nothing has
+>   ever measured it; three sessions have now left it standing. It is the last unearned claim here.
+> - ~~The three items D-238 authored have not been through the solver panel.~~ **Closed in the same
+>   session, 5¢:** all five `place_value` tier-5 items pass the two-solver panel 5/5, behind a **5/5
+>   negative control** — the script's own docstring is right that the first number means nothing
+>   without the second.
 
 3. **⏸ Ran 2026-08-05. The pipeline works and serving is built (D-188, D-189); the content is still
    not anywhere but one laptop.** The run produced eight items covering 7 of 11 pairs, five of which

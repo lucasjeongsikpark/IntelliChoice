@@ -311,3 +311,81 @@ def test_editing_an_item_already_in_the_database_propagates() -> None:
                 )
 
     asyncio.run(run())
+
+
+# Small integers spelled out. Only as far as twenty plus the round tens a K-3 word problem
+# actually uses - a longer table would be guessing at text nobody has written.
+_NUMBER_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
+    "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+    "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
+}
+
+
+def test_a_div_remainder_item_never_states_the_answer_to_its_own_division() -> None:
+    """The skill is "Divide with remainders", so the stem may not do the dividing (D-238).
+
+    Every one of these six items used to state either the remainder ("there are 2 badges
+    left over") or the number of completed groups ("Three coaches are filled completely").
+    With that sentence present the student subtracts a given number and divides exactly -
+    no remainder is ever produced, and *not one item in the bank exercised the skill it was
+    filed under*. The judge had been rating them flat at 3.00 across declared 4 and 5, which
+    D-235 read as the instrument under-reading the topic and defended two of them against.
+
+    The rule is deterministic and needs no model: **a `div_remainder` stem states exactly two
+    distinct numbers**, the dividend and the divisor. A third one can only be the quotient or
+    the remainder, which is the student's job. The first version of this test tried to be
+    cleverer - identify the dividend as the largest number and the divisor as the smallest,
+    then look for the quotient or remainder among the rest - and caught **one of the six**,
+    because "the smallest number is the divisor" is exactly what stops being true once a
+    remainder is also stated. Counting is both simpler and correct.
+
+    **Number-words count.** Restricted to digits the check caught four of the six, because
+    two of them wrote the giveaway out: "*Seven* rows are completed", "*Three* coaches are
+    filled completely". A rule that reads `\\d+` only would have let the two worst offenders
+    through - they are the ones that state the *quotient* rather than the remainder - and
+    passed while claiming to cover the skill.
+
+    Checked here rather than in `validate_authored_item` because it is a claim about one
+    skill's semantics, and the §5.8.5 gate is deliberately topic-agnostic.
+    """
+    offenders = []
+    for item in load_authored_bank().get("multiplication_division", []):
+        if item.skill_id != "div_remainder":
+            continue
+        stated = {int(n) for n in re.findall(r"\d+", item.stem)}
+        words = re.findall(r"[a-z]+", item.stem.lower())
+        stated |= {_NUMBER_WORDS[w] for w in words if w in _NUMBER_WORDS}
+        numbers = sorted(stated)
+        if len(numbers) != 2:
+            offenders.append(f"{item.question_template_id} states {numbers}")
+    assert not offenders, (
+        f"{len(offenders)} div_remainder item(s) state more than the dividend and divisor, "
+        f"handing the student the result of the division their skill exists to practise: "
+        f"{offenders}"
+    )
+
+
+def test_place_value_identify_is_not_authored_above_the_tier_its_ladder_reaches() -> None:
+    """`place_value`'s anchors say `identify` has no tier-5 work; the bank must agree (D-238).
+
+    Measured over four runs and 100 judgements, `place_value_identify` sat flat at 1.69-2.25
+    across all five declared tiers while `place_value_compare` climbed 2.50 -> 3.38 -> 3.67 -
+    because tiers 4 and 5 each led with a bare digit-count clause. Reading one digit's place
+    is the same task at 47 and at 30,502, so the extra digits bought a tier number and no
+    work, and the pooled d4 rung came out *below* d3 because it held both skills at once.
+
+    A rubric claiming a range its skill does not have is not a cosmetic problem: the tier is
+    what `mastery_bootstrap` routes on, so a decorative tier still decides what a real
+    student is served next.
+    """
+    too_high = [
+        item.question_template_id
+        for item in load_authored_bank().get("place_value", [])
+        if item.skill_id == "place_value_identify" and item.difficulty_label > 4
+    ]
+    assert not too_high, (
+        f"place_value_identify items authored above tier 4, which its half of the anchor "
+        f"ladder explicitly does not reach: {too_high}"
+    )

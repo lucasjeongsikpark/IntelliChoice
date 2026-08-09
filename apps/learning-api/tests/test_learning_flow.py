@@ -1150,7 +1150,14 @@ def test_mastery_counts_the_post_exam() -> None:
         "test_pre_exam_build_is_deterministic_for_a_fixed_seed, which builds from an "
         "explicit RNG."
     ),
-    strict=True,
+    # D-238 relaxed this from strict. The reason above says the exam is random per session,
+    # and a strict xfail over a random subject is a coin flip that reports as a suite
+    # failure when it lands heads: this test XPASSed once in a full run and xfailed on the
+    # next, from the same tree, with no code between them. Strict is right for an expected
+    # failure that is *deterministic* - it tells you the day the bug is fixed. Here it
+    # cannot, because passing means the random exam happened to repeat, and a red suite that
+    # means nothing is worse than an expected failure that stays quiet.
+    strict=False,
 )
 def test_identical_inputs_reproduce_identical_routing_and_scores() -> None:
     """Phase 10 (§6.11) completion criterion / §5.31.1 deterministic evaluator: the same

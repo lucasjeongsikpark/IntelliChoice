@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import sys
 from dataclasses import dataclass, field
 
@@ -69,6 +70,23 @@ _DIFFICULTY_REJECT_GAP = 2
 _HINT_QUALITY_FLOOR = 3
 
 _CALLS_PER_ITEM = 2
+
+
+def _spend_note(spend: float) -> str:
+    """What this run cost - or would have cost, when nothing was actually bought (D-238).
+
+    The gateway prices every call from its token counts and model id, and it does that
+    whichever provider answered, so a mock run reported "4.90 cents" as flatly as a real
+    one. Nobody could reach that line with the mock before D-238 fixed the judge branch,
+    which is why it went unnoticed; now that mock runs are the *default* way to exercise
+    this script, a fabricated spend figure is the one number here that must not be wrong.
+
+    The counterfactual is kept rather than zeroed, because "what would this have cost" is
+    the question anyone sizing a real run is actually asking.
+    """
+    if get_pipeline_settings().bedrock_provider == "bedrock":
+        return f"{spend:.2f} cents"
+    return f"0.00 cents - mock provider, nothing was bought ({spend:.2f} if it were real)"
 
 
 @dataclass
@@ -177,7 +195,9 @@ async def _judge_item(
     }, spend
 
 
-async def _judge(items: list[AuthoredTemplateDef], budget_cents: float) -> int:
+async def _judge(
+    items: list[AuthoredTemplateDef], budget_cents: float, dump_path: str | None = None
+) -> int:
     settings = get_pipeline_settings()
     gateway = _build_gateway(settings)
     spend = 0.0
@@ -196,7 +216,18 @@ async def _judge(items: list[AuthoredTemplateDef], budget_cents: float) -> int:
     errored = [r for r in results if r.get("error")]
     flagged = [r for r in scored if r["flags"]]
 
-    print(f"\njudged {len(scored)} items ({len(errored)} call failures), {spend:.2f} cents")
+    # Every item, not just the flagged ones (D-238). The printed report itemises only what
+    # it flags, which is right for a human reading it and wrong for anything that needs the
+    # *distribution* - "do this topic's declared 3, 4 and 5 separate at all" is a question
+    # about the unflagged items too. Without this the only way to re-analyse a run is to buy
+    # it again, and a measurement you cannot re-read is one you end up repeating instead.
+    if dump_path is not None:
+        with open(dump_path, "w") as handle:
+            for record in results:
+                handle.write(json.dumps(record) + "\n")
+        print(f"\nper-item records written to {dump_path}")
+
+    print(f"\njudged {len(scored)} items ({len(errored)} call failures), {_spend_note(spend)}")
     print(f"  clean:                 {len(scored) - len(flagged)}")
     print(f"  flagged:               {len(flagged)}")
 
@@ -382,7 +413,7 @@ async def _self_test(items: list[AuthoredTemplateDef], budget_cents: float) -> i
 
     scored = caught + missed
     print(f"\nnegative control: {caught}/{scored} deliberately-wrong items caught "
-          f"({errored} call failures, not scored), {spend:.2f} cents")
+          f"({errored} call failures, not scored), {_spend_note(spend)}")
     if errored:
         print(
             f"{errored} call(s) failed. A failure is not evidence either way - a panel whose "
@@ -413,7 +444,7 @@ async def _run(items: list[AuthoredTemplateDef], budget_cents: float) -> int:
     print()
 
     flagged = [v for v in verdicts if not v.agrees]
-    print(f"\naudited {len(verdicts)} of {len(items)} items, spent {spend:.2f} cents")
+    print(f"\naudited {len(verdicts)} of {len(items)} items, spent {_spend_note(spend)}")
     print(f"both solvers agreed with the author on {len(verdicts) - len(flagged)}")
     for verdict in flagged:
         detail = verdict.error or "; ".join(verdict.objections)
@@ -472,6 +503,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--dump",
+        default=None,
+        metavar="PATH",
+        help=(
+            "with --judge: write one JSON record per item (declared, reviewed, gap, "
+            "reasoning, fingerprints) so a run can be re-analysed without buying it again"
+        ),
+    )
+    parser.add_argument(
         "--run-budget-cents",
         type=float,
         default=None,
@@ -496,7 +536,7 @@ def main() -> int:
     if args.self_test:
         return asyncio.run(_self_test(items, budget))
     if args.judge:
-        return asyncio.run(_judge(items, budget))
+        return asyncio.run(_judge(items, budget, args.dump))
     return asyncio.run(_run(items, budget))
 
 

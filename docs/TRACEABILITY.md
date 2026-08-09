@@ -273,7 +273,7 @@ it never set `authoring_mode`, the column defaults to `"shape"`, and `_servable(
 `"authored"` since D-210 (D-224 measured this; D-226 removed it). So the previous version of this
 row was **evidence for a requirement satisfied by code no student could reach** — traced against
 the wrong implementation rather than untraced. The authored route below is the one that produces
-every one of the 127 items now serving.
+every one of the 130 items now serving.
 
 **The load-time half of §5.8.5 was traced to a call that most edits never reached (D-235).** The
 same `validate_authored_item` runs in `loader._load_authored_templates`, which is what makes the
