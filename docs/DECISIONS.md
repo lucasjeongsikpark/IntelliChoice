@@ -17325,3 +17325,97 @@ reviewed tier, a collapsed histogram blocking the move, an empty histogram block
 `RunSummary` counting a re-tier as a filled slot, and — the one the others could not reach —
 `run_plan` actually building and feeding its own histogram, confirmed by deleting the threading
 and watching that test alone fail.
+
+## D-240 — D-239 measured against a real judge: live, correct, and never fired (accepted, 2026-08-09)
+
+D-239 changed the difficulty gate from reject to re-tier and was verified entirely on the
+mock path. This is the paid check. **The honest result is weaker than "it works".**
+
+### Pre-registered, then measured
+
+Criteria and three predictions were written before any call. One authored-pipeline batch,
+22 candidates, `--max-repair-attempts 0`, hard cap 300 cents. **No before/after run was
+bought**: the pre-D-239 policy is exactly computable from the same run's evidence, because
+`stage_results["difficulty"]` records both gaps and the decision for every candidate. The
+counterfactual is arithmetic, not a second purchase.
+
+### What the run said
+
+| | |
+|---|---|
+| accepted / processed | **10 / 22** (45%) |
+| re-tiered | **0** |
+| rejected at `difficulty` | **0** |
+| judge's own tier histogram | `{1: 1, 2: 5, 3: 3, 5: 1}` |
+| dominant share | **50%** (collapse threshold 80%, floor 5 observations) |
+| max `slot_gap` observed | **1** |
+| pre-D-239 policy would have rejected | **0** |
+| gate 1 alone would have killed | **0** |
+
+**P1 holds — the mechanism is live.** `JudgeDispersion` clears its floor comfortably: ten
+observations spread across four tiers, dominant share 50% against a 0.8 threshold. The worry
+that a real judge would collapse and leave the re-tier permanently disabled is answered.
+
+**P2 fails — nothing moved.** Not because the gate refused, but because **no candidate was
+ever more than 1 tier from its slot**. The trigger condition did not occur.
+
+**P3 holds on fresh data.** Gate 1 killed nothing gate 2 would not have, reproducing on 10
+new candidates what D-239 measured on 41 historical rows.
+
+**And D-239 was exactly neutral here.** The old policy would also have rejected zero. This
+run neither vindicates the change nor indicts it; it says the change had nothing to act on.
+
+### The structural reason, which is the finding worth keeping
+
+`TOPIC_SKILL_DIFFICULTIES` registers a generation plan for **`linear_equations` only** — the
+second batch, aimed at `place_value`, was refused before a single call: *"topic 'place_value'
+has no registered generation plan"*. The other three topics are hand-authored (D-222/225/228).
+
+So the population where tier disagreement actually lives — the 25 of 127 bank items D-234
+flagged, all the `place_value` and `multiplication_division` work of D-238 — is **exactly the
+population this gate never sees**. The gate runs at generation time, on the one topic whose
+anchors have been validated longest (D-200) and whose generator is best behaved.
+
+**D-239 is therefore correct, live, and currently pointed at the population least likely to
+need it.** That is not an argument for reverting it: it is a safety valve, and a safety valve
+that does not fire on a good run is behaving. It *is* an argument against claiming it works,
+which is why this entry says it has not fired rather than that it passed.
+
+### Two findings larger than the one I went looking for
+
+**The generator's schema-failure rate is 41%.** Nine of 22 candidates died on *"structured
+output still invalid after one repair retry"* before reaching any quality gate. Yield was 45%,
+and difficulty had nothing to do with it. This dominates the pipeline's usefulness far more
+than any tier policy, and it is the first number to look at next.
+
+**Two of the three solver rejections had both solvers agreeing with each other and against the
+declared answer** (`solver_a='a' solver_b='a' declared='d'`). That is the strongest signal
+D-193's panel can produce and it produced it twice in ten candidates.
+
+A second batch tripped the Bedrock circuit breaker after 7 candidates (15 skipped, correctly
+outside the quality denominator per D-199) and reached the difficulty stage zero times, so it
+contributes nothing. Reported rather than dropped.
+
+### The `.gitignore` finding, which invalidated a carry-over I wrote the session before
+
+D-239's carry-over blamed CI's lint failure on an unpinned `ruff` resolving differently. That
+was wrong. `uv.lock` pins 0.16.0 and local had exactly 0.16.0.
+
+The real cause: a bare **`curriculum/`** in `.gitignore` also matches **`packages/curriculum/`**
+— gitignore patterns are unanchored by default — and **ruff respects `.gitignore`**. So
+`ruff check .` silently stopped reading the entire package D-239 was editing and reported
+*"All checks passed"*. CI caught it only because the line was uncommitted, so CI's checkout
+still linted the package. Proven by `git check-ignore -v --no-index` naming the line, and by
+deleting the line and watching the two errors appear.
+
+`pyright` was unaffected (verified by injecting a deliberate type error and watching it fail),
+and `pytest` ran the package's tests throughout. **The blast radius was ruff alone** — but the
+shape generalises: *a tool that respects `.gitignore` silently narrows what your verification
+covers, and then reports the narrowed result as success.* Fixed by anchoring to `/curriculum/`,
+which ignores exactly the content directory that was intended.
+
+### Cost
+
+**64.4 cents** across two batches, against a $1.50-2.50 estimate. The second batch's circuit
+breaker stopped the spend early, and the counterfactual being computable stopped it from
+needing a third.

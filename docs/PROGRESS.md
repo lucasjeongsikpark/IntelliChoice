@@ -37,14 +37,17 @@ the user starts it.
 `--judge` now runs **end to end for free** under the mock provider (D-238), and `--dump` writes
 per-item records so a run can be re-analysed without buying it twice.
 
-**The generation pipeline's difficulty gate re-tiers rather than rejects (D-239).** A candidate
+**The generation pipeline's difficulty gate re-tiers rather than rejects (D-239), and D-240
+measured it against a real judge: live, correct, and never fired** — the dispersion floor clears
+easily, but no candidate was ever more than 1 tier from its slot, and the pipeline can only
+generate `linear_equations`, so the gate never sees the topics where tier disagreement lives. A candidate
 whose judged tier sits >= 2 from its slot's is stored at the judge's tier, `pending` at
 `review_priority="high"`, counted as `retiered` — a filled slot, separate from `pending` and from
 `rejected`. The move is gated on `JudgeDispersion`, which is **run-scoped**: the first candidates of
 any run cannot be re-tiered and a short run moves nothing. `|proposed − reviewed|` no longer rejects
 at all — it had never rejected anything the slot gap would not have, across all 41 candidates on
-record. Nothing about this has been exercised against a real model yet; the whole change was
-verified on the mock path.
+record. D-240 exercised it against a real model — see above for what that did and did not
+establish.
 
 What is left, in order of value:
 
@@ -75,11 +78,19 @@ What is left, in order of value:
    still linted it. Fixed by anchoring to `/curriculum/`, which ignores exactly the intended content
    directory. **The general shape is the lesson: a tool that respects `.gitignore` silently narrows
    what your verification covers, and it reports the narrowed result as success.**
-5. **D-239's re-tier has never run against a real judge.** Every branch is covered on the mock path,
-   but the numbers that decide a move — how often a real run clears the dispersion floor, how many
-   candidates actually move — are unmeasured. One paid batch would answer it; budget it against the
-   D-237 rule that n=2 establishes nothing.
-6. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
+5. **The generator fails structured output 41% of the time** (D-240). Nine of 22 candidates died on
+   *"structured output still invalid after one repair retry"* before reaching any quality gate;
+   run yield was 45%. This dominates the pipeline's usefulness more than any tier policy and is the
+   first number to look at. Free to start: the failures are persisted in
+   `question_validation_runs`, and `AuthoredGeneratedItemResponse` is the schema to read against.
+6. **D-239's re-tier is live but has never fired** (D-240). The dispersion floor clears easily on a
+   real judge (dominant share 50% vs the 80% threshold), and **no candidate was ever more than 1
+   tier from its slot**, so the gate had nothing to act on. The structural reason matters more than
+   the count: `TOPIC_SKILL_DIFFICULTIES` registers a generation plan for **`linear_equations` only**,
+   so the topics where tier disagreement actually lives — the ones D-234 and D-238 worked on — are
+   hand-authored and **this gate never sees them**. Registering a second topic's generation plan
+   would both extend the pipeline and give the gate a real population.
+7. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
    for twelve decisions behind the line `"127 already existed, 0 created"` — and that line is not
    in any deploy log, because `deploy-staging.yml` only runs `test "$EXIT_CODE" = "0"`. The loader
    now distinguishes created / updated / unchanged / retired, which is exactly the signal worth
@@ -89,13 +100,13 @@ What is left, in order of value:
    read), then echo the ops task's log stream after `aws ecs wait`. Same treatment is worth giving
    the migration and seed steps, which are equally silent. **Until this exists, "the deploy loaded
    the bank" means only that the loader exited 0** — which is what D-206 already learned once.
-7. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+8. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-8. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+9. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-9. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+10. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under
@@ -132,6 +143,38 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — D-239 measured for real: live, correct, never fired (2026-08-09, D-240)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1073 passed, 2 skipped, 1 xpassed** ·
+2 Bedrock batches, **64.4¢** · full write-up in DECISIONS.md **D-240**.
+
+**The mechanism is live.** `JudgeDispersion` cleared its floor easily on a real judge —
+`{1:1, 2:5, 3:3, 5:1}`, dominant share **50%** against the 80% collapse threshold. The worry that
+a real judge would collapse and leave the re-tier permanently disabled is answered.
+
+**It never fired.** Zero re-tiers, zero difficulty rejections — because **no candidate was ever
+more than 1 tier from its slot**. The pre-D-239 policy would have rejected zero too, so the change
+was exactly neutral on this run. It neither vindicates nor indicts the change; there was nothing
+to act on.
+
+**The structural reason is the finding worth keeping.** `TOPIC_SKILL_DIFFICULTIES` registers a
+generation plan for **`linear_equations` only** — a second batch aimed at `place_value` was refused
+before a single call. So the population where tier disagreement actually lives (D-234's 25 of 127,
+all of D-238's work) is exactly the population this gate never sees. D-239 is correct, live, and
+currently pointed at the topic least likely to need it.
+
+**Two findings larger than the one I went looking for.** The generator's schema-failure rate is
+**41%** — 9 of 22 candidates died on *"structured output still invalid after one repair retry"*
+before reaching any quality gate, and yield was 45%. And **two of three solver rejections had both
+solvers agreeing with each other against the declared answer**, which is the strongest signal
+D-193's panel can produce.
+
+**D-239's lint carry-over was wrong and this session found the real cause.** Not an unpinned ruff —
+`uv.lock` pins 0.16.0 and local had it. A bare `curriculum/` in `.gitignore` also matches
+`packages/curriculum/`, and **ruff respects `.gitignore`**, so `ruff check .` silently stopped
+reading the package D-239 was editing and reported success. `pyright` and `pytest` were unaffected
+(both verified). Fixed by anchoring to `/curriculum/`.
 
 ### Session log — the difficulty gate now moves the item instead of throwing it away (2026-08-09, D-239)
 
