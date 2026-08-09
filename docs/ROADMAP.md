@@ -1571,8 +1571,20 @@ directly. Coverage gap, not a break.
 > taxonomy is stocked — **127 authored items across four topics** — and grades 1 through 7 all
 > resolve to one. D-228 authored `multiplication_division`, the topic §5.7.3's own 2-3 band names
 > and the last hole in that range. **The coverage requirement's content half is met for the grades
-> this product serves;** what remains is calibration (the two-solver/judge panel, D-211) and grades
-> 8-12, which are scope rather than gap.
+> this product serves;** what remains is calibration and grades 8-12, which are scope rather than gap.
+>
+> **Calibration update, 2026-08-09 (D-229 to D-234).** D-211's two panels have now both been run
+> over the whole bank, which had never happened. The **solver** panel agrees with the author on
+> **127 of 127**, behind a 12/12 negative control — the situation-to-equation gap D-211 named is
+> measured and, for this bank, empty. The **judge** took three sessions to make runnable at all (a
+> shared token ceiling it could never complete under, a global timeout it sat exactly on, and a
+> rubric written for `linear_equations` that graded four topics), and has now judged 125 of 127.
+>
+> Its result is **not** a clean bill: **25 items would be rejected by the pipeline's own difficulty
+> gate, and 24 of those 25 are the judge calling the item easier than declared.** Either the
+> hand-authored tiers inflate or the rubric's top anchors are unreachable; that pass cannot separate
+> them, and nothing was re-tiered. So `difficulty_confidence` is still 1.0 by assertion on all 80
+> hand-authored items, and **this requirement's calibration half is measured but not settled.**
 
 3. **⏸ Ran 2026-08-05. The pipeline works and serving is built (D-188, D-189); the content is still
    not anywhere but one laptop.** The run produced eight items covering 7 of 11 pairs, five of which

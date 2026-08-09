@@ -494,6 +494,33 @@ to rot, because nothing fails when it does.)*
   could serve. Stated as a rule because the duplication was invisible from inside either file, and
   because a fix to one copy could silently *open* a hole in the other. If a second gate is ever
   needed again, share the predicate rather than the intent.
+- **A rule that grades content lives with the content** (D-232) — the §5.8.5 judge's 1-5
+  difficulty rubric sits in `topics.yaml`, on the topic it rates, not beside the prompt that uses it.
+  It used to be one global table written for `linear_equations`, correct for it, and applied
+  unchanged to three topics containing no equation of that shape — where the judge collapsed onto a
+  constant 2 (20 of 21 items). The rubric became wrong the moment a second topic existed, and the
+  three sessions that added topics never touched it, because a rubric kept next to the prompt is one
+  nobody edits when they add content. Kept next to the topic, its absence is visible in the file
+  being edited, and `test_every_topic_declares_a_full_difficulty_rubric` makes it a failure rather
+  than a silent fallback to somebody else's ladder. Generalises D-226's lesson: the fix for a rule
+  that drifts from what it governs is to move it, not to document it.
+- **Every measurement of a model's output ships with a control that can fail** (D-221, D-223, D-229,
+  D-233) — a pass rate alone cannot distinguish "the bank is clean" from "the check stopped firing",
+  and this codebase has now produced both. The controls are specific to the failure they exclude: the
+  solver audit re-runs items with the answer moved to a wrong option (12/12 caught); the judge audit
+  reports the *dispersion* of its own ratings and fails when one tier takes ≥80%, because
+  `{2: 20, 5: 1}` is two distinct values and a constant in practice; the scope guard scores off-topic
+  controls alongside in-scope recall. Three of those controls were themselves wrong first — one
+  counted a failed call as a catch, one fired only on a single distinct value — so the rule is not
+  "add a control" but **"state what result would prove the instrument dead, and check for that."**
+- **A per-call limit belongs to the call, not to the gateway** (D-231, D-233) — output-token ceilings
+  and timeouts are per-task, because the same pipeline holds a 400-token serving call and a
+  ~2500-token offline judge, and one constant sized for either breaks the other. Sharing them cost
+  two live defects: a judge that could never complete (truncated under the solvers' 1200-token
+  ceiling) and then one that timed out intermittently under the serving path's 20s guard, reporting
+  an empty error because `str(asyncio.TimeoutError())` is `""`. Related: a guard that silently
+  rewrites its caller's argument — `_HARD_MAX_OUTPUT_TOKENS` reducing 5000 to 4000 with no signal —
+  makes every constant upstream of it a guess, so capping is logged.
 - **Grade-band order in `grade_topic_mapping.yaml` is load-bearing** (D-227, D-228) — §5.7.3's bands
   *overlap* (K-1, 1-2, 2-3, 3-4, …), so most grades belong to two of them, and `topics_for_grade`
   returns the **first** band whose endpoints contain the grade. Two consequences that have each
