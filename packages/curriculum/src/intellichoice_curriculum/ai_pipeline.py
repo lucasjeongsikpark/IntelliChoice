@@ -548,11 +548,24 @@ def judge_system_prompt(topic: TopicDef) -> str:
         # stated here as well because the judge that missed a wrong answer had *found* it in
         # prose and still emitted the passing boolean. Naming the dependency explicitly is
         # cheap next to another item reaching a student.
-        # D-233: the length bound is load-bearing, not style. Without it the judge's
+        # D-233/D-234: the length bound is load-bearing, not style. Without it the judge's
         # `reasoning` expanded to fill whatever ceiling it was given - the same items
         # produced 1847, 2263, 4370 and then over 5000 tokens as the ceiling was raised
         # from 1200 - so every raise bought one more round of truncation at a higher price.
-        "Keep `reasoning` under about 150 words and `difficulty_reasoning` under about 60. "
+        #
+        # **250 was measured, not chosen.** Three bounds over the same 25 `place_value`
+        # items - the topic where the judge writes most, because its rubric is the least
+        # equation-like:
+        #
+        #   unbounded   4 failures  37.4c  tiers {1:1,2:8,3:7,4:4,5:1}  exact 10/21
+        #   250 words   1 failure   16.8c  tiers {1:6,2:10,3:4,4:3,5:1} exact 10/24
+        #   150 words   0 failures  14.5c  tiers {1:8,2:12,3:2,4:3}     exact  8/25
+        #
+        # Cutting the reasoning cuts the discrimination (D-193's finding again): at 150 the
+        # judge loses a tier entirely and collapses back toward 2. 250 keeps the full
+        # five-tier spread at 45% of the unbounded cost. The one remaining failure is the
+        # price of not paying 2x for the other three.
+        "Keep `reasoning` under about 250 words and `difficulty_reasoning` under about 80. "
         "Working out the answer does not require narrating every step in prose. "
         "Write `reasoning` first and work the question out there, including solving "
         "it yourself. Then set every boolean to match what you concluded. If your reasoning "
