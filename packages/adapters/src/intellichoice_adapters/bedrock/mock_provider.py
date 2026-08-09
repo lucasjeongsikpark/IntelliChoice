@@ -17,6 +17,17 @@ from .provider import RawEmbedding, RawGeneration
 _MOCK_EMBEDDING_DIM = 1024
 
 
+def _stable_choice[T](text: str, options: tuple[T, ...]) -> T:
+    """Pick one option from `text`, same answer every process (D-238).
+
+    `hash()` is salted per-process by default, so a mock built on it varies run to run -
+    the one property a test double must not have. Same reasoning as
+    `_deterministic_vector`, which is why both hash rather than trusting `hash()`.
+    """
+    digest = hashlib.sha256(text.encode("utf-8")).digest()
+    return options[digest[0] % len(options)]
+
+
 def _hint_json(payload: dict) -> dict:
     return {
         "hint_text": (
@@ -128,6 +139,11 @@ def _authored_generated_item_json(payload: dict) -> dict:
     ladder and a solution whose `final_answer` matches the declared `correct_option`
     (option "a") - tests that need to exercise disagreement/leakage/etc. inject a
     dedicated scripted gateway instead (same posture as `_solver_json`'s own docstring).
+
+    D-238 added `proposed_difficulty`/`difficulty_rationale`, required since D-194 and
+    missing here ever since, which had made this branch fail validation exactly like
+    `_question_judge_json`'s. The generator proposes its own tier, so the mock echoes the
+    requested one - the opposite of the judge, which must never see it.
     """
     skill_name = payload.get("skill_name", "this skill")
     difficulty = payload.get("difficulty_label", 1)
@@ -158,19 +174,46 @@ def _authored_generated_item_json(payload: dict) -> dict:
         },
         "misconception_tags": ["mock_misconception"],
         "estimated_time_seconds": 30,
+        "proposed_difficulty": difficulty,
+        "difficulty_rationale": (
+            f"mock: written to the tier {difficulty} anchor for {skill_name}, one "
+            f"operation, no rewriting before the arithmetic starts"
+        ),
         "reasoning": "mock authored generator",
     }
 
 
 def _question_judge_json(payload: dict) -> dict:
+    """Deterministic §5.8.5 stand-in, rebuilt in D-238 after D-194's rename left it broken.
+
+    It had emitted `difficulty_label` (the pre-D-194 name) and read `proposed_difficulty`
+    from the payload - a field the *same* decision removed, precisely so the judge could
+    not see the tier it was being asked to rate. So the branch both failed validation and
+    encoded the blindness violation D-194 exists to prevent.
+
+    `reviewed_difficulty` is a **stable hash of the question text, not a judgment.** Two
+    properties are wanted and a constant has neither: the tiers must spread, so the
+    audit's histogram, its `gap >= 2` arithmetic and `partition_findings`' new/known/
+    lapsed/moot arms all actually execute under the mock; and they must not correlate with
+    the declared tier, so no test can accidentally come to depend on the mock agreeing.
+    Anything asserting on *which* tier comes back is asserting on a hash - use a scripted
+    gateway for that, as `_solver_json` and `_authored_generated_item_json` both say.
+    """
+    question = str(payload.get("rendered_question", ""))
+    reviewed = _stable_choice(question, (1, 2, 3, 4, 5))
     return {
-        "difficulty_label": payload.get("proposed_difficulty", 1),
+        "reasoning": "mock judge: schema-valid stand-in, no model was consulted",
+        "reviewed_difficulty": reviewed,
+        "difficulty_reasoning": (
+            f"mock: assigned tier {reviewed} from a hash of the stem, so the number is "
+            f"stable across runs and independent of the declared tier"
+        ),
         "is_ambiguous": False,
         "is_aligned": True,
         "is_age_appropriate": True,
         "is_internally_consistent": True,
         "hint_quality_score": 5,
-        "reasoning": "mock judge approves",
+        "hint_reveals_answer": False,
     }
 
 

@@ -636,6 +636,35 @@ to rot, because nothing fails when it does.)*
   anchor's own worked example, all rated 4, and `linear_equations` scoring **16 fours and zero
   fives** across 47 items. An anchored scale whose top tier is never used is not a five-point scale,
   and the failure is invisible in aggregate agreement numbers.
+- **A rubric is only valid across the units it was measured on, and "unit" goes all the way down**
+  (D-232, D-238). D-232 found difficulty anchors written for `linear_equations` grading four topics,
+  and moved them onto the topic. D-238 found the same failure one level below: `place_value`'s
+  topic-level ladder fitted `place_value_compare`, whose tiers 3/4/5 measured 2.50 / 3.38 / 3.67,
+  and not `place_value_identify`, which sat **flat at every tier** because tiers 4 and 5 each
+  qualified on digit count alone — real work when places must be ruled out, none when one digit's
+  place is read. **The pooled number hid it in both directions:** the broken d4 rung read as a
+  mild anomaly until split by skill, and the repaired ladder reads as monotone partly *because*
+  the weak skill's low items drag the pooled figure down. Read calibration per `(skill, tier)`,
+  never pooled — and when a rubric claims a range its unit does not have, shorten the rubric rather
+  than inventing content to fill it, because `mastery_bootstrap` routes on that tier and a
+  decorative tier still decides what a real student is served next.
+- **An item must require the work its skill is named for, and no gate checks this** (D-238). All
+  six `div_remainder` items stated the remainder or the completed-group count in the stem, so the
+  student subtracted a given number and divided exactly; the skill is *"Divide with remainders"*
+  and nothing in it produced one. Every one passed the deterministic §5.8.5 gate — correctly, since
+  the gate verifies equation → answer, options, hints and wording, and has no notion of what a
+  skill *means*. The blind judge saw it (a flat 3.00 across declared 4 and 5) and was overruled by
+  a human reading the anchor against the situation the stem *described* rather than the work the
+  student *does*. Skill-semantic rules live in the bank's own tests, one rule per skill, because
+  the gate is deliberately topic-agnostic and must stay that way.
+- **A test double is part of the schema's blast radius** (D-238). `MockBedrockProvider` dispatches
+  on `json_schema["title"]`, a string match that connects nothing to the model it names, so D-194's
+  field rename left two branches compiling, passing every test, and returning JSON that failed
+  validation the moment anyone ran those tasks. Worse, the judge branch still *read*
+  `proposed_difficulty` — the payload field that same decision deleted so the judge could not see
+  the tier it was rating — so the double had preserved the blindness violation after production
+  was fixed. A task with a broken mock can only be exercised by paying, which is how its gating
+  arithmetic goes untested by default. Every response model is now validated against its branch.
 
 ## 1. System architecture
 

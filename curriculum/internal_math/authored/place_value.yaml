@@ -5,7 +5,7 @@ templates:
   topic_id: place_value
   skill_id: place_value_compare
   grade_band: 1-2
-  difficulty_label: 1
+  difficulty_label: 2
   difficulty_confidence: 1.0
   estimated_time_seconds: 45
   common_error_tags:
@@ -402,6 +402,52 @@ templates:
   option_c: '19'
   option_d: '9'
   correct_option: d
+- question_template_id: authored-place_value-d5-200503
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Stopped comparing before reaching the place where they differ
+  - Added the two amounts instead of comparing them
+  - Subtracted in the wrong order
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Two towns recorded their rainfall for the year. Town A recorded 4,507 millimeters and Town B recorded
+    4,570 millimeters. How much more did Town B record?
+  context_block: null
+  answer_expression: Eq(4507 + x, 4570)
+  hint_ladder:
+  - The thousands and the hundreds match, so neither of those places decides this.
+  - Both amounts use the same four digits, so their order is what makes them differ.
+  - Compare the tens place, then find the gap between the two amounts.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The thousands match and the hundreds match, so keep going right.
+      expression: both start with 4 thousands and 5 hundreds
+      common_mistake: Calling the two amounts equal
+    - step_number: 2
+      explanation: Town A has no groups of ten, and Town B has six.
+      expression: 0 tens against 6 tens
+      common_mistake: Reading the zero as a large amount
+    - step_number: 3
+      explanation: Find the gap between the two amounts.
+      expression: 4507 plus something makes 4570
+      common_mistake: Adding the two amounts together
+    final_answer: '63'
+  random_seed: 200503
+  rendered_question: Two towns recorded their rainfall for the year. Town A recorded 4,507 millimeters
+    and Town B recorded 4,570 millimeters. How much more did Town B record?
+  option_a: '73'
+  option_b: '9077'
+  option_c: '63'
+  option_d: '67'
+  correct_option: c
 - question_template_id: authored-place_value-d5-200502
   topic_id: place_value
   skill_id: place_value_compare
@@ -448,52 +494,6 @@ templates:
   option_c: '24770'
   option_d: '190'
   correct_option: b
-- question_template_id: authored-place_value-d5-200503
-  topic_id: place_value
-  skill_id: place_value_compare
-  grade_band: 1-2
-  difficulty_label: 5
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 100
-  common_error_tags:
-  - Stopped comparing before reaching the place where they differ
-  - Added the two amounts instead of comparing them
-  - Subtracted in the wrong order
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: Two towns recorded their rainfall for the year. Town A recorded 4,507 millimeters and Town B recorded
-    4,570 millimeters. How much more did Town B record?
-  context_block: null
-  answer_expression: Eq(4507 + x, 4570)
-  hint_ladder:
-  - The thousands and the hundreds match, so neither of those places decides this.
-  - Both amounts use the same four digits, so their order is what makes them differ.
-  - Compare the tens place, then find the gap between the two amounts.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The thousands match and the hundreds match, so keep going right.
-      expression: both start with 4 thousands and 5 hundreds
-      common_mistake: Calling the two amounts equal
-    - step_number: 2
-      explanation: Town A has no groups of ten, and Town B has six.
-      expression: 0 tens against 6 tens
-      common_mistake: Reading the zero as a large amount
-    - step_number: 3
-      explanation: Find the gap between the two amounts.
-      expression: 4507 plus something makes 4570
-      common_mistake: Adding the two amounts together
-    final_answer: '63'
-  random_seed: 200503
-  rendered_question: Two towns recorded their rainfall for the year. Town A recorded 4,507 millimeters
-    and Town B recorded 4,570 millimeters. How much more did Town B record?
-  option_a: '73'
-  option_b: '9077'
-  option_c: '63'
-  option_d: '67'
-  correct_option: c
 - question_template_id: authored-place_value-d5-200504
   topic_id: place_value
   skill_id: place_value_compare
@@ -542,6 +542,148 @@ templates:
   option_c: '395'
   option_d: '495'
   correct_option: d
+- question_template_id: authored-place_value-d5-200506
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Compared the leading digits and stopped there
+  - Subtracted the digits place by place without regrouping
+  - Read the tens digit as if it were the hundreds digit
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A stadium counted 24,105 fans on Saturday and 24,150 fans on Sunday. How many more fans came on
+    Sunday?
+  context_block: null
+  answer_expression: Eq(24105 + x, 24150)
+  hint_ladder:
+  - The first two places are the same in both numbers, so they cannot decide this.
+  - Keep moving right until you reach a place where the two numbers differ.
+  - The place that differs is the tens, so compare how many tens each number has.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ten-thousands, thousands and hundreds are the same in both numbers.
+      expression: 24,1 and 24,1
+      common_mistake: Deciding on the leading digit alone
+    - step_number: 2
+      explanation: The first place that differs is the tens.
+      expression: 0 tens against 5 tens
+      common_mistake: Reading the tens as hundreds
+    - step_number: 3
+      explanation: Find the gap between the two totals.
+      expression: 24,105 plus something makes 24,150
+      common_mistake: null
+    final_answer: '45'
+  random_seed: 200506
+  rendered_question: A stadium counted 24,105 fans on Saturday and 24,150 fans on Sunday. How many more
+    fans came on Sunday?
+  option_a: '45'
+  option_b: '55'
+  option_c: '5'
+  option_d: '450'
+  correct_option: a
+- question_template_id: authored-place_value-d5-200507
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Built one of the two numbers in the wrong order
+  - Added the two numbers instead of comparing them
+  - Used the digits in the order they were listed
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Ana and Raj are given the digits 5, 2 and 9. Ana arranges them into the largest number she can
+    make. Raj arranges the same digits into the smallest number he can make. How much larger is Ana's
+    number than Raj's?
+  context_block: null
+  answer_expression: Eq(259 + x, 952)
+  hint_ladder:
+  - The largest number puts the biggest digit where it is worth the most.
+  - The leftmost place is worth the most and the rightmost place is worth the least.
+  - Build both numbers first, then find the gap between them.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: For the largest number, put the digits in order from biggest to smallest.
+      expression: 9, then 5, then 2
+      common_mistake: Using the digits in the order they were listed
+    - step_number: 2
+      explanation: For the smallest number, put the digits in order from smallest to biggest.
+      expression: 2, then 5, then 9
+      common_mistake: null
+    - step_number: 3
+      explanation: Find the gap between the two numbers that were built.
+      expression: 259 plus something makes 952
+      common_mistake: Adding the two numbers together
+    final_answer: '693'
+  random_seed: 200507
+  rendered_question: Ana and Raj are given the digits 5, 2 and 9. Ana arranges them into the largest number
+    she can make. Raj arranges the same digits into the smallest number he can make. How much larger is
+    Ana's number than Raj's?
+  option_a: '747'
+  option_b: '693'
+  option_c: '593'
+  option_d: '1211'
+  correct_option: b
+- question_template_id: authored-place_value-d5-200508
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Built one of the two numbers in the wrong order
+  - Added the two numbers instead of comparing them
+  - Used the digits in the order they were listed
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Nina and Sam are given the digits 7, 3 and 1. Nina arranges them into the largest number she can
+    make. Sam arranges the same digits into the smallest number he can make. How much larger is Nina's
+    number than Sam's?
+  context_block: null
+  answer_expression: Eq(137 + x, 731)
+  hint_ladder:
+  - The largest number puts the biggest digit where it is worth the most.
+  - The leftmost place is worth the most and the rightmost place is worth the least.
+  - Build both numbers first, then find the gap between them.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: For the largest number, put the digits in order from biggest to smallest.
+      expression: 7, then 3, then 1
+      common_mistake: Using the digits in the order they were listed
+    - step_number: 2
+      explanation: For the smallest number, put the digits in order from smallest to biggest.
+      expression: 1, then 3, then 7
+      common_mistake: null
+    - step_number: 3
+      explanation: Find the gap between the two numbers that were built.
+      expression: 137 plus something makes 731
+      common_mistake: Adding the two numbers together
+    final_answer: '594'
+  random_seed: 200508
+  rendered_question: Nina and Sam are given the digits 7, 3 and 1. Nina arranges them into the largest
+    number she can make. Sam arranges the same digits into the smallest number he can make. How much larger
+    is Nina's number than Sam's?
+  option_a: '606'
+  option_b: '494'
+  option_c: '594'
+  option_d: '868'
+  correct_option: c
 - question_template_id: authored-place_value-d1-200101
   topic_id: place_value
   skill_id: place_value_identify
@@ -751,11 +893,53 @@ templates:
   option_c: '30'
   option_d: '356'
   correct_option: a
-- question_template_id: authored-place_value-d2-200202
+- question_template_id: authored-place_value-d4-200401
   topic_id: place_value
   skill_id: place_value_identify
   grade_band: 1-2
   difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Read the digit on its own instead of the value of its place
+  - Used the hundreds place instead of the thousands place
+  - Answered with the whole number
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Tara writes the number 6,405 on the board for the class. She points at the 6. What is that digit
+    worth in the number?
+  context_block: null
+  answer_expression: Eq(x, 6*1000)
+  hint_ladder:
+  - Count the places from the right hand end, starting with the ones place.
+  - The places from the right are ones, then tens, then hundreds, then thousands.
+  - The digit in question sits in the fourth place, so count groups of one thousand.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the places from the right. The digit is fourth from the right.
+      expression: ones, tens, hundreds, thousands
+      common_mistake: Counting from the left instead
+    - step_number: 2
+      explanation: The fourth place from the right counts groups of one thousand.
+      expression: 6 groups of one thousand
+      common_mistake: Using the hundreds place
+    final_answer: '6000'
+  random_seed: 200401
+  rendered_question: Tara writes the number 6,405 on the board for the class. She points at the 6. What
+    is that digit worth in the number?
+  option_a: '600'
+  option_b: '6'
+  option_c: '60'
+  option_d: '6000'
+  correct_option: d
+- question_template_id: authored-place_value-d2-200202
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 3
   difficulty_confidence: 1.0
   estimated_time_seconds: 55
   common_error_tags:
@@ -801,7 +985,7 @@ templates:
   topic_id: place_value
   skill_id: place_value_identify
   grade_band: 1-2
-  difficulty_label: 2
+  difficulty_label: 3
   difficulty_confidence: 1.0
   estimated_time_seconds: 55
   common_error_tags:
@@ -838,6 +1022,48 @@ templates:
   option_c: '47'
   option_d: '70'
   correct_option: d
+- question_template_id: authored-place_value-d3-200301
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Read the digit on its own instead of the value of its place
+  - Counted the places from the wrong end
+  - Used the thousands place instead of the hundreds place
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Kai reads the number 5,214 aloud in class. His teacher asks him about the 2. What is that digit
+    worth in the number?
+  context_block: null
+  answer_expression: Eq(x, 2*100)
+  hint_ladder:
+  - Start from the right hand end, where the ones place sits, and work leftwards.
+  - The places from the right are ones, then tens, then hundreds, then thousands.
+  - The digit in question sits in the hundreds place, so count groups of one hundred.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the places from the right. The digit is third from the right.
+      expression: ones, tens, hundreds
+      common_mistake: Counting from the left instead
+    - step_number: 2
+      explanation: The third place from the right counts groups of one hundred.
+      expression: 2 groups of one hundred
+      common_mistake: Using the thousands place
+    final_answer: '200'
+  random_seed: 200301
+  rendered_question: Kai reads the number 5,214 aloud in class. His teacher asks him about the 2. What
+    is that digit worth in the number?
+  option_a: '2000'
+  option_b: '20'
+  option_c: '200'
+  option_d: '2'
+  correct_option: c
 - question_template_id: authored-place_value-d3-200303
   topic_id: place_value
   skill_id: place_value_identify
@@ -884,95 +1110,11 @@ templates:
   option_c: '390'
   option_d: '93'
   correct_option: a
-- question_template_id: authored-place_value-d3-200301
-  topic_id: place_value
-  skill_id: place_value_identify
-  grade_band: 1-2
-  difficulty_label: 4
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 70
-  common_error_tags:
-  - Read the digit on its own instead of the value of its place
-  - Counted the places from the wrong end
-  - Used the thousands place instead of the hundreds place
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: Kai reads the number 5,214 aloud in class. His teacher asks him about the 2. What is that digit
-    worth in the number?
-  context_block: null
-  answer_expression: Eq(x, 2*100)
-  hint_ladder:
-  - Start from the right hand end, where the ones place sits, and work leftwards.
-  - The places from the right are ones, then tens, then hundreds, then thousands.
-  - The digit in question sits in the hundreds place, so count groups of one hundred.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Count the places from the right. The digit is third from the right.
-      expression: ones, tens, hundreds
-      common_mistake: Counting from the left instead
-    - step_number: 2
-      explanation: The third place from the right counts groups of one hundred.
-      expression: 2 groups of one hundred
-      common_mistake: Using the thousands place
-    final_answer: '200'
-  random_seed: 200301
-  rendered_question: Kai reads the number 5,214 aloud in class. His teacher asks him about the 2. What
-    is that digit worth in the number?
-  option_a: '2000'
-  option_b: '20'
-  option_c: '200'
-  option_d: '2'
-  correct_option: c
-- question_template_id: authored-place_value-d4-200401
-  topic_id: place_value
-  skill_id: place_value_identify
-  grade_band: 1-2
-  difficulty_label: 4
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 85
-  common_error_tags:
-  - Read the digit on its own instead of the value of its place
-  - Used the hundreds place instead of the thousands place
-  - Answered with the whole number
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: Tara writes the number 6,405 on the board for the class. She points at the 6. What is that digit
-    worth in the number?
-  context_block: null
-  answer_expression: Eq(x, 6*1000)
-  hint_ladder:
-  - Count the places from the right hand end, starting with the ones place.
-  - The places from the right are ones, then tens, then hundreds, then thousands.
-  - The digit in question sits in the fourth place, so count groups of one thousand.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Count the places from the right. The digit is fourth from the right.
-      expression: ones, tens, hundreds, thousands
-      common_mistake: Counting from the left instead
-    - step_number: 2
-      explanation: The fourth place from the right counts groups of one thousand.
-      expression: 6 groups of one thousand
-      common_mistake: Using the hundreds place
-    final_answer: '6000'
-  random_seed: 200401
-  rendered_question: Tara writes the number 6,405 on the board for the class. She points at the 6. What
-    is that digit worth in the number?
-  option_a: '600'
-  option_b: '6'
-  option_c: '60'
-  option_d: '6000'
-  correct_option: d
 - question_template_id: authored-place_value-d4-200404
   topic_id: place_value
   skill_id: place_value_identify
   grade_band: 1-2
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 1.0
   estimated_time_seconds: 85
   common_error_tags:
@@ -1014,6 +1156,48 @@ templates:
   option_c: '2704'
   option_d: '2074'
   correct_option: c
+- question_template_id: authored-place_value-d5-200501
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Counted the places from the wrong end
+  - Skipped over the zero when counting the places
+  - Read the digit on its own instead of the value of its place
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Ana writes the number 30,502 in her workbook. Her teacher points at the 5. What is that digit
+    worth in the number?
+  context_block: null
+  answer_expression: Eq(x, 5*100)
+  hint_ladder:
+  - Count the places from the right hand end, starting with the ones place.
+  - A zero still takes up a place, so it has to be counted like any other digit.
+  - The digit in question sits in the third place from the right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the places from the right, including every zero.
+      expression: ones, tens, hundreds
+      common_mistake: Skipping the zero and landing on the wrong place
+    - step_number: 2
+      explanation: The third place from the right counts groups of one hundred.
+      expression: 5 groups of one hundred
+      common_mistake: Counting the places from the left
+    final_answer: '500'
+  random_seed: 200501
+  rendered_question: Ana writes the number 30,502 in her workbook. Her teacher points at the 5. What is
+    that digit worth in the number?
+  option_a: '500'
+  option_b: '50'
+  option_c: '5000'
+  option_d: '5'
+  correct_option: a
 - question_template_id: authored-place_value-d5-200505
   topic_id: place_value
   skill_id: place_value_identify
@@ -1060,45 +1244,3 @@ templates:
   option_c: '4006'
   option_d: '4060'
   correct_option: d
-- question_template_id: authored-place_value-d5-200501
-  topic_id: place_value
-  skill_id: place_value_identify
-  grade_band: 1-2
-  difficulty_label: 5
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 100
-  common_error_tags:
-  - Counted the places from the wrong end
-  - Skipped over the zero when counting the places
-  - Read the digit on its own instead of the value of its place
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: Ana writes the number 30,502 in her workbook. Her teacher points at the 5. What is that digit
-    worth in the number?
-  context_block: null
-  answer_expression: Eq(x, 5*100)
-  hint_ladder:
-  - Count the places from the right hand end, starting with the ones place.
-  - A zero still takes up a place, so it has to be counted like any other digit.
-  - The digit in question sits in the third place from the right.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Count the places from the right, including every zero.
-      expression: ones, tens, hundreds
-      common_mistake: Skipping the zero and landing on the wrong place
-    - step_number: 2
-      explanation: The third place from the right counts groups of one hundred.
-      expression: 5 groups of one hundred
-      common_mistake: Counting the places from the left
-    final_answer: '500'
-  random_seed: 200501
-  rendered_question: Ana writes the number 30,502 in her workbook. Her teacher points at the 5. What is
-    that digit worth in the number?
-  option_a: '500'
-  option_b: '50'
-  option_c: '5000'
-  option_d: '5'
-  correct_option: a

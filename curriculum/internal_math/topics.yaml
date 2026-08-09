@@ -75,20 +75,36 @@ topics:
     grade_band: "1-2"
     description: >
       Identifying and comparing the value of digits in multi-digit whole numbers.
+    # D-238 measured this ladder per skill and found it was two ladders wearing one coat.
+    # `place_value_compare` climbed 2.50 -> 3.38 -> 3.67 across declared 3/4/5, while
+    # `place_value_identify` sat FLAT at 1.75-2.25 across all five tiers (n=4 runs, 100
+    # judgements). The cause was that tiers 4 and 5 each led with a bare digit-count clause.
+    # More digits is real work for `compare` - more places to rule out before the answer is
+    # decided - and no work at all for `identify`, where the task is "read one digit's
+    # place" at 47 exactly as much as at 30,502.
+    #
+    # So every clause below names the skill it belongs to, and `identify` stops at 4 because
+    # that is where its work stops. Forcing it to five tiers is what produced items declared
+    # 5 whose work was a tier-1 read; a rubric that claims a range the skill does not have
+    # makes the tier decorative, and a decorative tier still routes a real student.
+    #
+    # D-235's note on the old tier-5 wording is kept because the trap is unchanged: the
+    # BUILD clause is about the STUDENT doing the arranging, which is a different task from
+    # reading numbers someone else arranged (415 / 451 / 145 is not a tier-5 item).
     difficulty_anchors:
-      1: "what a digit is worth in a TWO-digit number, or a two-digit number built from a
-        count of tens and a count of ones"
-      2: "the same in a THREE-digit number, or two two-digit numbers compared when they are
-        made of the same digits"
-      3: "a zero must hold an empty place, or a three-digit comparison decided by the tens
-        rather than the hundreds"
-      4: "FOUR-digit numbers, or a comparison whose first differing place is not the leading
-        one, so earlier places must be ruled out first"
-      # D-235: the second clause used to read "numbers built from the same digits where
-      # the arrangement itself decides the answer", which also fired on a plain
-      # three-digit comparison that merely happened to reuse digits (415 / 451 / 145) -
-      # so an item whose real work is one subtraction could be argued up to the top tier.
-      # The clause is about the STUDENT doing the arranging, which is a different task
-      # from reading numbers someone else arranged.
-      5: "five digits or more, or the student must BUILD the numbers from a given set of
-        digits before comparing them, so choosing the arrangement is itself the work"
+      1: "identify: a TWO-digit number, or one built from a count of tens and a count of
+        ones. compare: two two-digit numbers whose tens differ and which are not made of
+        the same digits"
+      2: "identify: a THREE- or FOUR-digit number with the digit asked about at either end
+        (the 3 in 356, the 6 in 6,405). compare: two two-digit numbers made of the same
+        digits, so the arrangement alone decides it"
+      3: "identify: a zero must be counted past rather than skipped (the 7 in 470, or
+        building 309), or the digit asked about is neither the first nor the last digit.
+        compare: a THREE-digit comparison decided by the tens rather than the hundreds"
+      4: "identify: five digits or more, or a four-digit number in which two zeros hold
+        places (4,060). compare: in a number of FOUR digits or more, the first differing
+        place is not the leading one, so earlier places must be ruled out first"
+      5: "compare only - `identify` has no tier-5 work and must not be authored at one.
+        five digits or more with the first differing place outside the leading two, or the
+        student must BUILD the numbers from a given set of digits before comparing them, so
+        choosing the arrangement is itself the work"
