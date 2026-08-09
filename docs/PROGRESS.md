@@ -9,9 +9,10 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 **The content track is done for the grades this product serves (D-228).** Four topics, **127
 authored items**, and grades 1 through 7 all resolve to a stocked topic — `multiplication_division`
-was the last hole, and it closed the one D-227 named. Every one of the 127 went through the
-deterministic §5.8.5 gate; none went through a two-solver/judge panel (D-211), so this is content
-rather than calibrated content. No numbered ROADMAP session is queued; integration (S43+) stays
+was the last hole, and it closed the one D-227 named. Every one of the 127 went through the deterministic
+§5.8.5 gate **and, as of D-229, the two-solver panel** — 127 of 127 agreed, with a 12/12 negative
+control behind that number. What is still untouched is the *judge*: `difficulty_confidence` is 1.0
+by authorial assertion on all 80 hand-authored items, so the tiers are one person's judgement. No numbered ROADMAP session is queued; integration (S43+) stays
 deliberately deferred (D-152) until the user starts it.
 
 What is left is no longer content. In rough order of value:
@@ -45,6 +46,30 @@ both directions, no database) and `scripts/measure_access_probe_rules.py --load 
 replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D-226. **Do not
 retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
 measured zero wrong tiers live.
+
+### Session log — the solver panel finally run, and the control that made it mean something (2026-08-08, D-229)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **127 of 127 approved items audited, all 127
+agreed by both solvers** · **negative control 12/12 deliberately-wrong items caught** · 93.5¢ over
+278 real Bedrock calls · full write-up in DECISIONS.md **D-229**.
+
+**D-211 is closed for the current bank.** It had appeared in every "remaining risks" list for six
+sessions while the bank grew from 47 items to 127. The deterministic gate verifies equation →
+answer and structurally cannot verify situation → equation; two independent solvers reading the
+scenario blind are the answer, and the 80 hand-authored items had never had one.
+
+**The pass rate needed a control before it could be reported.** A panel that has silently stopped
+firing agrees with everything and scores the same 127/127. `--self-test` re-runs items with the
+declared answer moved to a wrong option — all wrong by construction — and caught 12 of 12.
+
+**A configuration finding:** the repo's own `.env.example` sets all four curriculum model slots to
+the same id, which makes `pipeline_cli`'s preflight refuse a paid run outright. "The panel exists"
+and "the panel can be run" have not been the same thing, which is part of why D-211 stayed open.
+
+**Carry-over:** difficulty calibration is untouched (`difficulty_confidence` is 1.0 by assertion on
+all 80 hand-authored items); and both solvers are Anthropic models, so correlated error is possible
+where a second vendor — Llama, Mistral, DeepSeek and Nova are all available to this account —
+would reduce it.
 
 ### Session log — the multiplication/division topic, and a band that would have stolen grade 4 (2026-08-08, D-228)
 
