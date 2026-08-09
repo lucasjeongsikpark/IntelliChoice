@@ -47,6 +47,36 @@ replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D
 retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
 measured zero wrong tiers live.
 
+### Session log — the difficulty rubric belonged to one topic and graded four (2026-08-09, D-232)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · full suite green · **before/after measured on
+the same 24 stratified items**: the pipeline's own difficulty gate would have rejected **9 → 3**, and
+`declared 5 → judge 2` went **7 → 0** · full write-up in DECISIONS.md **D-232**.
+
+**D-231's diagnosis was incomplete.** The prompt already said the scale is relative to the grade band
+— D-200 added that after measuring the identical symptom. What it could not anticipate is that its
+fix was a **single global rubric** whose anchors are linear algebra: "a negative or fractional
+coefficient", "the variable on BOTH sides", "distribution before combining like terms". Correct for
+`linear_equations`, the only topic that then existed. Three topics were authored after it containing
+no such equation, and the judge returned 2 for all of them.
+
+**The fix is where the rubric lives.** `difficulty_anchors` moved into `topics.yaml`, beside the
+topic it grades, with a test making a topic without one a failure rather than a silent fallback to
+another topic's ladder. A rubric kept next to the prompt is one nobody edits when they add content —
+which is exactly what happened three times.
+
+**Exact tier agreement did not improve (6/23 → 5/24) and that is not the metric** — the sample is
+only d1 and d5, so exact agreement demands the judge answer exactly 1 or 5, while the gate tolerates
+a gap of 1. Reported anyway, because a table showing only the number that moved is the kind this
+project keeps finding to be wrong.
+
+**One new flag is worth more than the six it replaced:** a `place_value` item declared d1 is judged
+3, and the new rubric puts its shape at tier 2 — so the judge disagrees with my tier assignment and
+my own rubric agrees with the judge. A content finding the instrument could not previously produce.
+
+**Carry-over:** judge the full bank now that it discriminates, which will produce a list of tier
+disputes rather than one anecdote.
+
 ### Session log — the judge could not complete a call, and then measured the wrong thing (2026-08-08, D-231)
 
 **Verification:** `ruff` clean · `pyright` 0 errors · **1027 passed, 2 skipped, 1 xfailed** · the

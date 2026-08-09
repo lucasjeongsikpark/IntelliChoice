@@ -2453,17 +2453,41 @@ def test_a_circuit_open_refusal_is_recorded_as_a_skip_not_a_generator_rejection(
     asyncio.run(run())
 
 
-def test_the_generator_and_the_judge_are_given_the_same_tier_scale() -> None:
-    """One definition of the 1-5 scale, used by the stage that builds the equation and the
-    stage that rates it. Before D-200 the judge rated on an implicit absolute scale (2 in
-    15 of 17 items) while the generator aimed at the requested tier, so the two numbers the
-    difficulty gate compares were not measuring the same thing.
+def test_every_topic_declares_a_full_difficulty_rubric() -> None:
+    """Every topic carries its own 1-5 anchors, and a topic without them is a failure.
+
+    D-232. The anchors used to be one global table in `ai_pipeline`, written for
+    `linear_equations` and correct for it — one-step, two-step, fractional coefficient,
+    variable on both sides, distribution. Three topics were then authored that contain no
+    equations of that shape at all, and the judge, told to rate "the EQUATION the student
+    must solve" against those anchors, collapsed onto a constant: **20 of 21 `place_value`
+    items rated 2** (D-231).
+
+    So this is the guard that makes the omission impossible rather than documented. A new
+    topic without a rubric fails here, in the same file the topic is declared in, instead
+    of silently being graded by another topic's ladder.
     """
-    for tier, anchor in ai_pipeline.DIFFICULTY_ANCHORS.items():
-        assert 1 <= tier <= 5
-        assert anchor in ai_pipeline._JUDGE_SYSTEM_PROMPT, f"tier {tier} missing from judge"
-    assert "BOTH sides" in ai_pipeline.DIFFICULTY_ANCHORS[4]
-    assert "distribution" in ai_pipeline.DIFFICULTY_ANCHORS[5].lower()
+    curriculum = load_curriculum()
+    for topic in curriculum.topics:
+        assert set(topic.difficulty_anchors) == {1, 2, 3, 4, 5}, (
+            f"{topic.topic_id} must declare all five difficulty anchors"
+        )
+        for tier, anchor in topic.difficulty_anchors.items():
+            assert len(anchor) > 20, f"{topic.topic_id} tier {tier} anchor is too thin"
+
+
+def test_the_generator_and_the_judge_are_given_the_same_tier_scale() -> None:
+    """One definition of the 1-5 scale per topic, used by the stage that builds the equation
+    and the stage that rates it. Before D-200 the judge rated on an implicit absolute scale
+    (2 in 15 of 17 items) while the generator aimed at the requested tier, so the two numbers
+    the difficulty gate compares were not measuring the same thing. D-232 kept that property
+    while making the scale per-topic.
+    """
+    curriculum = load_curriculum()
+    for topic in curriculum.topics:
+        prompt = ai_pipeline.judge_system_prompt(topic)
+        for tier, anchor in topic.difficulty_anchors.items():
+            assert anchor in prompt, f"{topic.topic_id} tier {tier} missing from judge prompt"
 
 
 def test_every_authorable_skill_has_a_required_equation_structure() -> None:

@@ -67,7 +67,7 @@ from intellichoice_curriculum.authored_validation import (
     _values_equal,
     derive_answer,
 )
-from intellichoice_curriculum.content import CurriculumContent
+from intellichoice_curriculum.content import CurriculumContent, TopicDef
 
 # topic_id -> difficulty_label -> skill_id. Deterministic, not LLM-chosen: this topic's
 # skill ladder tracks difficulty 1:1 (matches the S4 hand-authored bank exactly - see
@@ -486,101 +486,102 @@ _AUTHORED_GENERATOR_SYSTEM_PROMPT = (
 # a constant cannot discriminate. A first draft that used it rated a one-step item 3.
 # These mirror the skill ladder in `TOPIC_DIFFICULTY_SKILLS`, which is where the tiers came
 # from in the first place.
-DIFFICULTY_ANCHORS: dict[int, str] = {
-    1: "one operation undoes the equation (x + 8 = 20, or 4x = 20)",
-    2: "two operations, the variable on one side only, whole-number coefficients "
-    "(18 + 6w = 60)",
-    3: "a negative or fractional coefficient appears (60 - 4x = 12, or x/3 + 5 = 11)",
-    4: "the variable appears on BOTH sides, so terms must be collected before the equation "
-    "can be solved at all (8 + 2m = 18 + m)",
-    5: "distribution is required before like terms can be combined (5(c + 2) + 12 = 42), or "
-    "the situation needs two coupled relationships set up together",
-}
 
 
-_JUDGE_SYSTEM_PROMPT = (
-    "You are an independent judge reviewing one authored K-12 math question for "
-    "difficulty fit, ambiguity, curriculum alignment, age-appropriateness, and the "
-    "quality of its hint ladder. Be strict: a genuinely ambiguous, misaligned, or "
-    "unsafe question must be flagged. "
-    # The first scenario run produced "A video game has three levels ... how many levels
-    # did she complete?" with the answer 4. The equation was solved correctly and the
-    # story was impossible; solvers and judge all passed it, because nothing had asked
-    # anyone to compare the answer against the scenario's own stated facts (D-191).
-    "Check the answer against the situation the question describes, not only against "
-    "its arithmetic. If the story states a limit or a quantity and the answer exceeds "
-    "or contradicts it - a three-level game whose answer is four levels, a person "
-    "buying more items than are for sale, a negative number of minutes - the question "
-    "is not internally consistent, however correct the algebra is. "
-    # Left unstated until 2026-08-05, when the first real run showed the judge inventing a
-    # 1-10 scale and scoring 8-9 on every item - which sits above both thresholds below,
-    # so the hint-quality gate silently never fired. The schema now bounds the field too;
-    # this states the same contract in the place the model is most likely to follow it.
-    # D-202: taken over from a deterministic check that could not distinguish a stated
-    # answer from a coincidence of digits. The instruction is about *function*, not about
-    # characters, which is exactly what a rule could not express.
-    "Set `hint_reveals_answer` true only if a hint actually GIVES the student the answer - "
-    "states it, or reduces the problem to reading it off. A hint that repeats a number "
-    "already printed in the question does NOT reveal anything: if the question says a "
-    "4-pack and the answer happens to be 4, a hint mentioning the 4-pack is fine, because "
-    "the student is already looking at that number. Judge what the hint does for a student "
-    "who has read the question, not which digits appear in it. Explain your call in "
-    "`hint_reveals_answer_reason`. "
-    "Score hint_quality_score on a scale of 1 to 5, where 1 is a ladder that misleads or "
-    "gives the answer away, 3 is usable but shallow, and 5 is a genuinely progressive "
-    "ladder that guides without revealing. Do not use any other scale. "
-    # The schema now puts `reasoning` first (D-193) so this instruction is followable;
-    # stated here as well because the judge that missed a wrong answer had *found* it in
-    # prose and still emitted the passing boolean. Naming the dependency explicitly is
-    # cheap next to another item reaching a student.
-    "Write `reasoning` first and work the question out there in full, including solving "
-    "it yourself. Then set every boolean to match what you concluded. If your reasoning "
-    "finds the stated answer wrong, `is_internally_consistent` must be false. "
-    # D-194. The judge is not told the tier that was requested or the tier the generator
-    # claimed, so this is genuinely its own reading - which is the only reason comparing
-    # the two numbers means anything. Saying "you have not been told" out loud discourages
-    # the model from guessing at an intended answer.
-    "Rate `reviewed_difficulty` on the same 1-5 scale from the question alone. You have "
-    "NOT been told what tier this item was written for, and you should not try to infer "
-    "one from the request - judge what the item demands. In `difficulty_reasoning`, name "
-    "the reasoning operations required (translating a scenario into an equation, a "
-    "variable on both sides, distribution before combining like terms, negative or "
-    "fractional coefficients, the number of distinct steps), not how hard it feels. "
-    # D-200, and the highest-leverage sentence in this prompt. Measured across six paid
-    # runs: `reviewed_difficulty` was 2 in **15 of 17** items - distribution {1:1, 2:15,
-    # 3:1} - while the generator's proposals spanned 1-5 and tracked the request sensibly.
-    # A rater told to use a 1-5 scale and never told what the numbers *mean* falls back on
-    # an absolute "how hard is mathematics" reading, and on that reading all of grade 6-7
-    # linear algebra is a 2. The consequence was arithmetic, not a tendency: requested
-    # tier 4 gives |4 - 2| = 2 and tier 5 gives 3, both at or over the rejection
-    # threshold, so **no tier-4 or tier-5 item could ever pass, however good it was**. Six
-    # runs, zero survivors above tier 2.
-    #
-    # The fix is a scale, not a hint: the anchors below describe structural features
-    # visible in the item, and the judge is still never told which tier was requested, so
-    # the reading stays independent (D-194) - it is now independent *and* calibrated
-    # rather than independent and constant.
-    "The 1-5 scale is RELATIVE TO THE GRADE BAND YOU ARE GIVEN, not to mathematics as a "
-    "whole. A 2 does not mean 'easy for an adult'; it means 'the second-easiest thing a "
-    "student at this grade band is asked to do'. Almost every item you see will be routine "
-    "for you and that tells you nothing - rate the work the item demands of a student in "
-    "that band, using these anchors: "
-    # Anchored on the STRUCTURE OF THE EQUATION, deliberately. The first draft of this
-    # rubric made tier 3 "the student must build the equation from the situation", and the
-    # judge promptly rated a one-step item 3 - correctly, by that wording. Every item in
-    # this bank is a word problem (D-191 made the scenario mandatory), so "it is a word
-    # problem" is a constant and a constant cannot discriminate. These anchors mirror the
-    # skill ladder in `TOPIC_DIFFICULTY_SKILLS` - one-step, two-step, negative/fractional
-    # coefficients, variables on both sides, distribution - which is the ladder the tiers
-    # were defined by in the first place.
-    "Rate the EQUATION the student must solve, not the wrapping. Every item here is set in "
-    "a story; that is the house style and it does NOT by itself raise the tier. A short "
-    "preliminary calculation to get a number out of the scenario does not either. "
-    + " ".join(f"{tier} = {text}." for tier, text in sorted(DIFFICULTY_ANCHORS.items()))
-    + " "
-    "Use the whole range. If an item genuinely sits between two anchors, choose the higher "
-    "one when the extra step is structural and the lower one when it is only arithmetic."
-)
+def judge_system_prompt(topic: TopicDef) -> str:
+    """The judge prompt for one topic, whose 1-5 rubric comes from the topic itself.
+
+    D-232 made this a function. It was a module constant carrying a single global
+    `DIFFICULTY_ANCHORS` table written for `linear_equations` - correct for that topic, and
+    applied unchanged to three topics that contain no equations, where it collapsed the
+    judge onto a constant 2 (D-231 measured 20 of 21). The anchors now live in topics.yaml
+    next to the topic they describe.
+    """
+    return (
+            "You are an independent judge reviewing one authored K-12 math question for "
+        "difficulty fit, ambiguity, curriculum alignment, age-appropriateness, and the "
+        "quality of its hint ladder. Be strict: a genuinely ambiguous, misaligned, or "
+        "unsafe question must be flagged. "
+        # The first scenario run produced "A video game has three levels ... how many levels
+        # did she complete?" with the answer 4. The equation was solved correctly and the
+        # story was impossible; solvers and judge all passed it, because nothing had asked
+        # anyone to compare the answer against the scenario's own stated facts (D-191).
+        "Check the answer against the situation the question describes, not only against "
+        "its arithmetic. If the story states a limit or a quantity and the answer exceeds "
+        "or contradicts it - a three-level game whose answer is four levels, a person "
+        "buying more items than are for sale, a negative number of minutes - the question "
+        "is not internally consistent, however correct the algebra is. "
+        # Left unstated until 2026-08-05, when the first real run showed the judge inventing a
+        # 1-10 scale and scoring 8-9 on every item - which sits above both thresholds below,
+        # so the hint-quality gate silently never fired. The schema now bounds the field too;
+        # this states the same contract in the place the model is most likely to follow it.
+        # D-202: taken over from a deterministic check that could not distinguish a stated
+        # answer from a coincidence of digits. The instruction is about *function*, not about
+        # characters, which is exactly what a rule could not express.
+        "Set `hint_reveals_answer` true only if a hint actually GIVES the student the answer - "
+        "states it, or reduces the problem to reading it off. A hint that repeats a number "
+        "already printed in the question does NOT reveal anything: if the question says a "
+        "4-pack and the answer happens to be 4, a hint mentioning the 4-pack is fine, because "
+        "the student is already looking at that number. Judge what the hint does for a student "
+        "who has read the question, not which digits appear in it. Explain your call in "
+        "`hint_reveals_answer_reason`. "
+        "Score hint_quality_score on a scale of 1 to 5, where 1 is a ladder that misleads or "
+        "gives the answer away, 3 is usable but shallow, and 5 is a genuinely progressive "
+        "ladder that guides without revealing. Do not use any other scale. "
+        # The schema now puts `reasoning` first (D-193) so this instruction is followable;
+        # stated here as well because the judge that missed a wrong answer had *found* it in
+        # prose and still emitted the passing boolean. Naming the dependency explicitly is
+        # cheap next to another item reaching a student.
+        "Write `reasoning` first and work the question out there in full, including solving "
+        "it yourself. Then set every boolean to match what you concluded. If your reasoning "
+        "finds the stated answer wrong, `is_internally_consistent` must be false. "
+        # D-194. The judge is not told the tier that was requested or the tier the generator
+        # claimed, so this is genuinely its own reading - which is the only reason comparing
+        # the two numbers means anything. Saying "you have not been told" out loud discourages
+        # the model from guessing at an intended answer.
+        "Rate `reviewed_difficulty` on the same 1-5 scale from the question alone. You have "
+        "NOT been told what tier this item was written for, and you should not try to infer "
+        "one from the request - judge what the item demands. In `difficulty_reasoning`, name "
+        "the reasoning operations required (translating a scenario into an equation, a "
+        "variable on both sides, distribution before combining like terms, negative or "
+        "fractional coefficients, the number of distinct steps), not how hard it feels. "
+        # D-200, and the highest-leverage sentence in this prompt. Measured across six paid
+        # runs: `reviewed_difficulty` was 2 in **15 of 17** items - distribution {1:1, 2:15,
+        # 3:1} - while the generator's proposals spanned 1-5 and tracked the request sensibly.
+        # A rater told to use a 1-5 scale and never told what the numbers *mean* falls back on
+        # an absolute "how hard is mathematics" reading, and on that reading all of grade 6-7
+        # linear algebra is a 2. The consequence was arithmetic, not a tendency: requested
+        # tier 4 gives |4 - 2| = 2 and tier 5 gives 3, both at or over the rejection
+        # threshold, so **no tier-4 or tier-5 item could ever pass, however good it was**. Six
+        # runs, zero survivors above tier 2.
+        #
+        # The fix is a scale, not a hint: the anchors below describe structural features
+        # visible in the item, and the judge is still never told which tier was requested, so
+        # the reading stays independent (D-194) - it is now independent *and* calibrated
+        # rather than independent and constant.
+        "The 1-5 scale is RELATIVE TO THE GRADE BAND YOU ARE GIVEN, not to mathematics as a "
+        "whole. A 2 does not mean 'easy for an adult'; it means 'the second-easiest thing a "
+        "student at this grade band is asked to do'. Almost every item you see will be routine "
+        "for you and that tells you nothing - rate the work the item demands of a student in "
+        "that band, using these anchors: "
+        # Anchored on the STRUCTURE OF THE EQUATION, deliberately. The first draft of this
+        # rubric made tier 3 "the student must build the equation from the situation", and the
+        # judge promptly rated a one-step item 3 - correctly, by that wording. Every item in
+        # this bank is a word problem (D-191 made the scenario mandatory), so "it is a word
+        # problem" is a constant and a constant cannot discriminate. These anchors mirror the
+        # skill ladder in `TOPIC_DIFFICULTY_SKILLS` - one-step, two-step, negative/fractional
+        # coefficients, variables on both sides, distribution - which is the ladder the tiers
+        # were defined by in the first place.
+        "Rate the EQUATION the student must solve, not the wrapping. Every item here is set in "
+        "a story; that is the house style and it does NOT by itself raise the tier. A short "
+        "preliminary calculation to get a number out of the scenario does not either. "
+            + " ".join(
+                f"{tier} = {text}." for tier, text in sorted(topic.difficulty_anchors.items())
+            )
+            + " "
+        "Use the whole range. If an item genuinely sits between two anchors, choose the higher "
+        "one when the extra step is structural and the lower one when it is only arithmetic."
+    )
 
 # Small, fixed set of hand-written few-shot exemplars (this project has no pre-authored
 # hint/solution content to draw from - hints are otherwise only ever LLM-generated at
@@ -957,7 +958,7 @@ SKILL_STRUCTURES: dict[str, str] = {
 async def _design_equation(
     gateway: BedrockGateway,
     *,
-    topic: object,
+    topic: TopicDef,
     skill: object,
     difficulty_label: int,
     spend: float,
@@ -975,7 +976,7 @@ async def _design_equation(
     # how demanding the numbers inside it should be. Handing over only the tier is what
     # produced two different skills with one identical equation.
     structure = SKILL_STRUCTURES.get(getattr(skill, "skill_id", ""), "")
-    tier_anchor = DIFFICULTY_ANCHORS.get(difficulty_label, "")
+    tier_anchor = topic.difficulty_anchors.get(difficulty_label, "")
     anchor = (
         f"REQUIRED STRUCTURE for this skill: {structure}. "
         f"For reference, tier {difficulty_label} on the shared 1-5 scale means: {tier_anchor}. "
@@ -1518,7 +1519,7 @@ async def _attempt_authored_candidate(
     judge, cost, error = await _call(
         gateway,
         task=BedrockTask.QUESTION_JUDGE,
-        system_prompt=_JUDGE_SYSTEM_PROMPT,
+        system_prompt=judge_system_prompt(topic),
         payload=judge_payload,
         response_model=QuestionJudgeResponse,
         session_spend_cents=spend,
