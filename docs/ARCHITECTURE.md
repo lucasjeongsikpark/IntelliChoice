@@ -657,6 +657,16 @@ to rot, because nothing fails when it does.)*
   a human reading the anchor against the situation the stem *described* rather than the work the
   student *does*. Skill-semantic rules live in the bank's own tests, one rule per skill, because
   the gate is deliberately topic-agnostic and must stay that way.
+- **When a check and the thing it checks disagree, move the cheaper one** (D-239). The difficulty
+  gate rejected any candidate whose judged tier sat 2 from its slot's — discarding an item that had
+  passed the generator, both solvers and every judge flag, because one number said it belonged
+  somewhere else. D-238 then measured that exact disagreement across a whole topic and found the
+  *rubric* wrong, repairing it by moving eight items' tiers and changing no item's content. The tier
+  is a label; the item is the work. **But a re-tier is only as good as the instrument doing it**, so
+  it is gated on that instrument's own dispersion within the run: a judge answering one tier for
+  everything would restack a run onto that tier and report a high yield for doing so, which is
+  worse than the rejections it replaces because the summary makes it look like success. Run-scoped
+  evidence, threaded rather than global, and the first candidates of a run therefore cannot move.
 - **A test double is part of the schema's blast radius** (D-238). `MockBedrockProvider` dispatches
   on `json_schema["title"]`, a string match that connects nothing to the model it names, so D-194's
   field rename left two branches compiling, passing every test, and returning JSON that failed

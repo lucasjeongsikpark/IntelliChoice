@@ -37,6 +37,15 @@ the user starts it.
 `--judge` now runs **end to end for free** under the mock provider (D-238), and `--dump` writes
 per-item records so a run can be re-analysed without buying it twice.
 
+**The generation pipeline's difficulty gate re-tiers rather than rejects (D-239).** A candidate
+whose judged tier sits >= 2 from its slot's is stored at the judge's tier, `pending` at
+`review_priority="high"`, counted as `retiered` — a filled slot, separate from `pending` and from
+`rejected`. The move is gated on `JudgeDispersion`, which is **run-scoped**: the first candidates of
+any run cannot be re-tiered and a short run moves nothing. `|proposed − reviewed|` no longer rejects
+at all — it had never rejected anything the slot gap would not have, across all 41 candidates on
+record. Nothing about this has been exercised against a real model yet; the whole change was
+verified on the mock path.
+
 What is left, in order of value:
 
 1. **Two rungs that still do not separate, both now known to be clause-level (D-238).**
@@ -54,8 +63,19 @@ What is left, in order of value:
    "is this item a 4 or a 5" no.
 
 3. **`difficulty_confidence` is still 1.0 by assertion** on every hand-authored item. Nothing has
-   ever measured it, and D-238 is the third session to leave it standing.
-4. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
+   ever measured it, and D-238 is the third session to leave it standing. D-239 gave it a real
+   meaning for *pipeline* items — 1.0 only when two readings agree, 0.5 for a flag or a re-tier —
+   which sharpens the contrast with the 83 hand-authored ones asserting 1.0 on nobody's evidence.
+4. **`ruff` is unpinned (`ruff>=0.16.0`) and CI resolves a newer one than local.** D-239's first
+   CI run failed `lint` on two `UP037` violations that the local 0.16.0 does not report, after a
+   clean local `make lint`. Harmless this time — the fix was to delete two pairs of quotes — but
+   **a green local lint is not evidence that CI's lint is green**, and the gap will keep widening
+   until the version is pinned or the local one is refreshed as part of `make lint`.
+5. **D-239's re-tier has never run against a real judge.** Every branch is covered on the mock path,
+   but the numbers that decide a move — how often a real run clears the dispersion floor, how many
+   candidates actually move — are unmeasured. One paid batch would answer it; budget it against the
+   D-237 rule that n=2 establishes nothing.
+6. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
    for twelve decisions behind the line `"127 already existed, 0 created"` — and that line is not
    in any deploy log, because `deploy-staging.yml` only runs `test "$EXIT_CODE" = "0"`. The loader
    now distinguishes created / updated / unchanged / retired, which is exactly the signal worth
@@ -65,13 +85,13 @@ What is left, in order of value:
    read), then echo the ops task's log stream after `aws ecs wait`. Same treatment is worth giving
    the migration and seed steps, which are equally silent. **Until this exists, "the deploy loaded
    the bank" means only that the loader exited 0** — which is what D-206 already learned once.
-5. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+7. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-6. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+8. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-7. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+9. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under
@@ -108,6 +128,36 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the difficulty gate now moves the item instead of throwing it away (2026-08-09, D-239)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1073 passed, 2 skipped, 1 xfailed** ·
+**no paid run** · full write-up in DECISIONS.md **D-239**.
+
+**The gate re-tiers.** `|reviewed − requested| >= 2` used to reject a candidate that had already
+passed the generator, the design pre-stage, both solvers and every judge flag. It now stores it at
+the tier the judge read, `pending` at `review_priority="high"`, with `stored_at_difficulty` /
+`retiered_from` in `stage_results`. D-238 is why: eight `place_value` items were two tiers off
+because the *rubric* conflated two skills, and the repair moved tiers without touching content.
+
+**Gate 1 is gone, and the data decided it.** Over all 41 pipeline candidates carrying a difficulty
+stage, `|proposed − reviewed|` rejected independently of the slot gap **zero** times, and
+`requested == proposed` in **30 of 41** — the Generator is anchored, so its number was never
+independent evidence. Kept, it would have rejected the very items the re-tier exists to save.
+`proposed` stays as provenance and still contributes to `flagged`.
+
+**The move is gated on the judge discriminating** (`JudgeDispersion`, D-231's second-version rule:
+≥5 observations, dominant tier <80%). Run-scoped and threaded through `run_plan`, so **the first
+candidates of a run can never move** and a short run moves nothing — fail-closed, and stated rather
+than discovered.
+
+**Two quiet ones the change would have introduced.** The repair loop's success test was
+`status == "pending"`, so a re-tiered candidate would have fallen into a paid rewrite of an item
+that had just passed every gate; and `_settle` logged anything not `"pending"` as a rejection, which
+would have listed every re-tier as rejected while the summary counted it as filled.
+
+**Verified free.** Only possible because D-238 repaired `QUESTION_JUDGE`'s mock branch the session
+before — this change could not otherwise have been checked without paying.
 
 ### Session log — two topics, two different reasons, and neither was the one I predicted (2026-08-09, D-238)
 
