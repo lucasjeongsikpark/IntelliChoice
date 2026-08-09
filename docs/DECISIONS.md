@@ -16589,3 +16589,67 @@ So a cross-vendor solver is not a config change. It needs a second provider path
 that makes every structured call safe, for a benefit (decorrelated solver error) that is real but
 unmeasured. **Not attempted here.** Recorded so the next person does not repeat the 1.6¢ of probing,
 and so D-229's recommendation is corrected where it was made rather than quietly dropped.
+
+## D-231 — the judge stage was broken by a shared token ceiling, and it measures the wrong difficulty (accepted, 2026-08-08)
+
+Running the judge over the bank — the last of D-211's two panels — found two things, and the second
+is the reason the calibration number this session set out to produce does not exist.
+
+### 1. The judge stage could not complete a single call
+
+`_AUTHORED_REVIEW_MAX_TOKENS = 1200` was shared by the solvers and the judge. Measured against a
+4000-token ceiling on one item from each topic, the judge writes **1847, 2108 and 1822** output
+tokens. Every judge call truncated, and `raw_generate` refuses to retry under the same ceiling — so
+the candidate is rejected **after** paying for equation design, generation and both solvers.
+
+The comment on that constant had predicted it in as many words ("the headroom is load-bearing") and
+then stopped being true, because D-193 made `reasoning` the field the judge writes *first* and the
+judge later also began checking the scenario's own constraints. Same class as D-195's shared
+400-token ceiling: **one constant serving two stages whose output sizes differ by about 2×.**
+
+Split into `_AUTHORED_SOLVER_MAX_TOKENS = 1200` (unchanged) and `_AUTHORED_JUDGE_MAX_TOKENS = 3000`,
+with the three measurements recorded beside the number. **Four of 25 items still failed at 3000**,
+so the true tail is longer than one topic's sample shows; that is a known residual, not a fixed one.
+
+This had no symptom short of running it. The stage has existed since D-186, no test exercises it
+against real Bedrock, and the mock provider answers within any ceiling.
+
+### 2. The judge rates *absolute* difficulty, so it cannot validate a tier
+
+With the ceiling fixed, the run produced a number and the control killed it:
+
+```
+judged 21 items (4 call failures), 27.72 cents
+  clean: 9   flagged: 12   exact tier agreement: 6/21
+  judge's own tiers: {2: 20, 5: 1}
+```
+
+**The judge answered "2" for 20 of 21 items.** So "6/21 agreement" and "12 flagged" describe the
+judge's constant, not the bank. Its rationales say why without being asked: *"This is a foundational
+place value identification task for grades 1–2."* It is rating how hard the item is **for a student
+in general**, while `difficulty_label` means the tier *within its topic* — d1..d5 of place value, all
+of which are grade-1–2 work and therefore all "2" to an absolute scale.
+
+The consequence is not just a bad audit. `judge_difficulty` rejects at a slot gap of 2, so **had the
+pipeline authored this topic, it would have rejected most of its d4 and d5 items** for a reason that
+is about the scale, not the items. The judge is calibrated against `linear_equations`, the only topic
+that existed when it was written, whose tiers really do span a range of absolute difficulty.
+
+**Not fixed here.** The fix is a prompt that asks for a tier *relative to the named topic and grade
+band* — both of which `QuestionJudgePayload` already carries and the judge evidently reads, since it
+cited the band. That is a change to a paid gate that decides what reaches students, and it needs its
+own before/after measurement across topics rather than a same-session patch.
+
+### 3. The control that caught it was itself too weak
+
+It fired only when the judge returned exactly one distinct tier. `{2: 20, 5: 1}` is two, so it
+passed — while being a constant for every practical purpose. Now a dispersion check: one tier taking
+≥80% of the ratings fails the control. **A control a near-degenerate distribution walks through is
+not a control**, and this is the second time in two sessions that D-229's self-test needed
+correcting after it reported success (D-230 was the first).
+
+### What was deliberately not done
+
+The remaining 102 items were **not** judged. The instrument had already been shown not to
+discriminate on this axis, so a larger sample buys a more precise version of an uninterpretable
+number — about $1.50 for it. Stopping is the finding.

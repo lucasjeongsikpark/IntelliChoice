@@ -47,6 +47,33 @@ replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D
 retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
 measured zero wrong tiers live.
 
+### Session log — the judge could not complete a call, and then measured the wrong thing (2026-08-08, D-231)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1027 passed, 2 skipped, 1 xfailed** · the
+judge's output size measured directly (1847/2108/1822 tokens against a 1200 ceiling) · one topic
+judged live · full write-up in DECISIONS.md **D-231**.
+
+**The judge stage had never completed a call.** `_AUTHORED_REVIEW_MAX_TOKENS = 1200` was shared with
+the solvers; the judge needs ~2000, so every call truncated and `raw_generate` refuses to retry under
+the same ceiling — rejecting a candidate *after* paying for design, generation and both solvers. Same
+class as D-195's shared 400-token ceiling. Split into separate solver and judge ceilings, with the
+measurements recorded beside the number. **4 of 25 still failed at 3000**, so the tail is longer.
+
+**Then the control killed the number the fix produced.** `judge's own tiers: {2: 20, 5: 1}` — the
+judge answered 2 for 20 of 21 items, because it rates *absolute* difficulty ("foundational place
+value for grades 1-2") while `difficulty_label` means the tier **within** its topic. It is calibrated
+against `linear_equations`, the only topic that existed when it was written. Had the pipeline
+authored `place_value`, it would have rejected most of its d4/d5 items for a reason about the scale
+rather than the items.
+
+**And the control needed strengthening to have caught it honestly.** It fired only on a single
+distinct tier; `{2: 20, 5: 1}` is two, so it passed while being a constant in practice. Now a
+dispersion check at 80%. Second session running in which D-229's self-test needed correcting after
+reporting success.
+
+**Stopped rather than scaled:** the remaining 102 items were not judged. A larger sample buys a more
+precise version of an uninterpretable number, for about $1.50.
+
 ### Session log — the solver panel finally run, and the control that made it mean something (2026-08-08, D-229)
 
 **Verification:** `ruff` clean · `pyright` 0 errors · **127 of 127 approved items audited, all 127
@@ -66,9 +93,12 @@ declared answer moved to a wrong option — all wrong by construction — and ca
 the same id, which makes `pipeline_cli`'s preflight refuse a paid run outright. "The panel exists"
 and "the panel can be run" have not been the same thing, which is part of why D-211 stayed open.
 
-**Carry-over:** difficulty calibration is untouched (`difficulty_confidence` is 1.0 by assertion on
-all 80 hand-authored items). The cross-vendor solver D-229 recommended turned out to be **blocked by
-the provider, not by model access** (D-230): `AnthropicBedrockProvider` forces
+**Carry-over:** difficulty calibration is **still unmeasured, and now for a known reason** — D-231
+found the judge rates *absolute* difficulty ("this is grade 1-2 work") rather than the tier within a
+topic, so it answered 2 for 20 of 21 `place_value` items and cannot validate a `difficulty_label` at
+all outside `linear_equations`. It also could not complete a single call until D-231 split the token
+ceiling it shared with the solvers. The cross-vendor solver D-229 recommended turned out to be
+**blocked by the provider, not by model access** (D-230): `AnthropicBedrockProvider` forces
 `toolChoice: {tool: …}`, which is how structured output is guaranteed, and no non-Anthropic Bedrock
 model supports forcing a specific tool. It needs a second provider path, not a config change.
 
