@@ -37,15 +37,30 @@ import sys
 from dataclasses import dataclass, field
 
 from intellichoice_curriculum.ai_pipeline import (
-    _AUTHORED_REVIEW_MAX_TOKENS,
+    _AUTHORED_JUDGE_MAX_TOKENS,
+    _AUTHORED_SOLVER_MAX_TOKENS,
+    _JUDGE_SYSTEM_PROMPT,
     _SOLVER_SYSTEM_PROMPT,
     _call,
     solver_objections,
 )
 from intellichoice_curriculum.authored_bank import AuthoredTemplateDef, load_authored_bank
+from intellichoice_curriculum.content import load_curriculum
 from intellichoice_curriculum.pipeline_cli import _build_gateway, underlying_model
 from intellichoice_curriculum.settings import get_pipeline_settings
-from intellichoice_shared.bedrock import BedrockTask, SolverPayload, SolverResponse
+from intellichoice_shared.bedrock import (
+    BedrockTask,
+    QuestionJudgePayload,
+    QuestionJudgeResponse,
+    SolverPayload,
+    SolverResponse,
+)
+
+# The pipeline's own thresholds, reused rather than restated so this audit cannot drift into
+# judging the bank by a standard the pipeline would not apply (`ai_pipeline.judge_difficulty`
+# rejects at 2; the hint-quality gate flags at or below 3).
+_DIFFICULTY_REJECT_GAP = 2
+_HINT_QUALITY_FLOOR = 3
 
 _CALLS_PER_ITEM = 2
 
@@ -104,7 +119,7 @@ async def _audit_item(
             payload=payload,
             response_model=SolverResponse,
             session_spend_cents=spend,
-            max_output_tokens=_AUTHORED_REVIEW_MAX_TOKENS,
+            max_output_tokens=_AUTHORED_SOLVER_MAX_TOKENS,
         )
         spend += cost
         if error is not None or not isinstance(response, SolverResponse):
@@ -116,6 +131,127 @@ async def _audit_item(
     verdict.solver_b = solvers[1].selected_option
     verdict.objections = solver_objections(solvers[0], solvers[1], declared=item.correct_option)
     return verdict, spend
+
+
+async def _judge_item(
+    gateway, item: AuthoredTemplateDef, spend: float
+) -> tuple[dict, float]:
+    """One blind judge call. The judge never sees the declared tier (D-194), which is what
+    makes the comparison below worth making at all.
+    """
+    curriculum = load_curriculum()
+    topics = {t.topic_id: t for t in curriculum.topics}
+    skills = {s.skill_id: s for s in curriculum.skills}
+    topic = topics[item.topic_id]
+    skill = skills[item.skill_id]
+    payload = QuestionJudgePayload(
+        rendered_question=_rendered(item),
+        option_a=item.option_a,
+        option_b=item.option_b,
+        option_c=item.option_c,
+        option_d=item.option_d,
+        hint_ladder=list(item.hint_ladder),
+        canonical_solution=str(item.canonical_solution["final_answer"]),
+        topic_name=topic.name,
+        skill_name=skill.name,
+        grade_band=topic.grade_band,
+    )
+    response, cost, error = await _call(
+        gateway,
+        task=BedrockTask.QUESTION_JUDGE,
+        system_prompt=_JUDGE_SYSTEM_PROMPT,
+        payload=payload,
+        response_model=QuestionJudgeResponse,
+        session_spend_cents=spend,
+        max_output_tokens=_AUTHORED_JUDGE_MAX_TOKENS,
+    )
+    spend += cost
+    if error is not None or not isinstance(response, QuestionJudgeResponse):
+        return {"id": item.question_template_id, "error": error or "no response"}, spend
+
+    flags = []
+    gap = abs(response.reviewed_difficulty - item.difficulty_label)
+    if gap >= _DIFFICULTY_REJECT_GAP:
+        flags.append(
+            f"difficulty: declared {item.difficulty_label}, judge {response.reviewed_difficulty}"
+        )
+    if response.is_ambiguous:
+        flags.append("ambiguous")
+    if not response.is_aligned:
+        flags.append("not aligned to its skill")
+    if not response.is_age_appropriate:
+        flags.append("not age appropriate")
+    if not response.is_internally_consistent:
+        flags.append("internally inconsistent")
+    if response.hint_quality_score <= _HINT_QUALITY_FLOOR:
+        flags.append(f"hint quality {response.hint_quality_score}")
+    return {
+        "id": item.question_template_id,
+        "declared": item.difficulty_label,
+        "reviewed": response.reviewed_difficulty,
+        "gap": gap,
+        "hint_quality": response.hint_quality_score,
+        "flags": flags,
+        "reasoning": response.difficulty_reasoning,
+    }, spend
+
+
+async def _judge(items: list[AuthoredTemplateDef], budget_cents: float) -> int:
+    settings = get_pipeline_settings()
+    gateway = _build_gateway(settings)
+    spend = 0.0
+    results: list[dict] = []
+
+    for item in items:
+        if spend >= budget_cents:
+            print(f"\nrun budget of {budget_cents:.0f} cents reached")
+            break
+        result, spend = await _judge_item(gateway, item, spend)
+        results.append(result)
+        print("E" if result.get("error") else ("!" if result["flags"] else "."), end="", flush=True)
+    print()
+
+    scored = [r for r in results if not r.get("error")]
+    errored = [r for r in results if r.get("error")]
+    flagged = [r for r in scored if r["flags"]]
+
+    print(f"\njudged {len(scored)} items ({len(errored)} call failures), {spend:.2f} cents")
+    print(f"  clean:                 {len(scored) - len(flagged)}")
+    print(f"  flagged:               {len(flagged)}")
+
+    # The control. A judge that answers the same tier every time produces small gaps on any
+    # bank centred near that tier, and would read as excellent calibration. So the spread of
+    # its *own* ratings is reported next to the agreement figure, always.
+    spread: dict[int, int] = {}
+    exact = 0
+    for r in scored:
+        spread[r["reviewed"]] = spread.get(r["reviewed"], 0) + 1
+        exact += 1 if r["gap"] == 0 else 0
+    print(f"  exact tier agreement:  {exact}/{len(scored)}")
+    print(f"  judge's own tiers:     {dict(sorted(spread.items()))}")
+    # Dispersion, not distinctness. The first version of this check fired only when the
+    # judge returned *one* tier for everything, and on the first real run it returned
+    # {2: 20, 5: 1} - two distinct values, so it passed, while still being a constant for
+    # every practical purpose. A control that a near-degenerate distribution walks through
+    # is not a control.
+    if scored:
+        dominant = max(spread.values())
+        if dominant / len(scored) >= 0.8:
+            tier = max(spread, key=lambda k: spread[k])
+            print(
+                f"  CONTROL FAILED: the judge answered {tier} for {dominant} of "
+                f"{len(scored)} items, so the agreement figure above measures the judge's "
+                f"constant rather than this bank's calibration."
+            )
+
+    for r in flagged:
+        print(f"\n  {r['id']}  (declared {r['declared']}, judge {r['reviewed']})")
+        for flag in r["flags"]:
+            print(f"    - {flag}")
+        print(f"    {r['reasoning'][:160]}")
+    for r in errored:
+        print(f"\n  {r['id']}  call failed: {r['error']}")
+    return 0
 
 
 def _plan(topic_id: str | None) -> list[AuthoredTemplateDef]:
@@ -255,6 +391,14 @@ def main() -> int:
         "--topic-id", default=None, help="audit one topic instead of the whole bank"
     )
     parser.add_argument(
+        "--judge",
+        action="store_true",
+        help=(
+            "run the blind judge instead of the solver panel: difficulty calibration, "
+            "ambiguity, alignment, age-appropriateness, consistency and hint quality"
+        ),
+    )
+    parser.add_argument(
         "--self-test",
         type=int,
         default=0,
@@ -289,6 +433,8 @@ def main() -> int:
         return status
     if args.self_test:
         return asyncio.run(_self_test(items, budget))
+    if args.judge:
+        return asyncio.run(_judge(items, budget))
     return asyncio.run(_run(items, budget))
 
 
