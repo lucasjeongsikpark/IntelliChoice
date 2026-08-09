@@ -50,7 +50,7 @@ async def payload_from_marker(
     student_external_id: str,
     marker: dict,
 ) -> tuple[StageNarrativePayload, str | None]:
-    """Resolve an ids-only `study_step`/`study_outro` marker (D-217) into the full
+    """Resolve an ids-only `pre_outro`/`study_step`/`study_outro` marker into the full
     `StageNarrativePayload` + `related_skill_id`. Shared by the inline node path and the
     background scheduler so both build the same payload from the same ids; takes the repos
     rather than a `TurnContext` so the background task can pass its own session's repos.
@@ -60,6 +60,25 @@ async def payload_from_marker(
     profile = await profile_adapter.get_student_profile(student_external_id)
     assert profile is not None
     grade = profile.grade
+
+    if marker["stage"] == "pre_outro":
+        # D-241. The study plan's ranked target skills are both "the student's weak topics"
+        # and "what study serves next", which is exactly what `pre_outro` says. Resolved
+        # here from ids for the same reason as `study_step` below: names are PII-adjacent
+        # and the marker is checkpointed (SPEC §5.30).
+        names = []
+        for skill_id in marker["target_skill_ids"]:
+            skill = await curriculum_repo.get_skill(skill_id)
+            names.append(skill.name if skill is not None else skill_id)
+        return (
+            StageNarrativePayload(
+                stage="pre_outro",
+                grade=grade,
+                weak_skill_names=names,
+                target_skill_name=names[0] if names else None,
+            ),
+            None,
+        )
 
     if marker["stage"] == "study_step":
 

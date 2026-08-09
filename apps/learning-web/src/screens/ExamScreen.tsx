@@ -438,6 +438,25 @@ export function ExamScreen({
       ? `Question ${shownQuestionNumber} of ${cachedBatch.length}`
       : ""
     : `Practice question ${shownQuestionNumber}`;
+  // D-241: the exam cannot be submitted while questions are still unanswered.
+  //
+  // **Except once the timer has run out**, and that exception is the whole design. An
+  // expired exam refuses further answers (`submit_answer` -> 409 "exam time limit
+  // exceeded - finalize to submit"), so blocking finalize as well would leave a student
+  // who ran out of time unable to answer AND unable to submit - trapped in a screen with
+  // no exit. `handleExpire` finalizes automatically and falls back to the confirmation
+  // modal, and that path stays open.
+  //
+  // The server rule is unchanged and still the authority (S22, SPEC §5.9/§5.13): finalize
+  // with unanswered items requires `confirm_unanswered`. This is a client-side policy on
+  // top of it, not a replacement for it - which is why the modal still explains that
+  // unanswered questions are graded incorrect when the expired path reaches it.
+  const unansweredCount =
+    overview?.items.filter((item) => item.status !== "answered").length ?? 0;
+  const examExpired =
+    overview?.remaining_seconds != null && overview.remaining_seconds <= 0;
+  const submitBlocked = unansweredCount > 0 && !examExpired;
+
   const rememberedSelection = answeredSelections[currentDisplayOrder];
 
   return (
@@ -533,14 +552,22 @@ export function ExamScreen({
       )}
 
       {isExamPhase && overview && (
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy}
-          onClick={() => setModalOpen(true)}
-        >
-          Submit exam
-        </button>
+        <div className="submit-exam">
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy || submitBlocked}
+            onClick={() => setModalOpen(true)}
+          >
+            Submit exam
+          </button>
+          {submitBlocked && (
+            <p className="submit-exam-hint">
+              {unansweredCount} question{unansweredCount === 1 ? "" : "s"} left to answer. Use
+              the numbers above to jump to {unansweredCount === 1 ? "it" : "them"}.
+            </p>
+          )}
+        </div>
       )}
 
       <div className="sr-only" role="status" aria-live="polite">

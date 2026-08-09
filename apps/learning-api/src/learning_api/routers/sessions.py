@@ -1255,6 +1255,10 @@ async def finalize_exam(
     bedrock_gateway: Annotated[BedrockGateway, Depends(get_bedrock_gateway)],
     graph: Annotated[LearningGraph, Depends(get_graph)],
     events: Annotated[SessionEventBus, Depends(get_session_events)],
+    study_narrative_scheduler: Annotated[
+        "BackgroundStudyNarrativeScheduler | None",
+        Depends(get_study_narrative_scheduler),
+    ] = None,
 ) -> FinalizeExamResponse:
     """S22 (SPEC §5.9/§5.13, D-064): the explicit "submit exam" action - grades any
     remaining unanswered item incorrect (once confirmed, or once the timer's expired) and
@@ -1288,6 +1292,7 @@ async def finalize_exam(
         mcp_registry=mcp_registry,
         bedrock_gateway=bedrock_gateway,
         confirm_unanswered=body.confirm_unanswered,
+        defer_study_narrative=study_narrative_scheduler is not None,
     )
     try:
         result = await graph.ainvoke(
@@ -1321,6 +1326,9 @@ async def finalize_exam(
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
     _publish_snapshot(events, response)
+    # D-241: the `pre_outro` narrative, if this turn deferred it. After the publish, so the
+    # student has their study plan before the sentence about it is even requested.
+    await _schedule_deferred_narrative(study_narrative_scheduler, learning_session_id, result)
     return response
 
 

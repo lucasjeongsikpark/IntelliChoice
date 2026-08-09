@@ -175,6 +175,16 @@ button.link {
   padding: 4px 2px 12px;
 }
 
+/* D-241: sit a short conversation just above the composer instead of stranding it at the
+   top of a 700px column with the composer far below - measured on staging, a one-turn
+   chat left ~500px of empty space between the answer and the input. `margin-top: auto` on
+   the first row rather than `justify-content: flex-end` on the container, because
+   flex-end on a scroll container clips the *top* of overflowing content in every engine
+   and the earlier messages become unreachable. */
+.message-list > :first-child {
+  margin-top: auto;
+}
+
 .message-row {
   display: flex;
 }
@@ -215,12 +225,27 @@ button.link {
   margin-top: 8px;
 }
 
+.citations-label {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+  opacity: 0.7;
+  align-self: center;
+}
+
+/* D-241: deliberately NOT `--accent-bg` and NOT a pill. That background and radius are
+   this app's interactive-chip signature (`.chip`, `.suggestion`), and borrowing them for a
+   static label made a source indistinguishable from a button that sends a message. A
+   bordered rectangle with no fill reads as metadata, which is what it is. */
 .citation-chip {
   font-size: 12px;
   color: var(--text);
-  background: var(--accent-bg);
-  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control, 6px);
   padding: 3px 10px;
+  cursor: default;
 }
 
 .escalation-banner {
@@ -404,4 +429,28 @@ button.chip {
   font-size: 14px;
   margin-bottom: 14px;
   white-space: pre-line;
+}
+
+/* D-241: a cited answer's p95 is ~10s (D-115), and this app had no animation of any kind -
+   so "Thinking…" was a static grey bubble for ten seconds, which reads as a hung request
+   rather than a slow one. Motion is the cheapest possible signal that something is still
+   happening, and it is switched off for anyone who has asked for reduced motion. */
+@keyframes thinking-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.bubble.dim {
+  animation: thinking-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble.dim {
+    animation: none;
+  }
 }

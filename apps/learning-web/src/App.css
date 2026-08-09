@@ -1519,3 +1519,18 @@ ul {
   color: var(--viz-series-3);
   font-weight: 600;
 }
+
+/* D-241: the submit control and the reason it is disabled, kept together so the
+   explanation cannot drift away from the button it explains. */
+.submit-exam {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+
+.submit-exam-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted, #5b6472);
+}

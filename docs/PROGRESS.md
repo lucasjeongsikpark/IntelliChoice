@@ -90,7 +90,14 @@ What is left, in order of value:
    so the topics where tier disagreement actually lives — the ones D-234 and D-238 worked on — are
    hand-authored and **this gate never sees them**. Registering a second topic's generation plan
    would both extend the pipeline and give the gate a real population.
-7. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
+7. **Neither web app has a unit-test harness.** `learning-web` and `chat-web` are covered by
+   `tsc`, `oxlint` and Playwright only, so D-241's submit gate and chat restyle ship verified by
+   build + browser walk rather than by a test. A component harness (vitest + testing-library)
+   would pay for itself the first time a conditional like `unansweredCount > 0 && !examExpired`
+   needs to change.
+8. **The chat walk did not cover signed-in roles, the branch locator, or the calendar** (D-241).
+   Guest paths, citations, escalation and narrow viewports were walked; the rest was not.
+9. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
    for twelve decisions behind the line `"127 already existed, 0 created"` — and that line is not
    in any deploy log, because `deploy-staging.yml` only runs `test "$EXIT_CODE" = "0"`. The loader
    now distinguishes created / updated / unchanged / retired, which is exactly the signal worth
@@ -100,13 +107,13 @@ What is left, in order of value:
    read), then echo the ops task's log stream after `aws ecs wait`. Same treatment is worth giving
    the migration and seed steps, which are equally silent. **Until this exists, "the deploy loaded
    the bank" means only that the loader exited 0** — which is what D-206 already learned once.
-8. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+10. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-9. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+11. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-10. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+12. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under
@@ -143,6 +150,35 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — three reported UI defects, and one of them was a policy change (2026-08-09, D-241)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1075 passed, 2 skipped, 1 xfailed** ·
+both web apps `tsc`/`oxlint` clean · **no paid run** · full write-up in DECISIONS.md **D-241**.
+
+**The slow narrative was `pre_outro`, and D-217 had already built the fix for its sibling.**
+D-217 moved `study_step` off the answer's critical path and left this one inline — on the worst
+turn to leave it, since submitting the pre-exam already grades ten items, recomputes mastery and
+builds the study plan before rendering anything. Extended the existing scheduler rather than
+duplicating it: ids-only marker, resolved at generation time, inline under the mock.
+**It exposed that D-217's deferral had zero test coverage** — every test runs the mock and takes
+the inline branch. The new test is the first to drive the deferred one.
+
+**"Submit exam" is gated on completeness, but not blindly.** Exams are timed (D-064), and an
+expired exam refuses answers with *"finalize to submit"* — so blocking finalize on unanswered
+items would have made an expired exam **unexitable**. The gate is
+`unansweredCount > 0 && !examExpired`, and the auto-finalize-on-expiry path stays open. The
+server rule (`confirm_unanswered`, S22) is unchanged and still the authority.
+
+**A chat citation was styled as a button.** Measured on staging: the citation and the
+interactive follow-up chip had the *identical* background and 999px pill radius, differing by
+text colour and 6px. Now labelled "Source" and restyled as a bordered, unfilled rectangle.
+Also bottom-aligned the transcript (a one-turn chat stranded ~500px of void above the composer)
+and animated `Thinking…`, which sat motionless for a ~10s p95 in an app that contained **no
+`@keyframes` and no `animation:` anywhere**.
+
+**Two things measured and deliberately left alone:** the assistant bubble's right gutter is its
+`max-width: 85%` behaving correctly, and the escalation banner's restatement is D-219's wording.
 
 ### Session log — D-239 measured for real: live, correct, never fired (2026-08-09, D-240)
 

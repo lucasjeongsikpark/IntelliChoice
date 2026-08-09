@@ -110,8 +110,26 @@ export function ChatScreen({
                   {turn.response.answer !== turn.response.access_hint?.message && (
                     <RichText text={turn.response.answer} />
                   )}
+                  {/* D-241: a citation is a *label*, not an action, and it used to be
+                      impossible to tell. Measured on staging: `.citation-chip` and the
+                      interactive `.chip` below rendered with the identical background
+                      (`--accent-bg`) and the identical 999px pill radius, differing only
+                      in text colour and 6px of height - so a source sat next to a
+                      follow-up button looking like a second button, and clicking it did
+                      nothing. Named and restyled rather than made clickable: these sources
+                      are internal approved documents, and several have no URL to open. */}
                   {turn.response.citations.length > 0 && (
-                    <div className="citations">
+                    <div
+                      className="citations"
+                      aria-label={
+                        turn.response.citations.length === 1
+                          ? "Source for this answer"
+                          : "Sources for this answer"
+                      }
+                    >
+                      <span className="citations-label">
+                        {turn.response.citations.length === 1 ? "Source" : "Sources"}
+                      </span>
                       {turn.response.citations.map((c, i) => (
                         <span className="citation-chip" key={i}>
                           {c.document_title}
