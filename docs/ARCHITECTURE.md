@@ -657,6 +657,24 @@ to rot, because nothing fails when it does.)*
   a human reading the anchor against the situation the stem *described* rather than the work the
   student *does*. Skill-semantic rules live in the bank's own tests, one rule per skill, because
   the gate is deliberately topic-agnostic and must stay that way.
+- **A gate is only exercised over what the pipeline can produce, and that is narrower than the
+  problem** (D-240). D-239's re-tier was measured against a real judge and behaved correctly:
+  the dispersion control cleared its floor (dominant share 50% against an 80% threshold), and it
+  moved nothing, because no candidate was ever more than 1 tier from its slot. The structural
+  reason is the part to carry: `TOPIC_SKILL_DIFFICULTIES` registers a generation plan for
+  `linear_equations` only, so every topic where tier disagreement was actually found — D-234's 25
+  flagged items, all of D-238's `place_value` and `multiplication_division` work — is hand-authored
+  and never passes this gate at all. **"The gate did not fire" is evidence about the population,
+  not about the gate**, and a safety valve verified only on the traffic least likely to trip it is
+  verified in the weakest possible sense.
+- **A tool that respects `.gitignore` narrows your verification silently, and reports the narrowed
+  result as success** (D-240). A bare `curriculum/` added to `.gitignore` also matched
+  `packages/curriculum/` — gitignore patterns are unanchored by default — and ruff respects
+  `.gitignore`, so `ruff check .` stopped reading an entire Python package and printed "All checks
+  passed". The green was real; its scope was not. `pyright` and `pytest` were unaffected, which is
+  what made it survivable and also what made it hard to notice. Anchor ignore patterns that name a
+  directory which exists at more than one depth, and treat a *narrowing* of what a checker reads as
+  the same class of defect as a check that returns the wrong answer.
 - **When a check and the thing it checks disagree, move the cheaper one** (D-239). The difficulty
   gate rejected any candidate whose judged tier sat 2 from its slot's — discarding an item that had
   passed the generator, both solvers and every judge flag, because one number said it belonged
