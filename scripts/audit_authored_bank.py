@@ -169,6 +169,8 @@ async def _self_test(items: list[AuthoredTemplateDef], budget_cents: float) -> i
     gateway = _build_gateway(settings)
     spend = 0.0
     caught = 0
+    missed = 0
+    errored = 0
 
     for item in items:
         if spend >= budget_cents:
@@ -177,17 +179,34 @@ async def _self_test(items: list[AuthoredTemplateDef], budget_cents: float) -> i
         wrong = next(o for o in ("a", "b", "c", "d") if o != item.correct_option)
         corrupted = item.model_copy(update={"correct_option": wrong})
         verdict, spend = await _audit_item(gateway, corrupted, spend)
-        caught += 0 if verdict.agrees else 1
-        print("!" if not verdict.agrees else ".", end="", flush=True)
+        # A failed call is NOT a catch, and conflating the two is a real defect this script
+        # shipped with for one run: `agrees` is False for both an objection and an error, so
+        # a Solver B that failed every single call scored a perfect negative control. Caught
+        # while smoke-testing a cross-vendor Solver B, which failed exactly that way.
+        if verdict.error is not None:
+            errored += 1
+            mark = "E"
+        elif verdict.objections:
+            caught += 1
+            mark = "!"
+        else:
+            missed += 1
+            mark = "."
+        print(mark, end="", flush=True)
     print()
 
-    total = len(items)
-    print(f"\nnegative control: {caught}/{total} deliberately-wrong items caught, "
-          f"{spend:.2f} cents")
-    if caught < total:
+    scored = caught + missed
+    print(f"\nnegative control: {caught}/{scored} deliberately-wrong items caught "
+          f"({errored} call failures, not scored), {spend:.2f} cents")
+    if errored:
         print(
-            f"{total - caught} corrupted item(s) were NOT caught. The audit's agreement "
-            f"figure is worth only as much as this number."
+            f"{errored} call(s) failed. A failure is not evidence either way - a panel whose "
+            f"calls all fail catches nothing and must not read as catching everything."
+        )
+    if missed:
+        print(
+            f"{missed} corrupted item(s) were NOT caught. The audit's agreement figure is "
+            f"worth only as much as this number."
         )
     return 0
 
