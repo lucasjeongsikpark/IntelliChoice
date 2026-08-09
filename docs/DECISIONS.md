@@ -17106,3 +17106,130 @@ a real change. The rule it was defending survived; the scope it applied that rul
 
 **$1.87** of Bedrock across 15 runs, of which roughly two thirds went to establishing that a
 difference I had already announced was not there.
+
+## D-238 — two topics that would not calibrate, and the two different reasons (accepted, 2026-08-09)
+
+The D-237 pointer asked one question: do `multiplication_division` and `place_value`
+anchors discriminate in the 3-5 range at all? The answer is that they failed for two
+unrelated reasons, and only one of them was the anchors.
+
+### Pre-registered, then measured
+
+Criteria were written before any paid call: discrimination as `mean(d5) - mean(d3) >= 1.0`
+**and** monotone d3 <= d4 <= d5, plus a `gap >= 2` reject count and a d1/d2 control.
+Three falsifiable predictions came from reading the 50 items by hand first.
+
+**All three predictions did badly, and the measurement was better than any of them.** P1
+(the six `div_remainder` items judged <= 3) landed exactly on the boundary at 3.0 - too
+marginal to act on. P2 (`200401` judged <= 2) was refuted: it scored 4, 1, 2, 4. P3 (d4 and
+d5 fail to separate) was refuted: they separate by +1.02. **The rung that did not exist was
+d3 -> d4, at -0.06 over 44 judgements**, which I had not predicted at all.
+
+### `place_value`: one rubric, two skills, and only one of them had the range
+
+Splitting the same data by skill is what made it legible (n=4 runs, 100 judgements):
+
+| declared | `place_value_compare` | `place_value_identify` |
+|---|---|---|
+| d3 | 2.50 | 1.75 |
+| d4 | **3.38** | **1.75** |
+| d5 | **3.67** | **2.25** |
+
+`compare` climbed. `identify` was **flat at every tier**, never above 2.25. The pooled d4
+rung came out below d3 because it held both skills at once - `200402` (compare) scored
+4, 4, 4, 4 while `200301` (identify) scored 1, 1, 1, 1.
+
+The cause was readable in the anchors once the split was visible: **tiers 4 and 5 each led
+with a bare digit-count clause** ("FOUR-digit numbers", "five digits or more"). More digits
+is real work for `compare` - more places to rule out - and none at all for `identify`, where
+the task is *read one digit's place* at 47 exactly as much as at 30,502.
+
+**This is D-232 one level down.** D-232 found a rubric shared across topics that fitted only
+the topic it was written for. This was a rubric shared across *skills* that fitted only one
+of them. The fix is the same shape: every clause now names the skill it belongs to, and
+`identify` stops at tier 4 because that is where its work stops. A rubric that claims a
+range its skill does not have makes the tier decorative - and `mastery_bootstrap` routes on
+that tier, so a decorative tier still decides what a real student is served next.
+
+Eight items re-tiered (content untouched), three new tier-5 `compare` items authored to hold
+the ladder above the serving floor. At matched n=4 the pooled ladder is **fully monotone
+d1 -> d5** (1.50, 2.00, 2.47, 3.00, 3.55) where before it was not.
+
+### `multiplication_division`: the judge was right and the content was wrong
+
+`div_remainder` measured **flat at exactly 3.00 across declared 4 and 5**. The reason needed
+no model at all: the skill is named *"Divide with remainders"* and **all six of its items
+stated the remainder, or the completed-group count, in the stem**. "After filling as many
+cases as possible she has 5 pencils left over" hands over the division; what remains is one
+subtraction and an exact divide. Not one item in the bank exercised the skill it was filed
+under.
+
+D-235 had upheld two of these *against* the judge, matching the anchor to the situation the
+stem described rather than to the work the student does - which the anchors' own header
+warns about. Six stems rewritten so the division is actually performed, and the tier-5 item
+rebuilt so its remainder must be **interpreted** ("how many coaches are needed") rather than
+reported. `div_remainder` moved 3.00 -> **3.70** at d4 and 3.00 -> **4.50** at d5; the topic's
+pooled M1 went +0.73 -> **+1.47**, and rejects went 8/50 -> **3/50**.
+
+### What the record cost, and what it bought
+
+The change lapsed **9 of 20** verdicts. Re-judging exactly those nine: **7 now agree**. Two
+`upheld` entries were deleted as moot - and both were items whose *content* this session
+rewrote, so the judge had been right about them all along and the D-235 verdict defending
+them had been wrong. `place_value-d4-200401` was converted from `upheld` to `retiered` after
+the reading that justified it - "6,405 is a four-digit number, therefore tier 4" - was
+measured to carry no work; re-tiered to 2, the judge answered 2 in all four runs.
+
+**Second session running, an earned lapse changed a decision rather than being refreshed.**
+
+### What is not fixed, stated because the pooled number hides it
+
+- **`compare` d4 (3.58) and d5 (3.55) do not separate.** The pooled ladder is monotone
+  partly *because* identify's low d4 items drag the pooled d4 down. Mixing two skills in one
+  number is what produced the original defect, and it flatters this result too.
+- **`identify` d3 (2.35) vs d4 (2.12) is still inverted**, at n=8 for d4.
+- **The two remaining disputed verdicts are clause-level, not item-level.** All three tier-5
+  BUILD items average 3.2 and swing wildly (`200508`: 5, 3, 4, 3) while the two five-digit
+  compare items sit at 4.1 stably. Testing the item when the evidence points at the rubric
+  clause is how D-235 came to defend four items it should have re-tiered.
+- **Item-level repeatability barely moved: 8/28 items returned the same tier in all four
+  runs, against 6/25 before.** No single-item verdict in `place_value` is supportable at any
+  n this project can afford. That constrains what the audit can be used for.
+
+### The mock provider had a judge branch all along, and it was broken
+
+The carry-over said `QUESTION_JUDGE` has no branch in `mock_provider`. It has one - D-194's
+rename left it emitting `difficulty_label` and reading `proposed_difficulty`, a payload field
+the same decision *deleted* so the judge could not see the tier it was rating. So the branch
+both failed validation and encoded the blindness violation D-194 exists to prevent.
+`AuthoredGeneratedItemResponse`'s branch was broken by the same rename.
+
+Fixed, plus a parametrised test that validates **every** response model against its mock
+branch - the string dispatch on `json_schema["title"]` connects nothing, so this drift is
+silent by construction. `--judge` now runs end to end for free. Two things that only became
+reachable once it did: a mock run was reporting `4.90 cents` of spend, now shown as a
+counterfactual; and `--dump` writes per-item records, because a run you cannot re-analyse is
+one you buy twice.
+
+### Two corrections to my own work this session
+
+The `div_remainder` test first identified the dividend as the largest number and the divisor
+as the smallest - and caught **one of six**, because "the smallest number is the divisor" is
+exactly what stops being true once a remainder is also stated. Counting distinct numbers is
+simpler and correct. Restricted to `\d+` it then caught four of six, because two items wrote
+the giveaway as *"Seven rows"* and *"Three coaches"* - and those two are the worst offenders,
+the ones stating the quotient.
+
+### One pre-existing flake, made visible
+
+`test_identical_inputs_reproduce_identical_routing_and_scores` is a `strict=True` xfail over
+a subject its own reason describes as random per session. It XPASSed once in a full run and
+xfailed on the next from the same tree, turning the suite red for nothing. Relaxed to
+`strict=False`: strict is right for a *deterministic* expected failure, where it tells you
+the day the bug is fixed, and here it cannot.
+
+### Cost
+
+**$2.63** of Bedrock across 12 runs, 0 call failures. Roughly a third went to taking
+`place_value` to n=4 twice rather than comparing an n=4 baseline against an n=2 result -
+the asymmetry D-237 paid to learn about.

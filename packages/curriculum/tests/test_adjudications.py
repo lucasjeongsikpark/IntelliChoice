@@ -235,12 +235,17 @@ def test_the_shipped_record_is_live() -> None:
 
 
 def test_partition_reports_new_and_lapsed_and_suppresses_only_known() -> None:
-    """The whole report shape in one pass, on the code no mock provider can reach.
+    """The whole report shape in one pass, on the logic that decides what a human never sees.
 
-    `QUESTION_JUDGE` has no branch in the mock provider - every judge call fails structured
-    output locally - so running `--judge` end to end costs money. That is the worst possible
-    property for the logic that decides which findings a human never sees, which is why the
-    partition is a pure function tested here rather than a loop inside the script.
+    Written when `--judge` could only be run by paying, which is why the partition is a pure
+    function here rather than a loop inside the script. **D-238 found that diagnosis wrong in
+    its details:** the mock provider did have a `QUESTION_JUDGE` branch, but D-194's field
+    rename had left it emitting a response that failed validation, so it was indistinguishable
+    from no branch at all. Both are fixed and `--judge` now runs free end to end.
+
+    This test stays as it is. The end-to-end run exercises the arms the *bank* happens to
+    produce; these cases pin each arm deliberately, including the ones a real bank rarely
+    reaches - and a hash-driven mock is not a stable enough oracle to assert a partition on.
     """
     verdicts = {
         "known-1": _verdict(

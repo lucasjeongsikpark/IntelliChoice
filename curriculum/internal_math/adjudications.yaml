@@ -8,8 +8,21 @@
 # **Re-decided in D-237, not inherited.** The tier-5 prompt sentence lapsed all 12 `upheld`
 # verdicts by design, and re-running the judge on exactly those items showed **8 of the 12
 # had become moot** - the instrument now agrees, so there is nothing left to suppress and
-# those entries were deleted rather than carried. The 4 below still disagree by >= 2 and are
-# re-affirmed against the new prompt.
+# those entries were deleted rather than carried.
+#
+# **Re-decided again in D-238, and this is the second time a lapse was worth its cost.**
+# Rewriting six `multiplication_division` stems and the whole `place_value` anchor ladder
+# lapsed 9 of 20 verdicts. Re-judging exactly those nine: **7 now agree within tolerance.**
+# Two `upheld` entries were deleted as moot - and both were items whose *content* D-238
+# rewrote, so the judge calling them tier 2 had been right about the item all along and the
+# D-235 verdict defending them had been wrong. Five were refreshed as `retiered`, one of
+# them (`place_value-d4-200401`) converted from `upheld` after D-238 measured the reading
+# that had justified it - "6,405 is a four-digit number" - to be carrying no work at all.
+#
+# The two that remain disputed are both **clause-level, not item-level**, and their
+# rationales say so: the tier-5 BUILD clause and identify's tier-4 clause each measure below
+# the sibling clause at the same declared tier. Testing an item when the evidence points at
+# a rubric clause is how D-235 came to defend four items it should have re-tiered.
 #
 # `fingerprint` scope depends on what the verdict claims (D-237):
 #   upheld   - "the judge is wrong about this item": item payload + anchors + judge prompt.
@@ -29,8 +42,8 @@ adjudications:
   judge_difficulty: 3
   measured_in: D-234
   fingerprint: 4ec5444c6121940f
-  rationale: '1/2 + 1/4: one denominator divides the other, the tier-3 anchor. Tier 1 requires them
-    to already match. The ONLY dispute where the judge said HARDER, and it was right.'
+  rationale: '1/2 + 1/4: one denominator divides the other, the tier-3 anchor. Tier 1 requires them to
+    already match. The ONLY dispute where the judge said HARDER, and it was right.'
 - question_template_id: authored-fraction_operations-d4-100406
   decision: retiered
   decided_on: '2026-08-09'
@@ -49,8 +62,8 @@ adjudications:
   judge_difficulty: 3
   measured_in: D-234
   fingerprint: 22d427c1c3bf1afa
-  rationale: '7/8 - 1/3: neither denominator divides the other -> tier 4. Not two chained operations
-    and not a division by a fraction.'
+  rationale: '7/8 - 1/3: neither denominator divides the other -> tier 4. Not two chained operations and
+    not a division by a fraction.'
 - question_template_id: authored-linear_equations-d4-307400
   decision: retiered
   decided_on: '2026-08-09'
@@ -59,8 +72,8 @@ adjudications:
   judge_difficulty: 2
   measured_in: D-234
   fingerprint: bea8d7924d2967de
-  rationale: 8 + h = 3x8 has no negative or fractional coefficient, so linear_neg_frac_coeff named
-    a feature it does not have.
+  rationale: 8 + h = 3x8 has no negative or fractional coefficient, so linear_neg_frac_coeff named a feature
+    it does not have.
 - question_template_id: authored-linear_equations-d4-817400
   decision: retiered
   decided_on: '2026-08-09'
@@ -69,8 +82,8 @@ adjudications:
   judge_difficulty: 2
   measured_in: D-234
   fingerprint: f854acbc4f123d41
-  rationale: (1/8)d + 3/4 = 3 has a fractional coefficient -> tier 3. Tier 4 needs the variable on
-    both sides; here it is on one.
+  rationale: (1/8)d + 3/4 = 3 has a fractional coefficient -> tier 3. Tier 4 needs the variable on both
+    sides; here it is on one.
 - question_template_id: authored-linear_equations-d5-1305500
   decision: retiered
   decided_on: '2026-08-09'
@@ -118,16 +131,6 @@ adjudications:
   fingerprint: c3ec8ec04b92994b
   rationale: 63 / 9 with the NUMBER OF GROUPS asked is the tier-2 anchor. Tier 3 is two-digit x one-digit
     multiplication, which this is not.
-- question_template_id: authored-multiplication_division-d4-300404
-  decision: upheld
-  decided_on: '2026-08-09'
-  decided_in: D-237
-  declared_difficulty: 4
-  judge_difficulty: 2
-  measured_in: D-237
-  fingerprint: 31c9fab4719ed626
-  rationale: 50 into sets of 8 leaves a remainder - same clause. Re-tested under D-237's prompt and
-    still disputed at the same tier, so the verdict is re-affirmed rather than inherited.
 - question_template_id: authored-multiplication_division-d4-300405
   decision: retiered
   decided_on: '2026-08-09'
@@ -137,86 +140,80 @@ adjudications:
   measured_in: D-234
   fingerprint: 6eb3192c349d3d5b
   rationale: 96 / 8 = 12 leaves no remainder, and tier 4 requires one.
-- question_template_id: authored-multiplication_division-d5-300501
-  decision: upheld
-  decided_on: '2026-08-09'
-  decided_in: D-237
-  declared_difficulty: 5
-  judge_difficulty: 2
-  measured_in: D-237
-  fingerprint: 94248d49f3abd5a3
-  rationale: The 10 students left over must be read as needing one more coach rather than reported
-    as a remainder. That interpretation step is the tier-5 anchor. Re-tested under D-237's prompt
-    and still disputed at the same tier, so the verdict is re-affirmed rather than inherited.
 - question_template_id: authored-multiplication_division-d5-300502
   decision: retiered
   decided_on: '2026-08-09'
-  decided_in: D-235
+  decided_in: D-238
   declared_difficulty: 4
-  judge_difficulty: 2
-  measured_in: D-234
-  fingerprint: 547763189af52128
-  rationale: The remainder is reported, not interpreted - the same structure as 300401 and 300404,
-    both tier 4.
+  judge_difficulty: 4
+  measured_in: D-238
+  fingerprint: 4155c5b4f3fa6858
+  rationale: Tier held at 4 from D-235. D-238 rewrote the stem so the division is actually performed;
+    the judge went 3 -> 4/3, inside tolerance.
 - question_template_id: authored-multiplication_division-d5-300505
   decision: retiered
   decided_on: '2026-08-09'
-  decided_in: D-235
+  decided_in: D-238
   declared_difficulty: 4
-  judge_difficulty: 3
-  measured_in: D-234
-  fingerprint: 309a4af216176d8f
-  rationale: The remainder is reported, not interpreted -> tier 4.
+  judge_difficulty: 4
+  measured_in: D-238
+  fingerprint: 6b707e4b01e7e219
+  rationale: Tier held at 4 from D-235. D-238 rewrote the stem to stop stating the completed rows; the
+    judge went 3 -> 5/4.
 - question_template_id: authored-place_value-d3-200301
   decision: retiered
   decided_on: '2026-08-09'
-  decided_in: D-235
-  declared_difficulty: 4
-  judge_difficulty: 1
-  measured_in: D-234
-  fingerprint: 00d1f2e7642b6cf0
-  rationale: 5,214 is four digits, which is the tier-4 anchor. Declared 3 was BELOW what the anchor
-    says - the only re-tier in this set that moved up.
-- question_template_id: authored-place_value-d4-200401
-  decision: upheld
-  decided_on: '2026-08-09'
-  decided_in: D-237
-  declared_difficulty: 4
+  decided_in: D-238
+  declared_difficulty: 3
   judge_difficulty: 2
-  measured_in: D-237
-  fingerprint: 5a6cb0f5ee868573
-  rationale: 6,405 is a four-digit number, which is the tier-4 anchor. Structurally identical to 200301,
-    which D-235 moved UP to 4 for the same reason. Re-tested under D-237's prompt and still disputed
-    at the same tier, so the verdict is re-affirmed rather than inherited.
+  measured_in: D-238
+  fingerprint: 304b9504806ee100
+  rationale: 'D-235 moved this UP to 4 on the old anchor''s bare ''FOUR-digit numbers'' clause. D-238
+    measured that clause carrying no work for place_value_identify and moved it back to 3: the 2 in 5,214
+    is neither first nor last, and no zero is involved. Judge 2 in all four runs.'
+- question_template_id: authored-place_value-d4-200401
+  decision: retiered
+  decided_on: '2026-08-09'
+  decided_in: D-238
+  declared_difficulty: 2
+  judge_difficulty: 2
+  measured_in: D-238
+  fingerprint: f6c71e6836b13d92
+  rationale: Was upheld in D-235/D-237 on the reading that 6,405 is a four-digit number and so tier 4.
+    D-238 measured digit count carrying no work for identify, and the 6 is the LEADING digit - the same
+    read as the 3 in 356, which is tier 2. Re-tiered to 2; judge answered 2 in all four runs, exact agreement.
 - question_template_id: authored-place_value-d4-200403
   decision: retiered
   decided_on: '2026-08-09'
-  decided_in: D-235
+  decided_in: D-238
   declared_difficulty: 3
   judge_difficulty: 2
-  measured_in: D-234
-  fingerprint: f64cb90366eeab22
-  rationale: 451 - 145 is three digits and the first differing place IS the leading one, so the tier-4
-    clause does not apply.
+  measured_in: D-238
+  fingerprint: efdf8587c83dd8cf
+  rationale: Tier held at 3 from D-235. Lapsed only because D-238 rewrote the topic anchors; re-affirmed
+    unchanged, judge 3/2/2/2.
 - question_template_id: authored-place_value-d5-200504
   decision: upheld
   decided_on: '2026-08-09'
-  decided_in: D-237
+  decided_in: D-238
   declared_difficulty: 5
-  judge_difficulty: 2
-  measured_in: D-237
-  fingerprint: cdd839fac288cad2
-  rationale: The student builds 863 and 368 from the digits 8/3/6 and subtracts - the tier-5 anchor's
-    own clause, and the reason that clause now says the student must do the arranging. Re-tested under
-    D-237's prompt and still disputed at the same tier, so the verdict is re-affirmed rather than
-    inherited.
+  judge_difficulty: 3
+  measured_in: D-238
+  fingerprint: c1e80c6f65b49619
+  rationale: 'Judge answered 3 in all four runs - a STABLE disagreement, not noise. But D-238 found the
+    evidence is about the tier-5 BUILD clause, not this item: all three build items average 3.2 (200507
+    [3,4,2,2], 200508 [5,3,4,3]) while the two five-digit compare items sit at 4.1 stably. Upheld because
+    arranging the digits is a real place-value insight, and flagged because the next measurement should
+    test the clause, not the item.'
 - question_template_id: authored-place_value-d5-200505
-  decision: retiered
+  decision: upheld
   decided_on: '2026-08-09'
-  decided_in: D-235
+  decided_in: D-238
   declared_difficulty: 4
   judge_difficulty: 2
-  measured_in: D-234
-  fingerprint: 870c6a1e9529b8d0
-  rationale: 4,060 is four digits, not five, and the digits are given rather than arranged by the
-    student.
+  measured_in: D-238
+  fingerprint: 7a0396106f3384ab
+  rationale: 'Judge answered 2 in all four runs. Held at 4: building 4,060 from ''4 thousands, no hundreds,
+    6 tens, no ones'' turns on two zeros holding places, which is where children err. But identify''s
+    whole ladder measures flat (1.50/1.62/2.35/2.12 across d1-d4), so this is the same open clause-level
+    question as 200504 - identify''s real range may be narrower than the four tiers it now claims.'

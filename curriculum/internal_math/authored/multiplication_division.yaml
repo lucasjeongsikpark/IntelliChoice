@@ -297,35 +297,35 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 85
   common_error_tags:
-  - Counted the leftover as a full group
-  - Answered with the leftover instead of the number of full groups
-  - Used the wrong times-table fact
+  - Counted the leftover as a full case
+  - Answered with the leftover instead of the number of full cases
+  - Rounded the division up instead of down
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
   version: 1
-  stem: A teacher packs 29 pencils into cases of 6. After filling as many cases as possible she has 5
-    pencils left over. How many cases did the teacher fill?
+  stem: A teacher packs 29 pencils into cases of 6. She fills as many cases as she can. How many cases
+    does the teacher fill?
   context_block: null
   answer_expression: Eq(6*x + 5, 29)
   hint_ladder:
-  - The leftover pencils were not enough to fill another case.
-  - Take the leftover away first, so what remains divides exactly into cases.
-  - Once the leftover is set aside, count how many sixes make up the rest.
+  - Cases are filled one at a time until there are not enough pencils left.
+  - Count up in sixes without going past twenty-nine.
+  - Count how many sixes you said before you had to stop.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Set the five leftover pencils aside first.
-      expression: 29 - 5 = 24
-      common_mistake: Counting the leftover as another case
+      explanation: Count up in sixes and stop before passing twenty-nine.
+      expression: 6, 12, 18, 24
+      common_mistake: Going on to thirty, which is more pencils than she has
     - step_number: 2
-      explanation: What is left divides exactly into cases of six.
-      expression: 6 x ? = 24
-      common_mistake: Answering with the leftover
+      explanation: Twenty-four pencils fill the cases, and five are left over.
+      expression: 29 - 24 = 5
+      common_mistake: Counting the five left over as another case
     final_answer: '4'
   random_seed: 300401
-  rendered_question: A teacher packs 29 pencils into cases of 6. After filling as many cases as possible
-    she has 5 pencils left over. How many cases did the teacher fill?
+  rendered_question: A teacher packs 29 pencils into cases of 6. She fills as many cases as she can. How
+    many cases does the teacher fill?
   option_a: '4'
   option_b: '5'
   option_c: '6'
@@ -346,28 +346,28 @@ templates:
   review_model_versions: {}
   review_priority: normal
   version: 1
-  stem: A gardener has 38 bulbs and plants them in beds of 7. He fills 5 beds completely. How many bulbs
-    are left over after those beds are planted?
+  stem: A gardener has 38 bulbs and plants them in beds of 7. He fills as many beds as he can. How many
+    bulbs are left over?
   context_block: null
   answer_expression: Eq(7*5 + x, 38)
   hint_ladder:
-  - The question asks about the bulbs that did not fit into a full bed.
-  - Work out how many bulbs the five full beds used up between them.
-  - Take that amount away from the bulbs the gardener started with.
+  - Beds are filled one at a time until there are not enough bulbs left.
+  - Count up in sevens without going past thirty-eight.
+  - Take the last number you reached away from thirty-eight.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Five beds of seven bulbs each use up thirty-five bulbs.
-      expression: 5 x 7 = 35
-      common_mistake: Answering with the number of beds
+      explanation: Count up in sevens and stop before passing thirty-eight.
+      expression: 7, 14, 21, 28, 35
+      common_mistake: Going on to forty-two, which is more bulbs than he has
     - step_number: 2
-      explanation: Take that away from the bulbs he started with.
+      explanation: Thirty-five bulbs fill the beds, so take that away.
       expression: 38 - 35
-      common_mistake: null
+      common_mistake: Answering with the number of beds
     final_answer: '3'
   random_seed: 300402
-  rendered_question: A gardener has 38 bulbs and plants them in beds of 7. He fills 5 beds completely.
-    How many bulbs are left over after those beds are planted?
+  rendered_question: A gardener has 38 bulbs and plants them in beds of 7. He fills as many beds as he
+    can. How many bulbs are left over?
   option_a: '5'
   option_b: '3'
   option_c: '7'
@@ -388,28 +388,28 @@ templates:
   review_model_versions: {}
   review_priority: normal
   version: 1
-  stem: A club has 50 badges to share into sets of 8. After making as many complete sets as possible there
-    are 2 badges left over. How many complete sets did the club make?
+  stem: A club has 50 badges to share into sets of 8. It makes as many complete sets as it can. How many
+    complete sets does the club make?
   context_block: null
   answer_expression: Eq(8*x + 2, 50)
   hint_ladder:
-  - The two leftover badges were not enough to make another complete set.
-  - Take the leftover away first, so what remains divides exactly into sets.
-  - Once the leftover is set aside, count how many eights make up the rest.
+  - A set counts only when all eight badges are there.
+  - Count up in eights without going past fifty.
+  - Count how many eights you said before you had to stop.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Set the two leftover badges aside first.
-      expression: 50 - 2 = 48
-      common_mistake: Counting the leftover as another set
+      explanation: Count up in eights and stop before passing fifty.
+      expression: 8, 16, 24, 32, 40, 48
+      common_mistake: Going on to fifty-six, which is more badges than the club has
     - step_number: 2
-      explanation: What is left divides exactly into sets of eight.
-      expression: 8 x ? = 48
-      common_mistake: Answering with the leftover
+      explanation: Forty-eight badges make the complete sets, and two are left over.
+      expression: 50 - 48 = 2
+      common_mistake: Counting the two left over as another set
     final_answer: '6'
   random_seed: 300404
-  rendered_question: A club has 50 badges to share into sets of 8. After making as many complete sets
-    as possible there are 2 badges left over. How many complete sets did the club make?
+  rendered_question: A club has 50 badges to share into sets of 8. It makes as many complete sets as it
+    can. How many complete sets does the club make?
   option_a: '8'
   option_b: '2'
   option_c: '7'
@@ -430,28 +430,28 @@ templates:
   review_model_versions: {}
   review_priority: normal
   version: 1
-  stem: A cafe bakes 87 cookies and arranges them on trays of 12. After filling as many trays as possible
-    there are 3 cookies left over. How many trays were filled completely?
+  stem: A cafe bakes 87 cookies and arranges them on trays of 12. It fills as many trays as it can. How
+    many trays are filled completely?
   context_block: null
   answer_expression: Eq(12*x + 3, 87)
   hint_ladder:
-  - The three leftover cookies were not enough to fill another tray.
-  - Take the leftover away first, so what remains divides exactly into trays.
-  - Once the leftover is set aside, count how many twelves make up the rest.
+  - A tray counts only when all twelve places are used.
+  - Count up in twelves without going past eighty-seven.
+  - Count how many twelves you said before you had to stop.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Set the three leftover cookies aside first.
-      expression: 87 - 3 = 84
-      common_mistake: Counting the leftover as another tray
+      explanation: Count up in twelves and stop before passing eighty-seven.
+      expression: 12, 24, 36, 48, 60, 72, 84
+      common_mistake: Going on to ninety-six, which is more cookies than the cafe baked
     - step_number: 2
-      explanation: What is left divides exactly into trays of twelve.
-      expression: 12 x ? = 84
-      common_mistake: Answering with the leftover
+      explanation: Eighty-four cookies fill the trays, and three are left over.
+      expression: 87 - 84 = 3
+      common_mistake: Counting the three left over as another tray
     final_answer: '7'
   random_seed: 300502
-  rendered_question: A cafe bakes 87 cookies and arranges them on trays of 12. After filling as many trays
-    as possible there are 3 cookies left over. How many trays were filled completely?
+  rendered_question: A cafe bakes 87 cookies and arranges them on trays of 12. It fills as many trays
+    as it can. How many trays are filled completely?
   option_a: '12'
   option_b: '8'
   option_c: '7'
@@ -472,28 +472,28 @@ templates:
   review_model_versions: {}
   review_priority: normal
   version: 1
-  stem: A nursery has 115 plants and sets them out in rows of 15. Seven rows are completed. How many plants
-    are left after those rows are set out?
+  stem: A nursery has 115 plants and sets them out in rows of 15. It fills as many rows as it can. How
+    many plants are left over?
   context_block: null
   answer_expression: Eq(15*7 + x, 115)
   hint_ladder:
-  - The question asks about the plants that did not fill a whole row.
-  - Work out how many plants the seven completed rows used up between them.
-  - Take that amount away from the plants the nursery started with.
+  - A row is finished only when all fifteen places are filled.
+  - Count up in fifteens without going past a hundred and fifteen.
+  - Take the last number you reached away from a hundred and fifteen.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Seven rows of fifteen plants each use up a hundred and five plants.
-      expression: 7 x 15 = 105
-      common_mistake: Answering with the number of rows
+      explanation: Count up in fifteens and stop before passing a hundred and fifteen.
+      expression: 15, 30, 45, 60, 75, 90, 105
+      common_mistake: Going on to a hundred and twenty, which is more plants than there are
     - step_number: 2
-      explanation: Take that away from the plants the nursery started with.
+      explanation: A hundred and five plants fill the rows, so take that away.
       expression: 115 - 105
-      common_mistake: null
+      common_mistake: Answering with the number of rows
     final_answer: '10'
   random_seed: 300505
-  rendered_question: A nursery has 115 plants and sets them out in rows of 15. Seven rows are completed.
-    How many plants are left after those rows are set out?
+  rendered_question: A nursery has 115 plants and sets them out in rows of 15. It fills as many rows as
+    it can. How many plants are left over?
   option_a: '10'
   option_b: '7'
   option_c: '15'
@@ -507,41 +507,43 @@ templates:
   difficulty_confidence: 1.0
   estimated_time_seconds: 100
   common_error_tags:
-  - Answered with the number of full coaches instead of the number needed
-  - Ignored the students left over
-  - Used the wrong times-table fact
+  - Reported the students left over instead of the coaches needed
+  - Stopped at the full coaches and left the last students behind
+  - Rounded the division down when the situation needs it rounded up
   generator_model: hand-authored-v1
   review_model_versions: {}
   review_priority: normal
   version: 1
-  stem: A school takes 100 students on a trip. Each coach seats 30 students. Three coaches are filled
-    completely and the rest of the students need one more coach. How many students travel on that last
-    coach?
+  stem: A school takes 100 students on a trip. Each coach seats 30 students. How many coaches does the
+    school need so that every student travels?
   context_block: null
-  answer_expression: Eq(30*3 + x, 100)
+  answer_expression: Eq(30*(x - 1) + 10, 100)
   hint_ladder:
-  - The last coach carries only the students who did not fit on the full ones.
-  - Work out how many students the three full coaches carry between them.
-  - Take that amount away from the whole group going on the trip.
+  - Every student must have a seat, including the last few.
+  - Count up in thirties without going past a hundred.
+  - The students still waiting cannot be left behind, however few of them there are.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Three full coaches of thirty students each carry ninety students.
-      expression: 3 x 30 = 90
-      common_mistake: Answering with the number of coaches
+      explanation: Count up in thirties and stop before passing a hundred.
+      expression: 30, 60, 90
+      common_mistake: Going on to a hundred and twenty, which is more seats than are needed
     - step_number: 2
-      explanation: Take that away from the whole group.
-      expression: 100 - 90
-      common_mistake: Forgetting the students left over
-    final_answer: '10'
+      explanation: Ninety students are seated, so ten are still waiting.
+      expression: 100 - 90 = 10
+      common_mistake: Answering with the ten students left over
+    - step_number: 3
+      explanation: Those ten still need a coach, so one more is added to the full ones.
+      expression: 3 + 1
+      common_mistake: Leaving the last ten students behind
+    final_answer: '4'
   random_seed: 300501
-  rendered_question: A school takes 100 students on a trip. Each coach seats 30 students. Three coaches
-    are filled completely and the rest of the students need one more coach. How many students travel on
-    that last coach?
-  option_a: '30'
-  option_b: '10'
-  option_c: '4'
-  option_d: '90'
+  rendered_question: A school takes 100 students on a trip. Each coach seats 30 students. How many coaches
+    does the school need so that every student travels?
+  option_a: '3'
+  option_b: '4'
+  option_c: '10'
+  option_d: '30'
   correct_option: b
 - question_template_id: authored-multiplication_division-d1-300101
   topic_id: multiplication_division

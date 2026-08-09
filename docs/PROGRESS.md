@@ -7,38 +7,55 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Both quality panels have run over the whole bank, and the disagreements they produced are now
-resolved.** Four topics, 127 authored items, grades 1-7 all resolving. The solver panel agrees with
-the author on **127 of 127** behind a 12/12 negative control (D-229). The judge took three sessions
-to make runnable (D-231/232/233), and its 25 disputes were adjudicated in **D-235** — 12 upheld, 13
-re-tiered, 16 items changed tier, no item's content touched — then its own calibration was fixed in
-**D-237**, after which **8 of those 12 upheld verdicts became moot**. A6-C's calibration half is
-settled; the coverage half was already met for grades 1-7.
+**Both quality panels have run over the whole bank, and both topics that would not calibrate are
+now understood — for two unrelated reasons.** Four topics, **130** authored items, grades 1-7 all
+resolving. The solver panel agrees with the author on 127 of 127 behind a 12/12 negative control
+(D-229). The judge took three sessions to make runnable (D-231/232/233), its 25 disputes were
+adjudicated in **D-235**, its own calibration was fixed in **D-237**, and **D-238** answered the
+last question: `place_value`'s rubric was **two ladders wearing one coat** — `compare` climbed
+while `identify` sat flat at every tier, because tiers 4 and 5 each led with a bare digit-count
+clause; and `multiplication_division`'s `div_remainder` items **all stated the remainder in the
+stem**, so not one item exercised the skill it was filed under. Anchors split per skill, six stems
+rewritten, both topics now pass the pre-registered discrimination criterion that neither passed
+before.
 
 No numbered ROADMAP session is queued; integration (S43+) stays deliberately deferred (D-152) until
 the user starts it.
 
-**Two things are worth knowing before touching any of this.** The audit is now incremental — it
-reports new findings against a 20-entry verdict record (D-236), and a verdict lapses when what it
-depends on changes, which for `upheld` includes the judge prompt. And **the judge's run-to-run
-variance is large enough that n=2 proves nothing**: one prompt variant scored 6 and 13 out of 16 on
-identical inputs (D-237). Repeat the disputed metric, not the whole matrix.
+**Three things are worth knowing before touching any of this.**
+
+- The audit is **incremental** — it reports new findings against an 18-entry verdict record
+  (D-236), and a verdict lapses when what it depends on changes. Two sessions running, an earned
+  lapse changed a decision rather than being refreshed (D-237, D-238). Do not refresh a fingerprint
+  without re-deciding.
+- **The judge's run-to-run variance is large enough that n=2 proves nothing** (D-237: one variant
+  scored 6 and 13 out of 16 on identical inputs). And **never compare an n=4 baseline against an
+  n=2 result** — D-238 paid to match them rather than conclude from the asymmetry.
+- **Never read this bank's calibration pooled across skills.** Pooling is what hid the original
+  defect and it flatters the fix too. Split by `(skill, declared tier)` first, always.
+
+`--judge` now runs **end to end for free** under the mock provider (D-238), and `--dump` writes
+per-item records so a run can be re-analysed without buying it twice.
 
 What is left, in order of value:
 
-1. **Adjudicate the 4 verdicts still disputed after D-237.** Re-judging the 12 items D-235 called
-   "the judge is wrong here" resolved 8 of them outright — but `multiplication_division-d4-300404`,
-   `-d5-300501`, `place_value-d4-200401` and `-d5-200504` still disagree by >= 2, and the judge
-   rates **all four a 2**. Both topics were already the weakest on the D-234 histogram. The
-   question is whether their anchors discriminate at all in the 3-5 range, which is the same
-   question D-232 answered for `linear_equations` and never re-asked for these two.
+1. **Two rungs that still do not separate, both now known to be clause-level (D-238).**
+   `place_value_compare` d4 (3.58) and d5 (3.55) are tied, and `place_value_identify` d3 (2.35)
+   sits above its d4 (2.12). The pooled ladder is monotone partly *because* identify's low d4
+   items drag the pooled d4 down — mixing two skills in one number is what produced the original
+   defect, and it flatters the fixed result too. **Measure per skill, never pooled.** The two
+   verdicts left disputed (`place_value-d5-200504`, `-d5-200505`) are instances of these clauses,
+   not item defects: all three tier-5 BUILD items average 3.2 and swing hard (`200508`: 5, 3, 4, 3)
+   while the two five-digit compare items sit at 4.1 stably. Test the clause, not the item.
 
-2. **`QUESTION_JUDGE` has no branch in `mock_provider`** (D-236), so every local judge call fails
-   structured-output validation and the whole `--judge` path can only be exercised by paying. Every
-   other Bedrock task has a mock. The decision logic was moved into a pure, unit-tested
-   `partition_findings` to shrink what this blocks, but the report assembly, the tier histogram and
-   the dispersion control are all still verifiable only with money.
-3. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
+2. **Item-level verdicts in `place_value` are not supportable at any affordable n.** 8 of 28 items
+   returned the same tier across four runs (6 of 25 before). `multiplication_division` is far
+   steadier at 19/25. This bounds what the audit can be asked: aggregate ladder questions yes,
+   "is this item a 4 or a 5" no.
+
+3. **`difficulty_confidence` is still 1.0 by assertion** on every hand-authored item. Nothing has
+   ever measured it, and D-238 is the third session to leave it standing.
+4. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
    for twelve decisions behind the line `"127 already existed, 0 created"` — and that line is not
    in any deploy log, because `deploy-staging.yml` only runs `test "$EXIT_CODE" = "0"`. The loader
    now distinguishes created / updated / unchanged / retired, which is exactly the signal worth
@@ -48,13 +65,13 @@ What is left, in order of value:
    read), then echo the ops task's log stream after `aws ecs wait`. Same treatment is worth giving
    the migration and seed steps, which are equally silent. **Until this exists, "the deploy loaded
    the bank" means only that the loader exited 0** — which is what D-206 already learned once.
-4. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+5. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-5. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+6. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-6. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+7. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under
@@ -91,6 +108,41 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — two topics, two different reasons, and neither was the one I predicted (2026-08-09, D-238)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1068 passed, 2 skipped, 1 xfailed** ·
+12 Bedrock runs, 0 call failures, **$2.63** · full write-up in DECISIONS.md **D-238**.
+
+**`place_value`'s rubric was two ladders wearing one coat.** Split by skill (n=4, 100 judgements),
+`place_value_compare` climbed 2.50 → 3.38 → 3.67 across declared 3/4/5 while
+`place_value_identify` sat **flat at every tier**, never above 2.25 — so the pooled d4 rung came
+out *below* d3. Tiers 4 and 5 each led with a bare digit-count clause, which is real work for
+`compare` and none at all for `identify`, where the task is "read one digit's place" at 47 exactly
+as much as at 30,502. **This is D-232 one level down**: a rubric shared across units that fitted
+only some of them. Anchors now name a skill per clause; `identify` stops at 4 because that is where
+its work stops. Eight items re-tiered, three tier-5 `compare` items authored, ladder **fully
+monotone d1→d5** at matched n=4 where it was not before.
+
+**`multiplication_division` needed no model at all.** The skill is *"Divide with remainders"* and
+**all six of its items stated the remainder, or the completed-group count, in the stem** — so the
+student subtracts a given number and divides exactly, and no item exercised the skill it was filed
+under. D-235 had upheld two of them *against* the judge, matching the anchor to the situation the
+stem described rather than the work the student does. Six stems rewritten; `div_remainder` moved
+3.00 → **3.70** at d4 and 3.00 → **4.50** at d5.
+
+**All three of my pre-registered predictions did badly, and the measurement was better than any of
+them.** P1 landed exactly on its boundary; P2 and P3 were refuted. The rung that did not exist was
+**d3→d4**, which I had not predicted.
+
+**The carry-over was wrong about its own subject.** `QUESTION_JUDGE` did have a mock branch — D-194's
+rename left it emitting the old field name *and* reading `proposed_difficulty`, the payload field
+that decision deleted so the judge could not see the tier it was rating. Broken and blindness-
+violating at once. A parametrised test now validates every response model against its mock branch;
+it caught a second stale branch immediately.
+
+**Nine of twenty verdicts lapsed and seven resolved.** Two `upheld` entries were deleted as moot —
+both items whose *content* this session rewrote, so the judge had been right about them all along.
 
 ### Session log — the judge's top tier opened, and n=2 caught me out (2026-08-09, D-237)
 
