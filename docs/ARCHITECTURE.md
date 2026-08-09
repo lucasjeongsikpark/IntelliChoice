@@ -604,6 +604,18 @@ to rot, because nothing fails when it does.)*
   string tidy. Read the column. `test_difficulty_comes_from_the_field_not_the_id` searches the
   shipped source for the ways a tier could be parsed back out of an id, which is a test about code
   that does not exist yet — the only kind that protects a convention rather than a behaviour.
+- **A recurring audit must distinguish what is new from what has been ruled on, and the record
+  that lets it must fail open** (D-236). `adjudications.yaml` holds human verdicts on judge
+  findings; `--judge` splits its flagged list into new / already-adjudicated / lapsed. The
+  fingerprint covers the item's judge payload, its topic's anchors **and the judge system
+  prompt**, so a verdict is a claim about a specific instrument and is never inherited by a
+  different one. Every design choice is about how the suppression *stops*: `retiered` suppresses
+  nothing because those items are now expected to agree; `moot` surfaces a verdict the judge has
+  started agreeing with, which produces no flag to notice it by; a lapse is printed with its
+  reason. The generalization: **a filter added to a report is a decision about what nobody will
+  see, so it is tested for how it releases, not for how it holds.** The failure it must never
+  have is the quiet one — every fingerprint stale, nothing suppressed, and the report looking
+  exactly as healthy as before.
 - **A rating scale needs its top defended as explicitly as its bottom** (D-200, D-235). D-200 found
   the judge collapsing onto a constant 2 because it read 1-5 as "how hard is mathematics" and was
   told what the numbers meant only in the abstract; anchors fixed that. D-235 found the mirror image

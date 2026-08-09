@@ -1,0 +1,318 @@
+# Human verdicts on §5.8.5 judge findings (D-236), so a repeat audit reports what is NEW.
+#
+# D-235 adjudicated 25 disagreements between an item's declared tier and the tier the
+# blind judge gave it. 13 were the judge being right and were fixed by re-tiering; 12
+# were the judge being wrong and, until this file, were recorded nowhere - so the next
+# `audit_authored_bank.py --judge` would have re-reported them as twelve fresh findings.
+#
+# `fingerprint` covers the item's judge payload, its topic's difficulty_anchors, and the
+# judge system prompt. Any of the three changing lapses the verdict, deliberately: a
+# verdict is a claim about a specific instrument and is not inherited by a different one.
+# See `adjudications.py` for why that fragility is the point rather than a cost.
+#
+# `judge_difficulty` is historical - what prompted the verdict, measured in the D-234 run.
+# For `place_value` and `fraction_operations` that run used the anchors D-235 then
+# tightened, so it is not a prediction of what the judge would say today.
+#
+# Only `upheld` suppresses. A `retiered` item was changed to match the judge, so it is
+# now expected to agree and a remaining disagreement is news, not a repeat.
+version: 1
+adjudications:
+  - question_template_id: authored-fraction_operations-d1-100104
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 3
+    judge_difficulty: 3
+    measured_in: D-234
+    fingerprint: "e5ae6b835bc160ab"
+    rationale: >-
+      1/2 + 1/4: one denominator divides the other, the tier-3 anchor. Tier 1 requires them to
+      already match. The ONLY dispute where the judge said HARDER, and it was right.
+  - question_template_id: authored-fraction_operations-d4-100403
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "9aa2191f90c288b2"
+    rationale: >-
+      3/4 x 2/3 is two fractions multiplied together, the tier-4 anchor.
+  - question_template_id: authored-fraction_operations-d4-100405
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "49360957358a1afa"
+    rationale: >-
+      3/4 of a metre shared into 3 equal pieces is division by a WHOLE number, which had no home
+      in any tier until D-235 named it in tier 4.
+  - question_template_id: authored-fraction_operations-d4-100406
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 5
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "df5bc33f1f532492"
+    rationale: >-
+      5/6 divided by 1/6 is a fraction divided by a fraction -> tier 5, the same clause 100501
+      and 100502 are already declared 5 under.
+  - question_template_id: authored-fraction_operations-d5-100501
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 5
+    judge_difficulty: 3
+    measured_in: D-234
+    fingerprint: "9bdddc84bd58f8f2"
+    rationale: >-
+      3/4 divided by 1/8 is a fraction divided by a fraction - tier 5.
+  - question_template_id: authored-fraction_operations-d5-100502
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 5
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "a27ad6fb2a23d434"
+    rationale: >-
+      2/3 divided by 1/6 is a fraction divided by a fraction - tier 5.
+  - question_template_id: authored-fraction_operations-d5-100504
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 3
+    measured_in: D-234
+    fingerprint: "a20eb85310008b37"
+    rationale: >-
+      7/8 - 1/3: neither denominator divides the other -> tier 4. Not two chained operations and
+      not a division by a fraction.
+  - question_template_id: authored-linear_equations-d4-307400
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 2
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "a986010c8efa7d72"
+    rationale: >-
+      8 + h = 3x8 has no negative or fractional coefficient, so linear_neg_frac_coeff named a
+      feature it does not have.
+  - question_template_id: authored-linear_equations-d4-817400
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 3
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "10e07761b7ed8912"
+    rationale: >-
+      (1/8)d + 3/4 = 3 has a fractional coefficient -> tier 3. Tier 4 needs the variable on both
+      sides; here it is on one.
+  - question_template_id: authored-linear_equations-d5-1305500
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 4
+    measured_in: D-234
+    fingerprint: "6b51395c5ffc8946"
+    rationale: >-
+      Variable on both sides, no distribution -> tier 4, not 5.
+  - question_template_id: authored-linear_equations-d5-1405500
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 4
+    measured_in: D-234
+    fingerprint: "e73270b58f78870e"
+    rationale: >-
+      Variable on both sides, no distribution -> tier 4, not 5.
+  - question_template_id: authored-linear_equations-d5-205500
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 4
+    measured_in: D-234
+    fingerprint: "3cc8d77cd879e631"
+    rationale: >-
+      Variable on both sides, no distribution -> tier 4, not 5.
+  - question_template_id: authored-linear_equations-d5-306500
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 2
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "e7dc9536755c3045"
+    rationale: >-
+      15 + 8p = 63 is two operations with the variable on one side and whole-number coefficients:
+      the tier-2 anchor. Its skill was wrong too - it sat in linear_distribute and requires no
+      distribution.
+  - question_template_id: authored-multiplication_division-d3-300303
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 2
+    judge_difficulty: 1
+    measured_in: D-234
+    fingerprint: "05ac0f49327f108e"
+    rationale: >-
+      63 / 9 with the NUMBER OF GROUPS asked is the tier-2 anchor. Tier 3 is two-digit x
+      one-digit multiplication, which this is not.
+  - question_template_id: authored-multiplication_division-d4-300401
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "69ba880e31f7c04c"
+    rationale: >-
+      29 into cases of 6 leaves a remainder, which is the tier-4 anchor.
+  - question_template_id: authored-multiplication_division-d4-300402
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "196a506d8ca33f85"
+    rationale: >-
+      38 into beds of 7 leaves a remainder - same clause.
+  - question_template_id: authored-multiplication_division-d4-300404
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "9486a6450b16fa9c"
+    rationale: >-
+      50 into sets of 8 leaves a remainder - same clause.
+  - question_template_id: authored-multiplication_division-d4-300405
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 3
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "a90562e61f04f079"
+    rationale: >-
+      96 / 8 = 12 leaves no remainder, and tier 4 requires one.
+  - question_template_id: authored-multiplication_division-d5-300501
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 5
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "fb6d8b32f6691215"
+    rationale: >-
+      The 10 students left over must be read as needing one more coach rather than reported as a
+      remainder. That interpretation step is the tier-5 anchor.
+  - question_template_id: authored-multiplication_division-d5-300502
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "659a62d2cfd471a2"
+    rationale: >-
+      The remainder is reported, not interpreted - the same structure as 300401 and 300404, both
+      tier 4.
+  - question_template_id: authored-multiplication_division-d5-300503
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 5
+    judge_difficulty: 3
+    measured_in: D-234
+    fingerprint: "54fac3b2b6819b75"
+    rationale: >-
+      128 x 3 is a three-digit number multiplied by a one-digit one - the tier-5 anchor's own
+      worked example.
+  - question_template_id: authored-multiplication_division-d5-300505
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 3
+    measured_in: D-234
+    fingerprint: "a6ca3968b517ada5"
+    rationale: >-
+      The remainder is reported, not interpreted -> tier 4.
+  - question_template_id: authored-place_value-d3-200301
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 1
+    measured_in: D-234
+    fingerprint: "dd3d7a535674f5fe"
+    rationale: >-
+      5,214 is four digits, which is the tier-4 anchor. Declared 3 was BELOW what the anchor says
+      - the only re-tier in this set that moved up.
+  - question_template_id: authored-place_value-d3-200303
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 3
+    judge_difficulty: 1
+    measured_in: D-234
+    fingerprint: "872dbbefe1acb6e9"
+    rationale: >-
+      3 hundreds, no tens, 9 ones -> 309. A zero holding an empty place is the tier-3 anchor
+      verbatim.
+  - question_template_id: authored-place_value-d4-200401
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 1
+    measured_in: D-234
+    fingerprint: "f0ac5d238577c9f0"
+    rationale: >-
+      6,405 is a four-digit number, which is the tier-4 anchor. Structurally identical to 200301,
+      which D-235 moved UP to 4 for the same reason.
+  - question_template_id: authored-place_value-d4-200403
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 3
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "ad8487ecaba487c4"
+    rationale: >-
+      451 - 145 is three digits and the first differing place IS the leading one, so the tier-4
+      clause does not apply.
+  - question_template_id: authored-place_value-d5-200504
+    decision: upheld
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 5
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "74757296c1e66db0"
+    rationale: >-
+      The student builds 863 and 368 from the digits 8/3/6 and subtracts - the tier-5 anchor's
+      own clause, and the reason that clause now says the student must do the arranging.
+  - question_template_id: authored-place_value-d5-200505
+    decision: retiered
+    decided_on: "2026-08-09"
+    decided_in: D-235
+    declared_difficulty: 4
+    judge_difficulty: 2
+    measured_in: D-234
+    fingerprint: "3feed51043f49f12"
+    rationale: >-
+      4,060 is four digits, not five, and the digits are given rather than arranged by the
+      student.

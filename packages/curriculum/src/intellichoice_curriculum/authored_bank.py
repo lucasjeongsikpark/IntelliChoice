@@ -106,6 +106,18 @@ class AuthoredTemplateDef(BaseModel):
     option_d: str
     correct_option: str
 
+    def rendered_for_model(self) -> str:
+        """What a student is actually shown - context block first (D-196).
+
+        Passing the stem alone is the bug D-196 measured: an item whose numbers live in the
+        context block and whose question lives in the stem becomes an unanswerable fragment,
+        and the solver correctly reports the problem as incomplete. The item is fine; the
+        payload was not. A method rather than a helper in one caller, so the solver panel,
+        the judge, and D-236's fingerprint cannot disagree about what the item *is*.
+        """
+        context = (self.context_block or "").strip()
+        return f"{context}\n{self.stem}".strip() if context else self.stem
+
     def to_generated_item(self) -> AuthoredGeneratedItemResponse:
         """Rebuild the pipeline's own response shape, so the loader can re-run the exact
         §5.8.5 validation suite the item passed when it was generated.

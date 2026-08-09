@@ -36,22 +36,27 @@ import asyncio
 import sys
 from dataclasses import dataclass, field
 
+from intellichoice_curriculum.adjudications import (
+    LAPSE_REASON,
+    JudgedItem,
+    fingerprint,
+    judge_inputs,
+    load_adjudications,
+    partition_findings,
+)
 from intellichoice_curriculum.ai_pipeline import (
     _AUTHORED_JUDGE_MAX_TOKENS,
     _AUTHORED_JUDGE_TIMEOUT_S,
     _AUTHORED_SOLVER_MAX_TOKENS,
     _SOLVER_SYSTEM_PROMPT,
     _call,
-    judge_system_prompt,
     solver_objections,
 )
 from intellichoice_curriculum.authored_bank import AuthoredTemplateDef, load_authored_bank
-from intellichoice_curriculum.content import load_curriculum
 from intellichoice_curriculum.pipeline_cli import _build_gateway, underlying_model
 from intellichoice_curriculum.settings import get_pipeline_settings
 from intellichoice_shared.bedrock import (
     BedrockTask,
-    QuestionJudgePayload,
     QuestionJudgeResponse,
     SolverPayload,
     SolverResponse,
@@ -81,18 +86,6 @@ class ItemVerdict:
         return not self.objections and self.error is None
 
 
-def _rendered(item: AuthoredTemplateDef) -> str:
-    """What the student is actually shown - context block first (D-196).
-
-    Passing the stem alone is the bug D-196 measured: an item whose numbers live in the
-    context block and whose question lives in the stem becomes an unanswerable fragment,
-    and the solver correctly reports that the problem is incomplete. The item is fine; the
-    payload was not.
-    """
-    context = (item.context_block or "").strip()
-    return f"{context}\n{item.stem}".strip() if context else item.stem
-
-
 async def _audit_item(
     gateway, item: AuthoredTemplateDef, spend: float
 ) -> tuple[ItemVerdict, float]:
@@ -102,7 +95,7 @@ async def _audit_item(
         declared=item.correct_option,
     )
     payload = SolverPayload(
-        rendered_question=_rendered(item),
+        rendered_question=item.rendered_for_model(),
         option_a=item.option_a,
         option_b=item.option_b,
         option_c=item.option_c,
@@ -140,27 +133,11 @@ async def _judge_item(
     """One blind judge call. The judge never sees the declared tier (D-194), which is what
     makes the comparison below worth making at all.
     """
-    curriculum = load_curriculum()
-    topics = {t.topic_id: t for t in curriculum.topics}
-    skills = {s.skill_id: s for s in curriculum.skills}
-    topic = topics[item.topic_id]
-    skill = skills[item.skill_id]
-    payload = QuestionJudgePayload(
-        rendered_question=_rendered(item),
-        option_a=item.option_a,
-        option_b=item.option_b,
-        option_c=item.option_c,
-        option_d=item.option_d,
-        hint_ladder=list(item.hint_ladder),
-        canonical_solution=str(item.canonical_solution["final_answer"]),
-        topic_name=topic.name,
-        skill_name=skill.name,
-        grade_band=topic.grade_band,
-    )
+    payload, system_prompt = judge_inputs(item)
     response, cost, error = await _call(
         gateway,
         task=BedrockTask.QUESTION_JUDGE,
-        system_prompt=judge_system_prompt(topic),
+        system_prompt=system_prompt,
         payload=payload,
         response_model=QuestionJudgeResponse,
         session_spend_cents=spend,
@@ -195,6 +172,7 @@ async def _judge_item(
         "hint_quality": response.hint_quality_score,
         "flags": flags,
         "reasoning": response.difficulty_reasoning,
+        "fingerprint": fingerprint(payload, system_prompt),
     }, spend
 
 
@@ -246,11 +224,58 @@ async def _judge(items: list[AuthoredTemplateDef], budget_cents: float) -> int:
                 f"constant rather than this bank's calibration."
             )
 
-    for r in flagged:
-        print(f"\n  {r['id']}  (declared {r['declared']}, judge {r['reviewed']})")
-        for flag in r["flags"]:
-            print(f"    - {flag}")
-        print(f"    {r['reasoning'][:160]}")
+    # D-236: split the flagged list by what a human has already decided about it. Without
+    # this, every re-run reports D-235's twelve known-wrong judgements again, in the same
+    # words, indistinguishable from twelve new ones - and the fastest thing a reader learns
+    # is that the flagged list is mostly noise.
+    verdicts = load_adjudications()
+    findings = partition_findings(
+        [
+            JudgedItem(
+                question_template_id=r["id"],
+                declared_difficulty=r["declared"],
+                reviewed_difficulty=r["reviewed"],
+                flagged=bool(r["flags"]),
+                fingerprint=r["fingerprint"],
+            )
+            for r in scored
+        ],
+        verdicts,
+    )
+    by_id = {r["id"]: r for r in scored}
+    print(f"    new:                 {len(findings.new)}")
+    print(f"    already adjudicated: {len(findings.known)}")
+    print(f"    verdict lapsed:      {len(findings.lapsed)}")
+    print(f"  adjudications on file: {len(verdicts)}")
+
+    def show(rows: list[JudgedItem], heading: str) -> None:
+        if not rows:
+            return
+        print(f"\n--- {heading}")
+        for item in rows:
+            r = by_id[item.question_template_id]
+            print(f"\n  {r['id']}  (declared {r['declared']}, judge {r['reviewed']})")
+            for flag in r["flags"]:
+                print(f"    - {flag}")
+            reason = LAPSE_REASON.get(findings.status[item.question_template_id])
+            if reason:
+                v = verdicts[item.question_template_id]
+                print(f"    ! verdict from {v.decided_in} no longer applies: {reason}")
+            print(f"    {r['reasoning'][:160]}")
+
+    show(findings.new, f"NEW - {len(findings.new)} finding(s) nobody has ruled on")
+    show(findings.lapsed, f"LAPSED - {len(findings.lapsed)} verdict(s) that no longer apply")
+    show(findings.known, f"already adjudicated - {len(findings.known)} repeat(s), not news")
+    # An `upheld` item the judge now agrees with. Nothing is wrong with it, so it is in no
+    # flagged bucket - but the instrument moved, which is the whole question the tier-5 work
+    # is asking, and a suppression quietly becoming unnecessary is how that would be missed.
+    for item in findings.moot:
+        r = by_id[item.question_template_id]
+        v = verdicts[item.question_template_id]
+        print(
+            f"\n  {r['id']}: {v.decided_in} recorded the judge as wrong (it said "
+            f"{v.judge_difficulty}); it now agrees at {r['reviewed']}. The verdict is spent."
+        )
     for r in errored:
         print(f"\n  {r['id']}  call failed: {r['error']}")
     return 0
