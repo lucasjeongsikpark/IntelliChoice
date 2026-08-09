@@ -615,7 +615,23 @@ def judge_system_prompt(topic: TopicDef) -> str:
             )
             + " "
         "Use the whole range. If an item genuinely sits between two anchors, choose the higher "
-        "one when the extra step is structural and the lower one when it is only arithmetic."
+        "one when the extra step is structural and the lower one when it is only arithmetic. "
+        # D-237, and the mirror image of D-200 above. D-200 defended the *bottom* of the scale
+        # ("a 2 does not mean easy for an adult") and left the top undefended, so the judge
+        # kept refusing it: measured over every tier-5 item in the bank, it returned
+        # {2: 4, 3: 4, 4: 9} - **zero fives out of seventeen**. Four of those items require
+        # distribution in the same algebraic form as tier 5's own worked example.
+        #
+        # It is not general miscalibration. The same run scored 13/16 exact on the d1/d2
+        # control with tiers {1: 6, 2: 9, 3: 1}, so the scale is well anchored at the bottom
+        # and specifically will not use its top. An anchored 1-5 whose 5 is never returned is
+        # a four-point scale, and the loss is invisible in an aggregate agreement figure.
+        "The top of the scale is ordinary, not exceptional. A 5 is simply the hardest "
+        "structure a student in this grade band is asked for - it is not a distinction "
+        "reserved for remarkable items, and a well-built bank has a meaningful share of them. "
+        "If an item matches the tier-5 anchor, rate it 5. That the mathematics is routine for "
+        "you is not a reason to withhold the top of the scale, and neither is a harder "
+        "question you can imagine but are not looking at."
     )
 
 # Small, fixed set of hand-written few-shot exemplars (this project has no pre-authored
