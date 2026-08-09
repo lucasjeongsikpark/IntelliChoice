@@ -325,7 +325,23 @@ _AUTHORED_SOLVER_MAX_TOKENS = 1200
 #
 # Same class as D-195's shared 400-token ceiling, which made authored generation impossible
 # for the same reason: one constant serving two stages whose output sizes differ by ~2x.
-_AUTHORED_JUDGE_MAX_TOKENS = 3000
+_AUTHORED_JUDGE_MAX_TOKENS = 4000
+
+# D-233. The judge's two limits are coupled: raising the token ceiling makes the response
+# longer, which makes the call slower, which is how D-231's fix turned a deterministic
+# truncation into an intermittent timeout. Both were measured together, one item per topic
+# under a 6000-token ceiling:
+#
+#   linear_equations         1922 tokens  15.0s
+#   multiplication_division  1985 tokens  15.2s
+#   fraction_operations      2407 tokens  18.8s
+#   place_value              4370 tokens  34.3s
+#
+# `place_value` is the outlier because its items are short and its rubric is the least
+# equation-like, so the judge writes more prose to justify a tier. 5000 tokens clears the
+# worst observed by ~15%, and 90s clears the worst latency by ~2.5x - deliberately generous,
+# because the failure mode is silent (empty error string) and the call is offline.
+_AUTHORED_JUDGE_TIMEOUT_S = 90.0
 
 # --- S20 authored generation mode (plan §7) -----------------------------------------
 
@@ -532,7 +548,13 @@ def judge_system_prompt(topic: TopicDef) -> str:
         # stated here as well because the judge that missed a wrong answer had *found* it in
         # prose and still emitted the passing boolean. Naming the dependency explicitly is
         # cheap next to another item reaching a student.
-        "Write `reasoning` first and work the question out there in full, including solving "
+        # D-233: the length bound is load-bearing, not style. Without it the judge's
+        # `reasoning` expanded to fill whatever ceiling it was given - the same items
+        # produced 1847, 2263, 4370 and then over 5000 tokens as the ceiling was raised
+        # from 1200 - so every raise bought one more round of truncation at a higher price.
+        "Keep `reasoning` under about 150 words and `difficulty_reasoning` under about 60. "
+        "Working out the answer does not require narrating every step in prose. "
+        "Write `reasoning` first and work the question out there, including solving "
         "it yourself. Then set every boolean to match what you concluded. If your reasoning "
         "finds the stated answer wrong, `is_internally_consistent` must be false. "
         # D-194. The judge is not told the tier that was requested or the tier the generator
@@ -775,6 +797,7 @@ async def _call(
     session_spend_cents: float,
     max_output_tokens: int = _MAX_TOKENS,
     tools: list[dict] | None = None,
+    timeout_s: float | None = None,
 ) -> tuple[BaseModel | None, float, str | None]:
     """Thin wrapper: returns (value, cost_cents, error) instead of raising, so the
     pipeline can record *why* a candidate was rejected instead of crashing the batch run
@@ -792,6 +815,11 @@ async def _call(
     extra: dict = (
         {"tools": tools, "tool_executor": execute_pipeline_tool} if tools else {}
     )
+    # Same reason, same shape (D-233): only the judge needs a longer timeout, so a caller
+    # that does not ask keeps the gateway's own value and the Protocol keeps its narrow
+    # signature.
+    if timeout_s is not None:
+        extra["timeout_s"] = timeout_s
     try:
         result = await gateway.generate_structured(
             task=task,
@@ -1524,6 +1552,7 @@ async def _attempt_authored_candidate(
         response_model=QuestionJudgeResponse,
         session_spend_cents=spend,
         max_output_tokens=_AUTHORED_JUDGE_MAX_TOKENS,
+        timeout_s=_AUTHORED_JUDGE_TIMEOUT_S,
     )
     _spend(cost)
     if error is not None:

@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 
 from intellichoice_curriculum.ai_pipeline import (
     _AUTHORED_JUDGE_MAX_TOKENS,
+    _AUTHORED_JUDGE_TIMEOUT_S,
     _AUTHORED_SOLVER_MAX_TOKENS,
     _SOLVER_SYSTEM_PROMPT,
     _call,
@@ -164,6 +165,7 @@ async def _judge_item(
         response_model=QuestionJudgeResponse,
         session_spend_cents=spend,
         max_output_tokens=_AUTHORED_JUDGE_MAX_TOKENS,
+        timeout_s=_AUTHORED_JUDGE_TIMEOUT_S,
     )
     spend += cost
     if error is not None or not isinstance(response, QuestionJudgeResponse):
