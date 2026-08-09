@@ -661,6 +661,7 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
     grade = await _grade_for_narrative(ctx, state.student_external_id)
     narrative_text: str | None = None
     narrative_evidence: list[str] = []
+    pending_narrative: dict | None = None
 
     if result.session_type == "pre_exam":
         # S26 (plan §18-L7): `pre_outro` - the study plan's own weakest-first ranked
@@ -673,18 +674,29 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
         # same payload field name for both would show a confusing "0.8" here against an
         # "8.0" later for what looks like the same number to a student.
         target_skill_ids = result.target_skill_ids or []
-        weak_skill_names = [await _skill_name(ctx, sid) for sid in target_skill_ids]
-        narrative_text, narrative_evidence, bedrock_spend_cents = await _fire_stage_narrative(
-            ctx,
-            state,
-            StageNarrativePayload(
-                stage="pre_outro",
-                grade=grade,
-                weak_skill_names=weak_skill_names,
-                target_skill_name=weak_skill_names[0] if weak_skill_names else None,
-            ),
-            bedrock_spend_cents,
-        )
+        if ctx.defer_study_narrative:
+            # D-241: the same treatment D-217 gave `study_step`, for the same reason and
+            # one turn earlier. Submitting the pre-exam is the student's longest single
+            # wait in the flow - it grades ten items, computes mastery and builds the
+            # study plan - and this narrative added a ~1.5s Bedrock call on top of all of
+            # it before anything rendered. The plan is what they are waiting for; the
+            # sentence about the plan can arrive a beat later over SSE.
+            pending_narrative = {"stage": "pre_outro", "target_skill_ids": target_skill_ids}
+        else:
+            weak_skill_names = [await _skill_name(ctx, sid) for sid in target_skill_ids]
+            narrative_text, narrative_evidence, bedrock_spend_cents = (
+                await _fire_stage_narrative(
+                    ctx,
+                    state,
+                    StageNarrativePayload(
+                        stage="pre_outro",
+                        grade=grade,
+                        weak_skill_names=weak_skill_names,
+                        target_skill_name=weak_skill_names[0] if weak_skill_names else None,
+                    ),
+                    bedrock_spend_cents,
+                )
+            )
 
     if result.learning_gain is not None:
         await memory_events.emit_learning_gain_computed(
@@ -776,6 +788,10 @@ async def finalize_exam(state: LearningState, runtime: Runtime[TurnContext]) -> 
     if narrative_text is not None:
         update["stage_narrative"] = narrative_text
         update["stage_narrative_evidence"] = narrative_evidence
+    if pending_narrative is not None:
+        # Carried on the same key `submit_answer` uses, so the route's existing
+        # `_schedule_deferred_narrative` handles both without learning a second shape.
+        update["pending_study_narrative"] = pending_narrative
     # Same "omit rather than clear" fix as `submit_answer` above - a post-exam finalize's
     # `items=None` (transitioning to phase="completed") is genuinely nothing-to-show
     # (`ResultsScreen` never reads `items`), but omitting is just as correct there and

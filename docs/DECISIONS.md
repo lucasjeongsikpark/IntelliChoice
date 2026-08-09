@@ -17419,3 +17419,94 @@ which ignores exactly the content directory that was intended.
 **64.4 cents** across two batches, against a $1.50-2.50 estimate. The second batch's circuit
 breaker stopped the spend early, and the counterfactual being computable stopped it from
 needing a third.
+
+## D-241 — three reported UI defects: a slow narrative, an ungated submit, a citation that looked like a button (accepted, 2026-08-09)
+
+Three items from a user walk of both apps. Each was traced to code before anything was
+changed, and one of them turned out to be a policy change rather than a bug fix.
+
+### 1. The pre-study narrative arrived late, and D-217 had already built the fix
+
+The reported string - *"Great job getting started on your math learning journey…"* - is the
+`pre_outro` stage narrative, generated when the pre-exam is submitted. D-217 measured this
+class of call at ~1.5s on Haiku 4.5 and moved the `study_step` narrative off the answer's
+critical path, leaving `pre_outro` where it was.
+
+It was the worse one to leave. Submitting the pre-exam is the student's longest single wait
+in the flow already - it grades ten items, recomputes mastery and builds the study plan - and
+this added a Bedrock call on top of all of it *before anything rendered*. The plan is what
+the student is waiting for; the sentence about the plan can arrive a beat later.
+
+Same mechanism, extended rather than duplicated: `payload_from_marker` learned a `pre_outro`
+branch, the finalize node returns an ids-only marker under a real provider, and the finalize
+route hands it to the existing `BackgroundStudyNarrativeScheduler` after publishing. Ids
+only - grade and skill names are resolved at generation time, never checkpointed (SPEC §5.30).
+Under the mock provider it stays inline, so every existing test still sees it synchronously.
+
+**A gap this exposed:** no test anywhere referenced `defer_study_narrative` or
+`pending_study_narrative`. D-217's deferral had **zero coverage** because every test runs the
+mock and takes the inline branch. The new test drives the deferred branch with an injected
+recording scheduler, which is the first coverage this mechanism has had.
+
+### 2. "Submit exam" is now gated on completeness - and the timer is why it is not a blanket block
+
+`Submit exam` was `disabled={busy}` only. The requested change is a real policy change, not a
+bug fix: the server deliberately *allows* finalizing with unanswered items behind
+`confirm_unanswered=True`, grading them incorrect (S22, SPEC §5.9/§5.13).
+
+**The trap that shaped the implementation.** Exams are timed by default (D-064). Once expired,
+`submit_answer` returns 409 *"exam time limit exceeded - finalize to submit"* - finalize is the
+only exit. Blocking finalize on unanswered items would make an expired exam **unexitable**:
+unable to answer, unable to submit. So the gate is `unansweredCount > 0 && !examExpired`, and
+`handleExpire`'s auto-finalize-then-confirm path stays open.
+
+Client-side policy on top of an unchanged server rule, deliberately: the server remains the
+authority, and the modal still explains that unanswered questions are graded incorrect for the
+expired path that can still reach it. `QuestionNavBar` already shows per-question status, so a
+disabled button is not a dead end.
+
+### 3. A citation was styled as a button, and measurement is what settled it
+
+Walked on staging with the browser driver. `.citation-chip` and the interactive `.chip`
+rendered with the **identical background** (`--accent-bg`) and the **identical 999px pill
+radius**, differing only in text colour and 6px of height. The citation is a bare `<span>`
+with no role and no label, sitting directly above a follow-up *button* of the same shape - so
+a source read as a second button, and clicking it did nothing.
+
+Named and restyled rather than made clickable: these sources are internal approved documents
+and several have no URL to open. The container gained a "Source"/"Sources" label and an
+`aria-label`; the chip lost the interactive accent for a bordered, unfilled rectangle that
+reads as metadata.
+
+**Two more, both measured before being called defects:**
+
+- **The transcript stranded short conversations.** `.message-list` is a 715px top-aligned flex
+  column, so a one-turn chat left ~500px of void between the answer and the composer.
+  `margin-top: auto` on the first row - *not* `justify-content: flex-end`, which clips the top
+  of overflowing content in a scroll container and makes earlier messages unreachable.
+- **`Thinking…` was motionless for ~10s.** A cited answer's p95 is 10.62s (D-115) and chat-web
+  contained **no `@keyframes` and no `animation:` anywhere**. A static grey bubble for ten
+  seconds reads as a hung request. Added a pulse, off under `prefers-reduced-motion`.
+
+**Two things checked and deliberately not changed**, because measuring said they were fine:
+the assistant bubble's right gutter is its `max-width: 85%` doing its job (no overflow at
+390/500px), and the escalation banner's restatement of the answer is wording D-219 chose on
+purpose.
+
+### Verification
+
+`ruff` clean · `pyright` 0 errors · **1075 passed, 2 skipped, 1 xfailed** (1073 before; +1 new
+test, +1 from `test_stage_payloads_stay_narrow.py`, which scans source for
+`StageNarrativePayload` construction sites and auto-parametrised over the new `pre_outro` one -
+it passes, so the new payload carries only its own stage's fields). Both web apps `tsc` and
+`oxlint` clean and building.
+
+**What is not verified by a test:** the two frontend changes. Neither web app has a unit-test
+harness - they are covered by `tsc`, `oxlint` and Playwright only - so the submit gate and the
+chat restyle were checked by building, by previewing the CSS against the live staging page, and
+by a post-deploy walk. Stated rather than implied.
+
+### Chat walk coverage
+
+Guest empty state, question → cited answer, follow-up chips, escalation, and 390/500px
+viewports. **Not** walked: signed-in roles, branch locator, calendar.

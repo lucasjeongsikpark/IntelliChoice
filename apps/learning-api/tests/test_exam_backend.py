@@ -1058,3 +1058,65 @@ def test_exam_viewed_is_idempotent_across_a_refresh() -> None:
         ).json()
         assert overview["remaining_seconds"] <= first_remaining
         assert overview["phase"] == first.json()["phase"]
+
+
+def test_finalizing_the_pre_exam_defers_its_narrative_when_a_scheduler_exists() -> None:
+    """D-241: the `pre_outro` narrative must not be awaited inside the finalize turn.
+
+    D-217 moved the `study_step` narrative off the answer's critical path and left this one
+    where it was, so submitting the pre-exam still blocked on a ~1.5s Bedrock call before the
+    student saw anything - which is precisely the delay reported against the "Great job
+    getting started on your math learning journey" message, the `pre_outro` text.
+
+    Same mechanism, same contract: under a real provider the turn returns an ids-only marker
+    (no grade, no skill names - SPEC §5.30) and the route hands it to the background
+    scheduler, which publishes a snapshot a beat later. Under the mock provider the narrative
+    stays inline, which is why every other test in this repo still sees it synchronously.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    scheduled: list[dict] = []
+
+    class _RecordingScheduler:
+        async def schedule(
+            self, *, learning_session_id: str, student_external_id: str, marker: dict
+        ) -> None:
+            scheduled.append(marker)
+
+    from learning_api.dependencies import get_study_narrative_scheduler
+
+    app.dependency_overrides[get_study_narrative_scheduler] = lambda: _RecordingScheduler()
+    try:
+        with TestClient(app) as client:
+            session_id, pre_items = _start_pre_exam(client, headers)
+            pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+            for index, item in enumerate(pre_items):
+                variant_id = item["question_variant_id"]
+                client.post(
+                    f"/learning/sessions/{session_id}/answers",
+                    headers={**headers, "Idempotency-Key": f"defer-pre-outro-{index}"},
+                    json={
+                        "question_variant_id": variant_id,
+                        "selected_option": pre_correct[variant_id],
+                        "response_time_ms": 2000,
+                    },
+                )
+
+            finalize_resp = client.post(
+                f"/learning/sessions/{session_id}/exam/finalize", headers=headers, json={}
+            )
+            assert finalize_resp.status_code == 200
+            body = finalize_resp.json()
+            # The response no longer carries the narrative: that is the whole point - the
+            # student gets their study plan without waiting for a sentence about it.
+            assert body["stage_narrative"] is None
+            assert body["phase"] == "study"
+    finally:
+        app.dependency_overrides.pop(get_study_narrative_scheduler, None)
+
+    assert len(scheduled) == 1, "finalize did not hand a pre_outro marker to the scheduler"
+    marker = scheduled[0]
+    assert marker["stage"] == "pre_outro"
+    # Ids only. A checkpointed marker carrying a grade or a skill *name* would put
+    # PII-adjacent content into Postgres, which SPEC §5.30 forbids.
+    assert set(marker) == {"stage", "target_skill_ids"}
+    assert marker["target_skill_ids"], "the study plan's ranked skills are what pre_outro says"
