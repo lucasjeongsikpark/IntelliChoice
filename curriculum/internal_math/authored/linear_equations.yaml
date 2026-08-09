@@ -511,7 +511,7 @@ templates:
   topic_id: linear_equations
   skill_id: linear_both_sides
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 180
   common_error_tags:
@@ -580,7 +580,7 @@ templates:
   topic_id: linear_equations
   skill_id: linear_both_sides
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 0.5
   estimated_time_seconds: 150
   common_error_tags:
@@ -644,7 +644,7 @@ templates:
   topic_id: linear_equations
   skill_id: linear_both_sides
   grade_band: 6-7
-  difficulty_label: 5
+  difficulty_label: 4
   difficulty_confidence: 1.0
   estimated_time_seconds: 180
   common_error_tags:
@@ -834,64 +834,6 @@ templates:
   option_c: '8'
   option_d: '6'
   correct_option: a
-- question_template_id: authored-linear_equations-d5-306500
-  topic_id: linear_equations
-  skill_id: linear_distribute
-  grade_band: 6-7
-  difficulty_label: 5
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 120
-  common_error_tags:
-  - Forgetting to subtract the flat fee before dividing
-  - Dividing the total cost by the per-piece cost without subtracting the flat fee
-  - Confusing which operation to use
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: normal
-  version: 1
-  stem: A pottery studio charges a flat fee of $15 to start a class, plus $8 for each piece of clay you
-    use. Marco spends a total of $63 on his class. How many pieces of clay did he use?
-  context_block: null
-  answer_expression: Eq(15 + 8*p, 63)
-  hint_ladder:
-  - Write an equation for Marco's total cost using a variable for the number of clay pieces.
-  - His total is the flat fee plus the cost per piece times the number of pieces. Set it equal to $63.
-  - Subtract $15 from both sides, then divide by 8 to find the number of pieces.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Write an equation for Marco's total cost. The flat fee is $15, and he pays $8 per piece
-        of clay. Let p be the number of pieces.
-      expression: 15 + 8*p = 63
-      common_mistake: null
-    - step_number: 2
-      explanation: Subtract the flat fee of $15 from both sides to isolate the term with the variable.
-      expression: 8*p = 63 - 15
-      common_mistake: null
-    - step_number: 3
-      explanation: Simplify the right side.
-      expression: 8*p = 48
-      common_mistake: null
-    - step_number: 4
-      explanation: Divide both sides by 8 to solve for p.
-      expression: p = 48 / 8
-      common_mistake: null
-    - step_number: 5
-      explanation: Calculate the result.
-      expression: p = 6
-      common_mistake: null
-    final_answer: 6 pieces
-  random_seed: 306500
-  rendered_question: A pottery studio charges a flat fee of $15 to start a class, plus $8 for each piece
-    of clay you use. Marco spends a total of $63 on his class. How many pieces of clay did he use?
-  option_a: 8 pieces
-  option_b: 6 pieces
-  option_c: 7 pieces
-  option_d: 9 pieces
-  correct_option: b
 - question_template_id: authored-linear_equations-d5-9500001
   topic_id: linear_equations
   skill_id: linear_distribute
@@ -1411,6 +1353,72 @@ templates:
   option_c: 8 minutes
   option_d: 16 minutes
   correct_option: c
+- question_template_id: authored-linear_equations-d4-817400
+  topic_id: linear_equations
+  skill_id: linear_neg_frac_coeff
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_starting_amount_instead_of_dividing
+  - multiplied_coefficient_by_total
+  - added_starting_amount_to_total
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Lena is sewing ribbon onto a dance banner for the school festival. She already has 3/4 metres
+    of ribbon sewn on. Each day, she adds another 1/8 metre of ribbon. The banner needs a total of 3 metres
+    of ribbon. How many days will it take Lena to finish the banner?
+  context_block: null
+  answer_expression: Eq(3/4 + 1/8 * d, 3)
+  hint_ladder:
+  - Lena has already sewn part of the dance banner. How much ribbon does she add each day, and how much
+    does she start with?
+  - Write an expression for the total length Lena has after d days. Remember, she started with some ribbon
+    already.
+  - Set the expression for the total length after d days equal to the banner's total length, then gather
+    the d terms.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Lena starts with 3/4 metres and adds 1/8 metre each day for d days.
+      expression: 3/4 + 1/8 \cdot d
+      common_mistake: null
+    - step_number: 2
+      explanation: Set the total ribbon equal to the banner's length, 3 metres.
+      expression: 3/4 + 1/8 \cdot d = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the starting amount from both sides to isolate the term with d.
+      expression: 1/8 \cdot d = 3 - 3/4
+      common_mistake: null
+    - step_number: 4
+      explanation: Calculate 3 - 3/4 = 9/4.
+      expression: 1/8 \cdot d = 9/4
+      common_mistake: null
+    - step_number: 5
+      explanation: Multiply both sides by 8 to solve for d.
+      expression: d = 9/4 \cdot 8
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Simplify: 9/4 * 8 = 18.'
+      expression: d = 18
+      common_mistake: null
+    final_answer: '18'
+  random_seed: 817400
+  rendered_question: Lena is sewing ribbon onto a dance banner for the school festival. She already has
+    3/4 metres of ribbon sewn on. Each day, she adds another 1/8 metre of ribbon. The banner needs a total
+    of 3 metres of ribbon. How many days will it take Lena to finish the banner?
+  option_a: '18'
+  option_b: '12'
+  option_c: '6'
+  option_d: '-6'
+  correct_option: a
 - question_template_id: authored-linear_equations-d4-1307400
   topic_id: linear_equations
   skill_id: linear_neg_frac_coeff
@@ -1550,122 +1558,6 @@ templates:
   option_b: '20'
   option_c: '10'
   option_d: '15'
-  correct_option: a
-- question_template_id: authored-linear_equations-d4-307400
-  topic_id: linear_equations
-  skill_id: linear_neg_frac_coeff
-  grade_band: 6-7
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - Confusing total with amount added
-  - Forgetting to subtract the initial amount
-  - Multiplying instead of adding
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: A café is mixing two types of coffee. They pour 8 liters of cold brew and add hot coffee until
-    the total is 3 times the cold brew amount. How many liters of hot coffee did they add?
-  context_block: null
-  answer_expression: Eq(8 + h, 3*8)
-  hint_ladder:
-  - The total mixture is 3 times the amount of cold brew. What is 3 × 8?
-  - 'If the total is 24 liters and 8 liters are cold brew, write an equation: 8 + h = 24.'
-  - Subtract 8 from both sides to find h.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The total mixture must be 3 times the cold brew. Cold brew is 8 liters, so total =
-        3 × 8.
-      expression: 3 * 8 = 24 liters total
-      common_mistake: null
-    - step_number: 2
-      explanation: The hot coffee added plus the cold brew equals the total. So 8 + h = 24.
-      expression: 8 + h = 24
-      common_mistake: null
-    - step_number: 3
-      explanation: Subtract 8 from both sides to isolate h.
-      expression: h = 24 - 8 = 16
-      common_mistake: null
-    final_answer: 16 liters
-  random_seed: 307400
-  rendered_question: A café is mixing two types of coffee. They pour 8 liters of cold brew and add hot
-    coffee until the total is 3 times the cold brew amount. How many liters of hot coffee did they add?
-  option_a: '8'
-  option_b: '24'
-  option_c: '32'
-  option_d: '16'
-  correct_option: d
-- question_template_id: authored-linear_equations-d4-817400
-  topic_id: linear_equations
-  skill_id: linear_neg_frac_coeff
-  grade_band: 6-7
-  difficulty_label: 4
-  difficulty_confidence: 0.5
-  estimated_time_seconds: 90
-  common_error_tags:
-  - subtracted_starting_amount_instead_of_dividing
-  - multiplied_coefficient_by_total
-  - added_starting_amount_to_total
-  generator_model: bedrock-authored-question-generation
-  review_model_versions:
-    solver_a: bedrock-question-generation
-    solver_b: bedrock-question-review
-    judge: bedrock-question-judge
-  review_priority: high
-  version: 1
-  stem: Lena is sewing ribbon onto a dance banner for the school festival. She already has 3/4 metres
-    of ribbon sewn on. Each day, she adds another 1/8 metre of ribbon. The banner needs a total of 3 metres
-    of ribbon. How many days will it take Lena to finish the banner?
-  context_block: null
-  answer_expression: Eq(3/4 + 1/8 * d, 3)
-  hint_ladder:
-  - Lena has already sewn part of the dance banner. How much ribbon does she add each day, and how much
-    does she start with?
-  - Write an expression for the total length Lena has after d days. Remember, she started with some ribbon
-    already.
-  - Set the expression for the total length after d days equal to the banner's total length, then gather
-    the d terms.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Lena starts with 3/4 metres and adds 1/8 metre each day for d days.
-      expression: 3/4 + 1/8 \cdot d
-      common_mistake: null
-    - step_number: 2
-      explanation: Set the total ribbon equal to the banner's length, 3 metres.
-      expression: 3/4 + 1/8 \cdot d = 3
-      common_mistake: null
-    - step_number: 3
-      explanation: Subtract the starting amount from both sides to isolate the term with d.
-      expression: 1/8 \cdot d = 3 - 3/4
-      common_mistake: null
-    - step_number: 4
-      explanation: Calculate 3 - 3/4 = 9/4.
-      expression: 1/8 \cdot d = 9/4
-      common_mistake: null
-    - step_number: 5
-      explanation: Multiply both sides by 8 to solve for d.
-      expression: d = 9/4 \cdot 8
-      common_mistake: null
-    - step_number: 6
-      explanation: 'Simplify: 9/4 * 8 = 18.'
-      expression: d = 18
-      common_mistake: null
-    final_answer: '18'
-  random_seed: 817400
-  rendered_question: Lena is sewing ribbon onto a dance banner for the school festival. She already has
-    3/4 metres of ribbon sewn on. Each day, she adds another 1/8 metre of ribbon. The banner needs a total
-    of 3 metres of ribbon. How many days will it take Lena to finish the banner?
-  option_a: '18'
-  option_b: '12'
-  option_c: '6'
-  option_d: '-6'
   correct_option: a
 - question_template_id: authored-linear_equations-d1-1108100
   topic_id: linear_equations
@@ -2621,6 +2513,114 @@ templates:
   option_c: '75'
   option_d: '19'
   correct_option: a
+- question_template_id: authored-linear_equations-d4-307400
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Confusing total with amount added
+  - Forgetting to subtract the initial amount
+  - Multiplying instead of adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A café is mixing two types of coffee. They pour 8 liters of cold brew and add hot coffee until
+    the total is 3 times the cold brew amount. How many liters of hot coffee did they add?
+  context_block: null
+  answer_expression: Eq(8 + h, 3*8)
+  hint_ladder:
+  - The total mixture is 3 times the amount of cold brew. What is 3 × 8?
+  - 'If the total is 24 liters and 8 liters are cold brew, write an equation: 8 + h = 24.'
+  - Subtract 8 from both sides to find h.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total mixture must be 3 times the cold brew. Cold brew is 8 liters, so total =
+        3 × 8.
+      expression: 3 * 8 = 24 liters total
+      common_mistake: null
+    - step_number: 2
+      explanation: The hot coffee added plus the cold brew equals the total. So 8 + h = 24.
+      expression: 8 + h = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 8 from both sides to isolate h.
+      expression: h = 24 - 8 = 16
+      common_mistake: null
+    final_answer: 16 liters
+  random_seed: 307400
+  rendered_question: A café is mixing two types of coffee. They pour 8 liters of cold brew and add hot
+    coffee until the total is 3 times the cold brew amount. How many liters of hot coffee did they add?
+  option_a: '8'
+  option_b: '24'
+  option_c: '32'
+  option_d: '16'
+  correct_option: d
+- question_template_id: authored-linear_equations-d5-306500
+  topic_id: linear_equations
+  skill_id: linear_two_step
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - Forgetting to subtract the flat fee before dividing
+  - Dividing the total cost by the per-piece cost without subtracting the flat fee
+  - Confusing which operation to use
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A pottery studio charges a flat fee of $15 to start a class, plus $8 for each piece of clay you
+    use. Marco spends a total of $63 on his class. How many pieces of clay did he use?
+  context_block: null
+  answer_expression: Eq(15 + 8*p, 63)
+  hint_ladder:
+  - Write an equation for Marco's total cost using a variable for the number of clay pieces.
+  - His total is the flat fee plus the cost per piece times the number of pieces. Set it equal to $63.
+  - Subtract $15 from both sides, then divide by 8 to find the number of pieces.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation for Marco's total cost. The flat fee is $15, and he pays $8 per piece
+        of clay. Let p be the number of pieces.
+      expression: 15 + 8*p = 63
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the flat fee of $15 from both sides to isolate the term with the variable.
+      expression: 8*p = 63 - 15
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: 8*p = 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 8 to solve for p.
+      expression: p = 48 / 8
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the result.
+      expression: p = 6
+      common_mistake: null
+    final_answer: 6 pieces
+  random_seed: 306500
+  rendered_question: A pottery studio charges a flat fee of $15 to start a class, plus $8 for each piece
+    of clay you use. Marco spends a total of $63 on his class. How many pieces of clay did he use?
+  option_a: 8 pieces
+  option_b: 6 pieces
+  option_c: 7 pieces
+  option_d: 9 pieces
+  correct_option: b
 - question_template_id: authored-linear_equations-d3-1309300
   topic_id: linear_equations
   skill_id: linear_two_step

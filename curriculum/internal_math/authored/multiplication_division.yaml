@@ -126,7 +126,7 @@ templates:
   topic_id: multiplication_division
   skill_id: div_basic
   grade_band: 2-3
-  difficulty_label: 3
+  difficulty_label: 2
   difficulty_confidence: 1.0
   estimated_time_seconds: 70
   common_error_tags:
@@ -209,7 +209,7 @@ templates:
   topic_id: multiplication_division
   skill_id: div_basic
   grade_band: 2-3
-  difficulty_label: 4
+  difficulty_label: 3
   difficulty_confidence: 1.0
   estimated_time_seconds: 85
   common_error_tags:
@@ -415,6 +415,90 @@ templates:
   option_c: '7'
   option_d: '6'
   correct_option: d
+- question_template_id: authored-multiplication_division-d5-300502
+  topic_id: multiplication_division
+  skill_id: div_remainder
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Counted the leftover as a full tray
+  - Answered with the leftover instead of the number of full trays
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A cafe bakes 87 cookies and arranges them on trays of 12. After filling as many trays as possible
+    there are 3 cookies left over. How many trays were filled completely?
+  context_block: null
+  answer_expression: Eq(12*x + 3, 87)
+  hint_ladder:
+  - The three leftover cookies were not enough to fill another tray.
+  - Take the leftover away first, so what remains divides exactly into trays.
+  - Once the leftover is set aside, count how many twelves make up the rest.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set the three leftover cookies aside first.
+      expression: 87 - 3 = 84
+      common_mistake: Counting the leftover as another tray
+    - step_number: 2
+      explanation: What is left divides exactly into trays of twelve.
+      expression: 12 x ? = 84
+      common_mistake: Answering with the leftover
+    final_answer: '7'
+  random_seed: 300502
+  rendered_question: A cafe bakes 87 cookies and arranges them on trays of 12. After filling as many trays
+    as possible there are 3 cookies left over. How many trays were filled completely?
+  option_a: '12'
+  option_b: '8'
+  option_c: '7'
+  option_d: '3'
+  correct_option: c
+- question_template_id: authored-multiplication_division-d5-300505
+  topic_id: multiplication_division
+  skill_id: div_remainder
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Answered with the number of full rows instead of the plants left over
+  - Counted the leftover as a full row
+  - Used the wrong times-table fact
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A nursery has 115 plants and sets them out in rows of 15. Seven rows are completed. How many plants
+    are left after those rows are set out?
+  context_block: null
+  answer_expression: Eq(15*7 + x, 115)
+  hint_ladder:
+  - The question asks about the plants that did not fill a whole row.
+  - Work out how many plants the seven completed rows used up between them.
+  - Take that amount away from the plants the nursery started with.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Seven rows of fifteen plants each use up a hundred and five plants.
+      expression: 7 x 15 = 105
+      common_mistake: Answering with the number of rows
+    - step_number: 2
+      explanation: Take that away from the plants the nursery started with.
+      expression: 115 - 105
+      common_mistake: null
+    final_answer: '10'
+  random_seed: 300505
+  rendered_question: A nursery has 115 plants and sets them out in rows of 15. Seven rows are completed.
+    How many plants are left after those rows are set out?
+  option_a: '10'
+  option_b: '7'
+  option_c: '15'
+  option_d: '105'
+  correct_option: a
 - question_template_id: authored-multiplication_division-d5-300501
   topic_id: multiplication_division
   skill_id: div_remainder
@@ -459,90 +543,6 @@ templates:
   option_c: '4'
   option_d: '90'
   correct_option: b
-- question_template_id: authored-multiplication_division-d5-300502
-  topic_id: multiplication_division
-  skill_id: div_remainder
-  grade_band: 2-3
-  difficulty_label: 5
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 100
-  common_error_tags:
-  - Counted the leftover as a full tray
-  - Answered with the leftover instead of the number of full trays
-  - Used the wrong times-table fact
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: A cafe bakes 87 cookies and arranges them on trays of 12. After filling as many trays as possible
-    there are 3 cookies left over. How many trays were filled completely?
-  context_block: null
-  answer_expression: Eq(12*x + 3, 87)
-  hint_ladder:
-  - The three leftover cookies were not enough to fill another tray.
-  - Take the leftover away first, so what remains divides exactly into trays.
-  - Once the leftover is set aside, count how many twelves make up the rest.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Set the three leftover cookies aside first.
-      expression: 87 - 3 = 84
-      common_mistake: Counting the leftover as another tray
-    - step_number: 2
-      explanation: What is left divides exactly into trays of twelve.
-      expression: 12 x ? = 84
-      common_mistake: Answering with the leftover
-    final_answer: '7'
-  random_seed: 300502
-  rendered_question: A cafe bakes 87 cookies and arranges them on trays of 12. After filling as many trays
-    as possible there are 3 cookies left over. How many trays were filled completely?
-  option_a: '12'
-  option_b: '8'
-  option_c: '7'
-  option_d: '3'
-  correct_option: c
-- question_template_id: authored-multiplication_division-d5-300505
-  topic_id: multiplication_division
-  skill_id: div_remainder
-  grade_band: 2-3
-  difficulty_label: 5
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 100
-  common_error_tags:
-  - Answered with the number of full rows instead of the plants left over
-  - Counted the leftover as a full row
-  - Used the wrong times-table fact
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: A nursery has 115 plants and sets them out in rows of 15. Seven rows are completed. How many plants
-    are left after those rows are set out?
-  context_block: null
-  answer_expression: Eq(15*7 + x, 115)
-  hint_ladder:
-  - The question asks about the plants that did not fill a whole row.
-  - Work out how many plants the seven completed rows used up between them.
-  - Take that amount away from the plants the nursery started with.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Seven rows of fifteen plants each use up a hundred and five plants.
-      expression: 7 x 15 = 105
-      common_mistake: Answering with the number of rows
-    - step_number: 2
-      explanation: Take that away from the plants the nursery started with.
-      expression: 115 - 105
-      common_mistake: null
-    final_answer: '10'
-  random_seed: 300505
-  rendered_question: A nursery has 115 plants and sets them out in rows of 15. Seven rows are completed.
-    How many plants are left after those rows are set out?
-  option_a: '10'
-  option_b: '7'
-  option_c: '15'
-  option_d: '105'
-  correct_option: a
 - question_template_id: authored-multiplication_division-d1-300101
   topic_id: multiplication_division
   skill_id: mult_facts

@@ -264,6 +264,52 @@ templates:
   option_c: '27'
   option_d: '33'
   correct_option: c
+- question_template_id: authored-place_value-d4-200403
+  topic_id: place_value
+  skill_id: place_value_compare
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 85
+  common_error_tags:
+  - Compared the wrong pair of people
+  - Added the two amounts instead of comparing them
+  - Compared the ones digits and ignored the hundreds
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Three friends saved coins. Nina saved 415 coins, Leo saved 451 coins and Sam saved 145 coins.
+    How many more coins did Leo save than Sam?
+  context_block: null
+  answer_expression: Eq(145 + x, 451)
+  hint_ladder:
+  - Three amounts are given, but the question names only two of them.
+  - All three use the same digits, so the place each digit sits in decides their size.
+  - Compare the hundreds place of the two named amounts first, then find the gap.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The question names Leo and Sam, so Nina's amount is not needed.
+      expression: compare 451 and 145
+      common_mistake: Comparing the wrong pair
+    - step_number: 2
+      explanation: Leo has four groups of one hundred and Sam has one.
+      expression: 4 hundreds against 1 hundred
+      common_mistake: Comparing the ones digits
+    - step_number: 3
+      explanation: Find the gap between the two amounts.
+      expression: 145 plus something makes 451
+      common_mistake: Adding the two amounts together
+    final_answer: '306'
+  random_seed: 200403
+  rendered_question: Three friends saved coins. Nina saved 415 coins, Leo saved 451 coins and Sam saved
+    145 coins. How many more coins did Leo save than Sam?
+  option_a: '296'
+  option_b: '306'
+  option_c: '596'
+  option_d: '270'
+  correct_option: b
 - question_template_id: authored-place_value-d4-200402
   topic_id: place_value
   skill_id: place_value_compare
@@ -310,52 +356,6 @@ templates:
   option_c: '4770'
   option_d: '350'
   correct_option: a
-- question_template_id: authored-place_value-d4-200403
-  topic_id: place_value
-  skill_id: place_value_compare
-  grade_band: 1-2
-  difficulty_label: 4
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 85
-  common_error_tags:
-  - Compared the wrong pair of people
-  - Added the two amounts instead of comparing them
-  - Compared the ones digits and ignored the hundreds
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: Three friends saved coins. Nina saved 415 coins, Leo saved 451 coins and Sam saved 145 coins.
-    How many more coins did Leo save than Sam?
-  context_block: null
-  answer_expression: Eq(145 + x, 451)
-  hint_ladder:
-  - Three amounts are given, but the question names only two of them.
-  - All three use the same digits, so the place each digit sits in decides their size.
-  - Compare the hundreds place of the two named amounts first, then find the gap.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The question names Leo and Sam, so Nina's amount is not needed.
-      expression: compare 451 and 145
-      common_mistake: Comparing the wrong pair
-    - step_number: 2
-      explanation: Leo has four groups of one hundred and Sam has one.
-      expression: 4 hundreds against 1 hundred
-      common_mistake: Comparing the ones digits
-    - step_number: 3
-      explanation: Find the gap between the two amounts.
-      expression: 145 plus something makes 451
-      common_mistake: Adding the two amounts together
-    final_answer: '306'
-  random_seed: 200403
-  rendered_question: Three friends saved coins. Nina saved 415 coins, Leo saved 451 coins and Sam saved
-    145 coins. How many more coins did Leo save than Sam?
-  option_a: '296'
-  option_b: '306'
-  option_c: '596'
-  option_d: '270'
-  correct_option: b
 - question_template_id: authored-place_value-d4-200405
   topic_id: place_value
   skill_id: place_value_compare
@@ -838,48 +838,6 @@ templates:
   option_c: '47'
   option_d: '70'
   correct_option: d
-- question_template_id: authored-place_value-d3-200301
-  topic_id: place_value
-  skill_id: place_value_identify
-  grade_band: 1-2
-  difficulty_label: 3
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 70
-  common_error_tags:
-  - Read the digit on its own instead of the value of its place
-  - Counted the places from the wrong end
-  - Used the thousands place instead of the hundreds place
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: Kai reads the number 5,214 aloud in class. His teacher asks him about the 2. What is that digit
-    worth in the number?
-  context_block: null
-  answer_expression: Eq(x, 2*100)
-  hint_ladder:
-  - Start from the right hand end, where the ones place sits, and work leftwards.
-  - The places from the right are ones, then tens, then hundreds, then thousands.
-  - The digit in question sits in the hundreds place, so count groups of one hundred.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Count the places from the right. The digit is third from the right.
-      expression: ones, tens, hundreds
-      common_mistake: Counting from the left instead
-    - step_number: 2
-      explanation: The third place from the right counts groups of one hundred.
-      expression: 2 groups of one hundred
-      common_mistake: Using the thousands place
-    final_answer: '200'
-  random_seed: 200301
-  rendered_question: Kai reads the number 5,214 aloud in class. His teacher asks him about the 2. What
-    is that digit worth in the number?
-  option_a: '2000'
-  option_b: '20'
-  option_c: '200'
-  option_d: '2'
-  correct_option: c
 - question_template_id: authored-place_value-d3-200303
   topic_id: place_value
   skill_id: place_value_identify
@@ -926,6 +884,48 @@ templates:
   option_c: '390'
   option_d: '93'
   correct_option: a
+- question_template_id: authored-place_value-d3-200301
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 70
+  common_error_tags:
+  - Read the digit on its own instead of the value of its place
+  - Counted the places from the wrong end
+  - Used the thousands place instead of the hundreds place
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Kai reads the number 5,214 aloud in class. His teacher asks him about the 2. What is that digit
+    worth in the number?
+  context_block: null
+  answer_expression: Eq(x, 2*100)
+  hint_ladder:
+  - Start from the right hand end, where the ones place sits, and work leftwards.
+  - The places from the right are ones, then tens, then hundreds, then thousands.
+  - The digit in question sits in the hundreds place, so count groups of one hundred.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the places from the right. The digit is third from the right.
+      expression: ones, tens, hundreds
+      common_mistake: Counting from the left instead
+    - step_number: 2
+      explanation: The third place from the right counts groups of one hundred.
+      expression: 2 groups of one hundred
+      common_mistake: Using the thousands place
+    final_answer: '200'
+  random_seed: 200301
+  rendered_question: Kai reads the number 5,214 aloud in class. His teacher asks him about the 2. What
+    is that digit worth in the number?
+  option_a: '2000'
+  option_b: '20'
+  option_c: '200'
+  option_d: '2'
+  correct_option: c
 - question_template_id: authored-place_value-d4-200401
   topic_id: place_value
   skill_id: place_value_identify
@@ -1014,6 +1014,52 @@ templates:
   option_c: '2704'
   option_d: '2074'
   correct_option: c
+- question_template_id: authored-place_value-d5-200505
+  topic_id: place_value
+  skill_id: place_value_identify
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 100
+  common_error_tags:
+  - Left one of the empty places out of the number
+  - Put the digits in the wrong order
+  - Added the amounts together
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Sam builds a number with blocks. He uses 4 thousands, no hundreds, 6 tens and no ones. What number
+    does Sam build?
+  context_block: null
+  answer_expression: Eq(x, 4*1000 + 0*100 + 6*10 + 0)
+  hint_ladder:
+  - Two of the four places have nothing in them, and both still need a digit.
+  - A place with nothing in it is written with a zero so the other digits stay where they belong.
+  - Write all four places in order, from thousands down to ones.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Four thousands go in the first place.
+      expression: 4 thousands
+      common_mistake: null
+    - step_number: 2
+      explanation: There are no hundreds, so a zero holds the hundreds place open.
+      expression: 4 thousands, 0 hundreds
+      common_mistake: Leaving the hundreds place out
+    - step_number: 3
+      explanation: Six tens follow, and a zero fills the empty ones place.
+      expression: 4 thousands, 0 hundreds, 6 tens and 0 ones
+      common_mistake: Dropping the final zero
+    final_answer: '4060'
+  random_seed: 200505
+  rendered_question: Sam builds a number with blocks. He uses 4 thousands, no hundreds, 6 tens and no
+    ones. What number does Sam build?
+  option_a: '460'
+  option_b: '4600'
+  option_c: '4006'
+  option_d: '4060'
+  correct_option: d
 - question_template_id: authored-place_value-d5-200501
   topic_id: place_value
   skill_id: place_value_identify
@@ -1056,49 +1102,3 @@ templates:
   option_c: '5000'
   option_d: '5'
   correct_option: a
-- question_template_id: authored-place_value-d5-200505
-  topic_id: place_value
-  skill_id: place_value_identify
-  grade_band: 1-2
-  difficulty_label: 5
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 100
-  common_error_tags:
-  - Left one of the empty places out of the number
-  - Put the digits in the wrong order
-  - Added the amounts together
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: Sam builds a number with blocks. He uses 4 thousands, no hundreds, 6 tens and no ones. What number
-    does Sam build?
-  context_block: null
-  answer_expression: Eq(x, 4*1000 + 0*100 + 6*10 + 0)
-  hint_ladder:
-  - Two of the four places have nothing in them, and both still need a digit.
-  - A place with nothing in it is written with a zero so the other digits stay where they belong.
-  - Write all four places in order, from thousands down to ones.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: Four thousands go in the first place.
-      expression: 4 thousands
-      common_mistake: null
-    - step_number: 2
-      explanation: There are no hundreds, so a zero holds the hundreds place open.
-      expression: 4 thousands, 0 hundreds
-      common_mistake: Leaving the hundreds place out
-    - step_number: 3
-      explanation: Six tens follow, and a zero fills the empty ones place.
-      expression: 4 thousands, 0 hundreds, 6 tens and 0 ones
-      common_mistake: Dropping the final zero
-    final_answer: '4060'
-  random_seed: 200505
-  rendered_question: Sam builds a number with blocks. He uses 4 thousands, no hundreds, 6 tens and no
-    ones. What number does Sam build?
-  option_a: '460'
-  option_b: '4600'
-  option_c: '4006'
-  option_d: '4060'
-  correct_option: d

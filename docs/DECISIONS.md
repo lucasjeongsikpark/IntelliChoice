@@ -16849,3 +16849,109 @@ dispute; resolving it means reading items against anchors, item by item, with a 
 No item was re-tiered, retired or edited. The audit still changes nothing — it produced a list, and
 a list of 25 disagreements from an instrument three days old is a starting point for adjudication,
 not a verdict on content that 127/127 solver agreement says is mathematically sound.
+
+## D-235 — the 25 disputes adjudicated, and the loader that was discarding the verdict (accepted, 2026-08-09)
+
+D-234 produced a list of 25 items whose declared tier and judged tier differ by 2 or more, 24 of
+them in the "easier than declared" direction, and refused to act on it. This is the adjudication:
+every disputed item read against its own topic's anchors, item by item.
+
+### The question that resolved most of the list
+
+D-234 named one check as the highest-leverage: do the 8 declared-d5 `linear_equations` items really
+require distribution? **Four of the eight do. Four do not.**
+
+| item | equation | anchor it meets | judge |
+|---|---|---|---|
+| `d5-2605501` | `2*(w + 4) + 1 = 3*w + 3` | 5 — distribution, and both sides | 4 |
+| `d5-2506500` | `3*(x + 5) + 2*x = 35` | 5 — distribution | 4 |
+| `d5-9500001` | `4*(x + 3) + 8 = 40` | 5 — distribution | 4 |
+| `d5-9500002` | `3*(2*x + 1) + 4 = 37` | 5 — distribution | 4 |
+| `d5-1305500` | `4*w + 6 = 2*w + 18` | **4** — both sides only | 4 |
+| `d5-1405500` | `6*w = 20 + 2*w` | **4** — both sides only | 4 |
+| `d5-205500` | `8*t = 20 + 3*t` | **4** — both sides only | 4 |
+| `d5-306500` | `15 + 8*p = 63` | **2** — two-step, one side | 2 |
+
+**Both of D-234's competing explanations are true, and they separate per item.** The top four match
+the tier-5 anchor in the same algebraic form as the anchor's own worked example (`5(c + 2) + 12 =
+42`) and the judge gave every one of them a 4 — the instrument refusing the top of its scale. The
+bottom four never met the anchor at all, and the judge was right about each; `d5-306500` sat in the
+`linear_distribute` skill while requiring no distribution, which the judge also flagged
+independently as "not aligned to its skill".
+
+### The full adjudication
+
+| | disputes | upheld (judge wrong) | re-tiered (judge right or closer) |
+|---|---|---|---|
+| `place_value` | 6 | 3 | 3 |
+| `multiplication_division` | 9 | 5 | 4 |
+| `fraction_operations` | 7 | 4 | 3 |
+| `linear_equations` | 3 | 0 | 3 |
+| **total** | **25** | **12** | **13** |
+
+Sixteen items changed tier: the 13 above plus the three `both_sides` d5s, which the gate never
+flagged because `|5 − 4| = 1` — a threshold that lets a whole tier of drift through unremarked.
+Two `skill_id`s were corrected. **No item's content changed**: not a character a student reads.
+
+Per-tier counts stay clear of D-223's 2-per-tier floor; the thinnest cell is
+`multiplication_division` d5 at 3.
+
+**The one dispute running the other way was also correct.** `fraction_operations-d1-100104` is
+`1/2 + 1/4` declared **1**, and tier 1 requires the denominators to already match. The judge said 3;
+the anchor says 3. It is worth stating because it is the only evidence available that the judge is
+not simply biased downward — it caught a genuine under-tier in the one place there was one to catch.
+
+### The defect this uncovered, which is larger than the re-tiering
+
+`make curriculum-load` after re-tiering 16 items printed **"127 already existed, 0 created"**.
+`_load_authored_templates` skipped by id, and the skip sat *above* the §5.8.5 gate. Two promises in
+`authored_bank`'s module docstring — "the file is re-validated on load, not trusted", and "editing a
+correct answer in the file without editing its options fails the load rather than reaching a
+student" — held **only for an item the environment had never seen**.
+
+The consequence is worst exactly where it matters most. CI builds a fresh database, so every edit
+inserts and gets gated there; a long-lived database (staging today, production later) discarded the
+edit and still reported a successful load. A wrong answer hand-edited into the YAML would go green
+in CI and be ignored by the environment serving students, with the file and the served content
+diverging and nothing anywhere saying so.
+
+`loader.py:105` documented the skip as deliberate, reasoning that `review_cli`'s edit-and-rerun
+mints a new id instead. That is a fine rule for *content* edits and no rule at all for metadata: it
+would have required 16 new ids to change 16 integers, orphaning the attempt history of every student
+who had answered those items.
+
+Fixed by re-gating and updating in place. Only columns the *file* owns are written —
+`active_status` and `validation_status` are lifecycle state the database owns, so a load cannot
+resurrect a D-210 retirement by listing the item. An unchanged file is still a no-op, and the
+summary line now says which of the three things happened:
+
+```
+Loaded curriculum: 0 topics, 0 skills, 0 templates created (16 updated, 111 unchanged, 0 retired)
+```
+
+The hole-detection test was written first and watched failing (`assert 1 == 4`, "the file's tier
+never reached the database"). The pre-existing test that looked like it covered this,
+`test_an_edited_item_whose_answer_no_longer_matches_fails_the_load`, passes because it uses a *new*
+id — it proved the gate fires on insert and was read as proving it fires on edit.
+
+### Ids keep their stale tier, on purpose
+
+Ids are minted as `authored-{topic}-d{difficulty_label}-{seed}` and never recomputed, so re-tiering
+leaves the `d{n}` segment behind. All 16 keep their ids: the id is the key attempt rows point at,
+and renaming it to keep a string honest would orphan a student's history to fix something nothing
+reads (only the trailing seed is ever parsed). The rule is documented at the field itself and
+enforced by `test_difficulty_comes_from_the_field_not_the_id`, whose second half searches the
+shipped source for the ways a tier could be recovered from an id — a test about code that does not
+exist yet, which is the only kind that can protect a convention.
+
+### Two anchors were genuinely ambiguous, and items found both
+
+Not review; both surfaced because an item landed on the wrong clause.
+
+- `place_value` tier 5 said "numbers built from the same digits where the arrangement itself decides
+  the answer", which also fires on a three-digit comparison that merely reuses digits (415 / 451 /
+  145). It now requires the **student** to build the numbers, which is a different task from reading
+  numbers someone else arranged.
+- `fraction_operations` had no home for dividing a fraction by a **whole** number. Tier 5 says "a
+  fraction is divided by a fraction", so "3/4 of a metre cut into 3 equal pieces" could be argued to
+  the top tier by matching on the word "divided". Tier 4 now names it.
