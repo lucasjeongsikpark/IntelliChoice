@@ -381,53 +381,6 @@ templates:
   option_c: 1/5
   option_d: 4/5
   correct_option: a
-- question_template_id: authored-fraction_operations-d1-100104
-  topic_id: fraction_operations
-  skill_id: fraction_add_sub_unlike
-  grade_band: 4-5
-  difficulty_label: 1
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 60
-  common_error_tags:
-  - Added the numerators and the denominators straight across
-  - Kept halves and quarters as if they were the same size
-  - Used only one of the two amounts
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: Nina drank 1/2 of a bottle of water in the morning and 1/4 of the same bottle in the afternoon.
-    What fraction of the bottle did Nina drink altogether?
-  context_block: null
-  answer_expression: Eq(x, 1/2 + 1/4)
-  hint_ladder:
-  - A half of a bottle and a quarter of a bottle are different sizes, so they cannot be counted together
-    yet.
-  - Two quarters fill the same space as one half, so the half can be rewritten in quarters.
-  - Once both amounts are written in quarters, add the top numbers and keep 4 underneath.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The bottom numbers are 2 and 4, so the pieces are different sizes.
-      expression: 1/2 and 1/4
-      common_mistake: Adding straight across to get 2/6
-    - step_number: 2
-      explanation: Rewrite the half as quarters.
-      expression: 1/2 = 2/4
-      common_mistake: null
-    - step_number: 3
-      explanation: Add the top numbers and keep the bottom number.
-      expression: 2/4 + 1/4
-      common_mistake: null
-    final_answer: 3/4
-  random_seed: 100104
-  rendered_question: Nina drank 1/2 of a bottle of water in the morning and 1/4 of the same bottle in
-    the afternoon. What fraction of the bottle did Nina drink altogether?
-  option_a: 3/4
-  option_b: 2/6
-  option_c: 1/8
-  option_d: 2/4
-  correct_option: a
 - question_template_id: authored-fraction_operations-d2-100206
   topic_id: fraction_operations
   skill_id: fraction_add_sub_unlike
@@ -474,6 +427,53 @@ templates:
   option_c: 2/3
   option_d: 1/3
   correct_option: c
+- question_template_id: authored-fraction_operations-d1-100104
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - Added the numerators and the denominators straight across
+  - Kept halves and quarters as if they were the same size
+  - Used only one of the two amounts
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: Nina drank 1/2 of a bottle of water in the morning and 1/4 of the same bottle in the afternoon.
+    What fraction of the bottle did Nina drink altogether?
+  context_block: null
+  answer_expression: Eq(x, 1/2 + 1/4)
+  hint_ladder:
+  - A half of a bottle and a quarter of a bottle are different sizes, so they cannot be counted together
+    yet.
+  - Two quarters fill the same space as one half, so the half can be rewritten in quarters.
+  - Once both amounts are written in quarters, add the top numbers and keep 4 underneath.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bottom numbers are 2 and 4, so the pieces are different sizes.
+      expression: 1/2 and 1/4
+      common_mistake: Adding straight across to get 2/6
+    - step_number: 2
+      explanation: Rewrite the half as quarters.
+      expression: 1/2 = 2/4
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the top numbers and keep the bottom number.
+      expression: 2/4 + 1/4
+      common_mistake: null
+    final_answer: 3/4
+  random_seed: 100104
+  rendered_question: Nina drank 1/2 of a bottle of water in the morning and 1/4 of the same bottle in
+    the afternoon. What fraction of the bottle did Nina drink altogether?
+  option_a: 3/4
+  option_b: 2/6
+  option_c: 1/8
+  option_d: 2/4
+  correct_option: a
 - question_template_id: authored-fraction_operations-d3-100301
   topic_id: fraction_operations
   skill_id: fraction_add_sub_unlike
@@ -760,6 +760,53 @@ templates:
   option_c: 1/2
   option_d: 7/12
   correct_option: d
+- question_template_id: authored-fraction_operations-d5-100504
+  topic_id: fraction_operations
+  skill_id: fraction_add_sub_unlike
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - Added the two readings instead of finding the difference
+  - Subtracted the numerators and the denominators straight across
+  - Answered with a reading rather than with the amount used
+  generator_model: hand-authored-v1
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: A tank was 7/8 full at the start of the day. Water was used until the tank was only 1/3 full.
+    What fraction of the tank's capacity was used during the day?
+  context_block: null
+  answer_expression: Eq(1/3 + x, 7/8)
+  hint_ladder:
+  - The two readings describe the tank before and after, and the question asks about the amount used between
+    them.
+  - The amount used is the starting reading with the ending reading taken away.
+  - Eighths and thirds are different sizes, so rewrite both over twenty-fourths before subtracting.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The water used is the difference between the starting and ending readings.
+      expression: 7/8 - 1/3
+      common_mistake: Adding the readings to get 29/24
+    - step_number: 2
+      explanation: Build a shared bottom number for eighths and thirds by multiplying them.
+      expression: 8 x 3 = 24
+      common_mistake: Subtracting straight across to get 6/5
+    - step_number: 3
+      explanation: Rewrite both readings over twenty-fourths and subtract.
+      expression: 21/24 - 8/24
+      common_mistake: null
+    final_answer: 13/24
+  random_seed: 100504
+  rendered_question: A tank was 7/8 full at the start of the day. Water was used until the tank was only
+    1/3 full. What fraction of the tank's capacity was used during the day?
+  option_a: 13/24
+  option_b: 29/24
+  option_c: 6/5
+  option_d: 1/2
+  correct_option: a
 - question_template_id: authored-fraction_operations-d5-100503
   topic_id: fraction_operations
   skill_id: fraction_add_sub_unlike
@@ -811,53 +858,6 @@ templates:
   option_c: 3/8
   option_d: 1/15
   correct_option: b
-- question_template_id: authored-fraction_operations-d5-100504
-  topic_id: fraction_operations
-  skill_id: fraction_add_sub_unlike
-  grade_band: 4-5
-  difficulty_label: 5
-  difficulty_confidence: 1.0
-  estimated_time_seconds: 120
-  common_error_tags:
-  - Added the two readings instead of finding the difference
-  - Subtracted the numerators and the denominators straight across
-  - Answered with a reading rather than with the amount used
-  generator_model: hand-authored-v1
-  review_model_versions: {}
-  review_priority: normal
-  version: 1
-  stem: A tank was 7/8 full at the start of the day. Water was used until the tank was only 1/3 full.
-    What fraction of the tank's capacity was used during the day?
-  context_block: null
-  answer_expression: Eq(1/3 + x, 7/8)
-  hint_ladder:
-  - The two readings describe the tank before and after, and the question asks about the amount used between
-    them.
-  - The amount used is the starting reading with the ending reading taken away.
-  - Eighths and thirds are different sizes, so rewrite both over twenty-fourths before subtracting.
-  canonical_solution:
-    steps:
-    - step_number: 1
-      explanation: The water used is the difference between the starting and ending readings.
-      expression: 7/8 - 1/3
-      common_mistake: Adding the readings to get 29/24
-    - step_number: 2
-      explanation: Build a shared bottom number for eighths and thirds by multiplying them.
-      expression: 8 x 3 = 24
-      common_mistake: Subtracting straight across to get 6/5
-    - step_number: 3
-      explanation: Rewrite both readings over twenty-fourths and subtract.
-      expression: 21/24 - 8/24
-      common_mistake: null
-    final_answer: 13/24
-  random_seed: 100504
-  rendered_question: A tank was 7/8 full at the start of the day. Water was used until the tank was only
-    1/3 full. What fraction of the tank's capacity was used during the day?
-  option_a: 13/24
-  option_b: 29/24
-  option_c: 6/5
-  option_d: 1/2
-  correct_option: a
 - question_template_id: authored-fraction_operations-d5-100505
   topic_id: fraction_operations
   skill_id: fraction_add_sub_unlike
@@ -1228,7 +1228,7 @@ templates:
   topic_id: fraction_operations
   skill_id: fraction_mul_div
   grade_band: 4-5
-  difficulty_label: 4
+  difficulty_label: 5
   difficulty_confidence: 1.0
   estimated_time_seconds: 105
   common_error_tags:

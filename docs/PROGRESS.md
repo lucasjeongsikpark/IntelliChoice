@@ -13,18 +13,28 @@ control (D-229); the judge has been run over **125 of 127** (D-234) after three 
 runnable at all (D-231, D-232, D-233). No numbered ROADMAP session is queued; integration (S43+)
 stays deliberately deferred (D-152) until the user starts it.
 
-What is left is no longer authoring. In rough order of value:
+**The 25 disputes are adjudicated (D-235)** — 12 upheld, 13 re-tiered, plus 3 the gate never flagged,
+so 16 items changed tier and 2 wrong `skill_id`s were fixed. What is left, in order of value:
 
-1. **Adjudicate the 25 tier disputes (D-234), and start with `linear_equations`.** 25 items would be
-   rejected by the pipeline's own difficulty gate, and **24 of the 25 are the judge calling the item
-   easier than declared** — a 24:1 split that is not noise. Two explanations, which that pass cannot
-   separate: my tiers inflate (`place_value` was stratified by digit count, which may not be a
-   difficulty ladder), or the rubric's top anchors are unreachable (`linear_equations` has **16 fours
-   and zero fives** across 47 items, including 8 declared d5 whose anchor is "distribution is
-   required before like terms can be combined" — which those items demonstrably do). **Checking
-   whether those 8 items really require distribution resolves most of the list in one answer.**
-   Nothing was re-tiered: 127/127 solver agreement says the content is mathematically sound, and a
-   three-day-old instrument does not overrule that.
+1. **Run the tier-5 reachability measurement. It is prepared and blocked only on `aws login`.**
+   D-235 proved the judge refuses the top of its own scale: four `linear_equations` items match the
+   tier-5 anchor in the same algebraic form as the anchor's worked example and were all rated 4, and
+   the topic scored **16 fours and zero fives** across 47 items. The intended change is one sentence
+   in `judge_system_prompt` saying the top tier is ordinary rather than exceptional. **It was
+   deliberately not shipped**, because shipping an unmeasured prompt change is exactly what D-231 and
+   D-233 did twice. The protocol, ~44¢ under `--run-budget-cents`:
+
+   ```
+   uv run python scripts/audit_authored_bank.py --run --judge --difficulty 5
+   uv run python scripts/audit_authored_bank.py --run --judge --difficulty 1 --difficulty 2 --per-cell 2
+   ```
+
+   Run both **before** the edit and again after; `_plan` slices in file order, so the same 33 items
+   are hit each time. The d1/d2 half is the control and it must be read first: if those drift up too,
+   the sentence inflated the whole scale instead of opening its top, and it gets reverted. Success is
+   narrow — the four distribution items reach 5 **and** the 16 control items do not move. Note the
+   two anchors D-235 tightened are already in the baseline, so the only difference between the runs
+   is the sentence.
 2. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
@@ -42,6 +52,14 @@ cycle. **D-226 deleted the shape bank, so the trap is gone rather than documente
 write: the 2-per-tier availability floor is a floor, not a target — a topic sitting on it serves a
 student its whole bank and repeats it next session (D-223 measured this).
 
+**Editing an item that already exists now works, and until D-235 it did not.** The loader skipped by
+id above the §5.8.5 gate, so an edit to an item any database already had was discarded while the
+load reported success — visible only as "N already existed". It now re-gates and updates in place,
+and the summary line distinguishes created / updated / unchanged / retired. Two things still hold:
+only columns the **file** owns are written (`active_status` and `validation_status` stay the
+database's), and the `d{n}` in a template id is the tier it was **authored at**, not its current
+one — read `difficulty_label`.
+
 **Before changing the §5.8.5 gate, read D-223.** There is one implementation of each check now
 (D-226 removed the second), but the reason D-223 exists still applies to anything else in this
 codebase that gets copied: every fix to the duplicated gate had landed on one copy only, and
@@ -54,6 +72,35 @@ both directions, no database) and `scripts/measure_access_probe_rules.py --load 
 replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D-226. **Do not
 retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
 measured zero wrong tiers live.
+
+### Session log — the disputes adjudicated, and the loader that was discarding the verdict (2026-08-09, D-235)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1030 passed, 2 skipped, 1 xfailed** (up from
+1028 by the two tests this added) · `make curriculum-load` reports **16 updated, 111 unchanged** ·
+full write-up in DECISIONS.md **D-235**.
+
+**D-234's list of 25 is adjudicated: 12 upheld, 13 re-tiered.** With the three `both_sides` d5s the
+gate never flagged (`|5 − 4| = 1`), **16 items changed tier and 2 wrong `skill_id`s were corrected**.
+No item's content changed — not a character a student reads.
+
+**Both of D-234's competing explanations were true, and they separate per item.** The check it
+named as highest-leverage settled it: of the 8 declared-d5 `linear_equations` items, **four really
+do require distribution and four do not**. The four that do match the tier-5 anchor in the same
+algebraic form as the anchor's own worked example, and the judge rated every one of them 4 — the
+instrument refusing the top of its scale. The four that do not never met the anchor; the judge was
+right about each, including one sitting in the `linear_distribute` skill while requiring no
+distribution.
+
+**The bigger finding was not the content.** `make curriculum-load` after re-tiering 16 items printed
+"127 already existed, 0 created". The loader skipped by id **above** the §5.8.5 gate, so
+`authored_bank`'s promises — "re-validated on load, not trusted", "editing a correct answer without
+editing its options fails the load" — held only for an item the environment had never seen. CI
+builds a fresh database and gates every edit; staging and later production discarded the edit and
+reported success. Hole-detection test written first and watched failing, then fixed: file-owned
+columns propagate through the same gate, database-owned lifecycle columns do not.
+
+**Carry-over:** the tier-5 reachability measurement is prepared but **not run** — it needs
+credentials. Nothing about the judge prompt was changed without evidence.
 
 ### Session log — the whole bank judged, and the disagreement has a direction (2026-08-09, D-234)
 

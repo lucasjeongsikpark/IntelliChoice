@@ -57,6 +57,8 @@ class LoadSummary:
     variants_created: int = 0
     # D-210: authored templates retired because the bank file no longer lists them.
     templates_retired: int = 0
+    # D-235: authored templates already present whose file content had changed.
+    templates_updated: int = 0
 
 
 async def _load_taxonomy(
@@ -86,6 +88,69 @@ async def _load_taxonomy(
         summary.skills_created += 1
 
 
+def _file_owned_template_fields(
+    template_def: AuthoredTemplateDef, curriculum: CurriculumContent
+) -> dict[str, object]:
+    """The template columns the bank file is the source of truth for (D-235).
+
+    One definition used by both the insert and the update, so the two cannot drift into
+    disagreeing about what a load is allowed to write. Everything absent from here is
+    either lifecycle state the database owns or a constant of authored mode.
+    """
+    return {
+        "question_template_id": template_def.question_template_id,
+        "curriculum_version": curriculum.curriculum_version,
+        "topic_id": template_def.topic_id,
+        "skill_id": template_def.skill_id,
+        "grade_band": template_def.grade_band,
+        "difficulty_label": template_def.difficulty_label,
+        "difficulty_confidence": template_def.difficulty_confidence,
+        "common_error_tags": template_def.common_error_tags,
+        "estimated_time_seconds": template_def.estimated_time_seconds,
+        "generator_model": template_def.generator_model,
+        "review_model_versions": template_def.review_model_versions,
+        "stem": template_def.stem,
+        "context_block": template_def.context_block,
+        "answer_expression": template_def.answer_expression,
+        "hint_ladder": template_def.hint_ladder,
+        "canonical_solution": template_def.canonical_solution,
+        "review_priority": template_def.review_priority,
+        "version": template_def.version,
+    }
+
+
+def _file_owned_variant_fields(template_def: AuthoredTemplateDef) -> dict[str, object]:
+    """The canonical variant's columns the file owns - the item as a student sees it."""
+    return {
+        "random_seed": template_def.random_seed,
+        "rendered_question": template_def.rendered_question,
+        "option_a": template_def.option_a,
+        "option_b": template_def.option_b,
+        "option_c": template_def.option_c,
+        "option_d": template_def.option_d,
+        "correct_option": template_def.correct_option,
+    }
+
+
+def _drifted(row: object, fields: dict[str, object]) -> set[str]:
+    return {field for field, value in fields.items() if getattr(row, field) != value}
+
+
+def _gate(template_def: AuthoredTemplateDef) -> None:
+    """The §5.8.5 deterministic gate, on the insert path and the update path alike.
+
+    Being reachable from the update path is the point: this file is hand-editable YAML
+    loaded into every environment, and before D-235 an edit to an item a database already
+    had never got here at all.
+    """
+    result = validate_authored_item(template_def.difficulty_label, template_def.to_generated_item())
+    if not result.passed:
+        raise CurriculumLoadError(
+            f"authored template {template_def.question_template_id} failed validation: "
+            f"{result.failures}"
+        )
+
+
 async def _load_authored_templates(
     session: AsyncSession,
     curriculum: CurriculumContent,
@@ -102,15 +167,26 @@ async def _load_authored_templates(
     file whose options no longer agree with its answer fails the load rather than reaching
     a student.
 
-    Skip-by-id: a re-run is a no-op. **An edit to an item already in a database therefore
-    does not propagate**, which is the reason `review_cli`'s edit-and-rerun mints a new id
-    with a bumped version rather than mutating a row.
+    A re-run whose file is unchanged is a no-op. An item already present whose file content
+    has changed is **re-gated and updated in place** (D-235).
+
+    That last part used to be a skip-by-id, and the skip sat *above* the gate, so both
+    promises this docstring and `authored_bank`'s make - "re-validated on load, not trusted",
+    "editing a correct answer without editing its options fails the load" - held only for an
+    item the environment had never seen. Every long-lived database silently kept its old
+    copy while the load reported success. D-235 found it the direct way: 16 items were
+    re-tiered, and `make curriculum-load` said "127 already existed, 0 created".
+
+    Only the columns the *file* owns are written. `active_status` and `validation_status`
+    are lifecycle state owned by the database (D-210's retirement, `review_cli`'s approval),
+    and a load must not resurrect a retired item just by listing it.
     """
     repo = QuestionRepository(session)
 
-    # D-210: **the bank file decides what is servable.** Skip-by-id means an edit never
-    # propagates, and until now a *removal* never propagated either - a template dropped
-    # from the file kept being served forever by every database that had already loaded it.
+    # D-210: **the bank file decides what is servable.** Until then a *removal* never
+    # propagated - a template dropped from the file kept being served forever by every
+    # database that had already loaded it. (An *edit* did not propagate either; that half
+    # went unnoticed for another twelve decisions and was fixed in D-235, below.)
     #
     # That is not hypothetical. Five of the forty-eight approved items were bare equations
     # ("Solve for x: 2x + 7 = 19"), evidently the original pre-D-186 seeds. Deleting them
@@ -143,50 +219,51 @@ async def _load_authored_templates(
                 summary.templates_retired += 1
 
     for template_def in templates:
-        if await repo.get_template(template_def.question_template_id) is not None:
-            summary.templates_skipped_existing += 1
+        template_fields = _file_owned_template_fields(template_def, curriculum)
+        variant_fields = _file_owned_variant_fields(template_def)
+
+        existing = await repo.get_template(template_def.question_template_id)
+        if existing is not None:
+            existing_variant = await repo.get_variant_for_template(
+                template_def.question_template_id
+            )
+            drifted = _drifted(existing, template_fields)
+            if existing_variant is not None:
+                drifted |= _drifted(existing_variant, variant_fields)
+            if not drifted:
+                summary.templates_skipped_existing += 1
+                continue
+
+            _gate(template_def)
+            for field, value in template_fields.items():
+                setattr(existing, field, value)
+            if existing_variant is not None:
+                for field, value in variant_fields.items():
+                    setattr(existing_variant, field, value)
+            await session.flush()
+            summary.templates_updated += 1
             continue
 
-        result = validate_authored_item(
-            template_def.difficulty_label, template_def.to_generated_item()
-        )
-        if not result.passed:
-            raise CurriculumLoadError(
-                f"authored template {template_def.question_template_id} failed validation: "
-                f"{result.failures}"
-            )
+        _gate(template_def)
 
         template = await repo.create_template(
             QuestionTemplate(
-                question_template_id=template_def.question_template_id,
-                curriculum_version=curriculum.curriculum_version,
-                topic_id=template_def.topic_id,
-                skill_id=template_def.skill_id,
-                grade_band=template_def.grade_band,
-                difficulty_label=template_def.difficulty_label,
-                difficulty_confidence=template_def.difficulty_confidence,
+                **template_fields,
                 question_type="multiple_choice",
                 parameter_schema={},
                 solution_function=AUTHORED_SOLUTION_FUNCTION,
                 correct_option_generator=AUTHORED_SOLUTION_FUNCTION,
                 distractor_generators=[],
-                common_error_tags=template_def.common_error_tags,
-                estimated_time_seconds=template_def.estimated_time_seconds,
-                generator_model=template_def.generator_model,
-                review_model_versions=template_def.review_model_versions,
+                # Lifecycle, not content: set once on arrival and owned by the database
+                # afterwards, which is why the update path above does not touch them. The
+                # human approval happened before the export and the file is its record
+                # (D-026); retirement is D-210's, and a load must not undo it.
                 validation_status="approved",
                 active_status="active",
                 authoring_mode=AUTHORED_MODE,
-                stem=template_def.stem,
-                context_block=template_def.context_block,
-                answer_expression=template_def.answer_expression,
-                hint_ladder=template_def.hint_ladder,
-                canonical_solution=template_def.canonical_solution,
                 # Not exported - see `authored_bank`'s module docstring. Nothing on the
                 # serving path reads it; authoring environments re-embed.
                 stem_embedding=None,
-                review_priority=template_def.review_priority,
-                version=template_def.version,
             )
         )
         summary.templates_created += 1
@@ -197,14 +274,8 @@ async def _load_authored_templates(
                 # (D-189) - an authored template has no shape to render.
                 origin=VARIANT_ORIGIN_CANONICAL,
                 question_template_id=template.question_template_id,
-                random_seed=template_def.random_seed,
-                rendered_question=template_def.rendered_question,
-                option_a=template_def.option_a,
-                option_b=template_def.option_b,
-                option_c=template_def.option_c,
-                option_d=template_def.option_d,
-                correct_option=template_def.correct_option,
                 parameter_values={},
+                **variant_fields,
             )
         )
         summary.variants_created += 1
@@ -229,7 +300,9 @@ async def main() -> None:
         print(
             f"Loaded curriculum: {summary.topics_created} topics, {summary.skills_created} "
             f"skills, {summary.templates_created} templates created "
-            f"({summary.templates_skipped_existing} already existed), "
+            f"({summary.templates_updated} updated, "
+            f"{summary.templates_skipped_existing} unchanged, "
+            f"{summary.templates_retired} retired), "
             f"{summary.variants_created} sample variants."
         )
     finally:
