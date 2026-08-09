@@ -35,13 +35,23 @@ so 16 items changed tier and 2 wrong `skill_id`s were fixed. What is left, in or
    narrow — the four distribution items reach 5 **and** the 16 control items do not move. Note the
    two anchors D-235 tightened are already in the baseline, so the only difference between the runs
    is the sentence.
-2. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+2. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
+   for twelve decisions behind the line `"127 already existed, 0 created"` — and that line is not
+   in any deploy log, because `deploy-staging.yml` only runs `test "$EXIT_CODE" = "0"`. The loader
+   now distinguishes created / updated / unchanged / retired, which is exactly the signal worth
+   surfacing, and a deploy still cannot show it. The fix is two parts: `logs:GetLogEvents` on the
+   deploy role for `/ecs/intellichoice-staging-ops-task` (a statement it does not currently have —
+   see `terraform/modules/iam/main.tf`, which grants `ecs:RunTask`/`DescribeTasks` and no log
+   read), then echo the ops task's log stream after `aws ecs wait`. Same treatment is worth giving
+   the migration and seed steps, which are equally silent. **Until this exists, "the deploy loaded
+   the bank" means only that the loader exited 0** — which is what D-206 already learned once.
+3. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-3. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+4. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-4. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+5. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under
