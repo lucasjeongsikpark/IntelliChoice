@@ -7,14 +7,24 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Both quality panels have now run over the whole bank.** Four topics, 127 authored items, grades
-1-7 all resolving. The solver panel agrees with the author on **127 of 127** with a 12/12 negative
-control (D-229); the judge has been run over **125 of 127** (D-234) after three sessions of making it
-runnable at all (D-231, D-232, D-233). No numbered ROADMAP session is queued; integration (S43+)
-stays deliberately deferred (D-152) until the user starts it.
+**Both quality panels have run over the whole bank, and the disagreements they produced are now
+resolved.** Four topics, 127 authored items, grades 1-7 all resolving. The solver panel agrees with
+the author on **127 of 127** behind a 12/12 negative control (D-229). The judge took three sessions
+to make runnable (D-231/232/233), and its 25 disputes were adjudicated in **D-235** — 12 upheld, 13
+re-tiered, 16 items changed tier, no item's content touched — then its own calibration was fixed in
+**D-237**, after which **8 of those 12 upheld verdicts became moot**. A6-C's calibration half is
+settled; the coverage half was already met for grades 1-7.
 
-**The 25 disputes are adjudicated (D-235)** — 12 upheld, 13 re-tiered, plus 3 the gate never flagged,
-so 16 items changed tier and 2 wrong `skill_id`s were fixed. What is left, in order of value:
+No numbered ROADMAP session is queued; integration (S43+) stays deliberately deferred (D-152) until
+the user starts it.
+
+**Two things are worth knowing before touching any of this.** The audit is now incremental — it
+reports new findings against a 20-entry verdict record (D-236), and a verdict lapses when what it
+depends on changes, which for `upheld` includes the judge prompt. And **the judge's run-to-run
+variance is large enough that n=2 proves nothing**: one prompt variant scored 6 and 13 out of 16 on
+identical inputs (D-237). Repeat the disputed metric, not the whole matrix.
+
+What is left, in order of value:
 
 1. **Adjudicate the 4 verdicts still disputed after D-237.** Re-judging the 12 items D-235 called
    "the judge is wrong here" resolved 8 of them outright — but `multiplication_division-d4-300404`,
@@ -70,11 +80,17 @@ narrowing one half would have silently opened a hole in the other. Shared string
 `authored_validation` as public helpers — `leak_phrase_present`, `answer_text_leaked`,
 `disallowed_wording_found`.
 
-**Instruments still available:** `scripts/measure_scope_guard.py` (~15¢/repeat, scope + intent in
-both directions, no database) and `scripts/measure_access_probe_rules.py --load ... --shipped` (free
-replay of the probe). `scripts/measure_shape_gate.py` went with its subject in D-226. **Do not
-retune the probe constants** — `access_probe_policy.py` forbids it without a sweep, and D-220
-measured zero wrong tiers live.
+**Instruments still available:** `scripts/audit_authored_bank.py` — the solver panel (2 calls/item)
+and `--judge` (1 call/item, ~0.65¢), both preflight-by-default and both reading the D-236 verdict
+record so a repeat run reports only what is new. `scripts/measure_scope_guard.py` (~15¢/repeat,
+scope + intent in both directions, no database) and `scripts/measure_access_probe_rules.py --load
+... --shipped` (free replay of the probe). `scripts/measure_shape_gate.py` went with its subject in
+D-226. **Do not retune the probe constants** — `access_probe_policy.py` forbids it without a sweep,
+and D-220 measured zero wrong tiers live.
+
+**Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
+16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
+mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
 
 ### Session log — the judge's top tier opened, and n=2 caught me out (2026-08-09, D-237)
 

@@ -1580,11 +1580,24 @@ directly. Coverage gap, not a break.
 > shared token ceiling it could never complete under, a global timeout it sat exactly on, and a
 > rubric written for `linear_equations` that graded four topics), and has now judged 125 of 127.
 >
-> Its result is **not** a clean bill: **25 items would be rejected by the pipeline's own difficulty
-> gate, and 24 of those 25 are the judge calling the item easier than declared.** Either the
-> hand-authored tiers inflate or the rubric's top anchors are unreachable; that pass cannot separate
-> them, and nothing was re-tiered. So `difficulty_confidence` is still 1.0 by assertion on all 80
-> hand-authored items, and **this requirement's calibration half is measured but not settled.**
+> Its result was **not** a clean bill: 25 items would have been rejected by the pipeline's own
+> difficulty gate, 24 of them the judge calling the item easier than declared. Either the
+> hand-authored tiers inflated or the rubric's top anchors were unreachable; that pass could not
+> separate them, and nothing was re-tiered on it.
+>
+> **Settled 2026-08-09 (D-235 to D-237), and it was both.** Adjudicating all 25 against their
+> topic's anchors: **12 upheld, 13 re-tiered** (16 items changed tier once three the gate never
+> flagged are included; no item's *content* changed). Then the instrument half was tested rather
+> than argued: measured over every tier-5 item in the bank, the judge returned **zero fives out of
+> 17, twice, with an identical histogram**, while scoring 12-13/16 on an easy control — it was
+> refusing the top of its own scale, not misreading the items. One prompt sentence fixed it, and
+> re-judging the 12 upheld verdicts found **8 of 12 had become moot**.
+>
+> **The calibration half is now settled for this bank**, with two honest remainders: four verdicts
+> still disputed (all rated 2, all in `multiplication_division`/`place_value`, whose anchors may not
+> discriminate in the 3-5 range), and `difficulty_confidence` still 1.0 by assertion on all 80
+> hand-authored items — a number nothing has ever measured, and the last unearned claim in this
+> requirement.
 
 3. **⏸ Ran 2026-08-05. The pipeline works and serving is built (D-188, D-189); the content is still
    not anywhere but one laptop.** The run produced eight items covering 7 of 11 pairs, five of which
