@@ -16955,3 +16955,76 @@ Not review; both surfaced because an item landed on the wrong clause.
 - `fraction_operations` had no home for dividing a fraction by a **whole** number. Tier 5 says "a
   fraction is divided by a fraction", so "3/4 of a metre cut into 3 equal pieces" could be argued to
   the top tier by matching on the word "divided". Tier 4 now names it.
+
+## D-236 — a suppression list for the audit, built to fail open (accepted, 2026-08-09)
+
+D-235 adjudicated 25 judge findings: 13 the judge was right about (fixed by re-tiering) and
+12 it was wrong about. Nothing recorded the 12, so the next `audit_authored_bank.py --judge`
+would have re-reported them in the same words, indistinguishable from twelve new findings.
+
+The failure that matters is not the wasted re-reading. It is that a reader who sees the same
+twelve items every run learns the flagged list is mostly noise, and **an audit whose output
+is not trusted has stopped working** — quietly, while continuing to run and cost money.
+
+### What was built
+
+`curriculum/internal_math/adjudications.yaml` — 28 verdicts, content-adjacent so they are
+reviewed in the same pull request as the items they are about. `--judge` now splits its
+flagged list into **new / already-adjudicated / lapsed**, and prints all three.
+
+### A verdict is a claim about a specific instrument
+
+The fingerprint covers the item's judge payload, its topic's `difficulty_anchors`, **and the
+judge system prompt**. Any of the three changing lapses the verdict.
+
+The third is the load-bearing one and it makes the record deliberately fragile: the tier-5
+reachability sentence D-235 left prepared will lapse all 28 at once. **That is correct.**
+That change exists precisely to alter these judgements, and a suppression surviving it would
+hide the evidence of whether it worked. Pinning only the item's content would buy a
+stable-looking file by carrying stale verdicts across exactly the changes designed to
+invalidate them.
+
+Measured, not assumed: changing one word in `linear_equations`'s tier-1 anchor lapsed exactly
+its 6 verdicts and none of the other 22.
+
+### Every part of it is built to fail open
+
+A suppression list is the mechanism by which a finding stops being reported, so the design
+question is not "does it suppress" but "how does it stop":
+
+- **`retiered` suppresses nothing.** Those items were changed to match the judge, so
+  agreement is now the *expectation* and a remaining disagreement is news. Suppressing them
+  would hide the one outcome worth knowing — that a re-tier did not take.
+- **`moot` exists for the verdict that stops being needed.** An `upheld` item the judge now
+  agrees with produces no flag, so a suppression quietly becoming unnecessary would leave no
+  trace. It is reported as "the verdict is spent" — which is exactly the signal the tier-5
+  work is looking for.
+- **A lapsed verdict is printed with its reason**, never dropped. "27 verdicts lapsed: the
+  judge prompt changed" is information; silence is not.
+- **`test_the_shipped_record_is_live`** covers the failure a suppression list hides best:
+  every fingerprint stale. The file parses, the ids resolve, the audit runs, and not one
+  verdict applies. Its failure message names both legitimate remedies — re-run and decide
+  again, or delete entries whose subject is gone — and rules out the tempting third, which is
+  regenerating the hash without re-deciding. That re-asserts a judgement nobody made.
+- **`test_an_upheld_verdict_suppresses_something_that_would_have_been_flagged`** rejects a
+  verdict recorded on a gap below the §5.8.5 threshold of 2, which would sit in the file
+  looking like a decision while doing no work.
+
+### The judge has no mock-provider branch
+
+Found while trying to exercise the new reporting for free: `QUESTION_JUDGE` has no branch in
+`mock_provider`, so every local judge call fails structured-output validation and the path can
+only be run by paying. That is the worst possible property for the logic deciding which
+findings a human never sees.
+
+Answered by moving the decision out of the script: `partition_findings` is a pure function
+over a `JudgedItem` list, unit-tested including the case that adding the mechanism must not
+change what a bank with *no* verdicts reports. The script keeps only printing. The missing
+mock branch is recorded as a carry-over rather than fixed here.
+
+### Also moved
+
+`rendered_for_model()` is now a method on `AuthoredTemplateDef`, and `judge_inputs()` lives
+beside the fingerprint that hashes it. Assembled in two places they drift, and that failure is
+silent in the worst direction: a verdict going on suppressing a finding about content the
+judge no longer reads.
