@@ -53,6 +53,19 @@ _EMBEDDING_RATE_PER_1K_CENTS: dict[str, float] = {
 }
 _DEFAULT_EMBEDDING_RATE_PER_1K_CENTS = 0.002
 
+# A spend guard: no single call may bill for more output than this, whatever it asks for.
+#
+# **Deliberately left at 4000 (D-233), after raising it to 6000 and measuring that it bought
+# nothing.** The §5.8.5 judge truncated here, so the obvious move was more headroom - but the
+# same `place_value` items produced 1847, then 2263, then 4370, then over 5000 tokens as the
+# ceiling rose. Its `reasoning` field has no length bound, so it expands to fill whatever it
+# is given and a bigger cap is a moving target that costs more per call for the same failure.
+# The fix belongs in the prompt, which now asks for brevity.
+#
+# **A request above this is logged.** It used to be silently reduced: a caller asking for 5000
+# got 4000 with no signal anywhere, noticed only because the truncation error happened to
+# print the capped number rather than the requested one. A guard that quietly rewrites its
+# caller's argument makes every constant upstream of it a guess.
 _HARD_MAX_OUTPUT_TOKENS = 4000
 
 
@@ -182,6 +195,15 @@ class ResilientBedrockGateway:
         session_spend_cents: float,
         tools: list[dict] | None = None,
         tool_executor: Callable[[str, dict], dict] | None = None,
+        # D-233: per-call, because one global timeout cannot serve both ends of this
+        # pipeline. The serving-path calls are a few hundred tokens and 20s is a real
+        # guard for them; the §5.8.5 judge writes ~2000-4400 tokens and was measured at
+        # 15.0s, 18.8s, 25.9s and 34.3s - so it sat *on* the 20s line and failed
+        # intermittently, ~28% of a topic's items, with an empty error string because
+        # `str(asyncio.TimeoutError())` is "". Raising the global value instead would have
+        # weakened the guard on every fast call to accommodate the slowest one, which is
+        # the same mistake as the shared token ceiling D-231 had to split.
+        timeout_s: float | None = None,
     ) -> BedrockGenerationResult[T]:
         with traced_span("bedrock.generate_structured", task=task.value):
             started_at = time.monotonic()
@@ -203,6 +225,13 @@ class ResilientBedrockGateway:
                 raise ValueError(f"no Bedrock model configured for task {task!r}")
 
             capped_max_tokens = min(max_output_tokens, _HARD_MAX_OUTPUT_TOKENS)
+            if capped_max_tokens < max_output_tokens:
+                logger.warning(
+                    "bedrock_max_tokens_capped task=%s requested=%d capped_to=%d",
+                    task.value,
+                    max_output_tokens,
+                    capped_max_tokens,
+                )
             worst_case_cost = self._cost_cents(model_id, 2000, capped_max_tokens)
             if session_spend_cents + worst_case_cost > self._session_budget_cents:
                 self._log_failure(
@@ -256,7 +285,7 @@ class ResilientBedrockGateway:
                             # stays exactly as narrow as it was (D-202).
                             **tool_kwargs,
                         ),
-                        timeout=self._call_timeout_s,
+                        timeout=timeout_s or self._call_timeout_s,
                     )
                 except (TimeoutError, ProviderCallError) as exc:
                     self._record_failure()
