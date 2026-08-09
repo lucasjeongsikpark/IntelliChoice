@@ -16474,3 +16474,61 @@ fixture's attendance is *present*, but this keeps the two drives comparable.
 The items are hand-authored: deterministic gate, no two-solver/judge panel (D-211). And the K-12
 span is now continuous from grade 1 to grade 7 but stops there — grades 8-12 have no topic, which is
 scope rather than a gap.
+
+## D-229 — the solver panel run over the whole authored bank, and the control that makes the number mean something (accepted, 2026-08-08)
+
+D-211 has sat in every "remaining risks" list since it was written, through six sessions that grew
+the bank from 47 items to 127: **the deterministic §5.8.5 gate verifies equation → answer and
+structurally cannot verify situation → equation.** `check_sympy_independent_solve`'s own docstring
+says so — *"A model that equates two robots' rates instead of their totals gets a faithfully-solved
+wrong answer"* — and names the two independent solvers as the answer. Items authored by the pipeline
+got that panel; the 80 hand-authored ones (D-222/D-223/D-225/D-228) never did, and they are now the
+majority of the bank.
+
+`scripts/audit_authored_bank.py` runs the panel over the approved bank. It **changes nothing** — no
+database write, no file write, no approval or retirement. A disagreement is evidence for a human,
+not a verdict, which is the same posture the pipeline takes when it records solver objections
+rather than deleting on them.
+
+### The result, and the control it needed
+
+| | |
+|---|---|
+| bank audited | **127 of 127 items** |
+| both solvers agreed with the author | **127** |
+| negative control: deliberately-wrong items caught | **12 of 12** |
+| spend | 93.5¢ over 278 calls (~0.34¢/call) |
+
+**The second row is worth nothing without the third.** A panel that has silently stopped firing — a
+payload built from the wrong field (the D-196 bug, which made items unanswerable fragments), a
+response model whose `selected_option` never populates, a prompt that no longer parses — agrees with
+everything and scores a clean 127/127. So `--self-test N` re-runs the first N items with the
+declared answer moved to a wrong option: every one is wrong by construction, and a working panel
+objects to every one. It did. This is D-221's rule (score both directions) and D-223's (a zero flag
+rate only means something next to the positive controls) applied to a result that would otherwise
+have been reported as good news on its own.
+
+### What this establishes and what it does not
+
+**Establishes:** two genuinely different models, each reading the scenario blind, pick the option the
+author declared — for every item currently servable. The situation → equation gap D-211 named is
+measured and, for this bank, empty.
+
+**Does not establish:** difficulty calibration. That is the judge stage, a separate question, and
+`difficulty_confidence` is still 1.0 by authorial assertion on all 80 hand-authored items. Nor does
+it establish that the items are *good* — an item can be correct, unambiguous and dull.
+
+**A caveat worth stating rather than burying:** Solver A is Haiku 4.5 and Solver B is Sonnet 4.5.
+They are different models, which is the property the preflight enforces and refuses without — but
+they are both Anthropic models, so correlated error is possible in a way two vendors would reduce.
+The account has Llama, Mistral, DeepSeek and Nova profiles available; using one as Solver B is the
+obvious strengthening and was not done here.
+
+### A configuration finding
+
+The repo's own `.env.example` sets **all four** curriculum model slots to the same id, which makes
+`pipeline_cli`'s preflight refuse a paid run outright ("their agreement would be one opinion counted
+twice"). So the authored pipeline as documented cannot start. The staging Terraform grants the ECS
+task role only the tutor model plus embeddings, for the same reason. Nothing is broken — the guard
+is doing its job — but "the panel exists" and "the panel can be run" have not been the same thing,
+and that is part of why D-211 stayed open so long.
