@@ -305,16 +305,27 @@ _AUTHORED_ITEM_MAX_TOKENS = 2500
 # The design call emits a sketch, an equation and a number - it does not need the item's
 # budget, and keeping it small is most of why retrying here is affordable (D-200).
 _EQUATION_DESIGN_MAX_TOKENS = 700
-# Solver and judge responses are a few small fields plus a free-text `reasoning` (the
-# generator's ran ~660 characters at tier 5, i.e. well inside 400 on its own). Not observed
-# truncating, but a judge truncated by this ceiling discards a candidate that has already
-# paid for four calls, so they get modest headroom for the same reason.
-# Raised from 800 once the questions became scenarios: a solver reading a *story* has to
-# model it before it can answer, and one ran out of tokens mid-reasoning on the first run.
-# The judge shares this ceiling and writes considerably more now that it also checks the
-# scenario's own constraints - and more again since D-193 made `reasoning` the field it
-# writes first, which is the point of that change, so the headroom is load-bearing.
-_AUTHORED_REVIEW_MAX_TOKENS = 1200
+# A solver response is a few small fields plus a free-text `reasoning` (the generator's ran
+# ~660 characters at tier 5, i.e. well inside 400 on its own). Raised from 800 once the
+# questions became scenarios: a solver reading a *story* has to model it before it can
+# answer, and one ran out of tokens mid-reasoning on the first run.
+_AUTHORED_SOLVER_MAX_TOKENS = 1200
+
+# **The judge no longer shares that ceiling (D-231), because it had outgrown it.** The
+# comment here used to say the headroom was load-bearing and predicted exactly this: the
+# judge writes two prose fields (`reasoning` first since D-193, then `difficulty_reasoning`)
+# and checks the scenario's own constraints, so it writes far more than a solver.
+#
+# Measured with a 4000-token ceiling on one item from each topic: **1847, 2108 and 1822
+# output tokens**. Against 1200 that is every judge call truncating, and a truncated judge
+# is not a slow judge - `raw_generate` refuses to retry under the same ceiling, so the
+# candidate is rejected *after* paying for equation design, generation and two solvers.
+# Found by D-229's audit, which could not judge a single item; the same failure was live in
+# the pipeline itself and had no symptom short of running it.
+#
+# Same class as D-195's shared 400-token ceiling, which made authored generation impossible
+# for the same reason: one constant serving two stages whose output sizes differ by ~2x.
+_AUTHORED_JUDGE_MAX_TOKENS = 3000
 
 # --- S20 authored generation mode (plan §7) -----------------------------------------
 
@@ -1453,7 +1464,7 @@ async def _attempt_authored_candidate(
         payload=solver_payload,
         response_model=SolverResponse,
         session_spend_cents=spend,
-        max_output_tokens=_AUTHORED_REVIEW_MAX_TOKENS,
+        max_output_tokens=_AUTHORED_SOLVER_MAX_TOKENS,
     )
     _spend(cost)
     if error is not None:
@@ -1465,7 +1476,7 @@ async def _attempt_authored_candidate(
         payload=solver_payload,
         response_model=SolverResponse,
         session_spend_cents=spend,
-        max_output_tokens=_AUTHORED_REVIEW_MAX_TOKENS,
+        max_output_tokens=_AUTHORED_SOLVER_MAX_TOKENS,
     )
     _spend(cost)
     if error is not None:
@@ -1511,7 +1522,7 @@ async def _attempt_authored_candidate(
         payload=judge_payload,
         response_model=QuestionJudgeResponse,
         session_spend_cents=spend,
-        max_output_tokens=_AUTHORED_REVIEW_MAX_TOKENS,
+        max_output_tokens=_AUTHORED_JUDGE_MAX_TOKENS,
     )
     _spend(cost)
     if error is not None:
