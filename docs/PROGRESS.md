@@ -168,7 +168,7 @@ and D-220 measured zero wrong tiers live.
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
 
-### Session log — the AI observability leg was dark, and the docs said the opposite (2026-08-09, D-242)
+### Session log — the AI observability leg was dark for weeks, and is now live (2026-08-09/10, D-242)
 
 **Verification:** `ruff` clean · `pyright` 0 errors · **1079 passed, 2 skipped, 1 xfailed** ·
 no paid run · full write-up in DECISIONS.md **D-242**.
@@ -194,6 +194,19 @@ corrected.
 
 **And a narrow window that gave false comfort:** I reported "no LangSmith errors" from a query
 covering the last two hours; the 403s were at 05:47 UTC.
+
+**Resolved the same night.** The 403 was neither an entitlement nor a bad key — this key has **no
+default workspace**, and LangSmith answers a tenant-less request with the *same* 403 it gives an
+unknown key. `LANGSMITH_WORKSPACE_ID` was the whole fix. **Verified end to end for the first time:**
+`c0a4b1fb8abf620296e5909b41056bf6` resolves in LangSmith's root-run metadata, a CloudWatch
+`bedrock_call` line, and X-Ray. Two diagnoses were wrong before this one — "the multipart endpoint
+is not entitled", then "the key is not a valid key" — both because a 403 was read as evidence of a
+permission-shaped cause without comparing against a known-bad credential.
+
+**Self-inflicted:** the `terraform apply` that shipped the fix also rolled both services back to a
+months-old image, because Terraform owns `aws_ecs_task_definition` while `deploy-staging.yml` owns
+the image in it. The workflow says *"never `terraform apply`"* in a comment already read this
+session. Recovered by re-running the deploy (~15 min of stale code); the trap is carry-over #8.
 
 ### Session log — three reported UI defects, and one of them was a policy change (2026-08-09, D-241)
 

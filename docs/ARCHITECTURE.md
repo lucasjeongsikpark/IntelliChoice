@@ -1559,18 +1559,23 @@ flowchart TB
     SAAS --> AI["AI observability<br/>node structure + timings<br/>inputs/outputs masked at source"]
 ```
 
-**The two legs join on `trace_id` (D-242).** `logging_config` stamps it on every log line, X-Ray
-keys on the same value, and `_graph_config` now puts it on every LangSmith run as
+**The two legs join on `trace_id` (D-242), verified live.** `logging_config` stamps it on every log
+line, X-Ray keys on the same value, and `_graph_config` puts it on every LangSmith run as
 `metadata.otel_trace_id` - so one id takes you from a slow span to that request's log lines to its
-node tree. Before D-242 the LangSmith leg carried no reference to the request that produced it and
+node tree. Confirmed on a real staging request: `c0a4b1fb8abf620296e5909b41056bf6` resolved in
+LangSmith's root run metadata, in a `bedrock_call` log line, and in X-Ray. Before D-242 the LangSmith leg carried no reference to the request that produced it and
 had to be matched by timestamp, which stops working the moment two students are active at once.
 
-> ⚠️ **The LangSmith leg is configured, reachable, and receiving nothing** (D-242, unresolved).
-> Staging POSTs to `runs/multipart` and gets **403 Forbidden** on every flush; the client only falls
-> back to batch ingest on a *404*, so it retries forever at WARNING and the project has **zero runs**.
-> Everything on our side is correct - key valid, NAT and route open, security group open, client
-> installed - so this needs a LangSmith credential/entitlement change, not a code change. The new
-> `LangSmithIngestFailed` metric filter is what makes it visible rather than silent.
+> **The LangSmith leg went live 2026-08-10, and had never worked before that** (D-242). It had been
+> POSTing to `runs/multipart` and getting **403 Forbidden** on every flush since D-214 wired it,
+> retrying forever at WARNING with **zero runs** ever delivered. The cause was neither the key nor
+> an entitlement: this key has **no default workspace**, so a request naming no tenant is refused -
+> and LangSmith answers that with the *same* 403 it gives an unknown key, which is what made the
+> first two diagnoses wrong. `LANGSMITH_WORKSPACE_ID` in the task definition was the whole fix.
+>
+> **`LangSmithIngestFailed`** (one metric filter per service) exists because it failed *silently*
+> for that long: four filters per service watched Bedrock and none watched telemetry delivery, so a
+> whole leg of this architecture was dark while every dashboard stayed green.
 
 `LangGraph` and `FastAPI` are the same process - the split is about which *sink* answers which
 question, not about which service is running. One `trace_id` still spans FastAPI → LangGraph →

@@ -505,6 +505,13 @@ fixture itself rather than inferred later.
 - LangSmith wiring with masking config; Prometheus `/metrics` with the §5.32.4 KPIs; Grafana dashboards as code
 - Resolve the standing D-032 caveat (`?token=` SSE values in access logs) before real deployment
 **Done when:** one request's full path is visible under a single trace_id locally (otel-collector + Jaeger in compose).
+> ⚠️ **"env-gated LangSmith" means wired, and for weeks that was all it meant.** D-242 (2026-08-10)
+> found the LangSmith half had **never delivered a single run** on staging: 403 on every flush,
+> retried forever at WARNING, zero runs, and nothing alarming on it. Fixed by
+> `LANGSMITH_WORKSPACE_ID` and now verified end to end. The OTel/X-Ray half of this block was
+> always genuinely working. **Read "shipped" here as "the code path exists", not "the sink
+> receives".**
+
 **Shipped 2026-07-21 (see D-081 for the full design):** new `packages/observability`
 (JSON logging + PII denylist, OTel tracing, Prometheus KPIs, JSON access log, env-gated
 LangSmith); both apps wired at startup; `docker-compose.yml` gained `otel-collector`/
