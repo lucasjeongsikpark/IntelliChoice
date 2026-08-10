@@ -18877,3 +18877,55 @@ branch with an empty payload precisely for this, and the same fallback already e
 `solution_steps` and had simply been missed one line up.
 
 25 tests across the two modules, all free under the mock.
+
+## D-261 — the generator cannot be the repairer, and targeting became an enforced invariant (accepted, 2026-08-10)
+
+D-255 point 8 allowed the generator and repairer to be one model. Before running the loop on real
+content, the property that role depends on was measured — §4.6 requires a repair to return
+everything it was *not* asked about word for word — using `smoke_cli --contract
+hint_solution_repair` (added here) at **n=4** per candidate on one fixture whose defect names a
+single solution step.
+
+| model | invocations ok | ladder verbatim | untouched steps verbatim | fixed the defect | cost |
+|---|---|---|---|---|---|
+| `mistral.mistral-large-3-675b-instruct` | **2/4** | 2/2 | **0/2** | 2/2 | 3.17¢ |
+| `us.anthropic.claude-haiku-4-5` | 4/4 | 4/4 | **4/4** | 4/4 | **1.20¢** |
+| `qwen.qwen3-32b-v1:0` | 4/4 | 4/4 | 3/4 | 4/4 | 3.18¢ |
+
+**Mistral is disqualified as the repairer.** It rewrote every solution step on every successful
+attempt while correctly fixing the one it was asked about, and half its invocations failed
+outright. Not an n=1 judgement — D-204 is the entry about roster changes made on one signal, and
+this is the property the role depends on, measured four times.
+
+**Haiku is the best repairer on every axis and cannot have the job.** It is reviewer B. A
+repairer that is also a reviewer means B approves text B wrote, and the independence D-256
+measured (9 of 50 disagreements) would leak out through the *repair* channel rather than the
+panel — where nothing in the design is watching for it.
+
+**So: repairer = `qwen3-32b`, a fourth provider.** Mistral → Anthropic → OpenAI → Alibaba across
+generator, B, C and repairer. That costs 2.6× Haiku per repair and is worth it for the one
+property the two-reviewer architecture rests on.
+
+### `collateral_edits()` — the part that generalises
+
+qwen's 3-of-4 is not good enough to trust on its own, so targeting stopped being a prompt clause
+and became an **exact invariant**: a hint or step at a position no defect named either came back
+character for character or it did not. No judgement, no threshold — which is exactly §3's bar for
+a deterministic check, and the reason this one is allowed to exist while
+`audit_solution_step_completeness` is deliberately not a gate.
+
+A repair that fails it is **discarded, and the item keeps the text it came in with** — a rejected
+repair is not a rejected item, and applying it would leave the panel reviewing changes it never
+asked for.
+
+Two deliberate limits, both recorded so they are not read as oversights: a defect with
+`index=None` puts its whole target in scope, so nothing there is collateral; and a length change
+is not reported, because adding a step can be a legitimate repair and once lengths differ any
+positional comparison invents a correspondence rather than checking one.
+
+### The measurement was run twice, and the first one was wasted
+
+The first attempt parsed `smoke_cli`'s human summary, which truncates `parsed:` at 900
+characters — so twelve paid calls succeeded and produced a `JSONDecodeError` instead of a result.
+**Same class as D-254's dump bug**: analysing what was printed rather than what was returned.
+`--json` now emits the full report, and the truncation carries a comment saying what it is for.

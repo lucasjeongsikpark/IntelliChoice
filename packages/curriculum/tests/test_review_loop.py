@@ -14,6 +14,7 @@ from intellichoice_curriculum.hint_solution_repair import (
     SYSTEM_PROMPT,
     apply_repair,
     build_payload,
+    collateral_edits,
     render_defects,
 )
 from intellichoice_curriculum.review_loop import run_review_loop
@@ -257,3 +258,113 @@ def test_apply_repair_replaces_only_the_ladder_and_the_solution() -> None:
     assert repaired.hint_ladder == ["one", "two"]
     assert len(repaired.canonical_solution.steps) == 1
     assert repaired.stem == item.stem and repaired.option_b == item.option_b
+
+
+def test_collateral_edits_names_positions_no_defect_asked_about() -> None:
+    """D-261's invariant. Measured need: `mistral-large-3` rewrote every solution step on
+    4 of 4 attempts while correctly fixing the one it was asked about, so targeting is a
+    model property rather than a guarantee and a prompt clause cannot enforce it.
+    """
+    item = _item()
+    defect = HintSolutionDefect(
+        target="hint_ladder", index=3, problem="p", suggested_fix="f"
+    )
+    # Rung 3 was named; rung 1 was not.
+    repair = HintSolutionRepairResponse(
+        reasoning="r",
+        hint_ladder=["REWRITTEN", "Divide both sides.", "Divide 52 by 4 to finish."],
+        solution_steps=list(item.canonical_solution.steps),
+        solution_final_answer="13",
+    )
+    assert collateral_edits(item, repair, [defect]) == [
+        "hint_ladder[1] changed but no defect named it"
+    ]
+
+
+def test_editing_a_named_position_is_not_collateral() -> None:
+    item = _item()
+    defect = HintSolutionDefect(
+        target="hint_ladder", index=1, problem="p", suggested_fix="f"
+    )
+    repair = HintSolutionRepairResponse(
+        reasoning="r",
+        hint_ladder=["REWRITTEN", "Divide both sides.", "Divide 52 by 4."],
+        solution_steps=list(item.canonical_solution.steps),
+        solution_final_answer="13",
+    )
+    assert collateral_edits(item, repair, [defect]) == []
+
+
+def test_an_unlocated_defect_puts_its_whole_target_in_scope() -> None:
+    """`index=None` means "this is about the ladder as a whole", so nothing in that ladder
+    is collateral - otherwise the only actionable response to such a defect would be
+    reported as a violation.
+    """
+    item = _item()
+    defect = HintSolutionDefect(
+        target="hint_ladder", index=None, problem="p", suggested_fix="f"
+    )
+    repair = HintSolutionRepairResponse(
+        reasoning="r",
+        hint_ladder=["all", "three", "rewritten"],
+        solution_steps=list(item.canonical_solution.steps),
+        solution_final_answer="13",
+    )
+    assert collateral_edits(item, repair, [defect]) == []
+
+
+def test_a_length_change_is_not_reported_as_collateral() -> None:
+    """Adding a step can be a legitimate repair, and once the lengths differ, positions no
+    longer align - any comparison would be inventing a correspondence rather than checking
+    one. The caller still sees the length change itself.
+    """
+    item = _item()
+    defect = HintSolutionDefect(
+        target="canonical_solution", index=2, problem="p", suggested_fix="f"
+    )
+    repair = HintSolutionRepairResponse(
+        reasoning="r",
+        hint_ladder=list(item.hint_ladder),
+        solution_steps=[
+            SolutionStep(step_number=1, explanation="different", expression="also different"),
+        ],
+        solution_final_answer="13",
+    )
+    assert collateral_edits(item, repair, [defect]) == []
+
+
+def test_a_repair_that_edits_unnamed_text_discards_rather_than_being_applied() -> None:
+    """A rejected repair is not a rejected item: the loop stops and the item keeps the text
+    it came in with, rather than the panel silently reviewing edits it never asked for.
+    """
+
+    class _OverreachingRepairer:
+        async def generate_structured(self, **kwargs: object):
+            payload = kwargs["payload"]
+            ladder = list(payload.hint_ladder)  # type: ignore[attr-defined]
+            ladder[0] = "a rung nobody complained about"
+            return type(
+                "R",
+                (),
+                {
+                    "value": HintSolutionRepairResponse(
+                        reasoning="I rewrote more than I was asked to",
+                        hint_ladder=ladder,
+                        solution_steps=[
+                            SolutionStep(step_number=1, explanation="e", expression="x")
+                        ],
+                        solution_final_answer="13",
+                    ),
+                    "cost_cents": 1.0,
+                },
+            )()
+
+        async def embed(self, **_: object):  # pragma: no cover - unused
+            raise NotImplementedError
+
+    original = _item(hint_ladder=["Divide 52 by 4.", "Divide 52 by 4.", "What is 52/4?"])
+    outcome = _run(item=original, repairer=_OverreachingRepairer())
+    assert outcome.status == "discarded"
+    assert outcome.stopped_because == "repair edited unnamed text"
+    assert outcome.rounds[0].collateral_edits
+    assert outcome.item.hint_ladder == original.hint_ladder

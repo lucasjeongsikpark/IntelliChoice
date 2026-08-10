@@ -121,6 +121,61 @@ def build_payload(
     )
 
 
+def collateral_edits(
+    item: AuthoredGeneratedItemResponse,
+    repair: HintSolutionRepairResponse,
+    defects: list[HintSolutionDefect],
+) -> list[str]:
+    """Positions the repair changed that no defect named (D-261).
+
+    **This is an exact invariant, which is why it is deterministic** (§3's bar): a hint or a
+    step at a position nobody objected to either came back character for character or it did
+    not. No judgement, no threshold.
+
+    It exists because targeting turned out to be a *model property* rather than a guaranteed
+    one. Measured at n=4 on the same fixture: Haiku rewrote nothing (4/4 clean), qwen3-32b
+    rewrote an unobjected step once in four, and `mistral-large-3` rewrote **every** solution
+    step **every** time while still fixing the defect it was asked about. A prompt clause
+    cannot be relied on for this; a comparison can.
+
+    Two deliberate limits:
+
+    - A defect with `index=None` puts its whole target in scope, so nothing in that target is
+      collateral. That is what "this is about the ladder as a whole" means.
+    - A length change is **not** reported. Adding a step can be a legitimate repair, and once
+      the lengths differ, positions no longer align, so any comparison would be inventing a
+      correspondence rather than checking one. The caller sees the length change itself.
+    """
+    named: dict[str, set[int]] = {"hint_ladder": set(), "canonical_solution": set()}
+    whole: set[str] = set()
+    for defect in defects:
+        if defect.index is None:
+            whole.add(defect.target)
+        else:
+            named[defect.target].add(defect.index)
+
+    edits: list[str] = []
+    if "hint_ladder" not in whole and len(repair.hint_ladder) == len(item.hint_ladder):
+        edits.extend(
+            f"hint_ladder[{position}] changed but no defect named it"
+            for position, (before, after) in enumerate(
+                zip(item.hint_ladder, repair.hint_ladder, strict=True), start=1
+            )
+            if position not in named["hint_ladder"] and before != after
+        )
+    original_steps = item.canonical_solution.steps
+    if "canonical_solution" not in whole and len(repair.solution_steps) == len(original_steps):
+        edits.extend(
+            f"canonical_solution[{position}] changed but no defect named it"
+            for position, (before, after) in enumerate(
+                zip(original_steps, repair.solution_steps, strict=True), start=1
+            )
+            if position not in named["canonical_solution"]
+            and (before.explanation != after.explanation or before.expression != after.expression)
+        )
+    return edits
+
+
 def apply_repair(
     item: AuthoredGeneratedItemResponse, repair: HintSolutionRepairResponse
 ) -> AuthoredGeneratedItemResponse:

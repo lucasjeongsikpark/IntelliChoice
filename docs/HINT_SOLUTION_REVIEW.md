@@ -372,12 +372,30 @@ Three signals the two-reviewer architecture produces for free, all monitored and
 
 | role | model | why |
 |---|---|---|
-| A — generator *and* repairer | `mistral.mistral-large-3-675b-instruct` | already the pipeline's generator (D-205); a repair is authoring with a constraint, so one model does both. |
+| A — generator | `mistral.mistral-large-3-675b-instruct` | the pipeline's generator (D-205). **Not the repairer** — see D-261. |
+| A′ — repairer | `qwen.qwen3-32b-v1:0` | measured, and a fourth provider, which is what keeps B and C independent of the text they review. |
 | B — reviewer 1 | `us.anthropic.claude-haiku-4-5` | the only reviewer configuration with a falsification result (D-254). |
 | C — reviewer 2 | `openai.gpt-oss-120b-1:0` | **measured** — see below. |
 
-**Three providers: Mistral, Anthropic, OpenAI.** That is genuine cross-family diversity, not the
+**Four providers: Mistral, Anthropic, OpenAI, Alibaba.** Genuine cross-family diversity, not the
 partial version.
+
+**The generator is not the repairer, and D-261 is why.** §4.6 requires a repair to return
+everything it was not asked about word for word, and that turned out to be a *model property*
+rather than something a prompt secures. Measured at n=4 on one fixture:
+
+| model | invocations ok | untouched steps returned verbatim | cost |
+|---|---|---|---|
+| `mistral-large-3` | **2/4** | **0/2** — rewrote every step, every time | 3.17¢ |
+| `claude-haiku-4-5` | 4/4 | **4/4** | 1.20¢ |
+| `qwen3-32b` | 4/4 | 3/4 | 3.18¢ |
+
+Haiku is the best repairer on every axis **and cannot have the job**: it is reviewer B, so B
+would be approving text B wrote, and the independence D-256 measured would leak out through the
+repair channel rather than the panel. qwen3-32b is chosen for being a fourth provider, and its
+3-of-4 is made safe by `collateral_edits()` — an **exact invariant**, so it is deterministic
+(§3): a position no defect named either came back character for character or it did not. A
+repair that fails it is discarded and the item keeps the text it came in with.
 
 **Two corrections to the first draft of this section, both found by checking rather than
 assuming.**
