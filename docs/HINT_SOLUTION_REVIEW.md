@@ -1,7 +1,10 @@
-# Hint & solution quality review — design (D-251)
+# Hint & solution quality review — design (D-251 → D-256)
 
-**Status: planned, not built.** Steps 1 and 2 of §8 are implemented; the instrument itself is
-not. Read this before adding any hint- or solution-quality scoring anywhere.
+**Status: the reviewer exists and is measured; the architecture around it is not built.** The
+instrument is implemented and has survived two falsification runs — single-reviewer (D-254) and
+the two-reviewer union (D-256). **Nothing in §4 is wired**: there is no pipeline caller, no
+repair loop, no discard path. Read this before adding any hint- or solution-quality scoring
+anywhere.
 
 The goal is to **replace routine human review** of generated hint ladders and canonical
 solutions with LLM review that emits automatable decisions — while keeping content diverse
@@ -184,6 +187,27 @@ to be re-run whenever a reviewer model changes, not once.
 pending queue and the §5.8.5 approval path is untouched; this document does not change who reads
 an item before a student does.
 
+### 4.5b A reviewer that returns nothing is not a `PASS` — fail closed
+
+**Found by D-256, not designed in.** `openai.gpt-oss-120b-1:0` failed to produce a valid verdict
+for `place_value-d4-200402`: it emitted `defects[0].index = 0` against `Field(ge=1)`, and the
+gateway's single repair retry did not recover it. The schema was right to refuse — a 0-based
+index would point at the wrong hint — but the architecture had no answer for what happens next,
+because "unanimous `PASS`" is undefined when one reviewer returns no verdict at all.
+
+**The rule: a missing verdict counts as blocking.** This is CLAUDE.md rule 5 (*fail closed*)
+applied to a case the two-reviewer design created. The alternative — treating an unreachable
+reviewer as consent — makes an outage look like approval, which is the failure mode that rule
+exists to forbid.
+
+Two things worth noticing about *which* item did this:
+
+- It is **the single most defective item in the sample** — the one B rejected in D-254 for a hint
+  ladder that teaches a method which cannot answer its own question. The item with the most to
+  say is the one that pushed a reviewer past its schema. Errors are not uniformly distributed
+  over content, so an error rate measured on easy items understates this.
+- It is why the union's check-2 denominator is **49, not 50**. Stated rather than rounded away.
+
 ### 4.6 Repairs are targeted, not re-rolls
 
 The repair prompt carries the item **plus** the merged defects, and changes only what the defects
@@ -216,10 +240,21 @@ Check 3 keeps running permanently for exactly that reason.
 claim** ("does *this* item's verdict flip"), so repetition is the design and D-237 applies: never
 n=2 for a per-item claim. Reuses D-245's M1 metric, which already worked.
 
-**Both levels are required.** Per-reviewer catches one flaky model; the union is what actually
-decides, and unanimity makes it *less* stable than either reviewer alone — an item flips the
-union if **either** reviewer flips. Two reviewers each stable at 1-in-8 do not give a union
-stable at 1-in-8.
+**Both levels are required**, and the reason is not the one first written here.
+
+> ~~Unanimity makes the union *less* stable than either reviewer alone — an item flips the union
+> if **either** reviewer flips.~~ **Measured false (D-256.)** B split on 1 of 8, C on 2 of 8, and
+> the **union on 1** — more stable than one of its own members.
+
+The mechanism, visible in the per-item data: unanimity-to-accept means a reviewer that blocks an
+item *consistently* **masks** the other's instability, because the union is already blocked on
+every reading. On `fraction_operations-d2-100205` both reviewers individually split and the union
+did not. On `fraction_operations-d3-100307` only C split, B passed consistently, and the union
+inherited C's flip.
+
+So union stability depends on **whether the blocking is correlated**, and cannot be derived from
+the per-reviewer numbers in either direction. That is exactly why both levels get measured
+instead of one being inferred from the other.
 
 *Falsifies:* verdicts that flip on identical input. *Says nothing about* correctness — a stable
 instrument can be stably wrong.
@@ -245,11 +280,16 @@ disqualifiers of 30% and 10%. Not falsified — and **the blocks were not noise*
 were read by hand and both are real defects in live content, one of them serious (a ladder
 teaching a method that does not solve its own question).
 
-**The union rate is the one that governs, and it is higher.** If the two reviewers were
-independent at 10% each, the union blocks at ~19%; cross-family reviewers (§5.6) are chosen
-precisely to be *less* correlated, so the estimate sits nearer that bound than below it. **The
-pre-registered 30% disqualifier now applies to the union**, which leaves far less headroom than
-the measured 10% suggests. This must be measured with the actual B and C, not extrapolated.
+**Result, union (D-256, B = Haiku 4.5, C = gpt-oss-120b):** M1 **1 of 8**, M2 **22.4%**,
+M2r **2%**, M3 **0**, over 49 items (§4.5b explains the missing one). All four disqualifiers
+survived. The pre-registration predicted 15-25% for M2 and it landed at 22.4% — about 2.2x
+reviewer B alone, close to the ~19% an independence assumption gives.
+
+**22.4% is not comfortable and should not be reported as if it were.** The disqualifier is 30%.
+A little over one in five human-approved items is blocked by the pair, and while D-254 confirmed
+by hand that such blocks can be real defects, only two blocked items across both runs have
+actually been read. **The remaining headroom is 7.6 points**, and any change that makes either
+reviewer stricter spends it.
 
 ### Check 3 — Both-direction production monitoring, now needing a *third* opinion
 
@@ -311,23 +351,38 @@ Three signals the two-reviewer architecture produces for free, all monitored and
 
 | role | model | why |
 |---|---|---|
-| A — generator *and* repairer | the current authoring model | D-205 split design from authoring on measured evidence; nothing here re-opens that. One model does both jobs — a repair is authoring with a constraint. |
-| B — reviewer 1 | Haiku 4.5 | the only reviewer configuration with a falsification result (D-254). |
-| C — reviewer 2 | **to be chosen — see below** | |
+| A — generator *and* repairer | `mistral.mistral-large-3-675b-instruct` | already the pipeline's generator (D-205); a repair is authoring with a constraint, so one model does both. |
+| B — reviewer 1 | `us.anthropic.claude-haiku-4-5` | the only reviewer configuration with a falsification result (D-254). |
+| C — reviewer 2 | `openai.gpt-oss-120b-1:0` | **measured** — see below. |
 
-**The point of C is uncorrelated blind spots, and that constrains the choice more than quality
-does.** Sonnet 4.5 is already configured (`CURRICULUM_BEDROCK_REVIEW_MODEL_ID`) and is the
-low-friction option, but it is the **same family as B** — it reduces correlated error only
-partly, and a shared family assumption is exactly the kind a two-reviewer design is supposed to
-catch. A genuinely cross-family reviewer (Mistral, already used in this pipeline per D-204/D-205)
-is the better fit for the stated goal.
+**Three providers: Mistral, Anthropic, OpenAI.** That is genuine cross-family diversity, not the
+partial version.
 
-**Verify before committing:** D-204 measured Mistral as unable to use tools at all, and this
-gateway delivers structured output *through* a tool schema. Whether Mistral can emit the 4-field
-verdict schema is a cheap thing to test and an expensive thing to assume — D-204 lost two paid
-runs to a roster change made on one good signal without checking the property the role depended
-on. **If it cannot, C = Sonnet 4.5 and the write-up says the diversity requirement is only
-partly met** rather than claiming a cross-family panel that does not exist.
+**Two corrections to the first draft of this section, both found by checking rather than
+assuming.**
+
+- *"C = Mistral"* is wrong on **independence**, before any capability question: Mistral Large 3
+  is Model A. A generator reviewing its own output is not an independent reviewer, and no amount
+  of family diversity fixes that.
+- *"D-204 measured Mistral as unable to use tools at all"* is wrong on **fact**. D-204 measured
+  `mistral.magistral-small-2509` returning no `toolUse` block; `mistral.mistral-large-3-675b-instruct`
+  passed both smoke and the generator contract. Two different models, one family name.
+
+**C was chosen on a measurement, not a preference.** `smoke_cli --contract hint_solution_review`
+(added for this) probed the candidates for one call each:
+
+| model | invocation | stop reason | repaired |
+|---|---|---|---|
+| `openai.gpt-oss-120b-1:0` | SUCCESS | `tool_use` | no |
+| `qwen.qwen3-32b-v1:0` | SUCCESS | `tool_use` | no |
+
+Both emit the contract. **C = gpt-oss-120b** because D-204 measured it as the judge that *solved
+the question rather than asserting about it* — the one property a reviewer's job depends on —
+while Nova 2 Lite failed exactly that test in the same run. Qwen3-32b is the fallback and needs
+no new probe.
+
+Sonnet 4.5 is no longer proposed. It is configured and frictionless, but it is B's family and
+this roster no longer needs the compromise.
 
 ### Stopping rule — pre-registered
 

@@ -87,6 +87,8 @@ def _contract_specs() -> dict[str, tuple[type[BaseModel], str, BaseModel]]:
     """
     from intellichoice_shared.bedrock import (
         AuthoredGeneratorPayload,
+        HintSolutionReviewPayload,
+        HintSolutionReviewResponse,
         QuestionJudgePayload,
         SolverPayload,
     )
@@ -152,6 +154,69 @@ def _contract_specs() -> dict[str, tuple[type[BaseModel], str, BaseModel]]:
                 ],
                 canonical_solution="6 minutes",
                 topic_name="Linear Equations",
+                skill_name="Variables on Both Sides",
+                grade_band="6-7",
+            ),
+        ),
+        # D-255 reviewer C. The contract's two hard parts are both here on purpose: a
+        # `Literal` verdict (the mock cannot stand in for this - `"mock-verdict"` fails
+        # validation, which is why `_generic_json` was not reusable in D-251), and the
+        # model validator that rejects a blocking verdict carrying no located defect. A
+        # model that emits a bare `"repair"` with an empty `defects` list fails here, and
+        # that is the whole point: D-204 measured smoke-pass-contract-fail as a real and
+        # common outcome.
+        #
+        # **Do not read the verdict as a quality signal.** The first version of this
+        # comment claimed the fixture "carries a genuine defect - hint 3 states the answer
+        # outright - so a working reviewer should return `repair`". That was wrong about
+        # this project's own design. An answer stated verbatim in a hint is owned by the
+        # *deterministic* gate D-246 restored, and the shipped system prompt tells the
+        # reviewer so explicitly - so `pass` is the correct answer here, not a miss.
+        # Measured: gpt-oss-120b, qwen3-32b and Haiku 4.5 all returned `pass`, and Haiku is
+        # the reviewer D-254 falsified. Three models agreeing is what sent me back to read
+        # the prompt.
+        #
+        # This contract answers "can the model emit the schema", which is all the smoke CLI
+        # has ever claimed to answer.
+        "hint_solution_review": (
+            HintSolutionReviewResponse,
+            # Written here rather than imported from
+            # `intellichoice_curriculum.hint_solution_review`: `adapters` is the lower
+            # layer and importing upward would invert the dependency for a probe. Every
+            # other contract in this file inlines its prompt for the same reason. The
+            # consequence is honest and worth stating - **this measures whether the model
+            # can emit the contract, not how the shipped reviewer behaves.** The shipped
+            # prompt is longer and says more; a pass here is a capability result only.
+            "You review a K-12 math question's hint ladder and worked solution. Write "
+            "`reasoning` first. Then return `verdict`: `pass` if both are sound, `repair` "
+            "if a located fix would make them sound, `reject` if not. Every `repair` or "
+            "`reject` MUST carry at least one entry in `defects`, each naming its `target` "
+            "(`hint_ladder` or `canonical_solution`), a 1-based `index` where one applies, "
+            "the `problem`, and a `suggested_fix`. Set `uncertainty` to low, medium or "
+            "high. Correctness of the answer key and the options is already verified "
+            "deterministically - do not re-check it.",
+            HintSolutionReviewPayload(
+                rendered_question=(
+                    "Two robots collect crystals. Robot A starts with 4 and collects 4 each "
+                    "minute. Robot B starts with 16 and collects 2 each minute. After how "
+                    "many minutes do they have the same number?"
+                ),
+                option_a="6 minutes",
+                option_b="2 minutes",
+                option_c="12 minutes",
+                option_d="3 minutes",
+                correct_option="a",
+                hint_ladder=[
+                    "Write an expression for each robot's total after m minutes.",
+                    "Robot A has 4 + 4m and Robot B has 16 + 2m; set them equal.",
+                    "The answer is 6 minutes.",
+                ],
+                solution_steps=[
+                    "1. Set the two totals equal [4 + 4m = 16 + 2m]",
+                    "2. Collect the m terms [2m = 12]",
+                    "3. Divide by 2 [m = 6]",
+                ],
+                solution_final_answer="6 minutes",
                 skill_name="Variables on Both Sides",
                 grade_band="6-7",
             ),
@@ -307,7 +372,11 @@ async def main() -> None:
     parser.add_argument(
         "--contract",
         default="smoke",
-        choices=["smoke", "generator", "solver", "judge"],
+        # Derived from the registry, not restated. The literal list here had gone stale the
+        # first time a contract was added (D-255's `hint_solution_review`): the spec built
+        # fine and argparse refused the name, which is a harmless failure only because it
+        # happens before the model call rather than after it.
+        choices=sorted(_contract_specs()),
         help="'smoke' is a tiny schema (access + tool-use contract). The others are the "
         "real pipeline response models - a model can pass 'smoke' and fail these",
     )
