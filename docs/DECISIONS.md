@@ -18459,3 +18459,111 @@ Deleted with `git rm -r`. Three reasons it is worth a decision entry rather than
   double-ingested — inert, not harmful, and therefore able to sit there for two weeks.
 
 The content is recoverable from history; the original 33 files are untouched.
+
+## D-254 — the hint & solution instrument survived its falsification run, and found real defects doing it (accepted, 2026-08-10)
+
+D-251 step 4, the first paid step. Pre-registration written before the script existed
+(`scratchpad/d254_preregistration.md`): four predictions, four disqualifying thresholds, and one
+outcome pre-committed as *bad* news. `scripts/measure_hint_solution_review.py`, **29.1¢**, 82
+calls, Haiku 4.5 against the shipped authored bank.
+
+| metric | measured | disqualifies at | source of the threshold |
+|---|---|---|---|
+| M1 verdict split (8 items × 4) | **1 of 8** | ≥ 3 | D-245's exact figure — that session called 3/8 a coin flip and downgraded rather than shipped |
+| M2 blocking rate (50 × 1) | **10%** | ≥ 30% | not D-249's 46%: matching it would let this be *as bad as* what it replaces and still pass |
+| M2r reject rate | **2%** | ≥ 10% | a `reject` on approved content contradicts the human |
+| M3 out-of-range defect index | **0** | > 5% of blocking | repairing against a location that does not exist damages a correct item |
+
+All four survived. **That is not validation and the script prints so on every run** — false
+acceptance is invisible to both checks, which is why check 3 runs permanently.
+
+### The blocks are not noise, and one of them is serious
+
+Two of the five blocked items were read by hand, for free, from the bank YAML:
+
+- **`fraction_operations-d2-100205`** (repair, 3 of 4 readings) — solution step 3 reads *"Divide
+  the top and bottom by 3 to write it in lowest terms"* with expression `[6/9]`, the **input**.
+  Every other step's expression shows its outcome. The step does not perform the operation it
+  describes.
+- **`place_value-d4-200402`** (the single reject) — the stem asks *"How many more fans came on
+  Friday?"*, which is subtraction (2610 − 2160 = 450). The ladder teaches **place-value
+  comparison** — which establishes *which* is larger and never *by how much* — then switches
+  strategy at hint 3. The canonical solution never computes the difference. **This is D-238's
+  `div_remainder` finding recurring:** an item filed under a skill its own content does not
+  exercise. It is live, it was human-approved, and it passed the deterministic §5.8.5 gate and
+  the D-249-era judge.
+
+Three prior passes missed it. **The remaining three blocked items have not been read** and no
+claim is made about them.
+
+### The degeneracy trap was pre-registered and did not fire
+
+0 splits *with* a 0% blocking rate was written down beforehand as **bad** news, not success — a
+reviewer that passes everything is `return "pass"` with a bill attached. Measured: 7 of 32
+check-1 readings blocked, and 5 of 50 items in check 2. Not degenerate.
+
+### `uncertainty` was measured at 48/50 `low`
+
+96% constant. The D-251 decision flow routed second readings partly on this field; a trigger that
+fires on 4% of items is not a safety mechanism. Recorded as P4 "technically held, barely" — two
+distinct values, but one of them is 4%. This directly informed D-255.
+
+### The measurement script repeated D-195's mistake
+
+`--dump` recorded defect **counts** and not defect **content**, so the run's five blocked items
+could not be read without re-buying them. D-195 is the entry that says *rejected candidates kept
+no content, so a pilot that rejects everything leaves nothing to review* — written by this
+project, about this pipeline. Two of the five were readable only because the bank YAML holds the
+item and the defect was visible on inspection. **Fixed in the script before shipping it**, and
+promoted into the design (HINT_SOLUTION_REVIEW.md §4.4) because a discarded item under D-255
+consumes up to 17 calls, so discarding without a record is far more expensive than it was in
+D-195.
+
+## D-255 — two reviewers on every item, unanimity to accept, discard after five rounds (accepted, 2026-08-10)
+
+The user's architecture decision, replacing D-251 §4's single reading with risk-triggered second
+opinions. Generate (A) → deterministic invariants → **Reviewer B ‖ Reviewer C, always both** →
+unanimous `PASS` accepts; anything else merges both reviewers' defects into a **targeted** repair
+and re-runs the invariants *and* both reviewers; up to **5 rounds**; still not unanimous →
+**discard**. No adjudicator, no routine human escalation.
+
+**D-254 independently supports the first part.** The risk trigger it replaces routed partly on
+`uncertainty`, which measured 96% constant — the branch was near-dead before it was deleted.
+
+### What this changes downstream, stated rather than discovered later
+
+- **The blocking rate compounds.** Unanimity means block if *either* blocks. Two independent
+  reviewers at D-254's 10% give ~19%; cross-family reviewers are chosen to be *less* correlated,
+  so nearer that bound than below it. **The pre-registered 30% disqualifier now applies to the
+  union**, leaving much less headroom than 10% suggests. Measured, not extrapolated, before
+  anything is wired.
+- **Stability drops by construction.** An item flips the union if *either* reviewer flips, so
+  check 1 must be scored per reviewer **and** on the union. Two reviewers each at 1-in-8 do not
+  give a union at 1-in-8.
+- **Check 3 needs a third opinion.** An accepted item has already passed B and C; re-reading it
+  with B or C is not independent. A third model or a periodic human audit, or it measures
+  nothing. This matters more than before, because §4.5 removed the only other path by which a
+  jointly-wrong pair would ever be seen — false rejections now discard silently.
+- **The round limit is not a spend limit.** Five rounds bounds iterations; a repair is a full
+  15-field authoring call whose cost this document does not set. A **per-item cent cap** is
+  required alongside the round cap.
+- **Discard must retain the snapshot, the per-round merged defects, and the round count** — the
+  recurring-defect early stop cannot be implemented without them (D-195, §4.4).
+- **`REPAIR` and `REJECT` now route identically**, differing only in weight at the early-stop
+  rule. Stated so nobody reads two verdicts as two destinations.
+- **`ACCEPT` means "passed the automated bar", not "served".** The pending queue and the §5.8.5
+  approval path are untouched; this changes no part of who reads an item before a student does.
+
+### Model diversity is a constraint on C, and it is not yet satisfied
+
+B = Haiku 4.5, the only configuration with a falsification result. **C is unchosen.** Sonnet 4.5
+is configured and frictionless but is the **same family** as B — partial reduction of correlated
+blind spots at best. Mistral is genuinely cross-family and already used here (D-204/D-205), but
+D-204 measured it **unable to use tools at all**, and this gateway delivers structured output
+through a tool schema. Cheap to test, expensive to assume — D-204 lost two paid runs to exactly
+that kind of roster change. If Mistral cannot emit the 4-field verdict schema, **C = Sonnet 4.5
+and the write-up says the diversity requirement is only partly met** rather than claiming a panel
+that does not exist.
+
+**Nothing is wired.** D-254 validated a *single* reviewer. The union is a different instrument
+with a higher blocking rate and lower stability, and reviewer C does not exist yet.
