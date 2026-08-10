@@ -432,44 +432,6 @@ def leak_phrase_present(text: str) -> bool:
     return any(phrase in lowered for phrase in _LEAK_PHRASES)
 
 
-def hint_leaks_answer(hint: str, *, answer_text: str, visible_text: str) -> bool:
-    """`answer_text_leaked`, minus the number the student is already looking at (D-246).
-
-    The plain check has a false positive that matters here, and it was found by running the
-    restored gate against the shipped bank before shipping it: `1609201` answers **8** and
-    its hints say *"the $8 he already had"* - the starting amount, printed in the question,
-    which happens to equal the answer. Rejecting that item would discard content a human
-    approved, which is precisely the failure this gate was being rebuilt to stop.
-
-    The condition is not invented for the occasion. It is the rule the judge's own prompt
-    already states - *"A hint that repeats a number already printed in the question does NOT
-    reveal anything: if the question says a 4-pack and the answer happens to be 4, a hint
-    mentioning the 4-pack is fine, because the student is already looking at that number"* -
-    expressed as a string test instead of a paid, variable one.
-
-    **The visibility excuse does not extend to naming it as the answer.** Scoring the first
-    version of this rule against the bank in both directions - the D-221 discipline, applied
-    here to a string check rather than to a model - caught the mirror failure immediately:
-    four items whose answer coincides with a number in their own stem sailed through even
-    with *"The answer is 8"* appended, because 8 was visible. Repeating a visible number is
-    innocent; announcing that it is the answer is not, whatever else is on the page. So the
-    excuse is withdrawn when `leak_phrase_present` fires, reusing the phrase list the gate
-    has always had rather than inventing a second one (D-223).
-
-    **What this still gives up**, stated rather than discovered later: a hint that reduces
-    the problem to reading the answer off without printing it and without naming it - *"and
-    that is your answer"* after a complete computation. Characters cannot see that. It is
-    what the judge's `hint_reveals_answer` is for, and D-246 downgraded that flag to a review
-    signal rather than removing it, so such a candidate still reaches a human with the
-    judge's reason attached.
-    """
-    if not answer_text_leaked(hint, answer_text):
-        return False
-    if leak_phrase_present(hint):
-        return True
-    return not answer_text_leaked(visible_text, answer_text)
-
-
 def answer_text_leaked(text: str, correct_answer_text: str) -> bool:
     """Case-insensitive check that `text` doesn't state `correct_answer_text` outright -
     shared by authored-item validation and S21's runtime personalized-hint check
