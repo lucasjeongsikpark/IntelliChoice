@@ -18929,3 +18929,70 @@ The first attempt parsed `smoke_cli`'s human summary, which truncates `parsed:` 
 characters — so twelve paid calls succeeded and produced a `JSONDecodeError` instead of a result.
 **Same class as D-254's dump bug**: analysing what was printed rather than what was returned.
 `--json` now emits the full report, and the truncation carries a comment saying what it is for.
+
+## D-262 — the pilot: the repair loop works, the panel's recall does not (accepted, 2026-08-10)
+
+Ten of D-257's 44 flagged items through the §4 loop. B = haiku-4.5, C = gpt-oss-120b, repairer =
+qwen3-32b (D-261). **27.4¢. Nothing was written to the bank.**
+
+Ten rather than 44 because D-204 is the entry about full runs made before checking what they
+depend on — and rather than eight, because sorting by id put the first eight all in
+`fraction_operations`. The selection is round-robin across skills, so every defect class the
+audit distinguishes is attempted, including `place_value_compare`'s `[34 plus something makes
+43]`, which is the hardest and 14-of-15 prevalent.
+
+| outcome | n |
+|---|---|
+| **panel never blocked** a known-defective item | **5** |
+| **blocked → repaired → audit clear** | **3 of 3** |
+| **laundered** (blocked → repaired → still defective) | **0** |
+| discarded by the targeting invariant / a failed repair | 2 |
+
+**The repair machinery works whenever it engages. The panel's recall is the failure.** 5 of 10
+items *selected for carrying a defect* were passed on sight by both reviewers — which matches
+D-258's independently measured ~43% recall almost exactly, on a completely different sample.
+
+**Haiku is the weak reviewer on this class**: it passed 8 of 10 known-defective items; gpt-oss
+blocked 4. The panel is carried by C.
+
+**The fail-closed rule earned its place on its first real run.** `place_value-d1-200104`: B
+returned `reject`, C **errored and returned nothing**. §4.5b blocked it rather than reading
+silence as consent, the repair landed, and the item came out clear — with the ladder given a
+bridging rung and the solution given `43 - 34 = 9`. Had a missing verdict counted as a pass, that
+item would have been accepted unrepaired.
+
+### My pre-registered criterion fired for the wrong reason, and that is the methodological finding
+
+The pre-registration said: *"R2 < R1 → the panel accepts repairs that do not repair. Stop; the
+loop launders a defect into an approval."* R2 < R1 duly happened. **There was no laundering.**
+Every item the panel blocked and repaired came out clear, 3 for 3. The gap is entirely items the
+panel never blocked.
+
+`R2 < R1` conflates two failures with opposite fixes — a detector that misses, and a repairer
+that doesn't repair. A criterion that cannot tell them apart would have condemned the working
+half of the system. **Pre-registering a threshold is not enough; the criterion has to name the
+mechanism it claims to detect.**
+
+### And the first reading of it was wrong in the other direction
+
+Scored on `expression` alone, R2 was 2 of 10 and one item looked laundered:
+`fraction_operations-d1-100104`, blocked by C for *"does not explicitly compute the sum"*,
+repaired, then passed. Reading the repair showed it had put the computation in the step's
+**prose** — "2 + 1 = 3, so the total is 3/4" — and left the bracketed expression as the setup.
+C's objection was met exactly; the audit could not see it.
+
+`last_step_text()` now reads explanation and expression together. **It changes nothing for the
+bank as authored** — all 44 of D-257's items are flagged on both fields, so that finding stands
+unaltered — and it matters for anything scoring an item *after* a repair. Honest R2 is **3 of
+10**, and laundering is **zero**.
+
+### What follows
+
+- **Do not apply these repairs.** 5 of the 8 accepted items still carry the defect, so a bulk
+  apply would ship them into the bank marked as reviewed. The dump is proposals, not a patch.
+- **The panel is the component to fix, not the loop.** D-258 already named the option: a
+  deterministic audit cannot be jointly wrong with the reviewers, and here it has perfect recall
+  on exactly the class the panel misses. Feeding its finding to the panel as an *input* (not a
+  gate — D-257 established this is not an exact invariant) is the obvious next experiment.
+- **Reviewer B is a live question.** Haiku was falsified as a *single* reviewer in D-254 on a
+  general sample; on this defect class it is the weaker half by a factor of two.

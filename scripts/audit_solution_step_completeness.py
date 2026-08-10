@@ -41,6 +41,22 @@ def _squash(text: str) -> str:
     return re.sub(r"[\s,]", "", str(text))
 
 
+def last_step_text(step: dict) -> str:
+    """Explanation and expression together (D-262).
+
+    Reading `expression` alone was wrong in one direction that only showed up on *repaired*
+    content: a repair may legitimately put the computation in the prose - "2 + 1 = 3, so the
+    total is 3/4" - and leave the bracketed expression as the setup. Scoring that as still
+    defective made a working repair look like the panel laundering a defect into an approval,
+    which is a far more serious claim than the truth.
+
+    **It changes nothing for the bank as authored**: all 44 items D-257 flags are flagged on
+    both fields, so the finding it produced stands unaltered. It matters for anything that
+    scores an item after a repair.
+    """
+    return f"{step.get('explanation', '')} {step.get('expression', '')}"
+
+
 def classify(last_expression: str, final_answer: str) -> str | None:
     """`None` when the step states the answer. Otherwise the class of what it states instead."""
     last, final = _squash(last_expression), _squash(final_answer)
@@ -70,16 +86,22 @@ def main() -> int:
         for item in yaml.safe_load(path.read_text())["templates"]:
             total += 1
             skill_totals[item["skill_id"]] += 1
-            last = item["canonical_solution"]["steps"][-1]["expression"]
+            step = item["canonical_solution"]["steps"][-1]
+            last = last_step_text(step)
             final = item["canonical_solution"]["final_answer"]
-            verdict = classify(str(last), str(final))
+            verdict = classify(last, str(final))
             if verdict is None:
                 continue
             by_class[verdict] += 1
             if verdict in _UNAMBIGUOUS:
                 by_skill[item["skill_id"]] += 1
                 unambiguous.append(
-                    (item["question_template_id"], item["skill_id"], str(last), str(final))
+                    (
+                        item["question_template_id"],
+                        item["skill_id"],
+                        str(step["expression"]),
+                        str(final),
+                    )
                 )
 
     print(f"bank items: {total}\n")
