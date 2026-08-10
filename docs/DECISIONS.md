@@ -18342,3 +18342,33 @@ and concludes monotonicity is handled. Real progression is an LLM judgment.
 Everything the instrument would decide. Nothing here claims the instrument will work; it claims
 only that the plan can tell if it does not — and that `_HINT_QUALITY_REJECT_BELOW` should be
 measured whether or not any of the rest is built.
+
+### D-251 addendum — building step 3 refuted one line of the plan
+
+**`run_llm_judge` is not the harness.** §2 of the plan said the instrument would reuse it
+"rather than a new one". Reading it settled the question the other way. It is 37 lines, its own
+docstring calls it "a thin wrapper over `BedrockGateway.generate_structured`", and its entire
+substance is its response contract: `RubricDimensionScore.score: int`, a **1-5 scalar per
+dimension**, plus `overall_pass: bool`. Reusing it would have reintroduced root cause 1 - the
+absolute scalar - on the first line of code written against this plan. Its dimension lists are
+SPEC §5.31.3 verbatim and are not ours to repurpose.
+
+`BedrockTask.HINT_SOLUTION_REVIEW` is therefore its own task with its own response model,
+reusing the *pattern* (a thin task-specific wrapper), which is the codebase convention for
+every task anyway. `run_llm_judge` keeps its SPEC role and stays without a production caller.
+
+**`RubricDimensionScore.score` was unbounded**, while `run_llm_judge`'s own system prompt says
+"1 (fails) to 5 (excellent)". That is the identical defect that let the question judge emit 8s
+and 9s against thresholds of 2 and 3, and it has never bitten only because nothing calls this
+task. Now `Field(ge=1, le=5)`.
+
+**`EquationDesignPayload` had been in one regime list but not the other since D-205.**
+`test_generation_payload_schemas.py`'s docstring names this exact residual gap - "adding it
+there but not to `_GENERATION_PAYLOADS` below passes both files while nothing actually asserts
+the new payload's `extra=\"forbid\"`" - and the gap it warned about was already open in the file
+warning about it. Found by adding `HintSolutionReviewPayload` to both. Closed.
+
+**The instrument is wired to nothing.** No pipeline caller exists and none is added until the
+falsification run passes. An unvalidated reviewer attached to a gate is precisely what D-249
+found already shipped, and building the wiring first would make the run's outcome expensive to
+act on.

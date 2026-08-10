@@ -49,7 +49,26 @@ Per-item, no reference item, no arbitrary scalar (cause 1).
 `PASS / REPAIR / REJECT` is enough to automate decisions on its own. Repair is a mechanism for
 **recovering good candidates**, not a precondition for removing humans.
 
-Reuses `packages/evals`' existing `run_llm_judge` harness rather than a new one.
+### Correction: `run_llm_judge` is not reused, and cannot be
+
+An earlier version of this section said the instrument would reuse `packages/evals`'
+`run_llm_judge` "rather than a new one". Reading it settled the question the other way, and
+the reason matters more than the outcome.
+
+`run_llm_judge` is 37 lines and its own docstring calls it *"a thin wrapper over
+`BedrockGateway.generate_structured`"*. Its entire substance is its response contract —
+`RubricDimensionScore.score: int`, **a 1–5 scalar per dimension**, plus `overall_pass: bool`.
+Reusing it would have reintroduced root cause 1 on the first line of code. Its dimension
+lists are SPEC §5.31.3 verbatim and are not ours to repurpose.
+
+So `BedrockTask.HINT_SOLUTION_REVIEW` is its own task with its own response model, reusing
+the *pattern* — a thin task-specific wrapper — which is this codebase's convention for every
+task anyway. `run_llm_judge` keeps its SPEC role and remains without a production caller.
+
+**Found while reading it:** `RubricDimensionScore.score` was unbounded while its own system
+prompt said "1 (fails) to 5 (excellent)" — the same defect that made the question judge emit
+8s and 9s against thresholds of 2 and 3. It has never bitten because nothing calls it. Now
+bounded.
 
 ### Why not pairwise
 
@@ -233,8 +252,10 @@ maintain.**
 
 1. ✅ Remove `_HINT_QUALITY_FLOOR` from the audit script's decision-making.
 2. ✅ Correct `hint_ladder_monotonicity_violations`' docstring to state actual coverage.
-3. Build the instrument as a separate `BedrockTask` on `run_llm_judge`.
-4. Validation run: checks 1 and 2, hard-capped.
+3. ✅ Build the instrument as its own `BedrockTask` — `HINT_SOLUTION_REVIEW`,
+   `curriculum/hint_solution_review.py`, with a mock-provider branch and contract tests.
+   **Wired to nothing**: no pipeline caller exists until step 4 passes.
+4. Validation run: checks 1 and 2, hard-capped. **First paid step.**
 5. If it survives → wire the decision flow, with check 3 sampling on from day one.
 6. Wire check 4's routing; add check 5's monitoring line.
 7. Measure `_HINT_QUALITY_REJECT_BELOW` (`< 2`) — the unmeasured live rejection.

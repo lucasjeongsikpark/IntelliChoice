@@ -49,6 +49,11 @@ class BedrockTask(StrEnum):
     # it reliably, and on this account no single model is good at both.
     EQUATION_DESIGN = "equation_design"
     QUESTION_JUDGE = "question_judge"
+    # D-251: its own task rather than another field on QUESTION_JUDGE, because that judge
+    # already does seven jobs in one call and the one measured consequence of that was
+    # `hint_quality_score` (D-249). Separate task also means separate model choice - a
+    # reviewer reading pedagogy is not obviously the same model as one rating difficulty.
+    HINT_SOLUTION_REVIEW = "hint_solution_review"
     PARENT_REPORT = "parent_report"
     RAG_ANSWER = "rag_answer"
     RERANK = "rerank"
@@ -1179,13 +1184,96 @@ class LlmJudgePayload(BaseModel):
 
 class RubricDimensionScore(BaseModel):
     dimension: str
-    score: int
+    # Bounded for the reason `hint_quality_score` is: `run_llm_judge`'s system prompt says
+    # "1 (fails) to 5 (excellent)" and the schema used to say nothing, which is the exact
+    # shape that made the question judge emit 8s and 9s against thresholds of 2 and 3. It has
+    # never bitten here only because this task has had no production caller since S8.
+    score: int = Field(ge=1, le=5)
     reasoning: str = ""
 
 
 class LlmJudgeResponse(BaseModel):
     scores: list[RubricDimensionScore]
     overall_pass: bool
+
+
+# --- Hint & solution review (D-251) -----------------------------------------------------
+#
+# Deliberately *not* built on `LlmJudgePayload`/`LlmJudgeResponse` above, and the reason is
+# the whole point of D-251. That pair's substance is a 1-5 scalar per dimension, and an
+# absolute scalar is root cause #1 of why the existing `hint_quality_score` turned out to
+# measure the judge rather than the item (D-249: it fired on 46% of hand-authored,
+# human-approved bank content). Reusing it would have reintroduced that on the first line.
+#
+# What is reused is the *pattern* - a thin task-specific wrapper over
+# `generate_structured` - which is this codebase's convention for every task.
+
+
+class HintSolutionReviewPayload(BaseModel):
+    """What a reviewer needs to judge a hint ladder and canonical solution, and nothing else.
+
+    `rendered_question` rather than the bare stem for D-196's reason: a verdict about
+    content a student never sees is a verdict about the wrong text.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    rendered_question: str
+    option_a: str
+    option_b: str
+    option_c: str
+    option_d: str
+    correct_option: str
+    hint_ladder: list[str]
+    solution_steps: list[str]
+    solution_final_answer: str
+    skill_name: str
+    grade_band: str
+
+
+class HintSolutionDefect(BaseModel):
+    """One located, actionable defect. `suggested_fix` is what makes the verdict
+    automatable: a repair attempt needs an instruction, not a complaint.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    target: Literal["hint_ladder", "canonical_solution"]
+    # 1-based rung or step number; `None` when the defect is about the ladder or solution as
+    # a whole (e.g. "no rung addresses the actual misconception"). Bounded below only - the
+    # real upper bound is the item's own length and is checked by the caller, which knows it.
+    index: int | None = Field(default=None, ge=1)
+    problem: str
+    suggested_fix: str
+
+
+class HintSolutionReviewResponse(BaseModel):
+    """`PASS | REPAIR | REJECT` plus located defects - a structured decision, not a score.
+
+    `uncertainty` is a routing signal, not a quality measure: it is what sends a borderline
+    item for a second reading (HINT_SOLUTION_REVIEW.md §4), which is why it is three named
+    levels rather than a number.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    verdict: Literal["pass", "repair", "reject"]
+    # Bounded so a model cannot answer with an essay's worth of defects and blow the output
+    # budget - the same containment `MAX_SCHEMA_ERRORS` applies to diagnosis.
+    defects: list[HintSolutionDefect] = Field(default_factory=list, max_length=8)
+    uncertainty: Literal["low", "medium", "high"]
+    reasoning: str
+
+    @model_validator(mode="after")
+    def _blocking_verdicts_must_be_located(self) -> "HintSolutionReviewResponse":
+        """A `repair` or `reject` with no defects is not a decision anything can act on -
+        repair has no instruction to follow and a reviewer has nothing to read. Rejecting it
+        here sends it through the gateway's repair retry, which is where a fixable
+        malformed response belongs.
+        """
+        if self.verdict != "pass" and not self.defects:
+            raise ValueError(f"verdict {self.verdict!r} requires at least one defect")
+        return self
 
 
 T = TypeVar("T", bound=BaseModel)

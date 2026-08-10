@@ -621,6 +621,44 @@ def _llm_judge_json(payload: dict) -> dict:
     return {"scores": scores, "overall_pass": True}
 
 
+def _hint_solution_review_json(payload: dict) -> dict:
+    """Deterministic D-251 stand-in. Passes by default so the mock does not silently gate
+    every other test's fixtures, but stays *drivable*: an empty hint ladder or a rung that
+    repeats its predecessor verbatim produces a located `repair`, so a test can exercise the
+    defect path and the repair loop without a real model.
+
+    `_generic_json` cannot stand in here - it would emit `verdict: "mock-verdict"`, which the
+    `Literal` rejects, and the model validator would reject a defect-free `repair` besides.
+    """
+    ladder = payload.get("hint_ladder") or []
+    defects = []
+    if not ladder:
+        defects.append(
+            {
+                "target": "hint_ladder",
+                "index": None,
+                "problem": "mock: the hint ladder is empty",
+                "suggested_fix": "mock: add at least one rung",
+            }
+        )
+    for n, (earlier, later) in enumerate(zip(ladder, ladder[1:], strict=False), start=2):
+        if earlier.strip() and earlier.strip() == later.strip():
+            defects.append(
+                {
+                    "target": "hint_ladder",
+                    "index": n,
+                    "problem": f"mock: rung {n} repeats rung {n - 1} verbatim",
+                    "suggested_fix": "mock: make this rung add something new",
+                }
+            )
+    return {
+        "verdict": "repair" if defects else "pass",
+        "defects": defects[:8],
+        "uncertainty": "low",
+        "reasoning": "mock: deterministic stand-in, not a judgement",
+    }
+
+
 def _generic_json(schema: dict) -> dict:
     result: dict = {}
     for name, prop in schema.get("properties", {}).items():
@@ -721,6 +759,8 @@ class MockBedrockProvider:
             data = _report_interpretation_json(payload)
         elif title == "LlmJudgeResponse":
             data = _llm_judge_json(payload)
+        elif title == "HintSolutionReviewResponse":
+            data = _hint_solution_review_json(payload)
         else:
             data = _generic_json(json_schema)
 

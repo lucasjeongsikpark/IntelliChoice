@@ -254,6 +254,11 @@ _GENERATION_REGIME_PAYLOAD_NAMES = {
     # D-200: curriculum authoring only - topic, skill, grade band, a tier anchor, and its
     # own previous failures. No student field has a path into it.
     "EquationDesignPayload",
+    # D-251: the generated item's own question, options, hint ladder and solution, plus the
+    # skill name and grade band it was authored for. Reviews content that does not exist
+    # yet from any student's perspective - there is no session, attempt or profile in scope
+    # at authoring time, so no student field has a path into it.
+    "HintSolutionReviewPayload",
 }
 
 # Regime 3: ungoverned on purpose, with the reason written down. An entry here is a claim

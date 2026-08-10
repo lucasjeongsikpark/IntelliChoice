@@ -21,7 +21,9 @@ from intellichoice_shared.bedrock import (
     AmbiguityReviewPayload,
     AuthoredGeneratorPayload,
     DifficultyReviewPayload,
+    EquationDesignPayload,
     GeneratorPayload,
+    HintSolutionReviewPayload,
     QuestionJudgePayload,
     SolverPayload,
 )
@@ -35,6 +37,12 @@ _GENERATION_PAYLOADS = [
     AlignmentReviewPayload,
     AuthoredGeneratorPayload,
     QuestionJudgePayload,
+    # `EquationDesignPayload` was in the sibling file's `_GENERATION_REGIME_PAYLOAD_NAMES`
+    # but not here since D-205 - the exact residual gap this module's docstring describes,
+    # found while adding `HintSolutionReviewPayload` (D-251). Nothing had been asserting its
+    # `extra="forbid"`.
+    EquationDesignPayload,
+    HintSolutionReviewPayload,
 ]
 
 
