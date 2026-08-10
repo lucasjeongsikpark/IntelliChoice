@@ -127,3 +127,30 @@ def test_the_mock_judge_cannot_see_the_declared_tier() -> None:
             )
         )
         assert smuggled["reviewed_difficulty"] == baseline["reviewed_difficulty"]
+
+
+def test_the_mock_accepts_every_argument_the_real_provider_does() -> None:
+    """Signature parity, and the drift it exists to catch was live (D-244).
+
+    D-202 widened `AnthropicBedrockProvider.raw_generate` with `tools`/`tool_executor`/
+    `max_tool_rounds` so the model could call a calculator while designing an equation.
+    `MockBedrockProvider` was never widened with it, so **every call passing `tools` raised
+    `TypeError` at the provider boundary** - which the gateway catches as a provider
+    failure, indistinguishable from Bedrock being down. The consequence was quiet and
+    expensive: the equation-design stage could not run under the mock at all, so the only
+    way to exercise it was to pay for it.
+
+    This is the same lesson as this file's own subject, one level up. There the mock's
+    *output* had drifted from the schema it stood in for; here its *interface* had drifted
+    from the provider it stands in for. Both were invisible because the failure mode of a
+    test double is to look like the thing it replaces failing.
+
+    Compared as a set of parameter names rather than an exact signature: the mock is free
+    to accept more than the real provider (a test-only hook would be legitimate), but never
+    less, because less is what turns a free path into a paid one.
+    """
+    from intellichoice_adapters.bedrock.bedrock_runtime_provider import AnthropicBedrockProvider
+
+    real = set(inspect.signature(AnthropicBedrockProvider.raw_generate).parameters)
+    mock = set(inspect.signature(MockBedrockProvider.raw_generate).parameters)
+    assert real <= mock, f"the mock cannot accept: {sorted(real - mock)}"

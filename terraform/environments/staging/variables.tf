@@ -185,3 +185,18 @@ variable "youtube_channel_id" {
   type    = string
   default = "UC4a-Gbdw7vOaccHmFo40b9g"
 }
+
+variable "adopt_deployed_image" {
+  description = <<-EOT
+    Read each service's container image from the task definition currently deployed,
+    instead of rendering `*_image_tag` (D-244, carry-over #8).
+
+    True is correct for any environment that has been deployed at least once. Set it false
+    only to bootstrap a new environment, where no task definition exists yet and the
+    lookup would fail at plan time - then set it back, because leaving it false restores
+    the exact trap this closes: a Terraform change to the task definition silently
+    reverting whatever the deploy last shipped.
+  EOT
+  type        = bool
+  default     = true
+}

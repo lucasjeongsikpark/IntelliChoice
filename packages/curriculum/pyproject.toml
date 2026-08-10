@@ -6,6 +6,10 @@ dependencies = [
     "intellichoice-db",
     "intellichoice-shared",
     "intellichoice-adapters",
+    # D-244: `configure_logging` so this package's runs are queryable rather than only
+    # printable. The ops-task runs `loader` in ECS, so its stdout is already in CloudWatch -
+    # it was simply unstructured, which is the difference between a log and a record.
+    "intellichoice-observability",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "pyyaml>=6.0",
@@ -23,3 +27,4 @@ packages = ["src/intellichoice_curriculum"]
 intellichoice-db = { workspace = true }
 intellichoice-shared = { workspace = true }
 intellichoice-adapters = { workspace = true }
+intellichoice-observability = { workspace = true }

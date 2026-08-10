@@ -19,3 +19,12 @@ output "master_user_secret_arn" {
 output "db_name" {
   value = var.db_name
 }
+
+# D-244: see the matching output in rds-postgres.
+output "instance_identifier" {
+  value = aws_db_instance.this.identifier
+}
+
+output "allocated_storage_gb" {
+  value = aws_db_instance.this.allocated_storage
+}

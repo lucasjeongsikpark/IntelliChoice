@@ -32,6 +32,16 @@ locals {
   # filters may declare `default_value`, so a quiet period reads as a real zero rather
   # than as a gap that looks the same as "no data collected".
   metric_namespace = { for name in keys(var.log_group_names) : name => "IntelliChoice/${var.name_prefix}/${name}" }
+
+  # D-244: the offline pipeline gets its own namespace for the same reason each service
+  # does - it is a different producer, and its `bedrock_call` lines are a batch's spend
+  # rather than a student's. Folding them together would make "what did this cost" a
+  # question with two answers and no way to tell them apart.
+  pipeline_namespace = "IntelliChoice/${var.name_prefix}/pipeline"
+
+  # The product metrics the otel sidecar now exports (D-244). Same namespace shape the
+  # log-derived metrics use, so a dashboard widget reads the two the same way.
+  app_metric_namespace = local.metric_namespace
 }
 
 # Spend. The user's standing rule is that cost bugs are production bugs, and until now the
@@ -287,6 +297,240 @@ resource "aws_cloudwatch_dashboard" "main" {
               "SOURCE '${try(values(var.log_group_names)[0], "")}'",
               "| fields @timestamp, task, reason, detail, attempts, duration_ms",
               "| filter event = 'bedrock_call_failed'",
+              "| sort @timestamp desc",
+              "| limit 20",
+            ])
+            view = "table"
+          }
+        },
+      ],
+      # --- D-244: the product row ------------------------------------------------------
+      #
+      # Everything above this line is infrastructure or model plumbing. None of it answers
+      # "did a student learn anything today", and until D-244 nothing in AWS could: the
+      # twenty §5.32.4 KPIs were served at `/metrics` by both apps and scraped by nothing,
+      # because Prometheus and Grafana exist only in docker-compose. These read the metrics
+      # the otel sidecar now exports.
+      [
+        {
+          type   = "text"
+          x      = 0
+          y      = 26
+          width  = 24
+          height = 2
+          properties = {
+            markdown = join("\n", [
+              "# Product — what students actually did",
+              "From the application's own §5.32.4 counters, exported by the otel sidecar (D-244). **These were defined in S17 and collected by nothing until now** — `/metrics` was served on every task and scraped only by a local docker-compose Prometheus. A flat line here means no traffic, not a broken exporter; the HTTP panel below is the control.",
+            ])
+          }
+        },
+        {
+          type   = "metric"
+          x      = 0
+          y      = 28
+          width  = 8
+          height = 6
+          properties = {
+            title  = "Learning funnel (1h)"
+            region = data.aws_region.current.name
+            view   = "timeSeries"
+            stat   = "Sum"
+            period = 3600
+            metrics = [
+              [local.app_metric_namespace["learning-api"], "learning_session_starts_total", { label = "sessions started" }],
+              [".", "learning_exam_completions_total", "phase", "pre", { label = "pre-exams" }],
+              [".", "learning_exam_completions_total", "phase", "post", { label = "post-exams" }],
+              [".", "learning_sessions_completed_total", { label = "completed" }],
+            ]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 8
+          y      = 28
+          width  = 8
+          height = 6
+          properties = {
+            title = "Attendance gate outcomes (1h)"
+            # D-152 §2: `signups.attended = null` is common in the real system, so
+            # `unknown` -> blocked is a **routine** path in production rather than a rare
+            # one. This panel is where that stops being a documentation claim: if `unknown`
+            # dominates once integration is live, the gate is the product experience.
+            region = data.aws_region.current.name
+            view   = "timeSeries"
+            stat   = "Sum"
+            period = 3600
+            metrics = [
+              [local.app_metric_namespace["learning-api"], "learning_attendance_checks_total", "result", "present"],
+              ["...", "blocked"],
+              ["...", "unknown"],
+            ]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 16
+          y      = 28
+          width  = 8
+          height = 6
+          properties = {
+            title = "Cost per session / per conversation (cents)"
+            # Average, not Sum: the total is already on the Bedrock spend panel above. What
+            # this adds is the unit economics - a rising per-session cost with flat total
+            # spend means fewer students each costing more, which the total cannot show.
+            region = data.aws_region.current.name
+            view   = "timeSeries"
+            stat   = "Average"
+            period = 3600
+            metrics = [
+              [local.app_metric_namespace["learning-api"], "learning_session_cost_cents", { label = "per learning session" }],
+              [local.app_metric_namespace["chat-api"], "qa_conversation_cost_cents", { label = "per Q&A conversation" }],
+            ]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 0
+          y      = 34
+          width  = 8
+          height = 6
+          properties = {
+            title = "Q&A answer quality (1h)"
+            # `no_answer` and `out_of_scope` are both refusals and are deliberately
+            # separate series: AUD-C-08 found a Bedrock outage reading on a dashboard as a
+            # surge of off-topic questions, because a degraded turn and a genuine refusal
+            # shared one counter. `qa_service_degraded_total` is the third line for exactly
+            # that reason - it is the one that means "us", not "them".
+            region = data.aws_region.current.name
+            view   = "timeSeries"
+            stat   = "Sum"
+            period = 3600
+            metrics = [
+              [local.app_metric_namespace["chat-api"], "qa_answers_total", "result", "grounded"],
+              ["...", "no_answer"],
+              [local.app_metric_namespace["chat-api"], "qa_out_of_scope_total", { label = "out of scope" }],
+              [local.app_metric_namespace["chat-api"], "qa_service_degraded_total", "stage", "document_qa_retrieval", { label = "degraded (retrieval)" }],
+            ]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 8
+          y      = 34
+          width  = 8
+          height = 6
+          properties = {
+            title = "Content health"
+            # Should sit at zero. `checkpoint_repairs` is AUD-X-07's canary - a session
+            # whose checkpoint referenced a row that did not exist - and any movement means
+            # the still-unfixed commit ordering is being hit rather than merely reachable.
+            region = data.aws_region.current.name
+            view   = "timeSeries"
+            stat   = "Sum"
+            period = 3600
+            metrics = [
+              [local.app_metric_namespace["learning-api"], "learning_problem_reports_total", { label = "questions reported" }],
+              [".", "learning_quarantine_total", { label = "auto-quarantined" }],
+              [".", "learning_tutor_review_flagged_total", { label = "retry ladder exhausted" }],
+              [".", "learning_checkpoint_repairs_total", { label = "checkpoint repairs (AUD-X-07)" }],
+            ]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 16
+          y      = 34
+          width  = 8
+          height = 6
+          properties = {
+            title  = "Application status codes (1h)"
+            region = data.aws_region.current.name
+            view   = "timeSeries"
+            stat   = "Sum"
+            period = 3600
+            metrics = [
+              for name in keys(var.log_group_names) :
+              [local.app_metric_namespace[name], "http_requests_total", { label = name }]
+            ]
+          }
+        },
+      ],
+      # --- D-244: the offline pipeline -------------------------------------------------
+      #
+      # The one component that spends money in bulk and had no instrumentation at all -
+      # 22 `print()` calls and nothing else. Three sessions (D-238, D-240, D-243) each
+      # reconstructed a paid batch afterwards from a database table because the run left
+      # nothing readable behind.
+      [
+        {
+          type   = "text"
+          x      = 0
+          y      = 40
+          width  = 24
+          height = 2
+          properties = {
+            markdown = join("\n", [
+              "# Offline pipeline — question generation and the curriculum load",
+              "Runs as an ECS ops task, so these are batch events rather than a time series — expect long flat gaps between runs. **`Filled` against `Rejected` is the yield**, and it is the number that says whether a batch was worth its money: D-243 moved it from 27% to 55% and needed a second paid batch to find that out. `TemplatesCreated/Updated/Retired` closes the carry-over where a deploy could assert only that the loader exited 0.",
+            ])
+          }
+        },
+        {
+          type   = "metric"
+          x      = 0
+          y      = 42
+          width  = 12
+          height = 6
+          properties = {
+            title  = "Generation run yield and spend"
+            region = data.aws_region.current.name
+            view   = "timeSeries"
+            stat   = "Sum"
+            period = 3600
+            metrics = [
+              [local.pipeline_namespace, "PipelineFilled", { label = "candidates kept" }],
+              [".", "PipelineRejected", { label = "rejected" }],
+              [".", "PipelineCost", { label = "cents spent", yAxis = "right" }],
+              [".", "PipelineStoppedEarly", { label = "stopped on budget" }],
+            ]
+          }
+        },
+        {
+          type   = "metric"
+          x      = 12
+          y      = 42
+          width  = 12
+          height = 6
+          properties = {
+            title  = "Curriculum load (what the deploy actually did)"
+            region = data.aws_region.current.name
+            view   = "timeSeries"
+            stat   = "Sum"
+            period = 3600
+            metrics = [
+              [local.pipeline_namespace, "CurriculumTemplatesCreated", { label = "created" }],
+              [".", "CurriculumTemplatesUpdated", { label = "updated" }],
+              [".", "CurriculumTemplatesRetired", { label = "retired" }],
+            ]
+          }
+        },
+        {
+          type   = "log"
+          x      = 0
+          y      = 48
+          width  = 24
+          height = 6
+          properties = {
+            title  = "Why generated candidates were rejected, by stage"
+            region = data.aws_region.current.name
+            # The question D-243 had to answer by hand, as a saved query. `stats by` over
+            # the run records is what makes "which stage costs us the most candidates"
+            # readable without buying a batch to find out.
+            query = join(" ", [
+              "SOURCE '${var.ops_task_log_group}'",
+              "| fields @timestamp, rejected_generator, rejected_design, rejected_solver, rejected_judge, rejected_difficulty, filled, total_cost_cents",
+              "| filter event = 'pipeline_run_complete'",
               "| sort @timestamp desc",
               "| limit 20",
             ])

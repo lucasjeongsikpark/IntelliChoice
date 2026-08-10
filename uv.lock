@@ -1066,6 +1066,7 @@ source = { editable = "packages/curriculum" }
 dependencies = [
     { name = "intellichoice-adapters" },
     { name = "intellichoice-db" },
+    { name = "intellichoice-observability" },
     { name = "intellichoice-shared" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -1077,6 +1078,7 @@ dependencies = [
 requires-dist = [
     { name = "intellichoice-adapters", editable = "packages/adapters" },
     { name = "intellichoice-db", editable = "packages/db" },
+    { name = "intellichoice-observability", editable = "packages/observability" },
     { name = "intellichoice-shared", editable = "packages/shared" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pydantic-settings", specifier = ">=2.6" },

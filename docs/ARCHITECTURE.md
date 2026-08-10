@@ -675,6 +675,30 @@ to rot, because nothing fails when it does.)*
   what made it survivable and also what made it hard to notice. Anchor ignore patterns that name a
   directory which exists at more than one depth, and treat a *narrowing* of what a checker reads as
   the same class of defect as a check that returns the wrong answer.
+- **A metric that nothing collects is indistinguishable from a metric that does not exist**
+  (D-244). Twenty §5.32.4 KPIs were defined in S17, incremented from 25 real call sites, and
+  served at `/metrics` by both apps for months — and nothing in AWS ever scraped them, because
+  Prometheus and Grafana were only ever wired up in `docker-compose.yml`. Every review of the
+  code would have found instrumentation; every review of CloudWatch would have found five
+  Bedrock metrics. **The two halves were each individually defensible and the join was empty.**
+  Checking that an exporter exists is not checking that a collector reads it, and the only way
+  to tell them apart is to query the destination.
+- **Alarm on the failures you have had, not on the metrics you happen to have** (D-244). Ten
+  alarms existed and all ten watched ALB latency, ALB 5xx, or the autoscaler's own task count —
+  while every incident this project has actually had kept returning 200. D-115's reranker was
+  dead for a week; D-242's LangSmith rejected every trace for weeks; an open Bedrock circuit
+  turns a paid batch into skipped candidates. All three are invisible in CPU, latency and error
+  rate, which is why the log-derived metrics exist — and none of those had an alarm either, so
+  the dashboard could show the failure to whoever happened to look. **A degraded path that keeps
+  answering has to say so itself.**
+- **Two owners of one object, and the quiet one wins** (D-244, closing D-242's carry-over).
+  Terraform owned `aws_ecs_task_definition` and the deploy workflow owned which image went in
+  it, so any Terraform change to the task definition silently reverted whatever was deployed —
+  and `lifecycle.ignore_changes` on the *service* hid the conflict rather than resolving it. The
+  fix is for the declarative side to *adopt* the imperative side's fact (read the live container
+  definition) rather than assert a competing one. **`-target` does not rescue this**: targeting
+  one module still pulls its dependencies into the plan, which was measured rather than assumed
+  after it was proposed as a safe workaround and turned out not to be.
 - **The model and the validator read the same schema differently, and only one of them tells you**
   (D-243). `AuthoredGeneratedItemResponse` is the only response model here that contains another
   model, so it is the only one whose `model_json_schema()` carries a `$defs` block and a `$ref` into

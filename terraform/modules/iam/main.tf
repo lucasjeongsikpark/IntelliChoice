@@ -97,6 +97,27 @@ data "aws_iam_policy_document" "task_bedrock" {
     ]
     resources = ["*"]
   }
+
+  # D-244: the collector's `awsemf` exporter writes Embedded Metric Format records, and
+  # CloudWatch derives the metric from the log event. So this is a **CloudWatch Logs**
+  # grant and not `cloudwatch:PutMetricData` - which is the narrower permission of the two,
+  # because it can be scoped to named log groups where `PutMetricData` cannot be scoped at
+  # all (it takes no resource ARN, only an optional namespace condition).
+  #
+  # Scoped to the `/emf` groups, so a compromised sidecar cannot write into the application
+  # log groups the five Bedrock metric filters read. `CreateLogGroup` is deliberately
+  # absent: Terraform creates the groups with their retention, and a collector that can
+  # create its own could silently write to a group nobody set retention on.
+  statement {
+    sid = "OtelCollectorMetricExport"
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:DescribeLogStreams",
+      "logs:PutRetentionPolicy",
+    ]
+    resources = var.metrics_log_group_arns
+  }
 }
 
 resource "aws_iam_role_policy" "task_bedrock" {

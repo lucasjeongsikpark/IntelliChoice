@@ -15,6 +15,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class CurriculumPipelineSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CURRICULUM_", env_file=".env", extra="ignore")
 
+    # D-244: matches the apps' `log_level`, so a pipeline run's verbosity is set the same
+    # way as a service's rather than being a second convention to remember.
+    log_level: str = "INFO"
     bedrock_provider: str = "mock"
     bedrock_aws_region: str = "us-east-1"
     bedrock_generation_model_id: str = "anthropic.claude-sonnet-5"
