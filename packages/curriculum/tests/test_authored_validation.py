@@ -6,6 +6,7 @@ import pytest
 from intellichoice_curriculum.authored_validation import (
     answer_leaked_beyond_the_question,
     answer_text_leaked,
+    hint_ladder_monotonicity_violations,
     validate_authored_item,
 )
 from intellichoice_shared.bedrock import (
@@ -235,6 +236,36 @@ def test_hint_ladder_monotonicity_violation_rejected() -> None:
     result = validate_authored_item(1, item)
     assert not result.passed
     assert any("already reveals" in f for f in result.failures)
+
+
+def test_monotonicity_check_covers_verbatim_containment_only() -> None:
+    """Characterization, not aspiration: this pins the *gap* the name hides (D-251).
+
+    `hint_ladder_monotonicity_violations` is `later.strip() in earlier` and nothing more, so a
+    ladder that fails progression in any way other than verbatim repetition reads as clean.
+    Both cases below are genuine progression failures and both return no violations.
+
+    If a future change makes either of these fail, that is a widening of the rule into a
+    heuristic and it must be a deliberate decision with a measurement behind it - not a
+    silent tightening discovered by this test going red.
+    """
+    # A paraphrase of the same content across two rungs: nothing new is added, and no
+    # substring of the later rung appears in the earlier one.
+    paraphrased = [
+        "Add the two numbers together directly.",
+        "Simply sum both values.",
+        "Combine 2 and 2 to finish.",
+    ]
+    assert hint_ladder_monotonicity_violations(paraphrased) == []
+
+    # A reordered ladder - most revealing first, least revealing last - is backwards for a
+    # student and invisible here, because containment is not ordering.
+    reordered = [
+        "Add the two numbers together directly.",
+        "Try counting up from 2 by 2 more.",
+        "Think about combining two small groups of objects.",
+    ]
+    assert hint_ladder_monotonicity_violations(reordered) == []
 
 
 def test_hint_solution_answer_disagreement_rejected() -> None:

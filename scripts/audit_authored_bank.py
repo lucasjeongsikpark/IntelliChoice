@@ -65,9 +65,19 @@ from intellichoice_shared.bedrock import (
 
 # The pipeline's own thresholds, reused rather than restated so this audit cannot drift into
 # judging the bank by a standard the pipeline would not apply (`ai_pipeline.judge_difficulty`
-# rejects at 2; the hint-quality gate flags at or below 3).
+# rejects at 2).
+#
+# `_HINT_QUALITY_FLOOR = 3` used to live here, and its removal is what that first sentence was
+# written to force (D-251). D-249 measured `hint_quality_score <= 3` at **46% of the
+# hand-authored, human-approved bank** against 45% of generated candidates and removed it from
+# the pipeline - after which the comment above still claimed this file reused a pipeline
+# threshold that no longer existed. The pipeline's only live hint-quality threshold is
+# `_HINT_QUALITY_REJECT_BELOW = 2`, which is a *rejection* and is deliberately not mirrored
+# here: this audit flags, it does not reject.
+#
+# The raw score is still reported per item below. Observation is not decision-making, and
+# stopping a signal from driving `flags` does not require hiding it.
 _DIFFICULTY_REJECT_GAP = 2
-_HINT_QUALITY_FLOOR = 3
 
 _CALLS_PER_ITEM = 2
 
@@ -180,8 +190,6 @@ async def _judge_item(
         flags.append("not age appropriate")
     if not response.is_internally_consistent:
         flags.append("internally inconsistent")
-    if response.hint_quality_score <= _HINT_QUALITY_FLOOR:
-        flags.append(f"hint quality {response.hint_quality_score}")
     return {
         "id": item.question_template_id,
         "declared": item.difficulty_label,
