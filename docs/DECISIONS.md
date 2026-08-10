@@ -19059,3 +19059,74 @@ checking one, and the alternative is worse.
 **The repairs are still not applied.** Nine good proposals on ten items is evidence the loop
 works, not authority to rewrite content served to minors. The dump is a set of diffs for a human
 to accept, and the remaining 34 flagged items have not been attempted.
+
+## D-264 — all 44 items: 28 clear, and one skill accounts for nearly every failure (accepted, 2026-08-10)
+
+The full set behind D-263's pilot. 44 items, **247.7¢** — well over the ~$1.45 estimated, because
+far more items took 3-5 rounds than ten items had suggested. **Nothing was written to the bank.**
+
+| | n |
+|---|---|
+| accepted **and** audit-clear | **28 of 44** |
+| accepted but still defective | 2 |
+| discarded by `collateral_edits` | 8 |
+| discarded, other guards | 4 |
+| recall failures | **0** |
+
+### The aggregate hides the only number that matters
+
+| skill | clear / total |
+|---|---|
+| `fraction_add_sub_like`, `_unlike`, `mult_facts` | 4/4, 5/5, 5/5 |
+| `fraction_mul_div`, `mult_multi_digit` | 4/5, 4/5 |
+| `div_basic` | 2/3 |
+| **`place_value_compare`** | **4/14** |
+| `div_remainder` | 0/2 |
+
+**Everything except `place_value_compare` clears at ~80-100%. That skill clears at 29%, and it is
+the largest group.** This was predicted before the run, for the reason D-257 gave: its defect is
+not a missing computation but a ladder that teaches *comparison* for a question requiring
+*subtraction*.
+
+### And it is not a recall problem — the panel finds it
+
+The reviewers' own words on these items: *"Hint 3 uses addition language ('what has to be added')
+while the solution requires subtraction"*, and *"the first two hints lead the student to compare
+which score is larger... but do not"*. That is exactly the D-238 class, correctly identified.
+
+**The repair path is what fails.** Four of the fourteen died on `collateral_edits`: making the
+final step state the answer genuinely required restructuring an earlier step, and D-261's
+invariant cannot distinguish necessary restructuring from the overreach it was built to stop
+(`mistral-large-3` rewriting every step, 4 of 4).
+
+**That is the correct trade and it should not be loosened.** A repair silently restructuring a
+solution is how a correct item gets damaged, and the invariant is the only thing watching. The
+conclusion is not "relax the guard" but **`place_value_compare` needs human authoring**, which is
+what D-238 did when it rewrote six stems by hand for the analogous problem.
+
+### The two accepted-but-still-defective items are the same failure
+
+`multiplication_division-d4-300404` (answer 6, last step still `[50 - 48 = 2]`, the remainder) and
+`linear_equations-d1-709100` (last step still `[levels = 21 / 3]`). In **both**, the panel passed
+on round 1 as well — only the contributed defect (D-263) triggered a repair, and the panel then
+passed the inadequate repair.
+
+**The structural gap this exposes:** a contributed defect opens a repair that *nothing verifies*.
+The panel cannot check it, because the panel never saw the defect — that is precisely why it had
+to be contributed. So an unresolved contributed defect currently reaches acceptance.
+
+The obvious fix — re-run the audit on the repaired item and refuse acceptance if it still flags —
+**would make the audit a gate**, which D-257 forbade on the grounds that it is not an exact
+invariant (`[18 = 18 ✓]` is a legitimate verification step). The narrower version, rejecting the
+*repair* rather than the *item*, is the same shape as `collateral_edits` and is arguably distinct.
+**Left unresolved deliberately**: 2 of 44 is the current cost, it is visible in the report, and
+choosing between a false-rejection risk and a false-acceptance risk on content for minors is not a
+decision to slip into a commit.
+
+`300404` is also `div_remainder`, which D-238 already recorded as a skill whose items do not
+exercise the skill they are filed under. A solution-step repair cannot fix a conceptual mismatch.
+
+### Cost estimate was wrong by 70%
+
+Estimated ~$1.45 from a ten-item pilot; actual $2.48. The pilot's round distribution
+(mostly 2) did not hold at 44 (several 3-5). **A pilot bounds the failure modes, not the price.**
