@@ -90,30 +90,18 @@ What is left, in order of value:
    so the topics where tier disagreement actually lives — the ones D-234 and D-238 worked on — are
    hand-authored and **this gate never sees them**. Registering a second topic's generation plan
    would both extend the pipeline and give the gate a real population.
-7. **LangSmith is 403 and the AI observability leg is still dark** (D-242). Nothing on our side is
-   wrong: NAT/route/SG open, client installed, correlation code deployed, and the
-   `LangSmithIngestFailed` metric filters are **applied and live** in both services (they count from
-   creation forward, so they read 0 until the next failure).
-
-   **The key was rotated to a `lsv2_sk_` service key on 2026-08-10 and it did not fix it — it made
-   the symptom broader.** Verified against the rotated key: the stored secret is clean (51 chars, no
-   stray whitespace) and the type is right, but it now returns **403 on every endpoint** —
-   `/runs/multipart`, `/runs`, and even `/api/v1/sessions`, which the previous key could at least
-   list. `GET /workspaces/current` returns empty for both.
-
-   **Diagnosis: the stored key is not a valid LangSmith key at all.** An earlier reading of this as
-   "key exists, permission grant missing" was wrong. A bogus key invented for the test returns the
-   **same 403** as the stored one, while sending *no* key returns **401** — so 403 here means
-   *unrecognized*, not *unauthorized*. Both regional hosts (`api.` / `eu.api.`) behave identically,
-   ruling out a tenant-region mismatch. The key is revoked, mistyped, truncated, or from a deleted
-   account. **Verify any replacement before storing it:**
-   `curl -s -o /dev/null -w '%{http_code}\n' -H "x-api-key: <key>" https://api.smith.langchain.com/api/v1/sessions`
-   — `200` means good, `403` means the string is not a key LangSmith knows.
-
-   **ECS was deliberately NOT restarted.** Tasks read secrets at start, so staging still runs the
-   old key; restarting would swap a key that 403s on one endpoint for one that 403s on all of them.
-   Restart only after the grant is in place:
-   `aws ecs update-service --cluster intellichoice-staging --service intellichoice-staging-<svc> --force-new-deployment`.
+7. ~~LangSmith is 403 and the AI observability leg is dark.~~ **RESOLVED 2026-08-10 (D-242).** The
+   key was always valid; it has **no default workspace**, so requests naming no tenant got 403 — and
+   LangSmith returns the same 403 for an unknown key, which is what made two diagnoses wrong.
+   `LANGSMITH_WORKSPACE_ID` in the task definition was the entire fix. **Verified end to end:** one
+   id from a real request resolves in LangSmith (`metadata.otel_trace_id`), CloudWatch (`trace_id`)
+   and X-Ray (`found: 1`). The AI leg is live for the first time since D-214.
+8. **`terraform apply` silently reverts the deployed image, and the trap is still armed** (D-242).
+   Applying the workspace-id change rolled both services back to a months-old image because
+   Terraform owns `aws_ecs_task_definition` while `deploy-staging.yml` owns which image goes in it;
+   `lifecycle.ignore_changes` covers the *service's* task_definition but not the task-definition
+   resource. Recovered by re-running the deploy (~15 min of stale code). Until this is fixed, treat
+   `terraform apply` on staging as a deploy: re-run `deploy-staging.yml` immediately after.
 8. **The D-241 exam submit gate ships verified by build only.** `/dev/token` is 403 on the
    public edge - correct, and asserted by the deploy's own security gate - so a student token
    cannot be minted through CloudFront to walk it, and there is no web unit-test harness to

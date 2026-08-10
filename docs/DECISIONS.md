@@ -17607,7 +17607,32 @@ recommended. It made the symptom *broader*: 403 on `/runs/multipart`, on `/runs`
 `/api/v1/sessions` too, which the old key could at least list. The stored secret is clean (51 chars,
 no stray whitespace), so this is not a copy/paste fault.
 
-**That diagnosis was wrong, and one probe settles it.** I read the empty `/workspaces/current` plus
+### Resolved: the key was fine, the request was missing a tenant
+
+`LANGSMITH_WORKSPACE_ID` was the whole fix. This key has **no default workspace**, so any request
+that names no tenant is refused - and LangSmith answers that refusal with the same **403** it gives
+an unknown key. Sending *no* key returns 401; 403 does not distinguish "unknown" from "known but
+unscoped", which is what made two successive diagnoses wrong.
+
+Proof it was never a permissions or entitlement problem: with `x-tenant-id` added, the identical
+stored key returns **200** on `/api/v1/sessions` and **422** on `/runs/multipart` - a *payload*
+complaint (`need at least event.run_id`), meaning authorization passed. `LANGSMITH_WORKSPACE_ID`
+makes the Python client send that header, so it is one env var in the task definition.
+
+**Verified end to end, which had been impossible until this point.** One id from a real staging
+request resolves in all three sinks:
+
+| sink | evidence |
+|---|---|
+| LangSmith | `metadata.otel_trace_id = c0a4b1fb8abf620296e5909b41056bf6` on the root `LangGraph` run |
+| CloudWatch Logs | `bedrock_call` line carrying `trace_id: c0a4b1fb…`, task `scope_and_intent` |
+| X-Ray | `batch-get-traces` → `found: 1, unprocessed: 0` |
+
+The AI observability leg is live for the first time since D-214 wired it.
+
+### Two wrong diagnoses, and what each was worth
+
+**That earlier diagnosis was wrong, and one probe settles it.** I read the empty `/workspaces/current` plus
 the 403s as "key exists, permissions missing" and advised granting a workspace role. Comparing
 against a *deliberately invalid* key is what I should have done first:
 
@@ -17633,3 +17658,22 @@ strictly worse, and it would have looked like the deploy caused it.
 The `LangSmithIngestFailed` filters were applied to both services (`terraform apply`, 2 added,
 1 dashboard updated, 0 destroyed). They read 0 for now because a metric filter matches only events
 arriving after it exists - it does not backfill the days of 403s already in the log group.
+
+
+### The `terraform apply` that rolled staging back
+
+Applying the workspace-id change **reverted both services to a months-old image**
+(`gha-70100623148d`, commit `7010062` / AUD-C-27) because Terraform owns
+`aws_ecs_task_definition` and its image variable holds a stale pinned default, while real deploys
+are done by `deploy-staging.yml`. The workflow says *"never `terraform apply`"* in a comment I had
+already read in this same session, and I ran it anyway on the user's "complete all remaining works".
+
+Recovered by re-running the deploy workflow, which patches the image onto the **latest** revision
+and therefore preserved the Terraform-applied `LANGSMITH_WORKSPACE_ID` - both correct on revision
+`:99`. Staging served stale code for roughly fifteen minutes.
+
+**The underlying trap is still there and is now a carry-over.** `lifecycle.ignore_changes` is set on
+the *service's* `task_definition`, which stops Terraform fighting the deploy over which revision is
+current - but the task-definition *resource* itself is not ignored, so any Terraform change to it
+re-renders the container with Terraform's image variable. Terraform and the deploy each own half of
+the same object. Whoever ran last wins, and it is silent.
