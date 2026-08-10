@@ -1915,9 +1915,16 @@ def review_priority_for(*, judge: dict, difficulty: dict) -> str:
         return "high"
     if judge.get("hint_reveals_answer"):
         return "high"
-    score = judge.get("hint_quality_score")
-    if isinstance(score, int) and score <= _HINT_QUALITY_BORDERLINE_AT:
-        return "high"
+    # D-249: `hint_quality_score <= 3` is NOT here, and its removal is measured rather than
+    # argued. D-248 kept it and left `high` on 13 of 29. Judging an unbiased sample of the
+    # hand-authored bank then put **46%** of human-written, human-reviewed, shipped items at
+    # `<= 3` - against the pending queue's 45%. The two populations are indistinguishable on
+    # this number, so it says nothing about the candidate; it says where this judge sits.
+    #
+    # It is still *shown* - `review_cli._review_flags` prints "hint quality N, at or below
+    # the borderline" on every item that has it. What it no longer does is decide reading
+    # order, because ordering by a signal that fires equally on approved content is the same
+    # saturation D-247 found, one level down.
     return "normal"
 
 

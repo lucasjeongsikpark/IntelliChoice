@@ -755,7 +755,7 @@ def test_near_duplicate_rejected_with_persisted_reasons() -> None:
     asyncio.run(run())
 
 
-def test_judge_flags_reject_and_borderline_score_sets_high_priority() -> None:
+def test_judge_flags_reject_and_a_borderline_score_no_longer_sets_high_priority() -> None:
     async def run() -> None:
         curriculum = load_curriculum()
         async with _rollback_session() as session:
@@ -809,7 +809,13 @@ def test_judge_flags_reject_and_borderline_score_sets_high_priority() -> None:
             repo = QuestionRepository(session)
             template = await repo.get_template(outcome.question_template_id)  # type: ignore[arg-type]
             assert template is not None
-            assert template.review_priority == "high"
+            # D-249: `normal`, and this line used to read `high`. A borderline hint score no
+            # longer jumps the review queue - measured, an unbiased sample of the shipped
+            # hand-authored bank scores `<= 3` on 46% of items against the pending queue's
+            # 45%, so the number does not distinguish this candidate from approved content.
+            # It is still printed on the review screen by `_review_flags`; it just stops
+            # deciding what a reviewer reads first.
+            assert template.review_priority == "normal"
 
     asyncio.run(run())
 
@@ -3131,10 +3137,15 @@ def test_review_priority_ranks_by_what_could_reach_a_student_not_by_any_flag() -
             {"decision": "accepted"},
             "high",
         ),
+        # D-249 flipped this from "high". An unbiased sample of the hand-authored bank put
+        # 46% of shipped, human-reviewed items at `hint_quality_score <= 3`, against the
+        # pending queue's 45% - so the score does not distinguish a generated candidate from
+        # approved content and cannot earn a place at the front of the queue. It is still
+        # printed on the review screen; it just stops deciding reading order.
         "weak hint ladder": (
             {"hint_reveals_answer": False, "hint_quality_score": 2},
             {"decision": "accepted"},
-            "high",
+            "normal",
         ),
         "tier disagreement only": (
             {"hint_reveals_answer": False, "hint_quality_score": 5},
