@@ -18102,3 +18102,59 @@ almost everything. Both looked correct in code review and neither did anything.
 ### Cost
 
 **28.05 cents** against a 45-cent cap. Session total across D-243/245/246/247: **~1.49**.
+
+## D-248 — `review_priority` made to mean something again (accepted, 2026-08-10)
+
+D-247's carry-over: `review_priority="high"` on 26 of 29 pending candidates. The user asked
+me to make the call rather than present options, so this records what the call was and what
+it rests on.
+
+### What the field actually does
+
+**One consumer.** `list_pending_authored_templates` sorts by
+`(review_priority == "high").desc()`. Nothing else reads it — it is carried into the YAML
+export and back, and printed on the review screen. So it is a **rank**, and at 90% `high` it
+was ordering 26 items ahead of 3.
+
+That reframed the fix. Neither option I had offered the user — a severity ordering, or
+dropping the field for per-reason flags — was right, because the field's job is the sort and
+what a sort needs is a bar that most items do not clear.
+
+### The bar
+
+**`high` means the item could reach a student and mislead them**: a hint that gives the
+answer away, or a hint ladder the judge rates at or below the borderline.
+
+**A one-level difficulty disagreement does not.** D-238 settled what it is worth — *the tier
+is a label; the item is the work* — so a flagged item is a correct item that may be filed in
+the wrong place. It stays in the queue with its reason printed (D-247's `_review_flags`);
+it does not go to the front. That condition alone drove 19 of the 29.
+
+**`retiered` is kept at `high`, and that is not my judgement.** It was an explicit
+instruction in D-239 — a candidate whose judged tier sits >= 2 from its slot's persists at
+the judge's tier, `review_priority="high"`. That is a different claim from `flagged`: the
+tier actually moved, on evidence strong enough to overrule the plan, and nothing measured
+here bears on it. Two existing tests failed when the first version of this change swept it
+up, which is how it was caught.
+
+### Measured on the live queue
+
+| | pending | `high` |
+|---|---|---|
+| before | 29 | **26 (90%)** |
+| after | 29 | **13 (45%)** |
+
+45% is still high, and it is reported rather than tuned away: 12 of those 13 are driven by
+`hint_quality_score <= 3`, which means the judge rates most generated hint ladders as
+mediocre. **That is a finding about the generator's hints, not about this field**, and
+lowering the threshold to make the number look better would be exactly the mistake this
+decision is correcting.
+
+`review_priority_for` is a pure function on the two evidence dicts, so the rule is testable
+without a gateway or a database — and so `review_cli`'s prose flags and this ordering cannot
+drift into disagreeing about what matters.
+
+### What did not change
+
+`difficulty_confidence` still records 0.5 when two readings disagree. Demoting an item's
+queue position must not quietly demote the evidence, and there is a test line saying so.

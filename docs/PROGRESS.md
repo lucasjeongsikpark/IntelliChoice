@@ -174,13 +174,15 @@ What is left, in order of value:
    any session touching a file and running the formatter drags unrelated reformatting into its
    diff, which is exactly what happened here and was reverted. Adding `ruff format --check` to
    `make lint` means one large mechanical commit first; worth doing, worth doing on its own.
-17. **`review_priority="high"` has saturated and no longer triages** (D-247). 26 of 29 pending
-   authored candidates carry it - 5 of this run's 7 from `difficulty.decision == "flagged"`
-   alone. D-247 surfaced the individual reasons in prose so the information is not lost, but the
-   field itself still says "high" about almost everything. Fixing it means deciding what "high"
-   should mean when most candidates legitimately have something worth a look, which is a product
-   judgement rather than a bug fix - and the D-244 shape says the failure mode is a signal that
-   is present, correct, and read by nobody.
+17. ~~`review_priority="high"` has saturated and no longer triages.~~ **CLOSED 2026-08-10
+   (D-248).** The field has exactly one consumer - it sorts the review queue - so it needed a bar
+   most items do not clear. `high` now means **the item could reach a student and mislead them**
+   (hint gives the answer away, or hint quality at/below borderline). A one-level difficulty
+   disagreement does not qualify: D-238 settled that the tier is a label and the item is the
+   work, and that condition alone drove 19 of 29. **`retiered` stays `high` on D-239's explicit
+   instruction** - there the tier actually moved. Live queue: **26/29 (90%) → 13/29 (45%)**.
+   **45% is reported, not tuned away**: 12 of the 13 are `hint_quality_score <= 3`, which is a
+   finding about the generator's hint ladders and the next thing worth measuring.
 16. **The generator's remaining loss is `max_output_tokens` truncation at 2500** (D-243). One of
    eleven, and newly visible now that the schema failures are gone — the item is larger because
    the model finally writes every field. D-233 is the precedent to read first: raising this
@@ -223,6 +225,25 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — `review_priority` made to mean something (2026-08-10, D-248)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1099 passed, 2 skipped, 1 xfailed** · no
+paid calls · DECISIONS.md **D-248**.
+
+**The field has one consumer** - it sorts the review queue - which reframed the fix away from
+both options I had offered. A sort needs a bar most items do not clear, so `high` now means the
+item could reach a student and mislead them; a one-level tier disagreement does not qualify
+(D-238: the tier is a label, the item is the work) and drove 19 of 29 on its own.
+
+**`retiered` stays `high` on D-239's explicit instruction**, not on anything measured here. The
+first version of the change swept it up and **two existing tests caught it** - the right outcome,
+and the reason a user's stated decision should be encoded in a test rather than a comment.
+
+**Live queue 26/29 (90%) → 13/29 (45%).** 45% is reported rather than tuned away: 12 of the 13
+are `hint_quality_score <= 3`, so the judge rates most generated hint ladders mediocre. That is a
+finding about the generator, and lowering the threshold to improve the number would be the exact
+mistake this decision corrects.
 
 ### Session log — the gate on fresh candidates, and a saturated signal (2026-08-10, D-247)
 
