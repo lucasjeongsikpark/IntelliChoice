@@ -21,7 +21,11 @@ from intellichoice_curriculum.authored_bank import (
     AuthoredTemplateDef,
     load_authored_bank,
 )
-from intellichoice_curriculum.authored_validation import hint_leaks_answer, validate_authored_item
+from intellichoice_curriculum.authored_validation import (
+    answer_leaked_beyond_the_question,
+    leak_phrase_present,
+    validate_authored_item,
+)
 from intellichoice_curriculum.content import load_curriculum
 from intellichoice_curriculum.export_cli import build_bank_file, render_bank_file
 from intellichoice_curriculum.loader import (
@@ -391,6 +395,20 @@ def test_place_value_identify_is_not_authored_above_the_tier_its_ladder_reaches(
     )
 
 
+def _gate(hint: str, answer: str, visible: str) -> bool:
+    """The pipeline's hint-leak rejection, as two separate checks (D-249).
+
+    Mirrors `authored_validation.check_no_answer_leakage` and `ai_pipeline`'s call site:
+    an explicit leak phrase fails unconditionally, and a bare restatement of the answer
+    fails only when the question does not already show that value. Composed here rather
+    than wrapped in a helper, because D-246 wrapped it in a helper and the helper was a
+    duplicate of `answer_leaked_beyond_the_question`, which has existed since D-201.
+    """
+    return leak_phrase_present(hint) or answer_leaked_beyond_the_question(
+        hint_text=hint, correct_answer_text=answer, question_text=visible
+    )
+
+
 def test_the_hint_leak_gate_scores_both_directions_against_the_shipped_bank() -> None:
     """D-246: the gate that rejects, measured on content that must pass *and* content that
     must fail - because a gate scored in one direction only is how a gate stops meaning
@@ -417,19 +435,14 @@ def test_the_hint_leak_gate_scores_both_directions_against_the_shipped_bank() ->
     for item in items:
         answer = getattr(item, f"option_{item.correct_option}")
         visible = item.rendered_for_model()
-        if any(
-            hint_leaks_answer(h, answer_text=answer, visible_text=visible)
-            for h in item.hint_ladder
-        ):
+        if any(_gate(h, answer, visible) for h in item.hint_ladder):
             passes.append(item.question_template_id)
 
         # The same item with its final rung stating the answer outright - the exact mutation
         # D-246 measured the judge against, so the two instruments are scored on one corpus.
         leaking = list(item.hint_ladder)
         leaking[-1] = f"{leaking[-1]} The answer is {answer}."
-        if not any(
-            hint_leaks_answer(h, answer_text=answer, visible_text=visible) for h in leaking
-        ):
+        if not any(_gate(h, answer, visible) for h in leaking):
             leaks.append(item.question_template_id)
 
     assert not passes, f"approved bank items the gate would now reject: {passes}"

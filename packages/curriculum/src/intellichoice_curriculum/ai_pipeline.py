@@ -66,8 +66,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from intellichoice_curriculum.authored_validation import (
     _sympify,
     _values_equal,
+    answer_leaked_beyond_the_question,
     derive_answer,
-    hint_leaks_answer,
+    leak_phrase_present,
 )
 from intellichoice_curriculum.content import CurriculumContent, TopicDef
 
@@ -1595,15 +1596,27 @@ async def _attempt_authored_candidate(
     # carries two measured false-positive fixes in its lookarounds - a negative answer that
     # `\b` could never match, and a single digit inside a decimal - that a second copy here
     # would silently lack.
+    # Two checks, run separately and unconditionally, exactly as `check_no_answer_leakage`
+    # runs them in the loader. **D-249 correction:** D-246 merged them into a new
+    # `hint_leaks_answer` helper, which was a duplicate - `answer_leaked_beyond_the_question`
+    # has existed since **D-201**, with the same visibility rule and a docstring recording
+    # that the naive check "destroyed four correct items before this existed". So D-246's
+    # "finding" that the naive check rejects `1609201` was a rediscovery of D-201's, and its
+    # fix was a second implementation of D-201's - in the same change that cited D-223 as the
+    # reason to import rather than reimplement. Deleted; these are the originals.
+    #
+    # `rendered_question` is stem + context block and never the options, which the D-201
+    # helper's docstring calls out: passing the options disables the check entirely, because
+    # the correct option's text *is* the answer.
+    answer_text = getattr(item, f"option_{item.correct_option}")
     hint_leaks = [
         f"hint_ladder[{n}] leaks the correct answer text verbatim"
         for n, hint in enumerate(item.hint_ladder)
-        if hint_leaks_answer(
-            hint,
-            answer_text=getattr(item, f"option_{item.correct_option}"),
-            # What the student can already see. A number printed here is not revealed by a
-            # hint repeating it - the rule the judge's prompt states, applied deterministically.
-            visible_text=rendered_question,
+        if leak_phrase_present(hint)
+        or answer_leaked_beyond_the_question(
+            hint_text=hint,
+            correct_answer_text=answer_text,
+            question_text=rendered_question,
         )
     ]
     if hint_leaks:
