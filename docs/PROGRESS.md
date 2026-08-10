@@ -90,14 +90,19 @@ What is left, in order of value:
    so the topics where tier disagreement actually lives — the ones D-234 and D-238 worked on — are
    hand-authored and **this gate never sees them**. Registering a second topic's generation plan
    would both extend the pipeline and give the gate a real population.
-7. **Neither web app has a unit-test harness.** `learning-web` and `chat-web` are covered by
+7. **The D-241 exam submit gate ships verified by build only.** `/dev/token` is 403 on the
+   public edge - correct, and asserted by the deploy's own security gate - so a student token
+   cannot be minted through CloudFront to walk it, and there is no web unit-test harness to
+   cover the `unansweredCount > 0 && !examExpired` conditional instead. The chat changes *were*
+   measured live post-deploy; this one was not.
+8. **Neither web app has a unit-test harness.** `learning-web` and `chat-web` are covered by
    `tsc`, `oxlint` and Playwright only, so D-241's submit gate and chat restyle ship verified by
    build + browser walk rather than by a test. A component harness (vitest + testing-library)
    would pay for itself the first time a conditional like `unansweredCount > 0 && !examExpired`
    needs to change.
-8. **The chat walk did not cover signed-in roles, the branch locator, or the calendar** (D-241).
+9. **The chat walk did not cover signed-in roles, the branch locator, or the calendar** (D-241).
    Guest paths, citations, escalation and narrow viewports were walked; the rest was not.
-9. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
+10. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
    for twelve decisions behind the line `"127 already existed, 0 created"` — and that line is not
    in any deploy log, because `deploy-staging.yml` only runs `test "$EXIT_CODE" = "0"`. The loader
    now distinguishes created / updated / unchanged / retired, which is exactly the signal worth
@@ -107,13 +112,13 @@ What is left, in order of value:
    read), then echo the ops task's log stream after `aws ecs wait`. Same treatment is worth giving
    the migration and seed steps, which are equally silent. **Until this exists, "the deploy loaded
    the bank" means only that the loader exited 0** — which is what D-206 already learned once.
-10. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+11. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-11. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+12. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-12. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+13. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under

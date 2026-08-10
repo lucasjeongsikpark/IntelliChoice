@@ -17501,10 +17501,19 @@ test, +1 from `test_stage_payloads_stay_narrow.py`, which scans source for
 it passes, so the new payload carries only its own stage's fields). Both web apps `tsc` and
 `oxlint` clean and building.
 
-**What is not verified by a test:** the two frontend changes. Neither web app has a unit-test
-harness - they are covered by `tsc`, `oxlint` and Playwright only - so the submit gate and the
-chat restyle were checked by building, by previewing the CSS against the live staging page, and
-by a post-deploy walk. Stated rather than implied.
+**What is verified how, exactly**, because these are not the same strength:
+
+| change | verified by |
+|---|---|
+| `pre_outro` deferral | a new automated test driving the deferred branch with an injected recording scheduler, plus the full suite |
+| chat citation / bottom-align / `Thinking…` | **measured live after deploy**: `thinking-pulse` running, `Source` label present, citation `transparent / 8px / 1px solid` against the follow-up's `accent / 999px / no border`, and `margin-top` resolving to **235.5px** on a short conversation so the last message sits 12px above the composer instead of stranding ~235px |
+| exam submit gate | `tsc`, `oxlint` and a production build **only** |
+
+**The submit gate was not walked live, and the reason is the system behaving correctly.**
+`/dev/token` returns 403 on the public edge - which is exactly what `deploy-staging.yml`'s own
+security gate asserts and verifies on every deploy - so a student token cannot be minted through
+CloudFront, and neither web app has a unit-test harness to cover the conditional instead. That
+combination is now a carry-over: the gate ships on a build and a code read.
 
 ### Chat walk coverage
 
