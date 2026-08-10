@@ -789,10 +789,22 @@ _AUTHORED_FEW_SHOT_EXEMPLARS: list[str] = [
 # only a near-exact-text stem collides this tightly in tests.
 NEAR_DUPLICATE_COSINE_DISTANCE_THRESHOLD = 0.05
 
-# SPEC §5.8.5/plan §7 judge thresholds: a genuinely low hint-quality score rejects; a
-# borderline one (or a 1-off difficulty disagreement) doesn't reject but does route the
-# candidate to human review first (`review_priority="high"`) rather than the ordinary
-# queue. `hint_quality_score` is judged on a 1 (poor) - 5 (excellent) scale.
+# SPEC §5.8.5/plan §7 judge thresholds on the 1 (poor) - 5 (excellent) hint-quality scale.
+# The two do different jobs and only one of them decides anything:
+#
+# `_HINT_QUALITY_REJECT_BELOW` **rejects** the candidate (see the gate below). **D-252
+# measured it and it has never fired**: 102 in-scale judge readings on real generated
+# candidates (`question_validation_runs.stage_results->'judge'`, 2026-08-06 -> 08-10) plus
+# D-249's 24 readings on the approved bank - 126 readings, **minimum observed 2, zero below
+# it**. So the floor sits below the distribution's observed support. It is kept anyway, for
+# D-240's reason: a live, correct, never-firing gate costs nothing and is the guard against a
+# model regression. Zero in 126 is a ~2% upper bound, not a proof that a 1 is impossible.
+#
+# `_HINT_QUALITY_BORDERLINE_AT` **no longer routes anything.** It used to mean
+# `review_priority="high"`, and this comment still said so for three sessions after **D-249
+# removed that** - the score fires on 46% of human-approved bank items, so ordering by it
+# told a reviewer nothing. Its only live consumer is `review_cli._review_flags`, which
+# *prints* "at or below the borderline" next to the item. Display, not a decision.
 _HINT_QUALITY_REJECT_BELOW = 2
 _HINT_QUALITY_BORDERLINE_AT = 3
 

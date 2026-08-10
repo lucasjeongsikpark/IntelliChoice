@@ -7,6 +7,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**Before pricing any measurement run, query what the pipeline already stored (D-252).** Carry-over
+#18 asked for a paid measurement of `_HINT_QUALITY_REJECT_BELOW`; `question_validation_runs
+.stage_results->'judge'` had **110 real judge verdicts** sitting in it, so the answer cost nothing.
+The floor **has never fired** — 126 in-scale readings, minimum 2, zero below it — and is kept on
+D-240's precedent. `stage_results` is a full `judge.model_dump()` on every run, accepted *and*
+rejected, and it is the first place to look for any question about judge behaviour on candidates.
+
 **Start here: the hint & solution review instrument exists, is wired to nothing, and the next
 step costs money (D-251).** [HINT_SOLUTION_REVIEW.md](HINT_SOLUTION_REVIEW.md) is the design.
 `BedrockTask.HINT_SOLUTION_REVIEW` returns `PASS | REPAIR | REJECT` with located, actionable
@@ -210,12 +217,14 @@ What is left, in order of value:
    expands to fill whatever it is given. Measure before raising.
 14. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
-18. **`_HINT_QUALITY_REJECT_BELOW = 2` is a live rejection nobody has measured** (D-251).
-   D-249 measured `hint_quality_score <= 3` and found it fires on 46% of human-approved bank
-   content. It never measured `< 2`, which is a different threshold doing a heavier job — it
-   *rejects* a candidate in `ai_pipeline.py`. The field was deliberately **not** deleted for this
-   reason. Measuring it is cheap and independent of everything else in D-251's plan; do it before
-   anyone else concludes the field is dead weight.
+18. ~~**`_HINT_QUALITY_REJECT_BELOW = 2` is a live rejection nobody has measured**~~ — **closed by
+   D-252, for free.** It has **never fired**: 126 in-scale readings (102 on real generated
+   candidates already persisted in `question_validation_runs.stage_results->'judge'`, plus D-249's
+   24 on the approved bank), **minimum observed 2, zero below it**. Kept anyway on D-240's
+   precedent — a live, correct, never-firing gate costs nothing and guards a model regression.
+   **The lesson worth more than the result:** this carry-over said "measuring it is cheap", and it
+   was cheaper than that — the pipeline had been persisting every judge verdict all along. *Check
+   what the system already stored before pricing a run.*
 19. **The hint & solution review instrument is built and entirely unvalidated** (D-251). It has
    no pipeline caller **on purpose** — attaching an unvalidated reviewer to a gate is exactly what
    D-249 found already shipped. Step 4 of [HINT_SOLUTION_REVIEW.md](HINT_SOLUTION_REVIEW.md) is
@@ -260,6 +269,41 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — a measurement we had already paid for (2026-08-10, D-252/D-253)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1113 passed, 2 skipped, 1 xfailed** ·
+**no paid calls** · DECISIONS.md **D-252**, **D-253**.
+
+**Carry-over #18 wanted a paid run and did not need one.** `_HINT_QUALITY_REJECT_BELOW = 2` is a
+live rejection D-249 never measured, and the plan was to buy readings. But
+`stage_results["judge"] = judge.model_dump()` has been persisting every verdict since the pipeline
+was built: **331 runs, 110 judged**, all real model prose. One `SELECT` answered it. **The floor
+has never fired** — 102 in-scale candidate readings plus D-249's 24 bank readings, **minimum 2,
+zero below it**. Kept on D-240's precedent (live, correct, never-firing gates guard regressions).
+
+**Two guards ran on my own number before it was written down**, and both mattered:
+- **Mock contamination.** `MockBedrockProvider` returns a constant `hint_quality_score: 5`, and the
+  dev Postgres is shared with the test suite. **Zero of the 110 matched it** — but a constant 5
+  landing in the top bucket would have changed nothing about the floor while making the
+  distribution wrong, which is exactly the near-miss that reads as fine.
+- **Scale.** Eight readings are 8s and 9s, **all dated 2026-08-05 and no other day** — the
+  pre-bound era, excluded. That also corroborates
+  `test_judge_hint_quality_score_is_bounded_to_the_scale_its_thresholds_assume`'s docstring from
+  stored evidence rather than from the run log it was written against.
+
+**A second stale comment, same class as the one D-251 step 1 deleted.**
+`_HINT_QUALITY_BORDERLINE_AT`'s comment still said a borderline score routes to
+`review_priority="high"`. **D-249 removed that**, three sessions ago. The constant is live only as
+*display* in `review_cli._review_flags`. When a threshold is demoted, the comment explaining it is
+what survives and lies — that is now two instances, so it is a pattern rather than a slip.
+
+**`knowledge-content copy/` deleted (D-253).** A tracked, byte-identical 33-file duplicate of
+`knowledge-content/`, swept into `00b4857` (a dependabot lockfile bump, 35 files changed, 33 of
+them this) by a broad `git add`. Found while answering a request to commit `.gitignore` — which
+had nothing to commit. **`.gitignore` could not have fixed it**: an ignore rule is a no-op on a
+tracked path, so the obvious remedy looks like it worked. It had already cost a session real time
+(AUD-F-16 investigated it "disappearing" and restored it with `git checkout`).
 
 ### Session log — an instrument planned by what would refute it (2026-08-10, D-251)
 
