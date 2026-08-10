@@ -37,3 +37,15 @@ output "security_group_id" {
 output "master_user_secret_arn" {
   value = one(aws_db_instance.this.master_user_secret[*].secret_arn)
 }
+
+# D-244: needed as the `DBInstanceIdentifier` dimension on CloudWatch alarms. Exported
+# rather than reconstructed at the call site so the alarm cannot silently point at a
+# non-existent instance if the naming here ever changes - a CloudWatch alarm on a
+# dimension that matches nothing sits at INSUFFICIENT_DATA and looks installed.
+output "instance_identifier" {
+  value = aws_db_instance.this.identifier
+}
+
+output "allocated_storage_gb" {
+  value = aws_db_instance.this.allocated_storage
+}

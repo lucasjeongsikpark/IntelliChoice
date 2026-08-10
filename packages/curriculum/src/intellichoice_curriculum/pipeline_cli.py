@@ -18,6 +18,7 @@ students.
 
 import argparse
 import asyncio
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -27,6 +28,7 @@ from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_adapters.bedrock.titan_embedding_provider import TitanEmbeddingProvider
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.models.questions import QuestionTemplate
+from intellichoice_observability.logging_config import configure_logging
 from intellichoice_shared.bedrock import BedrockGateway, BedrockTask, CostBudgetExceededError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -187,6 +189,49 @@ class RunSummary:
         )
 
 
+_log = logging.getLogger(__name__)
+
+
+def _log_run_complete(summary: RunSummary, *, stopped_early: str | None = None) -> None:
+    """One record carrying every counter, so a run can be compared to another run.
+
+    D-244. Emitted from both exits of `run_plan` - a run that stops on its budget is still
+    a run, and leaving it unrecorded is how a truncated batch gets compared against a
+    complete one without either number saying so. `stopped_early` is that flag.
+
+    The counters are the same ones `RunSummary` already keeps separate for the D-192
+    reason: `scheduled` is the denominator for coverage and `processed` for quality, and a
+    record that flattened them would recreate the exact confusion that dataclass exists to
+    prevent.
+    """
+    _log.info(
+        "pipeline_run_complete",
+        extra={
+            "stopped_early": stopped_early,
+            "scheduled": summary.scheduled,
+            "processed": summary.processed,
+            "filled": summary.filled,
+            "pending": summary.pending,
+            "retiered": summary.retiered,
+            "rejected": summary.rejected,
+            "rejected_generator": summary.rejected_generator,
+            "rejected_design": summary.rejected_design,
+            "rejected_validation": summary.rejected_validation,
+            "rejected_dedup": summary.rejected_dedup,
+            "rejected_solver": summary.rejected_solver,
+            "rejected_judge": summary.rejected_judge,
+            "rejected_difficulty": summary.rejected_difficulty,
+            "generator_calls": summary.generator_calls,
+            "repaired_to_pending": summary.repaired_to_pending,
+            "repaired_still_rejected": summary.repaired_still_rejected,
+            "skipped_circuit_open": summary.skipped_circuit_open,
+            "skipped_budget": summary.skipped_budget,
+            "skipped_duplicate_id": summary.skipped_duplicate_id,
+            "total_cost_cents": round(summary.total_cost_cents, 4),
+        },
+    )
+
+
 async def _settle(
     session: AsyncSession,
     summary: RunSummary,
@@ -221,6 +266,26 @@ async def _settle(
     summary.record(outcome)
     if outcome.status not in ("pending", "retiered"):
         summary.rejections.append((topic_id, difficulty_label, outcome.reasons))
+    # D-244: the machine-readable half. The `print` output above this function is the
+    # operator's UI and stays exactly as it is; this is what makes a run *queryable* -
+    # "which stage rejects most", "what did each tier cost", "which fields does the
+    # generator get wrong" are all one Logs Insights `stats by` away, and none of them
+    # were answerable before. Every field here is an id, a count or a rule name; no item
+    # text, because a rejected candidate's stem is content the model wrote (SPEC §5.30).
+    _log.info(
+        "pipeline_candidate",
+        extra={
+            "topic_id": topic_id,
+            "difficulty_label": difficulty_label,
+            "outcome": outcome.status,
+            "rejected_at": outcome.rejected_at,
+            "cost_cents": round(outcome.cost_cents, 4),
+            "attempts": outcome.attempts,
+            "schema_errors": (
+                outcome.stage_results.get("generator_request", {}).get("schema_errors", [])
+            ),
+        },
+    )
 
 
 @dataclass(frozen=True)
@@ -397,6 +462,15 @@ async def run_plan(
     curriculum = load_curriculum()
     summary = RunSummary()
     summary.scheduled = len(plan.slots)
+    _log.info(
+        "pipeline_run_started",
+        extra={
+            "scheduled": len(plan.slots),
+            "run_budget_cents": plan.run_budget_cents,
+            "max_repair_attempts": plan.max_repair_attempts,
+            "design_attempts": plan.design_attempts,
+        },
+    )
     spend = 0.0
     # One histogram per run, owned here (D-239). Run-scoped rather than persisted: a
     # histogram accumulated over months would let an instrument that has since drifted
@@ -408,6 +482,7 @@ async def run_plan(
     for slot in plan.slots:
         if spend >= plan.run_budget_cents:
             print(f"run budget of {plan.run_budget_cents} cents reached - stopping early")
+            _log_run_complete(summary, stopped_early="run_budget_reached")
             return summary
         try:
             outcome: PipelineOutcome = await generate_authored_candidate(
@@ -451,6 +526,7 @@ async def run_plan(
             topic_id=slot.topic_id,
             difficulty_label=slot.difficulty_label,
         )
+    _log_run_complete(summary)
     return summary
 
 
@@ -801,7 +877,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 async def main() -> None:
     args = build_parser().parse_args()
+    # D-244. Two things happen here, and the second is the one that was missing.
+    #
+    # This module's own records become JSON - but so do **the gateway's**. `bedrock_call`
+    # and `bedrock_call_failed` have been logged by `ResilientBedrockGateway` all along,
+    # and with no handler configured Python's default `lastResort` printed them at WARNING
+    # with no fields at all. That is why every paid batch to date had to be reconstructed
+    # afterwards from `question_validation_runs` rather than read from the run itself: the
+    # per-call cost, duration, model id and failure reason were computed, formatted, and
+    # then dropped on the floor.
     settings = get_pipeline_settings()
+    configure_logging(level=settings.log_level)
 
     candidates_per_slot = (
         args.candidates_per_slot

@@ -1,11 +1,53 @@
 data "aws_caller_identity" "current" {}
 
+# D-244: what is *actually* running, read at plan time. `aws_ecs_task_definition` resolves
+# the family to its latest ACTIVE revision - which is the revision `deploy-staging.yml`
+# registered, not the one Terraform last wrote.
+#
+# Guarded by `adopt_deployed_image` because a data source cannot be `try()`d out of
+# existence: on a brand-new environment there is no task definition to read and the lookup
+# fails at plan time, before any fallback could apply. Set it false for the first apply,
+# then leave it true forever.
+data "aws_ecs_task_definition" "deployed" {
+  for_each        = var.adopt_deployed_image ? toset(["learning-api", "chat-api"]) : toset([])
+  task_definition = "${var.name_prefix}-${each.key}"
+}
+
+data "aws_ecs_container_definition" "deployed" {
+  for_each        = data.aws_ecs_task_definition.deployed
+  task_definition = each.value.id
+  container_name  = each.key
+}
+
 locals {
   learning_api_ecr_url = module.ecr.repository_urls["learning-api"]
   chat_api_ecr_url     = module.ecr.repository_urls["chat-api"]
 
-  learning_api_image = "${local.learning_api_ecr_url}:${var.learning_api_image_tag}"
-  chat_api_image     = "${local.chat_api_ecr_url}:${var.chat_api_image_tag}"
+  # D-244 closes carry-over #8: **Terraform adopts the image the deploy last shipped,
+  # rather than re-rendering the one pinned in `terraform.tfvars`.**
+  #
+  # Terraform owns `aws_ecs_task_definition` and `deploy-staging.yml` owns which image goes
+  # in it. `lifecycle.ignore_changes` on the *service* stops Terraform fighting over which
+  # revision is current, but the task-definition *resource* still renders `var.*_image_tag`
+  # - so any Terraform change to the task definition silently reverted the deploy. That is
+  # not hypothetical: D-242 applied a one-line env var and rolled both services back to a
+  # months-old commit, and the tfvars pin is *still* `gha-70100623148d` while live runs
+  # `gha-fedeabf67427`. The workaround on record was "re-run the deploy immediately after",
+  # which is a procedure that has already been forgotten once.
+  #
+  # Reading the live container definition makes the two owners agree by construction: the
+  # deploy stays the only thing that changes the image, and Terraform stops having an
+  # opinion it was never the source of truth for. The tfvars pin survives only as the
+  # bootstrap fallback for an environment that has no task definition yet - see
+  # `adopt_deployed_image`.
+  learning_api_image = try(
+    data.aws_ecs_container_definition.deployed["learning-api"].image,
+    "${local.learning_api_ecr_url}:${var.learning_api_image_tag}"
+  )
+  chat_api_image = try(
+    data.aws_ecs_container_definition.deployed["chat-api"].image,
+    "${local.chat_api_ecr_url}:${var.chat_api_image_tag}"
+  )
 
   # S39: the OTel collector sidecar, from this account's *private* ECR mirror rather than
   # public.ecr.aws - the tasks have no NAT and cannot reach the public registry. Populate
@@ -44,6 +86,14 @@ locals {
   # needs iam's execution role ARN as an input).
   log_group_arns = [
     "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/ecs/${var.name_prefix}-*:*",
+  ]
+
+  # D-244: the same technique, one level narrower. The `awsemf` exporter runs under the
+  # *task* role (the sidecar shares it with the app), and it must not be able to write into
+  # the application log groups the five Bedrock metric filters read - so this names only
+  # the `/emf` suffix rather than reusing `log_group_arns` above.
+  metrics_log_group_arns = [
+    "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/ecs/${var.name_prefix}-*/emf:*",
   ]
 }
 
@@ -208,7 +258,9 @@ module "iam" {
   ])
   bedrock_model_arns = local.bedrock_model_arns
   log_group_arns     = local.log_group_arns
-  tags               = local.common_tags
+  # Empty when the sidecar is off: no collector, no EMF group, no reason to grant it.
+  metrics_log_group_arns = var.enable_otel_tracing ? local.metrics_log_group_arns : []
+  tags                   = local.common_tags
 
   # GitHub OIDC/deploy role: the repo now exists (S32/D-084's execution order deferred
   # this until it did) - see deploy-staging.yml.
@@ -678,6 +730,32 @@ module "observability" {
   log_group_names = {
     learning-api = module.ecs_service_learning_api.log_group_name
     chat-api     = module.ecs_service_chat_api.log_group_name
+  }
+  # D-244: where `pipeline_cli` and `loader` write. Both run here as ops tasks, so their
+  # records were already reaching CloudWatch - just as unstructured text nothing could read.
+  ops_task_log_group = module.ops_task.log_group_name
+  # D-244: 160 RDS metrics were being collected in this account and no alarm read one of
+  # them. `max_connections_alarm` differs per engine because the two instance classes do
+  # not share a connection ceiling - Postgres holds every session, checkpoint and question
+  # row and carries the real concurrency; MySQL is the read-only profile adapter (D-082)
+  # and should never be near its limit, so its threshold is set low enough that reaching it
+  # is itself the finding.
+  # 70% of the 1024 MiB task limit set above, shared between the app and the otel sidecar.
+  # Named here rather than left to the module default because the number is only meaningful
+  # next to the limit it is a fraction of: the point is to fire while there is still time to
+  # act, since the OOM kill itself only surfaces later as an unexplained 5xx burst.
+  ecs_memory_alarm_mib = 716
+  database_instances = {
+    postgres = {
+      identifier            = module.rds_postgres.instance_identifier
+      allocated_storage_gb  = module.rds_postgres.allocated_storage_gb
+      max_connections_alarm = 80
+    }
+    mysql = {
+      identifier            = module.rds_mysql.instance_identifier
+      allocated_storage_gb  = module.rds_mysql.allocated_storage_gb
+      max_connections_alarm = 40
+    }
   }
   # AUD-X-13 / criterion 7: a healthy grounded chat turn measures p95 ~16s (four sequential
   # model calls, D-115), so the shared 3s paging threshold alarmed on normal conversation.

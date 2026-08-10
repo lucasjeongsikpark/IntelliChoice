@@ -101,3 +101,52 @@ variable "log_group_names" {
   type        = map(string)
   default     = {}
 }
+
+# --- D-244 ----------------------------------------------------------------------------
+
+variable "database_instances" {
+  description = <<-EOT
+    RDS instances to alarm on, keyed by short name. `identifier` is the
+    `DBInstanceIdentifier` dimension; `allocated_storage_gb` sets the free-storage
+    threshold relative to the volume rather than as a fixed number of bytes, so resizing
+    the instance cannot silently turn the alarm into a no-op. `max_connections_alarm` is
+    per-engine because the two instance classes do not share a connection ceiling.
+  EOT
+  type = map(object({
+    identifier            = string
+    allocated_storage_gb  = number
+    max_connections_alarm = number
+  }))
+  default = {}
+}
+
+variable "ecs_memory_alarm_mib" {
+  description = <<-EOT
+    MemoryUtilized (MiB) above which an ECS service alarms. Set below the task's hard
+    memory limit with room to act: the point is to fire *before* the OOM kill, since the
+    kill itself only becomes visible later as an unexplained 5xx burst.
+  EOT
+  type        = number
+  default     = 700
+}
+
+variable "bedrock_hourly_spend_alarm_cents" {
+  description = <<-EOT
+    Bedrock spend in one hour, in cents, above which a service alarms. Calibrated from
+    measured runs rather than guessed: D-240 spent 64 cents on a 22-candidate batch and
+    D-243 spent 59 across five, both of which are *offline pipeline* runs rather than
+    serving traffic. A serving hour costing more than this has no benign explanation.
+  EOT
+  type        = number
+  default     = 200
+}
+
+variable "ops_task_log_group" {
+  description = <<-EOT
+    Log group of the ECS ops task, where the offline question-generation pipeline and the
+    curriculum loader write their records (D-244). Separate from `log_group_names` because
+    the same `bedrock_call` event name appears in both, and a batch's spend is not a
+    student's session cost.
+  EOT
+  type        = string
+}

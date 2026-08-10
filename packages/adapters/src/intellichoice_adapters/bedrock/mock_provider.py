@@ -9,6 +9,7 @@ import hashlib
 import json
 import random
 import re
+from collections.abc import Callable
 from datetime import datetime
 
 from .provider import RawEmbedding, RawGeneration
@@ -654,8 +655,24 @@ class MockBedrockProvider:
         user_message: str,
         json_schema: dict,
         max_output_tokens: int,
+        tools: list[dict] | None = None,
+        tool_executor: Callable[[str, dict], dict] | None = None,
+        max_tool_rounds: int = 4,
     ) -> RawGeneration:
-        del model_id, system_prompt, max_output_tokens
+        # D-244. These three exist so the signature matches `AnthropicBedrockProvider`'s,
+        # which D-202 widened when it gave the model a calculator during equation design.
+        # The mock was never widened with it, so **every call that passes `tools` raised
+        # `TypeError` at the provider boundary** - which the gateway catches as a provider
+        # failure, meaning the design stage could not run under the mock at all and the only
+        # way to exercise it was to pay. Same shape as D-238: a test double that cannot do
+        # what production does turns a free path into a paid one, silently.
+        #
+        # Accepted and ignored rather than simulated. A mock tool loop would be a second
+        # implementation of `execute_pipeline_tool`'s contract with nothing keeping the two
+        # honest, and the value here is a deterministic response - not a rehearsal of the
+        # round-trip, which `test_bedrock_gateway.py` already covers against a double built
+        # for it.
+        del model_id, system_prompt, max_output_tokens, tools, tool_executor, max_tool_rounds
         try:
             payload = json.loads(user_message)
         except ValueError:

@@ -4,6 +4,24 @@ resource "aws_cloudwatch_log_group" "this" {
   tags              = var.tags
 }
 
+# D-244: where the collector's `awsemf` exporter writes Embedded Metric Format records.
+#
+# **A separate group from the application's, deliberately.** EMF records are a transport,
+# not a diagnostic - CloudWatch extracts the metric from each one and the metric persists
+# on its own retention. Mixing them into `/ecs/<service>` would bury `bedrock_call` and
+# every Logs Insights query behind a wall of machine-written JSON, and the five existing
+# metric filters read that group.
+#
+# One day of retention for the same reason: the *metrics* live in CloudWatch Metrics for
+# fifteen months regardless. Keeping the raw EMF longer would pay storage twice for the
+# same numbers.
+resource "aws_cloudwatch_log_group" "metrics" {
+  count             = var.enable_otel_sidecar ? 1 : 0
+  name              = "/ecs/${var.name_prefix}-${var.name}/emf"
+  retention_in_days = 1
+  tags              = var.tags
+}
+
 resource "aws_lb_target_group" "this" {
   # Target group names share ALB's 32-char AWS limit - var.name_prefix alone
   # ("intellichoice-staging") already leaves no room for it plus var.name, so this
@@ -132,6 +150,20 @@ locals {
   # fetched and walked as structured documents (`aws xray batch-get-traces`), and a PII scan
   # that cannot parse its own target is the mistake D-101 §5 records: a `CAST(blob AS text)
   # LIKE` check over msgpack certified a database full of coordinates as clean.
+  #
+  # D-244 adds a second pipeline: Prometheus in → CloudWatch EMF out. `packages/
+  # observability/metrics.py` has defined twenty §5.32.4 KPIs since S17 and both apps have
+  # served them at `/metrics` ever since - and **nothing in AWS has ever scraped them.**
+  # Prometheus and Grafana exist only in `docker-compose.yml`, so every product signal
+  # (sessions started, exams completed, learning gain, cost per session, citations per
+  # answer, out-of-scope refusals) was computed in the running process and discarded.
+  # CloudWatch held five metrics per service, all of them derived from log lines about
+  # Bedrock.
+  #
+  # The sidecar is used rather than a scraper because it is already here: same container,
+  # same task role, same lifecycle. `localhost` reaches the app because Fargate `awsvpc`
+  # tasks share one network namespace, and `/metrics` is already exempt from the rate
+  # limiter (`intellichoice_shared.rate_limit`), so a 60s scrape needs no new exception.
   otel_collector_config = yamlencode({
     receivers = {
       otlp = {
@@ -140,12 +172,121 @@ locals {
           grpc = { endpoint = "0.0.0.0:4317" }
         }
       }
+      prometheus = {
+        config = {
+          scrape_configs = [{
+            job_name = var.name
+            # 60s, not the Prometheus default 15s: these are business counters read on a
+            # dashboard, not an autoscaling signal, and the EMF record count is what the
+            # ingestion bill is priced on.
+            scrape_interval = "60s"
+            metrics_path    = "/metrics"
+            static_configs  = [{ targets = ["localhost:${var.container_port}"] }]
+          }]
+        }
+      }
     }
     processors = {
       batch = { timeout = "5s", send_batch_size = 50 }
+      # **The allowlist is a cost control, and it is strict on purpose.** `prometheus_client`
+      # registers `python_gc_*`, `python_info` and a dozen `process_*` collectors into the
+      # default registry, none of which say anything about this product; and every distinct
+      # dimension combination CloudWatch sees is separately billed. Naming the twenty KPIs
+      # explicitly means a metric added to `metrics.py` does not silently start costing
+      # money - it has to be added here too, which is the right place to notice.
+      "filter/kpis" = {
+        metrics = {
+          include = {
+            match_type = "strict"
+            metric_names = [
+              "learning_session_starts_total",
+              "learning_attendance_checks_total",
+              "learning_exam_completions_total",
+              "learning_sessions_completed_total",
+              "learning_gain_score",
+              "learning_support_usage_total",
+              "learning_retry_total",
+              "learning_checkpoint_repairs_total",
+              "learning_tutor_review_flagged_total",
+              "learning_problem_reports_total",
+              "learning_quarantine_total",
+              "learning_session_cost_cents",
+              "qa_answers_total",
+              "qa_citations_per_answer",
+              "qa_email_escalations_total",
+              "qa_maps_calls_total",
+              "qa_calendar_calls_total",
+              "qa_out_of_scope_total",
+              "qa_service_degraded_total",
+              "qa_conversation_cost_cents",
+              "http_requests_total",
+              "http_request_duration_seconds",
+            ]
+          }
+        }
+      }
     }
     exporters = {
       awsxray = { region = var.region }
+      awsemf = {
+        region         = var.region
+        namespace      = "IntelliChoice/${var.name_prefix}/${var.name}"
+        log_group_name = "/ecs/${var.name_prefix}-${var.name}/emf"
+        # Without this the exporter also emits a zero-dimension rollup of every metric,
+        # doubling the billed series to say something the dimensioned version already says.
+        dimension_rollup_option = "NoDimensionRollup"
+        # A metric not named here is still scraped and still written as an EMF field - it
+        # simply is not promoted to a CloudWatch metric. So this list, not the filter above,
+        # is what the bill is proportional to.
+        #
+        # **Dimensions are kept to at most one label.** `http_requests_total` carries
+        # (app, method, path, status); indexing all four would create a metric per route
+        # per status per method - hundreds of series to answer a question the ALB metrics
+        # already answer. Indexed on `status` alone, it answers the one thing the ALB
+        # cannot: which *application* status codes, distinguished from edge errors.
+        metric_declarations = [
+          {
+            dimensions = [[]]
+            metric_name_selectors = [
+              "learning_session_starts_total",
+              "learning_sessions_completed_total",
+              "learning_gain_score",
+              "learning_retry_total",
+              "learning_checkpoint_repairs_total",
+              "learning_tutor_review_flagged_total",
+              "learning_problem_reports_total",
+              "learning_quarantine_total",
+              "learning_session_cost_cents",
+              "qa_citations_per_answer",
+              "qa_email_escalations_total",
+              "qa_out_of_scope_total",
+              "qa_conversation_cost_cents",
+              "http_request_duration_seconds",
+            ]
+          },
+          {
+            dimensions = [["result"]]
+            metric_name_selectors = ["learning_attendance_checks_total", "qa_answers_total",
+            "qa_maps_calls_total", "qa_calendar_calls_total"]
+          },
+          {
+            dimensions            = [["phase"]]
+            metric_name_selectors = ["learning_exam_completions_total"]
+          },
+          {
+            dimensions            = [["support_type"]]
+            metric_name_selectors = ["learning_support_usage_total"]
+          },
+          {
+            dimensions            = [["stage"]]
+            metric_name_selectors = ["qa_service_degraded_total"]
+          },
+          {
+            dimensions            = [["status"]]
+            metric_name_selectors = ["http_requests_total"]
+          },
+        ]
+      }
     }
     service = {
       pipelines = {
@@ -153,6 +294,11 @@ locals {
           receivers  = ["otlp"]
           processors = ["batch"]
           exporters  = ["awsxray"]
+        }
+        metrics = {
+          receivers  = ["prometheus"]
+          processors = ["filter/kpis", "batch"]
+          exporters  = ["awsemf"]
         }
       }
     }

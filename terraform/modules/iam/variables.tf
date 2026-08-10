@@ -84,3 +84,15 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "metrics_log_group_arns" {
+  description = <<-EOT
+    CloudWatch Log Group ARNs the shared ECS *task* role may write Embedded Metric Format
+    records to (D-244). Deliberately separate from `log_group_arns`, which the *execution*
+    role uses for container stdout: the collector shares the task role with the application
+    container, so anything granted here is reachable from application code too. Empty
+    disables the grant entirely.
+  EOT
+  type        = list(string)
+  default     = []
+}

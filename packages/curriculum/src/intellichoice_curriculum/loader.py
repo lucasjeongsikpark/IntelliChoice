@@ -16,6 +16,7 @@ authored item *is* its content.
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass
 
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
@@ -27,6 +28,7 @@ from intellichoice_db.models.questions import (
 )
 from intellichoice_db.repositories.curriculum import CurriculumRepository
 from intellichoice_db.repositories.questions import QuestionRepository
+from intellichoice_observability.logging_config import configure_logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.authored_bank import (
@@ -290,7 +292,20 @@ async def load_curriculum_and_templates(session: AsyncSession) -> LoadSummary:
     return summary
 
 
+_log = logging.getLogger(__name__)
+
+
 async def main() -> None:
+    # D-244 closes a carry-over that had stood for twelve decisions. The deploy runs this
+    # as an ECS ops task and asserts only `test "$EXIT_CODE" = "0"` - so the summary line
+    # below, which is the one place that distinguishes created / updated / unchanged /
+    # retired, went to CloudWatch as unstructured text nobody could query and nothing could
+    # alarm on. D-235's defect hid behind exactly that line ("127 already existed, 0
+    # created") for twelve decisions.
+    #
+    # The `print` stays: it is what a human running `make` reads. The record below is what
+    # a metric filter and a Logs Insights query can read.
+    configure_logging()
     engine = create_engine()
     try:
         session_factory = create_session_factory(engine)
@@ -304,6 +319,18 @@ async def main() -> None:
             f"{summary.templates_skipped_existing} unchanged, "
             f"{summary.templates_retired} retired), "
             f"{summary.variants_created} sample variants."
+        )
+        _log.info(
+            "curriculum_load_complete",
+            extra={
+                "topics_created": summary.topics_created,
+                "skills_created": summary.skills_created,
+                "templates_created": summary.templates_created,
+                "templates_updated": summary.templates_updated,
+                "templates_unchanged": summary.templates_skipped_existing,
+                "templates_retired": summary.templates_retired,
+                "variants_created": summary.variants_created,
+            },
         )
     finally:
         await engine.dispose()
