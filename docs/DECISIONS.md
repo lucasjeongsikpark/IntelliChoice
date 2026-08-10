@@ -18658,3 +18658,69 @@ reviewer for a job the design deliberately took away from it, and now says so.
 `--contract`'s argparse `choices` were also a hardcoded list that had already gone stale on the
 first addition; they derive from the registry now. That failure cost nothing only because
 argparse refuses before the model call rather than after it.
+
+## D-257 — the reviewers were under-reporting, and a free check found twice as much (accepted, 2026-08-10)
+
+The open question after D-256 was whether the union's **22.4%** block rate on human-approved
+content was signal or drift. Answered without spending anything.
+
+### Every blocked item read so far is a real defect
+
+**6 of 6**, across both runs, verified by reading the bank YAML rather than trusting the verdict:
+
+| item | reviewer's claim | verified |
+|---|---|---|
+| `fraction_operations-d2-100205` | step 3 "divide top and bottom by 3" shows `[6/9]`, the input | ✅ |
+| `place_value-d4-200402` | ladder teaches comparison for a question needing subtraction | ✅ |
+| `fraction_operations-d2-100204` | "divide by 6" shows `[6/12]`, final is `1/2` | ✅ |
+| `fraction_operations-d3-100307` | "divide by 2" shows `[2/6]`, final is `1/3` | ✅ |
+| `linear_equations-d3-2609301` | "subtract 20 from both sides" does not produce `[50 - 20 = 5x]` | ✅ |
+| `place_value-d3-200304` | `[128 plus something makes 182]`, never computes 54 | ✅ |
+
+The `2609301` one is the subtlest and the most reassuring: subtracting 20 from both sides of
+`50 - 5x = 20` gives `30 - 5x = 0`, not what is shown. The displayed line needs *two* operations
+described as one. **The final answer is still correct**, so no arithmetic gate could ever catch
+it - which is exactly the class of defect an LLM reviewer is for.
+
+### The pattern is systematic, and `scripts/audit_solution_step_completeness.py` measures it free
+
+**44 of 130 items (33.8%)** end their worked solution without ever stating the answer, in a way
+that is unambiguous: 27 show unevaluated arithmetic (`[6/12]` → `1/2`), 17 state an unknown they
+never solve (`[4 x ? = 24]` → `6`). The outer bound is 60 (46.2%) once judgement calls are
+included.
+
+**So the reviewers are under-reporting, not over-reporting.** A free regex finds roughly twice
+what the pair flagged. That is the *opposite* of D-249's failure mode, where the signal fired on
+46% of everything and therefore described the judge. The concern about 22.4% is resolved in the
+direction that matters.
+
+**Concentrated by skill, and it maps onto known history:**
+
+| skill | rate |
+|---|---|
+| `mult_multi_digit` | 5/5 (100%) |
+| `place_value_compare` | 14/15 (93%) |
+| `mult_facts` | 5/7 (71%) |
+| `linear_two_step` | 1/15 (7%) |
+
+`linear_equations` is nearly clean; `place_value` and `multiplication_division` are near-total.
+**Those are the same two topics D-238 already found structurally defective** - `place_value`'s
+rubric was two ladders wearing one coat, and `multiplication_division`'s `div_remainder` items
+all stated the remainder in the stem. Three independent findings now point at the same two
+topics.
+
+### The check is deliberately not a gate
+
+§3 admits deterministic checks only for **exact invariants**, and this is not one: `[18 = 18 ✓]`
+is a legitimate substitution check that ends a correct solution without restating the answer, and
+a grade-1 item answering `[4 groups of ten]` for `40` is a judgement call. Both land in the
+14-item "numeric, but not the answer" bucket, which the script keeps separate rather than
+averaging into a single number that would be wrong in both directions. **Turning a ~90% heuristic
+into a gate is the mistake D-249 and D-245 both paid for.** It is an audit, and it is the
+before/after metric for the §4 repair loop when that gets built.
+
+### What this does not establish
+
+Still nothing about **false acceptance**. Every item examined here was one a reviewer *blocked*.
+The 38 items the union passed have not been checked against this audit, and check 3 remains the
+only mechanism that would ever see a jointly-wrong pass.
