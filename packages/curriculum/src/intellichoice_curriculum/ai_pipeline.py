@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field, replace
-from typing import Literal
+from typing import Literal, NamedTuple
 
 from intellichoice_db.models.questions import (
     VARIANT_ORIGIN_CANONICAL,
@@ -58,6 +58,7 @@ from intellichoice_shared.bedrock import (
     RepairContext,
     SolverPayload,
     SolverResponse,
+    StructuredOutputError,
 )
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1167,6 +1168,22 @@ async def _design_equation(
 _CIRCUIT_OPEN_MARKER = "circuit_open"
 
 
+class _GeneratorAttempt(NamedTuple):
+    """One call's outcome. A `NamedTuple` rather than a fifth positional element because
+    D-243's `schema_errors` was the point at which the tuple stopped being readable at the
+    call site - `item, cost, error, model_id, digest = ...` is four chances to mis-order.
+    """
+
+    item: AuthoredGeneratedItemResponse | None
+    cost_cents: float
+    error: str | None
+    model_id: str
+    # Which fields broke which rules, when `error` is a structured-output failure (D-243).
+    # Empty for every other kind of failure, which is what makes its presence meaningful:
+    # a non-empty digest says the model answered and answered off-contract.
+    schema_errors: list[str] = []
+
+
 async def _generate_authored_item(
     gateway: BedrockGateway,
     *,
@@ -1176,7 +1193,7 @@ async def _generate_authored_item(
     spend: float,
     repair: RepairContext | None = None,
     verified_design: EquationDesignResponse | None = None,
-) -> tuple[AuthoredGeneratedItemResponse | None, float, str | None, str]:
+) -> _GeneratorAttempt:
     """Stage 1 of authored mode: the one call that invents the question.
 
     Returns the model id as a fourth element rather than going through `_call`, which
@@ -1208,10 +1225,16 @@ async def _generate_authored_item(
         # Distinguished from every other gateway failure before it is flattened to a
         # string: the caller has to tell "we asked and it went wrong" from "we never
         # asked", and by the time it is a message that distinction is a substring match.
-        return None, exc.cost_cents, f"{_CIRCUIT_OPEN_MARKER}: {exc}", ""
+        return _GeneratorAttempt(None, exc.cost_cents, f"{_CIRCUIT_OPEN_MARKER}: {exc}", "")
+    except StructuredOutputError as exc:
+        # The 41% case (D-240), carried structurally rather than only inside the message
+        # so it groups in SQL. `OutputTruncatedError` is a subclass and lands here too,
+        # correctly: its digest is empty, which is how "ran out of tokens" stays visibly
+        # different from "answered off-contract".
+        return _GeneratorAttempt(None, exc.cost_cents, str(exc), "", list(exc.schema_errors))
     except BedrockGatewayError as exc:
-        return None, exc.cost_cents, str(exc), ""
-    return result.value, result.cost_cents, None, result.model_id
+        return _GeneratorAttempt(None, exc.cost_cents, str(exc), "")
+    return _GeneratorAttempt(result.value, result.cost_cents, None, result.model_id)
 
 
 # Stages a repair attempt is allowed to act on (D-198). The exclusions carry the whole
@@ -1488,7 +1511,7 @@ async def _attempt_authored_candidate(
         )
 
     # --- 1. Authored Generator Agent --------------------------------------------
-    item, cost, error, generator_model_id = await _generate_authored_item(
+    item, cost, error, generator_model_id, schema_errors = await _generate_authored_item(
         gateway,
         topic=topic,
         skill=skill,
@@ -1515,6 +1538,11 @@ async def _attempt_authored_candidate(
                     "task": BedrockTask.AUTHORED_QUESTION_GENERATION.value,
                     "max_output_tokens": _AUTHORED_ITEM_MAX_TOKENS,
                     "provider_error": error,
+                    # D-243. Its own key rather than only inside `provider_error`, because
+                    # the question this exists to answer - *which* fields does the
+                    # generator get wrong, across a whole run - is a `GROUP BY`, and a
+                    # sentence with the digest glued on the end does not group.
+                    "schema_errors": schema_errors,
                 }
             },
             "circuit_open" if (error or "").startswith(_CIRCUIT_OPEN_MARKER) else "generator",

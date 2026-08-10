@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Annotated, ClassVar, Literal, Protocol, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 
 class BedrockTask(StrEnum):
@@ -1244,10 +1244,60 @@ class BedrockTimeoutError(BedrockGatewayError):
     pass
 
 
+# A model that has lost the contract entirely emits dozens of off-schema keys, and each
+# one becomes an entry in a JSON column and a log line. Small on purpose: past the first
+# handful a reader has already learned which way the model drifted (D-243).
+MAX_SCHEMA_ERRORS = 8
+
+# Stands in for `loc` when the response was not JSON at all, which Pydantic never sees and
+# therefore never names. Bracketed so it cannot collide with a real field.
+NOT_JSON_DIGEST = "<response>: not_json"
+
+
+def schema_error_digest(exc: ValidationError, *, limit: int = MAX_SCHEMA_ERRORS) -> list[str]:
+    """`field.path: rule` for each violation, and deliberately nothing else (D-243).
+
+    **The omission is the point.** `ValidationError.errors()` embeds the offending `input`
+    unless told otherwise, and on the generator path that input is the item the model just
+    wrote - a full stem, four options, a hint ladder. Keeping it would put model-written
+    content into an exception message, a log line and a database row at once, which is
+    three new places for content this project keeps out of logs on principle (SPEC §5.30).
+
+    `loc` and `type` carry everything a reader acts on: which field, which rule. They also
+    group in SQL, which is what turns twenty-eight identical rows into a distribution.
+    """
+    seen: list[str] = []
+    for error in exc.errors(include_url=False, include_input=False):
+        loc = ".".join(str(part) for part in error["loc"]) or "<root>"
+        entry = f"{loc}: {error['type']}"
+        if entry not in seen:
+            seen.append(entry)
+        if len(seen) == limit:
+            break
+    return seen
+
+
 class StructuredOutputError(BedrockGatewayError):
     """Raised after the provider's raw output failed Pydantic validation and the single
     repair retry (SPEC §5.25.3) also failed.
+
+    `schema_errors` is the D-243 addition: which fields broke which rules. Before it, every
+    failure of this kind reached the caller as one constant sentence, so the pipeline's
+    single largest loss - 41% of authored candidates, measured in D-240 - was recorded 28
+    times without once recording a cause. The digest is also folded into the message, so a
+    caller that only flattens the exception to a string benefits without being changed.
     """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        cost_cents: float = 0.0,
+        schema_errors: list[str] | None = None,
+    ) -> None:
+        detail = f"{message} [{', '.join(schema_errors)}]" if schema_errors else message
+        super().__init__(detail, cost_cents=cost_cents)
+        self.schema_errors: list[str] = list(schema_errors or [])
 
 
 class OutputTruncatedError(StructuredOutputError):

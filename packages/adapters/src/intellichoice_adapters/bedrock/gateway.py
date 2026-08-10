@@ -17,6 +17,7 @@ from typing import Any, TypeVar
 
 from intellichoice_observability.tracing import traced_span
 from intellichoice_shared.bedrock import (
+    NOT_JSON_DIGEST,
     BedrockGenerationResult,
     BedrockTask,
     BedrockTimeoutError,
@@ -25,6 +26,7 @@ from intellichoice_shared.bedrock import (
     EmbeddingResult,
     OutputTruncatedError,
     StructuredOutputError,
+    schema_error_digest,
 )
 from pydantic import BaseModel, ValidationError
 
@@ -491,7 +493,7 @@ class ResilientBedrockGateway:
         tokens_so_far: tuple[int, int],
         truncated: bool = False,
     ) -> tuple[T, bool, int, int, int, int]:
-        value = self._try_validate(raw_text, response_model)
+        value, _ = self._try_validate(raw_text, response_model)
         if value is not None:
             return value, False, 0, 0, 0, 0
 
@@ -533,11 +535,15 @@ class ResilientBedrockGateway:
                 cost_cents=self._cost_cents(model_id, already_in, already_out),
             ) from exc
 
-        value = self._try_validate(repaired_raw.text, response_model)
+        value, schema_errors = self._try_validate(repaired_raw.text, response_model)
         if value is None:
             # No `_record_failure()`: both calls reached Bedrock and came back. The
             # schema mismatch is ours to fix, and counting it as provider ill-health
             # opens the circuit on every other task too (D-115).
+            #
+            # The digest is the *repair's* failure, not the first call's, on purpose: the
+            # repair prompt has already told the model its output was off-schema, so what
+            # it got wrong the second time is the defect that survived being told (D-243).
             raise StructuredOutputError(
                 "structured output still invalid after one repair retry",
                 cost_cents=self._cost_cents(
@@ -545,6 +551,7 @@ class ResilientBedrockGateway:
                     already_in + repaired_raw.input_tokens,
                     already_out + repaired_raw.output_tokens,
                 ),
+                schema_errors=schema_errors,
             )
         return (
             value,
@@ -556,12 +563,20 @@ class ResilientBedrockGateway:
         )
 
     @staticmethod
-    def _try_validate(raw_text: str, response_model: type[T]) -> T | None:
+    def _try_validate(raw_text: str, response_model: type[T]) -> tuple[T | None, list[str]]:
+        """Returns the value, or `None` plus a digest of what stopped it (D-243).
+
+        The two failure arms stay distinguishable all the way to the caller. Prose back
+        from the model means the tool was never called - a model or parser problem, which
+        `smoke_cli` already classifies as `PARSER INCOMPATIBILITY`. Valid JSON of the wrong
+        shape means the contract is being read and missed. They are fixed by opposite
+        actions and used to arrive as the same sentence.
+        """
         try:
             data = json.loads(raw_text)
         except ValueError:
-            return None
+            return None, [NOT_JSON_DIGEST]
         try:
-            return response_model.model_validate(data)
-        except ValidationError:
-            return None
+            return response_model.model_validate(data), []
+        except ValidationError as exc:
+            return None, schema_error_digest(exc)

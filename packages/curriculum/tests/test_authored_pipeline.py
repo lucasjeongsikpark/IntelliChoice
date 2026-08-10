@@ -45,6 +45,7 @@ from intellichoice_shared.bedrock import (
     SolutionStep,
     SolverPayload,
     SolverResponse,
+    StructuredOutputError,
 )
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import select, text
@@ -1810,6 +1811,61 @@ def test_a_generator_failure_records_the_request_and_error_without_inventing_con
             assert request["planned_template_id"] == "authored-linear_equations-d2-501005"
             assert request["seed"] == 501005
             assert "AccessDeniedException" in request["provider_error"]
+            # An access denial is not an off-contract response, so the digest stays empty.
+            # That emptiness is load-bearing: it is what makes a *populated* digest mean
+            # "the model answered and answered wrong" rather than "something went wrong".
+            assert request["schema_errors"] == []
+
+    asyncio.run(run())
+
+
+class _OffContractGeneratorGateway(_ScriptedAuthoredGateway):
+    """The generator answers, promptly and off-contract - D-240's 41% case.
+
+    Scripted at the gateway rather than the provider because this file's doubles all sit
+    at that seam; the digest's *construction* from a real `ValidationError` is pinned in
+    `test_structured_output_diagnosis.py`, and duplicating it here would be a second copy
+    of the same rule (D-223).
+    """
+
+    async def generate_structured(self, **kwargs: object) -> object:
+        model = kwargs.get("response_model")
+        if getattr(model, "__name__", "") == "AuthoredGeneratedItemResponse":
+            raise StructuredOutputError(
+                "structured output still invalid after one repair retry",
+                cost_cents=0.0,
+                schema_errors=["hint_ladder: too_long", "teacher_notes: extra_forbidden"],
+            )
+        return await super().generate_structured(**kwargs)  # type: ignore[arg-type]
+
+
+def test_a_schema_failure_records_which_fields_broke_the_contract() -> None:
+    """D-243. The single largest loss in this pipeline, made diagnosable.
+
+    D-240 measured the authored generator failing structured output on 41% of candidates,
+    and the 28 rows already in `question_validation_runs` all carry the identical sentence
+    `"structured output still invalid after one repair retry"` under `provider_error` and
+    nothing else. `reasons` says it a second time. There is no third place to look.
+
+    The digest gets its own key rather than living only inside the message because the
+    question worth asking is a `GROUP BY` - *which* fields does the generator get wrong,
+    across a whole run - and a sentence with the detail glued onto its end does not group.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            outcome, run_row = await _reject_and_fetch(
+                session, _OffContractGeneratorGateway(), seed=501030
+            )
+            assert outcome.rejected_at == "generator"  # type: ignore[attr-defined]
+            request = run_row.stage_results["generator_request"]
+            assert request["schema_errors"] == [
+                "hint_ladder: too_long",
+                "teacher_notes: extra_forbidden",
+            ]
+            # Also in the flattened message, so the pre-D-243 reader of `reasons` - which
+            # is what `review_cli` prints - gains the detail without being changed.
+            assert "hint_ladder: too_long" in outcome.reasons[0]  # type: ignore[attr-defined]
 
     asyncio.run(run())
 
