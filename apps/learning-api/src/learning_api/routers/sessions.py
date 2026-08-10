@@ -25,6 +25,7 @@ from intellichoice_db.repositories.stage_transition import StageTransitionReposi
 from intellichoice_db.repositories.study import StudyRepository
 from intellichoice_db.repositories.tutor_chat import TutorChatMessageRepository
 from intellichoice_db.repositories.youtube import YoutubeRepository
+from intellichoice_observability.langsmith_config import langsmith_correlation_metadata
 from intellichoice_observability.metrics import CHECKPOINT_REPAIRS, SESSION_STARTS
 from intellichoice_shared.auth import TokenClaims
 from intellichoice_shared.bedrock import BedrockGateway, ChatVizSpec
@@ -395,7 +396,20 @@ def _items_response(items: list[dict] | None) -> list[QuestionItemResponse] | No
 
 
 def _graph_config(learning_session_id: str) -> RunnableConfig:
-    return {"configurable": {"thread_id": learning_session_id}}
+    """The config every `graph.ainvoke` runs under - and the one seam where a LangSmith run
+    gains the id that X-Ray and every CloudWatch log line already carry (D-242).
+
+    Without it the two observability legs never met: you could find a slow request's span
+    and its logs, then had to match its LangGraph node tree by timestamp, which stops
+    working the moment two students are active at once. `metadata` is what LangSmith's
+    tracer reads off this config; the key is absent rather than null when nothing is
+    tracing, so "no correlation" and "correlation is null" stay different states.
+    """
+    config: RunnableConfig = {"configurable": {"thread_id": learning_session_id}}
+    correlation = langsmith_correlation_metadata()
+    if correlation:
+        config["metadata"] = correlation
+    return config
 
 
 async def _reconcile_checkpoint(

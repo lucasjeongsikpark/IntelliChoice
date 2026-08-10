@@ -16,6 +16,7 @@ from intellichoice_db.repositories.interrupts import InterruptApprovalRepository
 from intellichoice_db.repositories.mcp import McpToolCallRepository
 from intellichoice_db.repositories.org import OrgEventRepository
 from intellichoice_db.repositories.rag import RagRepository
+from intellichoice_observability.langsmith_config import langsmith_correlation_metadata
 from intellichoice_shared.auth import TokenClaims
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.mcp import McpToolRegistry
@@ -181,7 +182,20 @@ def _publish_snapshot(events: ChatSessionEventBus, response: BaseModel) -> None:
 
 
 def _graph_config(chat_session_id: str) -> RunnableConfig:
-    return {"configurable": {"thread_id": chat_session_id}}
+    """The config every `graph.ainvoke` runs under - and the one seam where a LangSmith run
+    gains the id that X-Ray and every CloudWatch log line already carry (D-242).
+
+    Without it the two observability legs never met: you could find a slow request's span
+    and its logs, then had to match its LangGraph node tree by timestamp, which stops
+    working the moment two students are active at once. `metadata` is what LangSmith's
+    tracer reads off this config; the key is absent rather than null when nothing is
+    tracing, so "no correlation" and "correlation is null" stay different states.
+    """
+    config: RunnableConfig = {"configurable": {"thread_id": chat_session_id}}
+    correlation = langsmith_correlation_metadata()
+    if correlation:
+        config["metadata"] = correlation
+    return config
 
 
 def _pending_task_interrupt(snapshot: StateSnapshot) -> Interrupt | None:

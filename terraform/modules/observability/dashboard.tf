@@ -88,6 +88,32 @@ resource "aws_cloudwatch_log_metric_filter" "bedrock_failed" {
   }
 }
 
+# D-242: telemetry that fails silently. The LangSmith client logs its ingest failures at
+# WARNING from its own logger and then retries forever, so a leg of the observability
+# architecture can be completely dark while every dashboard stays green - which is exactly
+# what happened: staging POSTed to `runs/multipart`, got 403 Forbidden on every flush for
+# days, and nothing surfaced it. The client only falls back to batch ingest on a 404, so a
+# 403 never self-heals.
+#
+# Keyed on the logger rather than an `$.event` value like the filters around it, because
+# this is a third-party library's message text and it is not ours to keep stable. Any
+# warning from a telemetry client means telemetry is being lost, which is the thing worth
+# alarming on regardless of which sentence it used.
+resource "aws_cloudwatch_log_metric_filter" "langsmith_ingest_failed" {
+  for_each       = var.log_group_names
+  name           = "${var.name_prefix}-${each.key}-langsmith-ingest-failed"
+  log_group_name = each.value
+  pattern        = "{ $.logger = \"langsmith.client\" }"
+
+  metric_transformation {
+    name          = "LangSmithIngestFailed"
+    namespace     = local.metric_namespace[each.key]
+    value         = "1"
+    default_value = "0"
+    unit          = "Count"
+  }
+}
+
 # The breaker specifically, split out from failures. An open circuit means calls are being
 # refused *without being attempted*, which reads as "nothing is happening" in every other
 # view - the authoring batch's fourteen skipped candidates and $0.00 spend.
@@ -158,7 +184,8 @@ resource "aws_cloudwatch_dashboard" "main" {
             yAxis  = { left = { min = 0 } }
             metrics = concat(
               [for name in keys(var.log_group_names) : [local.metric_namespace[name], "BedrockCallFailed", { label = "${name} failed" }]],
-              [for name in keys(var.log_group_names) : [local.metric_namespace[name], "BedrockCircuitOpen", { label = "${name} circuit open" }]]
+              [for name in keys(var.log_group_names) : [local.metric_namespace[name], "BedrockCircuitOpen", { label = "${name} circuit open" }]],
+              [for name in keys(var.log_group_names) : [local.metric_namespace[name], "LangSmithIngestFailed", { label = "${name} langsmith ingest failed" }]]
             )
           }
         },

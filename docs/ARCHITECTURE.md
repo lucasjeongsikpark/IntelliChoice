@@ -1556,8 +1556,21 @@ flowchart TB
     COLL --> AWS["X-Ray + CloudWatch<br/>via VPC endpoint - never leaves AWS"]
     LSC --> SAAS["LangSmith SaaS<br/>via the one NAT gateway - leaves AWS"]
     AWS --> SYS["system observability<br/>request spans, structured logs,<br/>4 metric filters per service"]
-    SAAS --> AI["AI observability<br/>node trees incl. prompt + response payloads"]
+    SAAS --> AI["AI observability<br/>node structure + timings<br/>inputs/outputs masked at source"]
 ```
+
+**The two legs join on `trace_id` (D-242).** `logging_config` stamps it on every log line, X-Ray
+keys on the same value, and `_graph_config` now puts it on every LangSmith run as
+`metadata.otel_trace_id` - so one id takes you from a slow span to that request's log lines to its
+node tree. Before D-242 the LangSmith leg carried no reference to the request that produced it and
+had to be matched by timestamp, which stops working the moment two students are active at once.
+
+> ⚠️ **The LangSmith leg is configured, reachable, and receiving nothing** (D-242, unresolved).
+> Staging POSTs to `runs/multipart` and gets **403 Forbidden** on every flush; the client only falls
+> back to batch ingest on a *404*, so it retries forever at WARNING and the project has **zero runs**.
+> Everything on our side is correct - key valid, NAT and route open, security group open, client
+> installed - so this needs a LangSmith credential/entitlement change, not a code change. The new
+> `LangSmithIngestFailed` metric filter is what makes it visible rather than silent.
 
 `LangGraph` and `FastAPI` are the same process - the split is about which *sink* answers which
 question, not about which service is running. One `trace_id` still spans FastAPI → LangGraph →
@@ -1575,7 +1588,7 @@ The private subnets carried no `0.0.0.0/0` route and the account ran **zero NAT 
 | **CloudWatch Logs** | VPC endpoint | structured JSON, external ids only, no PII (SPEC §5.30) |
 | **CloudWatch metrics** (D-213) | derived from those logs by 4 metric filters per service — `BedrockCostCents`, `BedrockCallDurationMs`, `BedrockCallFailed`, `BedrockCircuitOpen` | numbers only |
 | **X-Ray** (S39) | `otel-collector` sidecar per task, OTLP in on `localhost:4318` → `awsxray` exporter → VPC endpoint | request spans; the S38 PII floor applies |
-| **LangSmith** (D-214) | **the public internet**, via one NAT gateway | LangGraph node trees **including prompt and response payloads** |
+| **LangSmith** (D-214) | **the public internet**, via one NAT gateway | LangGraph node **structure and timings**. Inputs and outputs are **masked at source** - `configure_langsmith()` forces `LANGSMITH_HIDE_INPUTS`/`_OUTPUTS=true` for SPEC §5.32.1's "complete PII masking", and its test asserts that as not optional. D-242 corrected this row, which used to claim prompt and response payloads leave AWS |
 
 **LangSmith is the only egress that leaves AWS, and the only reason a NAT gateway exists.** It is
 third-party SaaS with no PrivateLink equivalent, so `api.smith.langchain.com` is reachable no other
