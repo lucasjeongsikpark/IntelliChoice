@@ -26,6 +26,11 @@ deployed apps sharing auth from the existing `go.intellichoice.org` system:
   AI question-generation pipeline: authored-first only, how difficulty is proposed and independently
   reviewed, how to run a batch, and what preflight refuses. Read before changing anything in
   `packages/curriculum`'s pipeline.
+- [docs/HINT_SOLUTION_REVIEW.md](docs/HINT_SOLUTION_REVIEW.md) — the **planned** design (D-251) for
+  LLM review of hint ladders and canonical solutions: the `PASS`/`REPAIR`/`REJECT` instrument, what
+  stays deterministic, and the five falsification checks that gate it. Read before adding any
+  hint- or solution-quality scoring — two such scorers already exist and §1 explains why neither
+  worked.
 - [docs/S42_DISCOVERY.md](docs/S42_DISCOVERY.md) — what the **existing** `go.intellichoice.org`
   system actually does, read from its own source (D-151). Read this before assuming anything about
   production's schema, roles, attendance, or login contract.

@@ -512,6 +512,18 @@ def hint_ladder_monotonicity_violations(hint_ladder: list[str]) -> list[int]:
     plan's own phrasing ("level n must not contain level n+1's revealed content").
     Returns the 1-based indices of levels found to violate this, shared by authored-item
     validation and S21's hand-authored shape ladders / runtime personalized-hint check.
+
+    **The name is broader than the check, and that gap is deliberate (D-251).** This is
+    verbatim containment and nothing else: `later.strip() in earlier`. It does not fire on a
+    paraphrase, on a reordered ladder, or on a rung that adds nothing new in different words -
+    all of which are failures of progression that this function will report as clean.
+
+    It is kept because what it *does* cover it covers exactly and for free, which is the bar
+    for a deterministic check here. Real rung-to-rung progression is a semantic judgment and
+    belongs to LLM review (HINT_SOLUTION_REVIEW.md §3). **Do not read the name and conclude
+    monotonicity is handled**, and do not widen this into a heuristic - a fuzzy "novelty"
+    string rule would punish legitimate restatement and reward synonym-swapping, which is the
+    D-249 failure mode one layer down.
     """
     violations = []
     for i in range(len(hint_ladder) - 1):

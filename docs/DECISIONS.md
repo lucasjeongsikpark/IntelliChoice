@@ -18224,3 +18224,121 @@ queue and, in the end, a paid sample of the bank.
 Whether the generator's hint ladders are actually weaker than the bank's *by a standard other
 than this judge's score*. This run says the judge cannot tell them apart. It does not say they
 are equally good.
+
+---
+
+## D-250 — delete the duplicate leak helper D-246 added (accepted, 2026-08-10)
+
+Recorded after the fact: the change shipped as commit `6d591d9` (PR #211) without an entry here,
+which is the convention it should have followed.
+
+D-246 restored a deterministic hint-leak check and, in doing so, wrote a *second* implementation
+of a rule that had existed since D-201. `answer_leaked_beyond_the_question` was already in
+`authored_validation.py`, already enforcing the same visibility rule, and its docstring already
+recorded that it "destroyed four correct items before this existed".
+
+So the D-246 "finding" was a rediscovery and the D-246 "fix" was a duplicate — introduced in the
+same change that cited **D-223: one rule, one implementation**. The two copies had not yet
+diverged; the point is that they were always going to.
+
+`ai_pipeline.py` now calls the D-201 helper directly. 1099 tests pass, `ruff` and `pyright` clean.
+
+**The generalisable part:** a rule that is *restored* is the highest-risk kind of change, because
+the thing being restored may not be missing. The check that would have caught this is grepping
+for the rule's *behaviour* rather than its name — the two implementations shared no identifier.
+
+---
+
+## D-251 — hint & solution quality review: a plan whose first commitment is falsification (accepted, 2026-08-10)
+
+Full design in [HINT_SOLUTION_REVIEW.md](HINT_SOLUTION_REVIEW.md). This entry records the
+decisions and the reasoning behind them; the doc records the design.
+
+### The starting position was wrong twice, and both corrections came from the user
+
+**First**, the ask read as "we need an LLM that measures hint and solution quality". There are
+already two — the §5.8.5 judge's `hint_quality_score`, and `packages/evals`' `run_llm_judge`,
+which already names `hints_avoid_revealing_the_answer` and `solution_accuracy_and_clarity` and
+has had **no production caller since S8**. A third scorer was never the gap.
+
+**Second**, my initial plan answered "how do we know it works?" with a **mutation corpus**: take
+known-good bank items, degrade them along five axes, and check the instrument separates original
+from degraded. The user rejected it, and the rejection was correct on grounds I should have
+reached myself — D-249, in this same session, falsified a judge with **no corpus and no new
+labels**.
+
+I then over-corrected into a worse claim: that approved-bank vs generated-candidate **distribution
+similarity** was the validation criterion. The user refuted that too. Similar distributions do not
+imply a useless judge; the batch may genuinely be as good as the bank. D-249's actual force was
+narrower and **per-item**: a threshold firing on content a human had individually approved.
+
+That distinction is now written into the design as check 2 (per-item, false-rejection only) versus
+check 5 (distributions, monitoring only, never pass/fail).
+
+### Validation is falsification, not proof
+
+The five checks can only ever **disqualify** the instrument. Surviving all five means *not yet
+falsified*, never *validated* — which is why check 3 (sampling `PASS` as well as `REJECT`) runs
+permanently rather than as a gate. An instrument can be perfectly stable and stably wrong; check 1
+measures stability and explicitly claims nothing about correctness.
+
+Checks 1 and 2 are deliberately **separate samples**: check 1 is a per-item claim so repetition is
+the design (~8 × 4, D-237 forbids n=2 here); check 2 is an aggregate rate claim so breadth is the
+design (~50 × 1). Sharing one sample would have bought neither well — at the same cost, splitting
+raised bank coverage from ~12% to ~40%.
+
+### Diversity is a first-class constraint
+
+`PASS | REPAIR | REJECT` plus located defects, not a scalar and not a ranking. Pairwise comparison
+was dropped, but **not** because pairwise inherently harms diversity — that claim of mine was
+wrong. The convergence risk lives in a *better-than-a-reference objective*. Pairwise is skipped
+here on fit: it cannot produce a per-item decision.
+
+Repair recovers good candidates; it is **not** what removes the human. The three-way verdict
+automates on its own.
+
+### Cross-component disagreement stays domain-routed
+
+I had proposed using the difficulty stage's `flagged` as a trigger for hint/solution review.
+That is the conflation D-238 already settled — **"the tier is a label; the item is the work"** —
+and it is the same mistake that put 26 of 29 candidates at `high` priority in D-247.
+
+Each disagreement routes to its own domain. The honest consequence, recorded rather than papered
+over: once routing is domain-matched, the set feeding this instrument from cross-component
+disagreement may be **small or empty**. No trigger will be manufactured to fill it.
+
+Also verified before relying on it: a trigger wired to `retiered` would fire near-zero times.
+`retiered` needs `slot_gap >= _DIFFICULTY_RETIER_AT` **and** `may_retier`; failing the second
+produces `rejected` instead (`ai_pipeline.py:289-292`). A double condition reads as a single one.
+
+### `hint_quality_score` is not deleted, and the inspection is why
+
+My proposed first step was "delete the field — it's an arbitrary scalar D-249 already
+discredited". The user required an inspection of readers and writers first. It found the field is
+**not unused**, and that it carries **two independent thresholds of which only one is measured**:
+
+| | where | nature | measured |
+|---|---|---|---|
+| `_HINT_QUALITY_FLOOR = 3` | `scripts/audit_authored_bank.py` | flag only | yes, D-249 |
+| `_HINT_QUALITY_REJECT_BELOW = 2` | `ai_pipeline.py:1769` | **live rejection** | **no** |
+
+D-249 measured `<= 3`. It never measured `< 2`. Deleting the field would have removed an
+unmeasured live gate on the strength of a measurement that did not cover it.
+
+Only the audit-script floor is removed, and its removal is separately overdue: the constant sits
+under a comment claiming it reuses "the pipeline's own thresholds … the hint-quality gate flags at
+or below 3". After D-249 the pipeline has no such threshold. **The drift that comment exists to
+prevent had already happened.** The raw score is still reported; it stops driving `flags`.
+
+### One check was found mislabelled
+
+`hint_ladder_monotonicity_violations` is verbatim substring containment (`later.strip() in
+earlier`). It cannot see a paraphrase and would not fire on a reordered ladder. It is kept — exact
+and free — but its docstring now states what it actually covers, so nobody again reads the name
+and concludes monotonicity is handled. Real progression is an LLM judgment.
+
+### What is still unmeasured
+
+Everything the instrument would decide. Nothing here claims the instrument will work; it claims
+only that the plan can tell if it does not — and that `_HINT_QUALITY_REJECT_BELOW` should be
+measured whether or not any of the rest is built.
