@@ -99,26 +99,108 @@ progression belongs to the LLM. Its docstring now says so.
 
 ---
 
-## 4. Decision flow
+## 4. Decision flow — two reviewers on every item, unanimity to accept
+
+**Revised after D-254.** The previous version read each item once and triggered a second reading
+on risk (`REJECT`, self-reported uncertainty, the `PASS` audit sample), then sent disagreement to
+an LLM adjudicator and finally to a human. That is replaced.
 
 ```
-item → deterministic invariants → [fail: REJECT, no LLM call]
-     → instrument (1 reading)
-         PASS (confident)          → accept
-         PASS (sampled/uncertain)  → 2nd reading
-         REPAIR                    → one bounded repair attempt → re-read → PASS or REJECT
-         REJECT                    → 2nd reading
-     → two readings disagree       → LLM adjudicator (both readings + the item)
-     → adjudicator unresolved      → human
+generate (Model A)
+  ↓
+deterministic invariants ───── fail ──→ back to repair (no LLM reviewer call spent)
+  ↓
+Reviewer B  ‖  Reviewer C      (always both, one reading each, in parallel)
+  ↓
+both PASS? ── yes ──→ ACCEPT (to the pending queue; §5.8.5 approval is unchanged)
+  │
+  no
+  ↓
+merge the two reviewers' defects  →  targeted repair (Model A)
+  ↓
+deterministic invariants  →  Reviewer B ‖ Reviewer C     ← every round, in full
+  ↓
+up to 5 repair rounds, or early stop
+  ↓
+still not unanimous PASS  →  DISCARD (snapshot retained, §4.4)
 ```
 
-**Second readings are risk-triggered in both directions**, never blocking-only. Triggering on
-blocking verdicts alone protects against false *rejection* while leaving false *acceptance*
-entirely unseen. Triggers: `REJECT`, self-reported uncertainty, domain-matched cross-component
-disagreement, and the `PASS` audit sample.
+### 4.1 Why the risk trigger had to go anyway
 
-**Disagreement routes to an LLM adjudicator or targeted repair before a human.** Escalation is
-the exception — minimizing routine human review is the whole point.
+**D-254 measured `uncertainty` at `low` on 48 of 50 items — 96% constant.** The old flow routed
+second readings partly on that field. A trigger that fires on 4% of items is not a safety
+mechanism; it is a branch that looks like one. Always-two removes the question. `uncertainty`
+stays in the schema as an **observability signal only** (§5 check 5) — it costs nothing, it is
+already validated, and deleting a field from a measured instrument to tidy a diagram is a change
+with risk and no benefit.
+
+### 4.2 `REPAIR` and `REJECT` now route identically, and that is deliberate
+
+Both feed the same merged-defect repair path. The distinction survives in exactly one place: the
+early-stop rule below treats a `REJECT` as evidence the item may be unrecoverable, where a
+`REPAIR` is not. Nobody should read the two verdicts as different destinations — they are the
+same destination with different weight.
+
+### 4.3 Early stop, before the 5-round limit
+
+Stop and discard early when either holds:
+
+- **The same blocking defect recurs** across rounds — the repair is not landing, and rounds 3-5
+  will spend the same money to learn the same thing.
+- **The item is clearly unrecoverable** — e.g. both reviewers `REJECT` on the *stem's* premise
+  rather than on the ladder or solution. A hint repair cannot fix a question that asks the wrong
+  thing. D-254 found exactly this case in shipped content (`place_value-d4-200402`: the ladder
+  teaches place-value comparison for a question that requires subtraction), and no amount of hint
+  rewriting fixes it.
+
+**Detecting the first condition requires storing every round's defects.** That is not optional
+bookkeeping — see §4.4.
+
+### 4.4 Discard must keep the evidence (D-195's lesson, restated because it now applies twice)
+
+D-195: *rejected candidates kept no content, so a pilot that rejects everything leaves nothing to
+review.* Under this flow a discarded item has consumed up to 17 model calls, so discarding
+without a record is more expensive than it was then. Every discarded item retains its
+`candidate_snapshot`, the merged defects **per round**, and the round count. Two consumers:
+the recurring-defect early stop, and any question about whether a batch's discard rate is the
+generator's fault or the reviewers'.
+
+*(This lesson was re-learned the hard way during D-254 itself: the measurement script recorded
+defect **counts** and not defect **content**, so the run's five blocked items could not be read
+without re-buying them.)*
+
+### 4.5 No adjudicator, no routine human escalation
+
+Disagreement between B and C is not adjudicated — it simply is not unanimity, so the item goes to
+repair. After the round limit the item is discarded. Nothing queues for a human on the failure
+path.
+
+**One consequence to state plainly:** this removes the only mechanism by which a *false rejection*
+would ever be seen. An item the reviewers are jointly wrong about is now discarded silently. §5
+check 2 is the only defence, and it is a pre-ship measurement rather than a live one — so it has
+to be re-run whenever a reviewer model changes, not once.
+
+**`ACCEPT` means "passed the automated bar", not "served".** Accepted items still land in the
+pending queue and the §5.8.5 approval path is untouched; this document does not change who reads
+an item before a student does.
+
+### 4.6 Repairs are targeted, not re-rolls
+
+The repair prompt carries the item **plus** the merged defects, and changes only what the defects
+name. Everything the reviewers did not object to is preserved verbatim.
+
+Two reasons, one of them already paid for:
+
+- **D-198 established the principle** — a rejection already says what is wrong, and re-rolling
+  throws that away. The bounded repair loop exists precisely because the feedback is the asset.
+- **A re-roll invalidates the round history.** The early-stop rule (§4.3) fires on *the same
+  blocking defect recurring*. If each round produces a fresh item, "the same defect" is not
+  defined, and the 5-round limit becomes 5 independent generations wearing a loop's clothing.
+
+`out_of_range_defects()` is a **hard filter here, not a report line**: a defect pointing at a
+hint index the item does not have must never reach a repair prompt, because repairing against a
+location that does not exist is how a correct item gets damaged. D-254 measured M3 = 0 for
+reviewer B, so this has never yet been needed — which is the argument for wiring it before it is.
 
 ---
 
@@ -130,32 +212,55 @@ Check 3 keeps running permanently for exactly that reason.
 
 ### Check 1 — Reproducibility: small sample × repeated readings
 
-~8 items × 4 readings. This is a **per-item claim** ("does *this* item's verdict flip"), so
-repetition is the design and D-237 applies: never n=2 for a per-item claim. Reuses D-245's M1
-metric, which already worked.
+~8 items × 4 readings, **run per reviewer and again on the union verdict**. This is a **per-item
+claim** ("does *this* item's verdict flip"), so repetition is the design and D-237 applies: never
+n=2 for a per-item claim. Reuses D-245's M1 metric, which already worked.
+
+**Both levels are required.** Per-reviewer catches one flaky model; the union is what actually
+decides, and unanimity makes it *less* stable than either reviewer alone — an item flips the
+union if **either** reviewer flips. Two reviewers each stable at 1-in-8 do not give a union
+stable at 1-in-8.
 
 *Falsifies:* verdicts that flip on identical input. *Says nothing about* correctness — a stable
 instrument can be stably wrong.
 
+**Result, single reviewer (D-254, Haiku 4.5):** M1 = **1 of 8**, against a pre-registered
+disqualifier of 3. Not falsified. The union number is unmeasured.
+
 ### Check 2 — Approved-bank sanity: broader sample × single reading
 
-~50 bank items × 1 reading. This is an **aggregate rate claim** ("how often does it reject
-human-approved content"), so breadth is the design and n=1 per item is correct — the sample size
-lives across items, not within them.
+~50 bank items × 1 reading **per reviewer**, scored on the union. This is an **aggregate rate
+claim** ("how often does it block human-approved content"), so breadth is the design and n=1 per
+item is correct — the sample size lives across items, not within them.
 
 Splitting checks 1 and 2 matters: repetition and coverage are different jobs, and one shared
 sample buys neither well.
 
-*Falsifies:* an instrument that rejects content a human individually approved. **Not a complete
+*Falsifies:* an instrument that blocks content a human individually approved. **Not a complete
 benchmark** — one topic, one authoring style, and approval ≠ excellence. It sees false rejection
 only.
 
-### Check 3 — Both-direction production monitoring
+**Result, single reviewer (D-254):** M2 = **10%** blocking, M2r = **2%** reject, against
+disqualifiers of 30% and 10%. Not falsified — and **the blocks were not noise**: two of the five
+were read by hand and both are real defects in live content, one of them serious (a ladder
+teaching a method that does not solve its own question).
 
-Randomly sample `PASS` alongside `REJECT`/`REPAIR` for independent review; **prefer LLM
-cross-review/adjudication**, since removing routine human review is the objective. This is *the
-explicit sampling mechanism for detecting false acceptance among otherwise-passing items* —
-other pipeline disagreements may also surface failures. Ongoing cost, not a one-time gate.
+**The union rate is the one that governs, and it is higher.** If the two reviewers were
+independent at 10% each, the union blocks at ~19%; cross-family reviewers (§5.6) are chosen
+precisely to be *less* correlated, so the estimate sits nearer that bound than below it. **The
+pre-registered 30% disqualifier now applies to the union**, which leaves far less headroom than
+the measured 10% suggests. This must be measured with the actual B and C, not extrapolated.
+
+### Check 3 — Both-direction production monitoring, now needing a *third* opinion
+
+Randomly sample `ACCEPT` alongside discarded items for independent review. **The change forced by
+§4:** an accepted item has already been passed by both B and C, so re-reading it with B or C is
+not independent — it is asking the same two models the same question. Check 3's sampler must be
+**a third model or a periodic human audit**, or it measures nothing.
+
+This is *the* mechanism for detecting false acceptance, and §4.5 removed the other one: with no
+adjudicator and no human escalation on the failure path, a jointly-wrong pair discards silently.
+Ongoing cost, not a one-time gate.
 
 ### Check 4 — Cross-component disagreement: domain-specific routing
 
@@ -190,6 +295,40 @@ between the approved bank and a generated batch do not imply a useless judge —
 genuinely be as good as the bank. (Correcting an over-generalisation of D-249: its force was
 per-item disagreement with real human approvals, not distributional similarity.)
 
+Three signals the two-reviewer architecture produces for free, all monitored and none a gate:
+
+- **B-vs-C disagreement rate.** The single best early warning that one reviewer has drifted or
+  that the two have collapsed onto the same opinion. **Near-zero is as suspicious as high**: two
+  reviewers that never disagree are one reviewer being billed twice, and the model-diversity
+  requirement (§5.6) exists to prevent exactly that.
+- **Round-count distribution.** How many repair rounds items actually take. If almost everything
+  resolves in round 1 or dies at round 5, the middle rounds are being bought for nothing and the
+  limit should move.
+- **`uncertainty` distribution.** It routes nothing now (§4.1). D-254 measured it at 48/50 `low`,
+  so its baseline is known: a shift away from ~96% `low` is the signal, not the level.
+
+### 5.6 Model roles and diversity
+
+| role | model | why |
+|---|---|---|
+| A — generator *and* repairer | the current authoring model | D-205 split design from authoring on measured evidence; nothing here re-opens that. One model does both jobs — a repair is authoring with a constraint. |
+| B — reviewer 1 | Haiku 4.5 | the only reviewer configuration with a falsification result (D-254). |
+| C — reviewer 2 | **to be chosen — see below** | |
+
+**The point of C is uncorrelated blind spots, and that constrains the choice more than quality
+does.** Sonnet 4.5 is already configured (`CURRICULUM_BEDROCK_REVIEW_MODEL_ID`) and is the
+low-friction option, but it is the **same family as B** — it reduces correlated error only
+partly, and a shared family assumption is exactly the kind a two-reviewer design is supposed to
+catch. A genuinely cross-family reviewer (Mistral, already used in this pipeline per D-204/D-205)
+is the better fit for the stated goal.
+
+**Verify before committing:** D-204 measured Mistral as unable to use tools at all, and this
+gateway delivers structured output *through* a tool schema. Whether Mistral can emit the 4-field
+verdict schema is a cheap thing to test and an expensive thing to assume — D-204 lost two paid
+runs to a roster change made on one good signal without checking the property the role depended
+on. **If it cannot, C = Sonnet 4.5 and the write-up says the diversity requirement is only
+partly met** rather than claiming a cross-family panel that does not exist.
+
 ### Stopping rule — pre-registered
 
 The instrument ships only if it **survives** checks 1 and 2. Flipping verdicts, or a meaningful
@@ -198,6 +337,13 @@ right; check 3 exists because that question stays open permanently.
 
 This is the rule D-245 followed when its own rubric clause failed measurement and was not
 shipped.
+
+**Status after D-254, and what it does *not* cover.** Reviewer B (Haiku 4.5) survived all four
+pre-registered thresholds as a **single** reviewer: M1 1/8, M2 10%, M2r 2%, M3 0. That result
+does not transfer to the architecture in §4. **The two-reviewer union is a different instrument
+and is unmeasured** — its blocking rate is higher by construction, its stability is lower by
+construction, and reviewer C does not yet exist. Nothing is wired until the union has its own
+run, with its predictions registered before it, exactly as D-254's were.
 
 ---
 
@@ -232,16 +378,45 @@ different scales and must not be pooled.**
 
 ---
 
-## 7. Cost
+## 7. Cost — recomputed for two reviewers and 5 repair rounds
+
+D-254's measured unit price: **29.1¢ for 82 review calls = ~0.36¢ per review call** (Haiku 4.5,
+`max_output_tokens=1500`, real bank items).
+
+### Falsification runs (one-time, per reviewer model)
 
 | | |
 |---|---|
-| check 1 | ~8 items × 4 readings = 32 calls |
-| check 2 | ~50 items × 1 reading = 50 calls |
-| **checks 1 + 2 together** | ~82 calls, order of **~55¢**, hard-capped |
-| check 3 | ongoing, proportional to batch size — the standing price of the instrument |
+| check 1 | 8 items × 4 readings × **2 reviewers** = 64 calls |
+| check 2 | 50 items × 1 reading × **2 reviewers** = 100 calls |
+| **together** | ~164 calls, order of **~60¢**, hard-capped |
+
+Double the single-reviewer run because **each reviewer must be falsified on its own** before the
+union is trusted. A union metric alone cannot tell a good reviewer paired with a broken one from
+two mediocre ones.
+
+### Per item, in production
+
+| | review calls | repair calls |
+|---|---|---|
+| best case (unanimous first pass) | 2 | 0 |
+| worst case (5 rounds, then discard) | 12 | 5 |
+
+Best case ≈ **0.7¢** per item. Worst case ≈ 4.3¢ of review **plus 5 full authoring calls**, which
+are the expensive ones — a 15-field forced schema, not a 4-field verdict.
+
+**The round limit is not a spend limit, and this needs both.** Five rounds bounds *iterations*;
+it does not bound cents, because a repair call's cost is set by the authoring schema and not by
+this document. A **per-item cent cap** is required alongside the round cap, enforced the way
+`--run-budget-cents` already is — otherwise a pathological item can spend a batch's budget inside
+its own round limit while looking compliant.
+
+### Standing costs
+
+| | |
+|---|---|
+| check 3 | ongoing, and now needs a **third** opinion — see §5 check 3 |
 | checks 4 and 5 | free; the signals are already produced |
-| repair | one bounded attempt, only on `REPAIR` |
 
 **No new labeled corpus, no new human labeling effort, no dedicated evaluation corpus to
 maintain.**
