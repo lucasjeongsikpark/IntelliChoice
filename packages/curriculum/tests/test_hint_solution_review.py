@@ -170,13 +170,14 @@ def test_the_prompt_forbids_judging_against_a_house_style() -> None:
 
 def test_review_returns_a_pass_for_a_well_formed_item_under_the_mock() -> None:
     async def run() -> None:
-        response = await review_hints_and_solution(
+        result = await review_hints_and_solution(
             _gateway(),
             _item(),
             skill_name="linear_one_step",
             grade_band="6-8",
             session_spend_cents=0.0,
         )
+        response = result.value
         assert response.verdict == "pass"
         assert response.defects == []
 
@@ -189,13 +190,14 @@ def test_review_returns_a_located_repair_when_a_rung_repeats_its_predecessor() -
     """
 
     async def run() -> None:
-        response = await review_hints_and_solution(
+        result = await review_hints_and_solution(
             _gateway(),
             _item(hint_ladder=["Divide 52 by 4.", "Divide 52 by 4.", "What is 52/4?"]),
             skill_name="linear_one_step",
             grade_band="6-8",
             session_spend_cents=0.0,
         )
+        response = result.value
         assert response.verdict == "repair"
         assert [d.index for d in response.defects] == [2]
         assert response.defects[0].suggested_fix

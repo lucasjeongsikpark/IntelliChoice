@@ -18813,3 +18813,67 @@ disagreement instead of D-256's 9 of 50 and cost double; the module docstring is
 standing between a caller and that mistake, which is stated there in those words.
 
 12 tests, all free. Nothing about verdict quality is re-litigated here — that is D-256/D-257/D-258.
+
+## D-260 — the repair loop: targeting enforced by a schema, bounded four ways (accepted, 2026-08-10)
+
+The rest of §4 apart from a call site. `hint_solution_repair.py` (one targeted repair) and
+`review_loop.py` (panel → repair → panel). **No pipeline caller**, which is now the only unbuilt
+part.
+
+### Targeting is enforced by the schema, not requested by the prompt
+
+`HintSolutionRepairResponse` contains **only** `hint_ladder` and `solution_steps` — the two
+things a `HintSolutionDefect` can target. The stem, the options, the correct option and the
+equation are not fields, so a repair *cannot* move them however the instruction is read. The
+draft this replaced returned a full `AuthoredGeneratedItemResponse` and asked the model to leave
+most of it alone; that version could silently move the answer key, after which the next panel
+would be reviewing a different question from the one that was measured.
+
+### Four bounds, because each stops a different runaway
+
+| bound | stops |
+|---|---|
+| 5 rounds | an item that never converges |
+| **per-item cent cap** | a *pathological* item spending a batch's budget inside its round limit |
+| recurring-defect fingerprint | paying three more times for the answer round 2 already gave |
+| "blocked with no usable defect" | repairing against nothing, which is a re-roll wearing a loop's clothing |
+
+**The per-item cap was broken when first written, and the test that now names the reason is why
+it is not still broken.** §7 says a round limit is not a spend limit; the first draft dutifully
+checked `spend` against `per_item_budget_cents` — and nothing ever incremented `spend`, because
+both thin wrappers returned `.value` and discarded `cost_cents`. A cap that cannot fire is worse
+than no cap, because it reads as protection. Both wrappers now return the whole
+`BedrockGenerationResult`, `PanelVerdict.cost_cents` sums its readings, and the loop asserts the
+stopping *reason* rather than merely that it stopped.
+
+### An independence risk this channel creates, instrumented rather than mitigated
+
+`HintSolutionDefect.suggested_fix` is **the reviewer's own proposed wording**. If the repairer
+adopts it verbatim, reviewer B has authored the text reviewer B is asked to approve next round,
+and the independence D-256 measured (9 of 50 disagreements) leaks out through the repair channel
+instead of the panel.
+
+Three options existed: withhold the suggestion (loses the most actionable part of a defect); pass
+it while telling the model it is one opinion rather than replacement text; or invent a mitigation
+and build it. The second was chosen, and the third **refused** — the round history records
+`suggested_fix` beside the text that replaced it, so verbatim adoption becomes *countable*. If it
+turns out common, withholding becomes a measured decision instead of a precaution. D-204's lesson
+applied before rather than after.
+
+### Two more things worth keeping
+
+**The recurring-defect fingerprint ignores `suggested_fix` and matches on location + problem**,
+and it will miss two reviewers wording one objection differently. Accepted deliberately: a
+*missed* stop costs one extra round, a *false* stop discards a recoverable item, and the
+asymmetry decides the design.
+
+**The mock repairer actually repairs.** One that echoed the ladder back would make the
+recurring-defect stop fire on every item by construction, and every loop test would pass for the
+wrong reason.
+
+**A guardrail caught a real defect in that mock**: `hint_ladder` was built as `[]` from an empty
+payload against `min_length=1`. `test_the_mock_branch_produces_a_valid_response` calls every
+branch with an empty payload precisely for this, and the same fallback already existed for
+`solution_steps` and had simply been missed one line up.
+
+25 tests across the two modules, all free under the mock.

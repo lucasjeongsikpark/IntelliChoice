@@ -46,6 +46,7 @@ class ReviewerReading:
     reviewer: str
     response: HintSolutionReviewResponse | None
     error: str | None = None
+    cost_cents: float = 0.0
 
     @property
     def blocks(self) -> bool:
@@ -61,6 +62,11 @@ class PanelVerdict:
     readings: list[ReviewerReading]
     defects: list[HintSolutionDefect] = field(default_factory=list)
     discarded_locations: list[str] = field(default_factory=list)
+
+    @property
+    def cost_cents(self) -> float:
+        """What this panel cost, including reviewers that failed after being billed."""
+        return sum(r.cost_cents for r in self.readings)
 
     @property
     def accepted(self) -> bool:
@@ -140,9 +146,22 @@ async def review_panel(
     readings: list[ReviewerReading] = []
     for name, result in zip(names, results, strict=True):
         if isinstance(result, BaseException):
-            readings.append(ReviewerReading(reviewer=name, response=None, error=str(result)))
+            # A gateway error carries the cost of the attempt that failed - the call was
+            # still billed - so it is read off the exception where the gateway provides it.
+            readings.append(
+                ReviewerReading(
+                    reviewer=name,
+                    response=None,
+                    error=str(result),
+                    cost_cents=float(getattr(result, "cost_cents", 0.0) or 0.0),
+                )
+            )
         else:
-            readings.append(ReviewerReading(reviewer=name, response=result))
+            readings.append(
+                ReviewerReading(
+                    reviewer=name, response=result.value, cost_cents=result.cost_cents
+                )
+            )
 
     defects, discarded = merge_defects(readings, item)
     return PanelVerdict(readings=readings, defects=defects, discarded_locations=discarded)

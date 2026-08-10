@@ -23,6 +23,7 @@ from intellichoice_shared.bedrock import (
     DifficultyReviewPayload,
     EquationDesignPayload,
     GeneratorPayload,
+    HintSolutionRepairPayload,
     HintSolutionReviewPayload,
     QuestionJudgePayload,
     SolverPayload,
@@ -42,7 +43,9 @@ _GENERATION_PAYLOADS = [
     # found while adding `HintSolutionReviewPayload` (D-251). Nothing had been asserting its
     # `extra="forbid"`.
     EquationDesignPayload,
+    HintSolutionRepairPayload,
     HintSolutionReviewPayload,
+    HintSolutionRepairPayload,
 ]
 
 

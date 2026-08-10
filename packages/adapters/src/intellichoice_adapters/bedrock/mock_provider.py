@@ -621,6 +621,39 @@ def _llm_judge_json(payload: dict) -> dict:
     return {"scores": scores, "overall_pass": True}
 
 
+def _hint_solution_repair_json(payload: dict) -> dict:
+    """Deterministic D-260 stand-in, and it must actually *repair* something.
+
+    A mock that echoed the ladder back unchanged would make `review_loop`'s early stop fire on
+    every item - the same defects would recur by construction - and every loop test would pass
+    for the wrong reason. So it does the one repair the review mock's defect asks for: a rung
+    that repeats its predecessor verbatim is rewritten. `_generic_json` cannot stand in here
+    either, because `solution_steps` is a list of nested `SolutionStep` objects.
+    """
+    # `or [...]` rather than `or []`: `HintSolutionRepairResponse.hint_ladder` is
+    # `min_length=1`, and the schema-conformance test calls every branch with an empty
+    # payload. An empty list here was a real defect that test caught - the same fallback
+    # already existed for `solution_steps` and was simply missed for the ladder.
+    ladder = list(payload.get("hint_ladder") or ["mock repaired hint"])
+    for index in range(1, len(ladder)):
+        if ladder[index].strip() and ladder[index].strip() == ladder[index - 1].strip():
+            ladder[index] = f"{ladder[index].rstrip('.')} - now think about what that gives you."
+    steps = [
+        {
+            "step_number": position,
+            "explanation": rendered.split("[")[0].strip().lstrip("0123456789. "),
+            "expression": rendered.split("[")[-1].rstrip("]").strip(),
+        }
+        for position, rendered in enumerate(payload.get("solution_steps") or [], start=1)
+    ]
+    return {
+        "reasoning": "mock repair: rewrote any rung that repeated its predecessor verbatim",
+        "hint_ladder": ladder,
+        "solution_steps": steps or [{"step_number": 1, "explanation": "mock", "expression": "x"}],
+        "solution_final_answer": payload.get("solution_final_answer") or "unchanged",
+    }
+
+
 def _hint_solution_review_json(payload: dict) -> dict:
     """Deterministic D-251 stand-in. Passes by default so the mock does not silently gate
     every other test's fixtures, but stays *drivable*: an empty hint ladder or a rung that
@@ -761,6 +794,8 @@ class MockBedrockProvider:
             data = _llm_judge_json(payload)
         elif title == "HintSolutionReviewResponse":
             data = _hint_solution_review_json(payload)
+        elif title == "HintSolutionRepairResponse":
+            data = _hint_solution_repair_json(payload)
         else:
             data = _generic_json(json_schema)
 
