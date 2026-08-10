@@ -17519,3 +17519,83 @@ combination is now a carry-over: the gate ships on a build and a code read.
 
 Guest empty state, question → cited answer, follow-up chips, escalation, and 390/500px
 viewports. **Not** walked: signed-in roles, branch locator, calendar.
+
+## D-242 — the AI observability leg was dark, and the docs said the opposite (accepted, 2026-08-09)
+
+The ask was to implement the two-leg observability architecture. It was already implemented -
+both apps instrumented, `otel-collector` sidecar live, 103 X-Ray traces in the last two hours,
+`LANGSMITH_TRACING=true` with the key granted and the NAT up. So this session set out to add the
+one thing genuinely missing, and in verifying it found the leg had never worked at all.
+
+### What was missing: the two legs never met
+
+`logging_config` stamps `trace_id` on every log line and X-Ray keys on the same value, so those
+two join. A LangSmith run carried **nothing** identifying the request that produced it. Getting
+from a slow span to that request's node tree meant matching on **timestamp** - which stops working
+the moment two students are active at once, and is worst exactly when you need it most.
+
+`langsmith_correlation_metadata()` closes it, in `packages/observability` rather than copied into
+both apps (D-223). `_graph_config` - the `RunnableConfig` every `graph.ainvoke` already runs under -
+now carries `metadata.otel_trace_id`. Absent rather than null when nothing is tracing, so "no
+correlation" and "correlation is null" stay distinguishable; a `trace_id` is 16 random bytes, so it
+carries no PII and does not touch the masking below.
+
+### What verifying it found: zero runs, ever
+
+"Configured and no errors" is not "working", and this is the second time this session that
+distinction mattered. Probed the LangSmith API with the key from Secrets Manager:
+
+| probe | result |
+|---|---|
+| `GET /api/v1/sessions` | `[]` - **no projects at all** |
+| `POST /api/v1/runs/query` | **0 runs** |
+| local `create_run()` with the *same key* | **succeeded** - project appeared immediately |
+
+So the key, the client and the API all work. **Staging simply never delivered.** The cause was in
+the app's own logs all along:
+
+```
+Failed to POST https://api.smith.langchain.com/runs/multipart - 403 Client Error: Forbidden
+```
+
+repeatedly, at **WARNING**. Two things made it invisible:
+
+- **The client only falls back to batch ingest on a 404** (`# Fallback to batch ingest if multipart
+  endpoint returns 404` → `self._multipart_disabled = True`). A **403** never triggers it, so it
+  retries multipart forever instead of using the endpoint that demonstrably works with this key.
+- **Nothing alarmed.** Four metric filters per service watch Bedrock; none watched telemetry
+  delivery, so a whole leg of the observability architecture was dark while every dashboard was green.
+
+**The 403 itself is not ours to fix in code** - key valid, NAT up, route present, security group
+open, client installed. It needs a LangSmith credential/entitlement change. What *is* ours is that
+it failed silently for days, and `LangSmithIngestFailed` now watches the `langsmith.client` logger
+for exactly that. Keyed on the logger rather than an `$.event` value, because the message text
+belongs to a third-party library and is not ours to keep stable.
+
+### And a documentation error, which I had just made worse
+
+ARCHITECTURE.md claimed LangSmith receives *"LangGraph node trees **including prompt and response
+payloads**"*. `configure_langsmith()` forces `LANGSMITH_HIDE_INPUTS`/`_OUTPUTS=true` - SPEC §5.32.1's
+"complete PII masking", asserted as **not optional** in its own test. Inputs and outputs are masked
+at source; only structure and timings leave AWS.
+
+**I had propagated that claim into the mermaid diagram two turns earlier**, inheriting it from the
+table without reading the code beneath it. A security reviewer reading either would have concluded
+that prompts leave AWS to a third party. Both corrected.
+
+### A narrow window that gave false comfort
+
+Mid-session I reported "no LangSmith errors in the logs". That query covered the **last two hours**;
+the 403s were at 05:47 UTC. The scope was mine to choose and I chose it too small, then stated the
+result as though it covered the question. The finding survived only because the next step probed the
+API directly instead of trusting it.
+
+### Verification
+
+`ruff` clean · `pyright` 0 errors · **1079 passed, 2 skipped, 1 xfailed** (1075 before; 4 new - two
+for the helper, one per app for the `RunnableConfig` seam). No paid Bedrock run. The LangSmith probe
+used the key from Secrets Manager without printing it, and the `d242-probe` project it created was
+deleted afterwards (account back to zero projects).
+
+**Unverifiable until the 403 is resolved:** that the correlation metadata actually appears on a
+LangSmith run. The seam is unit-tested; the end-to-end confirmation is blocked on the credential.

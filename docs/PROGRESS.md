@@ -90,19 +90,25 @@ What is left, in order of value:
    so the topics where tier disagreement actually lives — the ones D-234 and D-238 worked on — are
    hand-authored and **this gate never sees them**. Registering a second topic's generation plan
    would both extend the pipeline and give the gate a real population.
-7. **The D-241 exam submit gate ships verified by build only.** `/dev/token` is 403 on the
+7. **LangSmith returns 403 on `runs/multipart` and has never received a run** (D-242). Not a code
+   defect — key valid, NAT/route/SG open, client installed, and the same key succeeds via
+   `create_run()` from a laptop. It needs a LangSmith credential or plan change (a workspace-scoped
+   service key is the first thing to try; `GET /workspaces/current` returns `{}` for this one).
+   Until then the AI observability leg is dark and the D-242 correlation metadata cannot be
+   confirmed end to end. `LangSmithIngestFailed` now alarms on it rather than letting it stay quiet.
+8. **The D-241 exam submit gate ships verified by build only.** `/dev/token` is 403 on the
    public edge - correct, and asserted by the deploy's own security gate - so a student token
    cannot be minted through CloudFront to walk it, and there is no web unit-test harness to
    cover the `unansweredCount > 0 && !examExpired` conditional instead. The chat changes *were*
    measured live post-deploy; this one was not.
-8. **Neither web app has a unit-test harness.** `learning-web` and `chat-web` are covered by
+9. **Neither web app has a unit-test harness.** `learning-web` and `chat-web` are covered by
    `tsc`, `oxlint` and Playwright only, so D-241's submit gate and chat restyle ship verified by
    build + browser walk rather than by a test. A component harness (vitest + testing-library)
    would pay for itself the first time a conditional like `unansweredCount > 0 && !examExpired`
    needs to change.
-9. **The chat walk did not cover signed-in roles, the branch locator, or the calendar** (D-241).
+10. **The chat walk did not cover signed-in roles, the branch locator, or the calendar** (D-241).
    Guest paths, citations, escalation and narrow viewports were walked; the rest was not.
-10. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
+11. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
    for twelve decisions behind the line `"127 already existed, 0 created"` — and that line is not
    in any deploy log, because `deploy-staging.yml` only runs `test "$EXIT_CODE" = "0"`. The loader
    now distinguishes created / updated / unchanged / retired, which is exactly the signal worth
@@ -112,13 +118,13 @@ What is left, in order of value:
    read), then echo the ops task's log stream after `aws ecs wait`. Same treatment is worth giving
    the migration and seed steps, which are equally silent. **Until this exists, "the deploy loaded
    the bank" means only that the loader exited 0** — which is what D-206 already learned once.
-11. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
+12. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
-12. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
+13. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
-13. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
+14. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
 **Before writing content for a new topic:** authored-mode YAML under
@@ -155,6 +161,33 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the AI observability leg was dark, and the docs said the opposite (2026-08-09, D-242)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1079 passed, 2 skipped, 1 xfailed** ·
+no paid run · full write-up in DECISIONS.md **D-242**.
+
+**The architecture asked for was already built** — both apps instrumented, `otel-collector` sidecar
+live, **103 X-Ray traces in two hours**, LangSmith configured with key + NAT. So the work was the one
+thing missing: the two legs shared no id, so a LangSmith run could only be matched to its X-Ray span
+**by timestamp**. `_graph_config` now carries `metadata.otel_trace_id` in both apps.
+
+**Verifying that found the leg had never worked.** LangSmith has **zero projects and zero runs**.
+The app's own logs carried the reason: `403 Forbidden` on every `runs/multipart` POST, at WARNING,
+repeatedly. **The client only falls back to batch ingest on a 404**, so a 403 retries forever — and
+the *same key* succeeded from my machine via `create_run()`, so nothing on our side is wrong. It
+needs a LangSmith credential/entitlement change. **What was ours is that it failed silently:** four
+metric filters per service watch Bedrock and none watched telemetry delivery, so a whole leg was
+dark while every dashboard stayed green. `LangSmithIngestFailed` now watches for it.
+
+**A documentation error I had just made worse.** ARCHITECTURE.md claimed LangSmith receives node
+trees *"including prompt and response payloads"*. `configure_langsmith()` forces
+`LANGSMITH_HIDE_INPUTS`/`_OUTPUTS=true` — masked at source, asserted as not optional. I had
+propagated that claim into the diagram two turns earlier without reading the code beneath it. Both
+corrected.
+
+**And a narrow window that gave false comfort:** I reported "no LangSmith errors" from a query
+covering the last two hours; the 403s were at 05:47 UTC.
 
 ### Session log — three reported UI defects, and one of them was a policy change (2026-08-09, D-241)
 
