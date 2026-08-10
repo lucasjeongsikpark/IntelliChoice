@@ -7,15 +7,20 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Start here: the generator's losses are now judge rejections, and that is a content question.**
-D-243 closed the parsing question — the pipeline's 41% structured-output failure rate was a `$ref`
-in the tool schema and is now 0 (yield 27% → 55%). What replaced it is the interesting part: of 11
-candidates, **3 now die at the judge**, two of them on hint ladders that give the answer away
-(*"Hint 2 states the setup equation directly"*). That is a prompt-and-rubric question about the
-generator's hint ladder, it is now the dominant loss, and its evidence is already persisted in
-`question_validation_runs` — free to start, no paid run needed to read it. **Do not read 55% as a
-ceiling that needs raising by loosening a gate**: every remaining loss is a real content judgement,
-which is the pipeline working.
+**Start here: `hint_reveals_answer` is a measured problem with no licensed fix yet (D-245).**
+D-243 closed the parsing question (a `$ref` in the tool schema; yield 27% → 55%) and left the
+dominant loss at the judge. D-245 measured that rule at n=4 on **8 hand-authored, human-reviewed
+bank items whose hints state the setup equation** — and found the judge answers **both ways on 3 of
+8**, flags **4 of 8 at least once**, and articulates the same observation while reaching opposite
+verdicts. **A gate that rejects on one judge call is discarding roughly half of content a human
+already approved.**
+
+**A skill-aware rubric clause was tried and made it worse** (splits 3/8 → 4/8) — the clause is kept,
+with its result, in `scripts/measure_hint_reveal_rule.py` so it is not re-invented. The obvious next
+move (downgrade the rejection to a review flag, D-239's pattern) is **deliberately not taken**: every
+item in that run is content a human approved, so there is no negative control saying what the gate
+does to hints that genuinely leak. **The missing piece is a leaking-hint control set**, and building
+one is the next real step. Re-running the measurement is cheap (42c) and non-destructive.
 
 **Both quality panels have run over the whole bank, and both topics that would not calibrate are
 now understood — for two unrelated reasons.** Four topics, **130** authored items, grades 1-7 all
@@ -205,6 +210,33 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — a measured problem, and a fix of mine that failed (2026-08-10, D-245)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **42.22 cents** of paid Bedrock against an
+80-cent cap, pre-registered before the first call · full write-up in DECISIONS.md **D-245**.
+
+**Established for free first.** The judge's own rubric says reveal means *"states it, or reduces the
+problem to reading it off"*; the same judge in the same D-243 run rejected `4n = 52` and excused
+`5(w+3) + 10 = 50`; and **8 of 130 hand-authored, human-reviewed bank items state the setup equation
+in a hint** and were all accepted. That population is what made the question answerable — whatever
+the judge says about already-approved content is a statement about the rubric.
+
+**Measured, n=4 per condition.** The inconsistency is real: **3 of 8 reviewed items answered both
+ways** across identical calls, and **4 of 8 were flagged at least once**.
+
+**My proposed fix failed and made it worse** (splits 3/8 → 4/8, and the one stable item became
+split). The reason is in the judge's own words: it observed that *"for a 1-step equation,
+formulating the equation is the main cognitive task"* — the exact opposite of what my clause
+asserted. I had told it to excuse something that genuinely is the work. **More instruction produced
+less consistency**, and the clause is kept in the measurement script with its result attached so it
+is not re-invented.
+
+**The obvious next move was deliberately not taken.** Downgrading the rejection to a review flag
+(D-239's pattern) is well-precedented and the evidence appears to support it — but every item in
+this run is content a human approved, so there is **no negative control** saying what the gate does
+to hints that genuinely leak. Loosening a gate using only the population it was too strict on is
+exactly the move this project warned itself against one session earlier.
 
 ### Session log — twenty KPIs nobody was collecting (2026-08-10, D-244)
 
