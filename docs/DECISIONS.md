@@ -18567,3 +18567,94 @@ that does not exist.
 
 **Nothing is wired.** D-254 validated a *single* reviewer. The union is a different instrument
 with a higher blocking rate and lower stability, and reviewer C does not exist yet.
+
+## D-256 — the two-reviewer union measured, and one of my "by construction" claims falsified (accepted, 2026-08-10)
+
+D-255's architecture is a different instrument from the one D-254 measured, so it got its own
+pre-registration and its own run. B = `us.anthropic.claude-haiku-4-5`, C = `openai.gpt-oss-120b-1:0`,
+164 calls, **128.2¢**.
+
+| metric | B (D-254) | C | **union** | disqualifies at | predicted |
+|---|---|---|---|---|---|
+| M1 verdict split | 1/8 | 2/8 | **1/8** | ≥ 3 | 2 — **missed** |
+| M2 blocking rate | 10% | 14.3% | **22.4%** | ≥ 30% | 15-25% ✓ |
+| M2r reject rate | 2% | 0% | **2%** | ≥ 10% | < 8% ✓ |
+| M3 bad defect index | 0 | 0 | **0** | > 5% | 0 ✓ |
+| B-vs-C disagreement | — | — | **9 of 50** | — | 5-15 ✓ |
+
+All four disqualifiers survived. **The thresholds were not loosened for the union**, which was
+recorded in the pre-registration before the numbers existed: a gate that flips 3 of 8 times is a
+coin flip whether one model or five produced it.
+
+### The prediction I lost, and why losing it was the useful part
+
+The plan asserted that unanimity makes the union **less** stable than either reviewer "by
+construction" — an item flips the union if either reviewer flips. **Measured false.** B split on
+1 of 8, C on 2, and the union on **1** — more stable than one of its own members.
+
+The mechanism is visible per-item. On `fraction_operations-d2-100205` *both* reviewers
+individually split, and the union did not: on every reading at least one of them blocked, so the
+union was consistently blocking. A reviewer that blocks an item *consistently* **masks** the
+other's instability. On `fraction_operations-d3-100307` only C split, B passed consistently, and
+the union inherited the flip.
+
+So union stability depends on **whether the blocking is correlated**, and is not derivable from
+the per-reviewer numbers in either direction. That is the argument for measuring both levels
+rather than inferring one — which the plan already required, for a reason that turned out to be
+wrong.
+
+### A reviewer can fail to answer, and the architecture had no rule for it
+
+`gpt-oss-120b` produced no valid verdict for `place_value-d4-200402`: `defects[0].index = 0`
+against `Field(ge=1)`, unrecovered by the gateway's repair retry. **0-based indexing against a
+1-based schema.** The schema was right to refuse — a 0 would point at the wrong hint — but
+"unanimous `PASS`" is undefined when a reviewer returns nothing.
+
+**Rule added: a missing verdict counts as blocking** (HINT_SOLUTION_REVIEW.md §4.5b). CLAUDE.md
+rule 5, *fail closed*, applied to a case the two-reviewer design created; treating an unreachable
+reviewer as consent would make an outage look like approval.
+
+**Which item did it is not a coincidence.** It is the single most defective item in the sample —
+the one D-254 rejected for a hint ladder teaching a method that cannot answer its own question.
+The item with the most to say is the one that pushed a reviewer past its schema, so an error rate
+measured on easy content understates this. It is also why the union's check-2 denominator is
+**49, not 50**.
+
+### 22.4% is not comfortable and is not reported as if it were
+
+The disqualifier is 30%; the measured union blocks **more than one in five** human-approved
+items. D-254 confirmed by hand that such blocks can be real defects, but **only two blocked items
+across both runs have actually been read**. The remaining headroom is 7.6 points, and any change
+that makes either reviewer stricter spends it.
+
+### Reviewer C was chosen by probe, and two claims of mine were wrong first
+
+`smoke_cli --contract hint_solution_review` (added here) probed candidates for one call each.
+`openai.gpt-oss-120b-1:0` and `qwen.qwen3-32b-v1:0` both emitted the contract cleanly —
+`tool_use`, valid parse, no repair. C = gpt-oss because **D-204 measured it solving the question
+rather than asserting about it**, the one property a reviewer's job depends on, in the same run
+where Nova 2 Lite failed exactly that test.
+
+Two corrections to the plan's first draft of §5.6, both found by checking:
+
+- **"C = Mistral" fails on independence before capability.** Mistral Large 3 *is* Model A. A
+  generator reviewing its own output is not an independent reviewer.
+- **"D-204 measured Mistral as unable to use tools at all" was a misread.** D-204 measured
+  `mistral.magistral-small-2509` returning no `toolUse` block. `mistral.mistral-large-3-675b-instruct`
+  passed both smoke and the generator contract. Two models, one family name.
+
+Roster: **Mistral → Anthropic → OpenAI.** Three providers, and the 9-of-50 disagreement says the
+diversity is doing work rather than decorating the diagram.
+
+### The fixture that three models agreed about
+
+The smoke contract's item has a hint reading *"The answer is 6 minutes."*, and the first version
+of its comment claimed a working reviewer should therefore `repair`. All three models returned
+`pass` — **including Haiku, the reviewer D-254 falsified**. Three models agreeing is what sent me
+back to read the prompt, where the shipped design says an answer stated verbatim is **already
+owned by the deterministic gate D-246 restored**. `pass` was correct. The comment was blaming a
+reviewer for a job the design deliberately took away from it, and now says so.
+
+`--contract`'s argparse `choices` were also a hardcoded list that had already gone stale on the
+first addition; they derive from the registry now. That failure cost nothing only because
+argparse refuses before the model call rather than after it.

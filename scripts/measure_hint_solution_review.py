@@ -126,7 +126,7 @@ def _population(
     return broad, broad[:8]
 
 
-def _build_gateway(budget_cents: float) -> ResilientBedrockGateway:
+def _build_gateway(budget_cents: float, model_id: str | None = None) -> ResilientBedrockGateway:
     settings = get_pipeline_settings()
     provider = (
         AnthropicBedrockProvider(aws_region=settings.bedrock_aws_region)
@@ -139,10 +139,46 @@ def _build_gateway(budget_cents: float) -> ResilientBedrockGateway:
         # adding a settings field for a task that may be disqualified by this very run would
         # be building the wiring before the result. The judge's model is the honest default -
         # it is the model the pipeline would most plausibly give this job.
-        model_registry={BedrockTask.HINT_SOLUTION_REVIEW: settings.bedrock_judge_model_id},
+        model_registry={
+            BedrockTask.HINT_SOLUTION_REVIEW: model_id or settings.bedrock_judge_model_id
+        },
         session_budget_cents=budget_cents,
         call_timeout_s=120.0,
     )
+
+
+def _union(per_reviewer: list[dict[str, ItemResult]]) -> dict[str, ItemResult]:
+    """Collapse N reviewers into the verdict that actually decides (D-255): an item is
+    blocked if **any** reviewer blocks it, because acceptance requires unanimous `pass`.
+
+    Reading order matters and is preserved - reading *k* of the union pairs reading *k* of
+    each reviewer. Anything else would compare a reviewer's good run against another's bad
+    one and call the difference instability.
+    """
+    ids = list(per_reviewer[0])
+    merged: dict[str, ItemResult] = {}
+    for tid in ids:
+        first = per_reviewer[0][tid]
+        out = ItemResult(tid, first.skill_id, first.difficulty_label)
+        depth = min(len(r[tid].verdicts) for r in per_reviewer)
+        for k in range(depth):
+            reads = [r[tid].verdicts[k] for r in per_reviewer]
+            # `reject` outranks `repair` outranks `pass` - the union carries the most
+            # severe reading, so the early-stop rule can still see a reject.
+            out.verdicts.append(
+                "reject" if "reject" in reads else "repair" if "repair" in reads else "pass"
+            )
+            out.uncertainties.append(
+                max((r[tid].uncertainties[k] for r in per_reviewer),
+                    key=lambda u: {"low": 0, "medium": 1, "high": 2}.get(u, 0))
+            )
+            out.defects.append([d for r in per_reviewer for d in r[tid].defects[k]])
+            out.reasonings.append(" || ".join(r[tid].reasonings[k] for r in per_reviewer))
+        for r in per_reviewer:
+            out.bad_indices.extend(r[tid].bad_indices)
+            out.errors.extend(r[tid].errors)
+        merged[tid] = out
+    return merged
 
 
 async def _review_once(
@@ -214,8 +250,8 @@ async def _read(
     return results, spend
 
 
-def _report_check_1(results: dict[str, ItemResult]) -> dict:
-    print("\n--- Check 1: reproducibility (per-item, 4 readings) " + "-" * 20)
+def _report_check_1(results: dict[str, ItemResult], who: str = "") -> dict:
+    print(f"\n--- Check 1 [{who}]: reproducibility (per-item, repeated readings) " + "-" * 8)
     split = [r for r in results.values() if r.split]
     for r in results.values():
         marks = "".join("B" if b else "." for b in r.blocking_flags) or "-"
@@ -247,8 +283,8 @@ def _report_check_1(results: dict[str, ItemResult]) -> dict:
     }
 
 
-def _report_check_2(results: dict[str, ItemResult]) -> dict:
-    print("\n--- Check 2: false rejection on approved content (1 reading) " + "-" * 10)
+def _report_check_2(results: dict[str, ItemResult], who: str = "") -> dict:
+    print(f"\n--- Check 2 [{who}]: false rejection on approved content (1 reading) " + "-" * 4)
     read = [r for r in results.values() if r.verdicts]
     verdicts = Counter(r.verdicts[0] for r in read)
     blocking = [r for r in read if r.verdicts[0] in _BLOCKING]
@@ -309,6 +345,15 @@ async def main() -> int:
     parser.add_argument("--sample", type=int, default=50, help="check-2 item count")
     parser.add_argument("--seed", type=int, default=20260810, help="population draw seed")
     parser.add_argument("--run-budget-cents", type=float, default=150.0)
+    parser.add_argument(
+        "--reviewer",
+        action="append",
+        metavar="MODEL_ID",
+        help=(
+            "reviewer model id; repeat for D-255's two-reviewer union. Omit to use the "
+            "settings default (the single-reviewer shape D-254 measured)."
+        ),
+    )
     parser.add_argument("--dump", default=None, metavar="PATH")
     parser.add_argument(
         "--dry-run",
@@ -329,23 +374,55 @@ async def main() -> int:
         print("--dry-run: no provider built, nothing spent")
         return 0
 
-    gateway = _build_gateway(args.run_budget_cents)
+    reviewers: list[str | None] = list(args.reviewer) if args.reviewer else [None]
     spend = 0.0
-    # Check 1 first: if verdicts flip on identical input, check 2's single readings are
-    # already known to be unreliable and the run can be stopped by reading the output.
-    narrow_results, spend = await _read(
-        gateway, narrow, repeat=args.repeat, budget=args.run_budget_cents, spend=spend,
-        label="c1",
-    )
-    broad_results, spend = await _read(
-        gateway, broad, repeat=1, budget=args.run_budget_cents, spend=spend, label="c2",
-    )
-    report = {
-        "seed": args.seed,
-        "check_1": _report_check_1(narrow_results),
-        "check_2": _report_check_2(broad_results),
-        "spend_cents": spend,
-    }
+    narrow_all: list[dict[str, ItemResult]] = []
+    broad_all: list[dict[str, ItemResult]] = []
+    report: dict = {"seed": args.seed, "reviewers": [r or "(settings default)" for r in reviewers]}
+
+    for model_id in reviewers:
+        name = (model_id or "default").split(".")[-1][:22]
+        print(f"\n===== reviewer: {model_id or '(settings default)'} =====")
+        gateway = _build_gateway(args.run_budget_cents, model_id)
+        # Check 1 first: if verdicts flip on identical input, check 2's single readings are
+        # already known to be unreliable and the run can be stopped by reading the output.
+        narrow_results, spend = await _read(
+            gateway, narrow, repeat=args.repeat, budget=args.run_budget_cents, spend=spend,
+            label=f"c1/{name}",
+        )
+        broad_results, spend = await _read(
+            gateway, broad, repeat=1, budget=args.run_budget_cents, spend=spend,
+            label=f"c2/{name}",
+        )
+        narrow_all.append(narrow_results)
+        broad_all.append(broad_results)
+        report[f"reviewer::{model_id or 'default'}"] = {
+            "check_1": _report_check_1(narrow_results, f"reviewer {name}"),
+            "check_2": _report_check_2(broad_results, f"reviewer {name}"),
+        }
+
+    if len(reviewers) > 1:
+        # The number that governs. Every per-reviewer result above is diagnostic; D-255
+        # accepts only on unanimous `pass`, so this is the instrument being falsified.
+        print("\n" + "=" * 72)
+        print("UNION - the verdict D-255 actually uses (blocked if ANY reviewer blocks)")
+        print("=" * 72)
+        report["union"] = {
+            "check_1": _report_check_1(_union(narrow_all), "UNION"),
+            "check_2": _report_check_2(_union(broad_all), "UNION"),
+        }
+        # Free byproduct, and check 5's early-warning signal: near-zero is as suspicious as
+        # high, because two reviewers that never disagree are one reviewer billed twice.
+        first, second = broad_all[0], broad_all[1]
+        disagree = [
+            tid for tid in first
+            if first[tid].verdicts and second[tid].verdicts
+            and (first[tid].verdicts[0] in _BLOCKING) != (second[tid].verdicts[0] in _BLOCKING)
+        ]
+        print(f"\nB-vs-C disagreement on check 2: {len(disagree)} of {len(first)} items")
+        print(f"  {disagree}")
+        report["bc_disagreement"] = disagree
+    report["spend_cents"] = spend
     print(f"\nspend: {spend:.1f} cents")
     print(
         "\nSurviving these checks is not validation. It means not-yet-falsified: false\n"
