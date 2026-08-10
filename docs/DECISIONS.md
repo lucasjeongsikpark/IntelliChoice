@@ -18782,3 +18782,34 @@ everything else.
 Whether the **30 passed items the audit also passed** contain defects of any other class. Nothing
 here reaches them, and a deterministic audit can only ever certify the absence of what it was
 written to look for.
+
+## D-259 — the two-reviewer panel, built and wired to nothing (accepted, 2026-08-10)
+
+§4's panel step from D-255, in exactly the position D-251 step 3 left `hint_solution_review`:
+implemented, tested free under the mock, **no pipeline caller**. `review_panel.py`.
+
+Three rules live in the module because each would otherwise be re-derived, differently, at every
+call site:
+
+- **Unanimity.** Accepted only if every reviewer returns `pass`.
+- **Fail closed on a missing verdict** (§4.5b). A reviewer that errors is **not** a `pass`.
+  A raising gateway becomes a *blocking reading* rather than a propagating exception, so an
+  outage in reviewer C blocks the item rather than stopping the batch — the same conflation of
+  "cannot review" with "must not proceed", resolved deliberately in each direction.
+- **Hallucinated locations are filtered before a repair prompt can see them**, and reported
+  separately rather than dropped silently, because a reviewer inventing locations is itself a
+  finding. D-254 and D-256 both measured this at zero, which is the argument for wiring it *now*
+  rather than after the first run where it is not zero.
+
+**Defects are deliberately not deduplicated.** Two reviewers naming the same step is the
+strongest signal the panel produces — D-256 measured B and C agreeing on only 2 of 11 blocks —
+and collapsing duplicates would erase exactly the thing that makes agreement informative. A
+repair prompt reading one location twice costs a few tokens; one that cannot distinguish
+both-reviewers-agree from one-reviewer costs a worse decision.
+
+**Reviewer diversity is a parameter, not a default.** The panel takes one gateway per reviewer
+and does not enforce that they differ. A panel of one model twice would have measured 0
+disagreement instead of D-256's 9 of 50 and cost double; the module docstring is the only thing
+standing between a caller and that mistake, which is stated there in those words.
+
+12 tests, all free. Nothing about verdict quality is re-litigated here — that is D-256/D-257/D-258.
