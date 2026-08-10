@@ -7,8 +7,25 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Start here: the hint gate was rebuilt on measurement and is now tested in both directions
-(D-245/D-246).** D-243 closed the parsing question and left the dominant loss at the judge.
+**Start here: the hint & solution review instrument exists, is wired to nothing, and the next
+step costs money (D-251).** [HINT_SOLUTION_REVIEW.md](HINT_SOLUTION_REVIEW.md) is the design.
+`BedrockTask.HINT_SOLUTION_REVIEW` returns `PASS | REPAIR | REJECT` with located, actionable
+defects and an uncertainty level for routing — no scalar anywhere, and a test that fails if one
+reappears. **Step 4 is the falsification run** and it is the first paid step: check 1 (~8 items ×
+4 readings — does a verdict flip on identical input) and check 2 (~50 approved bank items × 1
+reading — does it reject content a human approved), ~82 calls, order of ~55¢, hard-capped,
+predictions pre-registered before the run.
+
+**Validation here is falsification, not proof.** The five checks can only *disqualify* the
+instrument; surviving them means "not yet falsified", which is why check 3 (sampling `PASS` as
+well as `REJECT`) runs permanently rather than as a gate. Two rejected approaches are recorded so
+they are not re-proposed: a **mutation corpus** (an artifact that rots as prompts move — D-249
+falsified a judge without one) and **distribution comparison as a pass/fail criterion** (similar
+distributions may just mean the batch is as good as the bank; D-249's force was per-item
+disagreement with real human approvals).
+
+**Everything before this line is prior state, still true.** The hint gate was rebuilt on
+measurement and is tested in both directions (D-245/D-246). D-243 closed the parsing question and left the dominant loss at the judge.
 D-245 measured `hint_reveals_answer` at n=4 on 8 hand-authored, human-reviewed items: **3 of 8
 answered both ways**, **4 of 8 flagged at least once**. D-246 measured the negative control -
 the same items with the answer appended to the last hint - at **32/32, 8 of 8 unanimous**. So
@@ -193,6 +210,21 @@ What is left, in order of value:
    expands to fill whatever it is given. Measure before raising.
 14. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
+18. **`_HINT_QUALITY_REJECT_BELOW = 2` is a live rejection nobody has measured** (D-251).
+   D-249 measured `hint_quality_score <= 3` and found it fires on 46% of human-approved bank
+   content. It never measured `< 2`, which is a different threshold doing a heavier job — it
+   *rejects* a candidate in `ai_pipeline.py`. The field was deliberately **not** deleted for this
+   reason. Measuring it is cheap and independent of everything else in D-251's plan; do it before
+   anyone else concludes the field is dead weight.
+19. **The hint & solution review instrument is built and entirely unvalidated** (D-251). It has
+   no pipeline caller **on purpose** — attaching an unvalidated reviewer to a gate is exactly what
+   D-249 found already shipped. Step 4 of [HINT_SOLUTION_REVIEW.md](HINT_SOLUTION_REVIEW.md) is
+   the falsification run (~82 calls, order of ~55¢, hard-capped) and nothing gets wired until it
+   survives. The mock-provider branch makes every non-verdict path free to exercise meanwhile.
+20. **Nothing enforces that a change reaches `main` through a PR** (D-251). Step 3 was pushed
+   straight to `main` because the working branch had been deleted on merge and nothing objected.
+   `main` is not protected; a branch-protection rule requiring the existing 9 checks would make
+   this impossible rather than merely against convention.
 
 **Before writing content for a new topic:** authored-mode YAML under
 `curriculum/internal_math/authored/` is the only route, and the file must match `make
@@ -228,6 +260,77 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — an instrument planned by what would refute it (2026-08-10, D-251)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1113 passed, 2 skipped, 1 xfailed** ·
+**no paid calls** · DECISIONS.md **D-251** + addendum · [HINT_SOLUTION_REVIEW.md](HINT_SOLUTION_REVIEW.md).
+
+**The ask was "we need an LLM that measures hint and solution quality". There were already
+two.** The §5.8.5 judge scores it, and `packages/evals`' `run_llm_judge` already names
+`hints_avoid_revealing_the_answer` and `solution_accuracy_and_clarity` — with **no production
+caller since S8**. A third scorer was never the gap; a way to falsify one was.
+
+**My plan was wrong twice and the user corrected both.** First it proposed a **mutation corpus**
+to validate against — rejected, and rightly: D-249 had falsified a judge that same session with
+no corpus and no new labels. Then I over-corrected into using approved-bank vs candidate
+**distribution similarity** as the criterion — also refuted: similar distributions may just mean
+the batch is as good as the bank. D-249's actual force was narrower and **per-item** — a
+threshold firing on content a human had individually approved. That distinction is now the
+difference between check 2 (per-item, false-rejection only) and check 5 (distributions,
+monitoring only, never pass/fail).
+
+**Three more of my claims were corrected and are recorded so they are not re-proposed:** pairwise
+comparison does not inherently harm diversity (the *objective* does); second readings must not
+fire only on blocking verdicts (that protects against false rejection and leaves false acceptance
+unseen); and repair recovers candidates but is not what removes the human — `PASS/REPAIR/REJECT`
+automates on its own.
+
+**Building step 3 then refuted a line of my own plan.** §2 said the instrument would reuse
+`run_llm_judge`. It is 37 lines whose entire substance is a **1–5 scalar per dimension**, so
+reusing it would have reintroduced the plan's own root cause #1 on the first line of code. Its
+own task now, reusing only the thin-wrapper pattern.
+
+**The user's insistence on inspecting readers before deleting `hint_quality_score` was load-
+bearing.** The field is not unused: it carries **two thresholds and only one was measured**.
+D-249 measured `<= 3` (the audit flag). `_HINT_QUALITY_REJECT_BELOW = 2` is a **live rejection**
+and has never been measured. Deleting the field would have removed an unmeasured gate on the
+strength of a measurement that did not cover it. Only the audit floor went — and it was overdue:
+it sat under a comment promising it reused "the pipeline's own thresholds", which after D-249 was
+false. **The drift that comment existed to prevent had already happened.**
+
+**Two adjacent defects found, both of a class already paid for.** `RubricDimensionScore.score`
+was unbounded against a prompt saying "1 (fails) to 5 (excellent)" — the shape that made the
+question judge emit 8s and 9s against thresholds of 2 and 3; never bit because nothing calls it.
+And `EquationDesignPayload` had been in `_GENERATION_REGIME_PAYLOAD_NAMES` but not
+`_GENERATION_PAYLOADS` since D-205, so nothing asserted its `extra="forbid"` — the exact residual
+gap `test_generation_payload_schemas.py`'s own docstring describes, open inside the file
+describing it.
+
+**`hint_ladder_monotonicity_violations` was found mislabelled.** It is `later.strip() in earlier`
+— verbatim containment, blind to paraphrase and to reordering. Kept (exact and free), docstring
+corrected, and a characterization test now pins both gaps so a future widening into a heuristic
+has to be deliberate.
+
+**Process failure worth recording:** step 3 was **pushed directly to `main`**. After merging
+#212 I stayed on `main` and never branched, so that change got no review boundary. CI on
+`85b40bb` is green and published history was not rewritten to undo it.
+
+### Session log — a rule restored that was never missing (2026-08-10, D-250)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1099 passed, 2 skipped, 1 xfailed** · no
+paid calls · DECISIONS.md **D-250** (written retroactively — the change shipped as `6d591d9` /
+PR #211 without one).
+
+D-246 restored a deterministic hint-leak check and wrote a **second implementation** of a rule
+live since D-201. `answer_leaked_beyond_the_question` was already in `authored_validation.py`,
+already enforcing the same visibility rule, and its docstring already recorded that it "destroyed
+four correct items before this existed". So the finding was a rediscovery and the fix was a
+duplicate — introduced in the same change that cited **D-223: one rule, one implementation**.
+
+**The generalisable part: a rule that is *restored* is the highest-risk kind of change, because
+the thing being restored may not be missing.** What would have caught it is grepping for the
+rule's *behaviour* rather than its name — the two implementations shared no identifier.
 
 ### Session log — the hint-quality threshold measures the judge (2026-08-10, D-249)
 
