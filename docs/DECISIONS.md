@@ -17873,3 +17873,81 @@ The metrics are in CloudWatch, not in a dashboard anyone has read under load —
 essentially no traffic, so most product panels will be flat until there is something to
 show. And the pipeline's records are only as good as the next run: nothing has yet been
 generated with them in place beyond one mock batch.
+
+## D-245 — the judge's hint rule is unstable, and my proposed fix made it worse (accepted, 2026-08-10)
+
+D-243 closed the generator's parsing problem and left its dominant loss at the judge: two of
+three judge rejections were `hint_reveals_answer` on hints that **stated the setup equation**.
+This is the measurement of whether that is a generator defect or a rubric defect.
+
+**It is neither, and the pre-registered fix failed.** Recorded in full because a plausible
+prompt clause that does not work is exactly the kind of thing a later session re-invents.
+
+### Established for free, before spending anything
+
+- The rubric defines reveal as *"states it, or reduces the problem to reading it off"*.
+- The **same judge in the same D-243 run decided both ways** on the identical pattern —
+  rejected `4n = 52`, and explicitly excused `5(w+3) + 10 = 50` (*"does not state the
+  answer (w = 5)"*).
+- **8 of the 130 hand-authored, human-reviewed bank items state the setup equation in a
+  hint** and all 8 were accepted. The project's own reviewed content does the thing.
+
+That population is what makes the question answerable: whatever the judge says about
+already-approved items is a statement about the rubric, not about a generated candidate.
+
+### Measured — n=4 per condition, 8 items, 42 cents
+
+| | A: shipped rubric | B: + skill-aware clause |
+|---|---|---|
+| split across 4 identical calls | **3 / 8** | **4 / 8** |
+| flagged at least once | 4 / 8 | 4 / 8 |
+| unanimously "reveals" | 1 | 0 |
+| tier reading moved | — | **0 / 8** |
+
+**P1 holds** — the judge is genuinely inconsistent: three reviewed items answered both ways.
+**P2 holds** — the flag rate is strictly between 0 and 8. **P4 holds** — the clause moved no
+item's tier, which it was required not to do. **P3 fails outright**: the clause made splits
+*worse* and unstuck the one item that had been stable.
+
+### Why it failed, which is the part worth keeping
+
+The judge is not ignorant of the rule. On `208100` it made the **same observation twice and
+reached opposite verdicts** — *"Hint 2 states the equation (8b = 144) directly rather than
+guiding the student to form it. For a 1-step equation, formulating the equation is the main
+cognitive task; once stated, only division remains"* → **False**, and the same content
+described the same way → **True** on another call. **The rule has no threshold, so identical
+reasoning supports either answer.**
+
+And that quote refutes the clause directly. It asserted that for a solving skill, writing
+the equation out leaves the work intact "which is the entire skill". For a *one-step*
+equation that is false: formulating it is most of the task and solving is one operation. The
+clause told the judge to excuse something that genuinely is the work — so it did not resolve
+an ambiguity, it added a wrong premise on top of one. **More instruction produced less
+consistency.**
+
+### What this licenses, and what it deliberately does not
+
+The finding that matters is about the **gate**, not the prompt: **4 of 8 human-reviewed,
+already-accepted bank items are flagged at least once in four calls.** A pipeline that
+rejects a candidate on a single `hint_reveals_answer` is discarding roughly half of content
+a human already approved, at a per-call rate near a coin flip on borderline items.
+
+The obvious response is D-239's move — downgrade the rejection to a `pending` review flag,
+since the deterministic `answer_text_leaked` check still catches an answer stated verbatim
+and the hard guarantee therefore survives. **It is not being made here.** D-221's rule is to
+protect precision over recall and to score both directions, and there is no negative control
+in this measurement: every one of these 8 items is content a human approved, so nothing in
+the run says what the gate does to hints that genuinely *do* leak. Loosening a gate using
+only the population it was too strict on is how a gate stops meaning anything — and it is
+the exact "raise the yield by loosening a gate" move this project warned itself against one
+session ago.
+
+**The missing piece is named rather than assumed away**: a set of hints that genuinely give
+the answer, judged under the same conditions. Until that exists, this is a measured problem
+without a licensed fix, and saying so is the honest state.
+
+### Cost
+
+**42.22 cents** against an 80-cent cap, pre-registered before the first call. The clause and
+its result are recorded in `scripts/measure_hint_reveal_rule.py` so the failure is not
+re-invented; re-running it is cheap and non-destructive.
