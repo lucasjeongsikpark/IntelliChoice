@@ -3005,3 +3005,82 @@ def test_a_leaking_hint_is_still_rejected_even_when_the_judge_says_nothing() -> 
             assert outcome.rejected_at == "validation"  # type: ignore[attr-defined]
 
     asyncio.run(run())
+
+
+def test_the_review_screen_names_why_an_item_is_flagged_instead_of_burying_it() -> None:
+    """D-247: the half of D-246 that was true on paper and weak in practice.
+
+    D-246 downgraded `hint_reveals_answer` from a rejection to a review signal, on the
+    argument that "the judge's reason now travels with it". It does - inside
+    `stage_results`, which `render_item` prints as a raw dict. Measuring the first paid run
+    afterwards showed what that is worth: **26 of 29 pending candidates carry
+    `review_priority="high"`**, so the field meant to draw the reviewer's eye fires on 90% of
+    items and directs attention nowhere, and the actual reason is a `'hint_reveals_answer':
+    True` somewhere inside a large JSON blob.
+
+    A signal that is present but not surfaced is the same shape as D-244's twenty
+    uncollected metrics: emitted, technically available, and read by nobody.
+    """
+    template = QuestionTemplate(
+        question_template_id="authored-linear_equations-d4-999001",
+        curriculum_version="v1",
+        topic_id="linear_equations",
+        skill_id="linear_two_step",
+        grade_band="6-7",
+        difficulty_label=4,
+        question_type="multiple_choice",
+        stem="Solve: 2x + 3 = 11",
+        hint_ladder=["one", "two", "three"],
+        review_priority="high",
+        validation_status="pending",
+    )
+    run = QuestionValidationRun(
+        question_template_id=template.question_template_id,
+        outcome="pending",
+        stage_results={
+            "judge": {
+                "hint_reveals_answer": True,
+                "hint_reveals_answer_reason": "hint 2 states the setup equation",
+                "hint_quality_score": 2,
+            },
+            "difficulty": {"decision": "flagged"},
+        },
+        reasons=[],
+    )
+    rendered = review_cli.render_item(template, None, run)
+
+    # Each reason stated in prose, not left to be spotted inside the dict dump below it.
+    assert "hint may give the answer away" in rendered
+    assert "hint 2 states the setup equation" in rendered
+    assert "hint quality 2" in rendered
+    assert "difficulty flagged" in rendered
+    # The raw evidence stays - this adds a summary, it does not replace the record.
+    assert "pipeline evidence:" in rendered
+
+
+def test_an_unflagged_item_says_so_rather_than_printing_an_empty_heading() -> None:
+    """A "review flags:" line with nothing after it reads as a rendering bug and trains the
+    reviewer to skip the line on every item, including the ones that have something."""
+    template = QuestionTemplate(
+        question_template_id="authored-linear_equations-d2-999002",
+        curriculum_version="v1",
+        topic_id="linear_equations",
+        skill_id="linear_two_step",
+        grade_band="6-7",
+        difficulty_label=2,
+        question_type="multiple_choice",
+        stem="Solve: x + 1 = 4",
+        hint_ladder=["one", "two", "three"],
+        review_priority="normal",
+        validation_status="pending",
+    )
+    run = QuestionValidationRun(
+        question_template_id=template.question_template_id,
+        outcome="pending",
+        stage_results={
+            "judge": {"hint_reveals_answer": False, "hint_quality_score": 5},
+            "difficulty": {"decision": "accepted"},
+        },
+        reasons=[],
+    )
+    assert "review flags" not in review_cli.render_item(template, None, run)

@@ -174,6 +174,13 @@ What is left, in order of value:
    any session touching a file and running the formatter drags unrelated reformatting into its
    diff, which is exactly what happened here and was reverted. Adding `ruff format --check` to
    `make lint` means one large mechanical commit first; worth doing, worth doing on its own.
+17. **`review_priority="high"` has saturated and no longer triages** (D-247). 26 of 29 pending
+   authored candidates carry it - 5 of this run's 7 from `difficulty.decision == "flagged"`
+   alone. D-247 surfaced the individual reasons in prose so the information is not lost, but the
+   field itself still says "high" about almost everything. Fixing it means deciding what "high"
+   should mean when most candidates legitimately have something worth a look, which is a product
+   judgement rather than a bug fix - and the D-244 shape says the failure mode is a signal that
+   is present, correct, and read by nobody.
 16. **The generator's remaining loss is `max_output_tokens` truncation at 2500** (D-243). One of
    eleven, and newly visible now that the schema failures are gone — the item is larger because
    the model finally writes every field. D-233 is the precedent to read first: raising this
@@ -216,6 +223,32 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the gate on fresh candidates, and a saturated signal (2026-08-10, D-247)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1098 passed, 2 skipped, 1 xfailed** ·
+**28.05 cents** against a 45-cent cap, pre-registered · DECISIONS.md **D-247**.
+
+**The rebuilt gate works on fresh candidates, once.** `d4-8465400` carries
+`hint_reveals_answer=true` at `pending` / `review_priority=high` - a candidate the pre-D-246 code
+would have discarded. Exactly one, which is all the change should be credited with. The
+deterministic check rejected nothing, matching its four hits in all recorded history: a backstop,
+not a workhorse. Yield 6/11 → 7/11, and **only that one candidate is attributable** - at n=11 the
+rest is sample variation and no quality claim is made.
+
+**D-244's records carried their first paid run**, so this batch was read off structured records
+rather than terminal scrollback for the first time.
+
+**The finding it produced was not the one it went looking for: `review_priority="high"` is on 26
+of 29 pending candidates - 90%.** A triage signal firing on nine items in ten triages nothing,
+and D-246 had just added a fourth condition to it. That falsifies the practical half of D-246's
+claim that the judge's reason "travels to the reviewer": it travelled into a raw dict under a
+heading that says "high" about almost everything. The reasons are now stated in prose above the
+evidence, worded *"may"* because D-245 measured ~50% false positives. **`review_priority` itself
+is left saturated** - deciding what "high" should mean is a product judgement, not a bug fix.
+
+**Same shape as D-244, one level down:** a signal emitted, technically available, and read by
+nobody.
 
 ### Session log — the hint gate, rebuilt on measurement (2026-08-10, D-246)
 
