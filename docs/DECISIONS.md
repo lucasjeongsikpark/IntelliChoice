@@ -19130,3 +19130,51 @@ exercise the skill they are filed under. A solution-step repair cannot fix a con
 
 Estimated ~$1.45 from a ten-item pilot; actual $2.48. The pilot's round distribution
 (mostly 2) did not hold at 44 (several 3-5). **A pilot bounds the failure modes, not the price.**
+
+## D-265 — reading the diffs found a defect in the success metric, not in the diffs (accepted, 2026-08-10)
+
+D-264 reported **28 of 44** accepted-and-clear on the strength of an automated check. Reading all
+28 by hand — the D-257 discipline applied to this project's own output — found that the check was
+too lenient.
+
+**The honest number is 27**, and three accepted items still fail to state their answer:
+
+| item | last step | why it slipped |
+|---|---|---|
+| `fraction_operations-d2-100204` | `[6 ÷ 6 = 1 and 12 ÷ 6 = 2]` | states neither `1/2` nor anything to read it off |
+| `multiplication_division-d4-300404` | `[50 - 48 = 2]` | the remainder, not the answer (6) |
+| `linear_equations-d1-709100` | `[levels = 21 / 3]` | unevaluated |
+
+### The metric inverted the purpose of a bucket built for the opposite job
+
+`_still_flagged` asked whether the repaired item was still in `_UNAMBIGUOUS`. That set exists
+because D-257 needed to *avoid false positives on authored content* — `[18 = 18 ✓]` is a
+legitimate way for a correct solution to end, so it lives in a separate "numeric, but not the
+answer" bucket rather than being counted as a defect.
+
+Using that bucket as a **success criterion for repaired content** inverted its purpose: a repair
+that moved an item from "unevaluated arithmetic" into the mixed bucket scored as fixed while the
+answer was still nowhere in the step. `100204` did exactly that, turning `[6/12]` into
+`[6 ÷ 6 = 1 and 12 ÷ 6 = 2]`.
+
+The right question for scoring a repair is the plain one — *does the last step state the answer* —
+which is `classify(...) is None`. Now it is.
+
+**The correction is one item, and that is luck rather than design.** Nothing bounded how many
+repairs could land in the mixed bucket; the metric would have reported them all as successes.
+
+### One suspicion of mine was wrong, and checking is why that is known
+
+`place_value-d1-200104` ends `[Subtract 34 from 43 to find the difference]`, which reads like the
+same failure. It is not: the explanation says *"43 − 34 = 9"*, so the answer is stated and the
+D-262 both-fields rule sees it. A good repair that looks bad in the expression column alone.
+
+### What this changes about applying the diffs
+
+**27 of 44 are readable proposals that fix what they were meant to fix**, hint ladders preserved
+verbatim, no answer key moved. One of them — `multiplication_division-d3-300302` — also corrected
+a genuine error in a hint that nothing had asked about: *"put the two results together"* →
+*"add the two results together"*.
+
+They are still not applied. What changed is that the number is now honest and the three failures
+are named rather than averaged into a headline.

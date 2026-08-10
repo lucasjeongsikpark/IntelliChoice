@@ -47,6 +47,8 @@ from audit_solution_step_completeness import (  # noqa: E402
     last_step_text,
 )
 
+_ = _UNAMBIGUOUS  # still used for selecting the population, not for scoring a repair
+
 _DEFAULT_REVIEWERS = (
     "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     "openai.gpt-oss-120b-1:0",
@@ -102,7 +104,20 @@ def _flagged_items() -> list:
 
 
 def _still_flagged(outcome) -> bool:
-    """Does the *repaired* item still fail the audit? R2, and the disqualifying metric."""
+    """Does the *repaired* item still fail to state its answer? R2, and the metric that
+    decides whether a repair worked.
+
+    **Strict on purpose (D-265).** The first version asked whether the item was still in
+    `_UNAMBIGUOUS`, and that is the wrong question for scoring a *repair*: a repair that moved
+    an item from "unevaluated arithmetic" into the mixed "numeric, but not the answer" bucket
+    read as fixed while the answer was still nowhere in the step. `fraction_operations-d2-100204`
+    did exactly that - `[6/12]` became `[6 ÷ 6 = 1 and 12 ÷ 6 = 2]`, which states neither `1/2`
+    nor anything a student could read the answer off.
+
+    The mixed bucket exists because `[18 = 18 ✓]` is a legitimate way for an *authored* item to
+    end (D-257). Using a bucket built to avoid false positives on authored content as a success
+    criterion for repaired content inverted its purpose.
+    """
     last = outcome.item.canonical_solution.steps[-1]
     # Both fields (D-262). Scoring `expression` alone made a working repair - one that put the
     # computation in the prose - read as the panel approving something it had not fixed.
@@ -111,7 +126,7 @@ def _still_flagged(outcome) -> bool:
             last_step_text({"explanation": last.explanation, "expression": last.expression}),
             str(outcome.item.canonical_solution.final_answer),
         )
-        in _UNAMBIGUOUS
+        is not None
     )
 
 
