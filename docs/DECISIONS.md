@@ -18372,3 +18372,90 @@ warning about it. Found by adding `HintSolutionReviewPayload` to both. Closed.
 falsification run passes. An unvalidated reviewer attached to a gate is precisely what D-249
 found already shipped, and building the wiring first would make the run's outcome expensive to
 act on.
+
+## D-252 — the reject floor was already measured, in data we had already paid for (accepted, 2026-08-10)
+
+**Carry-over #18 asked for a paid measurement. It did not need one.** The question was whether
+`_HINT_QUALITY_REJECT_BELOW = 2` — the live rejection at `ai_pipeline.py`, deliberately kept when
+D-249 deleted the audit's `<= 3` flag — ever fires. D-249 had measured `<= 3` and never `< 2`, and
+the plan was to buy readings to close the gap.
+
+But `stage_results["judge"] = judge.model_dump()` has been persisting every judge verdict into
+`question_validation_runs` since the pipeline was built. **331 runs, 110 with a judge verdict**,
+all real model prose. The population the gate guards was already on disk, bought.
+
+```sql
+select (stage_results::jsonb->'judge'->>'hint_quality_score')::int as score, count(*)
+from question_validation_runs
+where stage_results::jsonb->'judge' ? 'hint_quality_score'
+group by 1 order by 1;
+```
+
+| score | readings | first seen | last seen |
+|---|---|---|---|
+| 2 | 6 | 2026-08-06 | 2026-08-10 |
+| 3 | 13 | 2026-08-06 | 2026-08-10 |
+| 4 | 63 | 2026-08-06 | 2026-08-10 |
+| 5 | 20 | 2026-08-06 | 2026-08-10 |
+| 8 | 3 | 2026-08-05 | 2026-08-05 |
+| 9 | 5 | 2026-08-05 | 2026-08-05 |
+
+**The floor has never fired.** 102 in-scale readings on generated candidates, plus D-249's 24 on
+the approved bank (`d249_dump.json`, distribution `{2: 4, 3: 7, 4: 9, 5: 4}`) — **126 readings,
+minimum observed 2, zero below it.** The floor sits below the distribution's observed support.
+
+**It is kept, and that follows D-240 rather than being a fresh judgement.** D-240 found the
+difficulty re-tier gate "live, correct, and never fired" and kept it. A never-firing floor costs
+nothing to run and is the guard against a model regression — and the field *is* bounded to 1-5 now,
+so a `1` is reachable, just never reached. Zero events in 126 readings is a ~2% upper bound by the
+rule of three, not a proof of impossibility.
+
+### Three things the same query settled in passing
+
+**The 8s and 9s are still in the database, and they date themselves.** All eight off-scale readings
+are from **2026-08-05 and no other day**; nothing on or after 08-06 leaves the scale. That is the
+schema bound landing, and it independently corroborates
+`test_judge_hint_quality_score_is_bounded_to_the_scale_its_thresholds_assume`'s docstring, which
+had asserted the same date from the run log rather than from stored evidence. They are excluded
+from the 126 — a reading on a scale the model invented is not a reading on this one.
+
+**No mock rows contaminate it.** `MockBedrockProvider` returns a fixed `hint_quality_score: 5` with
+a recognisable reasoning string, and **zero of the 110 match it** — the shared dev Postgres that
+makes `make test` and Playwright collide (a known hazard) does not persist judge verdicts here.
+Checked before trusting the number, because a mock's constant 5 landing in a distribution would
+have inflated the top bucket and changed nothing about the floor, which is the sort of near-miss
+that reads as fine.
+
+**`_HINT_QUALITY_BORDERLINE_AT`'s comment had been wrong since D-249.** It said a borderline score
+routes the candidate to `review_priority="high"`. D-249 removed that — `review_priority_for` reads
+`retiered` and `hint_reveals_answer` and nothing else. The constant is still live, but only as
+*display*: `review_cli._review_flags` prints "at or below the borderline" beside the item. Same
+class as the stale comment D-251 step 1 deleted from `audit_authored_bank.py`, which promised it
+reused "the pipeline's own thresholds" after those thresholds were gone. **When a threshold is
+demoted, the comment explaining it is the thing that survives and lies.**
+
+### What this does not do
+
+It does not validate the D-251 instrument, and it is not step 4. Step 4 is still the falsification
+run and still unspent. What changed is that carry-over #18 is closed for free, and the estimate it
+carried — "measuring it is cheap" — was an overestimate: it was already bought.
+
+## D-253 — delete the tracked duplicate of `knowledge-content/` (accepted, 2026-08-10)
+
+`knowledge-content copy/` was a **tracked**, byte-identical, 33-file duplicate of
+`knowledge-content/` (`diff -rq` reports nothing). It entered in `00b4857`, *"icalendar >=6.1 ->
+>=7.2.2 (dependabot #21, lockfile regenerated)"* — a commit that touched 35 files, **33 of them
+this** — so a macOS Finder duplicate was swept into a dependency bump by a broad `git add`.
+
+Deleted with `git rm -r`. Three reasons it is worth a decision entry rather than a silent cleanup:
+
+- **`.gitignore` could not have fixed it.** An ignore rule does nothing to an already-tracked
+  path, which is the trap: the obvious remedy is a no-op and looks like it worked.
+- **It had already cost a session real time.** AUD-F-16 records the directory "disappearing from
+  the working tree mid-session (33 files)", restored with `git checkout`, cause never found and
+  logged as a carry-over. A session investigated the health of an accident.
+- **Nothing referenced it.** Every loader resolves `_REPO_ROOT / "knowledge-content"` explicitly
+  (`content_store.py`, `org_load.py`, `sync_cli.py`, `test_manifest.py`), so it was never
+  double-ingested — inert, not harmful, and therefore able to sit there for two weeks.
+
+The content is recoverable from history; the original 33 files are untouched.
