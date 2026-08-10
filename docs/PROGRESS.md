@@ -7,6 +7,16 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**Start here: the generator's losses are now judge rejections, and that is a content question.**
+D-243 closed the parsing question — the pipeline's 41% structured-output failure rate was a `$ref`
+in the tool schema and is now 0 (yield 27% → 55%). What replaced it is the interesting part: of 11
+candidates, **3 now die at the judge**, two of them on hint ladders that give the answer away
+(*"Hint 2 states the setup equation directly"*). That is a prompt-and-rubric question about the
+generator's hint ladder, it is now the dominant loss, and its evidence is already persisted in
+`question_validation_runs` — free to start, no paid run needed to read it. **Do not read 55% as a
+ceiling that needs raising by loosening a gate**: every remaining loss is a real content judgement,
+which is the pipeline working.
+
 **Both quality panels have run over the whole bank, and both topics that would not calibrate are
 now understood — for two unrelated reasons.** Four topics, **130** authored items, grades 1-7 all
 resolving. The solver panel agrees with the author on 127 of 127 behind a 12/12 negative control

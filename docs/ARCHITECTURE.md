@@ -675,6 +675,27 @@ to rot, because nothing fails when it does.)*
   what made it survivable and also what made it hard to notice. Anchor ignore patterns that name a
   directory which exists at more than one depth, and treat a *narrowing* of what a checker reads as
   the same class of defect as a check that returns the wrong answer.
+- **The model and the validator read the same schema differently, and only one of them tells you**
+  (D-243). `AuthoredGeneratedItemResponse` is the only response model here that contains another
+  model, so it is the only one whose `model_json_schema()` carries a `$defs` block and a `$ref` into
+  it — and it is the model D-240 measured failing structured output on 41% of candidates. Measured
+  on Haiku 4.5, **twelve consecutive calls returned a tool input with exactly one key**,
+  `canonical_solution`: the one field that *is* a `$ref`. Four calls with the same schema
+  dereferenced returned three valid items. Pydantic and the model agree on what that schema *means*
+  and disagree on what it *says*, and nothing in the stack is positioned to notice — the validator
+  only ever sees the response. The gateway now inlines `$ref`/`$defs` at the single seam where a
+  schema is built; nothing is loosened, because an inlined schema is the same schema, and a flat one
+  is returned untouched. **The transferable part is that a structured-output contract has two
+  readers with different competence, so a schema feature that is legal is not thereby safe** — and
+  that adding a nested model to a response is the change most likely to trip it.
+- **A bounded diagnostic that truncates by position hides exactly the outlier it exists to surface**
+  (D-243). The digest built to explain those failures capped at eight entries and returned the first
+  eight. Pydantic emits `missing` before `extra_forbidden`, so a response missing every required
+  field produced eight identical `missing` lines and dropped the single entry naming what the model
+  had actually sent — six failures, six indistinguishable digests, and the answer one layer below
+  what the instrument could reach. It now round-robins across distinct rule types: every rule gets
+  one entry before any rule gets a second. **Bound a diagnostic by diversity, not by prefix**,
+  because the common case is the case you already understand.
 - **When a check and the thing it checks disagree, move the cheaper one** (D-239). The difficulty
   gate rejected any candidate whose judged tier sat 2 from its slot's — discarding an item that had
   passed the generator, both solvers and every judge flag, because one number said it belonged
