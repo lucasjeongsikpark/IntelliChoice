@@ -90,12 +90,27 @@ What is left, in order of value:
    so the topics where tier disagreement actually lives — the ones D-234 and D-238 worked on — are
    hand-authored and **this gate never sees them**. Registering a second topic's generation plan
    would both extend the pipeline and give the gate a real population.
-7. **LangSmith returns 403 on `runs/multipart` and has never received a run** (D-242). Not a code
-   defect — key valid, NAT/route/SG open, client installed, and the same key succeeds via
-   `create_run()` from a laptop. It needs a LangSmith credential or plan change (a workspace-scoped
-   service key is the first thing to try; `GET /workspaces/current` returns `{}` for this one).
-   Until then the AI observability leg is dark and the D-242 correlation metadata cannot be
-   confirmed end to end. `LangSmithIngestFailed` now alarms on it rather than letting it stay quiet.
+7. **LangSmith is 403 and the AI observability leg is still dark** (D-242). Nothing on our side is
+   wrong: NAT/route/SG open, client installed, correlation code deployed, and the
+   `LangSmithIngestFailed` metric filters are **applied and live** in both services (they count from
+   creation forward, so they read 0 until the next failure).
+
+   **The key was rotated to a `lsv2_sk_` service key on 2026-08-10 and it did not fix it — it made
+   the symptom broader.** Verified against the rotated key: the stored secret is clean (51 chars, no
+   stray whitespace) and the type is right, but it now returns **403 on every endpoint** —
+   `/runs/multipart`, `/runs`, and even `/api/v1/sessions`, which the previous key could at least
+   list. `GET /workspaces/current` returns empty for both.
+
+   **Diagnosis: the service key exists but has no workspace/role granted.** A LangSmith service key
+   is created separately from its permission grant, and one with no workspace assignment 403s on
+   everything — exactly the observed pattern. The fix is in the LangSmith console (Settings →
+   API keys / Members): assign the key a **workspace and a role with write access**, then rotate
+   again if the key string changes.
+
+   **ECS was deliberately NOT restarted.** Tasks read secrets at start, so staging still runs the
+   old key; restarting would swap a key that 403s on one endpoint for one that 403s on all of them.
+   Restart only after the grant is in place:
+   `aws ecs update-service --cluster intellichoice-staging --service intellichoice-staging-<svc> --force-new-deployment`.
 8. **The D-241 exam submit gate ships verified by build only.** `/dev/token` is 403 on the
    public edge - correct, and asserted by the deploy's own security gate - so a student token
    cannot be minted through CloudFront to walk it, and there is no web unit-test harness to

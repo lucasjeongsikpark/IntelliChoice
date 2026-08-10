@@ -17599,3 +17599,22 @@ deleted afterwards (account back to zero projects).
 
 **Unverifiable until the 403 is resolved:** that the correlation metadata actually appears on a
 LangSmith run. The seam is unit-tested; the end-to-end confirmation is blocked on the credential.
+
+### Postscript, same day: the key was rotated and it did not fix it
+
+A `lsv2_sk_` **service key** replaced the previous one - the right type, and what this entry
+recommended. It made the symptom *broader*: 403 on `/runs/multipart`, on `/runs`, and now on
+`/api/v1/sessions` too, which the old key could at least list. The stored secret is clean (51 chars,
+no stray whitespace), so this is not a copy/paste fault.
+
+`GET /workspaces/current` returns empty for both keys, which is the tell: **a LangSmith service key
+is created separately from its permission grant**, and one with no workspace/role assigned 403s on
+everything. The fix is a grant in the LangSmith console, not another rotation.
+
+**ECS was deliberately not restarted.** Tasks read secrets at start, so staging still holds the old
+key; restarting now would replace a key that fails one endpoint with one that fails all of them -
+strictly worse, and it would have looked like the deploy caused it.
+
+The `LangSmithIngestFailed` filters were applied to both services (`terraform apply`, 2 added,
+1 dashboard updated, 0 destroyed). They read 0 for now because a metric filter matches only events
+arriving after it exists - it does not backfill the days of 403s already in the log group.
