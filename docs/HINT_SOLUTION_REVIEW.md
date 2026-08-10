@@ -1,10 +1,13 @@
 # Hint & solution quality review — design (D-251 → D-256)
 
-**Status: the reviewer exists and is measured; the architecture around it is not built.** The
-instrument is implemented and has survived two falsification runs — single-reviewer (D-254) and
-the two-reviewer union (D-256). **Nothing in §4 is wired**: there is no pipeline caller, no
-repair loop, no discard path. Read this before adding any hint- or solution-quality scoring
-anywhere.
+**Status: the reviewer and the panel exist and are measured; the loop around them is not built.**
+The instrument survived two falsification runs — single-reviewer (D-254) and the two-reviewer
+union (D-256) — and D-257/D-258 measured its precision (6/6 blocks real) and its recall (~43% on
+the one class checkable for free). `review_panel.py` implements §4's panel step: unanimity,
+fail-closed on a missing verdict, hallucinated locations filtered.
+
+**Still not built:** the repair prompt, the round history, the discard path, and any pipeline
+caller. Read this before adding any hint- or solution-quality scoring anywhere.
 
 The goal is to **replace routine human review** of generated hint ladders and canonical
 solutions with LLM review that emits automatable decisions — while keeping content diverse
