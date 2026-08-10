@@ -7,20 +7,26 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Start here: `hint_reveals_answer` is a measured problem with no licensed fix yet (D-245).**
-D-243 closed the parsing question (a `$ref` in the tool schema; yield 27% → 55%) and left the
-dominant loss at the judge. D-245 measured that rule at n=4 on **8 hand-authored, human-reviewed
-bank items whose hints state the setup equation** — and found the judge answers **both ways on 3 of
-8**, flags **4 of 8 at least once**, and articulates the same observation while reaching opposite
-verdicts. **A gate that rejects on one judge call is discarding roughly half of content a human
-already approved.**
+**Start here: the hint gate was rebuilt on measurement and is now tested in both directions
+(D-245/D-246).** D-243 closed the parsing question and left the dominant loss at the judge.
+D-245 measured `hint_reveals_answer` at n=4 on 8 hand-authored, human-reviewed items: **3 of 8
+answered both ways**, **4 of 8 flagged at least once**. D-246 measured the negative control -
+the same items with the answer appended to the last hint - at **32/32, 8 of 8 unanimous**. So
+the rule is a perfect detector and a coin-flip gate.
 
-**A skill-aware rubric clause was tried and made it worse** (splits 3/8 → 4/8) — the clause is kept,
-with its result, in `scripts/measure_hint_reveal_rule.py` so it is not re-invented. The obvious next
-move (downgrade the rejection to a review flag, D-239's pattern) is **deliberately not taken**: every
-item in that run is content a human approved, so there is no negative control saying what the gate
-does to hints that genuinely leak. **The missing piece is a leaking-hint control set**, and building
-one is the next real step. Re-running the measurement is cheap (42c) and non-destructive.
+**A plain downgrade would have been wrong**, and why is the thing to carry: D-202 removed the
+deterministic gate from the pipeline, and `review_cli.approve` calls `activate_template`
+straight on the database row without going through the loader — so the judge's ~50%-false-
+positive flag was **the only automated check on a generated item's hints, all the way to a
+student**. So: restore one deterministic check (exact, free, hard reject), *then* downgrade the
+fuzzy flag to `pending` at `review_priority="high"`.
+
+**Scoring the new gate in both directions caught two live failures before shipping**, neither
+predicted: the naive check rejected an approved item whose answer coincided with a visible
+starting amount, and the fix for that then let four items through with *"The answer is 8"*
+appended. Final state is 130/130 both ways, held by a free test over the whole bank. **A
+skill-aware rubric clause was tried and made things worse** (splits 3/8 → 4/8); it is kept with
+its result in `scripts/measure_hint_reveal_rule.py` so it is not re-invented.
 
 **Both quality panels have run over the whole bank, and both topics that would not calibrate are
 now understood — for two unrelated reasons.** Four topics, **130** authored items, grades 1-7 all
@@ -210,6 +216,28 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the hint gate, rebuilt on measurement (2026-08-10, D-246)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1096 passed, 2 skipped, 1 xfailed** ·
+**20.26 cents** against a 40-cent cap, pre-registered · full write-up in DECISIONS.md **D-246**.
+
+**The control D-245 was missing.** The same 8 items with the answer appended to the final hint:
+**32/32, 8 of 8 unanimous, zero splits**, against the positive set's 3/8 split and 4/8 flagged.
+Perfect detector, coin-flip gate.
+
+**The finding that stopped a plain downgrade.** D-202 removed the deterministic gate from the
+pipeline, and `review_cli.approve` calls `activate_template` straight on the database row rather
+than through the loader - so **the judge's flag was the only automated check on a generated
+item's hints all the way to a student**. Error costs are asymmetric and rule 5 is fail closed, so
+the licensed change was two parts, not one: restore the exact check, then downgrade the fuzzy one.
+
+**Scoring both directions caught two live failures before shipping, neither predicted.** The
+naive check rejected `1609201`, whose answer is 8 and whose hints mention "the $8 he already
+had" - committing the exact failure the rebuild was meant to stop. The fix for that then let
+four items through with *"The answer is 8"* appended. Final: **130/130 in both directions**, held
+by a free permanent test - on a corpus the paid instrument cannot be tested against, because it
+answers differently on identical input.
 
 ### Session log — a measured problem, and a fix of mine that failed (2026-08-10, D-245)
 
