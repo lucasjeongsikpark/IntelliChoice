@@ -17607,9 +17607,24 @@ recommended. It made the symptom *broader*: 403 on `/runs/multipart`, on `/runs`
 `/api/v1/sessions` too, which the old key could at least list. The stored secret is clean (51 chars,
 no stray whitespace), so this is not a copy/paste fault.
 
-`GET /workspaces/current` returns empty for both keys, which is the tell: **a LangSmith service key
-is created separately from its permission grant**, and one with no workspace/role assigned 403s on
-everything. The fix is a grant in the LangSmith console, not another rotation.
+**That diagnosis was wrong, and one probe settles it.** I read the empty `/workspaces/current` plus
+the 403s as "key exists, permissions missing" and advised granting a workspace role. Comparing
+against a *deliberately invalid* key is what I should have done first:
+
+| request | response |
+|---|---|
+| no key at all | **401** `Invalid token` |
+| a bogus key invented for the test | **403** `Forbidden` |
+| the stored key | **403** `Forbidden` - *identical to the bogus one* |
+
+LangSmith answers 403 for any well-formed but **unrecognized** key, so the stored key is
+indistinguishable from a made-up string. It is revoked, mistyped, truncated, or from a deleted
+account - **not a key awaiting a grant.** Both regional hosts (`api.` and `eu.api.`) were tested and
+behave the same, so it is not a tenant-region mismatch either.
+
+**The general lesson, which cost a wrong instruction to the user:** a permission-shaped error code is
+not evidence of a permission-shaped cause until it has been compared against a known-bad credential.
+`403` looked like "known but unauthorized" and meant "unknown".
 
 **ECS was deliberately not restarted.** Tasks read secrets at start, so staging still holds the old
 key; restarting now would replace a key that fails one endpoint with one that fails all of them -

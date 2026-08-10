@@ -101,11 +101,14 @@ What is left, in order of value:
    `/runs/multipart`, `/runs`, and even `/api/v1/sessions`, which the previous key could at least
    list. `GET /workspaces/current` returns empty for both.
 
-   **Diagnosis: the service key exists but has no workspace/role granted.** A LangSmith service key
-   is created separately from its permission grant, and one with no workspace assignment 403s on
-   everything — exactly the observed pattern. The fix is in the LangSmith console (Settings →
-   API keys / Members): assign the key a **workspace and a role with write access**, then rotate
-   again if the key string changes.
+   **Diagnosis: the stored key is not a valid LangSmith key at all.** An earlier reading of this as
+   "key exists, permission grant missing" was wrong. A bogus key invented for the test returns the
+   **same 403** as the stored one, while sending *no* key returns **401** — so 403 here means
+   *unrecognized*, not *unauthorized*. Both regional hosts (`api.` / `eu.api.`) behave identically,
+   ruling out a tenant-region mismatch. The key is revoked, mistyped, truncated, or from a deleted
+   account. **Verify any replacement before storing it:**
+   `curl -s -o /dev/null -w '%{http_code}\n' -H "x-api-key: <key>" https://api.smith.langchain.com/api/v1/sessions`
+   — `200` means good, `403` means the string is not a key LangSmith knows.
 
    **ECS was deliberately NOT restarted.** Tasks read secrets at start, so staging still runs the
    old key; restarting would swap a key that 403s on one endpoint for one that 403s on all of them.
