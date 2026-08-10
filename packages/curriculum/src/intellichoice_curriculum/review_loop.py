@@ -31,7 +31,11 @@ from intellichoice_shared.bedrock import (
     HintSolutionDefect,
 )
 
-from .hint_solution_repair import apply_repair, repair_hints_and_solution
+from .hint_solution_repair import (
+    apply_repair,
+    collateral_edits,
+    repair_hints_and_solution,
+)
 from .review_panel import PanelVerdict, review_panel
 
 #: §4's limit. A constant rather than a default argument so the number has one home.
@@ -54,6 +58,9 @@ class Round:
     suggested_fixes: list[str] = field(default_factory=list)
     repaired_hint_ladder: list[str] | None = None
     repair_error: str | None = None
+    # D-261: positions the repair changed that no defect named. A rejected repair is not a
+    # rejected item - the round is discarded and the item keeps the text it came in with.
+    collateral_edits: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -81,6 +88,7 @@ class LoopOutcome:
                     "suggested_fixes": r.suggested_fixes,
                     "repaired_hint_ladder": r.repaired_hint_ladder,
                     "repair_error": r.repair_error,
+                    "collateral_edits": r.collateral_edits,
                 }
                 for r in self.rounds
             ],
@@ -190,6 +198,14 @@ async def run_review_loop(
             return LoopOutcome("discarded", current, rounds, spend, "repair failed")
 
         spend += repair.cost_cents
+        collateral = collateral_edits(current, repair.value, verdict.defects)
+        if collateral:
+            # D-261: the repair edited text nobody objected to. Applying it would leave the
+            # panel reviewing changes it never asked for, and `mistral-large-3` did exactly
+            # this on 4 of 4 measured attempts - so this is an enforced invariant rather than
+            # a prompt clause anyone has to trust. The item keeps what it came in with.
+            record.collateral_edits = collateral
+            return LoopOutcome("discarded", current, rounds, spend, "repair edited unnamed text")
         record.repaired_hint_ladder = list(repair.value.hint_ladder)
         current = apply_repair(current, repair.value)
 

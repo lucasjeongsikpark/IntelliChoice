@@ -87,6 +87,8 @@ def _contract_specs() -> dict[str, tuple[type[BaseModel], str, BaseModel]]:
     """
     from intellichoice_shared.bedrock import (
         AuthoredGeneratorPayload,
+        HintSolutionRepairPayload,
+        HintSolutionRepairResponse,
         HintSolutionReviewPayload,
         HintSolutionReviewResponse,
         QuestionJudgePayload,
@@ -178,6 +180,45 @@ def _contract_specs() -> dict[str, tuple[type[BaseModel], str, BaseModel]]:
         #
         # This contract answers "can the model emit the schema", which is all the smoke CLI
         # has ever claimed to answer.
+        # D-260's repairer. The hard part is not the four fields - it is `solution_steps`,
+        # a list of *nested* SolutionStep objects. A model that emits flat schemas happily
+        # can still fail a nested list, and D-204 measured smoke-pass-contract-fail as a
+        # real and common outcome, so this is probed rather than assumed.
+        "hint_solution_repair": (
+            HintSolutionRepairResponse,
+            "You repair the hint ladder and worked solution of a K-12 maths question. Write "
+            "`reasoning` first. Change ONLY what the defects name; return every other hint "
+            "and step word for word. The question, options and final answer are fixed.",
+            HintSolutionRepairPayload(
+                rendered_question=(
+                    "Two robots collect crystals. Robot A starts with 4 and collects 4 each "
+                    "minute. Robot B starts with 16 and collects 2 each minute. After how "
+                    "many minutes do they have the same number?"
+                ),
+                option_a="6 minutes",
+                option_b="2 minutes",
+                option_c="12 minutes",
+                option_d="3 minutes",
+                correct_option="a",
+                hint_ladder=[
+                    "Write an expression for each robot's total after m minutes.",
+                    "Robot A has 4 + 4m and Robot B has 16 + 2m; set them equal.",
+                    "Collect the m terms on one side, then divide.",
+                ],
+                solution_steps=[
+                    "1. Set the two totals equal [4 + 4m = 16 + 2m]",
+                    "2. Collect the m terms [2m = 12]",
+                    "3. Divide by 2 [2m / 2]",
+                ],
+                solution_final_answer="6 minutes",
+                skill_name="Variables on Both Sides",
+                grade_band="6-7",
+                defects=[
+                    "canonical_solution[3]: the step says to divide but shows the division "
+                    "unevaluated, so it never states the answer - suggested: show the result"
+                ],
+            ),
+        ),
         "hint_solution_review": (
             HintSolutionReviewResponse,
             # Written here rather than imported from
@@ -352,6 +393,10 @@ def render(report: dict[str, Any]) -> str:
             + ("  (rate table has no entry - default rate used)" if report["cost_cents"] else ""),
             f"repaired:     {report['repaired']}",
             f"duration:     {report['duration_s']}s",
+            # Truncated for a human reading one result. **Use `--json` for anything that
+            # analyses the output** - a script parsing this line gets a JSON syntax error the
+            # moment a response exceeds 900 characters, which is most of them, and the calls
+            # are already paid for by the time it fails.
             f"parsed:       {parsed[:900]}{' ...' if len(parsed) > 900 else ''}",
         ]
     else:
@@ -388,6 +433,12 @@ async def main() -> None:
         help="Hard ceiling for this process. The gateway refuses a call that could cross it",
     )
     parser.add_argument(
+        "--json",
+        action="store_true",
+        help="emit the full report as JSON instead of the human summary - the parsed "
+        "response is complete here, where the summary truncates it at 900 characters",
+    )
+    parser.add_argument(
         "--already-spent",
         type=float,
         default=0.0,
@@ -403,7 +454,7 @@ async def main() -> None:
         budget_cents=args.budget_cents,
         already_spent=args.already_spent,
     )
-    print(render(report))
+    print(json.dumps(report, ensure_ascii=False) if args.json else render(report))
     raise SystemExit(0 if report["success"] else 1)
 
 
