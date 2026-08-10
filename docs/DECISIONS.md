@@ -17767,3 +17767,109 @@ question underneath it is untouched and is a different session.
 
 **59 cents** across two 11-candidate batches, one 2-candidate batch and two direct probes,
 against a 60-cent cap. Pre-registered before the first call, in the D-240 style.
+
+## D-244 — the running system made legible: product metrics, alarms, and a pipeline that leaves a record (accepted, 2026-08-10)
+
+Asked to verify the observability tooling end to end and make what is happening visible.
+The verification came first and produced three findings larger than the work that followed.
+
+### What was actually true
+
+**Twenty §5.32.4 KPIs were defined, incremented in 25 places, and collected by nothing.**
+`packages/observability/metrics.py` has exported `learning_session_starts_total`,
+`learning_gain_score`, `learning_session_cost_cents`, `qa_answers_total`,
+`qa_citations_per_answer` and fifteen others since S17. Both apps serve them at `/metrics`.
+**Prometheus and Grafana exist only in `docker-compose.yml`** — nothing in AWS scrapes that
+endpoint, and it is deliberately excluded from the public edge (correctly). CloudWatch held
+exactly five metrics per service, all derived from log lines about Bedrock. *How many
+students finished an exam today, and what did it cost* was not answerable from staging.
+
+**The question-generation pipeline had no instrumentation at all.** `packages/curriculum`
+imported nothing from `intellichoice_observability`, defined no logger, and reported through
+22 `print()` calls — while being the one component that spends money in bulk. D-238, D-240
+and D-243 each reconstructed a paid batch afterwards from `question_validation_runs`,
+because the run left nothing readable behind. The gateway had been computing per-call cost,
+duration, model id and failure reason the whole time; with no handler configured they were
+formatted and dropped.
+
+**Ten alarms, none watching anything that has broken here.** All ten were ALB 5xx, ALB p95
+latency, or the autoscaler's own task count. The five custom metrics had dashboard widgets
+and **zero alarms** — including `BedrockCircuitOpen` and `LangSmithIngestFailed`, the exact
+silent-failure class D-242 spent a session on. 160 RDS metrics were being collected and no
+alarm read one of them.
+
+The pattern joining all three: **a failure that keeps returning 200 is invisible to every
+infrastructure alarm.** D-115's reranker was dead for a week behind 200s. D-242's LangSmith
+rejected every run for weeks behind 200s. That is what the log-derived metrics were built
+to see, and then nothing was ever set to fire on them.
+
+### What was built
+
+**Metrics through the sidecar that was already deployed.** A `prometheus` receiver scraping
+`localhost:<port>/metrics` and an `awsemf` exporter, in the collector config that already
+ships traces — no new service, no new infrastructure, one IAM statement. `localhost` works
+because Fargate `awsvpc` tasks share a network namespace, and `/metrics` was already exempt
+from the rate limiter.
+
+Two cost controls, both deliberate. The **allowlist** is strict because `prometheus_client`
+registers a dozen `process_*`/`python_gc_*` collectors into the default registry, and
+because a metric added to `metrics.py` should not silently start costing money — it has to
+be named here too, which is the right place to notice. **Dimensions are capped at one
+label**: `http_requests_total` carries `(app, method, path, status)`, and indexing all four
+would bill hundreds of series to answer a question the ALB metrics already answer.
+
+**Sixteen alarms**, each written against a failure this project has actually had. The
+`awsemf` exporter needs **CloudWatch Logs** permissions rather than `cloudwatch:PutMetricData`
+— which is the narrower grant, because it can be scoped to named log groups where
+`PutMetricData` takes no resource ARN at all. Scoped to `/emf` groups so a compromised
+sidecar cannot write into the application groups the metric filters read.
+
+**The pipeline now leaves a record**: `pipeline_run_started`, `pipeline_candidate`,
+`pipeline_run_complete`, `curriculum_load_complete`, plus `configure_logging` so the
+gateway's own `bedrock_call` lines become JSON. The `print()` output stays — it is what a
+human running `make` reads; the records are what a query can read. Closes carry-over #11,
+where a deploy could assert only that the loader exited 0.
+
+### Two pre-existing defects found on the way, both confirmed against unmodified code
+
+**`MockBedrockProvider` could not run the design stage.** D-202 widened the real provider
+with `tools`/`tool_executor`/`max_tool_rounds`; the mock was never widened with it, so every
+call passing them raised `TypeError` at the provider boundary — which the gateway catches as
+a *provider failure*, indistinguishable from Bedrock being down. So the equation-design
+stage could not run under the mock at all and the only way to exercise it was to pay. Same
+shape as D-238, one level up: there the double's *output* had drifted from its schema, here
+its *interface* had drifted from the provider it stands in for. **The failure mode of a test
+double is to look like the thing it replaces failing.** Now held by a signature-parity test.
+
+**Carry-over #8, closed rather than documented a third time.** `terraform.tfvars` still
+pinned `gha-70100623148d` while live ran `gha-fedeabf67427`, so any Terraform change to a
+task definition silently reverted the deploy — as D-242 did. Terraform now adopts the
+deployed image via `aws_ecs_container_definition`, guarded by `adopt_deployed_image` for
+bootstrap. **`-target` was measured not to avoid the problem**: `-target=module.observability`
+still pulls in the ecs-service module and replaces both task definitions, which is why the
+split I proposed was abandoned in favour of fixing the trap first. The apply moved all three
+task definitions *forward* to the live image — including `ops_task`, a third instance nobody
+had noticed.
+
+### Verified live
+
+`ruff` clean · `pyright` 0 errors · **1092 passed, 2 skipped, 1 xfailed**. Both services
+stable on the new revisions running **the same image they were already on** — nothing rolled
+back. Alarms **10 → 26**. Metrics per service **5 → 16**.
+
+The remainder are pending a first observation, and the reason is worth recording so it is
+not mistaken for a defect: **CloudWatch does not materialise a StatisticSet with `Count: 0`**,
+and `prometheus_client` does not emit a labelled child series until `.labels()` is first
+called. The EMF records confirm both are being written. That also confirms the cost model —
+a histogram exports as one StatisticSet, not one metric per bucket.
+
+Confirmed by query rather than assumed: `http_requests_total` carries `status=200` and
+`status=401` as separate series, Maximum 8.0, and `learning_gain_score` is written as
+`{"Max":0,"Min":0,"Count":0,"Sum":0}`.
+
+### What this does not do
+
+The metrics are in CloudWatch, not in a dashboard anyone has read under load — staging has
+essentially no traffic, so most product panels will be flat until there is something to
+show. And the pipeline's records are only as good as the next run: nothing has yet been
+generated with them in place beyond one mock batch.

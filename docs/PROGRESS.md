@@ -123,12 +123,15 @@ What is left, in order of value:
    `LANGSMITH_WORKSPACE_ID` in the task definition was the entire fix. **Verified end to end:** one
    id from a real request resolves in LangSmith (`metadata.otel_trace_id`), CloudWatch (`trace_id`)
    and X-Ray (`found: 1`). The AI leg is live for the first time since D-214.
-8. **`terraform apply` silently reverts the deployed image, and the trap is still armed** (D-242).
-   Applying the workspace-id change rolled both services back to a months-old image because
-   Terraform owns `aws_ecs_task_definition` while `deploy-staging.yml` owns which image goes in it;
-   `lifecycle.ignore_changes` covers the *service's* task_definition but not the task-definition
-   resource. Recovered by re-running the deploy (~15 min of stale code). Until this is fixed, treat
-   `terraform apply` on staging as a deploy: re-run `deploy-staging.yml` immediately after.
+8. ~~`terraform apply` silently reverts the deployed image.~~ **CLOSED 2026-08-10 (D-244).**
+   Terraform now **adopts** the deployed image by reading `aws_ecs_container_definition` at plan
+   time, instead of re-rendering the `terraform.tfvars` pin — which was still
+   `gha-70100623148d` while live ran `gha-fedeabf67427`. `adopt_deployed_image=false` is the
+   bootstrap escape for an environment with no task definition yet. Two things worth keeping:
+   **`-target` does not avoid the problem** (targeting `module.observability` still pulls in the
+   ecs-service module and replaces both task definitions — measured, not assumed), and there was a
+   **third** instance nobody had noticed: `ops_task` shares `local.learning_api_image`, so the
+   same revert applied to migrations, the curriculum load and the video sync.
 8. **The D-241 exam submit gate ships verified by build only.** `/dev/token` is 403 on the
    public edge - correct, and asserted by the deploy's own security gate - so a student token
    cannot be minted through CloudFront to walk it, and there is no web unit-test harness to
@@ -141,16 +144,13 @@ What is left, in order of value:
    needs to change.
 10. **The chat walk did not cover signed-in roles, the branch locator, or the calendar** (D-241).
    Guest paths, citations, escalation and narrow viewports were walked; the rest was not.
-11. **The deploy asserts the loader's exit code and never prints what it did.** D-235's defect hid
-   for twelve decisions behind the line `"127 already existed, 0 created"` — and that line is not
-   in any deploy log, because `deploy-staging.yml` only runs `test "$EXIT_CODE" = "0"`. The loader
-   now distinguishes created / updated / unchanged / retired, which is exactly the signal worth
-   surfacing, and a deploy still cannot show it. The fix is two parts: `logs:GetLogEvents` on the
-   deploy role for `/ecs/intellichoice-staging-ops-task` (a statement it does not currently have —
-   see `terraform/modules/iam/main.tf`, which grants `ecs:RunTask`/`DescribeTasks` and no log
-   read), then echo the ops task's log stream after `aws ecs wait`. Same treatment is worth giving
-   the migration and seed steps, which are equally silent. **Until this exists, "the deploy loaded
-   the bank" means only that the loader exited 0** — which is what D-206 already learned once.
+11. ~~The deploy asserts the loader's exit code and never prints what it did.~~ **CLOSED
+   2026-08-10 (D-244).** `loader` now emits a `curriculum_load_complete` record and three
+   CloudWatch metrics — `CurriculumTemplatesCreated` / `Updated` / `Retired` — so "the deploy
+   loaded the bank" is a number rather than an exit code. The line D-235's defect hid behind for
+   twelve decisions is now queryable. The deploy still does not *echo* the ops-task log stream,
+   which would need `logs:GetLogEvents` on the deploy role; the metrics make that optional rather
+   than necessary.
 12. **One gated question the scope guard still refuses**, stably across both D-221 repeats:
    *"Should I try to figure stuff out myself before asking someone for help?"* Read cold it is
    a general question about studying, and the refusal is defensible — deliberately left rather
@@ -205,6 +205,48 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — twenty KPIs nobody was collecting (2026-08-10, D-244)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1092 passed, 2 skipped, 1 xfailed** ·
+`terraform validate` + `apply` clean · no paid model calls · full write-up in DECISIONS.md **D-244**.
+
+**The verification was the finding.** Twenty §5.32.4 KPIs have been defined since S17,
+incremented in 25 places, and **collected by nothing** — Prometheus and Grafana live only in
+docker-compose, so `/metrics` was served on every task and scraped by no one. CloudWatch held five
+metrics per service, all about Bedrock. *How many students finished an exam today* was not
+answerable from staging. Separately, the question-generation pipeline — the one component that
+spends money in bulk — had **no instrumentation at all**: no logger, 22 `print()` calls, which is
+why D-238, D-240 and D-243 each reconstructed a paid batch afterwards from a database table.
+
+**Ten alarms, none watching anything that has broken here.** All ten were ALB or autoscaler
+metrics. `BedrockCircuitOpen` and `LangSmithIngestFailed` had dashboard widgets and no alarm — the
+exact silent-failure class D-242 spent a session on. The pattern joining every incident this
+project has had: **a failure that keeps returning 200 is invisible to every infrastructure alarm.**
+
+**Built through what was already deployed.** A prometheus receiver and `awsemf` exporter added to
+the otel sidecar's existing config — no new service, one IAM statement, and that statement is
+CloudWatch *Logs* rather than `PutMetricData`, which is the narrower grant because it can be
+scoped to named log groups. Alarms **10 → 26**, metrics per service **5 → 16**.
+
+**Two pre-existing defects surfaced, both confirmed against unmodified code.** `MockBedrockProvider`
+never accepted the `tools` kwargs D-202 added to the real provider, so the equation-design stage
+**could not run under the mock at all** and could only be exercised by paying — the gateway catches
+the `TypeError` as a provider failure, so it looked like Bedrock being down. And carry-over #8 was
+closed rather than documented a third time.
+
+**A recommendation of mine was wrong and the measurement said so.** I proposed applying the safe
+resources with `-target=module.observability` first; the plan showed it **still replaces both task
+definitions**, because targeting pulls in the whole dependency module. So the trap had to be fixed
+before anything could be applied — which is what the user's stated goal ("nothing rolls back")
+actually required. The apply then moved all three task definitions *forward* to the live image,
+including a third instance in `ops_task` nobody had noticed.
+
+**Read the ceiling honestly:** staging has essentially no traffic, so most product panels will be
+flat until there is something to show, and the remaining metrics need a first observation before
+CloudWatch materialises them (a `Count: 0` StatisticSet is not stored; a labelled counter is not
+emitted until `.labels()` is called). Both were verified as *written* in the EMF records rather
+than assumed.
 
 ### Session log — the 41% was a `$ref` in the tool schema (2026-08-09, D-243)
 
