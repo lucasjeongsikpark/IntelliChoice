@@ -1298,7 +1298,13 @@ class HintSolutionRepairPayload(BaseModel):
     option_d: str
     correct_option: str
     hint_ladder: list[str]
-    solution_steps: list[str]
+    # **The same shape the response must return, and D-263 measured why.** These were
+    # rendered strings ("1. Divide by 4 [n = 52/4]") while the response demanded nested
+    # `SolutionStep` objects, and the repairer mirrored what it was shown: 4 of 10 real
+    # repairs died on `solution_steps.N: model_type` after the gateway's retry. The reviewer
+    # never hit it because a reviewer only *reads* this field; a repairer has to write it
+    # back. An asymmetric in/out shape is a trap for exactly one of the two roles.
+    solution_steps: list[SolutionStep]
     solution_final_answer: str
     skill_name: str
     grade_band: str

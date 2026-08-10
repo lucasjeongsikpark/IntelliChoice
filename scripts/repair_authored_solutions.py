@@ -34,7 +34,11 @@ from intellichoice_curriculum.authored_bank import load_authored_bank
 from intellichoice_curriculum.content import load_curriculum
 from intellichoice_curriculum.review_loop import run_review_loop
 from intellichoice_curriculum.settings import get_pipeline_settings
-from intellichoice_shared.bedrock import BedrockGateway, BedrockTask
+from intellichoice_shared.bedrock import (
+    BedrockGateway,
+    BedrockTask,
+    HintSolutionDefect,
+)
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from audit_solution_step_completeness import (  # noqa: E402
@@ -119,6 +123,15 @@ async def main() -> int:
     parser.add_argument("--reviewer", action="append", metavar="MODEL_ID")
     parser.add_argument("--repairer", default=_DEFAULT_REPAIRER)
     parser.add_argument("--dump", default=None, metavar="PATH")
+    parser.add_argument(
+        "--contribute-audit-defect",
+        action="store_true",
+        help=(
+            "let the audit open a repair on round 1 for items it flags (D-263). It can "
+            "never reject: from round 2 the panel alone decides, and the reviewers are "
+            "never told what the audit found"
+        ),
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -155,14 +168,35 @@ async def main() -> int:
         if spend >= args.run_budget_cents:
             print(f"! run budget of {args.run_budget_cents}c reached - stopping")
             break
+        generated = item.to_generated_item()
+        contributed = (
+            [
+                HintSolutionDefect(
+                    target="canonical_solution",
+                    index=len(generated.canonical_solution.steps),
+                    problem=(
+                        "the final solution step describes an operation without showing its "
+                        "result, so the worked solution never states the answer a student is "
+                        "meant to arrive at"
+                    ),
+                    suggested_fix=(
+                        "complete the last step so it shows the result of the operation it "
+                        "describes"
+                    ),
+                )
+            ]
+            if args.contribute_audit_defect
+            else None
+        )
         outcome = await run_review_loop(
             reviewers=gateways,
             repairer=repairer,
-            item=item.to_generated_item(),
+            item=generated,
             skill_name=skills[item.skill_id],
             grade_band=item.grade_band,
             per_item_budget_cents=args.per_item_cents,
             session_spend_cents=spend,
+            first_round_defects=contributed,
         )
         spend += outcome.spend_cents
         still = _still_flagged(outcome)
@@ -195,11 +229,27 @@ async def main() -> int:
     accepted = [r for r in records if r["outcome"]["status"] == "accepted"]
     cleared = [r for r in accepted if not r["still_flagged_by_audit"]]
     collateral = [r for r in records if any(x["collateral_edits"] for x in r["outcome"]["rounds"])]
+    # D-262: "accepted but still flagged" has two causes with *opposite* fixes, and the
+    # criterion this replaces conflated them - it read every such item as the panel laundering
+    # a defect into an approval, when in that run every one was an item the panel simply never
+    # blocked. Reporting them apart is the whole correction.
+    never = [
+        r for r in accepted if r["still_flagged_by_audit"] and len(r["outcome"]["rounds"]) == 1
+    ]
+    laundered = [
+        r for r in accepted if r["still_flagged_by_audit"] and len(r["outcome"]["rounds"]) > 1
+    ]
     print(f"\nR1 accepted:            {len(accepted)} of {len(records)}")
     print(f"R2 accepted AND clear:  {len(cleared)} of {len(records)}")
-    if len(cleared) < len(accepted):
-        print("  >>> DISQUALIFYING: the panel accepted a repair that did not fix the defect.")
-        print("      That launders a defect into an approval, which is worse than not repairing.")
+    print(f"   ...passed on sight (recall failure)  : {len(never)}")
+    print(f"   ...repaired but still flagged        : {len(laundered)}")
+    if laundered:
+        print("  >>> SERIOUS: the panel accepted a repair that did not fix what it named.")
+        print("      That launders a defect into an approval. Different failure from a miss,")
+        print("      and the only one that makes the loop worse than not running it.")
+    if never:
+        print("  >>> RECALL FAILURE: the panel never blocked these. The repair machinery was")
+        print("      never asked. Fix the detector, not the loop (D-262).")
     reasons = Counter(r["outcome"]["stopped_because"] for r in records)
     print(f"R3 stop reasons:        {dict(reasons)}")
     print(f"R4 rounds:              {[len(r['outcome']['rounds']) for r in records]}")

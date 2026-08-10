@@ -638,13 +638,17 @@ def _hint_solution_repair_json(payload: dict) -> dict:
     for index in range(1, len(ladder)):
         if ladder[index].strip() and ladder[index].strip() == ladder[index - 1].strip():
             ladder[index] = f"{ladder[index].rstrip('.')} - now think about what that gives you."
+    # D-263 made the payload carry `SolutionStep` objects rather than rendered strings, so
+    # the repairer is shown the shape it must return. Passed straight back: the mock's job is
+    # the *ladder* repair the review mock's defect asks for, and inventing edits to steps
+    # nobody named would trip `collateral_edits` on every fixture.
     steps = [
         {
-            "step_number": position,
-            "explanation": rendered.split("[")[0].strip().lstrip("0123456789. "),
-            "expression": rendered.split("[")[-1].rstrip("]").strip(),
+            "step_number": step.get("step_number", position),
+            "explanation": step.get("explanation", "mock"),
+            "expression": step.get("expression", "x"),
         }
-        for position, rendered in enumerate(payload.get("solution_steps") or [], start=1)
+        for position, step in enumerate(payload.get("solution_steps") or [], start=1)
     ]
     return {
         "reasoning": "mock repair: rewrote any rung that repeated its predecessor verbatim",

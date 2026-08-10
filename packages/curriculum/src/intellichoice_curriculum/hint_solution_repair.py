@@ -110,10 +110,9 @@ def build_payload(
         option_d=item.option_d,
         correct_option=item.correct_option,
         hint_ladder=list(item.hint_ladder),
-        solution_steps=[
-            f"{step.step_number}. {step.explanation} [{step.expression}]"
-            for step in item.canonical_solution.steps
-        ],
+        # Passed through structurally, not rendered: the response must return this exact
+        # shape, and D-263 measured a rendered form costing 4 of 10 repairs.
+        solution_steps=list(item.canonical_solution.steps),
         solution_final_answer=item.canonical_solution.final_answer,
         skill_name=skill_name,
         grade_band=grade_band,

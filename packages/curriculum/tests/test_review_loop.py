@@ -368,3 +368,91 @@ def test_a_repair_that_edits_unnamed_text_discards_rather_than_being_applied() -
     assert outcome.stopped_because == "repair edited unnamed text"
     assert outcome.rounds[0].collateral_edits
     assert outcome.item.hint_ladder == original.hint_ladder
+
+
+def test_a_contributed_defect_opens_the_repair_path_the_panel_would_have_skipped() -> None:
+    """D-263. D-262 measured the panel passing 5 of 10 items carrying a defect a free check
+    finds every time. A contributor buys those items one repair attempt.
+    """
+    contributed = HintSolutionDefect(
+        target="canonical_solution",
+        index=2,
+        problem="the last step does not state the answer",
+        suggested_fix="show the result of the operation",
+    )
+    outcome = _run(first_round_defects=[contributed])
+    # The clean fixture would have been accepted at round 1 with no repair.
+    assert len(outcome.rounds) >= 2
+    assert "canonical_solution[2]" in " ".join(outcome.rounds[0].defects)
+
+
+def test_a_contributed_defect_can_never_reject_an_item() -> None:
+    """The property that keeps this from becoming the gate D-257 forbade: from round 2 the
+    panel alone decides, so a false positive costs one repair round rather than an item.
+    """
+    outcome = _run(
+        first_round_defects=[
+            HintSolutionDefect(
+                target="canonical_solution",
+                index=2,
+                problem="a false positive",
+                suggested_fix="nothing is actually wrong",
+            )
+        ]
+    )
+    assert outcome.status == "accepted"
+    assert outcome.stopped_because == "unanimous pass"
+
+
+def test_contributed_defects_apply_to_the_first_round_only() -> None:
+    """If they persisted, a heuristic could hold an item blocked to the round limit - which
+    is exactly the gate D-257 said its audit must never become.
+    """
+    outcome = _run(
+        first_round_defects=[
+            HintSolutionDefect(
+                target="canonical_solution", index=2, problem="p", suggested_fix="f"
+            )
+        ]
+    )
+    assert len(outcome.rounds) == 2
+    assert outcome.rounds[1].defects == []
+
+
+def test_the_panel_still_decides_acceptance_when_a_defect_was_contributed() -> None:
+    """A contributed defect buys an attempt, never an approval. With a repairer that changes
+    nothing and a panel that blocks on its own, the item is still discarded.
+    """
+
+    class _NoOpRepairer:
+        async def generate_structured(self, **kwargs: object):
+            payload = kwargs["payload"]
+            return type(
+                "R",
+                (),
+                {
+                    "value": HintSolutionRepairResponse(
+                        reasoning="unchanged",
+                        hint_ladder=list(payload.hint_ladder),  # type: ignore[attr-defined]
+                        solution_steps=[
+                            SolutionStep(step_number=1, explanation="e", expression="x")
+                        ],
+                        solution_final_answer="13",
+                    ),
+                    "cost_cents": 1.0,
+                },
+            )()
+
+        async def embed(self, **_: object):  # pragma: no cover - unused
+            raise NotImplementedError
+
+    outcome = _run(
+        item=_item(hint_ladder=["Divide 52 by 4.", "Divide 52 by 4.", "What is 52/4?"]),
+        repairer=_NoOpRepairer(),
+        first_round_defects=[
+            HintSolutionDefect(
+                target="canonical_solution", index=2, problem="p", suggested_fix="f"
+            )
+        ],
+    )
+    assert outcome.status == "discarded"
