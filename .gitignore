@@ -28,6 +28,11 @@ node_modules/
 # Local data
 *.sqlite3
 docker-volumes/
+# Anchored with a leading slash on purpose: a bare `curriculum/` also matches
+# `packages/curriculum/`, which silently removed that whole Python package from
+# `ruff check .` (ruff respects .gitignore) - a local `make lint` went green on a
+# package it was no longer reading. Found in D-240.
+/curriculum/
 
 # S33: OWASP ZAP scan reports (make security-scan-staging) - local scan output, not
 # something to commit.
