@@ -1265,16 +1265,86 @@ def schema_error_digest(exc: ValidationError, *, limit: int = MAX_SCHEMA_ERRORS)
 
     `loc` and `type` carry everything a reader acts on: which field, which rule. They also
     group in SQL, which is what turns twenty-eight identical rows into a distribution.
+
+    **The bound keeps rule diversity, not the first `limit` errors, and that correction
+    came from this instrument failing on its own first paid run.** The generator's real
+    failure mode is to wrap the item in a key of its own invention; Pydantic reports that
+    as every required field `missing` plus exactly one `extra_forbidden` naming the
+    wrapper, and it emits the `missing` errors first. A first-eight bound therefore
+    returned eight identical `missing` entries and dropped the single entry that said what
+    the model had actually sent - six failures, six identical digests, and the answer one
+    layer below what the instrument could see. Round-robin across distinct rules instead:
+    every rule gets one entry before any rule gets a second, so a uniform failure can
+    never crowd out the rare entry, which is the only kind worth the space.
     """
-    seen: list[str] = []
+    by_rule: dict[str, list[str]] = {}
     for error in exc.errors(include_url=False, include_input=False):
         loc = ".".join(str(part) for part in error["loc"]) or "<root>"
         entry = f"{loc}: {error['type']}"
-        if entry not in seen:
-            seen.append(entry)
-        if len(seen) == limit:
-            break
-    return seen
+        bucket = by_rule.setdefault(error["type"], [])
+        if entry not in bucket:
+            bucket.append(entry)
+
+    digest: list[str] = []
+    for depth in range(max((len(b) for b in by_rule.values()), default=0)):
+        for bucket in by_rule.values():
+            if depth < len(bucket) and len(digest) < limit:
+                digest.append(bucket[depth])
+    return digest
+
+
+class _CyclicSchema(Exception):
+    """Raised internally by `inline_schema_refs` when a `$ref` cycle makes inlining
+    impossible. Never escapes the function."""
+
+
+def inline_schema_refs(schema: dict) -> dict:
+    """Replace every `$ref` with its `$defs` target, so the tool schema has no indirection.
+
+    **Measured, and the largest finding of D-243.** `AuthoredGeneratedItemResponse` is the
+    only response model in this project containing another model, so it is the only schema
+    Pydantic emits with a `$defs` block - and it is the schema D-240 measured failing on
+    41% of candidates. On Haiku 4.5, **twelve calls** carrying the `$ref` form returned a
+    tool input with exactly one key, `canonical_solution` - the one field that *is* a
+    `$ref` - and every other required field simply absent. **Four calls** with the same
+    schema dereferenced returned three valid items. The model reads the `$ref` target as
+    the schema rather than as one field's type.
+
+    Nothing is loosened: an inlined schema is the same schema, so this is a change of
+    representation at one seam rather than a change of contract. A schema with no `$defs`
+    is returned untouched, which is every other model in the project.
+
+    The evidence is 0/12 against 3/4 on one model, one topic and one prompt. That is
+    enough to act on and not enough to generalise, which is why the claim here is about
+    this schema and this model rather than about `$ref` in tool schemas.
+    """
+    defs = schema.get("$defs")
+    if not defs:
+        return schema
+
+    def walk(node: object, active: frozenset[str]) -> object:
+        if isinstance(node, dict):
+            ref = node.get("$ref")
+            if isinstance(ref, str):
+                name = ref.rsplit("/", 1)[-1]
+                if name in active or name not in defs:
+                    raise _CyclicSchema(name)
+                target = walk(defs[name], active | {name})
+                # Sibling keys beside a `$ref` (Pydantic emits `description`, `default`)
+                # override the target's, which is what JSON Schema 2020-12 specifies.
+                siblings = {k: walk(v, active) for k, v in node.items() if k != "$ref"}
+                return {**target, **siblings}  # type: ignore[dict-item]
+            return {k: walk(v, active) for k, v in node.items() if k != "$defs"}
+        if isinstance(node, list):
+            return [walk(v, active) for v in node]
+        return node
+
+    try:
+        return walk(schema, frozenset())  # type: ignore[return-value]
+    except _CyclicSchema:
+        # A schema referencing a `$defs` block we just deleted is worse than the one we
+        # started with, and the original already says truthfully what shape it is.
+        return schema
 
 
 class StructuredOutputError(BedrockGatewayError):

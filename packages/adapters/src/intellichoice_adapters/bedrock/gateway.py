@@ -26,6 +26,7 @@ from intellichoice_shared.bedrock import (
     EmbeddingResult,
     OutputTruncatedError,
     StructuredOutputError,
+    inline_schema_refs,
     schema_error_digest,
 )
 from pydantic import BaseModel, ValidationError
@@ -256,7 +257,12 @@ class ResilientBedrockGateway:
                 )
 
             user_message = payload.model_dump_json()
-            json_schema = response_model.model_json_schema()
+            # D-243: `$ref`/`$defs` indirection is inlined before the schema is shown to
+            # the model. Measured on Haiku 4.5, the one response model with a nested model
+            # inside it returned only the `$ref`'d field and nothing else, 12 times out of
+            # 12 - which is the whole of D-240's 41% generator failure rate. Same schema,
+            # different representation; flat models are returned untouched.
+            json_schema = inline_schema_refs(response_model.model_json_schema())
             json_schema.setdefault("title", response_model.__name__)
 
             tool_kwargs: dict[str, Any] = (

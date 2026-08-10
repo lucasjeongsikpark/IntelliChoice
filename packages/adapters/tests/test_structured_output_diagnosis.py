@@ -28,6 +28,7 @@ and it cannot leak what the model wrote.
 """
 
 import asyncio
+import json
 import logging
 
 import pytest
@@ -37,8 +38,10 @@ from intellichoice_shared.bedrock import (
     AuthoredGeneratedItemResponse,
     AuthoredGeneratorPayload,
     BedrockTask,
+    SolverResponse,
     StructuredOutputError,
 )
+from pydantic import BaseModel
 
 MODEL_ID = "anthropic.claude-test"
 
@@ -170,6 +173,28 @@ def test_the_digest_is_bounded() -> None:
     assert 0 < len(exc.schema_errors) <= 8
 
 
+def test_the_bound_cannot_crowd_out_the_rule_that_explains_the_failure() -> None:
+    """Written after the bound hid the answer in this session's own paid run (D-243).
+
+    The generator's real failure mode is to wrap the whole item in a key of its own
+    invention. Pydantic reports that as *every required field missing* plus **one**
+    `extra_forbidden` naming the wrapper - and it emits `missing` first, so a first-eight
+    bound returned eight identical `missing` entries and dropped the single entry that
+    says what the model actually sent. Six failures, six identical digests, and the
+    diagnosis one layer further down than the instrument could reach.
+
+    So the bound keeps *rule diversity* rather than the first N: every distinct rule gets
+    one entry before any rule gets a second. A uniform failure can no longer crowd out the
+    rare entry, which is the only kind of entry worth the space.
+    """
+    exc = _fails_with('{"generated_question": ' + _item_json() + "}")
+    assert "generated_question: extra_forbidden" in exc.schema_errors
+    assert len(exc.schema_errors) <= 8
+    assert any(entry.endswith(": missing") for entry in exc.schema_errors), (
+        "the missing-field evidence must survive too - it is half the picture"
+    )
+
+
 def test_the_flattened_message_carries_the_digest_too() -> None:
     """`ai_pipeline` persists `str(exc)` as `provider_error`, and every caller that only
     logs the message would otherwise still see the pre-D-243 sentence. Carrying it in both
@@ -192,6 +217,109 @@ def test_the_failure_log_record_carries_the_digest(
     assert records, "a schema failure must log a schema_invalid failure record"
     assert "hint_ladder: too_long" in getattr(records[0], "detail", "")
     assert _TELLTALE not in getattr(records[0], "detail", "")
+
+
+class _SchemaRecordingProvider:
+    """Records the `json_schema` of every call, so a test can assert what the model was
+    actually shown rather than what the response model declares.
+    """
+
+    def __init__(self) -> None:
+        self.schemas: list[dict] = []
+
+    async def raw_generate(
+        self,
+        *,
+        model_id: str,
+        system_prompt: str,
+        user_message: str,
+        json_schema: dict,
+        max_output_tokens: int,
+    ) -> RawGeneration:
+        self.schemas.append(json_schema)
+        return RawGeneration(text=_item_json(), input_tokens=10, output_tokens=10)
+
+
+def _schema_sent_for(model: type[BaseModel]) -> dict:
+    async def run() -> dict:
+        provider = _SchemaRecordingProvider()
+        gateway = ResilientBedrockGateway(
+            provider=provider,
+            model_registry={BedrockTask.AUTHORED_QUESTION_GENERATION: MODEL_ID},
+        )
+        try:
+            await gateway.generate_structured(
+                task=BedrockTask.AUTHORED_QUESTION_GENERATION,
+                system_prompt="s",
+                payload=_payload(),
+                response_model=model,
+                max_output_tokens=2500,
+                session_spend_cents=0.0,
+            )
+        except StructuredOutputError:
+            pass  # only the schema that was sent matters here
+        return provider.schemas[0]
+
+    return asyncio.run(run())
+
+
+def test_the_schema_sent_to_the_model_carries_no_ref_indirection() -> None:
+    """The measured cause of D-240's 41%, and this session's largest finding.
+
+    `AuthoredGeneratedItemResponse` is the only response model in this project with a
+    nested one inside it, so it is the only schema Pydantic emits with a `$defs` block and
+    a `$ref` pointing into it - and it is the schema that fails. Measured on Haiku 4.5,
+    twelve calls with the `$ref` form returned an object containing **exactly one key,
+    `canonical_solution`** - the one field that is a `$ref` - and nothing else. Four calls
+    with the same schema dereferenced returned three valid items.
+
+    So the model appears to read the `$ref` target as *the* schema rather than as one
+    field's type. Nothing is loosened to fix it: an inlined schema is the same schema,
+    which is why this is a representation change at one seam and not a contract change.
+
+    `0/12` against `3/4` is the whole evidence base, and it is small. It is reported as
+    what it is - one model, one topic, one prompt - rather than as a general claim about
+    `$ref` in tool schemas.
+    """
+    schema = _schema_sent_for(AuthoredGeneratedItemResponse)
+    rendered = json.dumps(schema)
+    assert "$ref" not in rendered
+    assert "$defs" not in rendered
+    # Inlined, not dropped: the nested shape must still be described, or the model is
+    # simply being told less and the "same schema" claim above is false.
+    nested = schema["properties"]["canonical_solution"]
+    assert nested["type"] == "object"
+    assert set(nested["required"]) == {"steps", "final_answer"}
+    assert nested["properties"]["steps"]["items"]["properties"]["step_number"]
+
+
+def test_a_flat_schema_is_handed_over_untouched() -> None:
+    """Most response models have no `$defs` at all, and the fix must be a no-op for them -
+    otherwise a change aimed at one schema quietly rewrites what every task sends.
+    """
+    assert _schema_sent_for(SolverResponse) == SolverResponse.model_json_schema()
+
+
+def test_a_self_referential_schema_is_declined_rather_than_half_inlined() -> None:
+    """No model in this project is recursive today, so this is a guard rather than a fix
+    for an observed bug - but the failure it prevents is an infinite loop inside a paid
+    call path, which is the one class of defect not worth discovering in production.
+
+    Declining outright, rather than inlining to some depth and leaving a dangling `$ref`
+    behind: a schema that references a `$defs` block we just deleted is worse than the
+    one we started with, and "we could not inline this" is a true statement the original
+    schema already makes.
+    """
+
+    class Node(BaseModel):
+        label: str
+        child: "Node | None" = None
+
+    sent = _schema_sent_for(Node)
+    # The gateway adds a `title` afterwards, so compare on the part the inliner owns:
+    # the `$defs` block and the reference into it both survive intact.
+    assert sent["$defs"] == Node.model_json_schema()["$defs"]
+    assert sent["$ref"] == "#/$defs/Node"
 
 
 def test_a_repair_that_succeeds_reports_no_errors_at_all() -> None:
