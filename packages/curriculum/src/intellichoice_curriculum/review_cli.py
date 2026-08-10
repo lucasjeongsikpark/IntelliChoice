@@ -27,7 +27,11 @@ from intellichoice_shared.bedrock import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from intellichoice_curriculum.ai_pipeline import PipelineConfigError, generate_authored_candidate
+from intellichoice_curriculum.ai_pipeline import (
+    _HINT_QUALITY_BORDERLINE_AT,
+    PipelineConfigError,
+    generate_authored_candidate,
+)
 from intellichoice_curriculum.content import load_curriculum
 from intellichoice_curriculum.pipeline_cli import _build_gateway
 from intellichoice_curriculum.settings import get_pipeline_settings
@@ -68,8 +72,51 @@ def render_item(
     if template.canonical_solution:
         lines.append(f"solution final_answer: {template.canonical_solution.get('final_answer')}")
     if validation_run is not None:
+        # D-247: the reasons in prose, above the raw evidence rather than inside it.
+        #
+        # Measured need, not a nicety. D-246 downgraded `hint_reveals_answer` from a
+        # rejection to a review signal on the argument that "the judge's reason travels with
+        # the candidate" - and it does, inside the dict printed on the next line. The first
+        # paid run afterwards showed what that is worth: **26 of 29 pending candidates carry
+        # `review_priority="high"`**, so the field meant to draw the eye fires on 90% of
+        # items and directs attention nowhere, while the actual reason is one key inside a
+        # large JSON blob. Present, and read by nobody - the same shape as D-244's twenty
+        # uncollected metrics.
+        #
+        # This summarises; it never replaces. The raw `stage_results` still prints below,
+        # because a summary that becomes the only record is how evidence quietly narrows.
+        for flag in _review_flags(validation_run.stage_results):
+            lines.append(f"review flags: {flag}")
         lines.append(f"pipeline evidence: {validation_run.stage_results}")
     return "\n".join(lines)
+
+
+def _review_flags(stage_results: dict) -> list[str]:
+    """Why this candidate wants a human, in the reviewer's language.
+
+    Reads the same keys the pipeline wrote, so a flag cannot appear here that the evidence
+    below does not support - and an empty list prints nothing at all, because a heading with
+    nothing under it trains a reader to skip the line on every item including the ones that
+    have something.
+    """
+    judge = stage_results.get("judge") or {}
+    difficulty = stage_results.get("difficulty") or {}
+    flags: list[str] = []
+    if judge.get("hint_reveals_answer"):
+        reason = judge.get("hint_reveals_answer_reason") or "no reason given"
+        # D-245/D-246 measured this flag at ~50% false positives on content a human had
+        # already approved, so the wording is deliberately "may": it is a prompt to look,
+        # not a verdict to act on.
+        flags.append(f"hint may give the answer away - {reason}")
+    score = judge.get("hint_quality_score")
+    if isinstance(score, int) and score <= _HINT_QUALITY_BORDERLINE_AT:
+        flags.append(f"hint quality {score}, at or below the borderline")
+    if difficulty.get("decision") in ("flagged", "retiered"):
+        stored = difficulty.get("stored_at_difficulty")
+        flags.append(
+            f"difficulty {difficulty['decision']} - two readings disagreed, stored at {stored}"
+        )
+    return flags
 
 
 def render_rejected_run(run: QuestionValidationRun) -> str:
@@ -141,8 +188,14 @@ def render_rejected_run(run: QuestionValidationRun) -> str:
         lines.append(f"misconception_tags: {snapshot.get('misconception_tags')}")
         lines.append(f"estimated_time_seconds: {snapshot.get('estimated_time_seconds')}")
 
-    for stage in ("deterministic_gate", "deduplication", "solver_a", "solver_b", "judge",
-                  "difficulty"):
+    for stage in (
+        "deterministic_gate",
+        "deduplication",
+        "solver_a",
+        "solver_b",
+        "judge",
+        "difficulty",
+    ):
         if stage in stages:
             lines.append(f"{stage}: {stages[stage]}")
     lines.append(f"rejection reasons: {run.reasons}")
@@ -306,13 +359,13 @@ async def main() -> None:
             print(f"{len(pending)} pending item(s) to review.\n")
             for template in pending:
                 variant = await repo.get_variant_for_template(template.question_template_id)
-                validation_run = await repo.get_latest_validation_run(
-                    template.question_template_id
-                )
+                validation_run = await repo.get_latest_validation_run(template.question_template_id)
                 print(render_item(template, variant, validation_run))
-                choice = input(
-                    "[a]pprove / [r]eject / [e]dit-and-rerun / [s]kip / [q]uit: "
-                ).strip().lower()
+                choice = (
+                    input("[a]pprove / [r]eject / [e]dit-and-rerun / [s]kip / [q]uit: ")
+                    .strip()
+                    .lower()
+                )
                 if choice == "q":
                     break
                 if choice == "s":
@@ -324,9 +377,7 @@ async def main() -> None:
                     elif choice == "r":
                         print(await reject(session, template.question_template_id))
                     elif choice == "e":
-                        print(
-                            await edit_and_rerun(session, gateway, template.question_template_id)
-                        )
+                        print(await edit_and_rerun(session, gateway, template.question_template_id))
                     else:
                         print(f"unrecognized choice {choice!r}, skipping")
                 except CostBudgetExceededError as exc:

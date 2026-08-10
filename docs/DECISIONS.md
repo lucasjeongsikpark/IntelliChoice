@@ -18036,3 +18036,69 @@ removed.
 D-245 and D-246 together: **62.5 cents**. The gate they produced is now tested for free,
 forever, on a corpus the paid instrument cannot be tested on — because it answers
 differently on identical input.
+
+## D-247 — the rebuilt gate on fresh candidates, and a signal that had saturated (accepted, 2026-08-10)
+
+D-245 and D-246 measured the hint rule on existing content. This is the first paid batch with
+the rebuilt gate and D-244's records in place. Pre-registered against D-243's comparable run
+(11 processed, 6 accepted, judge rejections 3).
+
+### Measured
+
+| | D-243 | D-247 |
+|---|---|---|
+| processed | 11 | 11 |
+| accepted | 6 (55%) | **7 (64%)** |
+| rejected at judge | **3** | **0** |
+| rejected at solver / difficulty | 1 / 0 | 3 / 1 |
+| deterministic hint check | — | **0 rejections** |
+| cost | 27.23c | 28.05c |
+
+**P1 holds.** `authored-linear_equations-d4-8465400` carries `hint_reveals_answer = true`,
+`validation_status = pending`, `review_priority = high` — a candidate the pre-D-246 code would
+have **discarded**, kept for review instead. Exactly one, which is what the change is worth on
+this run and all it should be credited with.
+
+**P2 holds** — the restored deterministic check rejected nothing, matching the four such
+rejections in all recorded history. It is a backstop, not a workhorse.
+
+**P3 is not claimed.** Yield went 6/11 → 7/11 and precisely one candidate is attributable to
+the change; at n=11 the rest is sample variation. **Nothing improved in quality** — the same
+items are being kept rather than thrown away, and a human still has to look at them.
+
+**P4 holds** — D-244's `pipeline_run_started` / `pipeline_candidate` / `pipeline_run_complete`
+records appeared on a real paid run for the first time, with per-candidate cost, stage and
+outcome. The run above was read off those records rather than off terminal scrollback, which
+is the first time that has been true.
+
+### The finding the run produced, which was not what it was looking for
+
+**26 of 29 pending authored candidates carry `review_priority="high"` — 90%.** All 7 from this
+run. The breakdown: 5 driven by `difficulty.decision == "flagged"`, 2 by low hint quality, 1 by
+the new hint flag.
+
+**A triage signal that fires on nine items in ten triages nothing**, and D-246 added a fourth
+condition to it. That does not make D-246 wrong — the candidate is kept either way and its
+evidence is persisted — but it does falsify the *practical* half of D-246's claim that "the
+judge's reason travels to the reviewer". It travelled into a raw `stage_results` dict printed
+under a priority field that no longer discriminates.
+
+So the reasons are now stated in prose above the evidence (`_review_flags`), and the wording is
+deliberately *"hint may give the answer away"*: D-245 measured that flag at ~50% false positives
+on approved content, so it is a prompt to look, not a verdict to act on. The raw dict still
+prints — a summary that becomes the only record is how evidence quietly narrows.
+
+**`review_priority` itself is left saturated and recorded as a carry-over.** Fixing it means
+deciding what "high" should mean when most candidates legitimately have something worth a
+look, and that is a product judgement rather than a bug fix.
+
+### The shape worth carrying
+
+This is D-244's finding again, one level down: **a signal that is emitted, technically
+available, and read by nobody.** There it was twenty metrics served at `/metrics` and scraped
+by nothing. Here it is a review flag inside a dict under a heading that says "high" about
+almost everything. Both looked correct in code review and neither did anything.
+
+### Cost
+
+**28.05 cents** against a 45-cent cap. Session total across D-243/245/246/247: **~1.49**.
