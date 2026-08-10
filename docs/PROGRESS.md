@@ -181,8 +181,11 @@ What is left, in order of value:
    disagreement does not qualify: D-238 settled that the tier is a label and the item is the
    work, and that condition alone drove 19 of 29. **`retiered` stays `high` on D-239's explicit
    instruction** - there the tier actually moved. Live queue: **26/29 (90%) → 13/29 (45%)**.
-   **45% is reported, not tuned away**: 12 of the 13 are `hint_quality_score <= 3`, which is a
-   finding about the generator's hint ladders and the next thing worth measuring.
+   **The remaining 45% was then measured and removed (D-249):** an unbiased sample of the
+   hand-authored bank scores `<= 3` on **46%** against the pending queue's 45%, so the threshold
+   does not distinguish a generated candidate from shipped, human-approved content. Dropping it
+   took `high` to **1/29 (3%)**. The score is still printed by `_review_flags`; it stopped
+   ordering, not showing.
 16. **The generator's remaining loss is `max_output_tokens` truncation at 2500** (D-243). One of
    eleven, and newly visible now that the schema failures are gone — the item is larger because
    the model finally writes every field. D-233 is the precedent to read first: raising this
@@ -225,6 +228,32 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the hint-quality threshold measures the judge (2026-08-10, D-249)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1099 passed, 2 skipped, 1 xfailed** ·
+**16.05 cents** against a 30-cent cap, pre-registered · DECISIONS.md **D-249**.
+
+**I told the user D-248's remaining 45% was "a finding about the generator's hint ladders". It
+was measured and it is not.** Twelve random bank items (excluding the 8 D-245 had biased the
+sample with), n=2: the hand-authored bank scores `hint_quality_score <= 3` on **46%**, against
+the pending queue's **45%**. Indistinguishable. The threshold says where this judge sits, not
+whether a candidate is weak.
+
+**The consequence lands on my own change from an hour earlier.** D-248 used that threshold as
+one of two conditions for `high`, so the 45% it left was produced by a condition that fires
+equally on approved content - the same saturation D-247 found, reintroduced by the fix for it.
+Removing it: **13/29 → 1/29 (3%)**. The score is still printed on the review screen; it stopped
+deciding reading order.
+
+**Three revisions of one rule in one session** (D-246 added a condition, D-248 removed one,
+D-249 removed another). Each was measured and each measurement moved the answer - and every
+version looked reasonable in code review. What separated them was a number from the live queue
+and a paid sample of the bank.
+
+**Also recorded:** 8 rows carry `hint_quality_score` of 8 or 9, all from 2026-08-05, before
+D-233 bounded the field. The bound is live today; this is historical residue, but anyone
+aggregating that column across all time is aggregating values the current contract forbids.
 
 ### Session log — `review_priority` made to mean something (2026-08-10, D-248)
 

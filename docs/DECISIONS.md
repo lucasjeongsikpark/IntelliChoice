@@ -18158,3 +18158,69 @@ drift into disagreeing about what matters.
 
 `difficulty_confidence` still records 0.5 when two readings disagree. Demoting an item's
 queue position must not quietly demote the evidence, and there is a test line saying so.
+
+## D-249 — the hint-quality threshold measures the judge, not the item (accepted, 2026-08-10)
+
+D-248 left `review_priority="high"` on 13 of 29, driven almost entirely by
+`hint_quality_score <= 3`, and I told the user that was "a finding about the generator's hint
+ladders and the next thing worth measuring". **It was measured, and it is not.**
+
+### Free evidence first
+
+- Generated candidates, all history (n=102 valid): `<= 3` on **19%**; the mode is 4.
+- The pending queue (n=29): `<= 3` on **45%**.
+- Hand-authored bank, D-245 condition A: **mean 2.97** — the judge already rated *human-
+  written, human-reviewed* ladders at about 3. That sample was **biased** (those 8 items were
+  selected for stating the setup equation), so it could not settle it alone.
+
+An aside worth recording: 8 rows carry `hint_quality_score` of 8 or 9, all dated 2026-08-05,
+before D-233 bounded the field. The bound is live today (`Ge(1), Le(5)`, and it travels in the
+tool schema). Historical residue rather than a defect — but anyone aggregating that column
+across all time is aggregating values the current contract forbids.
+
+### Measured — 12 random bank items, n=2, 16 cents
+
+Sampled from the 122 bank items that **do not** state an equation in a hint, which is the bias
+this run existed to remove.
+
+| | `hint_quality <= 3` |
+|---|---|
+| pending generated queue | **45%** |
+| unbiased hand-authored bank | **46%** |
+
+distribution `{2:4, 3:7, 4:9, 5:4}`, mean **3.54**, median **4**.
+
+**P2 fails outright.** The two populations are indistinguishable on this number. `hint_quality_
+score <= 3` does not say a candidate is weak; it says where this judge sits by default.
+
+**n=2 is deliberate and was declared before the run.** D-237's rule forbids n=2 for a *per-item*
+claim, because per-item variance is large. This is an aggregate distribution over 24
+observations and no per-item verdict is drawn from it.
+
+### Consequence, which lands on my own change from an hour earlier
+
+D-248 used exactly that threshold as one of two conditions for `high`. So the 45% it left
+behind was produced by a condition that fires equally on approved content — **the same
+saturation D-247 found, one level down, reintroduced by the fix for it.**
+
+Removing it: **13/29 (45%) → 1/29 (3%)**, the one candidate carrying a real `hint_reveals_
+answer` flag. That is a rank that ranks.
+
+Nothing is lost. `review_cli._review_flags` still prints *"hint quality N, at or below the
+borderline"* on every item that has it. The score stops **ordering**; it does not stop being
+**shown**. Ordering by a signal that fires on 46% of shipped, human-approved content is not
+triage.
+
+### Three revisions of one rule in one session, stated plainly
+
+D-246 added a condition, D-248 removed one, D-249 removed another. That is not churn for its
+own sake — each step was measured and each measurement moved the answer — but it is worth
+seeing as a pattern: **the rule was never wrong in a way that reading it would reveal.** Every
+version looked reasonable in code review. What separated them was a number from the live
+queue and, in the end, a paid sample of the bank.
+
+### What is still unmeasured
+
+Whether the generator's hint ladders are actually weaker than the bank's *by a standard other
+than this judge's score*. This run says the judge cannot tell them apart. It does not say they
+are equally good.
