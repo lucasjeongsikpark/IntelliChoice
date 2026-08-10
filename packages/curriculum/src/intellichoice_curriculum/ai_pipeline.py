@@ -1780,17 +1780,15 @@ async def _attempt_authored_candidate(
     if difficulty.decision == "rejected":
         return await _reject(difficulty.reasons, stage_results, "difficulty")
 
-    # A re-tier is a disagreement a human still has to look at - the judge decided where
+# A re-tier is a disagreement a human still has to look at - the judge decided where
     # the item goes, and nobody has confirmed it belongs there.
-    review_priority = "normal"
-    if (
-        judge.hint_quality_score <= _HINT_QUALITY_BORDERLINE_AT
-        or difficulty.decision in ("flagged", "retiered")
-        # D-246: the judge thinks a hint gives too much away. Not enough to discard the
-        # candidate, plenty to put it in front of a human first.
-        or judge.hint_reveals_answer
-    ):
-        review_priority = "high"
+    review_priority = review_priority_for(
+        judge={
+            "hint_reveals_answer": judge.hint_reveals_answer,
+            "hint_quality_score": judge.hint_quality_score,
+        },
+        difficulty={"decision": difficulty.decision},
+    )
 
     # --- 6. Persist as pending (never auto-approved - see module docstring) -----
     # `template_id` is computed once at the top of the function: the rejection evidence
@@ -1886,6 +1884,41 @@ DEFAULT_MAX_REPAIR_ATTEMPTS = 0
 # stage adds a ~150-token call that *removes* the ~2500-token calls that were being thrown
 # away - roughly half of them, measured. Turning it off is the deliberate act here.
 DEFAULT_DESIGN_ATTEMPTS = 3
+
+
+def review_priority_for(*, judge: dict, difficulty: dict) -> str:
+    """Where this candidate goes in the review queue (D-248).
+
+    A pure function on the two evidence dicts, so the rule is testable without a gateway or
+    a database - and so `review_cli`'s prose flags and this ordering cannot drift into
+    disagreeing about what matters.
+
+    **The bar is "could this reach a student and mislead them", not "did anything fire".**
+    D-247 measured the previous rule at `high` on 26 of 29 pending candidates, and this
+    field's only consumer is a sort (`list_pending_authored_templates` orders by
+    `(review_priority == "high").desc()`), so it was putting 26 items ahead of 3 and telling
+    a reviewer nothing.
+
+    Difficulty disagreement drove 13 of those 29 on its own, and D-238 settled what it is
+    worth: **the tier is a label; the item is the work.** An item whose two readings differ
+    is a correct item that may be filed in the wrong place. It belongs in the queue with its
+    reason printed (D-247's `_review_flags`), not at the front of it.
+
+    **`retiered` is deliberately kept at `high`, and that is not a judgement of mine.** It
+    was an explicit instruction in D-239: a candidate whose judged tier sits >= 2 from its
+    slot's persists at the judge's tier, `review_priority="high"`. That is a different claim
+    from `flagged` - the tier actually *moved*, on evidence strong enough to overrule the
+    plan - and nothing measured here bears on it. (It has also never fired: D-240 found the
+    re-tier live but untriggered, and the pending queue holds 19 `flagged` and 0 `retiered`.)
+    """
+    if difficulty.get("decision") == "retiered":
+        return "high"
+    if judge.get("hint_reveals_answer"):
+        return "high"
+    score = judge.get("hint_quality_score")
+    if isinstance(score, int) and score <= _HINT_QUALITY_BORDERLINE_AT:
+        return "high"
+    return "normal"
 
 
 async def generate_authored_candidate(

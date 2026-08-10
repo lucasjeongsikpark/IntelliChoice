@@ -1201,7 +1201,25 @@ def test_difficulty_agreement_accepts_disagreement_flags_and_wide_gaps_reject() 
     assert wrong_slot.as_evidence()["retiered_from"] == 5
 
 
-def test_one_level_difficulty_disagreement_keeps_the_item_at_high_priority() -> None:
+def test_a_one_level_difficulty_disagreement_no_longer_jumps_the_review_queue() -> None:
+    """D-248 reverses what this test used to assert, and the reversal is measured.
+
+    It was written when a one-level disagreement between the generator's proposed tier and
+    the judge's read was treated as worth a reviewer's attention first. D-247 measured what
+    that produced: **`review_priority="high"` on 26 of 29 pending candidates**, 19 of them
+    `flagged` on exactly this condition. The field's only consumer is a sort, so it was
+    putting 26 items ahead of 3 and giving a reviewer no guidance at all.
+
+    D-238 had already settled what the disagreement is worth - *the tier is a label; the
+    item is the work* - so a flagged item is a correct item that may be filed in the wrong
+    place. It stays in the queue and D-247's `_review_flags` prints the reason; it does not
+    go to the front of it.
+
+    **A `retiered` item still does**, on D-239's explicit instruction: there the tier
+    actually moved, on evidence strong enough to overrule the plan. That case is asserted in
+    `test_review_priority_ranks_by_what_could_reach_a_student_not_by_any_flag`.
+    """
+
     async def run() -> None:
         curriculum = load_curriculum()
         async with _rollback_session() as session:
@@ -1233,7 +1251,10 @@ def test_one_level_difficulty_disagreement_keeps_the_item_at_high_priority() -> 
                 outcome.question_template_id or ""
             )
             assert template is not None
-            assert template.review_priority == "high"
+            # D-248: `normal`, and this line used to read `high`. See the docstring.
+            assert template.review_priority == "normal"
+            # Unchanged and load-bearing: the *confidence* still records that two readings
+            # disagreed. Demoting the queue position must not quietly demote the evidence.
             assert template.difficulty_confidence == 0.5
 
             run_row = await _latest_validation_run(session)
@@ -3084,3 +3105,56 @@ def test_an_unflagged_item_says_so_rather_than_printing_an_empty_heading() -> No
         reasons=[],
     )
     assert "review flags" not in review_cli.render_item(template, None, run)
+
+
+def test_review_priority_ranks_by_what_could_reach_a_student_not_by_any_flag() -> None:
+    """D-248: the field's only job is ordering, so it has to discriminate.
+
+    `review_priority` has exactly one consumer - `list_pending_authored_templates` sorts by
+    `(review_priority == "high").desc()`. D-247 measured what it was ordering: **26 of 29
+    pending candidates were `high`**, so the sort put 26 items ahead of 3 and a reviewer
+    opening the queue got no guidance at all.
+
+    The driver was difficulty disagreement, on 13 of 29 alone. D-238 settled what that is
+    worth: *the tier is a label; the item is the work*. An item whose two readings disagree
+    by a tier is a correct item that may be filed in the wrong place - it belongs in the
+    queue, not at the front of it. What belongs at the front is content that could reach a
+    student and mislead them: a hint that gives the answer away, or a hint ladder the judge
+    rates at or below the borderline.
+
+    The reason for the demoted items is not lost - D-247's `_review_flags` prints every one
+    of them in prose. This changes the order they are read in, not whether they are seen.
+    """
+    graded = {
+        "hint reveals the answer": (
+            {"hint_reveals_answer": True, "hint_quality_score": 5},
+            {"decision": "accepted"},
+            "high",
+        ),
+        "weak hint ladder": (
+            {"hint_reveals_answer": False, "hint_quality_score": 2},
+            {"decision": "accepted"},
+            "high",
+        ),
+        "tier disagreement only": (
+            {"hint_reveals_answer": False, "hint_quality_score": 5},
+            {"decision": "flagged"},
+            "normal",
+        ),
+        # Kept at high on D-239's explicit instruction, not on anything measured here: a
+        # re-tier means the tier actually moved on evidence strong enough to overrule the
+        # plan, which is a different claim from a one-level disagreement.
+        "re-tiered only": (
+            {"hint_reveals_answer": False, "hint_quality_score": 5},
+            {"decision": "retiered"},
+            "high",
+        ),
+        "nothing flagged": (
+            {"hint_reveals_answer": False, "hint_quality_score": 5},
+            {"decision": "accepted"},
+            "normal",
+        ),
+    }
+    for label, (judge, difficulty, expected) in graded.items():
+        got = ai_pipeline.review_priority_for(judge=judge, difficulty=difficulty)
+        assert got == expected, label
