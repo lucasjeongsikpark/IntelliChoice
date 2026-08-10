@@ -160,6 +160,14 @@ variable "org_time_confirmed" {
 #
 # Requires the secret `<name_prefix>/langsmith-api-key` to exist in Secrets Manager first;
 # the plan fails with a clear "couldn't find resource" if it does not.
+variable "langsmith_workspace_id" {
+  # The LangSmith tenant the API key belongs to. Required, not optional: this key has no
+  # default workspace, so a client that sends no `x-tenant-id` gets 403 on every endpoint
+  # (D-242). An identifier, not a credential - the API key is what authorizes.
+  type    = string
+  default = "ccf03d37-9f18-4ca0-95ff-aaf0c02a0c60"
+}
+
 variable "langsmith_tracing_enabled" {
   type = bool
   # Turned on 2026-08-06 at the user's explicit request, after the secret was created by

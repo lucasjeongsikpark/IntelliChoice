@@ -83,6 +83,16 @@ locals {
   langsmith_env = var.langsmith_tracing_enabled ? {
     LANGSMITH_TRACING = "true"
     LANGSMITH_PROJECT = var.name_prefix
+    # D-242: without this the client sends no `x-tenant-id` and LangSmith answers **403 on
+    # every endpoint** - because this API key has no *default* workspace, so a request that
+    # names no tenant is refused. That 403 cost two wrong diagnoses ("the multipart endpoint
+    # is not entitled", then "the key is not a valid key"), because LangSmith returns the
+    # same 403 for an unknown key as for a valid key with no tenant named. Sending *no* key
+    # is what returns 401; 403 does not distinguish the two cases.
+    #
+    # Not a secret: a workspace id identifies a tenant, it does not authorize anything - the
+    # API key does that. Same tier as the AWS account id already inlined throughout this file.
+    LANGSMITH_WORKSPACE_ID = var.langsmith_workspace_id
   } : {}
 
   langsmith_secrets = var.langsmith_tracing_enabled ? {
