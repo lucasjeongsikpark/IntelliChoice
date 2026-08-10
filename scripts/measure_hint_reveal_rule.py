@@ -126,6 +126,29 @@ class ItemResult:
         return any(self.reveals)
 
 
+def leaking_variant(item):
+    """The same item with its final hint stating the answer outright (D-246).
+
+    **The negative control D-245 was missing.** That run measured the rule only on content a
+    human had approved, so it could show the gate is too *strict* and say nothing about
+    whether it has any signal at all - and a gate cannot be loosened on evidence drawn only
+    from the population it was too strict on (D-221).
+
+    The mutation appends one sentence to the last rung, leaving the item otherwise
+    byte-identical, so any change in the verdict is attributable to that sentence alone.
+
+    **This is the easy end and the write-up must say so.** The judge's *unique* contribution
+    over the deterministic `answer_text_leaked` check would be catching leaks that never
+    print the answer string - and that class cannot be built here without presupposing the
+    verdict under test, because `208100`'s shipped hint 3 is already "Divide 144 by 8" and
+    the judge excused it in 3 of 4 calls.
+    """
+    answer_text = getattr(item, f"option_{item.correct_option}")
+    ladder = list(item.hint_ladder)
+    ladder[-1] = f"{ladder[-1].rstrip()} The answer is {answer_text}."
+    return item.model_copy(update={"hint_ladder": ladder})
+
+
 def _population() -> list:
     """Bank items whose hint ladder writes an equation out.
 
@@ -250,6 +273,15 @@ async def main() -> int:
         action="store_true",
         help="condition A only - the pre-registered stopping point if P1 fails",
     )
+    parser.add_argument(
+        "--control-only",
+        action="store_true",
+        help=(
+            "D-246: judge the LEAKING variants under the shipped rubric and nothing else. "
+            "This is the negative control - the true-positive rate the D-245 run could not "
+            "measure, because every item in it was content a human had approved"
+        ),
+    )
     args = parser.parse_args()
 
     items = _population()
@@ -265,6 +297,46 @@ async def main() -> int:
     print(f"skills: {dict(Counter(i.skill_id for i in items))}\n")
 
     gateway, spend = _build_gateway(), 0.0
+
+    if args.control_only:
+        print("=== control: leaking variants, shipped rubric (D-246) ===")
+        leaking = [leaking_variant(i) for i in items]
+        c_results, c_reasons, spend = await _condition(
+            gateway,
+            leaking,
+            clause="",
+            repeat=args.repeat,
+            budget=args.run_budget_cents,
+            spend=spend,
+        )
+        c = _report("control: hints that state the answer", c_results)
+        calls = sum(len(r.reveals) for r in c_results.values())
+        caught = sum(sum(r.reveals) for r in c_results.values())
+        unanimous = sum(
+            1 for r in c_results.values() if r.reveals and all(r.reveals)
+        )
+        rate = caught / calls if calls else 0.0
+        print(f"\n  true-positive rate: {caught}/{calls} = {rate:.0%}")
+        print(f"  caught unanimously: {unanimous} of {len(c_results)} items")
+        print(f"\nspend: {spend:.2f} cents")
+        if args.dump:
+            with open(args.dump, "w") as fh:
+                json.dump(
+                    {
+                        "control": c,
+                        "true_positive_rate": rate,
+                        "calls": calls,
+                        "caught": caught,
+                        "unanimous": unanimous,
+                        "reasons": c_reasons,
+                        "spend_cents": spend,
+                    },
+                    fh,
+                    indent=2,
+                )
+            print(f"wrote {args.dump}")
+        return 0
+
     print("=== condition A: the shipped rubric ===")
     a_results, a_reasons, spend = await _condition(
         gateway, items, clause="", repeat=args.repeat, budget=args.run_budget_cents, spend=spend

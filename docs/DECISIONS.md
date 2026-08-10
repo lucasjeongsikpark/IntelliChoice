@@ -17951,3 +17951,88 @@ without a licensed fix, and saying so is the honest state.
 **42.22 cents** against an 80-cent cap, pre-registered before the first call. The clause and
 its result are recorded in `scripts/measure_hint_reveal_rule.py` so the failure is not
 re-invented; re-running it is cheap and non-destructive.
+
+## D-246 — the hint gate rebuilt around what was measured, in both directions (accepted, 2026-08-10)
+
+D-245 established that `hint_reveals_answer` is unstable on approved content and that a
+skill-aware rubric clause made it worse. It could not license a change, because every item
+in it was content a human had approved — so it said the gate was too strict and nothing
+about whether the gate had any signal. This is the missing half and what followed from it.
+
+### The negative control
+
+The same 8 items with the answer appended to the final hint, n=4, shipped rubric:
+**32/32 true positives, 8 of 8 unanimous, zero splits** — against the positive set's
+**3/8 split, 4/8 flagged**. Both predictions held at their maximum.
+
+So the rule has **perfect sensitivity with no variance at the unambiguous end and roughly a
+coin flip on approved content.** That is the profile of a flag, not a gate.
+
+### The finding that stopped a plain downgrade
+
+Downgrading it alone would have been wrong, and the reason was two facts neither of which is
+in either session's notes:
+
+- **D-202 removed the deterministic gate from this pipeline.** Nothing mechanical checks a
+  generated item's hints.
+- **`review_cli.approve` calls `activate_template` straight on the database row.** It never
+  goes through the loader, so the loader's copy of `answer_text_leaked` never runs on a
+  candidate that came from the pipeline.
+
+Together: **the judge's ~50%-false-positive flag was the only automated check on hint
+leakage for generated content, all the way to a student.** The error costs are asymmetric —
+a false positive costs a paid candidate, a false negative hands a child the answer — and
+CLAUDE.md rule 5 is fail closed.
+
+### So two changes, which only make sense together
+
+**Restore one deterministic check**, not the whole gate D-202 deleted. D-202's argument —
+content judgements belong to instruments that read the item as a student would — holds for
+ambiguity, alignment and difficulty. It does not hold for *"is the answer printed in the
+hint"*, which is a string fact with an exact test that costs nothing and does not vary.
+
+**Then downgrade the judge's flag** to `pending` at `review_priority="high"`, D-239's move
+applied to a second gate that turned out to be an excellent detector and a poor
+discriminator. Nothing reaches a student either way — D-026 requires human approval — so the
+change is only whether the human ever sees the candidate, and the judge's reason now travels
+with it.
+
+### Scoring the new gate in both directions caught two live failures, before shipping
+
+**The naive check rejected an approved item.** `1609201` answers **8** and its hints mention
+*"the $8 he already had"* — a starting amount printed in the question. That is the exact
+failure this gate was being rebuilt to stop, committed by the rebuild. The fix is not
+invented for the occasion: it is the rule the judge's own prompt already states — *"a hint
+that repeats a number already printed in the question does NOT reveal anything"* — expressed
+as a string test instead of a paid, variable one.
+
+**Then the mirror failure.** With the visibility excuse in, **four items whose answer
+coincides with a number in their own stem passed even with "The answer is 8" appended.**
+Repeating a visible number is innocent; announcing that it is the answer is not, whatever
+else is on the page. The excuse is withdrawn when `leak_phrase_present` fires — the phrase
+list the gate has always had, not a second one.
+
+Neither failure was predicted. Both were found by running the gate against the shipped bank
+in **both** directions before shipping it, which is D-221's rule applied to a string check
+rather than to a model. **A gate scored in one direction only is how a gate stops meaning
+anything**, and that now has a free, permanent test over all 130 items.
+
+### Final state
+
+| | approved bank (must pass) | answer-stating variants (must fail) |
+|---|---|---|
+| naive `answer_text_leaked` | 129 / 130 | 130 / 130 |
+| + visibility excuse | 130 / 130 | 126 / 130 |
+| **+ leak-phrase override** | **130 / 130** | **130 / 130** |
+
+What it still gives up, stated rather than discovered later: a hint that reduces the problem
+to reading the answer off without printing it and without naming it. Characters cannot see
+that — it is what the judge's flag is for, which is why the flag was downgraded rather than
+removed.
+
+### Cost
+
+**20.26 cents** for the control, against a 40-cent cap, pre-registered before the call.
+D-245 and D-246 together: **62.5 cents**. The gate they produced is now tested for free,
+forever, on a corpus the paid instrument cannot be tested on — because it answers
+differently on identical input.

@@ -21,7 +21,7 @@ from intellichoice_curriculum.authored_bank import (
     AuthoredTemplateDef,
     load_authored_bank,
 )
-from intellichoice_curriculum.authored_validation import validate_authored_item
+from intellichoice_curriculum.authored_validation import hint_leaks_answer, validate_authored_item
 from intellichoice_curriculum.content import load_curriculum
 from intellichoice_curriculum.export_cli import build_bank_file, render_bank_file
 from intellichoice_curriculum.loader import (
@@ -389,3 +389,48 @@ def test_place_value_identify_is_not_authored_above_the_tier_its_ladder_reaches(
         f"place_value_identify items authored above tier 4, which its half of the anchor "
         f"ladder explicitly does not reach: {too_high}"
     )
+
+
+def test_the_hint_leak_gate_scores_both_directions_against_the_shipped_bank() -> None:
+    """D-246: the gate that rejects, measured on content that must pass *and* content that
+    must fail - because a gate scored in one direction only is how a gate stops meaning
+    anything (D-221).
+
+    **Both halves were live findings, not hypotheticals.** The naive check - "is the answer
+    text in the hint" - flagged `1609201`, whose answer is 8 and whose hints mention "the $8
+    he already had", a starting amount printed in the question. Rejecting it would have
+    discarded a human-approved item, which is exactly the failure this gate was rebuilt to
+    stop, and it was caught by running the gate against the bank before shipping it.
+
+    The other half is the D-246 control: the same items with the answer appended to the
+    final hint. A gate that passes the bank by being toothless would sail through the first
+    assertion and fail the second.
+
+    This runs free and forever. The paid n=4 judge measurement it replaces cost 63 cents
+    and cannot be a test, because the instrument answers differently on identical input.
+    """
+    banks = load_authored_bank()
+    items = [t for ts in banks.values() for t in ts]
+    assert len(items) >= 100, "sanity: the bank loaded"
+
+    passes, leaks = [], []
+    for item in items:
+        answer = getattr(item, f"option_{item.correct_option}")
+        visible = item.rendered_for_model()
+        if any(
+            hint_leaks_answer(h, answer_text=answer, visible_text=visible)
+            for h in item.hint_ladder
+        ):
+            passes.append(item.question_template_id)
+
+        # The same item with its final rung stating the answer outright - the exact mutation
+        # D-246 measured the judge against, so the two instruments are scored on one corpus.
+        leaking = list(item.hint_ladder)
+        leaking[-1] = f"{leaking[-1]} The answer is {answer}."
+        if not any(
+            hint_leaks_answer(h, answer_text=answer, visible_text=visible) for h in leaking
+        ):
+            leaks.append(item.question_template_id)
+
+    assert not passes, f"approved bank items the gate would now reject: {passes}"
+    assert not leaks, f"items whose answer-stating variant the gate misses: {leaks}"

@@ -2863,3 +2863,145 @@ def test_a_real_run_builds_its_own_dispersion_and_then_retiers_on_it() -> None:
             assert summary.processed == summary.filled + summary.rejected
 
     asyncio.run(run())
+
+
+# --- D-246: the hint-leak gate, rebuilt around what was measured ---------------------
+#
+# D-245 measured `hint_reveals_answer` at n=4 on 8 hand-authored, human-reviewed bank
+# items whose hints state the setup equation: **3 of 8 answered both ways** across
+# identical calls and **4 of 8 were flagged at least once**. D-246 then measured the
+# negative control - the same items with the answer appended to the final hint - and got
+# **32/32, all 8 unanimous, zero splits**.
+#
+# So the rule has perfect sensitivity with no variance at the unambiguous end, and roughly
+# a coin flip on approved content. That is a *flag*, not a gate.
+#
+# But a plain downgrade would have been wrong, and the reason is the finding underneath:
+# D-202 removed the deterministic gate from this pipeline, and `review_cli.approve` calls
+# `activate_template` straight on the database row rather than going through the loader -
+# so **nothing mechanical checked a generated item's hints at any point on the way to a
+# student.** The judge, at ~50% false positives, was the only thing looking.
+#
+# Hence two changes, and they only make sense together: restore the deterministic check
+# (free, exact, hard reject) and then let the fuzzy one become a review flag.
+
+
+def _leaky_item(**overrides: object) -> AuthoredGeneratedItemResponse:
+    """A candidate whose final hint states the answer outright - the D-246 control shape."""
+    item = _good_item(**overrides)
+    ladder = list(item.hint_ladder)
+    ladder[-1] = f"{ladder[-1]} The answer is {item.option_a}."
+    return item.model_copy(update={"hint_ladder": ladder})
+
+
+def test_a_hint_that_states_the_answer_is_rejected_without_asking_a_model() -> None:
+    """The coverage D-202 removed and D-246 restores, deliberately narrow.
+
+    D-202 deleted the whole deterministic gate on the argument that content judgements
+    belong to the solvers and the judge. That argument holds for ambiguity, alignment and
+    difficulty - it does not hold for "is the answer printed in the hint", which is a string
+    fact with an exact test that costs nothing and does not vary between calls.
+
+    **The judge does catch this** - 32 of 32 in D-246 - so this is not redundancy for its
+    own sake. It is that the judge is a paid, variable instrument being used as the sole
+    guard on a deterministic property, in a pipeline whose approval path writes straight to
+    the database without ever re-running the loader's checks.
+
+    `answer_text_leaked` is imported, not reimplemented (D-223): it is already the shared
+    helper the loader and the S21 runtime hint path both call, and it carries two measured
+    false-positive fixes in its lookarounds that a second copy would not.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _ScriptedAuthoredGateway(item=_leaky_item())
+            outcome, run_row = await _reject_and_fetch(session, gateway, seed=501040)
+            assert outcome.rejected_at == "validation"  # type: ignore[attr-defined]
+            assert any("leaks the correct answer" in r for r in outcome.reasons)  # type: ignore[attr-defined]
+            # Which rung, so a reviewer is not made to diff three strings by eye (D-195).
+            assert any("hint_ladder[2]" in r for r in outcome.reasons)  # type: ignore[attr-defined]
+            assert run_row.stage_results["deterministic_gate"]["passed"] is False
+
+    asyncio.run(run())
+
+
+def test_the_judges_hint_flag_sends_a_candidate_to_review_instead_of_discarding_it() -> None:
+    """The measured half. A flag with a ~50% false-positive rate must not discard content.
+
+    D-245's numbers: on 8 items a human had already approved, the judge set
+    `hint_reveals_answer` on 4 of them at least once, and answered *both ways* on 3 across
+    identical calls. Rejecting on one such call throws away roughly half of paid,
+    otherwise-passing candidates on the strength of a coin flip.
+
+    Nothing reaches a student from here regardless - a candidate lands `pending` and D-026
+    requires a human to approve it. The change is only whether that human ever sees the
+    item, and the flag now travels with it so they see the judge's reason too.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _ScriptedAuthoredGateway(
+                item=_good_item(),
+                judge=QuestionJudgeResponse(
+                    reasoning="scripted judge",
+                    reviewed_difficulty=2,
+                    difficulty_reasoning="scripted judge difficulty reasoning, long enough",
+                    is_ambiguous=False,
+                    is_aligned=True,
+                    is_age_appropriate=True,
+                    hint_quality_score=5,
+                    hint_reveals_answer=True,
+                    hint_reveals_answer_reason="hint 2 states the setup equation",
+                ),
+            )
+            outcome = await generate_authored_candidate(
+                session=session,
+                gateway=gateway,  # type: ignore[arg-type]
+                curriculum=load_curriculum(),
+                topic_id="linear_equations",
+                difficulty_label=2,
+                seed=501041,
+                session_spend_cents=0.0,
+                skill_id="linear_two_step",
+            )
+            await session.commit()
+            assert outcome.status == "pending"
+            template = await QuestionRepository(session).get_template(
+                outcome.question_template_id or ""
+            )
+            assert template is not None
+            assert template.review_priority == "high"
+            assert template.validation_status == "pending"
+
+    asyncio.run(run())
+
+
+def test_a_leaking_hint_is_still_rejected_even_when_the_judge_says_nothing() -> None:
+    """The two changes only work together, and this is the assertion that pins it.
+
+    Downgrading the judge's flag while the deterministic check was absent would have left
+    generated content with **no** automated hint guard at all - `review_cli.approve` writes
+    straight to the database, so the loader's copy of this check never runs on a candidate
+    that came from the pipeline. A future edit that removes the deterministic check will
+    fail here rather than quietly reopening that hole.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            gateway = _ScriptedAuthoredGateway(
+                item=_leaky_item(),
+                judge=QuestionJudgeResponse(
+                    reasoning="a judge that misses it",
+                    reviewed_difficulty=2,
+                    difficulty_reasoning="scripted judge difficulty reasoning, long enough",
+                    is_ambiguous=False,
+                    is_aligned=True,
+                    is_age_appropriate=True,
+                    hint_quality_score=5,
+                    hint_reveals_answer=False,
+                ),
+            )
+            outcome, _ = await _reject_and_fetch(session, gateway, seed=501042)
+            assert outcome.rejected_at == "validation"  # type: ignore[attr-defined]
+
+    asyncio.run(run())

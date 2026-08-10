@@ -67,6 +67,7 @@ from intellichoice_curriculum.authored_validation import (
     _sympify,
     _values_equal,
     derive_answer,
+    hint_leaks_answer,
 )
 from intellichoice_curriculum.content import CurriculumContent, TopicDef
 
@@ -1576,7 +1577,39 @@ async def _attempt_authored_candidate(
     # sentence length. The judge sees the hints and the final answer and is asked about all
     # of it, but it is a model reading prose, not a rule. If items start reaching review
     # with four hints or a contradictory solution, this is the reason.
-    stage_results: dict = {"deterministic_gate": {"skipped": "removed in D-202"}}
+    # D-246 restores exactly one check of the gate D-202 removed, and no more.
+    #
+    # D-202's argument - that content judgements belong to the solvers and the judge, who
+    # read the item as a student would - holds for ambiguity, alignment and difficulty. It
+    # does not hold for "is the answer printed in the hint", which is a string fact with an
+    # exact test that costs nothing and gives the same answer every call.
+    #
+    # **Measured, which is why it is back.** D-245 found the judge's `hint_reveals_answer`
+    # sets true on 4 of 8 items a human had already approved, and answers *both ways* on 3
+    # of them across identical calls. D-246 found it catches an outright stated answer
+    # 32/32. So it is an excellent detector and a coin flip as a gate - and it was the
+    # *only* thing looking, because `review_cli.approve` calls `activate_template` straight
+    # on the database row and never re-runs the loader's copy of this check.
+    #
+    # `answer_text_leaked` is imported rather than reimplemented (D-223's rule). It already
+    # carries two measured false-positive fixes in its lookarounds - a negative answer that
+    # `\b` could never match, and a single digit inside a decimal - that a second copy here
+    # would silently lack.
+    hint_leaks = [
+        f"hint_ladder[{n}] leaks the correct answer text verbatim"
+        for n, hint in enumerate(item.hint_ladder)
+        if hint_leaks_answer(
+            hint,
+            answer_text=getattr(item, f"option_{item.correct_option}"),
+            # What the student can already see. A number printed here is not revealed by a
+            # hint repeating it - the rule the judge's prompt states, applied deterministically.
+            visible_text=rendered_question,
+        )
+    ]
+    if hint_leaks:
+        stage_results: dict = {"deterministic_gate": {"passed": False, "failures": hint_leaks}}
+        return await _reject(hint_leaks, stage_results, "validation")
+    stage_results: dict = {"deterministic_gate": {"passed": True, "checks": ["hint_answer_leak"]}}
 
     if await repo.rendered_question_exists(rendered_question):
         stage_results["deduplication"] = {"passed": False, "reason": "exact text duplicate"}
@@ -1710,10 +1743,16 @@ async def _attempt_authored_candidate(
         judge_reasons.append(
             f"judge flagged the answer as impossible in the situation described: {judge.reasoning}"
         )
-    if judge.hint_reveals_answer:
-        judge_reasons.append(
-            f"judge found a hint gives the answer away: {judge.hint_reveals_answer_reason}"
-        )
+    # D-246: **not** a rejection any more. Measured at n=4 on 8 items a human had already
+    # approved, this flag was true for 4 of them at least once and answered both ways on 3
+    # - so rejecting on one call discards roughly half of paid, otherwise-passing content
+    # on a coin flip. It stays a first-class signal and travels to the reviewer instead
+    # (`review_priority="high"` below), which is D-239's move applied to a second gate that
+    # turned out to be an excellent detector and a poor discriminator.
+    #
+    # Safe only because the deterministic check above now runs: an answer stated verbatim
+    # is rejected before this point without asking a model. Restoring that was the
+    # precondition for this line, not a separate improvement.
     if judge.hint_quality_score < _HINT_QUALITY_REJECT_BELOW:
         judge_reasons.append(f"judge rated hint quality {judge.hint_quality_score}, too low")
     if judge_reasons:
@@ -1747,6 +1786,9 @@ async def _attempt_authored_candidate(
     if (
         judge.hint_quality_score <= _HINT_QUALITY_BORDERLINE_AT
         or difficulty.decision in ("flagged", "retiered")
+        # D-246: the judge thinks a hint gives too much away. Not enough to discard the
+        # candidate, plenty to put it in front of a human first.
+        or judge.hint_reveals_answer
     ):
         review_priority = "high"
 
