@@ -49,6 +49,17 @@ at all — it had never rejected anything the slot gap would not have, across al
 record. D-240 exercised it against a real model — see above for what that did and did not
 establish.
 
+**The generation pipeline's yield doubled, and the reason was one line of JSON Schema (D-243).**
+D-240's 41% structured-output failure rate was never a prompt problem or a model-capability
+problem: `AuthoredGeneratedItemResponse` is the only response model here that contains another
+model, so it is the only one whose schema Pydantic emits with a `$defs` block — and Haiku 4.5 read
+the `$ref` target as *the* schema, returning an object with `canonical_solution` and nothing else,
+twelve times out of twelve. The gateway now inlines `$ref`/`$defs` at the one seam where the schema
+is built. Same batch, fresh seeds: generator schema failures **6/11 → 0/11**, accepted **27% →
+55%**. **Read the ceiling honestly** — 55% is not 100%, and every remaining loss is a judge or
+solver rejection, which is the pipeline working. The parsing question is closed; the content-quality
+question underneath it has not been asked yet.
+
 What is left, in order of value:
 
 1. **Two rungs that still do not separate, both now known to be clause-level (D-238).**
@@ -78,11 +89,17 @@ What is left, in order of value:
    still linted it. Fixed by anchoring to `/curriculum/`, which ignores exactly the intended content
    directory. **The general shape is the lesson: a tool that respects `.gitignore` silently narrows
    what your verification covers, and it reports the narrowed result as success.**
-5. **The generator fails structured output 41% of the time** (D-240). Nine of 22 candidates died on
-   *"structured output still invalid after one repair retry"* before reaching any quality gate;
-   run yield was 45%. This dominates the pipeline's usefulness more than any tier policy and is the
-   first number to look at. Free to start: the failures are persisted in
-   `question_validation_runs`, and `AuthoredGeneratedItemResponse` is the schema to read against.
+5. ~~The generator fails structured output 41% of the time.~~ **RESOLVED 2026-08-09 (D-243).** It
+   was a **`$ref` in the tool schema**. `AuthoredGeneratedItemResponse` is the only response model
+   here containing another model, so it is the only schema Pydantic emits with a `$defs` block —
+   and on Haiku 4.5, twelve consecutive calls returned an object with **exactly one key,
+   `canonical_solution`**, the one field that is a `$ref`. Every other required field simply
+   absent. The gateway now inlines `$ref`/`$defs` before showing a schema to the model; nothing is
+   loosened, because an inlined schema is the same schema. Measured on the same batch with fresh
+   seeds: generator schema failures **6/11 → 0/11**, accepted **27% → 55%**, Fisher exact p = 0.012,
+   and the remaining losses moved **downstream to the judge and solver** — a candidate now dies at
+   a gate that read it rather than at a parser that never did. **Yield is 55%, not 100%; the
+   quality question underneath the parsing question is untouched.**
 6. **D-239's re-tier is live but has never fired** (D-240). The dispersion floor clears easily on a
    real judge (dominant share 50% vs the 80% threshold), and **no candidate was ever more than 1
    tier from its slot**, so the gate had nothing to act on. The structural reason matters more than
@@ -130,6 +147,17 @@ What is left, in order of value:
    than tuning the prompt to a single case. Revisit only with more cases like it, never alone.
 13. **Answer brevity.** A cited Q&A answer is still ~10 s (D-115's carry-over, `rag_answer` p95
    10.62 s). Needs a product decision, not a patch.
+15. **`ruff format` is not enforced and never has been** (D-243). `make lint` runs `ruff check .`
+   only, and `ruff format --check .` reports **116 of 415 files** would be reformatted. This is not
+   a consequence of D-240's `.gitignore` bug — it is repo-wide and predates it. The cost is that
+   any session touching a file and running the formatter drags unrelated reformatting into its
+   diff, which is exactly what happened here and was reverted. Adding `ruff format --check` to
+   `make lint` means one large mechanical commit first; worth doing, worth doing on its own.
+16. **The generator's remaining loss is `max_output_tokens` truncation at 2500** (D-243). One of
+   eleven, and newly visible now that the schema failures are gone — the item is larger because
+   the model finally writes every field. D-233 is the precedent to read first: raising this
+   ceiling was measured to buy nothing on the judge, because an unbounded `reasoning` field
+   expands to fill whatever it is given. Measure before raising.
 14. **`RichText` still exists twice** with no shared TS package (D-219's carry-over, unchanged).
    The trigger to extract it is written into the file; a third copy is that trigger.
 
@@ -167,6 +195,38 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the 41% was a `$ref` in the tool schema (2026-08-09, D-243)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1091 passed, 2 skipped, 1 xfailed**
+(baseline 1079) · **59 cents** of paid Bedrock against a 60-cent cap · full write-up in
+DECISIONS.md **D-243**.
+
+**The evidence did not exist, and that was the first finding.** All 28 persisted failures carried
+the same constant string in both places it was recorded, because one `except ValidationError:
+return None` was discarding what Pydantic knew. Phase 1 was therefore instrumentation, not a fix:
+a `field: rule` digest, carrying no model-written content, structured so it groups in SQL.
+
+**The instrument then failed on its own first paid run.** Six failures, six identical digests of
+eight `missing` entries — against a bound of eight. The bound had truncated the answer, because
+Pydantic emits `missing` before `extra_forbidden` and a uniform failure crowded out the rare entry
+that explains it. **A bounded diagnostic that truncates by position hides exactly the outlier it
+exists to surface.** Fixed by keeping rule diversity rather than the first N.
+
+**The cause.** Twelve consecutive calls returned an object with exactly one key,
+`canonical_solution` — the only field in that schema that is a `$ref` into `$defs`. Inlining the
+refs took generator schema failures from **6/11 to 0/11** and acceptance from 27% to 55% on the
+same batch with fresh seeds, and moved the remaining losses downstream to the judge and solver.
+
+**Two hypotheses were wrong before the right one, and both were killed by measurement rather than
+by argument** — a wrapper key (refuted by the corrected digest showing no `extra_forbidden`) and
+truncation (refuted by `stop_reason=tool_use`, 442 tokens against a 2500 ceiling). The third was
+found by looking at the tool input directly rather than inferring a fourth time.
+
+**An unrelated thing surfaced and was deliberately left alone:** `ruff format` has never been
+enforced here — `make lint` runs `ruff check` only, and **116 of 415 files** would be reformatted.
+Running the formatter on one file pulled in changes to code this session never touched, so it was
+reverted rather than smuggled into the diff. Carry-over.
 
 ### Session log — the AI observability leg was dark for weeks, and is now live (2026-08-09/10, D-242)
 

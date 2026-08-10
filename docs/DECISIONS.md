@@ -17677,3 +17677,93 @@ the *service's* `task_definition`, which stops Terraform fighting the deploy ove
 current - but the task-definition *resource* itself is not ignored, so any Terraform change to it
 re-renders the container with Terraform's image variable. Terraform and the deploy each own half of
 the same object. Whoever ran last wins, and it is silent.
+## D-243 — the generator's 41% was a `$ref` in the tool schema (accepted, 2026-08-09)
+
+D-240 measured the authored generator failing structured output on 41% of candidates and
+named it "the first number to look at next". It is now looked at, and the answer is
+smaller and more mechanical than the number suggested.
+
+### The evidence did not exist, and that was the first finding
+
+Twenty-eight rows in `question_validation_runs` carried the identical constant string
+`"structured output still invalid after one repair retry"` — once in `reasons`, again in
+`stage_results.generator_request.provider_error`. There was no third place to look. One
+`except ValidationError: return None` in `_try_validate` was discarding everything Pydantic
+knew, and the gateway raised a message with nowhere to put it.
+
+**No amount of reading recovers evidence nobody wrote down.** So Phase 1 was instrumentation,
+not a fix: `schema_error_digest` returns `field.path: rule` and deliberately nothing else.
+`ValidationError.errors()` embeds the offending `input` unless told otherwise, and on this
+path that input is the item the model just wrote — keeping it would have put model-written
+content into an exception message, a log line and a database row at once (SPEC §5.30).
+`loc` plus `type` is what a reader acts on, and unlike a sentence it groups in SQL.
+
+Two things were narrowed *before* paying, by reading rather than measuring, and both held:
+`bedrock_runtime_provider` returns `json.dumps(emitted["input"])`, so boto3 has already
+parsed the tool input and `json.loads` cannot fail on the real path; and truncation raises
+`OutputTruncatedError`, a different type. So every one of the 28 was a Pydantic failure on
+valid JSON. Pre-registered as **P3**, and the paid run confirmed it: `not_json` = 0.
+
+### The instrument failed on its own first run
+
+All six schema failures in the first paid batch returned the **identical** digest: every
+required field `missing`. Exactly eight entries, against a bound of eight.
+
+**The bound had truncated the answer.** Pydantic emits `missing` before `extra_forbidden`,
+so eight identical `missing` entries crowded out the one entry that would have said what
+the model actually sent. Fixed by making the bound keep *rule diversity* rather than the
+first N: every distinct rule gets one entry before any rule gets a second. A uniform
+failure can no longer displace the rare entry, which is the only kind worth the space.
+
+That is a general shape worth keeping: **a bounded diagnostic that truncates by position
+will hide exactly the outlier it exists to surface.**
+
+### What it actually was
+
+With the bound corrected the digest *still* showed only `missing` — which killed the
+wrapper-key hypothesis and left a contradiction: no extra keys, and no required ones
+either. Rather than infer a third time, the tool input was inspected directly, printing
+keys and types only and never values.
+
+**Twelve consecutive calls returned an object with exactly one key: `canonical_solution`.**
+That is the only field in the schema which is a `$ref` into `$defs`, and
+`AuthoredGeneratedItemResponse` is the only response model in this project that contains
+another model — so it is the only schema Pydantic emits with a `$defs` block at all. It is
+also the schema D-240 measured failing. Haiku 4.5 appears to read the `$ref` target as
+*the* schema rather than as one field's type.
+
+Four calls with the same schema dereferenced returned three valid items.
+
+`inline_schema_refs` therefore runs at the one seam where the schema is built. Nothing is
+loosened — an inlined schema is the same schema, so this is a change of representation and
+not of contract. A schema with no `$defs` is returned untouched, which is every other model
+here. A cyclic schema is **declined outright** rather than inlined to some depth, because a
+reference into a `$defs` block we just deleted is worse than the schema we started with.
+
+### Measured, same batch, same conditions, fresh seeds
+
+| | before | after |
+|---|---|---|
+| processed | 11 | 11 |
+| generator **schema** failures | **6 (55%)** | **0** |
+| accepted | 3 (27%) | **6 (55%)** |
+| remaining generator rejection | — | 1 `max_output_tokens` truncation |
+| losses moved to | — | judge 3, solver 1 |
+
+Fisher exact **p = 0.012**. The losses moving downstream is the part that matters: a
+candidate now dies at a quality gate that read it, rather than at a parser that never did.
+
+**The evidence base is one model, one topic, one prompt.** 0/12 against 3/4 on the direct
+probe, 6/11 against 0/11 through the pipeline. Enough to act on; not enough to claim
+anything general about `$ref` in tool schemas, and this entry deliberately does not.
+
+### What this does not fix
+
+Yield is 55%, not 100%. The remaining losses are judge and solver rejections — real content
+judgements, and the pipeline working as designed. The 41% headline is gone; the *quality*
+question underneath it is untouched and is a different session.
+
+### Cost
+
+**59 cents** across two 11-candidate batches, one 2-candidate batch and two direct probes,
+against a 60-cent cap. Pre-registered before the first call, in the D-240 style.

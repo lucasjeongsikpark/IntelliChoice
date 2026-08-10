@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Annotated, ClassVar, Literal, Protocol, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 
 class BedrockTask(StrEnum):
@@ -1244,10 +1244,130 @@ class BedrockTimeoutError(BedrockGatewayError):
     pass
 
 
+# A model that has lost the contract entirely emits dozens of off-schema keys, and each
+# one becomes an entry in a JSON column and a log line. Small on purpose: past the first
+# handful a reader has already learned which way the model drifted (D-243).
+MAX_SCHEMA_ERRORS = 8
+
+# Stands in for `loc` when the response was not JSON at all, which Pydantic never sees and
+# therefore never names. Bracketed so it cannot collide with a real field.
+NOT_JSON_DIGEST = "<response>: not_json"
+
+
+def schema_error_digest(exc: ValidationError, *, limit: int = MAX_SCHEMA_ERRORS) -> list[str]:
+    """`field.path: rule` for each violation, and deliberately nothing else (D-243).
+
+    **The omission is the point.** `ValidationError.errors()` embeds the offending `input`
+    unless told otherwise, and on the generator path that input is the item the model just
+    wrote - a full stem, four options, a hint ladder. Keeping it would put model-written
+    content into an exception message, a log line and a database row at once, which is
+    three new places for content this project keeps out of logs on principle (SPEC §5.30).
+
+    `loc` and `type` carry everything a reader acts on: which field, which rule. They also
+    group in SQL, which is what turns twenty-eight identical rows into a distribution.
+
+    **The bound keeps rule diversity, not the first `limit` errors, and that correction
+    came from this instrument failing on its own first paid run.** The generator's real
+    failure mode is to wrap the item in a key of its own invention; Pydantic reports that
+    as every required field `missing` plus exactly one `extra_forbidden` naming the
+    wrapper, and it emits the `missing` errors first. A first-eight bound therefore
+    returned eight identical `missing` entries and dropped the single entry that said what
+    the model had actually sent - six failures, six identical digests, and the answer one
+    layer below what the instrument could see. Round-robin across distinct rules instead:
+    every rule gets one entry before any rule gets a second, so a uniform failure can
+    never crowd out the rare entry, which is the only kind worth the space.
+    """
+    by_rule: dict[str, list[str]] = {}
+    for error in exc.errors(include_url=False, include_input=False):
+        loc = ".".join(str(part) for part in error["loc"]) or "<root>"
+        entry = f"{loc}: {error['type']}"
+        bucket = by_rule.setdefault(error["type"], [])
+        if entry not in bucket:
+            bucket.append(entry)
+
+    digest: list[str] = []
+    for depth in range(max((len(b) for b in by_rule.values()), default=0)):
+        for bucket in by_rule.values():
+            if depth < len(bucket) and len(digest) < limit:
+                digest.append(bucket[depth])
+    return digest
+
+
+class _CyclicSchema(Exception):
+    """Raised internally by `inline_schema_refs` when a `$ref` cycle makes inlining
+    impossible. Never escapes the function."""
+
+
+def inline_schema_refs(schema: dict) -> dict:
+    """Replace every `$ref` with its `$defs` target, so the tool schema has no indirection.
+
+    **Measured, and the largest finding of D-243.** `AuthoredGeneratedItemResponse` is the
+    only response model in this project containing another model, so it is the only schema
+    Pydantic emits with a `$defs` block - and it is the schema D-240 measured failing on
+    41% of candidates. On Haiku 4.5, **twelve calls** carrying the `$ref` form returned a
+    tool input with exactly one key, `canonical_solution` - the one field that *is* a
+    `$ref` - and every other required field simply absent. **Four calls** with the same
+    schema dereferenced returned three valid items. The model reads the `$ref` target as
+    the schema rather than as one field's type.
+
+    Nothing is loosened: an inlined schema is the same schema, so this is a change of
+    representation at one seam rather than a change of contract. A schema with no `$defs`
+    is returned untouched, which is every other model in the project.
+
+    The evidence is 0/12 against 3/4 on one model, one topic and one prompt. That is
+    enough to act on and not enough to generalise, which is why the claim here is about
+    this schema and this model rather than about `$ref` in tool schemas.
+    """
+    defs = schema.get("$defs")
+    if not defs:
+        return schema
+
+    def walk(node: object, active: frozenset[str]) -> object:
+        if isinstance(node, dict):
+            ref = node.get("$ref")
+            if isinstance(ref, str):
+                name = ref.rsplit("/", 1)[-1]
+                if name in active or name not in defs:
+                    raise _CyclicSchema(name)
+                target = walk(defs[name], active | {name})
+                # Sibling keys beside a `$ref` (Pydantic emits `description`, `default`)
+                # override the target's, which is what JSON Schema 2020-12 specifies.
+                siblings = {k: walk(v, active) for k, v in node.items() if k != "$ref"}
+                return {**target, **siblings}  # type: ignore[dict-item]
+            return {k: walk(v, active) for k, v in node.items() if k != "$defs"}
+        if isinstance(node, list):
+            return [walk(v, active) for v in node]
+        return node
+
+    try:
+        return walk(schema, frozenset())  # type: ignore[return-value]
+    except _CyclicSchema:
+        # A schema referencing a `$defs` block we just deleted is worse than the one we
+        # started with, and the original already says truthfully what shape it is.
+        return schema
+
+
 class StructuredOutputError(BedrockGatewayError):
     """Raised after the provider's raw output failed Pydantic validation and the single
     repair retry (SPEC §5.25.3) also failed.
+
+    `schema_errors` is the D-243 addition: which fields broke which rules. Before it, every
+    failure of this kind reached the caller as one constant sentence, so the pipeline's
+    single largest loss - 41% of authored candidates, measured in D-240 - was recorded 28
+    times without once recording a cause. The digest is also folded into the message, so a
+    caller that only flattens the exception to a string benefits without being changed.
     """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        cost_cents: float = 0.0,
+        schema_errors: list[str] | None = None,
+    ) -> None:
+        detail = f"{message} [{', '.join(schema_errors)}]" if schema_errors else message
+        super().__init__(detail, cost_cents=cost_cents)
+        self.schema_errors: list[str] = list(schema_errors or [])
 
 
 class OutputTruncatedError(StructuredOutputError):
