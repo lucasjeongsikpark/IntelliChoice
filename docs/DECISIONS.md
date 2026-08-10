@@ -18724,3 +18724,61 @@ before/after metric for the §4 repair loop when that gets built.
 Still nothing about **false acceptance**. Every item examined here was one a reviewer *blocked*.
 The 38 items the union passed have not been checked against this audit, and check 3 remains the
 only mechanism that would ever see a jointly-wrong pass.
+
+## D-258 — the first false-acceptance measurement: the reviewers catch 43% of a defect class they themselves name (accepted, 2026-08-10)
+
+D-257 closed with the honest gap: *"every item examined was one a reviewer blocked."* Running
+D-257's free audit against the items the union **passed** closes it, and the answer is the first
+false-acceptance evidence this project has.
+
+Among the 49 items the union read in D-256:
+
+| | flagged by the audit | not flagged |
+|---|---|---|
+| union **blocked** (11) | **6** | 5 |
+| union **passed** (38) | **8** | 30 |
+
+**14 items carry the defect class; the reviewers blocked 6. Recall ≈ 43%.**
+
+### The misses are not subtle
+
+`place_value-d2-200205` ends `[67 plus something makes 76]` against a final answer of `9`. That is
+the **identical shape** the pair blocked in `200304` (`[128 plus something makes 182]`) and that
+D-254 rejected in `200402` (`[2160 plus something makes 2610]`). Same skill, same defect, passed.
+Likewise `fraction_operations-d5-100505` (`[12/12 - 7/12]` → `5/12`) is the same class as
+`100205` and `100307`, both blocked.
+
+So the inconsistency is **across items**, not within one. That is a different failure from M1
+(the same item read four times), which is why M1 measuring 1 of 8 said nothing about it, and why
+check 3 was specified as a permanent sampler rather than a gate.
+
+### This reframes the instrument, in the safe direction
+
+- **Precision looks good.** 6 of 6 hand-read blocks were real defects (D-257).
+- **Recall is ~43%** on the one class measurable without an opinion.
+- Therefore **22.4% understates the defect rate.** Perfect recall on this class alone would put
+  the union near **28.6%** (14/49) — brushing the 30% disqualifier from the *correct* direction,
+  which is a very different situation from approaching it through over-blocking.
+
+The worry after D-249 was a signal that fires on everything. The measured problem is the
+opposite: a conservative reviewer that misses more than half of a defect class it demonstrably
+recognises.
+
+### Check 3 gains a third option nobody had listed
+
+§5 check 3 said the sampler must be *"a third model or a periodic human audit"*, because B and C
+have already passed the item. **A deterministic audit is a third option, and a better one where
+it applies:** it needs no opinion, costs nothing, has perfect recall on its own narrow class, and
+cannot be jointly wrong with the reviewers because it is not a reviewer.
+
+It does not replace the model/human sampler — `linear_equations-d3-2609301`'s "two operations
+described as one" is invisible to any regex, and 5 of the 11 blocks were for things no audit
+could see (hint redundancy, unclear phrasing for the grade band). **The two are complementary and
+both belong in check 3**: the audit for exhaustive coverage of a narrow class, the sampler for
+everything else.
+
+### What is still not established
+
+Whether the **30 passed items the audit also passed** contain defects of any other class. Nothing
+here reaches them, and a deterministic audit can only ever certify the absence of what it was
+written to look for.

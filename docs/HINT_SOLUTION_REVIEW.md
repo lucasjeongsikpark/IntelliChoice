@@ -285,11 +285,15 @@ M2r **2%**, M3 **0**, over 49 items (§4.5b explains the missing one). All four 
 survived. The pre-registration predicted 15-25% for M2 and it landed at 22.4% — about 2.2x
 reviewer B alone, close to the ~19% an independence assumption gives.
 
-**22.4% is not comfortable and should not be reported as if it were.** The disqualifier is 30%.
-A little over one in five human-approved items is blocked by the pair, and while D-254 confirmed
-by hand that such blocks can be real defects, only two blocked items across both runs have
-actually been read. **The remaining headroom is 7.6 points**, and any change that makes either
-reviewer stricter spends it.
+**22.4% turned out to be the wrong thing to worry about (D-257/D-258).** The disqualifier is 30%
+and the pair blocks a little over one in five human-approved items — but **6 of 6 blocks read by
+hand were real defects**, and a free deterministic audit finds the same defect class in **8 of the
+38 items the pair passed**. Measured recall on that class is **~43%**.
+
+So the union **understates** the defect rate rather than inflating it. Perfect recall on that one
+class would put it near 28.6%, approaching the disqualifier from the *correct* direction. The
+worry inherited from D-249 — a signal that fires on everything — is not this instrument's problem;
+being conservative is.
 
 ### Check 3 — Both-direction production monitoring, now needing a *third* opinion
 
@@ -301,6 +305,17 @@ not independent — it is asking the same two models the same question. Check 3'
 This is *the* mechanism for detecting false acceptance, and §4.5 removed the other one: with no
 adjudicator and no human escalation on the failure path, a jointly-wrong pair discards silently.
 Ongoing cost, not a one-time gate.
+
+**A deterministic audit is a third option, and it is already earning its place (D-258).** Running
+`scripts/audit_solution_step_completeness.py` against the items the union *passed* found **8 of
+38** carrying the exact defect class the pair blocked others for — the first false-acceptance
+evidence this project has, at zero cost. It needs no opinion, has perfect recall on its own narrow
+class, and **cannot be jointly wrong with the reviewers because it is not a reviewer.**
+
+It does not replace the model or human sampler: `linear_equations-d3-2609301`'s "two operations
+described as one" is invisible to any regex, and 5 of 11 blocks were for things no audit could see.
+**Both belong in check 3** — the audit for exhaustive coverage of a narrow class, the sampler for
+everything else.
 
 ### Check 4 — Cross-component disagreement: domain-specific routing
 
