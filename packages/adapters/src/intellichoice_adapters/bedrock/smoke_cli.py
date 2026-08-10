@@ -92,6 +92,7 @@ def _contract_specs() -> dict[str, tuple[type[BaseModel], str, BaseModel]]:
         HintSolutionReviewPayload,
         HintSolutionReviewResponse,
         QuestionJudgePayload,
+        SolutionStep,
         SolverPayload,
     )
 
@@ -206,9 +207,15 @@ def _contract_specs() -> dict[str, tuple[type[BaseModel], str, BaseModel]]:
                     "Collect the m terms on one side, then divide.",
                 ],
                 solution_steps=[
-                    "1. Set the two totals equal [4 + 4m = 16 + 2m]",
-                    "2. Collect the m terms [2m = 12]",
-                    "3. Divide by 2 [2m / 2]",
+                    SolutionStep(
+                        step_number=1,
+                        explanation="Set the two totals equal",
+                        expression="4 + 4m = 16 + 2m",
+                    ),
+                    SolutionStep(
+                        step_number=2, explanation="Collect the m terms", expression="2m = 12"
+                    ),
+                    SolutionStep(step_number=3, explanation="Divide by 2", expression="2m / 2"),
                 ],
                 solution_final_answer="6 minutes",
                 skill_name="Variables on Both Sides",

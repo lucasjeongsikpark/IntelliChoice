@@ -106,17 +106,24 @@ def _fingerprint(defects: list[HintSolutionDefect]) -> list[str]:
     return sorted(f"{d.target}[{d.index}]:{d.problem}" for d in defects)
 
 
-def _round_record(number: int, verdict: PanelVerdict) -> Round:
+def _round_record(
+    number: int, verdict: PanelVerdict, defects: list[HintSolutionDefect]
+) -> Round:
+    """`defects` is what actually drove the repair, panel plus any contributor - not
+    `verdict.defects`. D-195's rule is that the record explains the outcome, and a round
+    whose repair was opened by a contributed defect (D-263) would otherwise read as a repair
+    with no cause.
+    """
     return Round(
         number=number,
         accepted=verdict.accepted,
         verdicts={
             r.reviewer: (r.response.verdict if r.response else None) for r in verdict.readings
         },
-        defects=[f"{d.target}[{d.index}]: {d.problem}" for d in verdict.defects],
+        defects=[f"{d.target}[{d.index}]: {d.problem}" for d in defects],
         discarded_locations=list(verdict.discarded_locations),
         unreachable=list(verdict.unreachable),
-        suggested_fixes=[d.suggested_fix for d in verdict.defects],
+        suggested_fixes=[d.suggested_fix for d in defects],
     )
 
 
@@ -130,6 +137,7 @@ async def run_review_loop(
     per_item_budget_cents: float,
     max_rounds: int = MAX_REPAIR_ROUNDS,
     session_spend_cents: float = 0.0,
+    first_round_defects: list[HintSolutionDefect] | None = None,
 ) -> LoopOutcome:
     """Read, repair, re-read, until unanimity or a limit. Never raises for a model failure.
 
@@ -137,6 +145,24 @@ async def run_review_loop(
     - blocked at the round limit, out of budget, a reviewer that never answered, a repairer
     that failed - is `"discarded"`, because §4.5 has no human escalation path and an item that
     cannot be shown to be sound is not shown to a student.
+
+    ### `first_round_defects`, and why it is first-round only (D-263)
+
+    D-262 measured the panel passing **5 of 10** items selected for carrying a defect a free
+    deterministic check finds every time. The obvious fix - tell the reviewers what the check
+    found - is **circular**: recall rises trivially when the answer is handed over, and both
+    reviewers hearing the same hint collapses the independence D-256 measured. The reviewers
+    are therefore never told.
+
+    Instead a caller may contribute located defects that **open the repair path on round 1**.
+    Two properties follow, and both are the point:
+
+    - **It can never reject an item.** From round 2 the panel alone decides, so a heuristic
+      contributor cannot hold an item blocked. D-257 was explicit that its audit is not an
+      exact invariant and must not become a gate; this is how it contributes without becoming
+      one. A false positive costs one repair round, not an item.
+    - **Acceptance stays the panel's verdict.** The contributed defect buys an attempt, never
+      an approval.
     """
     rounds: list[Round] = []
     spend = 0.0
@@ -155,21 +181,27 @@ async def run_review_loop(
             session_spend_cents=session_spend_cents + spend,
         )
         spend += verdict.cost_cents
-        record = _round_record(number, verdict)
+        defects = list(verdict.defects)
+        if number == 1 and first_round_defects:
+            # Contributed, not authoritative. Appended so the panel's own findings come first
+            # in the repair prompt - the reviewers read the item, the contributor read one
+            # property of it.
+            defects.extend(first_round_defects)
+        record = _round_record(number, verdict, defects)
         rounds.append(record)
 
-        if verdict.accepted:
+        if verdict.accepted and not (number == 1 and first_round_defects):
             return LoopOutcome("accepted", current, rounds, spend, "unanimous pass")
 
         if number > max_rounds:
             return LoopOutcome("discarded", current, rounds, spend, "repair limit reached")
 
-        fingerprint = _fingerprint(verdict.defects)
+        fingerprint = _fingerprint(defects)
         if fingerprint and fingerprint == previous_fingerprint:
             return LoopOutcome("discarded", current, rounds, spend, "same defects recurred")
         previous_fingerprint = fingerprint
 
-        if not verdict.defects:
+        if not defects:
             # A block with nothing located: the response model forbids it, so this means every
             # located defect was filtered as hallucinated, or the only blocker was a reviewer
             # that never answered. Repairing against nothing would be a re-roll wearing a
@@ -183,7 +215,7 @@ async def run_review_loop(
             repair = await repair_hints_and_solution(
                 repairer,
                 current,
-                verdict.defects,
+                defects,
                 skill_name=skill_name,
                 grade_band=grade_band,
                 session_spend_cents=session_spend_cents + spend,
@@ -198,7 +230,7 @@ async def run_review_loop(
             return LoopOutcome("discarded", current, rounds, spend, "repair failed")
 
         spend += repair.cost_cents
-        collateral = collateral_edits(current, repair.value, verdict.defects)
+        collateral = collateral_edits(current, repair.value, defects)
         if collateral:
             # D-261: the repair edited text nobody objected to. Applying it would leave the
             # panel reviewing changes it never asked for, and `mistral-large-3` did exactly

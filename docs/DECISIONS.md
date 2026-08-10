@@ -18996,3 +18996,66 @@ unaltered — and it matters for anything scoring an item *after* a repair. Hone
   gate — D-257 established this is not an exact invariant) is the obvious next experiment.
 - **Reviewer B is a live question.** Haiku was falsified as a *single* reviewer in D-254 on a
   general sample; on this defect class it is the weaker half by a factor of two.
+
+## D-263 — recall fixed without telling the reviewers, and a latent schema trap it exposed (accepted, 2026-08-10)
+
+D-262 left the panel missing 5 of 10 items carrying a defect a free check finds every time. Three
+runs of the **identical ten items**, one variable each:
+
+| run | change | accepted | **accepted AND audit-clear** | recall failures | repair failures |
+|---|---|---|---|---|---|
+| D-262 | baseline | 8 | **3** | 5 | 0 |
+| D-263a | + audit contributes a round-1 defect | 4 | **3** | 0 | 4 |
+| D-263b | + symmetric payload shape | **9** | **9** | **0** | **0** |
+
+33.3¢. **Nothing was written to the bank.**
+
+### The obvious fix was circular, so it was not the fix
+
+Telling the reviewers what the audit found would raise recall trivially — you would be handing
+over the answer and then measuring whether it was found — and both reviewers hearing the same
+hint collapses the independence D-256 measured at 9 of 50. **The reviewers are never told.**
+
+Instead a caller may contribute located defects that **open the repair path on round 1 only**.
+Two properties, both the point:
+
+- **It can never reject an item.** From round 2 the panel alone decides, so a heuristic
+  contributor cannot hold an item blocked. D-257 was explicit that this audit is not an exact
+  invariant and must not become a gate; **a false positive costs one repair round, not an item**,
+  and there is a test named for that.
+- **Acceptance stays the panel's verdict.** A contributed defect buys an attempt, never an
+  approval.
+
+### The recall fix exposed a bug that would otherwise have stayed hidden
+
+D-263a removed all five recall failures and acceptance *fell* from 8 to 4, with **four repairs
+dying on the same error**: `solution_steps.N: model_type`.
+
+`HintSolutionRepairPayload.solution_steps` was a list of **rendered strings** (`"1. Divide by 4
+[n = 52/4]"`) while `HintSolutionRepairResponse.solution_steps` demanded nested `SolutionStep`
+objects. The repairer mirrored the shape it was shown. **The reviewer never hit this because a
+reviewer only reads that field; a repairer has to write it back** — an asymmetric in/out shape is
+a trap for exactly one of two roles that share a payload.
+
+**It was invisible until recall was fixed.** D-262 attempted only 3 repairs and all 3 happened to
+survive; D-263a attempted 10 and 4 died. A fix to one component found a latent defect in another
+by exercising it three times as hard — which is the argument for changing one variable at a time
+and re-running the same population.
+
+### The repairs are good, and were read rather than assumed
+
+Three checked by hand: `[34 plus something makes 43]` → `[43 - 34 = 9]`; `[4 x ? = 24]` →
+`[4 x 6 = 24]`; `[6 / 2]` → a step stating `[3]`. **Every one left the hint ladder verbatim** and
+moved no answer key.
+
+**One limit observed in practice:** `200104` went from three solution steps to two, and
+`collateral_edits` skips length changes by design (D-261) because positions no longer align. So a
+repair can restructure a solution more than intended without the invariant seeing it. Recorded,
+not fixed — a positional comparison across differing lengths invents a correspondence rather than
+checking one, and the alternative is worse.
+
+### Not done
+
+**The repairs are still not applied.** Nine good proposals on ten items is evidence the loop
+works, not authority to rewrite content served to minors. The dump is a set of diffs for a human
+to accept, and the remaining 34 flagged items have not been attempted.
