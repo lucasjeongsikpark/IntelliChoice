@@ -1541,6 +1541,30 @@ flowchart LR
 
 ## Network egress and observability sinks (D-084, S39, D-213, D-214)
 
+**Two observability legs, and they are not symmetric.** System telemetry never leaves AWS; AI
+telemetry is the only thing that does. That asymmetry is the whole security story of this section,
+so the shape is worth seeing before the detail:
+
+```mermaid
+flowchart TB
+    SVC["learning-api / chat-api<br/>one ECS task"]
+    SVC --> FA["FastAPI + SQLAlchemy<br/>request path"]
+    SVC --> LG["LangGraph<br/>node execution"]
+    FA --> OTEL["OTel instrumentation<br/>configure_tracing_provider<br/>instrument_fastapi_app<br/>instrument_sqlalchemy_engines"]
+    LG --> LSC["LangSmith tracing<br/>configure_langsmith()"]
+    OTEL --> COLL["otel-collector sidecar<br/>OTLP in on localhost:4318"]
+    COLL --> AWS["X-Ray + CloudWatch<br/>via VPC endpoint - never leaves AWS"]
+    LSC --> SAAS["LangSmith SaaS<br/>via the one NAT gateway - leaves AWS"]
+    AWS --> SYS["system observability<br/>request spans, structured logs,<br/>4 metric filters per service"]
+    SAAS --> AI["AI observability<br/>node trees incl. prompt + response payloads"]
+```
+
+`LangGraph` and `FastAPI` are the same process - the split is about which *sink* answers which
+question, not about which service is running. One `trace_id` still spans FastAPI → LangGraph →
+Bedrock gateway → MySQL/Postgres → MCP tools on the OTel side (SPEC §5.32.2); LangGraph node
+execution has no off-the-shelf OTel instrumentation, so `traced_span()`/`traced_node()` are manual
+wrappers at those call sites, *in addition to* the LangSmith tree.
+
 The VPC's default posture is **no internet egress at all**, and this is a security property rather
 than an omission: every dependency an ECS task actually needs — ECR, CloudWatch Logs, Secrets
 Manager, Bedrock, X-Ray, and S3 for image layers — reaches it over a VPC endpoint (PrivateLink).
