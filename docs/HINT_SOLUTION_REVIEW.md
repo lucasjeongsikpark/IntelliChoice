@@ -6,8 +6,11 @@ union (D-256) — and D-257/D-258 measured its precision (6/6 blocks real) and i
 the one class checkable for free). `review_panel.py` implements §4's panel step: unanimity,
 fail-closed on a missing verdict, hallucinated locations filtered.
 
-**Still not built:** the repair prompt, the round history, the discard path, and any pipeline
-caller. Read this before adding any hint- or solution-quality scoring anywhere.
+`review_panel.py` implements the panel; `hint_solution_repair.py` and `review_loop.py` implement
+the targeted repair and the bounded loop (D-259/D-260).
+
+**Still not built: any pipeline caller.** Nothing in the generation pipeline runs §4, by choice.
+Read this before adding any hint- or solution-quality scoring anywhere.
 
 The goal is to **replace routine human review** of generated hint ladders and canonical
 solutions with LLM review that emits automatable decisions — while keeping content diverse

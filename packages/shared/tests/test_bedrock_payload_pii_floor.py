@@ -259,6 +259,10 @@ _GENERATION_REGIME_PAYLOAD_NAMES = {
     # yet from any student's perspective - there is no session, attempt or profile in scope
     # at authoring time, so no student field has a path into it.
     "HintSolutionReviewPayload",
+    # D-260, same regime and the same reason: a repair happens at authoring time, so no
+    # session, attempt or profile is in scope. Its `defects` are the panel's own words about
+    # the item, never about a student.
+    "HintSolutionRepairPayload",
 }
 
 # Regime 3: ungoverned on purpose, with the reason written down. An entry here is a claim

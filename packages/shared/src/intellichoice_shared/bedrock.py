@@ -54,6 +54,11 @@ class BedrockTask(StrEnum):
     # `hint_quality_score` (D-249). Separate task also means separate model choice - a
     # reviewer reading pedagogy is not obviously the same model as one rating difficulty.
     HINT_SOLUTION_REVIEW = "hint_solution_review"
+    # D-260: separate from the reviewer for the reason D-205 split design from authoring -
+    # reading an item and rewriting it are different jobs wanting different models, and
+    # D-255 requires the repairer to be Model A while the reviewers are B and C. One task
+    # slot each is what makes that roster expressible at all.
+    HINT_SOLUTION_REPAIR = "hint_solution_repair"
     PARENT_REPORT = "parent_report"
     RAG_ANSWER = "rag_answer"
     RERANK = "rerank"
@@ -1274,6 +1279,53 @@ class HintSolutionReviewResponse(BaseModel):
         if self.verdict != "pass" and not self.defects:
             raise ValueError(f"verdict {self.verdict!r} requires at least one defect")
         return self
+
+
+class HintSolutionRepairPayload(BaseModel):
+    """The item plus what the panel found wrong with it (D-260).
+
+    `defects` arrives already filtered by `review_panel.merge_defects` - hallucinated
+    locations are gone, and duplicates are **not**, because two reviewers naming the same
+    step is the signal that step matters most (D-259).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    rendered_question: str
+    option_a: str
+    option_b: str
+    option_c: str
+    option_d: str
+    correct_option: str
+    hint_ladder: list[str]
+    solution_steps: list[str]
+    solution_final_answer: str
+    skill_name: str
+    grade_band: str
+    # Rendered rather than nested so the repairer reads one flat list in the order the
+    # panel produced it, and so a schema change to `HintSolutionDefect` cannot silently
+    # alter what a repair prompt says.
+    defects: list[str] = Field(min_length=1, max_length=16)
+
+
+class HintSolutionRepairResponse(BaseModel):
+    """**Only the two things a defect can target.** §4.6 requires repairs to preserve
+    everything the reviewers did not object to, and this schema is how that is enforced
+    rather than requested: the stem, the options, the correct option and the equation are
+    not fields here, so a repair *cannot* change them however the prompt is read.
+
+    That matters more than it looks. The alternative - returning a full
+    `AuthoredGeneratedItemResponse` and trusting an instruction to leave most of it alone -
+    would let a repair silently move the answer key, and the panel would then be reviewing
+    a different question from the one that was measured.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    reasoning: str
+    hint_ladder: list[str] = Field(min_length=1, max_length=8)
+    solution_steps: list[SolutionStep] = Field(min_length=1, max_length=12)
+    solution_final_answer: str
 
 
 T = TypeVar("T", bound=BaseModel)

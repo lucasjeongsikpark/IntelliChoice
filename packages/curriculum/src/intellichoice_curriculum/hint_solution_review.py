@@ -13,6 +13,7 @@ wired to a gate is exactly what D-249 found already shipped.
 from intellichoice_shared.bedrock import (
     AuthoredGeneratedItemResponse,
     BedrockGateway,
+    BedrockGenerationResult,
     BedrockTask,
     HintSolutionReviewPayload,
     HintSolutionReviewResponse,
@@ -126,12 +127,17 @@ async def review_hints_and_solution(
     skill_name: str,
     grade_band: str,
     session_spend_cents: float,
-) -> HintSolutionReviewResponse:
+) -> BedrockGenerationResult[HintSolutionReviewResponse]:
     """One independent review of `item`'s hint ladder and canonical solution.
 
     Returns the verdict as given. It does **not** decide anything - routing, second readings
     and repair belong to the caller, and no caller exists until the falsification run passes
     (docs/HINT_SOLUTION_REVIEW.md §5).
+
+    **The whole result rather than `.value`, because cost is information the caller needs**
+    (D-260). `review_loop` enforces a per-item cent cap alongside the round limit - §7: a
+    round limit is not a spend limit - and it cannot do that against a wrapper that throws
+    the price away. The first draft of that loop checked a running total nothing incremented.
     """
     result = await gateway.generate_structured(
         task=BedrockTask.HINT_SOLUTION_REVIEW,
@@ -141,4 +147,4 @@ async def review_hints_and_solution(
         max_output_tokens=_MAX_OUTPUT_TOKENS,
         session_spend_cents=session_spend_cents,
     )
-    return result.value
+    return result
