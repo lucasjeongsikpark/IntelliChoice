@@ -46,6 +46,12 @@ _MODEL_RATES_PER_1K_CENTS: dict[str, tuple[float, float]] = {
     # Real invocable id (cross-region inference profile, see D-084) - the app's actual
     # deployed model id, distinct from the bare "anthropic.claude-haiku-4-5" key above.
     "us.anthropic.claude-haiku-4-5-20251001-v1:0": (0.1, 0.5),
+    # Added 2026-08-11 (D-273, C1 Phase 0), when this became the only invocable model
+    # above Haiku in the account - see QUESTION_GENERATION.md §6 for the measurement.
+    # The fallback below already produced these exact numbers, so nothing about accounting
+    # changes; the key exists so a mid-tier generator is billed by an entry someone chose
+    # rather than by a default that happened to be right.
+    "us.anthropic.claude-sonnet-4-5-20250929-v1:0": (0.3, 1.5),
 }
 _DEFAULT_RATE_PER_1K_CENTS = (0.3, 1.5)
 

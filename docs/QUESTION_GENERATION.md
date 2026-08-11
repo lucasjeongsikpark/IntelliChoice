@@ -228,7 +228,44 @@ Intended paid configuration:
 | Solver B | **a different** lower-cost Anthropic model | two solvers that are one model agree by construction |
 | Judge | lower-cost or mid-tier Anthropic | reads a finished item against a rubric |
 
-### Measured availability (account 320503430250, us-east-1, 2026-08-05)
+### Re-measured (account 320503430250, us-east-1, 2026-08-11, D-273 C1 Phase 0)
+
+**The §6 plan below cannot be run as written, and the reason is new.** Re-reading availability
+found a *third* AVAILABLE agreement — but availability and invocability are different facts, and
+this is the run that separated them:
+
+| model | agreement | **actually invoked** |
+|---|---|---|
+| `us.anthropic.claude-haiku-4-5-20251001-v1:0` | AVAILABLE | ✅ **INVOCABLE** |
+| `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | AVAILABLE *(was NOT_AVAILABLE on 08-05)* | ✅ **INVOCABLE** — new |
+| `us.anthropic.claude-sonnet-5` | AVAILABLE | ❌ **AccessDenied**: *"anthropic.claude-sonnet-5 is not available for this account"* |
+| Opus 4.1/4.5/4.6/4.7/4.8/5, Fable 5, Sonnet 4, Sonnet 4.6, Claude 3 Haiku | NOT_AVAILABLE | — |
+
+Measured with a 1-token `invoke-model` per candidate, not inferred from the availability API.
+**`agreementAvailability.status = AVAILABLE` is not a promise you can call the model** — Sonnet 5
+reports AVAILABLE and denies the call. The table below listed it as "indicated, unproven" and
+named it the intended premium Generator; that configuration would have failed on its first call,
+after preflight passed.
+
+**What this does and does not buy.** The invocable set is **two** models, not three, so the
+pigeonhole in §6 stands: with Generator, Solver A and Solver B all wanting independence, two of
+the three must share, and preflight forbids Solver A == Solver B. The gain is a **better
+Generator** (Sonnet 4.5, mid-tier, verified) rather than an independent third solver:
+
+| role | model | note |
+|---|---|---|
+| Generator | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | the capability that matters most (§6) |
+| Solver A | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | genuinely independent of the Generator |
+| Solver B | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | shares the Generator's weights — the documented asymmetric weakness, unchanged |
+| Judge | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | as measured through D-231 → D-240 |
+
+**An open cost question, to be answered by C1's first wave rather than assumed:** Sonnet 4.5 bills
+3× Haiku on both input and output (0.3/1.5 vs 0.1/0.5 ¢ per 1K). D-243 measured 55% acceptance
+with Haiku as Generator. A better generator may raise yield enough to lower *cost per accepted
+item*, or may not — that is a measurement, and the wave structure exists to take it before the
+next wave spends.
+
+### Measured availability (account 320503430250, us-east-1, 2026-08-05) — superseded by the block above
 
 Read from `bedrock get-foundation-model-availability` and `cloudwatch list-metrics` — no invocation.
 Only **two** Anthropic models have an available agreement:
