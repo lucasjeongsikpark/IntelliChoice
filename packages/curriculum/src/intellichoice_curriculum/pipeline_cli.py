@@ -478,6 +478,19 @@ async def run_plan(
     # `_MIN_JUDGE_OBSERVATIONS` candidates of any run can never be re-tiered, because the
     # evidence that would justify moving them does not exist yet.
     dispersion = JudgeDispersion()
+    # (skill, tier) -> the equations its earlier candidates already used, so candidate 2 of a
+    # slot is told what candidate 1 chose (D-273).
+    #
+    # **This is the duplication's cause, not a mitigation of it.** `candidates_per_slot` is 2
+    # and both candidates were receiving an identical payload - the seed distinguished their
+    # template ids and nothing else - so the model had no reason to pick different numbers.
+    # Measured in C1's first wave: every duplicate group was a same-slot pair (seeds
+    # 6200/6201 both `6 + 7`, 6400/6401 both `9 + 9`), 27 of 55 items sharing a number set.
+    #
+    # Run-scoped like `dispersion`, and for the same reason: it describes this batch. A
+    # cross-run version is what `arithmetic_identity` is for, once the mock can produce two
+    # distinct items and that check can be tested.
+    used_equations: dict[tuple[str, int], list[str]] = {}
 
     for slot in plan.slots:
         if spend >= plan.run_budget_cents:
@@ -500,6 +513,7 @@ async def run_plan(
                 # between-slot check only notices after the money is gone.
                 budget_ceiling_cents=plan.run_budget_cents,
                 dispersion=dispersion,
+                avoid_equations=used_equations.get((slot.skill_id, slot.difficulty_label), ()),
             )
         except IntegrityError as exc:
             # The collision surfaces HERE, not at commit: `QuestionRepository.create_template`
@@ -519,6 +533,14 @@ async def run_plan(
             )
             continue
         spend += outcome.cost_cents
+        # Recorded whether or not the candidate survives its gates: the point is what the
+        # *design stage* already chose for this slot, and a rejected item's numbers are just
+        # as used up as an accepted one's. Recording only accepted ones would let a rejected
+        # `9 + 9` be re-proposed by the next candidate and rejected again.
+        if outcome.equation:
+            used_equations.setdefault((slot.skill_id, slot.difficulty_label), []).append(
+                outcome.equation
+            )
         await _settle(
             session,
             summary,

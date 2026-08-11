@@ -437,6 +437,18 @@ class EquationDesignPayload(BaseModel):
     target_difficulty: int
     difficulty_anchor: str
     previous_attempts: list[str] = []
+    # Equations already accepted for THIS slot in this run (D-273). Distinct from
+    # `previous_attempts`, which is this candidate's own failed designs: these succeeded, for
+    # a sibling candidate.
+    #
+    # **Measured need, and it is the cause rather than a symptom.** `candidates_per_slot` is
+    # 2, and the two candidates of a slot were receiving an *identical* payload - the seed
+    # distinguished their template ids and nothing else. So the model had no reason to choose
+    # different numbers, and did not: in C1's first wave every duplicate group was a same-slot
+    # pair (seeds 6200/6201 both `6 + 7`, 6400/6401 both `9 + 9`), 27 of 55 items sharing a
+    # number set. Detecting that afterwards is the second-best fix; telling the design stage
+    # what its slot-mate already used is the first.
+    avoid_equations: list[str] = []
 
 
 class EquationDesignResponse(BaseModel):

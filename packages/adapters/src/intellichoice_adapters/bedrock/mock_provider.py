@@ -134,6 +134,37 @@ def _alignment_review_json() -> dict:
     return {"is_aligned": True, "reasoning": "mock reviewer confirms alignment"}
 
 
+def _equation_design_json(payload: dict) -> dict:
+    """The design stage's skeleton (D-200), which had no mock branch at all until D-273.
+
+    Without one it fell through to `_generic_json`, whose schema-shaped filler is not a
+    solvable equation - so the free path could not rehearse the stage that fixes an item's
+    numbers, and `verified_design` reached the authored generator as nonsense. Same class of
+    gap as D-244's: a double that cannot do what production does quietly turns a free path
+    into a paid one.
+
+    Varies on `avoid_equations`, which is the whole point. `candidates_per_slot` is 2, and
+    before D-273 both candidates of a slot received an identical payload - so a constant mock
+    was a *faithful* stand-in for a generator that had no reason to differ, and both produced
+    the same sum. Now the runner tells each candidate what its slot-mate used, and this moves
+    off it, so the pair differs here exactly as it should in production.
+    """
+    difficulty = int(payload.get("target_difficulty", 1) or 1)
+    avoid = payload.get("avoid_equations") or []
+    left = difficulty + len(avoid)
+    right = difficulty + 1
+    return {
+        "reasoning": "mock design: one addition, sized to the requested tier",
+        "scenario_sketch": (
+            f"A child has {left} counters and is given {right} more; how many now?"
+        ),
+        "unknown_meaning": "the total number of counters",
+        "equation": f"Eq(x, {left} + {right})",
+        "final_answer": str(left + right),
+        "answer_units": None,
+    }
+
+
 def _authored_generated_item_json(payload: dict) -> dict:
     """Deterministic S20 stand-in: a plausible, schema-valid authored item that always
     references the requested skill/difficulty in its stem, with a real 3-level hint
@@ -148,30 +179,50 @@ def _authored_generated_item_json(payload: dict) -> dict:
     """
     skill_name = payload.get("skill_name", "this skill")
     difficulty = payload.get("difficulty_label", 1)
+    # D-273: this returned a constant `2 + 2` for every slot, and a double that cannot
+    # produce two distinct items cannot exercise a deduplication check at all - the same
+    # shape as D-244's finding that a double which could not do what production does turned
+    # a free path into a paid one. It now varies exactly as the real generator is told to:
+    # by honouring the design stage's equation, and by moving off any numbers a sibling
+    # candidate of the same slot already used.
+    # The numbers come from the design stage, which is where `avoid_equations` already
+    # made this candidate differ from its slot-mate - the real generator is instructed to
+    # write the design up rather than re-choose, and the double now does the same.
+    design = payload.get("verified_design") or {}
+    left, right = 2, 2
+    if isinstance(design, dict) and isinstance(design.get("equation"), str):
+        found = re.findall(r"\d+", design["equation"])
+        if len(found) >= 2:
+            left, right = int(found[-2]), int(found[-1])
+    total = left + right
     return {
-        "stem": f"Solve using {skill_name} (difficulty {difficulty}): what is 2 + 2?",
+        "stem": (
+            f"Solve using {skill_name} (difficulty {difficulty}): what is {left} + {right}?"
+        ),
         "context_block": None,
-        "option_a": "4",
-        "option_b": "5",
-        "option_c": "6",
-        "option_d": "3",
+        # Distractors stay a fixed distance from the answer so exactly one option matches
+        # whatever the numbers become, and none of them collide with each other.
+        "option_a": str(total),
+        "option_b": str(total + 1),
+        "option_c": str(total + 2),
+        "option_d": str(total - 1),
         "correct_option": "a",
-        "equation": "Eq(x, 2 + 2)",
+        "equation": f"Eq(x, {left} + {right})",
         "hint_ladder": [
             "Think about combining two small groups of objects.",
-            "Try counting up from 2 by 2 more.",
-            "Add the two numbers together directly: 2 + 2.",
+            f"Try counting up from {left} by {right} more.",
+            f"Add the two numbers together directly: {left} + {right}.",
         ],
         "canonical_solution": {
             "steps": [
                 {
                     "step_number": 1,
                     "explanation": "Add the two numbers.",
-                    "expression": "2 + 2",
+                    "expression": f"{left} + {right}",
                     "common_mistake": None,
                 }
             ],
-            "final_answer": "4",
+            "final_answer": str(total),
         },
         "misconception_tags": ["mock_misconception"],
         "estimated_time_seconds": 30,
@@ -774,6 +825,8 @@ class MockBedrockProvider:
             data = _ambiguity_review_json()
         elif title == "AlignmentReviewResponse":
             data = _alignment_review_json()
+        elif title == "EquationDesignResponse":
+            data = _equation_design_json(payload)
         elif title == "AuthoredGeneratedItemResponse":
             data = _authored_generated_item_json(payload)
         elif title == "QuestionJudgeResponse":
