@@ -7,8 +7,31 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1 in progress — Phase 0 and Phase R are ✅ done (2026-08-11, D-273). Next is
-Phase 1: seeding waves, K-2 first.** Phase 1 is the first phase that spends money, and two
+**Session C1 in progress — Phases 0, R and the K-2 wave are ✅ done (2026-08-11, D-273).
+184 items in the bank (130 + 54 new), $1.51 spent, 1228 tests passing, CI green.**
+
+**Next, in the order they compound:**
+
+1. **Wire the arithmetic dedup.** 27 of 55 generated items shared a number set; four were
+   `9 + 9`. `arithmetic_identity` is built and tested both ways but not called, because the
+   **mock returns a constant `Eq(x, 2 + 2)`** so every candidate after the first is a real
+   duplicate — the double is wrong, not the check. Fix: an `EquationDesignResponse` branch in
+   the mock (it falls through to `_generic_json` today) plus honouring
+   `verified_design.equation`. Do this before the 3-5 wave or 33 more topics inherit ~50%
+   repeated sums.
+2. **Fix `QuestionJudgePayload`'s missing `correct_option`.** The judge has no answer key and
+   invents one, rejecting correct items; ~75% of items are exposed. Adding the field lapses all
+   16 adjudication verdicts *by design*, so it needs the re-decision done properly (~16 judge
+   calls, ~10-20¢ — cheap; the human decisions are the real cost).
+3. **The 3-5 wave.** Same shape as K-2. `skill_groups.yaml` names the cross-grade `measurement`
+   topic that Length/Weight/Money/Capacity should form rather than four per-grade copies.
+
+**Two things this wave established that the next one should not re-litigate:** Sonnet 4.5 is the
+Generator (Sonnet 5 reports `AVAILABLE` and denies the call), and rubric work must teach
+`Eq(x, Max(...))` — comparison questions were always expressible and 15 shipped items had been
+reshaped into subtraction because nobody reached for the form.
+
+**Superseded plan text below, kept for the phase definitions:** Phase 1 is the first phase that spends money, and two
 things it must carry from Phase R: **teach `Eq(x, Max(...))` in the rubric work** — comparison
 questions were always expressible and 15 shipped items were reshaped into subtraction because
 nobody reached for the form — and **use Sonnet 4.5 as Generator**, since Sonnet 5 reports

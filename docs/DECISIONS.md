@@ -19833,6 +19833,67 @@ are not supportable at any affordable n (8 of 28 stable over four runs). It need
 (+41 on the session baseline of 1173). No model calls; the only spend this session was three
 1-token Bedrock probes.
 
+### Phase 1 outcome, 2026-08-11 — the K-2 wave, and what 86% acceptance hid
+
+**54 items across six topics, $1.51.** The first run in this project's history where
+preflight's solver-diversity gate **passes**: Sonnet 4.5 as Generator, Haiku 4.5 as Solver A,
+two genuinely different models. Yield 55 of 64 (86%) against D-243's 55% with Haiku as
+Generator and D-195's 0 of 4. The better generator looks like it pays for itself at ~3¢ per
+candidate — on one wave, which is not yet a law.
+
+**Human approval was skipped on the user's explicit instruction**, implemented as
+`review_cli --approve-all-unreviewed` and built to be visible rather than silent: it reuses
+`approve` so the fail-closed servability check still runs, leaves items at
+`review_priority='high'` so a future queue leads with the unread ones, and
+`scripts/list_unreviewed_bank_items.py` reproduces the set for bulk revert. It is not a path to
+a student — export, commit, CI and deploy remain human.
+
+**One mistake of mine, caught and reverted.** The bulk approve swept up 29 pre-existing
+`linear_equations` candidates parked at `pending` as D-195's comparison set. Reverted precisely
+against the committed YAML (130 + 55 restored). The instruction was to skip review for the new
+wave, not to activate historical candidates.
+
+**Three defects that reading the output found and the yield number did not:**
+
+1. **27 of 55 items share their number set with another; four separate items are `9 + 9`.**
+   Dedup asks about the story twice — exact stem text, then stem-embedding distance — and about
+   the mathematics never. `arithmetic_identity` detects it and is tested both ways.
+   **Deliberately not wired in**, and the reason is measured rather than cautious: the obvious
+   scoping ("active templates only") would fix the tests instantly, because the mock's constant
+   `Eq(x, 2 + 2)` collides with **0 of 184 active items** — but candidates are `pending` until
+   approved, and the wave's duplication was almost entirely *within one run* (7 of
+   `g1_addition`'s 13 from a single batch). That scope would miss exactly what the check exists
+   for while appearing to work. The real blocker is the **mock**: it returns a constant, so
+   every candidate after the first is a genuine duplicate and the double, not the check, is
+   wrong. Fix path recorded in the code: give the mock an `EquationDesignResponse` branch (it
+   currently falls through to `_generic_json`) and have the authored item honour
+   `verified_design.equation`; per-candidate variation additionally needs the seed in the
+   payload.
+2. **One item shipped with two options carrying the same value written two ways** — *"30
+   stickers"* and *"30"*. `check_unique_options` compares text and passed it;
+   `check_sympy_independent_solve` strips units and caught it **at load**. The two checks
+   disagree, the loader's re-gate held, and a human reviewer would have seen it instantly. It
+   is the clearest single argument for the review that was skipped. Rejected; bank loads 184.
+3. **The judge rejected a correct item and will keep doing it.** `QuestionJudgePayload` has
+   **no `correct_option` field**, so the judge has no answer key; asked to check consistency it
+   assumed `option_a` was correct and declared an "internal contradiction" because option_a
+   wasn't the answer. Both independent solvers picked the real answer and marked it
+   unambiguous. `shuffle_options` is seeded, so **~75% of items have a non-`a` answer** and are
+   exposed. **Not fixed here:** adding a field to that payload changes every adjudication
+   fingerprint *by design* (`fingerprint`'s own docstring says so), lapsing all 16 human
+   verdicts D-235/D-237/D-238 took three sessions to build. That needs its own pass with the
+   re-decision done properly.
+
+**Also fixed:** `make question-gen-preflight` and `question-gen-authored` both passed
+`--mode authored`, dropped from the CLI when D-226 deleted the shape pipeline — so the command
+the docs call *"run before every paid batch"* could not itself run. And `/curriculum/` was
+gitignored: the 13 existing files were tracked only because git does not apply `.gitignore` to
+already-tracked files, so the rule was invisible until this wave wrote six new YAML files that
+`question-export` would have produced and git would have silently dropped.
+
+**Verification:** `ruff` clean, `pyright` 0 errors, **1228 passed** / 2 skipped / 1 xfailed,
+bank loads 184 clean, CI green. Total session spend: **$1.51** plus three 1-token probes.
+
 **Rejected alternatives, so they are not re-proposed:** replacing the pipeline wholesale (its
 gates have caught real defects at every paid run — D-195's four-for-four is the strongest
 evidence *for* it); making each CSV row an internal topic (246 rubrics, and the serving model

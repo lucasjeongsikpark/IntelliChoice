@@ -1739,10 +1739,28 @@ async def _attempt_authored_candidate(
     # deleting one row. Shipping a fifth instance in a hurry is worse than shipping the
     # duplicates it prevents, which are a quality problem rather than a correctness one.
     #
-    # What it needs before it goes live, and none of it is hard: a bounded population
-    # (active templates only, the way D-106 scoped the text check to canonical variants),
-    # and pipeline tests whose fixtures do not depend on bank contents. Recorded as
-    # carry-over rather than left as a half-wired branch.
+    # **The obvious scoping does not work, and measuring it is what showed why.** "Compare
+    # against active templates only" would fix the tests instantly - `Eq(x, 2 + 2)`, the
+    # mock's fixed output, collides with **0 of the 184 active items**. But candidates are
+    # created `pending` and only become active on approval, so an active-only population
+    # cannot see the candidate committed two slots ago - and the duplication measured in the
+    # wave was almost entirely *within one run* (7 of g1_addition's 13 came from a single
+    # 14-candidate batch). Scoping to active would make the check miss exactly what it was
+    # built for while looking like it worked.
+    #
+    # The real blocker is the mock, not the scope. `_authored_generated_item_json` returns a
+    # constant `Eq(x, 2 + 2)` for every slot, so under the mock provider *every* candidate
+    # after the first is a genuine duplicate - the check is right and the double is wrong. A
+    # test double that cannot produce two distinct items cannot exercise a deduplication
+    # check at all, which is the same shape as D-244's finding that a double which could not
+    # do what production does turned a free path into a paid one.
+    #
+    # So the fix is: give the mock an `EquationDesignResponse` branch (today it falls
+    # through to `_generic_json`, so the design stage is not faithfully mocked either) and
+    # have the authored item honour `verified_design.equation` the way the real generator is
+    # instructed to. Varying per *candidate* rather than per slot additionally needs the
+    # seed to reach the payload, which it currently does not. Carry-over, with the shape
+    # known, rather than a half-wired branch.
     # --- 3. Near-duplicate check: embed the stem, cosine-compare against every ---
     # --- other authored template's stem in this topic -----------------------------
     try:
