@@ -267,11 +267,12 @@ What is left, in order of value:
    **The lesson worth more than the result:** this carry-over said "measuring it is cheap", and it
    was cheaper than that — the pipeline had been persisting every judge verdict all along. *Check
    what the system already stored before pricing a run.*
-19. **The hint & solution review instrument is built and entirely unvalidated** (D-251). It has
-   no pipeline caller **on purpose** — attaching an unvalidated reviewer to a gate is exactly what
-   D-249 found already shipped. Step 4 of [HINT_SOLUTION_REVIEW.md](HINT_SOLUTION_REVIEW.md) is
-   the falsification run (~82 calls, order of ~55¢, hard-capped) and nothing gets wired until it
-   survives. The mock-provider branch makes every non-verdict path free to exercise meanwhile.
+19. ~~**The hint & solution review instrument is built and entirely unvalidated**~~ — **closed by
+   D-254/D-256.** Falsified in both directions as a single reviewer and as a two-reviewer union,
+   then used to repair 29 live bank items (D-269). **It still has no *generation-pipeline*
+   caller**, and that part of the carry-over stands: everything here was measured for the
+   bank-repair caller, and its behaviour on fresh candidates is unmeasured. Do not wire it into
+   `ai_pipeline` on the strength of these numbers.
 20. **Nothing enforces that a change reaches `main` through a PR** (D-251). Step 3 was pushed
    straight to `main` because the working branch had been deleted on merge and nothing objected.
    `main` is not protected; a branch-protection rule requiring the existing 9 checks would make
@@ -311,6 +312,56 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — 44 incomplete solutions to zero, and the checks that missed them (2026-08-10 → 08-11, D-252 → D-271)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1161 passed, 2 skipped, 1 xfailed** ·
+**~$7.90** in Bedrock calls · deployed and verified on staging (run 31448577846, `c45dac0`,
+`44 updated / 86 unchanged`). Not a numbered ROADMAP session — continuous work driven by the
+user, so no "Done when" criteria apply.
+
+**The outcome:** 44 of 130 authored items ended their worked solution without ever stating the
+answer a student is meant to reach. **Now 0.** 29 repaired by a two-reviewer LLM loop, 15 by
+hand.
+
+**What got built, none of it wired into the generation pipeline:**
+
+| | |
+|---|---|
+| D-254/D-256 | the reviewer falsified in both directions, single and as a union |
+| D-257 | a free deterministic audit that is deliberately **not** a gate |
+| D-259 | two-reviewer panel: unanimity, fail-closed on silence, hallucinated locations filtered |
+| D-260 | targeted repair whose *schema* makes it unable to move an answer key; four bounds |
+| D-261 | repairer chosen by measurement, and targeting made an enforced invariant |
+| D-263/D-266 | recall fixed without telling the reviewers; contributed defects verified |
+
+**Every measurement was pre-registered before spending**, and one prediction was lost and
+recorded (D-256: the union was *more* stable than one of its members, not less).
+
+**What went wrong is the part worth keeping:**
+
+- **Asking a model to preserve a field does not work.** A prompt clause protecting
+  `common_mistake` measured **0 of 52 preserved**. Three structural enforcements did work.
+- **Reading the output beat the metric, twice.** D-265: the success criterion scored repairs
+  against a bucket built to avoid false positives on *authored* content. D-268: the targeting
+  invariant inspected two fields of a three-field record and let 67 misconception notes be
+  deleted.
+- **A criterion has to name the mechanism it claims to detect.** `R2 < R1` fired exactly as
+  pre-registered with the wrong reason attached (D-262).
+- **A reviewer's *explanation* of a defect is a different artifact from its *detection*.** Blocks
+  were right 6 of 6 whenever read; the account of *why* was wrong about eight items and I
+  repeated it unchecked (D-271).
+
+**Two of my own claims are corrected in the log rather than quietly fixed:** D-269's export
+precaution against a hazard that did not exist (`export_cli` already filters `active_status`,
+D-210), and D-264's `place_value_compare` ladder diagnosis.
+
+**Carry-over:** `200203` is one misconception note short of the original 160, because its repair
+replaced comparison with counting on and the note no longer maps to any step (D-270). The
+instrument's behaviour on **fresh generated candidates is unmeasured** — everything here was
+measured for the bank-repair caller. `main` is still unprotected (#20).
+
+**New decisions:** D-252 → D-271.
 
 ### Session log — a measurement we had already paid for (2026-08-10, D-252/D-253)
 
