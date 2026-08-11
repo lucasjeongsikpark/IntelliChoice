@@ -31,6 +31,10 @@ _BANK = pathlib.Path(__file__).resolve().parents[1] / "curriculum" / "internal_m
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from audit_solution_step_completeness import classify, last_step_text  # noqa: E402
+from intellichoice_curriculum.hint_solution_repair import (  # noqa: E402
+    carry_misconception_notes,
+)
+from intellichoice_shared.bedrock import SolutionStep  # noqa: E402
 
 
 def _states_answer(steps: list[dict], final: str) -> bool:
@@ -77,8 +81,20 @@ def main() -> int:
                 # with the answer still unstated, and the lenient check called them clear.
                 skipped.append((template["question_template_id"], "last step states no answer"))
                 continue
+            # D-269: dumps produced before the carry-over existed have every
+            # `common_mistake` stripped - measured at 0 of 52 kept. Restoring here rather
+            # than reimplementing the rule (D-223: one rule, one implementation).
             template["hint_ladder"] = record["after_hint_ladder"]
-            template["canonical_solution"]["steps"] = record["after_solution_steps"]
+            before = [
+                SolutionStep.model_validate(x)
+                for x in template["canonical_solution"]["steps"]
+            ]
+            after = [
+                SolutionStep.model_validate(x) for x in record["after_solution_steps"]
+            ]
+            template["canonical_solution"]["steps"] = [
+                step.model_dump() for step in carry_misconception_notes(before, after)
+            ]
             applied.append(template["question_template_id"])
             changed = True
         if changed and args.write:

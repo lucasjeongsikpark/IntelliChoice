@@ -600,3 +600,93 @@ def test_dropping_a_step_s_common_mistake_counts_as_a_collateral_edit() -> None:
 def test_the_repair_prompt_says_to_carry_the_misconception_note_across() -> None:
     assert "common_mistake" in SYSTEM_PROMPT
     assert "dropping it silently removes feedback" in SYSTEM_PROMPT
+
+
+def test_a_misconception_note_the_repair_omitted_is_carried_across() -> None:
+    """D-269. Asking the model to preserve `common_mistake` was measured at 0 of 52 kept
+    across 29 items - a total loss on every one - so the field stops being the model's to
+    lose. Optional fields get omitted; that is what optional means to a model.
+    """
+    item = _item(
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Divide by 4",
+                    expression="n = 52/4",
+                    common_mistake="Multiplying instead of dividing",
+                ),
+                SolutionStep(step_number=2, explanation="Simplify", expression="n = 13"),
+            ],
+            final_answer="13",
+        )
+    )
+    repaired = apply_repair(
+        item,
+        HintSolutionRepairResponse(
+            reasoning="r",
+            hint_ladder=list(item.hint_ladder),
+            solution_steps=[
+                SolutionStep(step_number=1, explanation="Divide by 4", expression="n = 52/4"),
+                SolutionStep(step_number=2, explanation="Simplify", expression="n = 13 exactly"),
+            ],
+            solution_final_answer="13",
+        ),
+    )
+    assert repaired.canonical_solution.steps[0].common_mistake == "Multiplying instead of dividing"
+
+
+def test_a_note_the_repair_supplied_itself_wins() -> None:
+    """Carrying across is a floor, not an override: a repair that rewrote a step and gave it
+    a new misconception note knows more about that step than the original did."""
+    item = _item(
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1, explanation="e", expression="x", common_mistake="old note"
+                )
+            ],
+            final_answer="13",
+        )
+    )
+    repaired = apply_repair(
+        item,
+        HintSolutionRepairResponse(
+            reasoning="r",
+            hint_ladder=list(item.hint_ladder),
+            solution_steps=[
+                SolutionStep(
+                    step_number=1, explanation="e2", expression="x2", common_mistake="new note"
+                )
+            ],
+            solution_final_answer="13",
+        ),
+    )
+    assert repaired.canonical_solution.steps[0].common_mistake == "new note"
+
+
+def test_notes_are_not_carried_when_the_step_count_changed() -> None:
+    """Position stops identifying "the same step" once a repair restructures the solution,
+    and attaching a misconception note to the wrong step is worse than having none.
+    """
+    item = _item(
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1, explanation="e", expression="x", common_mistake="note"
+                ),
+                SolutionStep(step_number=2, explanation="f", expression="y"),
+            ],
+            final_answer="13",
+        )
+    )
+    repaired = apply_repair(
+        item,
+        HintSolutionRepairResponse(
+            reasoning="r",
+            hint_ladder=list(item.hint_ladder),
+            solution_steps=[SolutionStep(step_number=1, explanation="e", expression="x")],
+            solution_final_answer="13",
+        ),
+    )
+    assert repaired.canonical_solution.steps[0].common_mistake is None

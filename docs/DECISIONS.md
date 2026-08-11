@@ -19247,3 +19247,52 @@ that run should now produce repairs that keep the misconception notes.
 teaching a method that cannot answer the question asked, which no solution-step repair reaches
 (D-264). D-238's precedent is hand-authoring, and that is a content session rather than an
 engineering one.
+
+## D-269 — the repairs applied: 44 unambiguous defects down to 15 (accepted, 2026-08-10)
+
+A fresh run with D-266/267/268's corrections, then applied. **231.2¢.**
+
+| | before | after |
+|---|---|---|
+| items with an unambiguous defect | **44 of 130 (33.8%)** | **15 of 130 (11.5%)** |
+| outer bound including judgement calls | 60 (46.2%) | 30 (23.1%) |
+
+**29 of 44 accepted, and R1 == R2 exactly** — zero recall failures, zero laundering, for the
+first time. D-266's rule fired 4 times, catching precisely the class that previously reached
+acceptance still defective.
+
+Every applied item passed `make curriculum-load`'s §5.8.5 gate (29 updated, 101 unchanged, 0
+retired) and the file was canonicalised by `make question-export`, restricted to the three edited
+topics — a whole-bank export would have added **21 uncommitted `linear_equations` items**, since
+the dev database holds 68 approved and the bank ships 47.
+
+### Asking a model to preserve a field does not work, and this is how badly
+
+D-268 added a prompt clause telling the repairer to carry `common_mistake` across. Measured:
+**0 of 52 preserved across 29 items.** A total loss, on every item, despite an explicit
+instruction. It is an optional field, and optional is what a model hears.
+
+`collateral_edits` did not catch it either, and the reason generalises: it skips a target
+entirely when any defect for it carries `index=None` — *"this is about the solution as a whole"*
+— which reviewers file constantly. **The escape hatch swallowed the check.**
+
+So the field stopped being the model's to lose. `carry_misconception_notes()` restores any note
+the repair dropped, deterministically. **Result: 44 of the 52 recovered**, and the eight that
+remain are on five items whose *step count changed*, where position no longer identifies the same
+step and a note attached to the wrong step is worse than none.
+
+It is one function used by both `apply_repair` and the applier script, because D-223 is this
+project's entry about one rule getting two implementations.
+
+### The residual loss, stated rather than rounded away
+
+**Eight misconception notes on five items** — `100504`, `300203`, `300101`, `300104`, `200203`,
+all of which grew their solution by one or two steps. That is a real content loss, traded against
+29 solutions that now state the answer a student is meant to reach. **The five are worth a human
+re-adding notes to**, and are recorded for that rather than presented as clean.
+
+### What is left
+
+**15 items still carry an unambiguous defect**, and they are the ones D-264 diagnosed:
+`place_value_compare` and `div_remainder`, whose hint ladders teach a method that cannot answer
+the question asked. No solution-step repair reaches that. D-238's precedent is hand-authoring.

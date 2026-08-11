@@ -41,6 +41,7 @@ from intellichoice_shared.bedrock import (
     HintSolutionDefect,
     HintSolutionRepairPayload,
     HintSolutionRepairResponse,
+    SolutionStep,
 )
 
 _MAX_OUTPUT_TOKENS = 2000
@@ -183,6 +184,31 @@ def collateral_edits(
     return edits
 
 
+def carry_misconception_notes(
+    original: list[SolutionStep], repaired: list[SolutionStep]
+) -> list[SolutionStep]:
+    """`repaired`, with any `common_mistake` the repair dropped restored from `original`.
+
+    Public and separate because two callers need it and D-223 is this project's entry about
+    what happens when one rule gets two implementations: `apply_repair` uses it live, and
+    `scripts/apply_solution_repairs.py` needs it for dumps produced before it existed.
+
+    A note the repair supplied itself always wins - carrying across is a floor, not an
+    override, because a repair that rewrote a step knows more about that step than the
+    original did.
+    """
+    if len(repaired) != len(original):
+        # Position stops identifying "the same step" once a repair restructures the
+        # solution, and a misconception note on the wrong step is worse than none.
+        return list(repaired)
+    return [
+        step
+        if step.common_mistake or not before.common_mistake
+        else step.model_copy(update={"common_mistake": before.common_mistake})
+        for step, before in zip(repaired, original, strict=True)
+    ]
+
+
 def apply_repair(
     item: AuthoredGeneratedItemResponse, repair: HintSolutionRepairResponse
 ) -> AuthoredGeneratedItemResponse:
@@ -198,16 +224,28 @@ def apply_repair(
     Raises `ValidationError` if the repair does not produce a legal item. That is the right
     shape - the caller already treats a failing repair as a discard, and an item that cannot
     be constructed is not a repair.
+
+    ### `common_mistake` is carried across, not requested (D-269)
+
+    It is an optional field, models omit optional fields, and asking nicely was measured at
+    **0 of 52 preserved** across 29 repaired items - a total loss, on every item, despite an
+    explicit prompt clause. `collateral_edits` did not catch it either: it skips a target
+    entirely when any defect for it carries `index=None` ("this is about the solution as a
+    whole"), which reviewers file constantly, so the escape hatch swallowed the check.
+
+    So the field stops being the model's to lose. Where the repair leaves it empty and the
+    original step at that position had one, the original is restored. **Only when the step
+    counts match** - once a repair restructures the solution, position no longer identifies
+    "the same step", and attaching a misconception note to the wrong step is worse than
+    having none.
     """
+    steps = carry_misconception_notes(item.canonical_solution.steps, repair.solution_steps)
     return AuthoredGeneratedItemResponse.model_validate(
         item.model_copy(
             update={
                 "hint_ladder": list(repair.hint_ladder),
                 "canonical_solution": item.canonical_solution.model_copy(
-                    update={
-                        "steps": list(repair.solution_steps),
-                        "final_answer": repair.solution_final_answer,
-                    }
+                    update={"steps": steps, "final_answer": repair.solution_final_answer}
                 ),
             }
         ).model_dump()
