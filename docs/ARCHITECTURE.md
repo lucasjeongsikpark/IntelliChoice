@@ -395,6 +395,26 @@ to rot, because nothing fails when it does.)*
   that produced it. Best-effort by the same reasoning as consolidation: a lost task costs one
   between-questions overlay, never the answer, mastery, or the next question, all of which the
   synchronous turn committed.
+- **A hint arrives before it is personalized** (D-272) — the same trade, applied to the ~2.3s
+  `HINT_PERSONALIZATION` call that every rung of the ladder paid. The turn serves the template's
+  **authored** rung, which is what `tutor.generate_personalized_hint` already falls back to on
+  every failure path, and writes its `hint_events` row immediately (canonical text,
+  `was_personalized=False`); a `BackgroundHintPersonalizationScheduler` rewrites it, completes the
+  row, and publishes the replacement over SSE. Two properties differ from the narrative scheduler
+  and both are deliberate: the publish carries `pending_interrupt`, because unlike a narrative the
+  ladder is usually still open and dropping it would collapse the panel the hint lands in; and the
+  task discards its result unless `last_study_attempt_id` still names the attempt the hint was
+  for, so a late hint can never appear beside a different question. Not written back to the
+  checkpoint, so a refresh mid-hint falls back to the authored rung — reviewed content, not a
+  placeholder.
+- **The snapshot says which question the current help is about** (D-272) — `assistance_question`,
+  bound to `LearningState.last_study_attempt_id` and carrying the stem, the four options and the
+  student's chosen option. `items` cannot answer this and never could: it is `None` at the
+  intervention menu (the incorrect-answer turn serves no new item) and the *next* question once
+  the ladder closes. The study screen's two-column layout is keyed on this field's presence rather
+  than on "the graph is paused", which is what stopped it collapsing at hint 3 of 3 and on every
+  solution and video. `study_progress` rides alongside it — skill-line counters, deterministic,
+  skill *names* only.
 - **External actions are interrupt-gated** — child selection, attendance emails, and the
   hint/solution/video choice each pause via LangGraph `interrupt()` and survive restart via
   the Postgres checkpointer (S7); chat-api's admin-escalation email and calendar action

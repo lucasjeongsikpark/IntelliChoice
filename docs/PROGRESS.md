@@ -7,8 +7,39 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**The authored bank has no unambiguously incomplete solutions left, and staging is serving the
-fix (D-252 → D-271).** 44 of 130 items ended their worked solution without ever stating the
+**The study screen no longer collapses when a student asks for help, and it now says where they
+are (D-272).** Verified on the deployed build and reproduced locally before changing anything:
+at the intervention menu the answer response carries `items: None`, so the question and its four
+options vanished the moment "Get a hint" was clicked — and came back only on a refresh, because
+`/stream` rebuilds from the checkpoint. At hint 3 of 3, and on every solution and video, the
+pause closes and `items` becomes the *next* question, so the layout collapsed to one narrow card
+with no question at all. The client could not fix either: it had no correct question to show.
+
+**What changed:** a deterministic `assistance_question` on the snapshot (bound to the attempt the
+help was generated for, carrying the options and the option the student chose); a
+`study_progress` field and a journey bar — "Skill 3 of 5", never a fake percentage; the tutor
+chat promoted from a 220px box to a full-height mode of the right column; and hints served from
+the authored bank instantly with personalization moved to a background task (~2.3 s per rung
+removed from the click). The narrative stopped listing all five skill names twice.
+
+**What I refused to guess at, and it is the carry-over below:** the login sequence. Static
+delivery is measured and fine (TTFB 92–118 ms, brotli JS in 385 ms, `/api/health` 80 ms), so
+"first login is slow" is the authenticated round trips — which I did **not** measure. `GET
+/topics` 409s without a student, so it cannot even be prefetched in parallel. Shipping a
+speculative fix for an unmeasured cost is how the previous two rounds of this went wrong.
+
+**Two places where reading beat the metric, again.** A similarity metric scored every
+`context_block` below threshold and reported zero problems; reading all six found one that
+restates its own stem. And `make e2e` was 63 passed / 3 failed *before this branch* — a helper
+locator D-241 had invalidated, whose no-op click surfaced a line later as "the modal never
+appeared" and read as four unrelated broken journeys. Fixing it exposed a real defect: the exam
+screen's restore effect can fire with an overview fetched before the student's first answer and
+put them back on a locked question 1. **66 e2e passed** after both.
+
+---
+
+**Prior state, still true. The authored bank has no unambiguously incomplete solutions left, and
+staging is serving the fix (D-252 → D-271).** 44 of 130 items ended their worked solution without ever stating the
 answer; that is now **0**. 29 were repaired by the two-reviewer loop, 15 by hand, all 44 re-gated
 through §5.8.5 and loaded onto staging (`44 updated, 86 unchanged`, run 31448577846 on
 `c45dac0`). Total spend across the arc: **~$7.90**.
@@ -8849,6 +8880,51 @@ renders them, or they are live at `https://d35dfnjzmgrm01.cloudfront.net`.
 _Note: this section holds S32, S37 and S40's continuation. S33–S36 recorded themselves in the
 "Current status" block above instead, which is where this project's detailed log actually lives —
 recorded here so the gap reads as drifted practice, not as unlogged work._
+
+### D-272 (unnumbered) — the study screen stops collapsing, and starts saying where you are (2026-08-10)
+
+- **Scope:** the user's nine-item re-walk of the deployed learning app, no numbered roadmap block
+  (D-152). Verified first, then planned, then built in six committed phases.
+- **What verification found, ahead of any change.** Static delivery is fine and measured
+  (`index.html` TTFB 92–118 ms, brotli JS in 385 ms, `/api/health` 80 ms), so "first login is
+  slow" is the authenticated sequence. Driving a local session to each state and reading the
+  actual frames settled what the code could not: `items` is **`None`** at the intervention menu,
+  and the **next question** once the ladder closes. That is why the question vanished on "Get a
+  hint" and why the screen collapsed to a lone narrow card at hint 3 of 3 — and why it looked
+  intermittent, since a *refresh* restored it from the checkpoint.
+- **Built:** `assistance_question` on the snapshot (bound to `last_study_attempt_id`, carrying
+  the four options and the option the student chose) and a permanent two-column study layout;
+  `study_progress` + `JourneyBar` ("Skill 3 of 5", never a percentage); the tutor chat as a
+  full-height mode of the right column rather than a 220px box; two-stage hints (authored rung
+  instantly, personalization in a detached task); the narrative stopped listing five skill names
+  twice; `.app-main` top-aligned and the study grid 1200 → 1560.
+- **Verification:** `make lint` clean, `make typecheck` 0 errors, `make test` **1171 passed, 3
+  skipped, 1 xfailed** (from 1161/2/1). `tsc` + `oxlint` clean. **66 Playwright e2e passed**, up
+  from 63 passed / 3 failed — the 3 were failing on `main` too, confirmed by checking it out and
+  running the spec.
+- **Two things that went wrong, and they are the transferable part.** A similarity metric scored
+  every `context_block` below threshold and reported **zero** problems; reading all six found one
+  that restates its own stem. And the e2e helper's locator had been invalidated by D-241, so a
+  `stableClick` on an empty locator surfaced a line later as "the modal never appeared" — four
+  journeys looked broken for a reason none of them had. Fixing it exposed a real defect
+  underneath: the exam screen's restore effect can fire with an overview fetched *before* the
+  student's first answer and put them back on a locked question 1.
+- **What I did not do, on purpose.** The login sequence: I measured static delivery and inferred
+  the round trips from code, but never measured them, and `GET /topics` 409s without a student so
+  it cannot be prefetched in parallel either. `post_outro` stays inline — it fires once and
+  deferring it needs a marker path `payload_from_marker` does not have. Both are carry-over with
+  the measurement named rather than half-done.
+- **Carry-over opened:**
+  1. **Measure the authenticated login → first-question sequence on staging**, then decide. This
+     is the one user report not addressed.
+  2. **`post_outro` is still awaited inside `finalize_exam`** (`nodes.py`) — one ~1.5 s wait
+     before the results screen.
+  3. **`GET /exam/overview` 500s** (`assert session_row is not None`, `sessions.py:1417`) when the
+     checkpoint names an assessment session with no Postgres row — the AUD-X-07 class, on a path
+     that does not reconcile. Seen once during these e2e runs.
+  4. **A session is 25–40 questions** (10 pre-exam + 5–20 study + 10 post-exam) for a K-12
+     student. Out of scope here and unchanged; the journey bar now makes it visible, which is
+     worth seeing before deciding whether to change it.
 
 ### S66 (unnumbered) — authored content can be served, and CI proved the content lives nowhere but one laptop: D-189 (2026-08-05) ⏸ partial
 
