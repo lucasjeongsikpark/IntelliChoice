@@ -19,6 +19,22 @@
 # them (`place_value-d4-200401`) converted from `upheld` after D-238 measured the reading
 # that had justified it - "6,405 is a four-digit number" - to be carrying no work at all.
 #
+# **Two entries deleted as moot in D-273 (C1 Phase R), on the same reasoning D-238 used.**
+# `place_value_compare` was re-authored: all 15 of its items asked "how many more" - subtraction
+# word problems filed under a comparison skill - and now ask a comparison. Two of the 15 carried
+# verdicts (`200403` retiered, `200504` upheld), and both verdicts are claims about questions
+# that no longer exist, not stale hashes on surviving ones. Deleted rather than refreshed,
+# because refreshing a fingerprint re-asserts a judgement nobody made.
+#
+# **One of the two leaves an open question, recorded rather than answered.** `200504` is
+# declared tier 5 and D-238 upheld that against a stable judge reading of 3, arguing "arranging
+# the digits is a real place-value insight". The old item made a student build *two* numbers and
+# subtract; the new one builds *one*. That is less work, so the tier-5 case is **weaker than
+# when it was upheld** - and this session did not measure it, because item-level verdicts in
+# this topic are not supportable at any affordable n (8 of 28 items returned the same tier over
+# four runs). It stays declared 5 and needs the next `--judge` run, which should test the
+# tier-5 BUILD *clause* the way D-238 said, not this item.
+#
 # The two that remain disputed are both **clause-level, not item-level**, and their
 # rationales say so: the tier-5 BUILD clause and identify's tier-4 clause each measure below
 # the sibling clause at the same declared tier. Testing an item when the evidence points at
@@ -182,29 +198,6 @@ adjudications:
   rationale: Was upheld in D-235/D-237 on the reading that 6,405 is a four-digit number and so tier 4.
     D-238 measured digit count carrying no work for identify, and the 6 is the LEADING digit - the same
     read as the 3 in 356, which is tier 2. Re-tiered to 2; judge answered 2 in all four runs, exact agreement.
-- question_template_id: authored-place_value-d4-200403
-  decision: retiered
-  decided_on: '2026-08-09'
-  decided_in: D-238
-  declared_difficulty: 3
-  judge_difficulty: 2
-  measured_in: D-238
-  fingerprint: efdf8587c83dd8cf
-  rationale: Tier held at 3 from D-235. Lapsed only because D-238 rewrote the topic anchors; re-affirmed
-    unchanged, judge 3/2/2/2.
-- question_template_id: authored-place_value-d5-200504
-  decision: upheld
-  decided_on: '2026-08-09'
-  decided_in: D-238
-  declared_difficulty: 5
-  judge_difficulty: 3
-  measured_in: D-238
-  fingerprint: c1e80c6f65b49619
-  rationale: 'Judge answered 3 in all four runs - a STABLE disagreement, not noise. But D-238 found the
-    evidence is about the tier-5 BUILD clause, not this item: all three build items average 3.2 (200507
-    [3,4,2,2], 200508 [5,3,4,3]) while the two five-digit compare items sit at 4.1 stably. Upheld because
-    arranging the digits is a real place-value insight, and flagged because the next measurement should
-    test the clause, not the item.'
 - question_template_id: authored-place_value-d5-200505
   decision: upheld
   decided_on: '2026-08-09'
