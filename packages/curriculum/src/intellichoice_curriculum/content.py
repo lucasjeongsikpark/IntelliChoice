@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # Repo root is four levels up from this file: src/intellichoice_curriculum/content.py
 # -> intellichoice_curriculum -> src -> curriculum (package dir) -> packages -> repo root.
@@ -27,10 +27,98 @@ class TopicDef(BaseModel):
     difficulty_anchors: dict[int, str] = Field(default_factory=dict)
 
 
+class AnswerFamily(BaseModel):
+    """What kind of number a skill's answers are, and therefore which rules apply to them.
+
+    **The problem this solves, measured (D-274).** `validate_equation_design` required every
+    answer in the entire taxonomy to be a *positive whole number*, with the reasoning "a
+    student cannot count a fraction of a thing". That is true of counting problems and false
+    of the rest, and the constant had already outlived its scope: **26 of the 184 shipped
+    items - the whole of `fraction_operations` - fail it**, so the pipeline could not
+    regenerate 14% of its own bank. The docstring there said it would need to become a
+    parameter "when such a topic exists"; `decimals`, `measurement` and the grade-5 word
+    problems are that topic, three times over.
+
+    A family is **not** a per-skill escape hatch. It names a genuinely different answer
+    semantics, and the set stays small on purpose: two today, because two are what the
+    content needs. A third belongs here when a topic needs it, not in anticipation - the
+    same rule that kept `selection` out of the Phase-R router until something used it.
+
+    Lives in the taxonomy rather than beside the validator for the reason D-232 gave when
+    `difficulty_anchors` moved here: a rule kept next to the code that reads it is a rule
+    nobody edits when they add content.
+    """
+
+    name: str
+    whole_numbers_only: bool
+    positive_only: bool
+    # Handed to the designer verbatim when a proposal violates the family, so the retry
+    # is told what to change rather than only that it was wrong (D-200's cheap-retry loop).
+    guidance: str
+
+
+ANSWER_FAMILIES: dict[str, AnswerFamily] = {
+    "counting": AnswerFamily(
+        name="counting",
+        whole_numbers_only=True,
+        positive_only=True,
+        guidance=(
+            "this skill counts discrete things, so the answer must be a positive whole "
+            "number - change the quantities so the arithmetic comes out even"
+        ),
+    ),
+    "rational": AnswerFamily(
+        name="rational",
+        whole_numbers_only=False,
+        positive_only=True,
+        guidance=(
+            "this skill's answers are fractions, decimals or amounts of money, so a "
+            "non-whole answer is correct and expected - but it must still be positive"
+        ),
+    ),
+}
+
+DEFAULT_ANSWER_FAMILY = "counting"
+
+
 class SkillDef(BaseModel):
     skill_id: str
     topic_id: str
     name: str
+    # The tiers this skill should carry content at (D-186), and the structure its equations
+    # must have (D-200). Both used to be hand-written Python dicts in `ai_pipeline`, keyed
+    # by skill id, which meant every new skill needed a source edit before it could be
+    # generated at all - `TOPIC_SKILL_DIFFICULTIES` raises `PipelineConfigError` on a miss.
+    # At 21 skills that was tolerable; the full taxonomy is 245 (D-274).
+    #
+    # Empty `difficulty_tiers` means "not authorable yet", which is a real state: a skill can
+    # exist in the taxonomy for prerequisite edges and progress display before anyone has
+    # decided where on the 1-5 ladder it lives.
+    difficulty_tiers: list[int] = Field(default_factory=list)
+    structure: str = ""
+    answer_family: str = DEFAULT_ANSWER_FAMILY
+
+    @field_validator("answer_family")
+    @classmethod
+    def _known_family(cls, value: str) -> str:
+        if value not in ANSWER_FAMILIES:
+            raise ValueError(
+                f"unknown answer_family {value!r} "
+                f"(known: {', '.join(sorted(ANSWER_FAMILIES))})"
+            )
+        return value
+
+    @field_validator("difficulty_tiers")
+    @classmethod
+    def _tiers_on_the_scale(cls, value: list[int]) -> list[int]:
+        outside = [t for t in value if t not in range(1, 6)]
+        if outside:
+            raise ValueError(f"difficulty tiers outside the 1-5 scale: {outside}")
+        return sorted(set(value))
+
+    @property
+    def family(self) -> AnswerFamily:
+        return ANSWER_FAMILIES[self.answer_family]
 
 
 class PrerequisiteEdge(BaseModel):
@@ -53,6 +141,24 @@ class CurriculumContent(BaseModel):
 
     def skills_for_topic(self, topic_id: str) -> list[SkillDef]:
         return [s for s in self.skills if s.topic_id == topic_id]
+
+    def skill(self, skill_id: str) -> SkillDef | None:
+        return next((s for s in self.skills if s.skill_id == skill_id), None)
+
+    def generation_plan(self) -> dict[str, dict[str, list[int]]]:
+        """topic_id -> skill_id -> the tiers that skill should carry content at.
+
+        The authoring plan, derived from the taxonomy rather than hand-maintained beside the
+        pipeline (D-274). Skills with no declared tiers are omitted, so "not authorable yet"
+        and "authorable at no tier" stay the same thing they were when this was a Python
+        dict: a topic or skill the planner does not know about.
+        """
+        plan: dict[str, dict[str, list[int]]] = {}
+        for skill in self.skills:
+            if not skill.difficulty_tiers:
+                continue
+            plan.setdefault(skill.topic_id, {})[skill.skill_id] = list(skill.difficulty_tiers)
+        return plan
 
     def topics_for_grade(self, grade: str) -> list[str]:
         """The §5.7.3 candidate topic ids for a student's grade, or `[]` if none.

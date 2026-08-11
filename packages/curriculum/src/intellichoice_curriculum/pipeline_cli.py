@@ -27,6 +27,7 @@ from intellichoice_adapters.bedrock.gateway import ResilientBedrockGateway
 from intellichoice_adapters.bedrock.mock_provider import MockBedrockProvider
 from intellichoice_adapters.bedrock.titan_embedding_provider import TitanEmbeddingProvider
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
+from intellichoice_db.models.curriculum import Skill
 from intellichoice_db.models.questions import QuestionTemplate
 from intellichoice_observability.logging_config import configure_logging
 from intellichoice_shared.bedrock import BedrockGateway, BedrockTask, CostBudgetExceededError
@@ -617,7 +618,27 @@ async def preflight(
     counted twice, and every "independent solver agreement" recorded before this check was
     exactly that. Neither check costs anything, so declining to run it is the only
     expensive option.
+
+    **The skills check was added in D-274, and it was found the way the others were.** Moving
+    the authoring plan into `skills.yaml` meant a new wave's skills existed in the taxonomy
+    the moment the YAML was written - but `question_templates.skill_id` is a foreign key into
+    the `skills` table, which only `make curriculum-load` populates. A run planned from the
+    file and committed to the database therefore died with a `ForeignKeyViolationError` on
+    its first candidate, *after* paying for it. The plan and the database can disagree, so
+    preflight is where that has to surface.
     """
+    planned_skills = {slot.skill_id for slot in plan.slots}
+    known_skills = set(
+        (
+            await session.execute(
+                select(Skill.skill_id).where(Skill.skill_id.in_(planned_skills))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    unloaded = sorted(planned_skills - known_skills)
+
     taken = (
         (
             await session.execute(
@@ -651,6 +672,13 @@ async def preflight(
         failures.append(
             f"{len(taken)} of {len(plan.slots)} planned template ids already exist - "
             f"pick a fresh --seed-offset"
+        )
+    if unloaded:
+        failures.append(
+            f"{len(unloaded)} planned skill(s) are in the taxonomy but not in this "
+            f"database, so every candidate for them would fail its foreign key at commit "
+            f"after being paid for - run `make curriculum-load` first "
+            f"({', '.join(unloaded)})"
         )
     configured_models = {
         generator_model,

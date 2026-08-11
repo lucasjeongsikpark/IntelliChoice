@@ -26,7 +26,6 @@ from intellichoice_curriculum.authored_validation import (
     route_answer,
 )
 
-
 # --------------------------------------------------------------------------------------
 # The crash itself
 # --------------------------------------------------------------------------------------
@@ -111,9 +110,10 @@ def test_a_grouped_distractor_is_still_rejected(wrong):
 
 
 def test_a_multi_root_answer_with_separators_stays_two_roots():
-    assert _option_as_value_set("1,200 or -1,200") == frozenset(
-        _option_as_value_set("1200 or -1200")
-    )
+    grouped = _option_as_value_set("1,200 or -1,200")
+    plain = _option_as_value_set("1200 or -1200")
+    assert grouped is not None and plain is not None
+    assert grouped == plain
 
 
 @pytest.mark.parametrize(

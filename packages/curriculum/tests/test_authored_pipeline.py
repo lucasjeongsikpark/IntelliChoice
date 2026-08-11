@@ -16,6 +16,7 @@ import hashlib
 import random
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from typing import NoReturn
 
 import pytest
@@ -1503,6 +1504,35 @@ def test_preflight_sees_a_taken_id_before_the_run_pays_for_it() -> None:
             # And the documented remedy works without deleting anything.
             fresh = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=950_000)
             assert (await pipeline_cli.preflight(session, _settings(), fresh)).ok
+
+    asyncio.run(run())
+
+
+def test_preflight_catches_a_skill_the_database_has_never_been_loaded_with() -> None:
+    """The failure mode that appeared the moment the authoring plan moved into the taxonomy.
+
+    `skills.yaml` is enough to *plan* a run, but `question_templates.skill_id` is a foreign
+    key into the `skills` table, which only `make curriculum-load` populates. Before D-274
+    the mismatch surfaced as a `ForeignKeyViolationError` on the run's first commit - after
+    it had already paid for the candidate. Preflight is free, so this is where it belongs.
+    """
+
+    async def run() -> None:
+        async with _rollback_session() as session:
+            real = pipeline_cli.build_plan(
+                candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET
+            )
+            assert (await pipeline_cli.preflight(session, _settings(), real)).ok
+
+            # One slot naming a skill no database has. Built by replacing a real slot rather
+            # than by hand, so every other field stays exactly what a real run would use.
+            ghost = replace(real.slots[0], skill_id="skill_that_was_never_loaded")
+            plan = replace(real, slots=(ghost,) + real.slots[1:])
+
+            report = await pipeline_cli.preflight(session, _settings(), plan)
+            assert not report.ok
+            assert any("skill_that_was_never_loaded" in f for f in report.failures)
+            assert any("curriculum-load" in f for f in report.failures)
 
     asyncio.run(run())
 

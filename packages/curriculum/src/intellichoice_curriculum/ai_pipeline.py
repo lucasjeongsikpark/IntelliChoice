@@ -65,13 +65,22 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.authored_validation import (
+    _is_whole_number,
     _sympify,
     _values_equal,
     answer_leaked_beyond_the_question,
     derive_answer,
     leak_phrase_present,
 )
-from intellichoice_curriculum.content import CurriculumContent, TopicDef
+from intellichoice_curriculum.content import (
+    ANSWER_FAMILIES,
+    DEFAULT_ANSWER_FAMILY,
+    AnswerFamily,
+    CurriculumContent,
+    SkillDef,
+    TopicDef,
+    load_curriculum,
+)
 
 # topic_id -> difficulty_label -> skill_id. Deterministic, not LLM-chosen: this topic's
 # skill ladder tracks difficulty 1:1 (matches the S4 hand-authored bank exactly - see
@@ -86,74 +95,38 @@ TOPIC_DIFFICULTY_SKILLS: dict[str, dict[int, str]] = {
     }
 }
 
-# topic_id -> skill_id -> the difficulty tiers that skill should carry content at.
+# topic_id -> skill_id -> the difficulty tiers that skill should carry content at, and
+# skill_id -> the structure its equations must have.
 #
-# D-186: the authoring plan, and the reason it is a *second* map rather than an inversion
-# of the one above. `TOPIC_DIFFICULTY_SKILLS` stays the **native** ladder - each skill's
-# home tier, the default when no skill is named, and still 1:1. This map says which tiers
-# each skill should additionally be authored at, and it is deliberately not uniform:
+# **Both are now DERIVED from the taxonomy rather than written here (D-274).** They used to
+# be hand-maintained literals keyed by skill id, and that does not survive the full
+# taxonomy: `generate_authored_candidate` raises `PipelineConfigError` for a skill missing
+# from the tier map, so every new skill needed a Python edit before it could be generated
+# at all. At 21 skills that was a nuisance; at 245 it is a second copy of the taxonomy that
+# drifts from the first. `skills.yaml` already declares the topic/skill structure, so the
+# tiers and the required equation shape now live next to the skill they describe.
 #
-#   - The three middle skills carry their native tier ±1. `mastery_bootstrap` anchors
-#     `recommended_difficulty` on the modal assessed tier ±1 and clamps to 1-5, so T±1 is
-#     the entire range a skill can ever be recommended at - a fourth tier could not be
-#     selected by any student.
-#   - The ladder ends (`linear_one_step` at 1, `linear_distribute` at 5) stay single-tier.
-#     The clamp means tier 1's neighbour below and tier 5's neighbour above do not exist,
-#     and the user's call was multi-tier "for the middle skills".
+# This is the same move D-232 made for `difficulty_anchors`, for the same stated reason: a
+# rule kept next to the code that reads it is a rule nobody edits when they add content.
 #
-# **Authored mode only.** The shape pipeline picks from `DIFFICULTY_SHAPES`, which is keyed
-# by tier alone, so a skill generated at an off-native tier would be handed another skill's
-# math forms (`linear_two_step` at tier 3 would get `frac_coeff`/`neg_coeff`). Authored mode
-# has no shape allowlist - it generates a real stem from the skill and tier - which is why
-# multi-tier lives there and `run_pipeline` is untouched.
-TOPIC_SKILL_DIFFICULTIES: dict[str, dict[str, list[int]]] = {
-    "linear_equations": {
-        "linear_one_step": [1],
-        "linear_two_step": [1, 2, 3],
-        "linear_neg_frac_coeff": [2, 3, 4],
-        "linear_both_sides": [3, 4, 5],
-        "linear_distribute": [5],
-    },
-    # C1 wave K-2 (D-273). Until now this registry held `linear_equations` alone, which is
-    # why the D-239 re-tier gate had never fired on a real population: the topics where tier
-    # disagreement actually lives were all hand-authored and the pipeline never saw them
-    # (PROGRESS carry-over #6). These six give it one.
-    #
-    # **A skill's tier span is where the skill actually spans, not 1-5 by default** (D-223).
-    # `g1_add_within_10` tops out at 2 because there is no difficulty-5 version of adding
-    # within ten, and claiming one is what produced `place_value_identify`'s flat ladder in
-    # D-238 - a rubric that claims a range the skill does not have makes the tier decorative,
-    # and a decorative tier still routes a real student. The spans below follow each topic's
-    # own anchors in topics.yaml.
-    "g1_addition": {
-        "g1_add_within_10": [1, 2],
-        "g1_add_within_20": [2, 3, 4],
-        "g1_add_within_28": [4, 5],
-    },
-    "g1_subtraction": {
-        "g1_sub_within_10": [1, 2],
-        "g1_sub_within_20": [3, 4],
-        "g1_sub_three_numbers": [5],
-    },
-    "g1_word_problems": {
-        "g1_wp_single_operation": [1, 2],
-        "g1_wp_choose_operation": [3, 4, 5],
-    },
-    "g2_addition": {
-        "g2_add_within_100": [1, 2, 3],
-        "g2_add_multi_digit": [4],
-        "g2_add_three_numbers": [5],
-    },
-    "g2_subtraction": {
-        "g2_sub_two_digit": [1, 2, 3],
-        "g2_sub_multi_digit": [4],
-        "g2_sub_three_numbers": [5],
-    },
-    "g2_word_problems": {
-        "g2_wp_single_operation": [1, 2],
-        "g2_wp_measurement_context": [3, 4],
-        "g2_wp_multi_step": [5],
-    },
+# The names are kept because they are the shape the planner and the tests already read, and
+# because a *projection of one source* is not the duplication being removed. Callers that
+# hold a `CurriculumContent` should prefer `curriculum.generation_plan()` and
+# `SkillDef.structure`, which respect a caller-supplied taxonomy; these read the default one.
+#
+# Why the spans are not uniform, kept from D-186 because the reasoning still governs what
+# goes in the YAML: `mastery_bootstrap` anchors `recommended_difficulty` on the modal
+# assessed tier +/-1 and clamps to 1-5, so native-tier +/-1 is the entire range a skill can
+# ever be recommended at - a fourth tier could not be selected by any student. Ladder ends
+# stay single-tier because tier 1 has no neighbour below and tier 5 none above. And a span
+# must be where the skill actually spans (D-223): claiming a range the skill does not have
+# makes the tier decorative, and a decorative tier still routes a real student.
+_DEFAULT_TAXONOMY = load_curriculum()
+
+TOPIC_SKILL_DIFFICULTIES: dict[str, dict[str, list[int]]] = _DEFAULT_TAXONOMY.generation_plan()
+
+SKILL_STRUCTURES: dict[str, str] = {
+    skill.skill_id: skill.structure for skill in _DEFAULT_TAXONOMY.skills if skill.structure
 }
 
 _REQUIRED_DISTRACTOR_COUNT = 3  # 4 options total: 1 correct + 3 distractors.
@@ -1090,7 +1063,10 @@ class EquationDesignError(Exception):
 
 
 def validate_equation_design(
-    design: EquationDesignResponse, *, target_difficulty: int
+    design: EquationDesignResponse,
+    *,
+    target_difficulty: int,
+    family: AnswerFamily = ANSWER_FAMILIES[DEFAULT_ANSWER_FAMILY],
 ) -> list[str]:
     """Deterministic gate on the skeleton, before anything is written around it (D-200).
 
@@ -1100,11 +1076,15 @@ def validate_equation_design(
     guards is ~150 tokens. Nothing is weakened - the full item still faces every gate,
     including this one.
 
-    The positive-integer rule is scope-limited and deliberately strict. Every observed
-    failure of this kind produced a fraction in a scenario that counts discrete things
-    (12/5 games, 8/3 swaps, -2 hours). A future topic with genuinely continuous answers
-    would need this to become a parameter rather than a constant, and that is a change to
-    make when such a topic exists, not before.
+    **The number rules come from the skill's answer family (D-274), not from here.** They
+    were a constant, with the note that a topic needing continuous answers would have to
+    turn it into a parameter. That claim was already false when it was written: the shipped
+    `fraction_operations` items answer `5/8`, and **26 of the 184 items in the bank fail the
+    constant** - the pipeline could not regenerate 14% of its own content. `decimals`,
+    `measurement` and the grade-5 word problems make it false three more times.
+
+    The default keeps every existing caller's behaviour exactly: `counting` is
+    whole-and-positive, which is what the constant said.
     """
     failures: list[str] = []
     solved, error = derive_answer(design.equation)
@@ -1119,88 +1099,22 @@ def validate_equation_design(
             f"equation solves to {solved}, but final_answer says {design.final_answer!r} - "
             f"the numbers do not divide evenly, so change the quantities"
         )
-    if not solved.is_Integer:
+    if family.whole_numbers_only and not _is_whole_number(solved):
         failures.append(
-            f"equation solves to {solved}, which is not a whole number - a student cannot "
-            f"count a fraction of a thing, so change the quantities"
+            f"equation solves to {solved}, which is not a whole number - {family.guidance}"
         )
-    elif solved.is_positive is not True:
+    elif family.positive_only and solved.is_positive is not True:
         failures.append(
-            f"equation solves to {solved}; the answer must be a positive whole number"
+            f"equation solves to {solved}, which is not positive - {family.guidance}"
         )
     return failures
-
-
-# What each skill's equation must STRUCTURALLY contain, regardless of the tier the slot
-# asks for (D-200 follow-up). The tier anchors alone were not enough and made things worse:
-# the first design run handed `linear_both_sides` and `linear_distribute` at tier 5 the
-# *identical* equation `Eq(3*(x + 4) + 10, 34)`, because both were told only "tier 5 =
-# distribution required" and neither was told which skill it was authoring for. The
-# both-sides slot got an equation with the variable on one side.
-#
-# The skill is what the slot exists for - D-186 lets a skill be authored at its native tier
-# +/-1, so the tier modulates how hard the numbers are while the skill fixes the shape. When
-# the two disagree, the skill wins.
-SKILL_STRUCTURES: dict[str, str] = {
-    "linear_one_step": "exactly one operation to undo, e.g. Eq(x + 8, 20) or Eq(4*x, 20)",
-    "linear_two_step": "two operations, the variable on ONE side only, e.g. Eq(18 + 6*w, 60)",
-    "linear_neg_frac_coeff": "a negative or fractional coefficient on the variable, "
-    "e.g. Eq(60 - 4*x, 12) or Eq(x/3 + 5, 11)",
-    "linear_both_sides": "the variable MUST appear on BOTH sides of the equals sign, "
-    "e.g. Eq(8 + 2*m, 18 + m) - an equation with the variable on one side is wrong for "
-    "this skill however hard it is otherwise",
-    "linear_distribute": "a bracket that MUST be distributed before like terms can be "
-    "combined, e.g. Eq(5*(c + 2) + 12, 42)",
-    # C1 wave K-2 (D-273). Each names the structure the skill is *defined by*, because the
-    # tier alone is not enough to separate two skills that can share one - the collision this
-    # registry exists to prevent.
-    #
-    # Two of these lean on the Phase R finding rather than on arithmetic: `Eq(x, Max(...))`
-    # and `Eq(x, <composition>)` model questions whose answer is *selected* or *composed*
-    # rather than calculated. That form always worked and nobody reached for it, which is how
-    # 15 `place_value_compare` items became subtraction problems. Naming it here is what
-    # stops the same reshaping happening again at 34-topic scale.
-    "g1_add_within_10": "one addition of two single-digit numbers with a total of 10 or "
-    "less, e.g. Eq(x, 6 + 3) - no bridging through ten",
-    "g1_add_within_20": "one addition of two single-digit numbers whose total is between 11 "
-    "and 20, so ten is crossed, e.g. Eq(x, 8 + 5)",
-    "g1_add_within_28": "one addition whose total passes 20, e.g. Eq(x, 19 + 9) - a second "
-    "ten must be reached",
-    "g1_sub_within_10": "one subtraction from a total of 10 or less, e.g. Eq(x, 9 - 4), or "
-    "the same as a missing addend, e.g. Eq(4 + x, 9)",
-    "g1_sub_within_20": "one subtraction from a total between 11 and 20 where the total's "
-    "ones digit is SMALLER than the amount taken, so a ten must be broken, e.g. Eq(x, 14 - 6)",
-    "g1_sub_three_numbers": "three one-digit numbers combined in one expression, e.g. "
-    "Eq(x, 12 - 3 - 4) - two operations, not one",
-    "g1_wp_single_operation": "one operation the story names outright, on totals within 20, "
-    "e.g. Eq(x, 7 + 5) - or a missing-part form, Eq(7 + x, 12)",
-    "g1_wp_choose_operation": "one operation the story does NOT name, so the situation "
-    "decides it, e.g. Eq(13 - x, 5) for how many were taken away",
-    "g2_add_within_100": "addition of two-digit numbers totalling at most 100, e.g. "
-    "Eq(x, 37 + 25)",
-    "g2_add_multi_digit": "addition of three- or four-digit numbers carrying in more than "
-    "one column, e.g. Eq(x, 2478 + 1365)",
-    "g2_add_three_numbers": "three numbers added in one expression, e.g. Eq(x, 46 + 27 + 18)",
-    "g2_sub_two_digit": "subtraction of two-digit numbers, e.g. Eq(x, 52 - 27), or the "
-    "missing-addend form Eq(27 + x, 52)",
-    "g2_sub_multi_digit": "subtraction of three- or four-digit numbers where the borrow "
-    "travels across a zero, e.g. Eq(x, 400 - 128)",
-    "g2_sub_three_numbers": "three numbers combined in one expression with at least one "
-    "subtraction, e.g. Eq(x, 95 - 27 - 18)",
-    "g2_wp_single_operation": "one operation on two-digit quantities, e.g. Eq(x, 48 + 27)",
-    "g2_wp_measurement_context": "one operation whose quantities carry a unit that must "
-    "appear in the answer, e.g. Eq(x, 145 - 68) for centimetres",
-    "g2_wp_multi_step": "TWO operations where the first result feeds the second, e.g. "
-    "Eq(x, (24 + 18) - 15) - a single operation is wrong for this skill however large the "
-    "numbers are",
-}
 
 
 async def _design_equation(
     gateway: BedrockGateway,
     *,
     topic: TopicDef,
-    skill: object,
+    skill: SkillDef,
     difficulty_label: int,
     spend: float,
     max_attempts: int,
@@ -1211,13 +1125,21 @@ async def _design_equation(
     Retrying *here* is the point. The same retry after a full authoring call costs an order
     of magnitude more, which is why the pipeline previously threw the whole candidate away
     instead.
+
+    `skill` was typed `object` and read through `getattr`, which is what a side table keyed
+    by skill id costs at the call site. Now that the structure and the answer family live on
+    the skill, the real type says what this needs (D-274).
     """
     total = 0.0
     previous: list[str] = []
     # Skill first, tier second: the skill fixes the shape of the equation and the tier says
     # how demanding the numbers inside it should be. Handing over only the tier is what
     # produced two different skills with one identical equation.
-    structure = SKILL_STRUCTURES.get(getattr(skill, "skill_id", ""), "")
+    #
+    # `SKILL_STRUCTURES` is consulted only as a fallback, for a caller that passed a
+    # taxonomy whose skills predate the field - the module-level view is built from the
+    # default taxonomy and would otherwise disagree with a caller-supplied one.
+    structure = skill.structure or SKILL_STRUCTURES.get(skill.skill_id, "")
     tier_anchor = topic.difficulty_anchors.get(difficulty_label, "")
     anchor = (
         f"REQUIRED STRUCTURE for this skill: {structure}. "
@@ -1273,7 +1195,9 @@ async def _design_equation(
             previous.append(f"{_CIRCUIT_OPEN_MARKER}: call failed: {error}")
             continue
         assert isinstance(value, EquationDesignResponse)
-        failures = validate_equation_design(value, target_difficulty=difficulty_label)
+        failures = validate_equation_design(
+            value, target_difficulty=difficulty_label, family=skill.family
+        )
         if not failures:
             return value, total, []
         previous.append(f"equation {value.equation!r} rejected: {'; '.join(failures)}")

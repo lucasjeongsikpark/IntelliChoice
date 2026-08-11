@@ -6,35 +6,52 @@ skills:
   - skill_id: linear_one_step
     topic_id: linear_equations
     name: "Solve one-step linear equations"
+    difficulty_tiers: [1]
+    structure: "exactly one operation to undo, e.g. Eq(x + 8, 20) or Eq(4*x, 20)"
 
   - skill_id: linear_two_step
     topic_id: linear_equations
     name: "Solve two-step linear equations"
+    difficulty_tiers: [1, 2, 3]
+    structure: "two operations, the variable on ONE side only, e.g. Eq(18 + 6*w, 60)"
 
   - skill_id: linear_neg_frac_coeff
     topic_id: linear_equations
     name: "Solve linear equations with negative or fractional coefficients"
+    difficulty_tiers: [2, 3, 4]
+    structure: "a negative or fractional coefficient on the variable, e.g. Eq(60 - 4*x, 12) or
+      Eq(x/3 + 5, 11)"
 
   - skill_id: linear_both_sides
     topic_id: linear_equations
     name: "Solve linear equations with variables on both sides"
+    difficulty_tiers: [3, 4, 5]
+    structure: "the variable MUST appear on BOTH sides of the equals sign, e.g. Eq(8 + 2*m, 18 +
+      m) - an equation with the variable on one side is wrong for this skill however hard it is
+      otherwise"
 
   - skill_id: linear_distribute
     topic_id: linear_equations
     name: "Solve linear equations requiring distribution and combining like terms"
+    difficulty_tiers: [5]
+    structure: "a bracket that MUST be distributed before like terms can be combined, e.g.
+      Eq(5*(c + 2) + 12, 42)"
 
   # fraction_operations — no templates authored yet (S9 pipeline volume target).
   - skill_id: fraction_add_sub_like
     topic_id: fraction_operations
     name: "Add and subtract fractions with like denominators"
+    answer_family: rational
 
   - skill_id: fraction_add_sub_unlike
     topic_id: fraction_operations
     name: "Add and subtract fractions with unlike denominators"
+    answer_family: rational
 
   - skill_id: fraction_mul_div
     topic_id: fraction_operations
     name: "Multiply and divide fractions"
+    answer_family: rational
 
   # multiplication_division — grade band 2-3, authored in D-228. The ladder follows
   # Kumon's own grade-3/4 split: facts first, then multi-digit multiplication and
@@ -63,70 +80,118 @@ skills:
   - skill_id: g1_add_within_10
     topic_id: g1_addition
     name: "Add within 10"
+    difficulty_tiers: [1, 2]
+    structure: "one addition of two single-digit numbers with a total of 10 or less, e.g. Eq(x,
+      6 + 3) - no bridging through ten"
 
   - skill_id: g1_add_within_20
     topic_id: g1_addition
     name: "Add by bridging through ten"
+    difficulty_tiers: [2, 3, 4]
+    structure: "one addition of two single-digit numbers whose total is between 11 and 20, so
+      ten is crossed, e.g. Eq(x, 8 + 5)"
 
   - skill_id: g1_add_within_28
     topic_id: g1_addition
     name: "Add with totals past twenty"
+    difficulty_tiers: [4, 5]
+    structure: "one addition whose total passes 20, e.g. Eq(x, 19 + 9) - a second ten must be
+      reached"
 
   - skill_id: g1_sub_within_10
     topic_id: g1_subtraction
     name: "Subtract within 10"
+    difficulty_tiers: [1, 2]
+    structure: "one subtraction from a total of 10 or less, e.g. Eq(x, 9 - 4), or the same as a
+      missing addend, e.g. Eq(4 + x, 9)"
 
   - skill_id: g1_sub_within_20
     topic_id: g1_subtraction
     name: "Subtract within 20 by breaking a ten"
+    difficulty_tiers: [3, 4]
+    structure: "one subtraction from a total between 11 and 20 where the total's ones digit is
+      SMALLER than the amount taken, so a ten must be broken, e.g. Eq(x, 14 - 6)"
 
   - skill_id: g1_sub_three_numbers
     topic_id: g1_subtraction
     name: "Combine three one-digit numbers"
+    difficulty_tiers: [5]
+    structure: "three one-digit numbers combined in one expression, e.g. Eq(x, 12 - 3 - 4) - two
+      operations, not one"
 
   - skill_id: g1_wp_single_operation
     topic_id: g1_word_problems
     name: "Solve a word problem using the operation the story names"
+    difficulty_tiers: [1, 2]
+    structure: "one operation the story names outright, on totals within 20, e.g. Eq(x, 7 + 5) -
+      or a missing-part form, Eq(7 + x, 12)"
 
   - skill_id: g1_wp_choose_operation
     topic_id: g1_word_problems
     name: "Decide which operation a situation calls for"
+    difficulty_tiers: [3, 4, 5]
+    structure: "one operation the story does NOT name, so the situation decides it, e.g. Eq(13 -
+      x, 5) for how many were taken away"
 
   - skill_id: g2_add_within_100
     topic_id: g2_addition
     name: "Add two-digit numbers within 100"
+    difficulty_tiers: [1, 2, 3]
+    structure: "addition of two-digit numbers totalling at most 100, e.g. Eq(x, 37 + 25)"
 
   - skill_id: g2_add_multi_digit
     topic_id: g2_addition
     name: "Add three- and four-digit numbers"
+    difficulty_tiers: [4]
+    structure: "addition of three- or four-digit numbers carrying in more than one column, e.g.
+      Eq(x, 2478 + 1365)"
 
   - skill_id: g2_add_three_numbers
     topic_id: g2_addition
     name: "Add three numbers"
+    difficulty_tiers: [5]
+    structure: "three numbers added in one expression, e.g. Eq(x, 46 + 27 + 18)"
 
   - skill_id: g2_sub_two_digit
     topic_id: g2_subtraction
     name: "Subtract two-digit numbers"
+    difficulty_tiers: [1, 2, 3]
+    structure: "subtraction of two-digit numbers, e.g. Eq(x, 52 - 27), or the missing-addend
+      form Eq(27 + x, 52)"
 
   - skill_id: g2_sub_multi_digit
     topic_id: g2_subtraction
     name: "Subtract three- and four-digit numbers"
+    difficulty_tiers: [4]
+    structure: "subtraction of three- or four-digit numbers where the borrow travels across a
+      zero, e.g. Eq(x, 400 - 128)"
 
   - skill_id: g2_sub_three_numbers
     topic_id: g2_subtraction
     name: "Subtract with three numbers"
+    difficulty_tiers: [5]
+    structure: "three numbers combined in one expression with at least one subtraction, e.g.
+      Eq(x, 95 - 27 - 18)"
 
   - skill_id: g2_wp_single_operation
     topic_id: g2_word_problems
     name: "Solve a two-digit word problem with one operation"
+    difficulty_tiers: [1, 2]
+    structure: "one operation on two-digit quantities, e.g. Eq(x, 48 + 27)"
 
   - skill_id: g2_wp_measurement_context
     topic_id: g2_word_problems
     name: "Solve a word problem whose quantities carry units"
+    difficulty_tiers: [3, 4]
+    structure: "one operation whose quantities carry a unit that must appear in the answer, e.g.
+      Eq(x, 145 - 68) for centimetres"
 
   - skill_id: g2_wp_multi_step
     topic_id: g2_word_problems
     name: "Solve a word problem needing two operations"
+    difficulty_tiers: [5]
+    structure: "TWO operations where the first result feeds the second, e.g. Eq(x, (24 + 18) -
+      15) - a single operation is wrong for this skill however large the numbers are"
 
   # place_value
   - skill_id: place_value_identify
@@ -136,3 +201,205 @@ skills:
   - skill_id: place_value_compare
     topic_id: place_value
     name: "Compare and order multi-digit numbers by place value"
+
+  # ====================================================================================
+  # C1 wave 3-5 (D-274). 26 skills across seven topics. Names are student-visible in the
+  # progress display (SPEC §5.10.3 - the *id* stays internal), so they read as things a
+  # student does, not as taxonomy labels.
+  # ====================================================================================
+
+  # g4_multiplication_division
+  - skill_id: g4_mult_by_one_digit
+    topic_id: g4_multiplication_division
+    name: "Multiply a multi-digit number by a single digit"
+    difficulty_tiers: [1, 2]
+    structure: "one multiplication of a multi-digit number by a SINGLE digit, e.g. Eq(x, 428 *
+      6)"
+
+  - skill_id: g4_mult_two_by_two
+    topic_id: g4_multiplication_division
+    name: "Multiply a two-digit number by a two-digit number"
+    difficulty_tiers: [2, 3]
+    structure: "one multiplication of a two-digit number by a TWO-digit number, e.g. Eq(x, 47 *
+      32) - a single-digit factor is wrong for this skill however large the other one is"
+
+  - skill_id: g4_mult_large
+    topic_id: g4_multiplication_division
+    name: "Multiply large numbers, and multiply three numbers together"
+    difficulty_tiers: [4, 5]
+    structure: "a multiplication with at least three digits in each factor, e.g. Eq(x, 412 *
+      236), or THREE factors in one expression, e.g. Eq(x, 12 * 8 * 5)"
+
+  - skill_id: g4_div_by_one_digit
+    topic_id: g4_multiplication_division
+    name: "Divide a multi-digit number by a single digit"
+    difficulty_tiers: [1, 2, 3]
+    structure: "one division of a multi-digit number by a SINGLE digit, e.g. Eq(x, 4536 / 8), or
+      the same as a missing factor, e.g. Eq(8 * x, 4536)"
+
+  - skill_id: g4_div_by_two_digit
+    topic_id: g4_multiplication_division
+    name: "Divide by a two-digit number"
+    difficulty_tiers: [3, 4, 5]
+    structure: "one division by a TWO-digit divisor, e.g. Eq(x, 3216 / 24) - a single-digit
+      divisor is wrong for this skill, because estimating the partial quotient is the whole
+      point"
+
+  # decimals
+  - skill_id: decimal_add_sub
+    topic_id: decimals
+    name: "Add and subtract decimals"
+    difficulty_tiers: [1, 2, 3]
+    structure: "one addition or subtraction of decimals, e.g. Eq(x, 3.75 + 2.4) - the answer is
+      a decimal and must not be rounded to a whole number"
+    answer_family: rational
+
+  - skill_id: decimal_multiply
+    topic_id: decimals
+    name: "Multiply decimals"
+    difficulty_tiers: [3, 4]
+    structure: "one multiplication where at least one factor is a decimal, e.g. Eq(x, 2.5 * 1.4)"
+    answer_family: rational
+
+  - skill_id: decimal_divide
+    topic_id: decimals
+    name: "Divide decimals"
+    difficulty_tiers: [4, 5]
+    structure: "one division where the DIVISOR is a decimal, e.g. Eq(x, 8.4 / 0.7) - dividing a
+      decimal by a whole number is the easier skill and is wrong for this slot"
+    answer_family: rational
+
+  # number_sense
+  - skill_id: number_odd_even
+    topic_id: number_sense
+    name: "Tell odd numbers from even numbers"
+    difficulty_tiers: [1, 2]
+    structure: "the remainder on division by two, e.g. Eq(x, Mod(47, 2)) - an answer of 1 means
+      the number is odd and 0 means it is even, so the item asks for that remainder rather than
+      stating the answer outright"
+
+  - skill_id: number_large_compare
+    topic_id: number_sense
+    name: "Compare and order large numbers"
+    difficulty_tiers: [2, 3]
+    structure: "a comparison expressed with Max or Min over the numbers being compared, e.g.
+      Eq(x, Max(34281, 34218, 34128)) - the answer IS one of the stated numbers, and writing
+      Eq(x, 34281) instead states the answer rather than modelling the question"
+
+  - skill_id: number_rounding
+    topic_id: number_sense
+    name: "Round a number to a given place"
+    difficulty_tiers: [3, 4, 5]
+    structure: "a rounding written as the arithmetic that performs it, e.g. Eq(x, 100 *
+      round(4738 / 100)) for the nearest hundred - never Eq(x, 4700), which states the answer"
+    answer_family: rational
+
+  # measurement
+  - skill_id: measurement_length
+    topic_id: measurement
+    name: "Work with lengths, including converting between units"
+    difficulty_tiers: [1, 2, 3]
+    structure: "one operation on lengths, with a conversion written into the equation where two
+      units appear, e.g. Eq(x, 3 * 100 + 40) for 3 m 40 cm in centimetres"
+
+  - skill_id: measurement_weight
+    topic_id: measurement
+    name: "Work with weights, including converting between units"
+    difficulty_tiers: [2, 3]
+    structure: "one operation on weights, with a conversion written into the equation where two
+      units appear, e.g. Eq(x, 2 * 1000 + 350) for 2 kg 350 g in grams"
+
+  - skill_id: measurement_capacity
+    topic_id: measurement
+    name: "Work with capacity, including converting between units"
+    difficulty_tiers: [2, 3]
+    structure: "one operation on capacities, with a conversion written into the equation where
+      two units appear, e.g. Eq(x, 1 * 1000 + 250) for 1 L 250 mL in millilitres"
+
+  - skill_id: measurement_money
+    topic_id: measurement
+    name: "Work with amounts of money"
+    difficulty_tiers: [1, 2]
+    structure: "one operation on amounts of money, e.g. Eq(x, 12.50 - 4.75) - the answer is an
+      amount and may have cents"
+    answer_family: rational
+
+  - skill_id: measurement_elapsed_time
+    topic_id: measurement
+    name: "Work out how much time has passed"
+    difficulty_tiers: [3, 4]
+    structure: "an elapsed time computed in one unit, e.g. Eq(x, (14*60 + 20) - (11*60 + 45))
+      for the minutes between 11:45 and 14:20 - the sixties must appear in the equation"
+
+  - skill_id: measurement_area_volume
+    topic_id: measurement
+    name: "Find an area or a volume from given lengths"
+    difficulty_tiers: [4, 5]
+    structure: "an area as a product of two given lengths, e.g. Eq(x, 14 * 9), or a volume as a
+      product of three, e.g. Eq(x, 6 * 4 * 3)"
+
+  # g3_word_problems
+  - skill_id: g3_wp_add_sub
+    topic_id: g3_word_problems
+    name: "Solve an addition or subtraction word problem on larger quantities"
+    difficulty_tiers: [1, 2]
+    structure: "one addition or subtraction on three- or four-digit quantities, e.g. Eq(x, 1250
+      + 830), or the missing-part form Eq(830 + x, 2080)"
+
+  - skill_id: g3_wp_mult_div
+    topic_id: g3_word_problems
+    name: "Solve a word problem about equal groups or sharing"
+    difficulty_tiers: [2, 3, 4]
+    structure: "one multiplication or division arising from equal groups or sharing, e.g. Eq(x,
+      24 * 6) or Eq(x, 144 / 6) - the story must not name the operation"
+
+  - skill_id: g3_wp_mixed
+    topic_id: g3_word_problems
+    name: "Solve a word problem needing two operations"
+    difficulty_tiers: [4, 5]
+    structure: "TWO operations where the first result feeds the second, e.g. Eq(x, (24 * 6) -
+      45)"
+
+  # g4_word_problems
+  - skill_id: g4_wp_division
+    topic_id: g4_word_problems
+    name: "Solve a division word problem on multi-digit quantities"
+    difficulty_tiers: [1, 2]
+    structure: "one division with a multi-digit dividend, e.g. Eq(x, 1728 / 12)"
+
+  - skill_id: g4_wp_decimals
+    topic_id: g4_word_problems
+    name: "Solve a word problem about decimal quantities"
+    difficulty_tiers: [2, 3]
+    structure: "one operation on decimal quantities, most often money, e.g. Eq(x, 45.60 / 8)"
+    answer_family: rational
+
+  - skill_id: g4_wp_formula_mixed
+    topic_id: g4_word_problems
+    name: "Apply a given formula, and solve problems needing two operations"
+    difficulty_tiers: [4, 5]
+    structure: "a stated formula applied to given quantities, e.g. Eq(x, 2 * (14 + 9)) for the
+      perimeter of a rectangle, or two operations of different kinds in one expression"
+
+  # g5_word_problems
+  - skill_id: g5_wp_fractions
+    topic_id: g5_word_problems
+    name: "Solve a word problem about fractions"
+    difficulty_tiers: [2, 3]
+    structure: "one operation on fractions, written with Rational, e.g. Eq(x, Rational(3,4) -
+      Rational(1,6)), or a fraction OF a quantity, e.g. Eq(x, Rational(2,5) * 350)"
+    answer_family: rational
+
+  - skill_id: g5_wp_decimals
+    topic_id: g5_word_problems
+    name: "Solve a word problem about decimals"
+    difficulty_tiers: [3, 4]
+    structure: "one multiplication or division involving a decimal, e.g. Eq(x, 3.6 * 2.5)"
+    answer_family: rational
+
+  - skill_id: g5_wp_ratios_mixed
+    topic_id: g5_word_problems
+    name: "Solve a word problem about ratios and shares"
+    difficulty_tiers: [4, 5]
+    structure: "a share of a total split in a given ratio, written as the arithmetic that finds
+      it, e.g. Eq(x, 45 * 3 / 9) for the 3-part share of 45 split 3:6"

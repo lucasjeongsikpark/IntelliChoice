@@ -8,6 +8,12 @@ def test_loads_every_seeded_topic() -> None:
     topics are C1's K-2 wave (D-273), whose taxonomy is authored but whose items are not
     generated yet, so they will report `available=False` until the wave runs - which is a
     fact about the bank, not about this file (D-187 made availability a bank read).
+
+    The seven added in D-274 are C1's 3-5 wave, in the same state. Note what is *not* here:
+    grade 3's addition, multiplication and division books, and both grades' fraction rows,
+    are covered by `g2_addition`/`multiplication_division`/`fraction_operations` rather than
+    by new topics - `skill_groups.yaml` records that mapping, and duplicating them would
+    mean two topics teaching one thing.
     """
     content = load_curriculum()
 
@@ -22,6 +28,13 @@ def test_loads_every_seeded_topic() -> None:
         "g2_addition",
         "g2_subtraction",
         "g2_word_problems",
+        "g3_word_problems",
+        "g4_multiplication_division",
+        "g4_word_problems",
+        "g5_word_problems",
+        "decimals",
+        "measurement",
+        "number_sense",
     }
     assert content.curriculum_version
 

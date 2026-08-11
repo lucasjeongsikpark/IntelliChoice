@@ -90,3 +90,100 @@ prerequisites:
 
   - skill_id: g2_wp_multi_step
     prerequisite_skill_id: g2_wp_single_operation
+
+  # ====================================================================================
+  # C1 wave 3-5 (D-274). Edges into the existing bank as well as within the new topics,
+  # because the 3-5 band is where the K-2 skills are actually used: multi-digit
+  # multiplication rests on the times tables `multiplication_division` already teaches,
+  # and decimal addition rests on `g2_add_multi_digit`'s column work.
+  # ====================================================================================
+
+  - skill_id: g4_mult_by_one_digit
+    prerequisite_skill_id: mult_multi_digit
+
+  - skill_id: g4_mult_two_by_two
+    prerequisite_skill_id: g4_mult_by_one_digit
+
+  - skill_id: g4_mult_large
+    prerequisite_skill_id: g4_mult_two_by_two
+
+  - skill_id: g4_div_by_one_digit
+    prerequisite_skill_id: div_basic
+
+  - skill_id: g4_div_by_two_digit
+    prerequisite_skill_id: g4_div_by_one_digit
+
+  - skill_id: decimal_add_sub
+    prerequisite_skill_id: g2_add_multi_digit
+
+  - skill_id: decimal_multiply
+    prerequisite_skill_id: decimal_add_sub
+
+  - skill_id: decimal_multiply
+    prerequisite_skill_id: g4_mult_two_by_two
+
+  - skill_id: decimal_divide
+    prerequisite_skill_id: decimal_multiply
+
+  - skill_id: decimal_divide
+    prerequisite_skill_id: g4_div_by_two_digit
+
+  - skill_id: number_odd_even
+    prerequisite_skill_id: place_value_identify
+
+  - skill_id: number_large_compare
+    prerequisite_skill_id: place_value_compare
+
+  - skill_id: number_rounding
+    prerequisite_skill_id: number_large_compare
+
+  - skill_id: measurement_length
+    prerequisite_skill_id: g2_add_within_100
+
+  - skill_id: measurement_weight
+    prerequisite_skill_id: measurement_length
+
+  - skill_id: measurement_capacity
+    prerequisite_skill_id: measurement_length
+
+  - skill_id: measurement_money
+    prerequisite_skill_id: g2_add_within_100
+
+  - skill_id: measurement_elapsed_time
+    prerequisite_skill_id: g2_sub_two_digit
+
+  - skill_id: measurement_area_volume
+    prerequisite_skill_id: g4_mult_by_one_digit
+
+  - skill_id: g3_wp_add_sub
+    prerequisite_skill_id: g2_wp_single_operation
+
+  - skill_id: g3_wp_mult_div
+    prerequisite_skill_id: g3_wp_add_sub
+
+  - skill_id: g3_wp_mult_div
+    prerequisite_skill_id: mult_facts
+
+  - skill_id: g3_wp_mixed
+    prerequisite_skill_id: g3_wp_mult_div
+
+  - skill_id: g4_wp_division
+    prerequisite_skill_id: g4_div_by_one_digit
+
+  - skill_id: g4_wp_division
+    prerequisite_skill_id: g3_wp_mult_div
+
+  - skill_id: g4_wp_decimals
+    prerequisite_skill_id: decimal_add_sub
+
+  - skill_id: g4_wp_formula_mixed
+    prerequisite_skill_id: g4_wp_division
+
+  - skill_id: g5_wp_fractions
+    prerequisite_skill_id: fraction_add_sub_like
+
+  - skill_id: g5_wp_decimals
+    prerequisite_skill_id: decimal_multiply
+
+  - skill_id: g5_wp_ratios_mixed
+    prerequisite_skill_id: g5_wp_fractions

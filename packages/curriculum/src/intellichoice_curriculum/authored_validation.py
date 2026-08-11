@@ -302,6 +302,25 @@ def _sympify(text: str) -> sympy.Basic | None:
     return retried if isinstance(retried, sympy.Basic) else None
 
 
+def _is_whole_number(value: sympy.Basic) -> bool:
+    """Is this value a whole number, however it happens to be represented?
+
+    **Not `value.is_Integer`**, which asks about the SymPy *type* rather than the number
+    (D-274). `Eq(x, 8.4 / 0.7)` solves to `Float(12.0)` - a whole number by any reading a
+    student would recognise - and `is_Integer` is False for it, while `is_integer` is
+    `None`. So a decimal division that comes out even was reported as "not a whole number",
+    which is both wrong and, since the message told the designer to change the quantities,
+    unfixable by doing what it asked.
+
+    `.equals` is the same numeric comparison `_values_equal` uses, so a value is whole
+    exactly when it equals its own floor.
+    """
+    try:
+        return bool(value.equals(sympy.floor(value)))  # type: ignore[attr-defined]
+    except _PARSE_ERRORS:
+        return False
+
+
 def _values_equal(a: sympy.Basic, b: sympy.Basic) -> bool:
     # `Basic.equals` exists at runtime (handles simplification internally, avoiding a
     # `Basic - Basic` subtraction pyright's incomplete sympy stubs don't type) but isn't
