@@ -8920,8 +8920,11 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   2. **`post_outro` is still awaited inside `finalize_exam`** (`nodes.py`) — one ~1.5 s wait
      before the results screen.
   3. **`GET /exam/overview` 500s** (`assert session_row is not None`, `sessions.py:1417`) when the
-     checkpoint names an assessment session with no Postgres row — the AUD-X-07 class, on a path
-     that does not reconcile. Seen once during these e2e runs.
+     checkpoint names an assessment session with no Postgres row. The AUD-X-07 class, and the
+     path *does* reconcile (`_get_state_values` → `_reconcile_checkpoint`) — but
+     `checkpoint_reconcile.find_repair` has a rule for a missing **study** session and none for a
+     missing **assessment** session. Seen once during these e2e runs. (First written here as "a
+     path that does not reconcile", which was wrong; corrected after reading the reconciler.)
   4. **A session is 25–40 questions** (10 pre-exam + 5–20 study + 10 post-exam) for a K-12
      student. Out of scope here and unchanged; the journey bar now makes it visible, which is
      worth seeing before deciding whether to change it.

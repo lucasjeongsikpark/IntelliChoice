@@ -19524,6 +19524,13 @@ numerically grounded.
   on the first overview response, which can land *after* an answer, putting the student back on
   a locked question 1 with no way forward. It now stands down once this mount has answered
   anything. 66 e2e passed.
+- **And a third, corrected in place rather than shipped.** The carry-over below first said
+  `GET /exam/overview` 500s "on a path that does not reconcile". It does reconcile —
+  `_get_state_values` calls `_reconcile_checkpoint` on every one of these reads. What is
+  actually true, and checkable, is narrower: `checkpoint_reconcile.find_repair` has a rule for a
+  checkpoint naming a missing **study** session and none for one naming a missing **assessment**
+  session, which is what the assertion hit. I wrote the wider claim from the symptom and only
+  went and read the reconciler afterwards. Same shape as D-271.
 
 ### Verification
 
