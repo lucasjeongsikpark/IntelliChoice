@@ -929,6 +929,9 @@ class PipelineOutcome:
     # rejected candidate's numbers are as used up as an accepted one's - so this is set on
     # every path that got as far as a design, not only on the ones that survived.
     equation: str | None = None
+    # Recorded for the same reason as `equation`: the caller accumulates it to keep the
+    # next candidate for this skill from reusing the setting (D-275).
+    scenario_sketch: str | None = None
 
 
 async def _call(
@@ -1119,6 +1122,7 @@ async def _design_equation(
     spend: float,
     max_attempts: int,
     avoid_equations: Sequence[str] = (),
+    avoid_scenarios: Sequence[str] = (),
 ) -> tuple[EquationDesignResponse | None, float, list[str]]:
     """Cheap loop: propose a skeleton, check it deterministically, retry with the reason.
 
@@ -1157,9 +1161,18 @@ async def _design_equation(
         # that structure beats asking. Here the structure *is* the sentence: the field
         # carries the data and this makes it an instruction rather than context.
         anchor = (
-            f"{anchor} Another variant of this exact slot already uses "
+            f"{anchor} Another variant of this skill already uses "
             f"{', '.join(avoid_equations)}. Choose DIFFERENT numbers - a variant that "
             f"repeats the same calculation with a new story is the same question."
+        )
+    if avoid_scenarios:
+        # The second half of the same lesson. Naming the numbers to avoid without naming
+        # the settings produced 11 of 17 stems about cutting ribbon (D-275): the model
+        # varied exactly what it was asked to vary and held everything else fixed.
+        anchor = (
+            f"{anchor} These settings are already used by this skill: "
+            f"{'; '.join(avoid_scenarios)}. Choose a DIFFERENT everyday setting - renaming "
+            f"the character while keeping the situation is the same story."
         )
     for _ in range(max_attempts):
         payload = EquationDesignPayload(
@@ -1170,6 +1183,7 @@ async def _design_equation(
             difficulty_anchor=anchor,
             previous_attempts=previous,
             avoid_equations=list(avoid_equations or ()),
+            avoid_scenarios=list(avoid_scenarios or ()),
         )
         value, cost, error = await _call(
             gateway,
@@ -1454,8 +1468,10 @@ async def _attempt_authored_candidate(
     repair: RepairContext | None = None,
     design: EquationDesignResponse | None = None,
     dispersion: JudgeDispersion | None = None,
-    # Equations a sibling candidate of this same slot already used (D-273).
-    avoid_equations: Sequence[str] = (),
+    # NOTE: this function does not read `avoid_equations`/`avoid_scenarios` and never
+    # did - the design is handed to it already built, so both belong on
+    # `generate_authored_candidate`, which is where the design call lives. The dead
+    # `avoid_equations` parameter is removed here rather than joined by a second one.
 ) -> PipelineOutcome:
     """One pass: generate an item and run it through every gate (D-198 split this out of
     `generate_authored_candidate`, which is now the bounded repair loop around it).
@@ -1661,7 +1677,39 @@ async def _attempt_authored_candidate(
     if hint_leaks:
         stage_results: dict = {"deterministic_gate": {"passed": False, "failures": hint_leaks}}
         return await _reject(hint_leaks, stage_results, "validation")
-    stage_results: dict = {"deterministic_gate": {"passed": True, "checks": ["hint_answer_leak"]}}
+
+    # D-275 restores a SECOND check of the gate D-202 removed, on D-246's exact argument and
+    # no wider: this is a *presence* check, not a content judgement. It costs nothing, gives
+    # the same answer every call, and no model reading prose is involved.
+    #
+    # **Measured, which is why it is back.** The second `decimals` run produced 1 of 21
+    # candidates with `equation: null` - the field is optional on the response model, and
+    # nothing on this path required it. That item reached `pending` having never had its
+    # answer independently derived; it happens to be correct, and nothing verified that.
+    #
+    # The sharper problem is that the pipeline and the loader disagreed. `loader.py` still
+    # runs `validate_authored_item`, whose `check_sympy_independent_solve` fails closed on a
+    # missing equation (D-191) - so the row the pipeline accepted is one the bank load
+    # *rejects*, and the disagreement surfaces at export time, after a human has spent
+    # review effort on it. Two gates that disagree about what a valid item is are worse than
+    # either gate alone.
+    #
+    # Placed before the solvers deliberately: an item with no equation cannot pass the
+    # loader whatever the solvers say, so rejecting here also saves three paid calls.
+    if not item.equation:
+        missing = [
+            "equation is missing - the item must model its question as a solvable equation, "
+            "or the bank load will reject it after review time has been spent on it"
+        ]
+        stage_results: dict = {"deterministic_gate": {"passed": False, "failures": missing}}
+        return await _reject(missing, stage_results, "validation")
+
+    stage_results: dict = {
+        "deterministic_gate": {
+            "passed": True,
+            "checks": ["hint_answer_leak", "equation_present"],
+        }
+    }
 
     if await repo.rendered_question_exists(rendered_question):
         stage_results["deduplication"] = {"passed": False, "reason": "exact text duplicate"}
@@ -2019,6 +2067,7 @@ async def generate_authored_candidate(
     # Equations a sibling candidate of this same slot already used (D-273). Empty for the
     # first candidate of a slot, and for every caller that generates one item at a time.
     avoid_equations: Sequence[str] = (),
+    avoid_scenarios: Sequence[str] = (),
 ) -> PipelineOutcome:
     """One slot, with a bounded repair loop: when a candidate is rejected for something a
     rewrite could fix, the Generator is told what was wrong and tries again (D-198).
@@ -2060,6 +2109,7 @@ async def generate_authored_candidate(
                 spend=session_spend_cents,
                 max_attempts=design_attempts,
                 avoid_equations=avoid_equations,
+                avoid_scenarios=avoid_scenarios,
             )
             spent += design_cost
             provider_only = all(
@@ -2096,6 +2146,7 @@ async def generate_authored_candidate(
     # when the candidate is later rejected (D-273). `design` is in scope from the block
     # above; it is None only on paths that returned before reaching this loop.
     designed_equation = design.equation if design is not None else None
+    designed_scenario = design.scenario_sketch if design is not None else None
 
     while True:
         outcome = await _attempt_authored_candidate(
@@ -2118,6 +2169,7 @@ async def generate_authored_candidate(
             dispersion=dispersion,
         )
         outcome.equation = designed_equation
+        outcome.scenario_sketch = designed_scenario
         spent += outcome.cost_cents
         # Every attempt's spend counts, including the failed ones: the caller is paying for
         # the slot, not for its last try.

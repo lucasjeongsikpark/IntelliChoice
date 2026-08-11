@@ -13,6 +13,7 @@ import pytest
 from intellichoice_curriculum.authored_validation import (
     DerivedAnswer,
     _option_matches,
+    derive_answer,
     route_answer,
 )
 
@@ -166,3 +167,47 @@ def test_the_whole_shipped_bank_still_routes_as_value_and_matches_its_own_key():
             assert matching == [template["correct_option"]], template["question_template_id"]
             checked += 1
     assert checked == 184
+
+
+# --------------------------------------------------------------------------------------
+# The parser must return a verdict for every input, including ones SymPy answers oddly
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("text", ["None", "True", "False", "...", ""])
+def test_a_non_value_parse_is_rejected_rather_than_raised(text):
+    """`parse_expr` does not only raise or return a `Basic` (D-275).
+
+    Handed `'None'`, `'True'` or `'...'` it returns the plain Python object, which has no
+    `.free_symbols` - so `route_answer` died with `AttributeError` instead of returning
+    `(None, reason)`, in a function documented as fail-closed. Found while analysing the
+    first real 3-5 wave, on a row whose `answer_expression` was NULL.
+
+    **Third occurrence of this class**, which is why the fix is in `_parse_side` rather
+    than at the call site that reported it: Phase R's `TokenError` escaping `derive_answer`
+    and D-274's `sympify('4,700')` returning a tuple were the first two, each patched where
+    it surfaced. All ten callers already wrap the parser in `except _PARSE_ERRORS`, so
+    fixing the parser fixes every route at once.
+    """
+    for fn in (route_answer, derive_answer):
+        value, error = fn(text)
+        assert value is None, f"{fn.__name__} accepted {text!r}"
+        assert error
+
+
+@pytest.mark.parametrize(
+    ("equation", "expected"),
+    [
+        ("Eq(x, 428 * 6)", "value"),
+        # The missing-factor form the second `decimals` run introduced. It has to keep
+        # working: the fix touches the parser every route shares.
+        ("Eq(2.5 * x, 8.75)", "value"),
+        ("x**2 = 9", "multi_root"),
+        ("3*x + 2 > 11", "interval"),
+        ("x**2 - 9", "symbolic"),
+    ],
+)
+def test_real_equations_are_unaffected_by_the_non_value_guard(equation, expected):
+    derivation, error = route_answer(equation)
+    assert derivation is not None, error
+    assert derivation.model == expected

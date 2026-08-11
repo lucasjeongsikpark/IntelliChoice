@@ -449,6 +449,9 @@ class EquationDesignPayload(BaseModel):
     # number set. Detecting that afterwards is the second-best fix; telling the design stage
     # what its slot-mate already used is the first.
     avoid_equations: list[str] = []
+    # Scenarios this skill's earlier candidates already used, so the design call can
+    # pick a different setting rather than a different name for the same one (D-275).
+    avoid_scenarios: list[str] = []
 
 
 class EquationDesignResponse(BaseModel):

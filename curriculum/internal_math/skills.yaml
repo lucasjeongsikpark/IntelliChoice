@@ -258,15 +258,28 @@ skills:
     topic_id: decimals
     name: "Multiply decimals"
     difficulty_tiers: [3, 4]
-    structure: "one multiplication where at least one factor is a decimal, e.g. Eq(x, 2.5 * 1.4)"
+    # D-275: "at least one factor is a decimal" let the first real run author `2.5 * 12` and
+    # `3.5 * 8` - decimal times WHOLE NUMBER, whose answers (30, 28) are whole. 0 of 2 items
+    # produced a non-whole answer, so the skill the `rational` family was added for was not
+    # being exercised at all. BOTH factors must be decimals, which is also what makes the
+    # skill's actual work - the answer's decimal places being the sum of the factors' - exist.
+    structure: "one multiplication where BOTH factors are decimals, e.g. Eq(x, 2.5 * 1.4) -
+      a decimal times a whole number is the easier skill and is wrong for this slot, because
+      the point is that the answer's decimal places are the SUM of the two factors'"
     answer_family: rational
 
   - skill_id: decimal_divide
     topic_id: decimals
     name: "Divide decimals"
     difficulty_tiers: [4, 5]
-    structure: "one division where the DIVISOR is a decimal, e.g. Eq(x, 8.4 / 0.7) - dividing a
-      decimal by a whole number is the easier skill and is wrong for this slot"
+    # D-275: the structure was satisfied and the skill still was not exercised. All six items
+    # from the first run were "how many 0.9 m pieces fit in 6.3 m" - a divisor that divides
+    # evenly, so 4 of 6 answers were whole and the decimal never reached the quotient. The
+    # "how many whole pieces" framing is what forces that, so the structure now rules it out.
+    structure: "one division where the DIVISOR is a decimal AND the quotient is itself a
+      decimal, e.g. Eq(x, 8.4 / 0.5) - avoid 'how many whole pieces fit' scenarios, which
+      force an even division and hide the skill; dividing by a whole number is the easier
+      skill and is wrong for this slot either way"
     answer_family: rational
 
   # number_sense
@@ -290,8 +303,15 @@ skills:
     topic_id: number_sense
     name: "Round a number to a given place"
     difficulty_tiers: [3, 4, 5]
+    # This skill spans both answer kinds and is `rational` for that reason, not because every
+    # answer is non-whole: rounding 4738 to the nearest hundred gives the whole 4700, while
+    # tier 4's own anchor rounds a DECIMAL to a named place and gives 3.5. `rational` permits
+    # a non-whole answer, it does not require one - and the structure has to say so, or the
+    # decimal half goes unauthored the way `decimal_multiply`'s did (D-275).
     structure: "a rounding written as the arithmetic that performs it, e.g. Eq(x, 100 *
-      round(4738 / 100)) for the nearest hundred - never Eq(x, 4700), which states the answer"
+      round(4738 / 100)) for the nearest hundred - never Eq(x, 4700), which states the answer.
+      At tier 4 and above round a DECIMAL to a named place, e.g.
+      Eq(x, Rational(1,10) * round(3.472 * 10)), where the answer is itself a decimal"
     answer_family: rational
 
   # measurement

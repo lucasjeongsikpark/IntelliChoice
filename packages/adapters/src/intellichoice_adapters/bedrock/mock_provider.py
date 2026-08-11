@@ -153,10 +153,17 @@ def _equation_design_json(payload: dict) -> dict:
     avoid = payload.get("avoid_equations") or []
     left = difficulty + len(avoid)
     right = difficulty + 1
+    # Varies on `avoid_scenarios` for the same reason the equation varies on
+    # `avoid_equations` (D-275). A constant setting was a faithful double while nothing told
+    # the model what had already been used; once the runner does, a mock that returns one
+    # setting forever cannot rehearse the behaviour being relied on. The first real wave
+    # measured 11 of 17 stems about cutting ribbon, so this is not a hypothetical.
+    settings = ("counters", "marbles", "stickers", "acorns", "buttons", "shells")
+    thing = settings[len(payload.get("avoid_scenarios") or []) % len(settings)]
     return {
         "reasoning": "mock design: one addition, sized to the requested tier",
         "scenario_sketch": (
-            f"A child has {left} counters and is given {right} more; how many now?"
+            f"A child has {left} {thing} and is given {right} more; how many now?"
         ),
         "unknown_meaning": "the total number of counters",
         "equation": f"Eq(x, {left} + {right})",

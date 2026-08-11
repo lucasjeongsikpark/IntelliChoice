@@ -378,7 +378,26 @@ _PARSE_ERRORS = (
 
 
 def _parse_side(text: str) -> sympy.Basic:
-    return parse_expr(text, transformations=_PARSE_TRANSFORMS, evaluate=True)
+    """Parse one side of a relation, or raise so the caller's `except` turns it into a
+    rejection.
+
+    **The `isinstance` is the fix, and it belongs here rather than at any one call site
+    (D-275).** `parse_expr` does not only raise or return a `Basic`: handed `'None'`,
+    `'True'` or `'...'` it returns the plain Python object, which has no `.free_symbols`
+    and no `.subs`. `route_answer` then died with `AttributeError` instead of returning
+    `(None, reason)` - a crash where a verdict belongs, and the check is documented as
+    fail-closed.
+
+    Third time this codebase has hit this exact class: Phase R's `TokenError` escaping
+    `derive_answer`, D-274's `sympify('4,700')` returning a tuple, and this. The first two
+    were fixed at the site that reported them; this one is fixed at the shared parser, so
+    all ten callers - each already wrapping this in `except _PARSE_ERRORS` - are covered
+    at once. `TypeError` is a member of `_PARSE_ERRORS`, so no caller changes.
+    """
+    parsed = parse_expr(text, transformations=_PARSE_TRANSFORMS, evaluate=True)
+    if not isinstance(parsed, sympy.Basic):
+        raise TypeError(f"{text!r} parsed to {type(parsed).__name__}, not a value")
+    return parsed
 
 
 def derive_answer(equation: str) -> tuple[sympy.Basic | None, str | None]:

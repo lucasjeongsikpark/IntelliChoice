@@ -60,6 +60,11 @@ _AUTHORED_SEED_BASE = 5000
 # whether the offset is fresh, and `_settle` contains the damage if it is not.
 DEFAULT_SEED_OFFSET = 0
 
+# How many recent scenarios a design call is told to avoid (D-275). Small on purpose:
+# the repetition measured was local - the model collapsed onto what it had just written -
+# and a longer list crowds the prompt with settings nobody was about to reuse anyway.
+_SCENARIO_MEMORY = 5
+
 
 def authored_seed(*, skill_index: int, difficulty_label: int, index: int, seed_offset: int) -> int:
     """The (skill, tier, index) -> seed mapping, as a pure function so its one real
@@ -491,7 +496,26 @@ async def run_plan(
     # Run-scoped like `dispersion`, and for the same reason: it describes this batch. A
     # cross-run version is what `arithmetic_identity` is for, once the mock can produce two
     # distinct items and that check can be tested.
-    used_equations: dict[tuple[str, int], list[str]] = {}
+    #
+    # **Keyed on the SKILL, not on (skill, tier) - widened in D-275 after the first real run
+    # measured the gap.** The `decimals` wave produced `Eq(x, 6.3 / 0.9)` at tier 4 *and* at
+    # tier 5, with near-identical stems, because a per-tier key cannot see across tiers and
+    # a skill's tiers differ in how demanding the numbers are, not in which numbers exist.
+    # A student meets a topic's items as one set, so the duplicate they would notice is the
+    # one this key now covers.
+    used_equations: dict[str, list[str]] = {}
+
+    # The same mechanism, applied to the other thing the first run repeated. Measured on
+    # that run: **11 of 17 stems were about cutting ribbon** - Lena, Emma, Ava, Lila and
+    # Maya all cutting ribbon - because the three few-shot exemplars are algebra word
+    # problems (robots, a bike, a bakery) and a decimals slot therefore invents its own
+    # setting with nothing telling it what has already been invented.
+    #
+    # Carried as data rather than as a "be varied" instruction, on D-252's finding that a
+    # prompt clause protecting one field held 0 of 52 times while structure holds by
+    # construction. `scenario_sketch` is what the design stage already returns, so this
+    # costs no new field on the response and no extra call.
+    used_scenarios: dict[str, list[str]] = {}
 
     for slot in plan.slots:
         if spend >= plan.run_budget_cents:
@@ -514,7 +538,11 @@ async def run_plan(
                 # between-slot check only notices after the money is gone.
                 budget_ceiling_cents=plan.run_budget_cents,
                 dispersion=dispersion,
-                avoid_equations=used_equations.get((slot.skill_id, slot.difficulty_label), ()),
+                avoid_equations=used_equations.get(slot.skill_id, ()),
+                # Only the most recent few. The whole list would crowd the design prompt and
+                # the repetition being prevented is local - the model collapses onto what it
+                # just wrote, not onto something twelve candidates ago.
+                avoid_scenarios=used_scenarios.get(slot.skill_id, [])[-_SCENARIO_MEMORY:],
             )
         except IntegrityError as exc:
             # The collision surfaces HERE, not at commit: `QuestionRepository.create_template`
@@ -539,9 +567,9 @@ async def run_plan(
         # as used up as an accepted one's. Recording only accepted ones would let a rejected
         # `9 + 9` be re-proposed by the next candidate and rejected again.
         if outcome.equation:
-            used_equations.setdefault((slot.skill_id, slot.difficulty_label), []).append(
-                outcome.equation
-            )
+            used_equations.setdefault(slot.skill_id, []).append(outcome.equation)
+        if outcome.scenario_sketch:
+            used_scenarios.setdefault(slot.skill_id, []).append(outcome.scenario_sketch)
         await _settle(
             session,
             summary,
