@@ -8962,6 +8962,11 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   4. **A session is 25–40 questions** (10 pre-exam + 5–20 study + 10 post-exam) for a K-12
      student. Out of scope here and unchanged; the journey bar now makes it visible, which is
      worth seeing before deciding whether to change it.
+  5. **`main` is still unprotected** — carried from the previous session (#20), and it bit here:
+     one docs commit went straight to `main` before I caught it, and the code fix behind it was
+     only moved onto a branch because I noticed, not because anything stopped me. Every other
+     change this session went through a PR with CI. This is the cheapest open item on the list
+     and the only one whose absence relies on my attention.
 
 ### S66 (unnumbered) — authored content can be served, and CI proved the content lives nowhere but one laptop: D-189 (2026-08-05) ⏸ partial
 
