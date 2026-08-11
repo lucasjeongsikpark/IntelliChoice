@@ -19541,3 +19541,37 @@ help is on screen; `study_progress` across the retry ladder, the prerequisite ca
 "never 6 of 5" clamp, plus its wiring onto `finalize`; the canonical-first hint with its audit
 row and ids-only marker. Content re-gated through `curriculum-load` (1 updated, 129 unchanged)
 and re-exported, with the round trip verified clean on unmodified content first.
+
+### D-272 postscript — what the staging verification actually found
+
+Two things the local suite could not have caught, both because the mock returns in ~26 ms where
+real Bedrock takes seconds.
+
+**1. A stale narrative marker was wiping the hint.** Opening the SSE stream against staging and
+reading the frames showed two arriving ~100 ms apart on a hint: the good one, then one with
+`pending_interrupt`, `intervention` and `assistance_question` all null. `pending_study_narrative`
+is a `LastValue` channel, `_study_narrative_update` returned `{}` when a turn produced no marker,
+and `/respond` reads the marker off the turn result — so the hint turn re-scheduled a narrative
+that had already fired, and `build_deferred_narrative_snapshot` omits exactly the three fields
+the help panel needs. Fixed in two independent places (#233).
+
+**The mechanism predates this work.** The stale marker had always been re-scheduled; it was
+invisible because the panel it strips had already collapsed on its own — the defect §2 fixes.
+Fixing the layout is what made this one observable, which is an argument for fixing layout bugs
+even when they look cosmetic.
+
+**I misdiagnosed it twice before reading the frames.** First as the new hint personalizer (the
+timing matched). Then, after the probe's captured text turned out to be the chooser rather than a
+hint, as a probe artifact. Neither was right, and both were plausible.
+
+**And the regression test was worthless on its first two runs.** It passed with each fix reverted
+in turn, because the other still covered the path. Only reverting all three showed it failing on
+the assertion that mattered. A test that passes either way tests nothing; reverting the fix is
+the only thing that establishes a regression test is one.
+
+**2. `pre_intro` drops a modal over the exam.** `time-telemetry.spec.ts` fails 3 of 3 on staging
+because the "Welcome to math practice!" overlay lands after the harness has settled and
+intercepts clicks on the question navigator. A student meets the same thing — they start reading
+question 1 and a dialog appears over it ~2.6 s later. That is the measured `pre_intro`-inside-
+the-SSE-connect design, and it is now carry-over 1's strongest argument: it is not only 2.6 s of
+waiting, it is a modal arriving after the student has started working.

@@ -8899,9 +8899,14 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   instantly, personalization in a detached task); the narrative stopped listing five skill names
   twice; `.app-main` top-aligned and the study grid 1200 → 1560.
 - **Verification:** `make lint` clean, `make typecheck` 0 errors, `make test` **1171 passed, 3
-  skipped, 1 xfailed** (from 1161/2/1). `tsc` + `oxlint` clean. **66 Playwright e2e passed**, up
-  from 63 passed / 3 failed — the 3 were failing on `main` too, confirmed by checking it out and
-  running the spec.
+  skipped, 1 xfailed** (from 1161/2/1). `tsc` + `oxlint` clean. **66 Playwright e2e passed
+  locally**, up from 63 passed / 3 failed — the 3 were failing on `main` too, confirmed by
+  checking it out and running the spec. **Against staging: 24 of 25**, with
+  `time-telemetry.spec.ts` failing 3 of 3 on the `pre_intro` overlay — see carry-over 1. The
+  local number is not the whole picture and should not be quoted as if it were.
+- **Measured on staging after deploy** (`44287e7`, real Bedrock): "Get a hint" **0.352 s**
+  (was ~2.3 s); a study answer **0.31 s**; `assistance_question` and `study_progress` present at
+  every help state.
 - **Two things that went wrong, and they are the transferable part.** A similarity metric scored
   every `context_block` below threshold and reported **zero** problems; reading all six found one
   that restates its own stem. And the e2e helper's locator had been invalidated by D-241, so a
@@ -8923,6 +8928,20 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
      `stream._initial_snapshot` calls `_maybe_fire_pre_intro`, a real Bedrock call made *inside*
      the connect, and the browser opens `EventSource` as soon as it has a session id. So the
      first screen is ~3.5 s and one narrative call is ~75% of it.
+
+     **And it is not only a latency problem — it drops a modal over the exam.** Verified on
+     staging 2026-08-10 on `44287e7`: `tests/learning/time-telemetry.spec.ts` fails **3 of 3**
+     because the `pre_intro` overlay ("Welcome to math practice! …") lands *after*
+     `settleToInteractiveScreen` has returned and sits over the pre-exam, intercepting pointer
+     events on the question navigator. A student meets the same thing: they start reading
+     question 1 and ~2.6 s later a dialog appears over it. Locally it never happens — the mock
+     returns in ~26 ms, so the overlay is up and dismissed before anyone touches anything,
+     which is why 66 of 66 pass there and this is staging-only.
+
+     **Attribution, stated honestly:** it passed on the previous staging build (`57c44d1`) and
+     fails on this one, and I have not established which change moved it — the window *is* the
+     2.58 s narrative call, so any timing shift (a deploy's cold tasks, the network, a render)
+     moves it in or out. What is certain is the blocking element and its cause.
 
      **The fix is not shipped, deliberately.** It is the same "publish it a beat later" shape as
      D-217 and D-241, but this one publishes into `stream_session`, and that is the exact path
