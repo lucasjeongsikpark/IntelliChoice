@@ -1,0 +1,919 @@
+curriculum_version: '2026.1'
+topic_id: number_sense
+templates:
+- question_template_id: authored-number_sense-d3-945302
+  topic_id: number_sense
+  skill_id: number_large_compare
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Selected the smallest number instead of the largest
+  - Stopped comparing after eliminating one option or confused middle and maximum
+  - Transposed digits when reading or writing the number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Three charity fundraisers reported their totals. Event A raised $42,857, Event B raised $49,134,
+    and Event C raised $46,728. Which event raised the most money?
+  context_block: ''
+  answer_expression: Eq(x, Max(42857, 49134, 46728))
+  hint_ladder:
+  - Line up the three amounts by place value, starting with the leftmost digit.
+  - 'All three numbers start with 4 in the ten-thousands place, so compare the next digit to the right:
+    the thousands place.'
+  - The thousands digits are 9, 2, and 6. The number with the greatest digit in that place is the largest.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the three amounts in a column, aligning by place value: 42,857, 49,134, and
+        46,728.'
+      expression: 42857, 49134, 46728
+      common_mistake: null
+    - step_number: 2
+      explanation: Compare the ten-thousands place (leftmost digit). All three have 4, so they are equal
+        in this place.
+      expression: 4 = 4 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Move to the thousands place (second digit from the left). Event A has 2, Event B has
+        9, Event C has 6.
+      expression: 2, 9, 6
+      common_mistake: null
+    - step_number: 4
+      explanation: Since 9 is greater than both 2 and 6, Event B raised the most money.
+      expression: '49134'
+      common_mistake: null
+    final_answer: '49134'
+  random_seed: 945302
+  rendered_question: Three charity fundraisers reported their totals. Event A raised $42,857, Event B
+    raised $49,134, and Event C raised $46,728. Which event raised the most money?
+  option_a: '42857'
+  option_b: '49143'
+  option_c: '46728'
+  option_d: '49134'
+  correct_option: d
+- question_template_id: authored-number_sense-d2-945200
+  topic_id: number_sense
+  skill_id: number_large_compare
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - selected_middle_value_instead_of_largest
+  - selected_smallest_instead_of_largest
+  - reversed_digits_when_reading
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Three cities reported their populations. City A has 45,832 people, City B has 67,419 people, and
+    City C has 52,106 people. Which city has the largest population?
+  context_block: ''
+  answer_expression: Eq(x, Max(45832, 67419, 52106))
+  hint_ladder:
+  - Look at the leftmost digit of each population number—the ten-thousands place.
+  - The ten-thousands digits are 4, 6, and 5. Which of those is greatest?
+  - Once you identify the number that starts with the greatest digit, that number is the largest.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write down the three populations: City A has 45,832, City B has 67,419, and City C
+        has 52,106.'
+      expression: 45832, 67419, 52106
+      common_mistake: null
+    - step_number: 2
+      explanation: Compare the ten-thousands place of each number. City A starts with 4, City B starts
+        with 6, and City C starts with 5.
+      expression: 4 < 5 < 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 6 is the greatest digit in the ten-thousands place, City B has the largest population.
+      expression: '67419'
+      common_mistake: null
+    final_answer: 67419 people
+  random_seed: 945200
+  rendered_question: Three cities reported their populations. City A has 45,832 people, City B has 67,419
+    people, and City C has 52,106 people. Which city has the largest population?
+  option_a: 67419 people
+  option_b: 45832 people
+  option_c: 67149 people
+  option_d: 52106 people
+  correct_option: a
+- question_template_id: authored-number_sense-d2-945201
+  topic_id: number_sense
+  skill_id: number_large_compare
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - compared_ones_place_only
+  - confused_order_relation
+  - misread_middle_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Three schools held book drives. School A collected 38,472 books, School B collected 52,839 books,
+    and School C collected 41,265 books. Which school collected the most books?
+  context_block: null
+  answer_expression: Eq(x, Max(38472, 52839, 41265))
+  hint_ladder:
+  - Look at the leftmost digit in each number to find which is greatest.
+  - 'Compare the ten-thousands place first: 5 is greater than 4 or 3.'
+  - The number with the greatest ten-thousands digit is the largest number.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write down the three numbers: 38,472, 52,839, and 41,265.'
+      expression: 38472, 52839, 41265
+      common_mistake: null
+    - step_number: 2
+      explanation: Compare the ten-thousands place in each number. The digits are 3, 5, and 4.
+      expression: 5 > 4 > 3
+      common_mistake: null
+    - step_number: 3
+      explanation: The number with the greatest ten-thousands digit is 52,839.
+      expression: '52839'
+      common_mistake: null
+    final_answer: 52839 books
+  random_seed: 945201
+  rendered_question: Three schools held book drives. School A collected 38,472 books, School B collected
+    52,839 books, and School C collected 41,265 books. Which school collected the most books?
+  option_a: 41265 books
+  option_b: 52839 books
+  option_c: 38472 books
+  option_d: 38473 books
+  correct_option: b
+- question_template_id: authored-number_sense-d3-945300
+  topic_id: number_sense
+  skill_id: number_large_compare
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - compared_only_first_two_numbers
+  - compared_only_leading_digit
+  - rounded_before_comparing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Three football stadiums reported their attendance for championship games. Stadium A had 73,429
+    fans, Stadium B had 73,816 fans, and Stadium C had 71,592 fans. Which stadium had the highest attendance?
+  context_block: null
+  answer_expression: Eq(x, Max(73429, 73816, 71592))
+  hint_ladder:
+  - Look at the ten-thousands place first in all three numbers to see if any are different.
+  - When the ten-thousands digits are the same, compare the thousands place, then the hundreds place if
+    needed.
+  - Line up the numbers by place value and compare digits from left to right until you find the first
+    place where they differ.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the three attendance numbers in a column, lining up place values: 73,429; 73,816;
+        71,592.'
+      expression: 73429, 73816, 71592
+      common_mistake: null
+    - step_number: 2
+      explanation: Compare the ten-thousands place. All three numbers have 7, so move to the thousands
+        place.
+      expression: 7 = 7 = 7
+      common_mistake: null
+    - step_number: 3
+      explanation: Compare the thousands place. Stadium A and B both have 3, but Stadium C has 1. Since
+        3 > 1, Stadium C has the smallest attendance.
+      expression: 3 > 1
+      common_mistake: null
+    - step_number: 4
+      explanation: Now compare Stadium A (73,429) and Stadium B (73,816) by looking at the hundreds place.
+        Stadium A has 4 and Stadium B has 8.
+      expression: 8 > 4
+      common_mistake: null
+    - step_number: 5
+      explanation: Since 8 is greater than 4 in the hundreds place, 73,816 is greater than 73,429. Stadium
+        B has the highest attendance.
+      expression: 73816 > 73429 > 71592
+      common_mistake: null
+    final_answer: '73816'
+  random_seed: 945300
+  rendered_question: Three football stadiums reported their attendance for championship games. Stadium
+    A had 73,429 fans, Stadium B had 73,816 fans, and Stadium C had 71,592 fans. Which stadium had the
+    highest attendance?
+  option_a: '71592'
+  option_b: '73816'
+  option_c: '73429'
+  option_d: '74000'
+  correct_option: b
+- question_template_id: authored-number_sense-d1-946100
+  topic_id: number_sense
+  skill_id: number_odd_even
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - confused_remainder_with_zero_for_even
+  - gave_even_remainder_instead_of_odd
+  - gave_quotient_instead_of_remainder
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Zara has 47 stickers. She wants to share them equally between 2 friends. After giving each friend
+    the same number of stickers, how many stickers will be left over?
+  context_block: null
+  answer_expression: Eq(x, Mod(47, 2))
+  hint_ladder:
+  - When you divide a number by 2, the remainder tells you if the number is odd or even.
+  - Divide 47 by 2 and see what is left after making two equal groups.
+  - Find 47 ÷ 2 and look at the remainder, not the quotient.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Divide 47 by 2 to find how many stickers each friend gets and how many are left over.
+      expression: 47 ÷ 2 = 23 remainder 1
+      common_mistake: null
+    - step_number: 2
+      explanation: Each friend gets 23 stickers, and 1 sticker is left over.
+      expression: remainder = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 946100
+  rendered_question: Zara has 47 stickers. She wants to share them equally between 2 friends. After giving
+    each friend the same number of stickers, how many stickers will be left over?
+  option_a: '23'
+  option_b: '0'
+  option_c: '1'
+  option_d: '2'
+  correct_option: c
+- question_template_id: authored-number_sense-d1-946102
+  topic_id: number_sense
+  skill_id: number_odd_even
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - thought_even_numbers_have_remainder_zero
+  - confused_remainder_with_divisor
+  - stopped_at_quotient_instead_of_remainder
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A coach has 65 players and wants to pair them up for a drill. When she divides the players into
+    pairs, what is the remainder?
+  context_block: null
+  answer_expression: Eq(x, Mod(65, 2))
+  hint_ladder:
+  - When you divide 65 players into groups of 2, how many will be left over after making as many complete
+    pairs as possible?
+  - Find how many twos fit into 65, then see what is left.
+  - Calculate 65 ÷ 2 and identify the remainder.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the remainder when 65 is divided by 2, we perform the division.
+      expression: 65 ÷ 2 = 32 remainder r
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate 32 times 2 to find how many players are in complete pairs.
+      expression: 32 × 2 = 64
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the number of players in complete pairs from the total to find the remainder.
+      expression: 65 - 64 = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 946102
+  rendered_question: A coach has 65 players and wants to pair them up for a drill. When she divides the
+    players into pairs, what is the remainder?
+  option_a: '0'
+  option_b: '2'
+  option_c: '32'
+  option_d: '1'
+  correct_option: d
+- question_template_id: authored-number_sense-d2-946200
+  topic_id: number_sense
+  skill_id: number_odd_even
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - thought_number_was_even
+  - confused_divisor_with_remainder
+  - reported_quotient_instead_of_remainder
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker has 1247 cookies and wants to package them into pairs. How many cookies will be left over
+    after making as many pairs as possible?
+  context_block: null
+  answer_expression: Eq(x, Mod(1247, 2))
+  hint_ladder:
+  - When you divide a number by 2, the remainder tells you whether the number is odd or even.
+  - Divide 1247 by 2 and find how much is left after making the pairs.
+  - The remainder when 1247 is divided by 2 is what you're looking for.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find how many cookies are left over after making pairs, we need to find the remainder
+        when 1247 is divided by 2.
+      expression: 1247 mod 2
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Dividing 1247 by 2 gives 623 with a remainder. We calculate: 1247 = 2 × 623 + remainder.'
+      expression: 1247 = 2 × 623 + r
+      common_mistake: null
+    - step_number: 3
+      explanation: Compute 2 × 623 = 1246, so the remainder is 1247 - 1246 = 1.
+      expression: r = 1247 - 1246 = 1
+      common_mistake: null
+    - step_number: 4
+      explanation: Since the remainder is 1, one cookie will be left over after making all possible pairs.
+      expression: x = 1
+      common_mistake: null
+    final_answer: 1 cookie
+  random_seed: 946200
+  rendered_question: A baker has 1247 cookies and wants to package them into pairs. How many cookies will
+    be left over after making as many pairs as possible?
+  option_a: 623 cookies
+  option_b: 1 cookie
+  option_c: 0 cookies
+  option_d: 2 cookies
+  correct_option: b
+- question_template_id: authored-number_sense-d2-946202
+  topic_id: number_sense
+  skill_id: number_odd_even
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - mistook_odd_for_even
+  - confused_divisor_with_remainder
+  - reported_dividend_instead_of_remainder
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory worker has 5629 bolts to pack. He tries to pair them evenly so each pair can go into
+    a small box. What remainder is left after dividing the bolts into pairs?
+  context_block: ''
+  answer_expression: Eq(x, Mod(5629, 2))
+  hint_ladder:
+  - Think about what happens when you group the bolts two at a time.
+  - Divide 5629 by 2 and look at what is left over, not the quotient.
+  - Write 5629 ÷ 2 and find the remainder using division.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the remainder when dividing 5629 bolts into pairs, I need to divide 5629 by
+        2.
+      expression: 5629 ÷ 2
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Performing the division: 5629 ÷ 2 = 2814 with a remainder.'
+      expression: 2814 R ?
+      common_mistake: null
+    - step_number: 3
+      explanation: To find the remainder, I calculate 2 × 2814 = 5628, then 5629 - 5628 = 1.
+      expression: 5629 - 5628 = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 946202
+  rendered_question: A factory worker has 5629 bolts to pack. He tries to pair them evenly so each pair
+    can go into a small box. What remainder is left after dividing the bolts into pairs?
+  option_a: '5629'
+  option_b: '0'
+  option_c: '1'
+  option_d: '2'
+  correct_option: c
+- question_template_id: authored-number_sense-d3-947300
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_up_below_halfway
+  - rounded_to_wrong_place_value_ten
+  - rounded_to_wrong_place_value_thousand
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school collected 3847 cans for a food drive. The principal wants to report the total rounded
+    to the nearest hundred for the poster. How many cans should she write?
+  context_block: ''
+  answer_expression: Eq(x, 100 * round(3847 / 100))
+  hint_ladder:
+  - Identify which place value you are rounding to and find the digit immediately to its right.
+  - The tens digit is 4. Since 4 is less than 5, you round down.
+  - Write the hundreds digit as it is and replace all digits to the right with zeros.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To round 3847 to the nearest hundred, first identify the hundreds place. The digit
+        in the hundreds place is 8.
+      expression: '3847'
+      common_mistake: null
+    - step_number: 2
+      explanation: Look at the digit in the tens place, which is 4. Since 4 is less than 5, we round down.
+      expression: 4 < 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Keep the hundreds digit as 8 and replace all digits to the right with zeros.
+      expression: '3800'
+      common_mistake: null
+    final_answer: 3800 cans
+  random_seed: 947300
+  rendered_question: A school collected 3847 cans for a food drive. The principal wants to report the
+    total rounded to the nearest hundred for the poster. How many cans should she write?
+  option_a: 4000 cans
+  option_b: 3850 cans
+  option_c: 3800 cans
+  option_d: 3900 cans
+  correct_option: c
+- question_template_id: authored-number_sense-d3-947301
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_down_when_digit_is_five_or_more
+  - rounded_to_wrong_place_value
+  - rounded_to_nearest_thousand_instead_of_hundred
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library tracked that 5,263 books were checked out in a month. The librarian needs to round this
+    number to the nearest hundred for the monthly report. What number should appear in the report?
+  context_block: ''
+  answer_expression: Eq(x, 100 * round(5263 / 100))
+  hint_ladder:
+  - Look at the digit in the tens place to decide whether to round the hundreds digit up or keep it the
+    same.
+  - The digit in the tens place is 6. When the digit in the place to the right is 5 or more, round up.
+  - Since 6 is greater than or equal to 5, increase the hundreds digit by 1 and replace all digits to
+    the right with zeros.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the digit in the hundreds place. In 5,263, the hundreds digit is 2.
+      expression: 5,263 → hundreds digit is 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Look at the digit immediately to the right, in the tens place. That digit is 6.
+      expression: tens digit is 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 6 is greater than or equal to 5, round the hundreds digit up by 1, changing 2
+        to 3.
+      expression: 2 + 1 = 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Replace all digits to the right of the hundreds place with zeros.
+      expression: 5,300
+      common_mistake: null
+    final_answer: 5300 books
+  random_seed: 947301
+  rendered_question: A library tracked that 5,263 books were checked out in a month. The librarian needs
+    to round this number to the nearest hundred for the monthly report. What number should appear in the
+    report?
+  option_a: 5200 books
+  option_b: 5260 books
+  option_c: 5300 books
+  option_d: 6000 books
+  correct_option: c
+- question_template_id: authored-number_sense-d3-947302
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_down_when_digit_is_five
+  - rounded_to_wrong_place_value_tens
+  - rounded_to_wrong_place_value_thousands
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A stadium counted 4256 visitors at a concert. The marketing team needs to round this number to
+    the nearest hundred for the press release. What attendance should they report?
+  context_block: null
+  answer_expression: Eq(x, 100 * round(4256 / 100))
+  hint_ladder:
+  - Look at the digit in the tens place to decide whether to round the hundreds digit up or keep it the
+    same.
+  - The hundreds digit is 2, and the digit to its right is 5. When the digit to the right is 5 or greater,
+    round up.
+  - Since 5 is in the tens place, increase the 2 in the hundreds place to 3, then replace all digits to
+    the right with zeros.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the hundreds place in 4256. The digit 2 is in the hundreds place.
+      expression: 4256 = 4000 + 200 + 50 + 6
+      common_mistake: null
+    - step_number: 2
+      explanation: Look at the digit to the right of the hundreds place. The tens digit is 5.
+      expression: tens digit = 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 5 is greater than or equal to 5, round the hundreds digit up from 2 to 3.
+      expression: 200 → 300
+      common_mistake: null
+    - step_number: 4
+      explanation: Replace all digits to the right of the hundreds place with zeros.
+      expression: 4256 → 4300
+      common_mistake: null
+    final_answer: 4300 visitors
+  random_seed: 947302
+  rendered_question: A stadium counted 4256 visitors at a concert. The marketing team needs to round this
+    number to the nearest hundred for the press release. What attendance should they report?
+  option_a: 4200 visitors
+  option_b: 4260 visitors
+  option_c: 4000 visitors
+  option_d: 4300 visitors
+  correct_option: d
+- question_template_id: authored-number_sense-d5-947501
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_down_when_should_round_up
+  - rounded_to_wrong_place
+  - stopped_at_hundredths_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A weather station recorded 4.873 inches of rainfall during a storm. The monthly report requires
+    the measurement rounded to the nearest tenth of an inch. What value should be reported?
+  context_block: null
+  answer_expression: Eq(x, Rational(1,10) * round(4.873 * 10))
+  hint_ladder:
+  - Identify the digit in the tenths place and the digit immediately to its right.
+  - The digit in the tenths place is 8, and the hundredths digit is 7. Use the hundredths digit to decide
+    whether to round up or keep the tenths digit.
+  - Since 7 is 5 or greater, increase the tenths digit by 1 and drop all digits to the right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Locate the tenths place in 4.873. The digit 8 is in the tenths place.
+      expression: '4.873'
+      common_mistake: null
+    - step_number: 2
+      explanation: Look at the digit to the right of the tenths place to decide whether to round up or
+        stay. The hundredths digit is 7.
+      expression: '7'
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 7 is greater than or equal to 5, round the tenths digit up from 8 to 9.
+      expression: 8 + 1 = 9
+      common_mistake: null
+    - step_number: 4
+      explanation: Drop all digits after the tenths place. The rounded value is 4.9 inches.
+      expression: '4.9'
+      common_mistake: null
+    final_answer: 4.9 inches
+  random_seed: 947501
+  rendered_question: A weather station recorded 4.873 inches of rainfall during a storm. The monthly report
+    requires the measurement rounded to the nearest tenth of an inch. What value should be reported?
+  option_a: 4.9 inches
+  option_b: 5.0 inches
+  option_c: 4.8 inches
+  option_d: 4.87 inches
+  correct_option: a
+- question_template_id: authored-number_sense-d4-947400
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 75
+  common_error_tags:
+  - rounded_in_wrong_direction
+  - rounded_to_wrong_place_value
+  - stopped_at_intermediate_precision
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A scientist measures a plant seedling at 8.347 centimeters. For the lab report, the measurement
+    must be rounded to the nearest tenth of a centimeter. What is the rounded measurement?
+  context_block: ''
+  answer_expression: Eq(x, Rational(1,10) * round(8.347 * 10))
+  hint_ladder:
+  - Identify the tenth place digit and the digit immediately to its right.
+  - The tenth place is 3, and the digit to its right (the hundredth place) is 4.
+  - Since the hundredth digit is less than 5, keep the tenth place digit as it is and drop the rest.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Locate the tenth place in the number 8.347. The digit in the tenth place is 3.
+      expression: '8.347'
+      common_mistake: null
+    - step_number: 2
+      explanation: Look at the digit to the right of the tenth place, which is the hundredth place. That
+        digit is 4.
+      expression: hundredth digit = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 4 is less than 5, we round down. The tenth place stays 3, and we drop all digits
+        after it.
+      expression: '8.3'
+      common_mistake: null
+    final_answer: 8.3 centimeters
+  random_seed: 947400
+  rendered_question: A scientist measures a plant seedling at 8.347 centimeters. For the lab report, the
+    measurement must be rounded to the nearest tenth of a centimeter. What is the rounded measurement?
+  option_a: 8.4 centimeters
+  option_b: 8.3 centimeters
+  option_c: 8.35 centimeters
+  option_d: 8 centimeters
+  correct_option: b
+- question_template_id: authored-number_sense-d4-947401
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_down_when_should_round_up
+  - rounded_to_wrong_place_value
+  - rounded_to_whole_instead_of_tenth
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A swimmer completed a race in 12.684 seconds. The official scoreboard rounds times to the nearest
+    tenth of a second. What time will appear on the scoreboard?
+  context_block: ''
+  answer_expression: Eq(x, Rational(1,10) * round(12.684 * 10))
+  hint_ladder:
+  - Look at the digit in the hundredths place to decide whether to round up or keep the tenths digit.
+  - The hundredths digit is 8, which is 5 or greater, so the tenths digit will increase by one.
+  - Change the 6 in the tenths place to 7 and drop everything after it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the digit in the tenths place: 12.684 has 6 in the tenths place.'
+      expression: '12.684'
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Look at the digit to the right (hundredths place): it is 8.'
+      expression: '8'
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 8 is greater than or equal to 5, round the tenths digit up from 6 to 7.
+      expression: 6 + 1 = 7
+      common_mistake: null
+    - step_number: 4
+      explanation: Drop all digits after the tenths place.
+      expression: '12.7'
+      common_mistake: null
+    final_answer: 12.7 seconds
+  random_seed: 947401
+  rendered_question: A swimmer completed a race in 12.684 seconds. The official scoreboard rounds times
+    to the nearest tenth of a second. What time will appear on the scoreboard?
+  option_a: 12.7 seconds
+  option_b: 13 seconds
+  option_c: 12.68 seconds
+  option_d: 12.6 seconds
+  correct_option: a
+- question_template_id: authored-number_sense-d4-947402
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_in_wrong_direction
+  - rounded_to_wrong_place_value_hundredths
+  - rounded_to_wrong_place_value_ones
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A digital thermometer displays 15.428 degrees Celsius. The weather report requires the temperature
+    rounded to the nearest tenth of a degree. What temperature should be reported?
+  context_block: ''
+  answer_expression: Eq(x, Rational(1,10) * round(15.428 * 10))
+  hint_ladder:
+  - Identify which place value the thermometer reading must be rounded to.
+  - Look at the digit in the hundredths place to decide whether the tenths digit stays the same or increases
+    by one.
+  - Multiply the original number by 10, round that result to the nearest whole number, then divide by
+    10.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The thermometer shows 15.428 degrees Celsius and we need to round to the nearest tenth,
+        which is the first digit after the decimal point.
+      expression: '15.428'
+      common_mistake: null
+    - step_number: 2
+      explanation: To round to the nearest tenth, examine the digit in the hundredths place. In 15.428,
+        the hundredths digit is 2.
+      expression: hundredths digit = 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 2 is less than 5, the tenths digit (4) remains unchanged, and all digits to the
+        right are dropped.
+      expression: '15.4'
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Verify using the equation: multiply 15.428 by 10 to get 154.28, round to 154, then
+        divide by 10 to get 15.4.'
+      expression: 154.28 → 154 → 15.4
+      common_mistake: null
+    final_answer: 15.4 degrees Celsius
+  random_seed: 947402
+  rendered_question: A digital thermometer displays 15.428 degrees Celsius. The weather report requires
+    the temperature rounded to the nearest tenth of a degree. What temperature should be reported?
+  option_a: 15.43 degrees Celsius
+  option_b: 15 degrees Celsius
+  option_c: 15.4 degrees Celsius
+  option_d: 15.5 degrees Celsius
+  correct_option: c
+- question_template_id: authored-number_sense-d5-947500
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_down_when_should_round_up
+  - rounded_to_wrong_place_value
+  - added_place_value_instead_of_rounding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school fundraiser collected 9973 dollars in donations. The treasurer needs to round this total
+    to the nearest hundred dollars for the summary report. What amount should she report?
+  context_block: null
+  answer_expression: Eq(x, 100 * round(9973 / 100))
+  hint_ladder:
+  - Look at the digit in the hundreds place and the digit immediately to its right.
+  - The hundreds digit is 9, and the digit to the right (the tens place) is 7. Since 7 is 5 or greater,
+    you round up.
+  - Add 1 to the hundreds digit. When 9 becomes 10, you need to carry to the next place value.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the hundreds place in 9973. The digit in the hundreds place is 9.
+      expression: 9973 has 9 in the hundreds place
+      common_mistake: null
+    - step_number: 2
+      explanation: Look at the tens digit to decide whether to round up or down. The tens digit is 7,
+        which is 5 or greater, so we round up.
+      expression: 7 >= 5, so round up
+      common_mistake: null
+    - step_number: 3
+      explanation: Rounding up means adding 1 to the hundreds place. Since the hundreds digit is 9, adding
+        1 gives 10 hundreds, which is 1 thousand.
+      expression: 9 + 1 = 10, carry to thousands
+      common_mistake: null
+    - step_number: 4
+      explanation: The original number had 9 thousands. Adding the carried 1 gives 10 thousands, which
+        equals 10000.
+      expression: 9000 + 1000 = 10000
+      common_mistake: null
+    final_answer: 10000 dollars
+  random_seed: 947500
+  rendered_question: A school fundraiser collected 9973 dollars in donations. The treasurer needs to round
+    this total to the nearest hundred dollars for the summary report. What amount should she report?
+  option_a: 9900 dollars
+  option_b: 10073 dollars
+  option_c: 9970 dollars
+  option_d: 10000 dollars
+  correct_option: d
+- question_template_id: authored-number_sense-d5-947502
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - rounded_down_instead_of_up
+  - rounded_up_without_carrying
+  - did_not_round
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker weighs a cake at 7.996 kilograms and needs to round the weight to the nearest tenth of
+    a kilogram for the packaging label. What weight should appear on the label?
+  context_block: null
+  answer_expression: Eq(x, Rational(1,10) * round(7.996 * 10))
+  hint_ladder:
+  - Identify the digit in the tenths place and the digit immediately to its right.
+  - The hundredths digit tells you whether to round the tenths digit up or keep it the same.
+  - If rounding up the 9 in the tenths place causes it to become 10, you must carry to the ones place.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'The weight is 7.996 kilograms. To round to the nearest tenth, locate the tenths place:
+        it is 9.'
+      expression: '7.996'
+      common_mistake: null
+    - step_number: 2
+      explanation: Look at the hundredths digit to decide whether to round up or stay. The hundredths
+        digit is 9, which is 5 or greater, so we round the tenths place up.
+      expression: 9 >= 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Rounding 9 in the tenths place up by 1 gives 10 tenths, which is the same as 1 whole.
+        This causes a carry into the ones place.
+      expression: 9 + 1 = 10
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add 1 to the ones place: 7 becomes 8. The tenths place becomes 0 after the carry.
+        All digits to the right become 0.'
+      expression: '8.0'
+      common_mistake: null
+    final_answer: 8.0 kilograms
+  random_seed: 947502
+  rendered_question: A baker weighs a cake at 7.996 kilograms and needs to round the weight to the nearest
+    tenth of a kilogram for the packaging label. What weight should appear on the label?
+  option_a: 8.0 kilograms
+  option_b: 7.9 kilograms
+  option_c: 7.996 kilograms
+  option_d: 8.1 kilograms
+  correct_option: a

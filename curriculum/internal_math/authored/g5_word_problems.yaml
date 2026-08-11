@@ -1,0 +1,884 @@
+curriculum_version: '2026.1'
+topic_id: g5_word_problems
+templates:
+- question_template_id: authored-g5_word_problems-d4-985401
+  topic_id: g5_word_problems
+  skill_id: g5_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_decimal_from_product
+  - subtracted_decimal_instead_of_multiplying
+  - added_decimal_to_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A teacher has 36 stickers. She gives 0.5 of them to students for good work. How many stickers
+    does she give away?
+  context_block: ''
+  answer_expression: Eq(x, 0.5 * 36)
+  hint_ladder:
+  - What does 0.5 of a number mean in terms of multiplication?
+  - To find 0.5 of 36, multiply 0.5 by 36.
+  - Write the multiplication 0.5 × 36 and compute the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The phrase '0.5 of them' means we multiply 0.5 by the total number of stickers.
+      expression: x = 0.5 × 36
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply 0.5 by 36. Since 0.5 is the same as one half, half of 36 is 18.
+      expression: x = 18
+      common_mistake: null
+    final_answer: 18 stickers
+  random_seed: 985401
+  rendered_question: A teacher has 36 stickers. She gives 0.5 of them to students for good work. How many
+    stickers does she give away?
+  option_a: 18.5 stickers
+  option_b: 35.5 stickers
+  option_c: 18 stickers
+  option_d: 17.5 stickers
+  correct_option: c
+- question_template_id: authored-g5_word_problems-d3-985300
+  topic_id: g5_word_problems
+  skill_id: g5_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_instead_of_multiplied
+  - dropped_decimal_place
+  - added_instead_of_multiplied
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Mia brought $45 to the bookstore and spent 0.4 of her money on books. How much did she spend on
+    books?
+  context_block: ''
+  answer_expression: Eq(x, 0.4 * 45)
+  hint_ladder:
+  - To find part of a quantity, multiply the decimal by the total amount Mia brought.
+  - Write 0.4 times 45 dollars to find how much she spent.
+  - Calculate 0.4 multiplied by 45 to find the answer in dollars.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Mia spent 0.4 of her money. To find this amount, multiply the decimal 0.4 by the total
+        amount she brought, which is $45.
+      expression: x = 0.4 * 45
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Convert 0.4 to a fraction: 0.4 = 4/10. Multiply 4/10 by 45 to get 180/10.'
+      expression: x = (4 * 45) / 10 = 180 / 10
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 180 by 10 to find the amount spent.
+      expression: x = 18
+      common_mistake: null
+    final_answer: 18 dollars
+  random_seed: 985300
+  rendered_question: Mia brought $45 to the bookstore and spent 0.4 of her money on books. How much did
+    she spend on books?
+  option_a: 27 dollars
+  option_b: 4.5 dollars
+  option_c: 18 dollars
+  option_d: 17 dollars
+  correct_option: c
+- question_template_id: authored-g5_word_problems-d3-985301
+  topic_id: g5_word_problems
+  skill_id: g5_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplied
+  - misplaced_decimal_point
+  - confused_part_with_whole
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker buys a 25-pound bag of flour. She uses 0.6 of the bag to make bread for the week. How
+    many pounds of flour does she use?
+  context_block: ''
+  answer_expression: Eq(x, 0.6 * 25)
+  hint_ladder:
+  - What does 0.6 of the bag mean in terms of a calculation?
+  - To find a decimal part of a quantity, multiply the decimal by the total amount.
+  - Write 0.6 times 25 and compute the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker uses 0.6 of the 25-pound bag, so we multiply the decimal by the total pounds.
+      expression: x = 0.6 * 25
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply 0.6 by 25. Think of 0.6 as 6 tenths: 6 times 25 is 150, so 0.6 times 25 is
+        15.'
+      expression: x = 15
+      common_mistake: null
+    final_answer: 15 pounds
+  random_seed: 985301
+  rendered_question: A baker buys a 25-pound bag of flour. She uses 0.6 of the bag to make bread for the
+    week. How many pounds of flour does she use?
+  option_a: 15 pounds
+  option_b: 25.6 pounds
+  option_c: 10 pounds
+  option_d: 2.5 pounds
+  correct_option: a
+- question_template_id: authored-g5_word_problems-d3-985302
+  topic_id: g5_word_problems
+  skill_id: g5_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - treated_of_as_addition
+  - divided_instead_of_multiplied
+  - arithmetic_error_in_decimal_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants flowers in 0.8 of her 35 garden beds. How many beds does she plant with flowers?
+  context_block: null
+  answer_expression: x = 0.8 * 35
+  hint_ladder:
+  - 'Think about what 0.8 means: it is the fraction of beds that get flowers.'
+  - To find 0.8 of 35, multiply the decimal by the total number of beds.
+  - Set up the multiplication 0.8 × 35 and carry it out.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The gardener plants flowers in 0.8 of her 35 garden beds, so we multiply the decimal
+        by the total number of beds.
+      expression: x = 0.8 * 35
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply 0.8 by 35. We can think of this as (8 ÷ 10) × 35 = (8 × 35) ÷ 10.
+      expression: x = 280 ÷ 10
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 280 by 10.
+      expression: x = 28
+      common_mistake: null
+    final_answer: 28 garden beds
+  random_seed: 985302
+  rendered_question: A gardener plants flowers in 0.8 of her 35 garden beds. How many beds does she plant
+    with flowers?
+  option_a: 28 garden beds
+  option_b: 7 garden beds
+  option_c: 27.2 garden beds
+  option_d: 43 garden beds
+  correct_option: a
+- question_template_id: authored-g5_word_problems-d4-985400
+  topic_id: g5_word_problems
+  skill_id: g5_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - treated_decimal_as_whole_to_subtract
+  - found_complement_instead_of_target_part
+  - misplaced_decimal_in_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 40 math problems for homework. He finishes 0.7 of them before dinner. How many problems
+    did Liam complete?
+  context_block: null
+  answer_expression: x = 0.7 * 40
+  hint_ladder:
+  - What operation tells you a part of a total amount?
+  - Find 0.7 times the total number of problems Liam has.
+  - Multiply 0.7 by 40 to find how many problems he completed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam completed 0.7 of his 40 problems, so we multiply the decimal by the total.
+      expression: 0.7 * 40
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply 0.7 by 40. We can think of 0.7 as 7 tenths, so 7 × 40 = 280, and 280 tenths
+        is 28.
+      expression: '28'
+      common_mistake: null
+    final_answer: 28 problems
+  random_seed: 985400
+  rendered_question: Liam has 40 math problems for homework. He finishes 0.7 of them before dinner. How
+    many problems did Liam complete?
+  option_a: 2.8 problems
+  option_b: 12 problems
+  option_c: 33 problems
+  option_d: 28 problems
+  correct_option: d
+- question_template_id: authored-g5_word_problems-d4-985402
+  topic_id: g5_word_problems
+  skill_id: g5_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_complement_decimal
+  - added_decimal_to_product
+  - added_instead_of_multiplied
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A farmer has 45 eggs in his barn and collects 0.6 of them to sell at the market. How many eggs
+    does he collect?
+  context_block: null
+  answer_expression: x = 0.6 * 45
+  hint_ladder:
+  - What operation finds a fraction or decimal part of a whole group?
+  - Multiply 0.6 by the total number of eggs to find how many he collects.
+  - Set up the calculation 0.6 times 45, then compute the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The farmer collects 0.6 of his 45 eggs. To find a decimal part of a quantity, multiply
+        the decimal by that quantity.
+      expression: x = 0.6 * 45
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply 0.6 by 45. First compute 6 times 45 which is 270, then place the decimal point
+        one place from the right because 0.6 has one decimal place.
+      expression: x = 27.0
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 27.0 is the same as 27, the farmer collects 27 eggs.
+      expression: x = 27
+      common_mistake: null
+    final_answer: 27 eggs
+  random_seed: 985402
+  rendered_question: A farmer has 45 eggs in his barn and collects 0.6 of them to sell at the market.
+    How many eggs does he collect?
+  option_a: 27.6 eggs
+  option_b: 18 eggs
+  option_c: 45.6 eggs
+  option_d: 27 eggs
+  correct_option: d
+- question_template_id: authored-g5_word_problems-d2-986200
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - found_one_quarter_instead_of_three_quarters
+  - divided_by_numerator_instead_of_multiplying
+  - added_numerator_to_total
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam is reading a 240-page book. Yesterday he finished three-quarters of the book. How many pages
+    did he read?
+  context_block: ''
+  answer_expression: Eq(x, Rational(3,4) * 240)
+  hint_ladder:
+  - Three-quarters means 3 out of every 4 parts. How many pages are in one quarter of the book?
+  - Divide the total pages by 4 to find one quarter, then multiply by 3.
+  - Write 3/4 × 240 and simplify by dividing 240 by 4 first.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Three-quarters of the book means 3/4 of 240 pages.
+      expression: x = (3/4) × 240
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide 240 by 4 to find one quarter.
+      expression: 240 ÷ 4 = 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply that result by 3 to get three quarters.
+      expression: 60 × 3 = 180
+      common_mistake: null
+    final_answer: 180 pages
+  random_seed: 986200
+  rendered_question: Liam is reading a 240-page book. Yesterday he finished three-quarters of the book.
+    How many pages did he read?
+  option_a: 183 pages
+  option_b: 60 pages
+  option_c: 80 pages
+  option_d: 180 pages
+  correct_option: d
+- question_template_id: authored-g5_word_problems-d2-986201
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - found_one_part_instead_of_required_multiple
+  - arithmetic_error_in_final_step
+  - confused_given_fraction_with_one_half
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker opens a 450-gram bag of flour and uses two thirds of it to make bread. How many grams
+    of flour does the baker use?
+  context_block: ''
+  answer_expression: Eq(x, Rational(2,3) * 450)
+  hint_ladder:
+  - Two thirds means 2 parts out of every 3 parts, so you need to find 2 parts when 450 grams is divided
+    into 3 equal parts.
+  - Divide 450 by 3 to find the size of one part, then multiply that result by 2 to find two parts.
+  - Write the calculation as 450 ÷ 3 × 2, or as (2 × 450) ÷ 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker uses two thirds of the flour. To find two thirds of 450, first divide 450
+        by 3 to find one third.
+      expression: 450 / 3 = 150
+      common_mistake: null
+    - step_number: 2
+      explanation: Now multiply that one third by 2 to find two thirds.
+      expression: 150 * 2 = 300
+      common_mistake: null
+    final_answer: 300 grams
+  random_seed: 986201
+  rendered_question: A baker opens a 450-gram bag of flour and uses two thirds of it to make bread. How
+    many grams of flour does the baker use?
+  option_a: 300 grams
+  option_b: 302 grams
+  option_c: 225 grams
+  option_d: 150 grams
+  correct_option: a
+- question_template_id: authored-g5_word_problems-d2-986202
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_complement_fraction
+  - subtracted_one_third_instead_of_taking_three_fifths
+  - found_unit_fraction_only_skipped_final_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener buys a packet of 320 sunflower seeds. She plants 3/5 of them in her vegetable plot.
+    How many seeds does she plant?
+  context_block: null
+  answer_expression: Eq(x, Rational(3,5) * 320)
+  hint_ladder:
+  - 'Think about what 3/5 means: out of every 5 seeds, the gardener plants 3 of them.'
+  - To find 3/5 of 320, you multiply 320 by the fraction 3/5.
+  - Write the multiplication and divide 320 by 5 first, then multiply the result by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The gardener plants 3/5 of the 320 seeds, so we need to find 3/5 × 320.
+      expression: x = (3/5) × 320
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide 320 by 5 to find the value of one-fifth.
+      expression: 320 ÷ 5 = 64
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 64 by 3 to find three-fifths of the total.
+      expression: 64 × 3 = 192
+      common_mistake: null
+    final_answer: 192 seeds
+  random_seed: 986202
+  rendered_question: A gardener buys a packet of 320 sunflower seeds. She plants 3/5 of them in her vegetable
+    plot. How many seeds does she plant?
+  option_a: 192 seeds
+  option_b: 128 seeds
+  option_c: 213 seeds
+  option_d: 64 seeds
+  correct_option: a
+- question_template_id: authored-g5_word_problems-d3-986300
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - found_one_fifth_instead_of_four_fifths
+  - added_numerator_instead_of_multiplying_fraction
+  - added_one_after_calculation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Mr. Carter has a stack of 180 papers to grade. By Friday afternoon he has graded four-fifths of
+    them. How many papers has he graded?
+  context_block: ''
+  answer_expression: Eq(x, Rational(4,5) * 180)
+  hint_ladder:
+  - Four-fifths means you multiply the whole stack by the fraction four-fifths.
+  - Write the number of papers graded as four-fifths times 180.
+  - To find four-fifths of 180, multiply 4 by 180 and then divide by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Four-fifths of the papers means we multiply the total by the fraction 4/5.
+      expression: x = (4/5) × 180
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply 4 by 180 to get the numerator.
+      expression: 4 × 180 = 720
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 720 by 5 to find the number of papers graded.
+      expression: 720 ÷ 5 = 144
+      common_mistake: null
+    final_answer: 144 papers
+  random_seed: 986300
+  rendered_question: Mr. Carter has a stack of 180 papers to grade. By Friday afternoon he has graded
+    four-fifths of them. How many papers has he graded?
+  option_a: 184 papers
+  option_b: 145 papers
+  option_c: 144 papers
+  option_d: 36 papers
+  correct_option: c
+- question_template_id: authored-g5_word_problems-d3-986301
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_numerator_but_forgot_to_divide_by_denominator
+  - divided_total_by_numerator_instead_of_fraction_multiply
+  - divided_by_denominator_but_forgot_to_multiply_by_numerator
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A musician has a collection of 200 songs. She decides to practice exactly 3/8 of them this month.
+    How many songs will she practice?
+  context_block: ''
+  answer_expression: Eq(x, Rational(3,8) * 200)
+  hint_ladder:
+  - To find a fraction of a number, multiply that fraction by the total.
+  - Write 3/8 × 200 and simplify by dividing 200 by 8 first.
+  - Three times 25 gives you the number of songs she will practice.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'To find 3/8 of 200, multiply the fraction by the total: (3/8) × 200.'
+      expression: (3/8) * 200
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the multiplication as (3 × 200) / 8 to simplify.
+      expression: (3 * 200) / 8 = 600 / 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 600 by 8 to get 75.
+      expression: 600 / 8 = 75
+      common_mistake: null
+    final_answer: 75 songs
+  random_seed: 986301
+  rendered_question: A musician has a collection of 200 songs. She decides to practice exactly 3/8 of
+    them this month. How many songs will she practice?
+  option_a: 75 songs
+  option_b: 25 songs
+  option_c: 66 songs
+  option_d: 600 songs
+  correct_option: a
+- question_template_id: authored-g5_word_problems-d3-986302
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_one_half_instead_of_given_fraction
+  - found_unit_fraction_only
+  - used_wrong_numerator
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cyclist is riding a 240-mile bike trail. She completes 2/5 of the entire trail on the first
+    day. How many miles did she ride on the first day?
+  context_block: ''
+  answer_expression: Eq(x, Rational(2,5) * 240)
+  hint_ladder:
+  - What does 'two-fifths of 240 miles' mean in this problem?
+  - 'To find a fraction of a number, multiply the fraction by that number: (2/5) times 240.'
+  - Set up the multiplication (2/5) × 240 and simplify by dividing 240 by 5 first, then multiplying by
+    2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The cyclist completed 2/5 of the 240-mile trail, so we need to find 2/5 of 240.
+      expression: x = (2/5) * 240
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide 240 by 5 to find one-fifth of the trail.
+      expression: 240 ÷ 5 = 48
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply that result by 2 to find two-fifths of the trail.
+      expression: 48 * 2 = 96
+      common_mistake: null
+    final_answer: 96 miles
+  random_seed: 986302
+  rendered_question: A cyclist is riding a 240-mile bike trail. She completes 2/5 of the entire trail
+    on the first day. How many miles did she ride on the first day?
+  option_a: 120 miles
+  option_b: 48 miles
+  option_c: 96 miles
+  option_d: 144 miles
+  correct_option: c
+- question_template_id: authored-g5_word_problems-d4-987400
+  topic_id: g5_word_problems
+  skill_id: g5_wp_ratios_mixed
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - divided_total_by_smaller_ratio_part_only
+  - took_ratio_part_as_fraction_of_total_ignoring_sum
+  - stopped_at_value_of_one_part
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two friends find 60 marbles and decide to share them in the ratio 2:3. How many marbles does the
+    friend with the smaller share receive?
+  context_block: null
+  answer_expression: x = 60 * 2 / 5
+  hint_ladder:
+  - In a 2:3 ratio, the total is split into 2 + 3 equal parts. How many parts is that altogether?
+  - Each part is worth 60 marbles divided by the total number of parts you just found.
+  - Multiply the value of one part by 2 to find how many marbles go to the friend with the smaller share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the ratio parts together to find the total number of equal shares.
+      expression: 2 + 3 = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total number of marbles by the number of parts to find the value of one
+        part.
+      expression: 60 / 5 = 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the value of one part by 2, since the smaller share corresponds to the 2 in
+        the ratio.
+      expression: 12 * 2 = 24
+      common_mistake: null
+    final_answer: 24 marbles
+  random_seed: 987400
+  rendered_question: Two friends find 60 marbles and decide to share them in the ratio 2:3. How many marbles
+    does the friend with the smaller share receive?
+  option_a: 12 marbles
+  option_b: 24 marbles
+  option_c: 20 marbles
+  option_d: 30 marbles
+  correct_option: b
+- question_template_id: authored-g5_word_problems-d4-987401
+  topic_id: g5_word_problems
+  skill_id: g5_wp_ratios_mixed
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - used_wrong_part_of_ratio
+  - stopped_at_one_part
+  - multiplied_ratio_by_total
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two siblings share 72 stickers in the ratio 5:4. How many stickers does the first sibling get?
+  context_block: null
+  answer_expression: x = 72 * 5 / 9
+  hint_ladder:
+  - The ratio 5:4 means the stickers are divided into 5 + 4 = 9 equal parts.
+  - The first sibling gets 5 out of those 9 parts. Find what one part is worth first.
+  - Divide the total by 9 to find one part, then multiply by 5 to get the first sibling's share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the parts of the ratio to find the total number of parts.
+      expression: 5 + 4 = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total number of stickers by the total number of parts to find the value
+        of one part.
+      expression: 72 / 9 = 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the value of one part by the number of parts the first sibling gets.
+      expression: 8 * 5 = 40
+      common_mistake: null
+    final_answer: 40 stickers
+  random_seed: 987401
+  rendered_question: Two siblings share 72 stickers in the ratio 5:4. How many stickers does the first
+    sibling get?
+  option_a: 8 stickers
+  option_b: 45 stickers
+  option_c: 40 stickers
+  option_d: 36 stickers
+  correct_option: c
+- question_template_id: authored-g5_word_problems-d4-987402
+  topic_id: g5_word_problems
+  skill_id: g5_wp_ratios_mixed
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 150
+  common_error_tags:
+  - calculated_one_part_incorrectly
+  - assigned_wrong_ratio_component
+  - stopped_before_multiplying_by_parts
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam and Jordan share 56 baseball cards in the ratio 3:4. How many cards does Liam receive?
+  context_block: ''
+  answer_expression: Eq(x, 56*3/7)
+  hint_ladder:
+  - The ratio 3:4 means for every 3 cards Liam gets, Jordan gets 4 cards. How many total parts is that?
+  - The 56 cards are divided into 3 + 4 = 7 equal parts. Find how many cards are in one part.
+  - Liam receives 3 parts out of the 7 total parts. Multiply the number of cards in one part by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ratio 3:4 means Liam gets 3 parts and Jordan gets 4 parts, for a total of 3 + 4
+        = 7 parts.
+      expression: 3 + 4 = 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Each part represents 56 ÷ 7 = 8 baseball cards.
+      expression: 56 / 7 = 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Liam receives 3 parts, so he gets 3 × 8 = 24 baseball cards.
+      expression: 3 * 8 = 24
+      common_mistake: null
+    final_answer: 24 baseball cards
+  random_seed: 987402
+  rendered_question: Liam and Jordan share 56 baseball cards in the ratio 3:4. How many cards does Liam
+    receive?
+  option_a: 18 baseball cards
+  option_b: 32 baseball cards
+  option_c: 21 baseball cards
+  option_d: 24 baseball cards
+  correct_option: d
+- question_template_id: authored-g5_word_problems-d5-987500
+  topic_id: g5_word_problems
+  skill_id: g5_wp_ratios_mixed
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - divided_total_by_wrong_ratio_term
+  - used_ratio_term_as_divisor_directly
+  - multiplied_ratio_terms_instead_of_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two cousins collect seashells at the beach and share them in the ratio 4:3. If they have 84 seashells
+    altogether, how many does the cousin with the larger share get?
+  context_block: ''
+  answer_expression: Eq(x, 84 * 4 / 7)
+  hint_ladder:
+  - The ratio 4:3 means that for every 4 seashells one cousin gets, the other gets 3. Count the total
+    parts in the ratio.
+  - Add 4 and 3 to find how many equal parts divide the 84 seashells. Each part is 84 divided by that
+    sum.
+  - The cousin with the larger share gets 4 parts. Multiply the value of one part by 4 to find their total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ratio 4:3 means the total number of parts is 4 + 3.
+      expression: 4 + 3 = 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Each part represents 84 seashells divided by 7 parts.
+      expression: 84 / 7 = 12
+      common_mistake: null
+    - step_number: 3
+      explanation: The cousin with the larger share gets 4 parts, so multiply 12 by 4.
+      expression: 12 * 4 = 48
+      common_mistake: null
+    final_answer: 48 seashells
+  random_seed: 987500
+  rendered_question: Two cousins collect seashells at the beach and share them in the ratio 4:3. If they
+    have 84 seashells altogether, how many does the cousin with the larger share get?
+  option_a: 36 seashells
+  option_b: 28 seashells
+  option_c: 48 seashells
+  option_d: 12 seashells
+  correct_option: c
+- question_template_id: authored-g5_word_problems-d5-987501
+  topic_id: g5_word_problems
+  skill_id: g5_wp_ratios_mixed
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - divided_total_by_own_ratio_part_only
+  - subtracted_ratio_parts_instead_of_adding
+  - divided_total_by_two
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two partners find a box of 90 stamps and agree to share them in the ratio 2:7. How many stamps
+    does the first partner receive?
+  context_block: null
+  answer_expression: Eq(x, 90 * 2 / 9)
+  hint_ladder:
+  - Add the two parts of the ratio together to find how many equal parts the 90 stamps are divided into.
+  - Each part is worth 90 divided by the total number of parts, and the first partner gets 2 of those
+    parts.
+  - Multiply the value of one part by 2 to find the first partner's share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Add the two parts of the ratio: 2 + 7 = 9 total parts.'
+      expression: 2 + 7 = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Divide the total number of stamps by the total parts to find the value of one part:
+        90 ÷ 9 = 10 stamps per part.'
+      expression: 90 / 9 = 10
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the value of one part by the first partner''s ratio number: 10 × 2 = 20 stamps.'
+      expression: 10 * 2 = 20
+      common_mistake: null
+    final_answer: 20 stamps
+  random_seed: 987501
+  rendered_question: Two partners find a box of 90 stamps and agree to share them in the ratio 2:7. How
+    many stamps does the first partner receive?
+  option_a: 20 stamps
+  option_b: 18 stamps
+  option_c: 10 stamps
+  option_d: 45 stamps
+  correct_option: a
+- question_template_id: authored-g5_word_problems-d5-987502
+  topic_id: g5_word_problems
+  skill_id: g5_wp_ratios_mixed
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_wrong_ratio_part_as_denominator
+  - gave_second_classmate_share_instead_of_first
+  - misidentified_total_parts_in_ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two classmates share 80 pencils in the ratio 3:5. How many pencils does the first classmate get?
+  context_block: ''
+  answer_expression: Eq(x, 80 * 3 / 8)
+  hint_ladder:
+  - Add the two parts of the ratio together to find the total number of parts being shared.
+  - Each part represents 80 pencils divided by the sum of the ratio parts.
+  - Multiply the number of pencils in one part by 3 to find the first classmate's share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the ratio parts together to find the total number of parts.
+      expression: 3 + 5 = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total number of pencils by the total number of parts to find the value of
+        one part.
+      expression: 80 / 8 = 10
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the value of one part by the first classmate's ratio number to find how many
+        pencils they get.
+      expression: 10 * 3 = 30
+      common_mistake: null
+    final_answer: 30 pencils
+  random_seed: 987502
+  rendered_question: Two classmates share 80 pencils in the ratio 3:5. How many pencils does the first
+    classmate get?
+  option_a: 24 pencils
+  option_b: 50 pencils
+  option_c: 30 pencils
+  option_d: 48 pencils
+  correct_option: c

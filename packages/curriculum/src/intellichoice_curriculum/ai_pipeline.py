@@ -71,6 +71,7 @@ from intellichoice_curriculum.authored_validation import (
     answer_leaked_beyond_the_question,
     derive_answer,
     leak_phrase_present,
+    validate_authored_item,
 )
 from intellichoice_curriculum.content import (
     ANSWER_FAMILIES,
@@ -1678,37 +1679,39 @@ async def _attempt_authored_candidate(
         stage_results: dict = {"deterministic_gate": {"passed": False, "failures": hint_leaks}}
         return await _reject(hint_leaks, stage_results, "validation")
 
-    # D-275 restores a SECOND check of the gate D-202 removed, on D-246's exact argument and
-    # no wider: this is a *presence* check, not a content judgement. It costs nothing, gives
-    # the same answer every call, and no model reading prose is involved.
+    # **D-202's removal of the deterministic gate is reversed here, and D-276 is the
+    # measurement that reversed it.** D-275 had restored one *presence* check on D-246's
+    # narrow argument. Exporting the 3-5 wave showed the narrow version was not enough:
+    # **7 of 344 bank items fail this gate, and 5 of them are wrong answer keys** -
+    # an equation deriving `6*x - 48` for an item keyed "8 pencils", two options both
+    # matching the derived 8848, options that are not unique, and two items whose derived
+    # value cannot match a *label* option ("Museum B", "Odd").
     #
-    # **Measured, which is why it is back.** The second `decimals` run produced 1 of 21
-    # candidates with `equation: null` - the field is optional on the response model, and
-    # nothing on this path required it. That item reached `pending` having never had its
-    # answer independently derived; it happens to be correct, and nothing verified that.
+    # D-202 argued content judgements belong to the solvers and the judge, who read the item
+    # as a student would. That holds for ambiguity and alignment. It does not hold for "does
+    # the equation solve to the option you marked correct", which is arithmetic: it costs
+    # nothing, gives the same answer every call, and the two solvers and the judge passed all
+    # five of those items.
     #
-    # The sharper problem is that the pipeline and the loader disagreed. `loader.py` still
-    # runs `validate_authored_item`, whose `check_sympy_independent_solve` fails closed on a
-    # missing equation (D-191) - so the row the pipeline accepted is one the bank load
-    # *rejects*, and the disagreement surfaces at export time, after a human has spent
-    # review effort on it. Two gates that disagree about what a valid item is are worse than
-    # either gate alone.
+    # The decisive argument is not coverage though - it is that `loader.py` runs exactly this
+    # gate, so an item failing it **cannot be in the bank at all**. A pipeline applying a
+    # weaker gate than the bank does not produce more content, it produces content that is
+    # rejected later, after being paid for, reviewed, approved and exported. Two gates that
+    # disagree about what a valid item is are worse than either alone; this makes them one
+    # gate, called from both places (D-223's rule: share the predicate, not the intent).
     #
-    # Placed before the solvers deliberately: an item with no equation cannot pass the
-    # loader whatever the solvers say, so rejecting here also saves three paid calls.
-    if not item.equation:
-        missing = [
-            "equation is missing - the item must model its question as a solvable equation, "
-            "or the bank load will reject it after review time has been spent on it"
-        ]
-        stage_results: dict = {"deterministic_gate": {"passed": False, "failures": missing}}
-        return await _reject(missing, stage_results, "validation")
+    # `check_difficulty_rubric_compliance` is included and does not fight the re-tier flow -
+    # it asserts only that the tier is on the 1-5 scale and the time estimate is positive.
+    #
+    # Placed before the solvers deliberately: an item that cannot enter the bank should not
+    # be paid for three more times first.
+    gate = validate_authored_item(difficulty_label, item)
+    if not gate.passed:
+        stage_results: dict = {"deterministic_gate": {"passed": False, "failures": gate.failures}}
+        return await _reject(list(gate.failures), stage_results, "validation")
 
     stage_results: dict = {
-        "deterministic_gate": {
-            "passed": True,
-            "checks": ["hint_answer_leak", "equation_present"],
-        }
+        "deterministic_gate": {"passed": True, "checks": ["validate_authored_item"]}
     }
 
     if await repo.rendered_question_exists(rendered_question):

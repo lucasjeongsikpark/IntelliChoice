@@ -1,0 +1,1702 @@
+curriculum_version: '2026.1'
+topic_id: measurement
+templates:
+- question_template_id: authored-measurement-d4-955400
+  topic_id: measurement
+  skill_id: measurement_area_volume
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - halved_the_product
+  - subtracted_instead_of_multiplied
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular garden measures 12 meters long and 15 meters wide. What is the area of the garden?
+  context_block: null
+  answer_expression: Eq(x, 12 * 15)
+  hint_ladder:
+  - Area measures the space inside a flat shape. For a rectangle, you need to combine the length and width.
+  - The formula for the area of a rectangle is length times width.
+  - Write 12 times 15 and calculate the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the area of a rectangle: Area = length × width.'
+      expression: A = 12 * 15
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the length by the width.
+      expression: 12 * 15 = 180
+      common_mistake: null
+    final_answer: 180 square meters
+  random_seed: 955400
+  rendered_question: A rectangular garden measures 12 meters long and 15 meters wide. What is the area
+    of the garden?
+  option_a: 27 square meters
+  option_b: 54 square meters
+  option_c: 180 square meters
+  option_d: 165 square meters
+  correct_option: c
+- question_template_id: authored-measurement-d4-955402
+  topic_id: measurement
+  skill_id: measurement_area_volume
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - confused_area_with_perimeter
+  - halved_the_correct_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A rectangular classroom rug measures 8 feet long and 14 feet wide. What is the area of the rug?
+  context_block: null
+  answer_expression: Eq(x, 8 * 14)
+  hint_ladder:
+  - Think about how many square feet cover the entire rug when you fill its length and width.
+  - Area of a rectangle is found by multiplying its length by its width.
+  - Multiply 8 feet by 14 feet to find the total area.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the area of a rectangle: length times width.'
+      expression: area = length × width
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute the given dimensions into the formula.
+      expression: area = 8 × 14
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 8 by 14.
+      expression: area = 112
+      common_mistake: null
+    final_answer: 112 square feet
+  random_seed: 955402
+  rendered_question: A rectangular classroom rug measures 8 feet long and 14 feet wide. What is the area
+    of the rug?
+  option_a: 112 square feet
+  option_b: 22 square feet
+  option_c: 44 square feet
+  option_d: 56 square feet
+  correct_option: a
+- question_template_id: authored-measurement-d5-955500
+  topic_id: measurement
+  skill_id: measurement_area_volume
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - found_perimeter_instead_of_area
+  - multiplied_only_one_dimension_by_ten
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular parking lot measures 25 meters long and 16 meters wide. What is the area of the
+    parking lot?
+  context_block: null
+  answer_expression: Eq(x, 25 * 16)
+  hint_ladder:
+  - To find the area of a rectangle, you need to use its length and its width.
+  - The formula for the area of a rectangle is length times width.
+  - Multiply 25 meters by 16 meters to find the area.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the dimensions of the parking lot. The length is 25 meters and the width is
+        16 meters.
+      expression: length = 25, width = 16
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the formula for the area of a rectangle: area equals length times width.'
+      expression: area = 25 * 16
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply 25 by 16. Break it down: 25 times 10 is 250, and 25 times 6 is 150.'
+      expression: 25 * 16 = 250 + 150
+      common_mistake: null
+    - step_number: 4
+      explanation: Add 250 and 150 to get the total area.
+      expression: 250 + 150 = 400
+      common_mistake: null
+    final_answer: 400 square meters
+  random_seed: 955500
+  rendered_question: A rectangular parking lot measures 25 meters long and 16 meters wide. What is the
+    area of the parking lot?
+  option_a: 82 square meters
+  option_b: 400 square meters
+  option_c: 41 square meters
+  option_d: 250 square meters
+  correct_option: b
+- question_template_id: authored-measurement-d5-955501
+  topic_id: measurement
+  skill_id: measurement_area_volume
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_instead_of_multiplied
+  - multiplied_one_dimension_by_two
+  - doubled_perimeter
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular basketball court measures 22 meters long and 13 meters wide. What is the area of
+    the court?
+  context_block: null
+  answer_expression: Eq(x, 22 * 13)
+  hint_ladder:
+  - Remember that area measures the space inside a rectangle.
+  - Area is found by multiplying length by width.
+  - 'Set up the calculation: 22 times 13.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify that the area of a rectangle is length multiplied by width.
+      expression: area = length × width
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Substitute the given dimensions: length is 22 meters and width is 13 meters.'
+      expression: area = 22 × 13
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 22 by 13 to find the area.
+      expression: area = 286
+      common_mistake: null
+    final_answer: 286 square meters
+  random_seed: 955501
+  rendered_question: A rectangular basketball court measures 22 meters long and 13 meters wide. What is
+    the area of the court?
+  option_a: 286 square meters
+  option_b: 70 square meters
+  option_c: 35 square meters
+  option_d: 44 square meters
+  correct_option: a
+- question_template_id: authored-measurement-d5-955502
+  topic_id: measurement
+  skill_id: measurement_area_volume
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - doubled_one_dimension
+  - multiplied_only_partial_place_values
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular swimming pool measures 24 meters long and 17 meters wide. What is the area of the
+    pool?
+  context_block: ''
+  answer_expression: Eq(x, 24 * 17)
+  hint_ladder:
+  - To find the area of a rectangle, you need to multiply its two dimensions together.
+  - The formula for the area of a rectangle is length times width.
+  - Set up the calculation 24 times 17 and work out the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the area of a rectangle: area equals length times width.'
+      expression: A = l * w
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute the given dimensions into the formula. The length is 24 meters and the width
+        is 17 meters.
+      expression: A = 24 * 17
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply 24 by 17. Break it down: 24 times 10 is 240, and 24 times 7 is 168. Add those
+        together to get 408.'
+      expression: A = 408
+      common_mistake: null
+    final_answer: 408 square meters
+  random_seed: 955502
+  rendered_question: A rectangular swimming pool measures 24 meters long and 17 meters wide. What is the
+    area of the pool?
+  option_a: 41 square meters
+  option_b: 168 square meters
+  option_c: 408 square meters
+  option_d: 82 square meters
+  correct_option: c
+- question_template_id: authored-measurement-d2-956200
+  topic_id: measurement
+  skill_id: measurement_capacity
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - reversed_digits_in_sum
+  - subtracted_instead_of_added
+  - confused_unit_scale
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A pitcher contains 2 litres of orange juice and Maya adds 350 millilitres more. How many millilitres
+    of juice are in the pitcher now?
+  context_block: null
+  answer_expression: x = 2 * 1000 + 350
+  hint_ladder:
+  - How many millilitres are in 1 litre?
+  - Multiply the number of litres by 1000 to convert to millilitres.
+  - Add the 350 millilitres to the converted amount.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert 2 litres to millilitres by multiplying by 1000, since 1 litre equals 1000 millilitres.
+      expression: 2 * 1000 = 2000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 350 millilitres that Maya poured to the 2000 millilitres already in the pitcher.
+      expression: 2000 + 350 = 2350
+      common_mistake: null
+    final_answer: 2350 millilitres
+  random_seed: 956200
+  rendered_question: A pitcher contains 2 litres of orange juice and Maya adds 350 millilitres more. How
+    many millilitres of juice are in the pitcher now?
+  option_a: 2.35 millilitres
+  option_b: 1350 millilitres
+  option_c: 2035 millilitres
+  option_d: 2350 millilitres
+  correct_option: d
+- question_template_id: authored-measurement-d2-956201
+  topic_id: measurement
+  skill_id: measurement_capacity
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_unconverted_values
+  - incorrect_litre_to_millilitre_conversion
+  - ignored_main_quantity
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A fish tank holds 3 litres of water and Maya adds another 450 millilitres. How many millilitres
+    of water are in the tank now?
+  context_block: ''
+  answer_expression: x = 3 * 1000 + 450
+  hint_ladder:
+  - How many millilitres are in one litre?
+  - Convert the 3 litres to millilitres, then add the extra 450 millilitres.
+  - Write the total as 3 times 1000 plus 450.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert 3 litres to millilitres by multiplying by 1000.
+      expression: 3 * 1000 = 3000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the additional 450 millilitres to the converted amount.
+      expression: 3000 + 450 = 3450
+      common_mistake: null
+    final_answer: 3450 millilitres
+  random_seed: 956201
+  rendered_question: A fish tank holds 3 litres of water and Maya adds another 450 millilitres. How many
+    millilitres of water are in the tank now?
+  option_a: 750 millilitres
+  option_b: 3450 millilitres
+  option_c: 453 millilitres
+  option_d: 3453 millilitres
+  correct_option: b
+- question_template_id: authored-measurement-d2-956202
+  topic_id: measurement
+  skill_id: measurement_capacity
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_4_and_275_directly_without_converting_liters
+  - multiplied_4_by_100_instead_of_1000
+  - subtracted_275_from_4000_instead_of_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya fills a large jug with water for her science experiment. She pours in 4 liters from a pitcher
+    and then adds 275 milliliters from a measuring cup. How many milliliters of water are in the jug altogether?
+  context_block: null
+  answer_expression: Eq(x, 4*1000 + 275)
+  hint_ladder:
+  - How many milliliters are in one liter?
+  - Convert the 4 liters to milliliters by multiplying 4 by 1000, then add the extra milliliters.
+  - Write the total as 4 × 1000 + 275 and calculate.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recognize that 1 liter equals 1000 milliliters, so 4 liters must be converted to milliliters.
+      expression: 4 × 1000 = 4000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 275 milliliters that were poured from the measuring cup to the 4000 milliliters.
+      expression: 4000 + 275 = 4275
+      common_mistake: null
+    final_answer: 4275 milliliters
+  random_seed: 956202
+  rendered_question: Maya fills a large jug with water for her science experiment. She pours in 4 liters
+    from a pitcher and then adds 275 milliliters from a measuring cup. How many milliliters of water are
+    in the jug altogether?
+  option_a: 4275 milliliters
+  option_b: 679 milliliters
+  option_c: 1275 milliliters
+  option_d: 4279 milliliters
+  correct_option: a
+- question_template_id: authored-measurement-d3-956300
+  topic_id: measurement
+  skill_id: measurement_capacity
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_conversion_factor_instead_of_multiplying
+  - placed_decimal_incorrectly
+  - multiplied_conversion_by_10_instead_of_1000
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A chef is making soup in a large pot. The pot now holds 5 liters and 325 milliliters of soup.
+    How many milliliters of soup are in the pot altogether?
+  context_block: null
+  answer_expression: x = 5 * 1000 + 325
+  hint_ladder:
+  - Recall how many milliliters are in one liter.
+  - Convert the 5 liters to milliliters separately, then add the extra 325 milliliters.
+  - Multiply 5 by 1000 to get the milliliters from liters, then add the remaining milliliters.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the conversion between liters and milliliters: 1 liter equals 1000 milliliters.'
+      expression: 1 liter = 1000 milliliters
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Convert 5 liters to milliliters by multiplying: 5 times 1000 equals 5000 milliliters.'
+      expression: 5 * 1000 = 5000
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the additional 325 milliliters to the 5000 milliliters from the liters.
+      expression: 5000 + 325 = 5325
+      common_mistake: null
+    final_answer: 5325 milliliters
+  random_seed: 956300
+  rendered_question: A chef is making soup in a large pot. The pot now holds 5 liters and 325 milliliters
+    of soup. How many milliliters of soup are in the pot altogether?
+  option_a: 530 milliliters
+  option_b: 5330 milliliters
+  option_c: 5325 milliliters
+  option_d: 10325 milliliters
+  correct_option: c
+- question_template_id: authored-measurement-d3-956301
+  topic_id: measurement
+  skill_id: measurement_capacity
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - place_value_error_in_addition
+  - used_100_instead_of_1000_for_liter_conversion
+  - divided_by_10_or_dropped_a_zero
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bucket contains 6 liters and 480 milliliters of water. How many milliliters of water are in
+    the bucket altogether?
+  context_block: null
+  answer_expression: x = 6 * 1000 + 480
+  hint_ladder:
+  - How many milliliters are in one liter?
+  - Multiply the number of liters by 1000 to convert to milliliters, then add the extra milliliters.
+  - 'Set up the calculation: the liters times 1000 plus the 480 milliliters.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the 6 liters to milliliters by multiplying by 1000.
+      expression: 6 * 1000 = 6000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 480 milliliters already counted in milliliters.
+      expression: 6000 + 480 = 6480
+      common_mistake: null
+    final_answer: 6480 milliliters
+  random_seed: 956301
+  rendered_question: A bucket contains 6 liters and 480 milliliters of water. How many milliliters of
+    water are in the bucket altogether?
+  option_a: 1080 milliliters
+  option_b: 648 milliliters
+  option_c: 6486 milliliters
+  option_d: 6480 milliliters
+  correct_option: d
+- question_template_id: authored-measurement-d3-956302
+  topic_id: measurement
+  skill_id: measurement_capacity
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - concatenated_instead_of_converting
+  - used_incorrect_conversion_factor
+  - multiplied_by_wrong_power_of_ten
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A watering can holds 7 liters and 625 milliliters of water. How many milliliters of water are
+    in the can altogether?
+  context_block: null
+  answer_expression: x = 7 * 1000 + 625
+  hint_ladder:
+  - First, decide how many milliliters are in 7 liters.
+  - Since 1 liter equals 1000 milliliters, multiply 7 by 1000 and then add the extra milliliters.
+  - Write the total as 7 times 1000 plus 625, then calculate that sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the 7 liters to milliliters by multiplying by 1000, since 1 liter = 1000 milliliters.
+      expression: 7 * 1000 = 7000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 625 milliliters already given to the 7000 milliliters from the conversion.
+      expression: 7000 + 625 = 7625
+      common_mistake: null
+    final_answer: 7625 milliliters
+  random_seed: 956302
+  rendered_question: A watering can holds 7 liters and 625 milliliters of water. How many milliliters
+    of water are in the can altogether?
+  option_a: 70625 milliliters
+  option_b: 7625 milliliters
+  option_c: 1325 milliliters
+  option_d: 7007 milliliters
+  correct_option: b
+- question_template_id: authored-measurement-d3-957301
+  topic_id: measurement
+  skill_id: measurement_elapsed_time
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_hours_and_minutes_directly
+  - subtracted_minutes_only_ignoring_hours
+  - calculated_hours_correctly_but_subtracted_instead_of_adding_remaining_minutes
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A concert starts at 9:25 in the morning and ends at 12:40 in the afternoon. How many minutes long
+    is the concert?
+  context_block: null
+  answer_expression: Eq(x, (12*60 + 40) - (9*60 + 25))
+  hint_ladder:
+  - First, figure out how many minutes past midnight the concert starts, and how many minutes past midnight
+    it ends.
+  - 'Convert each time to total minutes: multiply the hour by 60, then add the remaining minutes. The
+    difference between these two totals is the elapsed time.'
+  - 'Write an equation for the elapsed time x: the start time in minutes subtracted from the end time
+    in minutes.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the start time 9:25 to minutes after midnight. Multiply 9 hours by 60 minutes
+        per hour, then add 25 minutes.
+      expression: 9*60 + 25 = 540 + 25 = 565
+      common_mistake: null
+    - step_number: 2
+      explanation: Convert the end time 12:40 to minutes after midnight. Multiply 12 hours by 60 minutes
+        per hour, then add 40 minutes.
+      expression: 12*60 + 40 = 720 + 40 = 760
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the start time from the end time to find the elapsed time in minutes.
+      expression: 760 - 565 = 195
+      common_mistake: null
+    final_answer: 195 minutes
+  random_seed: 957301
+  rendered_question: A concert starts at 9:25 in the morning and ends at 12:40 in the afternoon. How many
+    minutes long is the concert?
+  option_a: 215 minutes
+  option_b: 155 minutes
+  option_c: 135 minutes
+  option_d: 195 minutes
+  correct_option: d
+- question_template_id: authored-measurement-d3-957302
+  topic_id: measurement
+  skill_id: measurement_elapsed_time
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - subtracted_minutes_only_ignored_hours
+  - added_times_instead_of_subtracting
+  - counted_hours_only_ignored_minutes
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A soccer tournament starts at 8:50 and finishes at 11:30. How many minutes does the tournament
+    last?
+  context_block: null
+  answer_expression: Eq(x, (11*60 + 30) - (8*60 + 50))
+  hint_ladder:
+  - How many minutes past midnight is 8:50, and how many minutes past midnight is 11:30?
+  - Convert each time to total minutes from midnight by multiplying the hours by 60 and adding the minutes.
+  - Subtract the start time in minutes from the end time in minutes to find the elapsed time.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Convert the start time 8:50 to minutes past midnight: 8 hours is 8 × 60 = 480 minutes,
+        plus 50 minutes gives 530 minutes.'
+      expression: 8*60 + 50 = 530
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Convert the end time 11:30 to minutes past midnight: 11 hours is 11 × 60 = 660 minutes,
+        plus 30 minutes gives 690 minutes.'
+      expression: 11*60 + 30 = 690
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the start time from the end time to find the elapsed time.
+      expression: 690 - 530 = 160
+      common_mistake: null
+    final_answer: 160 minutes
+  random_seed: 957302
+  rendered_question: A soccer tournament starts at 8:50 and finishes at 11:30. How many minutes does the
+    tournament last?
+  option_a: 140 minutes
+  option_b: 280 minutes
+  option_c: 100 minutes
+  option_d: 160 minutes
+  correct_option: d
+- question_template_id: authored-measurement-d4-957400
+  topic_id: measurement
+  skill_id: measurement_elapsed_time
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_start_and_end_times
+  - subtracted_only_minutes_ignoring_hours
+  - subtracted_hours_and_minutes_separately_without_regrouping
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A museum tour starts at 9:15 and ends at 12:50. How many minutes long is the tour?
+  context_block: null
+  answer_expression: Eq(x, (12*60 + 50) - (9*60 + 15))
+  hint_ladder:
+  - Convert both times to minutes after midnight so you can compare them easily.
+  - 9:15 is 9×60 + 15 minutes after midnight, and 12:50 is 12×60 + 50 minutes after midnight.
+  - Subtract the start time in minutes from the end time in minutes to find how long the tour lasts.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the start time 9:15 to minutes after midnight by multiplying the hours by 60
+        and adding the minutes.
+      expression: 9*60 + 15 = 540 + 15 = 555
+      common_mistake: null
+    - step_number: 2
+      explanation: Convert the end time 12:50 to minutes after midnight by multiplying the hours by 60
+        and adding the minutes.
+      expression: 12*60 + 50 = 720 + 50 = 770
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the start time from the end time to find the elapsed time in minutes.
+      expression: 770 - 555 = 215
+      common_mistake: null
+    final_answer: 215 minutes
+  random_seed: 957400
+  rendered_question: A museum tour starts at 9:15 and ends at 12:50. How many minutes long is the tour?
+  option_a: 335 minutes
+  option_b: 35 minutes
+  option_c: 195 minutes
+  option_d: 215 minutes
+  correct_option: d
+- question_template_id: authored-measurement-d4-957402
+  topic_id: measurement
+  skill_id: measurement_elapsed_time
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_minutes_from_minutes_without_borrowing
+  - added_minutes_instead_of_subtracting
+  - calculated_hour_difference_only
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker starts mixing dough at 8:25 in the morning and finishes at 11:10. How many minutes does
+    the mixing session last?
+  context_block: null
+  answer_expression: Eq(x, (11*60 + 10) - (8*60 + 25))
+  hint_ladder:
+  - Find how many total minutes past midnight each time represents.
+  - Convert 8:25 to minutes by calculating 8×60 + 25, and 11:10 by calculating 11×60 + 10.
+  - Subtract the starting time in minutes from the ending time in minutes to find how long the session
+    lasted.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the start time 8:25 to total minutes past midnight.
+      expression: 8*60 + 25 = 480 + 25 = 505
+      common_mistake: null
+    - step_number: 2
+      explanation: Convert the end time 11:10 to total minutes past midnight.
+      expression: 11*60 + 10 = 660 + 10 = 670
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the start time from the end time to find the elapsed minutes.
+      expression: 670 - 505 = 165
+      common_mistake: Students may subtract hours from hours and minutes from minutes separately, getting
+        2 hours 45 minutes but then converting incorrectly.
+    final_answer: 165 minutes
+  random_seed: 957402
+  rendered_question: A baker starts mixing dough at 8:25 in the morning and finishes at 11:10. How many
+    minutes does the mixing session last?
+  option_a: 105 minutes
+  option_b: 185 minutes
+  option_c: 145 minutes
+  option_d: 165 minutes
+  correct_option: d
+- question_template_id: authored-measurement-d1-958102
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_conversion_factor_to_centimeters
+  - added_meters_and_centimeters_without_converting
+  - concatenated_digits_instead_of_converting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A carpenter has a wooden plank that is 3 meters and 45 centimeters long. What is the total length
+    of the plank in centimeters?
+  context_block: null
+  answer_expression: x = 3 * 100 + 45
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Multiply the number of meters by 100 to convert to centimeters, then add the centimeters already given.
+  - Write 3 × 100 + 45 and calculate.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the meters to centimeters. Since 1 meter equals 100 centimeters, multiply 3
+        meters by 100.
+      expression: 3 × 100 = 300
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the remaining 45 centimeters to the converted amount.
+      expression: 300 + 45 = 345
+      common_mistake: null
+    final_answer: 345 centimeters
+  random_seed: 958102
+  rendered_question: A carpenter has a wooden plank that is 3 meters and 45 centimeters long. What is
+    the total length of the plank in centimeters?
+  option_a: 75 centimeters
+  option_b: 348 centimeters
+  option_c: 345 centimeters
+  option_d: 3045 centimeters
+  correct_option: c
+- question_template_id: authored-measurement-d2-958200
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_meters_and_centimeters_without_converting
+  - added_meters_to_centimeters_without_scaling
+  - concatenated_digits_instead_of_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A jump rope is 5 meters and 60 centimeters long. What is its total length in centimeters?
+  context_block: null
+  answer_expression: x = 5 * 100 + 60
+  hint_ladder:
+  - How many centimeters are in 1 meter?
+  - Multiply the number of meters by 100 to convert them to centimeters.
+  - Add the 60 extra centimeters to the centimeters you got from the meters.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert 5 meters to centimeters. Since 1 meter equals 100 centimeters, multiply 5 by
+        100.
+      expression: 5 * 100 = 500
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the additional 60 centimeters to the 500 centimeters from the meters.
+      expression: 500 + 60 = 560
+      common_mistake: null
+    final_answer: 560 centimeters
+  random_seed: 958200
+  rendered_question: A jump rope is 5 meters and 60 centimeters long. What is its total length in centimeters?
+  option_a: 510 centimeters
+  option_b: 5060 centimeters
+  option_c: 560 centimeters
+  option_d: 65 centimeters
+  correct_option: c
+- question_template_id: authored-measurement-d2-958201
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - concatenated_digits_instead_of_converting
+  - reversed_digit_order_in_place_value
+  - multiplied_meters_by_1000_instead_of_100
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A curtain in the school hall is 6 meters and 80 centimeters long. What is the total length of
+    the curtain in centimeters?
+  context_block: null
+  answer_expression: Eq(x, 6*100 + 80)
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Multiply the number of meters by 100 to convert them to centimeters, then add the extra centimeters.
+  - Write 6 × 100 plus 80 to find the total in centimeters.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the 6 meters to centimeters. Since 1 meter equals 100 centimeters, multiply
+        6 by 100.
+      expression: 6 * 100 = 600
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the remaining 80 centimeters to the converted amount.
+      expression: 600 + 80 = 680
+      common_mistake: null
+    final_answer: 680 centimeters
+  random_seed: 958201
+  rendered_question: A curtain in the school hall is 6 meters and 80 centimeters long. What is the total
+    length of the curtain in centimeters?
+  option_a: 86 centimeters
+  option_b: 608 centimeters
+  option_c: 680 centimeters
+  option_d: 6080 centimeters
+  correct_option: c
+- question_template_id: authored-measurement-d2-958202
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_parts_without_conversion
+  - placed_values_side_by_side_without_operation
+  - converted_only_meters_forgot_to_add_centimeters
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A swimming pool lane rope is 7 meters and 50 centimeters long. What is the total length of the
+    rope in centimeters?
+  context_block: null
+  answer_expression: x = 7 * 100 + 50
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Convert the 7 meters to centimeters first, then think about what to do with the 50 centimeters.
+  - Multiply 7 by 100 to get the meters in centimeters, then add the extra 50 centimeters.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert 7 meters to centimeters. Since 1 meter equals 100 centimeters, multiply 7 by
+        100.
+      expression: 7 * 100 = 700
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the additional 50 centimeters to the converted amount.
+      expression: 700 + 50 = 750
+      common_mistake: null
+    final_answer: 750 centimeters
+  random_seed: 958202
+  rendered_question: A swimming pool lane rope is 7 meters and 50 centimeters long. What is the total
+    length of the rope in centimeters?
+  option_a: 57 centimeters
+  option_b: 700 centimeters
+  option_c: 7050 centimeters
+  option_d: 750 centimeters
+  correct_option: d
+- question_template_id: authored-measurement-d1-958100
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_without_converting
+  - converted_but_forgot_to_add_remainder
+  - concatenated_digits_instead_of_converting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A child has a ribbon that is 2 meters and 35 centimeters long. What is the total length of the
+    ribbon in centimeters?
+  context_block: null
+  answer_expression: x = 2 * 100 + 35
+  hint_ladder:
+  - Think about how many centimeters are in one meter.
+  - To convert 2 meters to centimeters, multiply 2 by 100, then add the 35 centimeters.
+  - Write the expression 2 times 100 plus 35 and calculate the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recall that 1 meter equals 100 centimeters.
+      expression: 1 m = 100 cm
+      common_mistake: null
+    - step_number: 2
+      explanation: Convert 2 meters to centimeters by multiplying 2 by 100.
+      expression: 2 * 100 = 200
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the 35 centimeters to the converted amount.
+      expression: 200 + 35 = 235
+      common_mistake: null
+    final_answer: 235 centimeters
+  random_seed: 958100
+  rendered_question: A child has a ribbon that is 2 meters and 35 centimeters long. What is the total
+    length of the ribbon in centimeters?
+  option_a: 2035 centimeters
+  option_b: 200 centimeters
+  option_c: 235 centimeters
+  option_d: 37 centimeters
+  correct_option: c
+- question_template_id: authored-measurement-d1-958101
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_without_converting
+  - treated_meters_as_centimeters_in_final_step
+  - concatenated_digits_instead_of_converting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A garden hose is 4 meters and 25 centimeters long. What is the total length of the hose in centimeters?
+  context_block: null
+  answer_expression: x = 4 * 100 + 25
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Multiply the number of meters by 100 to convert them to centimeters.
+  - Add the result to the 25 centimeters that are already given.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the 4 meters to centimeters. Since 1 meter equals 100 centimeters, multiply
+        4 by 100.
+      expression: 4 * 100 = 400
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 25 centimeters to the converted amount.
+      expression: 400 + 25 = 425
+      common_mistake: null
+    final_answer: 425 centimeters
+  random_seed: 958101
+  rendered_question: A garden hose is 4 meters and 25 centimeters long. What is the total length of the
+    hose in centimeters?
+  option_a: 4025 centimeters
+  option_b: 429 centimeters
+  option_c: 425 centimeters
+  option_d: 65 centimeters
+  correct_option: c
+- question_template_id: authored-measurement-d3-958300
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_before_converting_then_scaled_incorrectly
+  - concatenated_digits_instead_of_converting
+  - ignored_meters_or_misapplied_conversion
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school gym is decorating for a festival. The banner they hung is 8 meters and 35 centimeters
+    long. What is the total length of the banner in centimeters?
+  context_block: ''
+  answer_expression: x = 8 * 100 + 35
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Convert the 8 meters to centimeters, then think about how to combine that with the 35 centimeters.
+  - Multiply 8 by 100 to get the meters in centimeters, then add the remaining 35 centimeters.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the 8 meters to centimeters. Since 1 meter equals 100 centimeters, multiply
+        8 by 100.
+      expression: 8 * 100 = 800
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the remaining 35 centimeters to the 800 centimeters from the meters.
+      expression: 800 + 35 = 835
+      common_mistake: null
+    final_answer: 835 centimeters
+  random_seed: 958300
+  rendered_question: A school gym is decorating for a festival. The banner they hung is 8 meters and 35
+    centimeters long. What is the total length of the banner in centimeters?
+  option_a: 835 centimeters
+  option_b: 843 centimeters
+  option_c: 135 centimeters
+  option_d: 8035 centimeters
+  correct_option: a
+- question_template_id: authored-measurement-d3-958301
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_9_and_25_then_added_100
+  - only_converted_centimeters_not_meters
+  - concatenated_digits_instead_of_converting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A garden hose is 9 meters and 25 centimeters long. What is the total length of the hose in centimeters?
+  context_block: null
+  answer_expression: Eq(x, 9 * 100 + 25)
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Multiply the number of meters by 100 to convert to centimeters, then add the remaining centimeters.
+  - Write 9 × 100 + 25 and calculate the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the 9 meters to centimeters. Since 1 meter equals 100 centimeters, multiply
+        9 by 100.
+      expression: 9 * 100 = 900
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 25 centimeters that are already given in centimeters to the converted amount.
+      expression: 900 + 25 = 925
+      common_mistake: null
+    final_answer: 925 centimeters
+  random_seed: 958301
+  rendered_question: A garden hose is 9 meters and 25 centimeters long. What is the total length of the
+    hose in centimeters?
+  option_a: 934 centimeters
+  option_b: 125 centimeters
+  option_c: 925 centimeters
+  option_d: 90025 centimeters
+  correct_option: c
+- question_template_id: authored-measurement-d3-958302
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_meters_and_centimeters_directly
+  - added_conversion_factor_instead_of_multiplying
+  - concatenated_digits_instead_of_converting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A climbing rope is 4 meters and 15 centimeters long. What is the total length of the rope in centimeters?
+  context_block: null
+  answer_expression: Eq(x, 4 * 100 + 15)
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Multiply the number of meters by 100 to convert to centimeters, then add the extra centimeters.
+  - Write x = 4 × 100 + 15 and compute the right side.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the meters to centimeters. Since 1 meter equals 100 centimeters, 4 meters equals
+        4 times 100.
+      expression: 4 × 100 = 400
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the remaining 15 centimeters to the converted amount.
+      expression: 400 + 15 = 415
+      common_mistake: null
+    final_answer: 415 centimeters
+  random_seed: 958302
+  rendered_question: A climbing rope is 4 meters and 15 centimeters long. What is the total length of
+    the rope in centimeters?
+  option_a: 55 centimeters
+  option_b: 4015 centimeters
+  option_c: 415 centimeters
+  option_d: 19 centimeters
+  correct_option: c
+- question_template_id: authored-measurement-d1-959100
+  topic_id: measurement
+  skill_id: measurement_money
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracting
+  - subtracted_only_dollars_ignored_cents
+  - rounded_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Jordan had $15.75 and spent $6.25 on a book. How much money does Jordan have left?
+  context_block: null
+  answer_expression: Eq(x, 15.75 - 6.25)
+  hint_ladder:
+  - Start with the amount Jordan had at the beginning.
+  - When you spend money, you take away that amount from what you started with.
+  - Write the subtraction and find the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Jordan started with $15.75 and spent $6.25, so we subtract the amount spent from the
+        starting amount.
+      expression: 15.75 - 6.25
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Subtracting the dollars first: 15 - 6 = 9. Then subtracting the cents: 0.75 - 0.25
+        = 0.50.'
+      expression: 9 + 0.50 = 9.50
+      common_mistake: null
+    final_answer: '9.50'
+  random_seed: 959100
+  rendered_question: Jordan had $15.75 and spent $6.25 on a book. How much money does Jordan have left?
+  option_a: '9.00'
+  option_b: '10.00'
+  option_c: '9.50'
+  option_d: '22.00'
+  correct_option: c
+- question_template_id: authored-measurement-d1-959101
+  topic_id: measurement
+  skill_id: measurement_money
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtraction_borrowing_error
+  - added_instead_of_subtracted
+  - subtracted_in_wrong_order
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker started the day with $28.50 and then spent $12.75 on baking supplies. How much money does
+    the baker have left?
+  context_block: ''
+  answer_expression: Eq(x, 28.50 - 12.75)
+  hint_ladder:
+  - Think about whether the baker's money increases or decreases when supplies are purchased.
+  - You need to subtract the amount spent from the starting amount.
+  - Write the subtraction 28.50 minus 12.75 and compute the result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker starts with $28.50.
+      expression: '28.50'
+      common_mistake: null
+    - step_number: 2
+      explanation: The baker spends $12.75, so we subtract that from the starting amount.
+      expression: 28.50 - 12.75
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the subtraction: 28.50 minus 12.75 equals 15.75.'
+      expression: '15.75'
+      common_mistake: null
+    final_answer: $15.75
+  random_seed: 959101
+  rendered_question: A baker started the day with $28.50 and then spent $12.75 on baking supplies. How
+    much money does the baker have left?
+  option_a: $41.25
+  option_b: $15.75
+  option_c: $16.25
+  option_d: $16.75
+  correct_option: b
+- question_template_id: authored-measurement-d1-959102
+  topic_id: measurement
+  skill_id: measurement_money
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - subtracted_ones_place_instead_of_tens_place
+  - subtracted_incorrectly_in_dollars_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A gardener has $24.80 and spends $8.30 on seeds. How much money does the gardener have left?
+  context_block: ''
+  answer_expression: Eq(x, 24.80 - 8.30)
+  hint_ladder:
+  - Start with the amount of money the gardener had at the beginning.
+  - To find how much is left after spending, subtract the amount spent from the starting amount.
+  - Write $24.80 minus $8.30 and calculate the result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The gardener starts with $24.80.
+      expression: '24.80'
+      common_mistake: null
+    - step_number: 2
+      explanation: The gardener spends $8.30 on seeds, so subtract that amount from the starting amount.
+      expression: 24.80 - 8.30
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Subtract the dollars: 24 - 8 = 16. Subtract the cents: 80 - 30 = 50. Combine them
+        to get $16.50.'
+      expression: '16.50'
+      common_mistake: null
+    final_answer: $16.50
+  random_seed: 959102
+  rendered_question: A gardener has $24.80 and spends $8.30 on seeds. How much money does the gardener
+    have left?
+  option_a: $15.50
+  option_b: $16.40
+  option_c: $16.50
+  option_d: $33.10
+  correct_option: c
+- question_template_id: authored-measurement-d2-959200
+  topic_id: measurement
+  skill_id: measurement_money
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - regrouping_error_in_tenths_place
+  - added_instead_of_subtracted
+  - regrouping_error_in_hundredths_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A musician had $32.40 and spent $14.65 on guitar strings. How much money does she have left?
+  context_block: ''
+  answer_expression: Eq(x, 32.40 - 14.65)
+  hint_ladder:
+  - Think about what happens to the musician's money when she buys the strings.
+  - Subtract the cost of the strings from the amount she started with.
+  - Write 32.40 minus 14.65 and work through the subtraction, regrouping as needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The musician starts with $32.40 and spends $14.65, so we subtract the amount spent
+        from the starting amount.
+      expression: 32.40 - 14.65
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Line up the decimal points and subtract. Starting from the right: 0 - 5 requires regrouping
+        from the 4 in the tenths place, making it 10 - 5 = 5.'
+      expression: 32.40 - 14.65 = 32.40 - 14.65
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Continue regrouping through the columns: in the tenths place, 3 - 6 requires borrowing
+        from the ones, giving 13 - 6 = 7. In the ones place, 1 - 4 requires borrowing from the tens, giving
+        11 - 4 = 7. In the tens place, 2 - 1 = 1.'
+      expression: '17.75'
+      common_mistake: null
+    final_answer: $17.75
+  random_seed: 959200
+  rendered_question: A musician had $32.40 and spent $14.65 on guitar strings. How much money does she
+    have left?
+  option_a: $17.85
+  option_b: $17.75
+  option_c: $47.05
+  option_d: $18.75
+  correct_option: b
+- question_template_id: authored-measurement-d2-959201
+  topic_id: measurement
+  skill_id: measurement_money
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracting
+  - subtracted_incorrectly_in_tenths_place
+  - subtracted_incorrectly_in_ones_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam went to the pet store with $18.60. He bought a bag of hamster food for $7.45. How much money
+    does Liam have left?
+  context_block: null
+  answer_expression: Eq(x, 18.60 - 7.45)
+  hint_ladder:
+  - Start by identifying how much money Liam had at the beginning and how much he spent.
+  - To find how much is left, subtract the amount spent from the amount he started with.
+  - Write the subtraction 18.60 minus 7.45 and compute it carefully, lining up the decimal points.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with $18.60 and spends $7.45. To find the amount remaining, we subtract
+        the amount spent from the starting amount.
+      expression: 18.60 - 7.45
+      common_mistake: null
+    - step_number: 2
+      explanation: Line up the decimal points and subtract. 18.60 minus 7.45 equals 11.15.
+      expression: '11.15'
+      common_mistake: null
+    final_answer: $11.15
+  random_seed: 959201
+  rendered_question: Liam went to the pet store with $18.60. He bought a bag of hamster food for $7.45.
+    How much money does Liam have left?
+  option_a: $11.05
+  option_b: $11.15
+  option_c: $10.15
+  option_d: $26.05
+  correct_option: b
+- question_template_id: authored-measurement-d2-959202
+  topic_id: measurement
+  skill_id: measurement_money
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - regrouping_error_in_cents
+  - added_instead_of_subtracted
+  - subtracted_wrong_digit_in_dollars
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cyclist had $21.50 and spent $9.35 on a water bottle. How much money does the cyclist have left?
+  context_block: ''
+  answer_expression: Eq(x, 21.50 - 9.35)
+  hint_ladder:
+  - Start with the amount the cyclist had at the beginning.
+  - Subtract the cost of the water bottle from the starting amount.
+  - 'Remember to regroup when subtracting cents: 50 cents minus 35 cents.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The cyclist started with $21.50.
+      expression: '21.50'
+      common_mistake: null
+    - step_number: 2
+      explanation: The cyclist spent $9.35, so we subtract that amount from what they started with.
+      expression: 21.50 - 9.35
+      common_mistake: null
+    - step_number: 3
+      explanation: 'First subtract the cents: 50 cents minus 35 cents equals 15 cents.'
+      expression: 0.50 - 0.35 = 0.15
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Then subtract the dollars: 21 dollars minus 9 dollars equals 12 dollars.'
+      expression: 21 - 9 = 12
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine the dollars and cents to get the amount left.
+      expression: 12 + 0.15 = 12.15
+      common_mistake: null
+    final_answer: $12.15
+  random_seed: 959202
+  rendered_question: A cyclist had $21.50 and spent $9.35 on a water bottle. How much money does the cyclist
+    have left?
+  option_a: $11.15
+  option_b: $12.15
+  option_c: $30.85
+  option_d: $12.25
+  correct_option: b
+- question_template_id: authored-measurement-d2-960200
+  topic_id: measurement
+  skill_id: measurement_weight
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - reversed_digits_in_concatenation
+  - ignored_place_value_in_conversion
+  - multiplied_conversion_factor_by_ten
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A package arrives at the post office weighing 3 kg 450 g. What is the total weight of the package
+    in grams?
+  context_block: ''
+  answer_expression: x = 3 * 1000 + 450
+  hint_ladder:
+  - Remember that 1 kilogram equals 1000 grams, so you need to convert the kilograms first.
+  - Multiply the number of kilograms by 1000 to find how many grams that part weighs, then add the remaining
+    grams.
+  - Write the total as 3 times 1000 plus 450 and calculate the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the kilograms to grams by multiplying by 1000.
+      expression: 3 * 1000 = 3000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the remaining grams to the converted amount.
+      expression: 3000 + 450 = 3450
+      common_mistake: null
+    final_answer: 3450 grams
+  random_seed: 960200
+  rendered_question: A package arrives at the post office weighing 3 kg 450 g. What is the total weight
+    of the package in grams?
+  option_a: 3045 grams
+  option_b: 3450 grams
+  option_c: 30450 grams
+  option_d: 345 grams
+  correct_option: b
+- question_template_id: authored-measurement-d2-960201
+  topic_id: measurement
+  skill_id: measurement_weight
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - concatenated_digits_instead_of_multiplying_by_conversion_factor
+  - forgot_conversion_factor_zeros_when_adding
+  - rounded_intermediate_value_prematurely
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A watermelon at the market weighs 5 kg 280 g. What is its weight in grams?
+  context_block: ''
+  answer_expression: x = 5 * 1000 + 280
+  hint_ladder:
+  - How many grams are in one kilogram?
+  - Multiply the number of kilograms by 1000 to convert them to grams.
+  - Add the 280 grams to the converted kilogram amount.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the 5 kilograms to grams. Since 1 kilogram equals 1000 grams, multiply 5 by
+        1000.
+      expression: 5 * 1000 = 5000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the remaining 280 grams to the converted amount.
+      expression: 5000 + 280 = 5280
+      common_mistake: null
+    final_answer: 5280 grams
+  random_seed: 960201
+  rendered_question: A watermelon at the market weighs 5 kg 280 g. What is its weight in grams?
+  option_a: 5300 grams
+  option_b: 5280 grams
+  option_c: 780 grams
+  option_d: 5028 grams
+  correct_option: b
+- question_template_id: authored-measurement-d2-960202
+  topic_id: measurement
+  skill_id: measurement_weight
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - ignored_the_grams_component
+  - used_incorrect_conversion_factor
+  - rounded_before_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bag of flour weighs 4 kg 275 g. How much does the bag weigh in grams?
+  context_block: ''
+  answer_expression: Eq(x, 4*1000 + 275)
+  hint_ladder:
+  - How many grams are in one kilogram?
+  - To convert 4 kilograms to grams, multiply 4 by 1000.
+  - Add the result from the kilograms to the 275 grams already given.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the kilograms to grams. Since 1 kilogram equals 1000 grams, multiply 4 by 1000.
+      expression: 4 * 1000 = 4000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the grams from the kilogram conversion to the 275 grams already given.
+      expression: 4000 + 275 = 4275
+      common_mistake: null
+    final_answer: 4275 grams
+  random_seed: 960202
+  rendered_question: A bag of flour weighs 4 kg 275 g. How much does the bag weigh in grams?
+  option_a: 4300 grams
+  option_b: 4275 grams
+  option_c: 679 grams
+  option_d: 4000 grams
+  correct_option: b
+- question_template_id: authored-measurement-d3-960300
+  topic_id: measurement
+  skill_id: measurement_weight
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_kg_by_100_instead_of_1000
+  - added_340_to_6_before_converting
+  - added_1000_to_the_grams_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A farmer harvests a pumpkin that weighs 6 kg 340 g. What is the weight of the pumpkin in grams?
+  context_block: ''
+  answer_expression: Eq(x, 6*1000 + 340)
+  hint_ladder:
+  - How many grams are in one kilogram?
+  - Multiply the number of kilograms by 1000 to convert, then think about what to do with the remaining
+    grams.
+  - Write 6 × 1000 and add the 340 grams that are already in grams.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the kilograms to grams. Since 1 kg = 1000 g, multiply 6 kg by 1000.
+      expression: 6 × 1000 = 6000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the remaining grams to the converted amount.
+      expression: 6000 + 340 = 6340
+      common_mistake: null
+    final_answer: 6340 grams
+  random_seed: 960300
+  rendered_question: A farmer harvests a pumpkin that weighs 6 kg 340 g. What is the weight of the pumpkin
+    in grams?
+  option_a: 640 grams
+  option_b: 6640 grams
+  option_c: 9340 grams
+  option_d: 6340 grams
+  correct_option: d
+- question_template_id: authored-measurement-d3-960301
+  topic_id: measurement
+  skill_id: measurement_weight
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_adding_remaining_grams
+  - multiplied_kg_by_100_instead_of_1000
+  - added_kg_and_grams_directly_without_conversion
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baby elephant at the zoo weighs 7 kg 125 g. What is the elephant's weight in grams?
+  context_block: null
+  answer_expression: x = 7 * 1000 + 125
+  hint_ladder:
+  - How many grams are in one kilogram?
+  - Multiply the number of kilograms by 1000 to convert to grams, then add the extra grams.
+  - Write 7 × 1000 plus 125 and calculate the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the kilograms to grams. Since 1 kg equals 1000 g, multiply 7 by 1000.
+      expression: 7 × 1000 = 7000
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the additional 125 grams to the converted kilograms.
+      expression: 7000 + 125 = 7125
+      common_mistake: null
+    final_answer: 7125 grams
+  random_seed: 960301
+  rendered_question: A baby elephant at the zoo weighs 7 kg 125 g. What is the elephant's weight in grams?
+  option_a: 8125 grams
+  option_b: 132 grams
+  option_c: 7125 grams
+  option_d: 7025 grams
+  correct_option: c
+- question_template_id: authored-measurement-d3-960302
+  topic_id: measurement
+  skill_id: measurement_weight
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_incorrect_conversion_factor
+  - omitted_kilogram_portion
+  - place_value_or_concatenation_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A pet cat weighs 8 kg 465 g. What is the cat's weight in grams?
+  context_block: null
+  answer_expression: x = 8 * 1000 + 465
+  hint_ladder:
+  - Recall how many grams are in one kilogram.
+  - Convert the kilograms to grams first, then add the grams that are already given.
+  - Multiply the number of kilograms by 1000, then add 465 to that result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We know that 1 kilogram equals 1000 grams, so we need to convert 8 kg to grams.
+      expression: 8 × 1000 = 8000
+      common_mistake: null
+    - step_number: 2
+      explanation: Now we add the remaining 465 grams to the 8000 grams we just found.
+      expression: 8000 + 465 = 8465
+      common_mistake: null
+    final_answer: 8465 grams
+  random_seed: 960302
+  rendered_question: A pet cat weighs 8 kg 465 g. What is the cat's weight in grams?
+  option_a: 80465 grams
+  option_b: 8065 grams
+  option_c: 1265 grams
+  option_d: 8465 grams
+  correct_option: d

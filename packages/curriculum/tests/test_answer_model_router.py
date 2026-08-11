@@ -166,7 +166,11 @@ def test_the_whole_shipped_bank_still_routes_as_value_and_matches_its_own_key():
             matching = [k for k, v in options.items() if _option_matches(derivation, v)]
             assert matching == [template["correct_option"]], template["question_template_id"]
             checked += 1
-    assert checked == 184
+    # A floor, not an equality (D-276). The exact count is a moving number - every wave
+    # adds items and every rejection removes one - and pinning it makes an unrelated
+    # content change fail here with a message about arithmetic. What this test is FOR is
+    # that the loop ran over a real bank rather than an empty glob, and a floor says that.
+    assert checked >= 184, f"only {checked} items checked - did the bank glob match?"
 
 
 # --------------------------------------------------------------------------------------

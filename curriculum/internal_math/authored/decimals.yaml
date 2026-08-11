@@ -1,0 +1,1025 @@
+curriculum_version: '2026.1'
+topic_id: decimals
+templates:
+- question_template_id: authored-decimals-d1-995100
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_whole_numbers_only_and_ignored_decimals
+  - regrouped_incorrectly_across_decimal
+  - subtracted_instead_of_added
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya walks 3.4 kilometers from home to school, then continues 2.5 kilometers to her friend's house.
+    What is the total distance she walks?
+  context_block: null
+  answer_expression: x = 3.4 + 2.5
+  hint_ladder:
+  - What operation do you use when you want to find the total of two distances?
+  - Add the distance from home to school and the distance from school to her friend's house.
+  - Line up the decimal points and add 3.4 and 2.5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation for the total distance x by adding the two parts of the journey.
+      expression: x = 3.4 + 2.5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Line up the decimal points and add the tenths: 4 tenths plus 5 tenths equals 9 tenths.'
+      expression: 3.4 + 2.5 = 5.9
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the whole numbers: 3 plus 2 equals 5. Combine to get the final total.'
+      expression: '5.9'
+      common_mistake: null
+    final_answer: 5.9 kilometers
+  random_seed: 995100
+  rendered_question: Maya walks 3.4 kilometers from home to school, then continues 2.5 kilometers to her
+    friend's house. What is the total distance she walks?
+  option_a: 5.9 kilometers
+  option_b: 5.0 kilometers
+  option_c: 6.9 kilometers
+  option_d: 0.9 kilometers
+  correct_option: a
+- question_template_id: authored-decimals-d1-995101
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_ones_place_incorrectly
+  - added_only_tenths_and_kept_first_ones_digit
+  - incorrectly_regrouped_or_added_tenths
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker uses 2.3 kilograms of flour in the morning and 4.6 kilograms in the afternoon. How many
+    kilograms of flour did the baker use in total?
+  context_block: ''
+  answer_expression: x = 2.3 + 4.6
+  hint_ladder:
+  - Think about what operation you use when you want to find a total from two amounts.
+  - Add the morning amount and the afternoon amount, making sure to line up the decimal points.
+  - Write 2.3 + 4.6 with the decimal points aligned, then add each column from right to left.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the two amounts to be added: 2.3 kilograms and 4.6 kilograms.'
+      expression: 2.3 + 4.6
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Line up the decimal points and add the tenths place: 3 tenths plus 6 tenths equals
+        9 tenths.'
+      expression: 0.3 + 0.6 = 0.9
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the ones place: 2 ones plus 4 ones equals 6 ones.'
+      expression: 2 + 4 = 6
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the ones and tenths to get the total.
+      expression: 6 + 0.9 = 6.9
+      common_mistake: null
+    final_answer: 6.9 kilograms
+  random_seed: 995101
+  rendered_question: A baker uses 2.3 kilograms of flour in the morning and 4.6 kilograms in the afternoon.
+    How many kilograms of flour did the baker use in total?
+  option_a: 6.9 kilograms
+  option_b: 6.8 kilograms
+  option_c: 7.9 kilograms
+  option_d: 2.9 kilograms
+  correct_option: a
+- question_template_id: authored-decimals-d1-995102
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_ones_place_with_regrouping_error
+  - subtracted_instead_of_added
+  - subtracted_smaller_from_larger_in_wrong_order
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener waters his vegetable patch with 1.2 liters in the morning and 3.5 liters in the evening.
+    How many liters of water does he use altogether?
+  context_block: null
+  answer_expression: x = 1.2 + 3.5
+  hint_ladder:
+  - Write down the two amounts of water used and think about how to combine them.
+  - You need to add the morning amount and the evening amount together.
+  - 'Line up the decimal points and add: 1.2 plus 3.5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the two amounts of water used: 1.2 liters in the morning and 3.5 liters in
+        the evening.'
+      expression: 1.2 + 3.5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Line up the decimal points and add the tenths place: 2 tenths plus 5 tenths equals
+        7 tenths.'
+      expression: 0.2 + 0.5 = 0.7
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the ones place: 1 plus 3 equals 4.'
+      expression: 1 + 3 = 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the ones and tenths to get the total.
+      expression: 4 + 0.7 = 4.7
+      common_mistake: null
+    final_answer: 4.7 liters
+  random_seed: 995102
+  rendered_question: A gardener waters his vegetable patch with 1.2 liters in the morning and 3.5 liters
+    in the evening. How many liters of water does he use altogether?
+  option_a: 4.3 liters
+  option_b: 2.3 liters
+  option_c: 4.7 liters
+  option_d: 5.7 liters
+  correct_option: c
+- question_template_id: authored-decimals-d2-995200
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - misaligned_decimal_places
+  - incorrect_carrying_in_addition
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A painter uses 2.75 litres of paint for the walls and 1.6 litres for the ceiling. How many litres
+    of paint does the painter use in total?
+  context_block: ''
+  answer_expression: Eq(x, 2.75 + 1.6)
+  hint_ladder:
+  - To find the total, you need to combine the amount used for the walls with the amount used for the
+    ceiling.
+  - 'Write the two amounts with the same number of decimal places: 2.75 litres and 1.60 litres.'
+  - Line up the decimal points and add the digits in each place value column.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write both amounts with the same number of decimal places so they can be added directly.
+      expression: 2.75 + 1.60
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the hundredths place: 5 + 0 = 5.'
+      expression: '0.05'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tenths place: 7 + 6 = 13. Write 3 and carry 1.'
+      expression: 0.3 (carry 1)
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the ones place: 2 + 1 + 1 (carried) = 4.'
+      expression: '4'
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine all place values to get the total.
+      expression: '4.35'
+      common_mistake: null
+    final_answer: 4.35 litres
+  random_seed: 995200
+  rendered_question: A painter uses 2.75 litres of paint for the walls and 1.6 litres for the ceiling.
+    How many litres of paint does the painter use in total?
+  option_a: 4.35 litres
+  option_b: 3.81 litres
+  option_c: 1.15 litres
+  option_d: 4.41 litres
+  correct_option: a
+- question_template_id: authored-decimals-d2-995202
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - treated_decimals_as_whole_numbers_then_misplaced_point
+  - added_only_whole_and_largest_decimal_part
+  - reversed_tenths_and_hundredths_in_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A shopper buys 3.85 kilograms of apples and 2.7 kilograms of oranges. What is the total weight
+    of fruit?
+  context_block: ''
+  answer_expression: x = 3.85 + 2.7
+  hint_ladder:
+  - Write down the two weights and think about what operation combines them into a total.
+  - 'Line up the decimal points when you add: 3.85 plus 2.7 means treating 2.7 as 2.70.'
+  - Add the hundredths, then the tenths, then the ones, carrying when needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Rewrite 2.7 as 2.70 so both numbers have two decimal places.
+      expression: 3.85 + 2.70
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Line up the decimal points and add column by column: 5 + 0 = 5 in the hundredths place.'
+      expression: 'hundredths: 5'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tenths: 8 + 7 = 15, write 5 and carry 1.'
+      expression: 'tenths: 5, carry 1'
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the ones: 3 + 2 + 1 (carried) = 6.'
+      expression: 'ones: 6'
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine the digits with the decimal point in place.
+      expression: '6.55'
+      common_mistake: null
+    final_answer: 6.55 kilograms
+  random_seed: 995202
+  rendered_question: A shopper buys 3.85 kilograms of apples and 2.7 kilograms of oranges. What is the
+    total weight of fruit?
+  option_a: 6.58 kilograms
+  option_b: 5.85 kilograms
+  option_c: 6.55 kilograms
+  option_d: 6.12 kilograms
+  correct_option: c
+- question_template_id: authored-decimals-d3-995300
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - subtracted_instead_of_added
+  - misaligned_decimal_points
+  - ignored_decimal_point
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cyclist rides 3.65 kilometers on Monday and 2.8 kilometers on Tuesday. How many kilometers does
+    she ride in total?
+  context_block: null
+  answer_expression: x = 3.65 + 2.8
+  hint_ladder:
+  - Write the total distance as Monday's distance plus Tuesday's distance.
+  - Line up the decimal points when you add 3.65 and 2.8.
+  - Remember that 2.8 is the same as 2.80 when lining up the digits.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total distance is the sum of Monday's distance and Tuesday's distance.
+      expression: x = 3.65 + 2.8
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite 2.8 as 2.80 so both numbers have the same number of decimal places.
+      expression: x = 3.65 + 2.80
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the hundredths place: 5 + 0 = 5.'
+      expression: '5'
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the tenths place: 6 + 8 = 14, write 4 and carry 1.'
+      expression: 4, carry 1
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Add the ones place: 3 + 2 + 1 = 6.'
+      expression: '6'
+      common_mistake: null
+    - step_number: 6
+      explanation: Combine the results with the decimal point in the correct position.
+      expression: '6.45'
+      common_mistake: null
+    final_answer: 6.45 kilometers
+  random_seed: 995300
+  rendered_question: A cyclist rides 3.65 kilometers on Monday and 2.8 kilometers on Tuesday. How many
+    kilometers does she ride in total?
+  option_a: 5.85 kilometers
+  option_b: 0.85 kilometers
+  option_c: 6.35 kilometers
+  option_d: 6.45 kilometers
+  correct_option: d
+- question_template_id: authored-decimals-d3-995301
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - decimal_place_value_alignment_error
+  - omitted_one_addend_in_multi_term_sum
+  - regrouping_error_with_decimals
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker uses 1.5 kilograms of flour for cookies, 2.3 kilograms for bread, and 1.8 kilograms for
+    cakes. How many kilograms of flour does the baker use in total?
+  context_block: null
+  answer_expression: x = 1.5 + 2.3 + 1.8
+  hint_ladder:
+  - List all three amounts of flour the baker uses for the different items.
+  - Add the first two amounts together, then add the third amount to that sum.
+  - 'Write the addition: 1.5 + 2.3 + 1.8 and compute step by step, lining up the decimal points.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the three amounts of flour the baker uses: 1.5 kg for cookies, 2.3 kg for
+        bread, and 1.8 kg for cakes.'
+      expression: 1.5 + 2.3 + 1.8
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the first two amounts by lining up the decimal points: 1.5 + 2.3 equals 3.8.'
+      expression: 1.5 + 2.3 = 3.8
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the third amount to the sum from step 2: 3.8 + 1.8 equals 5.6.'
+      expression: 3.8 + 1.8 = 5.6
+      common_mistake: null
+    final_answer: 5.6 kilograms
+  random_seed: 995301
+  rendered_question: A baker uses 1.5 kilograms of flour for cookies, 2.3 kilograms for bread, and 1.8
+    kilograms for cakes. How many kilograms of flour does the baker use in total?
+  option_a: 5.6 kilograms
+  option_b: 5.4 kilograms
+  option_c: 6.6 kilograms
+  option_d: 4.6 kilograms
+  correct_option: a
+- question_template_id: authored-decimals-d3-995302
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - misaligned_decimal_places_in_first_sum
+  - misaligned_decimal_places_in_second_sum
+  - added_whole_parts_and_decimal_parts_separately_then_combined_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener waters her vegetable garden three times during the day. In the morning she uses 2.4
+    liters, at noon she uses 1.75 liters, and in the evening she uses 3.2 liters. How many liters of water
+    did she use in total?
+  context_block: ''
+  answer_expression: x = 2.4 + 1.75 + 3.2
+  hint_ladder:
+  - Write down the three amounts of water the gardener used during the day.
+  - 'To find the total, you need to add all three amounts: 2.4 + 1.75 + 3.2.'
+  - Add the first two amounts first, then add the third amount to that result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the three amounts of water used: morning is 2.4 liters, noon is 1.75 liters,
+        and evening is 3.2 liters.'
+      expression: 2.4 + 1.75 + 3.2
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the morning and noon amounts first.
+      expression: 2.4 + 1.75 = 4.15
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the evening amount to the previous sum.
+      expression: 4.15 + 3.2 = 7.35
+      common_mistake: null
+    final_answer: 7.35 liters
+  random_seed: 995302
+  rendered_question: A gardener waters her vegetable garden three times during the day. In the morning
+    she uses 2.4 liters, at noon she uses 1.75 liters, and in the evening she uses 3.2 liters. How many
+    liters of water did she use in total?
+  option_a: 7.35 liters
+  option_b: 7.45 liters
+  option_c: 6.35 liters
+  option_d: 8.35 liters
+  correct_option: a
+- question_template_id: authored-decimals-d4-996400
+  topic_id: decimals
+  skill_id: decimal_divide
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_instead_of_dividing
+  - inverted_division_or_misplaced_decimal
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A ribbon that is 6.72 meters long is cut into pieces that are each 1.4 meters long. How many pieces
+    can be made?
+  context_block: ''
+  answer_expression: x = 6.72 / 1.4
+  hint_ladder:
+  - Think about how many times 1.4 meters fits into 6.72 meters.
+  - The number of pieces is found by dividing the total length by the length of one piece.
+  - Write the division 6.72 ÷ 1.4 and work out the quotient by moving the decimal point.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to divide the total ribbon length by the length of each piece.
+      expression: 6.72 ÷ 1.4
+      common_mistake: null
+    - step_number: 2
+      explanation: 'To divide by a decimal, multiply both numbers by 10 to make the divisor a whole number:
+        6.72 × 10 = 67.2 and 1.4 × 10 = 14.'
+      expression: 67.2 ÷ 14
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 67.2 by 14. Since 14 × 4 = 56 and 67.2 - 56 = 11.2, then 14 × 0.8 = 11.2, so
+        14 × 4.8 = 67.2.
+      expression: '4.8'
+      common_mistake: null
+    final_answer: 4.8 pieces
+  random_seed: 996400
+  rendered_question: A ribbon that is 6.72 meters long is cut into pieces that are each 1.4 meters long.
+    How many pieces can be made?
+  option_a: 0.48 pieces
+  option_b: 9.408 pieces
+  option_c: 4.8 pieces
+  option_d: 5.32 pieces
+  correct_option: c
+- question_template_id: authored-decimals-d4-996402
+  topic_id: decimals
+  skill_id: decimal_divide
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_instead_of_dividing
+  - multiplied_instead_of_dividing
+  - misplaced_decimal_point
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A painter uses 7.68 litres of paint to cover 1.6 walls of equal size. How many litres of paint
+    does the painter use per wall?
+  context_block: null
+  answer_expression: x = 7.68 / 1.6
+  hint_ladder:
+  - You know the total paint used and the number of walls. What operation finds the amount per wall?
+  - Divide the total litres by the number of walls to find litres per wall.
+  - Set up 7.68 divided by 1.6 and carry out the division.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The painter uses 7.68 litres total for 1.6 walls, so to find the amount per wall we
+        divide total paint by the number of walls.
+      expression: x = 7.68 / 1.6
+      common_mistake: null
+    - step_number: 2
+      explanation: 'To divide 7.68 by 1.6, we can multiply both numbers by 10 to remove the decimal in
+        the divisor: 76.8 ÷ 16.'
+      expression: 76.8 / 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Dividing 76.8 by 16 gives 4.8.
+      expression: '4.8'
+      common_mistake: null
+    final_answer: 4.8 litres
+  random_seed: 996402
+  rendered_question: A painter uses 7.68 litres of paint to cover 1.6 walls of equal size. How many litres
+    of paint does the painter use per wall?
+  option_a: 48 litres
+  option_b: 12.288 litres
+  option_c: 4.8 litres
+  option_d: 9.28 litres
+  correct_option: c
+- question_template_id: authored-decimals-d5-996500
+  topic_id: decimals
+  skill_id: decimal_divide
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_instead_of_divided
+  - multiplied_instead_of_divided
+  - added_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker uses 8.75 kilograms of flour to make 2.5 batches of bread. How many kilograms of flour
+    does each batch use?
+  context_block: null
+  answer_expression: Eq(2.5 * x, 8.75)
+  hint_ladder:
+  - Think about what operation connects the total flour used, the number of batches, and the flour per
+    batch.
+  - If each batch uses x kilograms and there are 2.5 batches, then the total flour is 2.5 times x.
+  - Write the equation 2.5 × x = 8.75, then divide 8.75 by 2.5 to find x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the kilograms of flour each batch uses. Since 2.5 batches are made, the total
+        flour is 2.5 times x.
+      expression: 2.5 * x = 8.75
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, divide both sides by 2.5.
+      expression: x = 8.75 / 2.5
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division. Multiply numerator and denominator by 10 to remove the decimal
+        in the divisor: 87.5 ÷ 25.'
+      expression: x = 87.5 / 25
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide 87.5 by 25. Since 25 × 3 = 75, we have 87.5 - 75 = 12.5 remaining. 25 × 0.5
+        = 12.5, so the quotient is 3.5.
+      expression: x = 3.5
+      common_mistake: null
+    final_answer: 3.5 kilograms
+  random_seed: 996500
+  rendered_question: A baker uses 8.75 kilograms of flour to make 2.5 batches of bread. How many kilograms
+    of flour does each batch use?
+  option_a: 11.25 kilograms
+  option_b: 21.875 kilograms
+  option_c: 3.5 kilograms
+  option_d: 6.25 kilograms
+  correct_option: c
+- question_template_id: authored-decimals-d5-996501
+  topic_id: decimals
+  skill_id: decimal_divide
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_instead_of_dividing
+  - ignored_decimal_points_in_division
+  - reversed_dividend_and_divisor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener uses 5.76 liters of water to cover 1.8 square meters of garden evenly. How much water
+    is used per square meter?
+  context_block: null
+  answer_expression: x = 5.76 / 1.8
+  hint_ladder:
+  - What operation will tell you how much water is used for each square meter?
+  - Divide the total liters by the number of square meters to find the amount per square meter.
+  - Set up the division 5.76 ÷ 1.8 and solve it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the amount of water used per square meter, divide the total liters by the number
+        of square meters.
+      expression: x = 5.76 / 1.8
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply both the dividend and divisor by 10 to eliminate the decimal in the divisor,
+        making the division easier.
+      expression: x = 57.6 / 18
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 57.6 by 18. Since 18 goes into 57.6 exactly 3.2 times, the result is 3.2.
+      expression: x = 3.2
+      common_mistake: null
+    final_answer: 3.2 liters per square meter
+  random_seed: 996501
+  rendered_question: A gardener uses 5.76 liters of water to cover 1.8 square meters of garden evenly.
+    How much water is used per square meter?
+  option_a: 32 liters per square meter
+  option_b: 0.32 liters per square meter
+  option_c: 3.2 liters per square meter
+  option_d: 7.56 liters per square meter
+  correct_option: c
+- question_template_id: authored-decimals-d5-996502
+  topic_id: decimals
+  skill_id: decimal_divide
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - divided_in_reverse_order
+  - moved_decimal_point_incorrectly
+  - multiplied_both_by_100_instead_of_10
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cyclist travels 10.8 kilometers and uses 1.2 liters of water during the ride. How many kilometers
+    does the cyclist travel per liter of water?
+  context_block: ''
+  answer_expression: Eq(x, 10.8 / 1.2)
+  hint_ladder:
+  - To find kilometers per liter, you need to divide the total distance by the amount of water used.
+  - Set up the division 10.8 ÷ 1.2 to find the rate.
+  - Multiply both numbers by 10 to eliminate the decimal in the divisor, giving you 108 ÷ 12.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find kilometers per liter, divide the total distance by the total water used.
+      expression: x = 10.8 / 1.2
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply both the dividend and divisor by 10 to make the divisor a whole number.
+      expression: x = 108 / 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 108 by 12.
+      expression: x = 9
+      common_mistake: null
+    final_answer: 9 kilometers per liter
+  random_seed: 996502
+  rendered_question: A cyclist travels 10.8 kilometers and uses 1.2 liters of water during the ride. How
+    many kilometers does the cyclist travel per liter of water?
+  option_a: 9 kilometers per liter
+  option_b: 108 kilometers per liter
+  option_c: 12 kilometers per liter
+  option_d: 0.9 kilometers per liter
+  correct_option: a
+- question_template_id: authored-decimals-d3-997300
+  topic_id: decimals
+  skill_id: decimal_multiply
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplied
+  - ignored_decimal_points
+  - misplaced_decimal_in_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Lena buys ribbon for a craft project. Each meter of ribbon costs $2.50, and she buys 4.0 meters.
+    How much does she spend in total?
+  context_block: ''
+  answer_expression: Eq(x, 2.5 * 4.0)
+  hint_ladder:
+  - Find the total cost by multiplying the price per meter by the number of meters Lena buys.
+  - You need to multiply 2.50 by 4.0, treating the decimals carefully.
+  - Set up the multiplication 2.5 × 4.0 and find the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the price per meter and the number of meters purchased.
+      expression: 2.5 dollars per meter, 4.0 meters
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the decimal price by the decimal quantity to find the total cost.
+      expression: 2.5 × 4.0
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 2.5 × 4.0. Since 25 × 4 = 100 and there are two decimal places total (one
+        in 2.5, one in 4.0), place the decimal to get 10.0.
+      expression: '10.0'
+      common_mistake: null
+    - step_number: 4
+      explanation: Express the result with the unit of currency.
+      expression: 10 dollars
+      common_mistake: null
+    final_answer: 10 dollars
+  random_seed: 997300
+  rendered_question: Lena buys ribbon for a craft project. Each meter of ribbon costs $2.50, and she buys
+    4.0 meters. How much does she spend in total?
+  option_a: 100 dollars
+  option_b: 1.0 dollars
+  option_c: 10 dollars
+  option_d: 6.5 dollars
+  correct_option: c
+- question_template_id: authored-decimals-d3-997301
+  topic_id: decimals
+  skill_id: decimal_multiply
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_by_whole_part_only
+  - added_instead_of_multiplied
+  - misplaced_decimal_point
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bag of apples weighs 1.6 pounds. The store charges $2.50 per pound. How much does the bag cost?
+  context_block: ''
+  answer_expression: Eq(x, 1.6 * 2.5)
+  hint_ladder:
+  - Find the total cost by multiplying the weight in pounds by the price per pound.
+  - Multiply 1.6 by 2.5. Line up the decimals or count the total decimal places in both factors.
+  - Write 1.6 × 2.5 and perform the multiplication, then place the decimal point in the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total cost is the weight multiplied by the price per pound.
+      expression: x = 1.6 * 2.5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply 1.6 by 2.5. Ignore the decimals temporarily: 16 × 25 = 400.'
+      expression: 16 * 25 = 400
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Count the decimal places in the original factors: 1.6 has one decimal place and 2.5
+        has one decimal place, so the product has two decimal places total.'
+      expression: 1 + 1 = 2
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Place the decimal point in 400 to give two decimal places: 4.00, which equals 4.'
+      expression: 400 → 4.00 = 4
+      common_mistake: null
+    final_answer: 4 dollars
+  random_seed: 997301
+  rendered_question: A bag of apples weighs 1.6 pounds. The store charges $2.50 per pound. How much does
+    the bag cost?
+  option_a: 3.2 dollars
+  option_b: 4 dollars
+  option_c: 4.1 dollars
+  option_d: 0.4 dollars
+  correct_option: b
+- question_template_id: authored-decimals-d3-997302
+  topic_id: decimals
+  skill_id: decimal_multiply
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_instead_of_multiplied
+  - misplaced_decimal_point_one_place
+  - ignored_decimal_points
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A painter is working on a house. She uses 2.4 gallons of paint for each room and finishes 2.5
+    rooms. How many gallons of paint does she use in total?
+  context_block: ''
+  answer_expression: Eq(x, 2.4 * 2.5)
+  hint_ladder:
+  - Find the total by multiplying the amount of paint per room by the number of rooms.
+  - Write 2.4 times 2.5 to find the total gallons.
+  - 'Line up the decimal places after multiplying: count two decimal digits in the factors together.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the amount of paint used per room and the number of rooms completed.
+      expression: 2.4 gallons per room, 2.5 rooms
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the gallons per room by the number of rooms to find the total.
+      expression: 2.4 × 2.5
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply as whole numbers: 24 × 25 = 600.'
+      expression: 24 × 25 = 600
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Count the decimal places in both factors: 2.4 has one, 2.5 has one, so two total.
+        Place the decimal point two places from the right.'
+      expression: 600 → 6.00
+      common_mistake: null
+    final_answer: 6 gallons
+  random_seed: 997302
+  rendered_question: A painter is working on a house. She uses 2.4 gallons of paint for each room and
+    finishes 2.5 rooms. How many gallons of paint does she use in total?
+  option_a: 6 gallons
+  option_b: 0.6 gallons
+  option_c: 12 gallons
+  option_d: 4.9 gallons
+  correct_option: a
+- question_template_id: authored-decimals-d4-997400
+  topic_id: decimals
+  skill_id: decimal_multiply
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - subtracted_decimal_places_instead_of_adding
+  - added_instead_of_multiplied
+  - misplaced_decimal_point_by_one_power_of_ten
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular garden plot is 3.2 meters long and 1.5 meters wide. What is the area of the garden
+    plot?
+  context_block: null
+  answer_expression: x = 3.2 * 1.5
+  hint_ladder:
+  - The area of a rectangle is found by multiplying the length by the width.
+  - You need to calculate 3.2 times 1.5.
+  - Set up the multiplication 3.2 × 1.5 and remember to count the total number of decimal places in both
+    factors.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the formula for the area of a rectangle: area equals length times width.'
+      expression: area = 3.2 * 1.5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numbers as if they were whole numbers: 32 times 15 equals 480.'
+      expression: 32 * 15 = 480
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Count the decimal places in the original factors: 3.2 has one decimal place and 1.5
+        has one decimal place, for a total of two.'
+      expression: 1 + 1 = 2
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Place the decimal point in the product so that it has two decimal places: 480 becomes
+        4.80, which simplifies to 4.8.'
+      expression: '4.8'
+      common_mistake: null
+    final_answer: 4.8 square meters
+  random_seed: 997400
+  rendered_question: A rectangular garden plot is 3.2 meters long and 1.5 meters wide. What is the area
+    of the garden plot?
+  option_a: 4.7 square meters
+  option_b: 48 square meters
+  option_c: 6.4 square meters
+  option_d: 4.8 square meters
+  correct_option: d
+- question_template_id: authored-decimals-d4-997401
+  topic_id: decimals
+  skill_id: decimal_multiply
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_instead_of_multiplied
+  - interpreted_decimal_as_division
+  - misplaced_decimal_point
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A store sells juice boxes in packs of 8. Each pack costs $3.20. Maya buys 2.5 packs for a class
+    party. How much does she spend?
+  context_block: ''
+  answer_expression: Eq(x, 3.2 * 2.5)
+  hint_ladder:
+  - 'Identify the two numbers you need to multiply: the price per pack and the number of packs Maya buys.'
+  - You need to find 3.2 multiplied by 2.5.
+  - 'Line up the decimals after multiplying as if they were whole numbers: count total decimal places
+    in both factors.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the multiplication of the price per pack times the number of packs.
+      expression: x = 3.2 * 2.5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply as whole numbers first: 32 times 25 equals 800.'
+      expression: 32 * 25 = 800
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Count the decimal places: 3.2 has one, 2.5 has one, so two total. Place the decimal
+        two places from the right in 800.'
+      expression: 800 -> 8.00
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify 8.00 to 8.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 dollars
+  random_seed: 997401
+  rendered_question: A store sells juice boxes in packs of 8. Each pack costs $3.20. Maya buys 2.5 packs
+    for a class party. How much does she spend?
+  option_a: 6.4 dollars
+  option_b: 80 dollars
+  option_c: 8 dollars
+  option_d: 5.7 dollars
+  correct_option: c
+- question_template_id: authored-decimals-d4-997402
+  topic_id: decimals
+  skill_id: decimal_multiply
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - subtracted_one_factor_instead_of_multiplying
+  - misplaced_decimal_point_too_far_right
+  - misplaced_decimal_point_too_far_left
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A craft store sells ribbon at $1.80 per yard. Emma buys 3.5 yards to wrap gifts. How much does
+    she pay?
+  context_block: ''
+  answer_expression: x = 1.8 * 3.5
+  hint_ladder:
+  - Find the price of one yard of ribbon and how many yards Emma is buying.
+  - 'Multiply the price per yard by the number of yards: 1.80 times 3.5.'
+  - When you multiply decimals, count the total decimal places in both factors to place the decimal point
+    in your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the price per yard ($1.80) and the number of yards Emma buys (3.5 yards).
+      expression: 1.8 * 3.5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the decimals as if they were whole numbers: 18 times 35 equals 630.'
+      expression: 18 * 35 = 630
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Count the decimal places in both factors: 1.8 has one decimal place and 3.5 has one
+        decimal place, so the product has two decimal places.'
+      expression: 630 becomes 6.30
+      common_mistake: null
+    - step_number: 4
+      explanation: Write the final cost with the dollar sign.
+      expression: '6.30'
+      common_mistake: null
+    final_answer: $6.30
+  random_seed: 997402
+  rendered_question: A craft store sells ribbon at $1.80 per yard. Emma buys 3.5 yards to wrap gifts.
+    How much does she pay?
+  option_a: $0.63
+  option_b: $63.00
+  option_c: $5.30
+  option_d: $6.30
+  correct_option: d

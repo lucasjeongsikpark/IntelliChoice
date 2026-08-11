@@ -1,0 +1,1737 @@
+curriculum_version: '2026.1'
+topic_id: g4_multiplication_division
+templates:
+- question_template_id: authored-g4_multiplication_division-d1-925101
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplying
+  - subtracted_instead_of_dividing
+  - confused_divisor_with_quotient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 72 cookies to pack equally into 8 boxes. How many cookies will be in each box?
+  context_block: null
+  answer_expression: 8 * x = 72
+  hint_ladder:
+  - How many cookies are shared equally among the 8 boxes?
+  - If each box holds the same number of cookies, write 8 times that number equals the total.
+  - Set up the equation 8 × (cookies per box) = 72, then divide both sides by 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x represent the number of cookies in each box. Since there are 8 boxes and each
+        has x cookies, the total is 8 times x.
+      expression: 8*x = 72
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both sides of the equation by 8 to solve for x.
+      expression: x = 72/8
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 72 divided by 8 equals 9.'
+      expression: x = 9
+      common_mistake: null
+    final_answer: 9 cookies
+  random_seed: 925101
+  rendered_question: A baker has 72 cookies to pack equally into 8 boxes. How many cookies will be in
+    each box?
+  option_a: 8 cookies
+  option_b: 80 cookies
+  option_c: 9 cookies
+  option_d: 64 cookies
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d1-925102
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_divisor_from_dividend
+  - added_dividend_and_divisor
+  - multiplied_dividend_and_divisor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian has 63 books to arrange equally on 9 shelves. How many books will be on each shelf?
+  context_block: null
+  answer_expression: 9 * x = 63
+  hint_ladder:
+  - Think about how division helps when you need to share items equally.
+  - You need to find how many groups of books fit into 63 when you make 9 equal groups.
+  - 'Write 63 ÷ 9 or ask yourself: 9 times what number equals 63?'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The librarian divides 63 books equally among 9 shelves, so we need to find 63 ÷ 9.
+      expression: 63 ÷ 9
+      common_mistake: null
+    - step_number: 2
+      explanation: We can think of this as 9 times what number equals 63.
+      expression: 9 × x = 63
+      common_mistake: null
+    - step_number: 3
+      explanation: Nine times seven is sixty-three, so x equals 7.
+      expression: x = 7
+      common_mistake: null
+    final_answer: 7 books
+  random_seed: 925102
+  rendered_question: A librarian has 63 books to arrange equally on 9 shelves. How many books will be
+    on each shelf?
+  option_a: 54 books
+  option_b: 567 books
+  option_c: 72 books
+  option_d: 7 books
+  correct_option: d
+- question_template_id: authored-g4_multiplication_division-d2-925200
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_divisor_instead_of_dividing
+  - added_divisor_instead_of_dividing
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has 156 flowers to plant equally in 4 flower beds. How many flowers will be in each
+    bed?
+  context_block: ''
+  answer_expression: Eq(4*x, 156)
+  hint_ladder:
+  - Write an expression for the total number of flowers if each of the 4 beds gets the same amount.
+  - If each bed gets x flowers, then 4 beds hold 4 times x flowers altogether.
+  - Set up the equation 4 times x equals 156, then divide both sides by 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of flowers in each bed. Since there are 4 beds and each gets the
+        same number, the total is 4 times x.
+      expression: 4*x = 156
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, divide both sides of the equation by 4.
+      expression: x = 156 / 4
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 156 divided by 4 equals 39.'
+      expression: x = 39
+      common_mistake: null
+    final_answer: 39 flowers
+  random_seed: 925200
+  rendered_question: A gardener has 156 flowers to plant equally in 4 flower beds. How many flowers will
+    be in each bed?
+  option_a: 624 flowers
+  option_b: 39 flowers
+  option_c: 160 flowers
+  option_d: 152 flowers
+  correct_option: b
+- question_template_id: authored-g4_multiplication_division-d2-925201
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - division_calculation_error_by_one
+  - added_instead_of_dividing
+  - stopped_at_partial_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A coach has 217 sports cards to divide equally among 7 team members. How many cards does each
+    team member receive?
+  context_block: null
+  answer_expression: 7 * x = 217
+  hint_ladder:
+  - Think about how division splits a total into equal groups.
+  - You need to divide the total number of cards by the number of team members.
+  - Set up the division 217 ÷ 7 and work through it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the division: the total number of cards divided by the number of team members.'
+      expression: 217 ÷ 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Perform the division. 7 goes into 21 exactly 3 times (3 × 7 = 21), with 0 remaining
+        from the first two digits.
+      expression: 21 ÷ 7 = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Bring down the 7. Now divide 7 by 7, which equals 1.
+      expression: 7 ÷ 7 = 1
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the digits from each step of the long division.
+      expression: '31'
+      common_mistake: null
+    final_answer: 31 cards
+  random_seed: 925201
+  rendered_question: A coach has 217 sports cards to divide equally among 7 team members. How many cards
+    does each team member receive?
+  option_a: 31 cards
+  option_b: 224 cards
+  option_c: 210 cards
+  option_d: 30 cards
+  correct_option: a
+- question_template_id: authored-g4_multiplication_division-d2-925202
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_divisor_instead_of_dividing
+  - added_divisor_instead_of_dividing
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A volunteer has 365 stickers to distribute equally among 5 activity stations. How many stickers
+    will each station receive?
+  context_block: ''
+  answer_expression: 5 * x = 365
+  hint_ladder:
+  - If you want to share 365 stickers equally among 5 stations, what operation will you use?
+  - 'Write a division problem: the total number of stickers divided by the number of stations.'
+  - Set up the division 365 ÷ 5 and work through it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The volunteer has 365 stickers to split equally among 5 stations, so we divide the
+        total by the number of stations.
+      expression: 365 ÷ 5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Dividing 365 by 5: 5 goes into 36 seven times (5 × 7 = 35), leaving 1. Bring down
+        the 5 to get 15.'
+      expression: 5 × 7 = 35, remainder 1; bring down 5 → 15
+      common_mistake: null
+    - step_number: 3
+      explanation: 5 goes into 15 exactly three times (5 × 3 = 15), with no remainder.
+      expression: 5 × 3 = 15
+      common_mistake: null
+    - step_number: 4
+      explanation: Putting the digits together, 365 ÷ 5 equals 73.
+      expression: '73'
+      common_mistake: null
+    final_answer: 73 stickers
+  random_seed: 925202
+  rendered_question: A volunteer has 365 stickers to distribute equally among 5 activity stations. How
+    many stickers will each station receive?
+  option_a: 360 stickers
+  option_b: 73 stickers
+  option_c: 370 stickers
+  option_d: 1825 stickers
+  correct_option: b
+- question_template_id: authored-g4_multiplication_division-d3-925300
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - arithmetic_error_in_division
+  - subtracted_instead_of_dividing
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school coordinator has 1248 pencils to distribute equally among 6 classrooms. How many pencils
+    does each classroom receive?
+  context_block: null
+  answer_expression: Eq(6 * x, 1248)
+  hint_ladder:
+  - Write an expression for the total number of pencils when 6 classrooms each get the same amount.
+  - If each classroom gets x pencils, then the total is 6 times x, and that equals 1248.
+  - Set up the equation 6x = 1248 and think about what operation undoes multiplication.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each of the 6 classrooms receives the same number of pencils. If we call that number
+        x, then the total is 6 times x.
+      expression: 6x = 1248
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, divide both sides of the equation by 6.
+      expression: x = 1248 ÷ 6
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 1248 divided by 6 equals 208.'
+      expression: x = 208
+      common_mistake: null
+    final_answer: 208 pencils
+  random_seed: 925300
+  rendered_question: A school coordinator has 1248 pencils to distribute equally among 6 classrooms. How
+    many pencils does each classroom receive?
+  option_a: 208 pencils
+  option_b: 207 pencils
+  option_c: 7488 pencils
+  option_d: 1242 pencils
+  correct_option: a
+- question_template_id: authored-g4_multiplication_division-d3-925301
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - subtracted_divisor_instead_of_dividing
+  - subtracted_dividend_from_divisor
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 2856 cookies to pack equally into 7 large boxes. How many cookies will be in each
+    box?
+  context_block: null
+  answer_expression: 7 * x = 2856
+  hint_ladder:
+  - Think about what operation splits a total into equal parts.
+  - If you call the number in one box x, then 7 boxes would hold 7 times x.
+  - Write the equation 7 × x = 2856, then divide both sides by 7.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We have 2856 cookies and 7 boxes, and we want equal amounts in each box. Let x be the
+        number of cookies in one box.
+      expression: 7 * x = 2856
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, divide both sides by 7.
+      expression: x = 2856 ÷ 7
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 2856 ÷ 7 = 408.'
+      expression: x = 408
+      common_mistake: null
+    final_answer: 408 cookies
+  random_seed: 925301
+  rendered_question: A baker has 2856 cookies to pack equally into 7 large boxes. How many cookies will
+    be in each box?
+  option_a: 403 cookies
+  option_b: 19992 cookies
+  option_c: 408 cookies
+  option_d: 2849 cookies
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d3-925302
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - arithmetic_error_in_long_division
+  - multiplied_instead_of_dividing
+  - subtracted_divisor_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian has 3648 books to arrange equally onto 8 shelves. How many books will be on each shelf?
+  context_block: null
+  answer_expression: 8 * x = 3648
+  hint_ladder:
+  - How would you write the total number of books if each shelf holds the same number?
+  - If x books go on each shelf, then 8 shelves hold 8 times x books, and that must equal 3648.
+  - Set up 8 · x = 3648 and divide both sides by 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of books on each shelf. Since there are 8 shelves, the total number
+        of books is 8 times x.
+      expression: 8 * x = 3648
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, divide both sides of the equation by 8.
+      expression: x = 3648 / 8
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 3648 divided by 8 equals 456.'
+      expression: x = 456
+      common_mistake: null
+    final_answer: 456 books
+  random_seed: 925302
+  rendered_question: A librarian has 3648 books to arrange equally onto 8 shelves. How many books will
+    be on each shelf?
+  option_a: 29184 books
+  option_b: 456 books
+  option_c: 455 books
+  option_d: 3640 books
+  correct_option: b
+- question_template_id: authored-g4_multiplication_division-d3-926300
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - rounded_up_when_no_remainder
+  - subtracted_instead_of_dividing
+  - stopped_division_before_final_digit
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school receives a shipment of 3,240 pencils. The supply coordinator needs to pack them into
+    boxes that each hold exactly 24 pencils. How many boxes will be filled?
+  context_block: null
+  answer_expression: x = 3240 / 24
+  hint_ladder:
+  - How many pencils go into each box, and how many pencils in total need to be packed?
+  - Write a division to find how many groups of 24 pencils fit into 3,240 pencils.
+  - Set up 3,240 ÷ 24 and carry out the division step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to divide the total number of pencils by the number of pencils per box.
+      expression: x = 3240 / 24
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Divide 3,240 by 24. First, estimate: 24 × 100 = 2,400, so the answer is more than
+        100.'
+      expression: 3240 ÷ 24
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the long division: 24 goes into 324 thirteen times (24 × 13 = 312), remainder
+        12. Bring down the 0 to get 120. 24 goes into 120 five times exactly (24 × 5 = 120).'
+      expression: '135'
+      common_mistake: null
+    final_answer: 135 boxes
+  random_seed: 926300
+  rendered_question: A school receives a shipment of 3,240 pencils. The supply coordinator needs to pack
+    them into boxes that each hold exactly 24 pencils. How many boxes will be filled?
+  option_a: 135 boxes
+  option_b: 136 boxes
+  option_c: 3216 boxes
+  option_d: 13 boxes
+  correct_option: a
+- question_template_id: authored-g4_multiplication_division-d3-926301
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 150
+  common_error_tags:
+  - off_by_one_subtraction
+  - off_by_one_addition
+  - misplaced_decimal_or_incomplete_quotient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery packed 2,352 cookies into boxes. Each box holds exactly 28 cookies. How many boxes did
+    the bakery fill?
+  context_block: null
+  answer_expression: x = 2352 / 28
+  hint_ladder:
+  - Think about what operation you use when you split a total into equal groups.
+  - You need to divide the total number of cookies by the number of cookies in one box.
+  - Set up 2,352 ÷ 28 and work through the division step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to find how many groups of 28 are in 2,352, so we divide 2,352 by 28.
+      expression: 2352 ÷ 28
+      common_mistake: null
+    - step_number: 2
+      explanation: 28 goes into 235 eight times (28 × 8 = 224), with a remainder of 11. Bring down the
+        2 to make 112.
+      expression: 235 ÷ 28 = 8 remainder 11; bring down 2 to get 112
+      common_mistake: null
+    - step_number: 3
+      explanation: 28 goes into 112 exactly four times (28 × 4 = 112), with no remainder.
+      expression: 112 ÷ 28 = 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Combining the digits, 2,352 ÷ 28 = 84.
+      expression: '84'
+      common_mistake: null
+    final_answer: 84 boxes
+  random_seed: 926301
+  rendered_question: A bakery packed 2,352 cookies into boxes. Each box holds exactly 28 cookies. How
+    many boxes did the bakery fill?
+  option_a: 84 boxes
+  option_b: 83 boxes
+  option_c: 840 boxes
+  option_d: 85 boxes
+  correct_option: a
+- question_template_id: authored-g4_multiplication_division-d3-926302
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 150
+  common_error_tags:
+  - added_one_to_quotient
+  - moved_decimal_incorrectly
+  - subtracted_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library received 2,736 books and needs to arrange them equally on shelves that each hold 36
+    books. How many shelves are needed?
+  context_block: ''
+  answer_expression: Eq(36*x, 2736)
+  hint_ladder:
+  - Write down how many books will fit if you use a certain number of shelves.
+  - If you use s shelves and each shelf holds 36 books, the total number of books is 36 times s.
+  - Set up 36 × s = 2,736 and then divide both sides by 36.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each shelf holds 36 books, so s shelves hold 36 times s books total.
+      expression: 36*s
+      common_mistake: null
+    - step_number: 2
+      explanation: The library has 2,736 books, so we set up the equation 36 times s equals 2,736.
+      expression: 36*s = 2736
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 36 to find s.
+      expression: s = 2736 / 36
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Carry out the division: 2,736 divided by 36 equals 76.'
+      expression: s = 76
+      common_mistake: null
+    final_answer: 76 shelves
+  random_seed: 926302
+  rendered_question: A library received 2,736 books and needs to arrange them equally on shelves that
+    each hold 36 books. How many shelves are needed?
+  option_a: 760 shelves
+  option_b: 2700 shelves
+  option_c: 76 shelves
+  option_d: 77 shelves
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d4-926400
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - rounded_up_without_remainder
+  - subtraction_error_in_long_division
+  - misplaced_digit_in_quotient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A warehouse received 4,536 bottles of juice to pack into crates. Each crate holds exactly 42 bottles.
+    How many crates will be needed to pack all the bottles?
+  context_block: ''
+  answer_expression: Eq(x, 4536 / 42)
+  hint_ladder:
+  - You need to find how many groups of 42 bottles fit into 4,536 bottles total.
+  - 'Write a division: 4,536 divided by 42.'
+  - Set up 4536 ÷ 42 and divide, keeping track of each place value in the quotient.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The warehouse has 4,536 bottles and each crate holds 42 bottles, so we divide the total
+        by the number per crate.
+      expression: 4536 ÷ 42
+      common_mistake: null
+    - step_number: 2
+      explanation: '42 goes into 45 once (42 × 1 = 42). Subtract: 45 - 42 = 3. Bring down the 3 to make
+        33.'
+      expression: 1__ (with remainder 33)
+      common_mistake: null
+    - step_number: 3
+      explanation: 42 does not go into 33, so write 0 in the quotient. Bring down the 6 to make 336.
+      expression: 10_ (with remainder 336)
+      common_mistake: null
+    - step_number: 4
+      explanation: '42 goes into 336 exactly 8 times (42 × 8 = 336). Subtract: 336 - 336 = 0.'
+      expression: '108'
+      common_mistake: null
+    final_answer: 108 crates
+  random_seed: 926400
+  rendered_question: A warehouse received 4,536 bottles of juice to pack into crates. Each crate holds
+    exactly 42 bottles. How many crates will be needed to pack all the bottles?
+  option_a: 107 crates
+  option_b: 1080 crates
+  option_c: 109 crates
+  option_d: 108 crates
+  correct_option: d
+- question_template_id: authored-g4_multiplication_division-d4-926401
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - rounded_up_instead_of_exact_division
+  - miscalculated_middle_step_in_long_division
+  - placed_decimal_incorrectly_or_multiplied_by_ten
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A stadium sold 3,680 tickets for a concert. The seats are arranged in sections that each hold
+    exactly 32 people. How many sections will be completely filled?
+  context_block: null
+  answer_expression: x = 3680 / 32
+  hint_ladder:
+  - Think about how many groups of 32 can be made from 3,680 tickets.
+  - You need to divide the total number of tickets by the number of seats in each section.
+  - Set up 3,680 ÷ 32 and work through the division carefully, checking each digit.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to find how many groups of 32 fit into 3,680. This means we divide the total
+        tickets by the section size.
+      expression: 3680 ÷ 32
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Estimate first: 32 × 100 = 3,200, so the answer is more than 100. Try 32 × 110 = 3,520.
+        Then 3,680 - 3,520 = 160.'
+      expression: 3680 - 3520 = 160
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Now divide the remainder: 160 ÷ 32 = 5, since 32 × 5 = 160.'
+      expression: 160 ÷ 32 = 5
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine the partial quotients: 110 + 5 = 115.'
+      expression: 110 + 5 = 115
+      common_mistake: null
+    final_answer: 115 sections
+  random_seed: 926401
+  rendered_question: A stadium sold 3,680 tickets for a concert. The seats are arranged in sections that
+    each hold exactly 32 people. How many sections will be completely filled?
+  option_a: 116 sections
+  option_b: 112 sections
+  option_c: 115 sections
+  option_d: 1150 sections
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d4-926402
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - off_by_one_estimation_error
+  - place_value_error_in_division
+  - divided_by_wrong_power_of_ten
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A farm collected 2,940 eggs and needs to pack them into cartons that each hold 35 eggs. How many
+    cartons are needed?
+  context_block: ''
+  answer_expression: Eq(35*x, 2940)
+  hint_ladder:
+  - Write down how many eggs will be packed if the farm uses x cartons, with 35 eggs in each carton.
+  - The total number of eggs is 35 times the number of cartons, and that must equal 2,940.
+  - Set up 35 × x = 2,940 and then divide both sides by 35.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each carton holds 35 eggs, so x cartons hold 35 times x eggs.
+      expression: 35*x
+      common_mistake: null
+    - step_number: 2
+      explanation: The total number of eggs is 2,940, so we set up the equation.
+      expression: 35*x = 2940
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 35 to find x.
+      expression: x = 2940 / 35
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Perform the division: 2,940 divided by 35 equals 84.'
+      expression: x = 84
+      common_mistake: null
+    final_answer: 84 cartons
+  random_seed: 926402
+  rendered_question: A farm collected 2,940 eggs and needs to pack them into cartons that each hold 35
+    eggs. How many cartons are needed?
+  option_a: 294 cartons
+  option_b: 84 cartons
+  option_c: 85 cartons
+  option_d: 840 cartons
+  correct_option: b
+- question_template_id: authored-g4_multiplication_division-d5-926500
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - stopped_one_group_early
+  - added_extra_group
+  - subtracted_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school district ordered 5,796 pencils to distribute equally among its classrooms. Each classroom
+    will receive 63 pencils. How many classrooms are there?
+  context_block: ''
+  answer_expression: x = 5796 / 63
+  hint_ladder:
+  - What operation finds how many equal groups fit into a total?
+  - You need to divide the total number of pencils by the number each classroom receives.
+  - Set up 5,796 ÷ 63 and work through the division step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the total number of pencils and the number per classroom. Total is 5,796 pencils,
+        and each classroom gets 63 pencils.
+      expression: 5796 / 63
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Perform the division. First estimate: 63 × 90 = 5,670. Then 5,796 − 5,670 = 126.'
+      expression: 5796 - 5670 = 126
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Divide the remainder: 126 ÷ 63 = 2. So the quotient is 90 + 2 = 92.'
+      expression: 90 + 2 = 92
+      common_mistake: null
+    final_answer: 92 classrooms
+  random_seed: 926500
+  rendered_question: A school district ordered 5,796 pencils to distribute equally among its classrooms.
+    Each classroom will receive 63 pencils. How many classrooms are there?
+  option_a: 94 classrooms
+  option_b: 91 classrooms
+  option_c: 92 classrooms
+  option_d: 5733 classrooms
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d5-926501
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - off_by_one_error
+  - added_one_extra_group
+  - multiplied_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery made 4,788 cookies and needs to pack them into boxes that each hold 57 cookies. How many
+    boxes are needed?
+  context_block: null
+  answer_expression: Eq(57*x, 4788)
+  hint_ladder:
+  - How many cookies go into each box, and how many cookies does the bakery have in total?
+  - You need to find how many groups of 57 are in 4,788.
+  - Set up the division 4,788 ÷ 57 and work through it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to find how many boxes of 57 cookies each can be filled with 4,788 cookies.
+        This means we divide the total number of cookies by the number per box.
+      expression: 4788 ÷ 57
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Estimate first: 57 is close to 60, and 4,788 is close to 4,800. 4,800 ÷ 60 = 80, so
+        the answer should be near 80.'
+      expression: ≈ 80
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Try 80: 57 × 80 = 4,560. That leaves 4,788 - 4,560 = 228 cookies remaining.'
+      expression: 4788 - 4560 = 228
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Divide the remainder by 57: 228 ÷ 57 = 4, since 57 × 4 = 228.'
+      expression: 228 ÷ 57 = 4
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Add the two parts: 80 + 4 = 84.'
+      expression: 80 + 4 = 84
+      common_mistake: null
+    final_answer: 84 boxes
+  random_seed: 926501
+  rendered_question: A bakery made 4,788 cookies and needs to pack them into boxes that each hold 57 cookies.
+    How many boxes are needed?
+  option_a: 840 boxes
+  option_b: 83 boxes
+  option_c: 84 boxes
+  option_d: 85 boxes
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d5-926502
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - off_by_one_in_long_division
+  - misplaced_decimal_or_multiplied_instead_of_divided
+  - arithmetic_error_in_partial_quotient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library received 6,435 books and needs to organize them onto shelves that each hold 45 books.
+    How many shelves are needed?
+  context_block: ''
+  answer_expression: Eq(x, 6435 / 45)
+  hint_ladder:
+  - How many books go on each shelf, and how many books does the library have in total?
+  - Divide the total number of books by how many fit on one shelf to find how many shelves are needed.
+  - Set up the division 6,435 ÷ 45 and work through it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to divide the total number of books by the number of books per shelf.
+      expression: 6435 / 45
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Estimate first: 45 goes into 6435 approximately 140 times because 45 × 100 = 4500
+        and 45 × 140 = 6300.'
+      expression: 45 * 140 = 6300
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Subtract to find the remainder: 6435 - 6300 = 135.'
+      expression: 6435 - 6300 = 135
+      common_mistake: null
+    - step_number: 4
+      explanation: Determine how many more times 45 fits into 135. Since 45 × 3 = 135, we need 3 more
+        shelves.
+      expression: 135 / 45 = 3
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Add the two parts together: 140 + 3 = 143.'
+      expression: 140 + 3 = 143
+      common_mistake: null
+    final_answer: 143 shelves
+  random_seed: 926502
+  rendered_question: A library received 6,435 books and needs to organize them onto shelves that each
+    hold 45 books. How many shelves are needed?
+  option_a: 142 shelves
+  option_b: 143 shelves
+  option_c: 153 shelves
+  option_d: 1,430 shelves
+  correct_option: b
+- question_template_id: authored-g4_multiplication_division-d1-927100
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplied
+  - forgot_to_add_carried_value
+  - multiplied_only_the_tens_digit
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker packs 23 cookies into each box and needs to fill 4 boxes. How many cookies does the baker
+    need in total?
+  context_block: null
+  answer_expression: Eq(x, 23 * 4)
+  hint_ladder:
+  - How many cookies go into one box, and how many boxes are being filled?
+  - The total is the number of cookies per box multiplied by the number of boxes.
+  - Write 23 times 4 and calculate the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each box holds 23 cookies, and the baker is filling 4 boxes.
+      expression: 23 × 4
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the ones: 3 × 4 = 12. Write 2 and carry 1.'
+      expression: 12, write 2, carry 1
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the tens: 2 × 4 = 8, then add the carried 1 to get 9.'
+      expression: 8 + 1 = 9
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the results to get the total.
+      expression: '92'
+      common_mistake: null
+    final_answer: 92 cookies
+  random_seed: 927100
+  rendered_question: A baker packs 23 cookies into each box and needs to fill 4 boxes. How many cookies
+    does the baker need in total?
+  option_a: 82 cookies
+  option_b: 27 cookies
+  option_c: 92 cookies
+  option_d: 88 cookies
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d1-927101
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_multiplied
+  - multiplied_only_tens_place
+  - subtracted_one_from_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants 32 flower seeds in each row and prepares 3 rows. How many flower seeds does
+    the gardener plant in total?
+  context_block: null
+  answer_expression: Eq(x, 32 * 3)
+  hint_ladder:
+  - How many seeds are in one row?
+  - To find the total, multiply the number of seeds per row by the number of rows.
+  - Write 32 × 3 and compute the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of seeds in one row and the number of rows.
+      expression: 32 seeds per row, 3 rows
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the number of seeds per row by the number of rows to find the total.
+      expression: 32 × 3
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Compute 32 × 3. Multiply the ones place: 2 × 3 = 6. Multiply the tens place: 30 ×
+        3 = 90. Add: 6 + 90 = 96.'
+      expression: '96'
+      common_mistake: null
+    final_answer: 96 seeds
+  random_seed: 927101
+  rendered_question: A gardener plants 32 flower seeds in each row and prepares 3 rows. How many flower
+    seeds does the gardener plant in total?
+  option_a: 66 seeds
+  option_b: 96 seeds
+  option_c: 95 seeds
+  option_d: 35 seeds
+  correct_option: b
+- question_template_id: authored-g4_multiplication_division-d1-927102
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_multiplied
+  - multiplied_ones_only
+  - added_extra_partial_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian places 42 books on each shelf and fills 2 shelves. How many books does she place in
+    total?
+  context_block: null
+  answer_expression: x = 42 * 2
+  hint_ladder:
+  - Think about how many books go on one shelf, then how many shelves are filled.
+  - Multiply the number of books per shelf by the number of shelves.
+  - Write 42 times 2 and compute the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of books on one shelf and the number of shelves.
+      expression: 42 books per shelf, 2 shelves
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the books per shelf by the number of shelves to find the total.
+      expression: 42 * 2
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Compute 42 times 2: first 2 times 2 is 4, then 40 times 2 is 80.'
+      expression: 4 + 80 = 84
+      common_mistake: null
+    final_answer: 84 books
+  random_seed: 927102
+  rendered_question: A librarian places 42 books on each shelf and fills 2 shelves. How many books does
+    she place in total?
+  option_a: 88 books
+  option_b: 84 books
+  option_c: 82 books
+  option_d: 44 books
+  correct_option: b
+- question_template_id: authored-g4_multiplication_division-d2-927200
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplied
+  - multiplied_only_the_ones_place
+  - rounded_before_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A coach orders 147 tennis balls for each of 5 teams. How many tennis balls does the coach order
+    in total?
+  context_block: null
+  answer_expression: Eq(x, 147 * 5)
+  hint_ladder:
+  - How many teams are there, and how many balls does each team receive?
+  - Multiply the number of balls per team by the number of teams to find the total.
+  - Write 147 × 5 and calculate the product by regrouping when needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of balls per team and the number of teams. Each of the 5 teams
+        receives 147 tennis balls.
+      expression: 147 × 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply 147 by 5. First, 7 × 5 = 35; write 5 and carry 3.
+      expression: 7 × 5 = 35, carry 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Next, 4 × 5 = 20, plus the carried 3 = 23; write 3 and carry 2.
+      expression: 4 × 5 = 20, 20 + 3 = 23, carry 2
+      common_mistake: null
+    - step_number: 4
+      explanation: Finally, 1 × 5 = 5, plus the carried 2 = 7; write 7.
+      expression: 1 × 5 = 5, 5 + 2 = 7
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the digits to form the product: 735.'
+      expression: '735'
+      common_mistake: null
+    final_answer: 735 tennis balls
+  random_seed: 927200
+  rendered_question: A coach orders 147 tennis balls for each of 5 teams. How many tennis balls does the
+    coach order in total?
+  option_a: 735 tennis balls
+  option_b: 152 tennis balls
+  option_c: 635 tennis balls
+  option_d: 700 tennis balls
+  correct_option: a
+- question_template_id: authored-g4_multiplication_division-d2-927202
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_by_one_digit
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplying
+  - carrying_error_in_multiplication
+  - used_wrong_multiplier
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school orders supplies for an art fair. Each of the 6 classrooms receives 1428 pencils. How
+    many pencils are ordered in total?
+  context_block: ''
+  answer_expression: Eq(x, 1428 * 6)
+  hint_ladder:
+  - How many classrooms are there, and how many pencils does each one receive?
+  - The total is found by multiplying the number of classrooms by the number of pencils per classroom.
+  - Write 1428 times 6 and compute the product, remembering to carry where needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of classrooms and the pencils each classroom receives.
+      expression: 6 classrooms, 1428 pencils each
+      common_mistake: null
+    - step_number: 2
+      explanation: Set up the multiplication to find the total.
+      expression: x = 1428 * 6
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply 1428 by 6. Start with the ones place: 8 times 6 is 48, write 8 and carry
+        4.'
+      expression: 8, carry 4
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Tens place: 2 times 6 is 12, plus the carried 4 is 16. Write 6 and carry 1.'
+      expression: 68, carry 1
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Hundreds place: 4 times 6 is 24, plus the carried 1 is 25. Write 5 and carry 2.'
+      expression: 568, carry 2
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Thousands place: 1 times 6 is 6, plus the carried 2 is 8. Write 8.'
+      expression: '8568'
+      common_mistake: null
+    final_answer: 8568 pencils
+  random_seed: 927202
+  rendered_question: A school orders supplies for an art fair. Each of the 6 classrooms receives 1428
+    pencils. How many pencils are ordered in total?
+  option_a: 7140 pencils
+  option_b: 8508 pencils
+  option_c: 8568 pencils
+  option_d: 1434 pencils
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d5-928501
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_large
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_after_first_multiplication
+  - multiplied_only_two_factors
+  - added_instead_of_multiplying_third_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A greenhouse grows 15 plants per shelf. There are 22 shelves in each section, and the greenhouse
+    has 6 sections. How many plants are there in total?
+  context_block: null
+  answer_expression: x = 15 * 22 * 6
+  hint_ladder:
+  - How many plants are on one shelf, and how many shelves are in one section?
+  - Multiply the number of plants per shelf by the number of shelves to find plants per section, then
+    multiply by the number of sections.
+  - You need to compute 15 times 22, then multiply that result by 6.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the number of plants per section by multiplying the number of plants per shelf
+        by the number of shelves per section.
+      expression: 15 * 22 = 330
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the plants per section by the total number of sections to find the total number
+        of plants.
+      expression: 330 * 6 = 1980
+      common_mistake: null
+    final_answer: 1980 plants
+  random_seed: 928501
+  rendered_question: A greenhouse grows 15 plants per shelf. There are 22 shelves in each section, and
+    the greenhouse has 6 sections. How many plants are there in total?
+  option_a: 330 plants
+  option_b: 2022 plants
+  option_c: 1980 plants
+  option_d: 1320 plants
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d4-928400
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_large
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_after_first_multiplication
+  - ignored_one_factor
+  - computational_error_in_intermediate_step
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A warehouse ships boxes of supplies. Each crate holds 24 boxes, each truck carries 15 crates,
+    and today the warehouse is sending out 8 trucks. How many boxes will be shipped in total?
+  context_block: null
+  answer_expression: x = 24 * 15 * 8
+  hint_ladder:
+  - Start by finding how many boxes one truck carries.
+  - Multiply the boxes per crate by the crates per truck, then multiply that result by the number of trucks.
+  - Write the calculation as 24 × 15 × 8 and work from left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find how many boxes are on one truck by multiplying boxes per crate by crates per truck.
+      expression: 24 × 15 = 360
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the boxes per truck by the number of trucks to find the total.
+      expression: 360 × 8 = 2880
+      common_mistake: null
+    final_answer: 2880 boxes
+  random_seed: 928400
+  rendered_question: A warehouse ships boxes of supplies. Each crate holds 24 boxes, each truck carries
+    15 crates, and today the warehouse is sending out 8 trucks. How many boxes will be shipped in total?
+  option_a: 2640 boxes
+  option_b: 360 boxes
+  option_c: 192 boxes
+  option_d: 2880 boxes
+  correct_option: d
+- question_template_id: authored-g4_multiplication_division-d4-928401
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_large
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_after_first_multiplication
+  - multiplied_only_two_factors
+  - added_third_factor_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A toy factory packages 18 toys per box, 12 boxes per carton, and produces 25 cartons in one shift.
+    How many toys are produced in that shift?
+  context_block: null
+  answer_expression: Eq(x, 18 * 12 * 25)
+  hint_ladder:
+  - Start by finding how many toys fit in one carton.
+  - Multiply the number of toys per box by the number of boxes per carton, then multiply that result by
+    the number of cartons.
+  - Set up 18 × 12 × 25 and multiply step by step from left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: First find how many toys are in one carton by multiplying toys per box by boxes per
+        carton.
+      expression: 18 * 12 = 216
+      common_mistake: null
+    - step_number: 2
+      explanation: Now multiply the toys per carton by the number of cartons produced.
+      expression: 216 * 25 = 5400
+      common_mistake: null
+    final_answer: 5400 toys
+  random_seed: 928401
+  rendered_question: A toy factory packages 18 toys per box, 12 boxes per carton, and produces 25 cartons
+    in one shift. How many toys are produced in that shift?
+  option_a: 5400 toys
+  option_b: 450 toys
+  option_c: 216 toys
+  option_d: 5418 toys
+  correct_option: a
+- question_template_id: authored-g4_multiplication_division-d4-928402
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_large
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_after_two_factors
+  - omitted_middle_factor
+  - arithmetic_error_in_final_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery makes 16 cookies per tray, arranges 20 trays per rack, and produces 12 racks. How many
+    cookies does the bakery make in total?
+  context_block: null
+  answer_expression: x = 16 * 20 * 12
+  hint_ladder:
+  - Find how many cookies are on one rack by multiplying cookies per tray by trays per rack.
+  - One rack holds 16 × 20 cookies; multiply that result by the number of racks.
+  - Set up the multiplication 16 × 20 × 12 and compute step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the number of cookies on one rack by multiplying cookies per tray by trays
+        per rack.
+      expression: 16 * 20 = 320
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the number of cookies per rack by the number of racks to find the total.
+      expression: 320 * 12 = 3840
+      common_mistake: null
+    final_answer: 3840 cookies
+  random_seed: 928402
+  rendered_question: A bakery makes 16 cookies per tray, arranges 20 trays per rack, and produces 12 racks.
+    How many cookies does the bakery make in total?
+  option_a: 320 cookies
+  option_b: 192 cookies
+  option_c: 3840 cookies
+  option_d: 3872 cookies
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d5-928502
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_large
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - stopped_one_step_early
+  - ignored_first_factor
+  - added_instead_of_multiplied
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A farm collects eggs in cartons. Each carton holds 12 eggs. The farm packs 24 cartons into each
+    crate, and today they are shipping 15 crates. How many eggs are being shipped in total?
+  context_block: ''
+  answer_expression: Eq(x, 12 * 24 * 15)
+  hint_ladder:
+  - Start by finding how many eggs are in one crate.
+  - Multiply the eggs per carton by the cartons per crate, then multiply that result by the number of
+    crates.
+  - You need to compute 12 times 24, and then take that product and multiply it by 15.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find how many eggs are in one carton.
+      expression: '12'
+      common_mistake: null
+    - step_number: 2
+      explanation: Find how many eggs are in one crate by multiplying eggs per carton by cartons per crate.
+      expression: 12 * 24 = 288
+      common_mistake: null
+    - step_number: 3
+      explanation: Find the total number of eggs by multiplying eggs per crate by the number of crates.
+      expression: 288 * 15 = 4320
+      common_mistake: null
+    final_answer: 4320 eggs
+  random_seed: 928502
+  rendered_question: A farm collects eggs in cartons. Each carton holds 12 eggs. The farm packs 24 cartons
+    into each crate, and today they are shipping 15 crates. How many eggs are being shipped in total?
+  option_a: 360 eggs
+  option_b: 288 eggs
+  option_c: 51 eggs
+  option_d: 4320 eggs
+  correct_option: d
+- question_template_id: authored-g4_multiplication_division-d2-929200
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_two_by_two
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplied
+  - multiplied_only_the_tens_place
+  - subtracted_instead_of_added_partial_products
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school orders 24 boxes of books. Each box contains 35 books. How many books did the school order
+    in total?
+  context_block: null
+  answer_expression: Eq(x, 24 * 35)
+  hint_ladder:
+  - Think about how many books are in one box, and how many boxes there are.
+  - To find the total number of books, multiply the number of boxes by the number of books in each box.
+  - Write 24 × 35 and calculate the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We have 24 boxes and each box contains 35 books, so we need to multiply 24 by 35.
+      expression: 24 × 35
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Break down the multiplication: 24 × 35 = 24 × (30 + 5) = (24 × 30) + (24 × 5).'
+      expression: (24 × 30) + (24 × 5)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Calculate each part: 24 × 30 = 720 and 24 × 5 = 120.'
+      expression: 720 + 120
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the two products together.
+      expression: '840'
+      common_mistake: null
+    final_answer: 840 books
+  random_seed: 929200
+  rendered_question: A school orders 24 boxes of books. Each box contains 35 books. How many books did
+    the school order in total?
+  option_a: 805 books
+  option_b: 840 books
+  option_c: 59 books
+  option_d: 120 books
+  correct_option: b
+- question_template_id: authored-g4_multiplication_division-d3-929300
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_two_by_two
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - computed_only_first_partial_product
+  - computed_only_second_partial_product
+  - added_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A farm collects eggs from 23 chicken coops. Each coop holds 46 eggs. How many eggs does the farm
+    collect in total?
+  context_block: ''
+  answer_expression: x = 23 * 46
+  hint_ladder:
+  - You need to find the total number of eggs across all the coops.
+  - Multiply the number of coops by the number of eggs in each coop.
+  - Set up the multiplication 23 times 46 and compute it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to multiply the number of coops by the number of eggs in each coop.
+      expression: 23 * 46
+      common_mistake: null
+    - step_number: 2
+      explanation: Break 46 into 40 + 6 to make the multiplication easier.
+      expression: 23 * 40 + 23 * 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 23 by 40.
+      expression: '920'
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 23 by 6.
+      expression: '138'
+      common_mistake: null
+    - step_number: 5
+      explanation: Add the two partial products together.
+      expression: 920 + 138
+      common_mistake: null
+    - step_number: 6
+      explanation: The total is 1058 eggs.
+      expression: '1058'
+      common_mistake: null
+    final_answer: 1058 eggs
+  random_seed: 929300
+  rendered_question: A farm collects eggs from 23 chicken coops. Each coop holds 46 eggs. How many eggs
+    does the farm collect in total?
+  option_a: 69 eggs
+  option_b: 1058 eggs
+  option_c: 920 eggs
+  option_d: 138 eggs
+  correct_option: b
+- question_template_id: authored-g4_multiplication_division-d3-929301
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_two_by_two
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_only_by_tens_place
+  - added_instead_of_regrouping_in_multiplication
+  - added_factors_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A warehouse ships 28 boxes of toys, with 45 toys in each box. How many toys are shipped in total?
+  context_block: null
+  answer_expression: x = 28 * 45
+  hint_ladder:
+  - Think about how many toys are in all 28 boxes if each box contains the same number.
+  - You need to multiply the number of boxes by the number of toys per box.
+  - Set up the multiplication 28 times 45 and break it into parts if that helps.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to find the total number of toys, which means multiplying the number of boxes
+        by the number of toys in each box.
+      expression: x = 28 * 45
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Break 45 into 40 + 5 to make the multiplication easier: 28 × 40 = 1120.'
+      expression: 28 * 40 = 1120
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Now multiply 28 by 5: 28 × 5 = 140.'
+      expression: 28 * 5 = 140
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the two partial products together: 1120 + 140 = 1260.'
+      expression: 1120 + 140 = 1260
+      common_mistake: null
+    final_answer: 1260 toys
+  random_seed: 929301
+  rendered_question: A warehouse ships 28 boxes of toys, with 45 toys in each box. How many toys are shipped
+    in total?
+  option_a: 73 toys
+  option_b: 1240 toys
+  option_c: 1120 toys
+  option_d: 1260 toys
+  correct_option: d
+- question_template_id: authored-g4_multiplication_division-d3-929302
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_two_by_two
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_tens_only_not_ones
+  - computed_only_one_partial_product
+  - added_factors_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A garden center has 34 displays of flowers, with 27 plants in each display. How many plants are
+    there in total?
+  context_block: null
+  answer_expression: x = 34 * 27
+  hint_ladder:
+  - How many plants are in one display, and how many displays are there?
+  - 'To find the total, multiply the number of displays by the number of plants in each display: 34 ×
+    27.'
+  - Break 27 into 20 + 7, multiply each part by 34, then add the results.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of displays and plants per display. There are 34 displays with
+        27 plants in each.
+      expression: 34 × 27
+      common_mistake: null
+    - step_number: 2
+      explanation: Break 27 into 20 + 7 to make the multiplication easier.
+      expression: 34 × 20 + 34 × 7
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 34 by 20.
+      expression: 34 × 20 = 680
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 34 by 7.
+      expression: 34 × 7 = 238
+      common_mistake: null
+    - step_number: 5
+      explanation: Add the two products together.
+      expression: 680 + 238 = 918
+      common_mistake: null
+    final_answer: 918 plants
+  random_seed: 929302
+  rendered_question: A garden center has 34 displays of flowers, with 27 plants in each display. How many
+    plants are there in total?
+  option_a: 61 plants
+  option_b: 238 plants
+  option_c: 858 plants
+  option_d: 918 plants
+  correct_option: d
+- question_template_id: authored-g4_multiplication_division-d2-929201
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_two_by_two
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_tens_correctly_but_made_error_in_ones_multiplication
+  - added_instead_of_multiplying
+  - misaligned_partial_products_in_standard_algorithm
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A bakery packages 32 trays of muffins, with 18 muffins on each tray. How many muffins does the
+    bakery package in total?
+  context_block: null
+  answer_expression: Eq(x, 32 * 18)
+  hint_ladder:
+  - Think about what one tray holds and how many trays there are.
+  - Multiply the number of trays by the number of muffins on each tray.
+  - Write 32 × 18 and compute the product by breaking it into parts or using the standard algorithm.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of trays and the number of muffins per tray. There are 32 trays
+        and 18 muffins on each tray.
+      expression: 32 × 18
+      common_mistake: null
+    - step_number: 2
+      explanation: Break 18 into 10 + 8 to make the multiplication easier. Compute 32 × 10 first.
+      expression: 32 × 10 = 320
+      common_mistake: null
+    - step_number: 3
+      explanation: Next compute 32 × 8.
+      expression: 32 × 8 = 256
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the two partial products together to get the total.
+      expression: 320 + 256 = 576
+      common_mistake: null
+    final_answer: 576 muffins
+  random_seed: 929201
+  rendered_question: A bakery packages 32 trays of muffins, with 18 muffins on each tray. How many muffins
+    does the bakery package in total?
+  option_a: 560 muffins
+  option_b: 596 muffins
+  option_c: 50 muffins
+  option_d: 576 muffins
+  correct_option: d
+- question_template_id: authored-g4_multiplication_division-d2-929202
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_two_by_two
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added instead of multiplying
+  - arithmetic error in partial product
+  - digit reversal or place value error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A theater has 26 rows of seats, with 14 seats in each row. How many seats are there in total?
+  context_block: null
+  answer_expression: x = 26 * 14
+  hint_ladder:
+  - Think about how many seats one row holds, then how many rows there are.
+  - To find the total, multiply the number of rows by the number of seats in each row.
+  - Write 26 × 14 and use the standard algorithm or break it into (26 × 10) + (26 × 4).
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The theater has 26 rows and each row has 14 seats, so we need to multiply 26 by 14.
+      expression: 26 * 14
+      common_mistake: null
+    - step_number: 2
+      explanation: 'We can break 14 into 10 + 4 to make the multiplication easier: 26 × 10 = 260.'
+      expression: 26 * 10 = 260
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Next, multiply 26 by 4: 26 × 4 = 104.'
+      expression: 26 * 4 = 104
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the two partial products together: 260 + 104 = 364.'
+      expression: 260 + 104 = 364
+      common_mistake: null
+    final_answer: 364 seats
+  random_seed: 929202
+  rendered_question: A theater has 26 rows of seats, with 14 seats in each row. How many seats are there
+    in total?
+  option_a: 350 seats
+  option_b: 364 seats
+  option_c: 40 seats
+  option_d: 304 seats
+  correct_option: b

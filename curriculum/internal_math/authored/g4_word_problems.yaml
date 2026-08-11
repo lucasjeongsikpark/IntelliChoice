@@ -1,0 +1,676 @@
+curriculum_version: '2026.1'
+topic_id: g4_word_problems
+templates:
+- question_template_id: authored-g4_word_problems-d2-975200
+  topic_id: g4_word_problems
+  skill_id: g4_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_divided
+  - multiplied_instead_of_divided
+  - subtracted_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya saves the same amount each week for her art supplies. After several weeks she has $52.50
+    in total. If she saved $8.75 every week, how many weeks has she been saving?
+  context_block: null
+  answer_expression: x = 52.50 / 8.75
+  hint_ladder:
+  - What operation tells you how many groups of $8.75 fit into $52.50?
+  - You need to divide the total saved by the amount saved each week.
+  - Write 52.50 ÷ 8.75 and calculate the quotient.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the total amount saved and the weekly amount. Maya has $52.50 and saves $8.75
+        each week.
+      expression: 52.50 / 8.75
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the weekly savings to find the number of weeks.
+      expression: 52.50 / 8.75 = 6
+      common_mistake: null
+    final_answer: 6 weeks
+  random_seed: 975200
+  rendered_question: Maya saves the same amount each week for her art supplies. After several weeks she
+    has $52.50 in total. If she saved $8.75 every week, how many weeks has she been saving?
+  option_a: 7 weeks
+  option_b: 459.375 weeks
+  option_c: 61.25 weeks
+  option_d: 6 weeks
+  correct_option: d
+- question_template_id: authored-g4_word_problems-d2-975201
+  topic_id: g4_word_problems
+  skill_id: g4_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_incorrectly_by_multiplying_by_denominator_fraction
+  - multiplied_decimal_by_10_instead_of_dividing
+  - added_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Lena bought notebooks for her class. Each notebook costs $2.50, and she spent exactly $20.00.
+    How many notebooks did she buy?
+  context_block: ''
+  answer_expression: x = 20.00 / 2.50
+  hint_ladder:
+  - Divide the total money spent by the cost of one notebook.
+  - The operation is 20.00 ÷ 2.50 to find the number of notebooks.
+  - 'Set up the division with decimal quantities: the total in the numerator and the unit price in the
+    denominator.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the total amount spent and the cost per notebook.
+      expression: total = 20.00, cost_per_notebook = 2.50
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total amount by the cost per notebook to find the number of notebooks.
+      expression: x = 20.00 / 2.50
+      common_mistake: null
+    - step_number: 3
+      explanation: Perform the division. 20.00 ÷ 2.50 = 8.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 notebooks
+  random_seed: 975201
+  rendered_question: Lena bought notebooks for her class. Each notebook costs $2.50, and she spent exactly
+    $20.00. How many notebooks did she buy?
+  option_a: 22.50 notebooks
+  option_b: 8 notebooks
+  option_c: 10 notebooks
+  option_d: 5 notebooks
+  correct_option: b
+- question_template_id: authored-g4_word_problems-d2-975202
+  topic_id: g4_word_problems
+  skill_id: g4_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_divided
+  - multiplied_instead_of_divided
+  - added_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A customer buys tickets at a fair. Each ticket costs $4.50, and the customer spends exactly $36.00.
+    How many tickets does the customer buy?
+  context_block: ''
+  answer_expression: Eq(4.50*x, 36.00)
+  hint_ladder:
+  - Think about what operation connects total cost, ticket price, and the number of tickets.
+  - If each ticket is $4.50 and you buy x tickets, then you spend 4.50 times x dollars.
+  - Set up 4.50 × x = 36.00, then solve for x by dividing.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total cost is the price per ticket times the number of tickets, so we write the
+        equation 4.50x = 36.00.
+      expression: 4.50*x = 36.00
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both sides by 4.50 to isolate x.
+      expression: x = 36.00 / 4.50
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 36.00 ÷ 4.50 = 8.'
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 tickets
+  random_seed: 975202
+  rendered_question: A customer buys tickets at a fair. Each ticket costs $4.50, and the customer spends
+    exactly $36.00. How many tickets does the customer buy?
+  option_a: 162 tickets
+  option_b: 31.50 tickets
+  option_c: 8 tickets
+  option_d: 40.50 tickets
+  correct_option: c
+- question_template_id: authored-g4_word_problems-d3-975300
+  topic_id: g4_word_problems
+  skill_id: g4_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_divided
+  - multiplied_instead_of_divided
+  - multiplied_the_two_given_values
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker spent $63.00 buying bags of flour that each cost $7.00. How many bags of flour did the
+    baker purchase?
+  context_block: null
+  answer_expression: Eq(7.00 * x, 63.00)
+  hint_ladder:
+  - Think about what operation connects total cost, number of bags, and price per bag.
+  - If each bag costs $7.00, then the number of bags multiplied by $7.00 equals $63.00.
+  - 'Set up the equation: 7.00 times the number of bags equals 63.00, then solve.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x represent the number of bags of flour. Each bag costs $7.00, so the total cost
+        is 7.00 times x.
+      expression: 7.00 * x = 63.00
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, divide both sides of the equation by 7.00.
+      expression: x = 63.00 / 7.00
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 63.00 divided by 7.00 equals 9.'
+      expression: x = 9
+      common_mistake: null
+    final_answer: 9 bags
+  random_seed: 975300
+  rendered_question: A baker spent $63.00 buying bags of flour that each cost $7.00. How many bags of
+    flour did the baker purchase?
+  option_a: 56 bags
+  option_b: 441 bags
+  option_c: 70 bags
+  option_d: 9 bags
+  correct_option: d
+- question_template_id: authored-g4_word_problems-d3-975301
+  topic_id: g4_word_problems
+  skill_id: g4_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_dividing
+  - subtracted_divisor_from_dividend
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher spent $42.00 buying boxes of crayons that each cost $3.50. How many boxes of crayons
+    did the teacher purchase?
+  context_block: ''
+  answer_expression: x = 42.00 / 3.50
+  hint_ladder:
+  - What operation will you use to find how many equal-priced items fit into a total amount of money?
+  - Divide the total amount spent by the price per box.
+  - Write 42.00 ÷ 3.50 and calculate the quotient.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The teacher spent $42.00 in total and each box costs $3.50. To find the number of boxes,
+        divide the total by the cost per box.
+      expression: x = 42.00 / 3.50
+      common_mistake: null
+    - step_number: 2
+      explanation: Perform the division. 42.00 ÷ 3.50 = 12.
+      expression: x = 12
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Check: 12 boxes at $3.50 each is 12 × 3.50 = 42.00, which matches the total spent.'
+      expression: 12 * 3.50 = 42.00
+      common_mistake: null
+    final_answer: 12 boxes
+  random_seed: 975301
+  rendered_question: A teacher spent $42.00 buying boxes of crayons that each cost $3.50. How many boxes
+    of crayons did the teacher purchase?
+  option_a: 12 boxes
+  option_b: 10 boxes
+  option_c: 38.50 boxes
+  option_d: 147 boxes
+  correct_option: a
+- question_template_id: authored-g4_word_problems-d3-975302
+  topic_id: g4_word_problems
+  skill_id: g4_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_dividing
+  - added_instead_of_dividing
+  - arithmetic_error_in_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A shopper spent $48.00 buying bottles of juice that each cost $6.00. How many bottles did the
+    shopper buy?
+  context_block: null
+  answer_expression: Eq(6.00 * x, 48.00)
+  hint_ladder:
+  - Think about what operation connects the total cost, the cost per bottle, and the number of bottles.
+  - If each bottle costs $6.00 and you bought some number of bottles, multiplying the price by the number
+    gives the total spent.
+  - Write $6.00 times the number of bottles equals $48.00, then solve for the number of bottles.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x represent the number of bottles. Each bottle costs $6.00, so the total cost is
+        6.00 times x.
+      expression: 6.00 * x
+      common_mistake: null
+    - step_number: 2
+      explanation: The shopper spent $48.00, so we set the total cost equal to 48.00.
+      expression: 6.00 * x = 48.00
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 6.00 to isolate x.
+      expression: x = 48.00 / 6.00
+      common_mistake: null
+    - step_number: 4
+      explanation: Perform the division to find the number of bottles.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 bottles
+  random_seed: 975302
+  rendered_question: A shopper spent $48.00 buying bottles of juice that each cost $6.00. How many bottles
+    did the shopper buy?
+  option_a: 54 bottles
+  option_b: 42 bottles
+  option_c: 8 bottles
+  option_d: 7 bottles
+  correct_option: c
+- question_template_id: authored-g4_word_problems-d1-976100
+  topic_id: g4_word_problems
+  skill_id: g4_wp_division
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_dividing
+  - subtracted_instead_of_dividing
+  - moved_decimal_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery bakes 1536 cookies and packs them equally into 12 boxes. How many cookies are in each
+    box?
+  context_block: ''
+  answer_expression: Eq(12*x, 1536)
+  hint_ladder:
+  - Think about what operation you use when dividing things equally into groups.
+  - Write a division that has 1536 cookies going into 12 boxes.
+  - The number of cookies in each box is 1536 divided by 12.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of cookies in each box. Since there are 12 boxes and all boxes
+        have the same number of cookies, the total is 12 times x.
+      expression: 12*x = 1536
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both sides by 12 to find how many cookies are in one box.
+      expression: x = 1536 / 12
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the division: 1536 divided by 12 equals 128.'
+      expression: x = 128
+      common_mistake: null
+    final_answer: 128 cookies
+  random_seed: 976100
+  rendered_question: A bakery bakes 1536 cookies and packs them equally into 12 boxes. How many cookies
+    are in each box?
+  option_a: 1548 cookies
+  option_b: 12.8 cookies
+  option_c: 128 cookies
+  option_d: 1524 cookies
+  correct_option: c
+- question_template_id: authored-g4_word_problems-d1-976101
+  topic_id: g4_word_problems
+  skill_id: g4_wp_division
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_dividing
+  - subtracted_instead_of_dividing
+  - divided_by_wrong_place_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library donates 1440 books equally into 15 schools. How many books does each school receive?
+  context_block: null
+  answer_expression: x = 1440 / 15
+  hint_ladder:
+  - Think about how to share a total equally among a number of groups.
+  - You need to divide the total number of books by the number of schools.
+  - Set up the division 1440 ÷ 15 and work through it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to divide the total number of books by the number of schools to find how many
+        books each school receives.
+      expression: 1440 / 15
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Performing the division: 1440 divided by 15 equals 96.'
+      expression: '96'
+      common_mistake: null
+    final_answer: 96 books
+  random_seed: 976101
+  rendered_question: A library donates 1440 books equally into 15 schools. How many books does each school
+    receive?
+  option_a: 1455 books
+  option_b: 144 books
+  option_c: 96 books
+  option_d: 1425 books
+  correct_option: c
+- question_template_id: authored-g4_word_problems-d1-976102
+  topic_id: g4_word_problems
+  skill_id: g4_wp_division
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_divisor_instead_of_dividing
+  - added_divisor_instead_of_dividing
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school orders 1350 pencils to distribute equally among 18 classrooms. How many pencils will
+    each classroom receive?
+  context_block: ''
+  answer_expression: Eq(x, 1350 / 18)
+  hint_ladder:
+  - Think about what operation you use when you share a total equally among several groups.
+  - You need to divide the total number of pencils by the number of classrooms.
+  - Set up the division 1350 ÷ 18 and solve it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to divide the total number of pencils equally among the classrooms.
+      expression: x = 1350 / 18
+      common_mistake: null
+    - step_number: 2
+      explanation: Perform the division to find how many pencils each classroom gets.
+      expression: x = 75
+      common_mistake: null
+    final_answer: 75 pencils
+  random_seed: 976102
+  rendered_question: A school orders 1350 pencils to distribute equally among 18 classrooms. How many
+    pencils will each classroom receive?
+  option_a: 24300 pencils
+  option_b: 75 pencils
+  option_c: 1332 pencils
+  option_d: 1368 pencils
+  correct_option: b
+- question_template_id: authored-g4_word_problems-d2-976200
+  topic_id: g4_word_problems
+  skill_id: g4_wp_division
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_dividing
+  - added_instead_of_dividing
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A sports stadium receives 1680 bottles of water to distribute equally among 14 concession stands.
+    How many bottles does each stand receive?
+  context_block: ''
+  answer_expression: Eq(x, 1680 / 14)
+  hint_ladder:
+  - Think about what operation shares a total equally among groups.
+  - You need to divide the total number of bottles by the number of stands.
+  - Set up the division 1680 ÷ 14 and work through it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The stadium has 1680 bottles to divide equally among 14 stands, so we divide the total
+        by the number of stands.
+      expression: 1680 ÷ 14
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide 1680 by 14. 14 goes into 168 twelve times (14 × 12 = 168), and when we bring
+        down the 0, 14 goes into 0 zero times.
+      expression: 1680 ÷ 14 = 120
+      common_mistake: null
+    final_answer: 120 bottles
+  random_seed: 976200
+  rendered_question: A sports stadium receives 1680 bottles of water to distribute equally among 14 concession
+    stands. How many bottles does each stand receive?
+  option_a: 120 bottles
+  option_b: 1666 bottles
+  option_c: 23520 bottles
+  option_d: 1694 bottles
+  correct_option: a
+- question_template_id: authored-g4_word_problems-d2-976201
+  topic_id: g4_word_problems
+  skill_id: g4_wp_division
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_by_wrong_place_value_2_instead_of_20
+  - divided_by_10_instead_of_20
+  - subtracted_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A warehouse ships 1620 toys equally to 20 stores. How many toys does each store receive?
+  context_block: null
+  answer_expression: Eq(x, 1620 / 20)
+  hint_ladder:
+  - How many stores are sharing the total number of toys equally?
+  - You need to divide the total number of toys by the number of stores.
+  - Set up the division 1620 ÷ 20 to find how many toys each store gets.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the total number of toys and the number of stores. The warehouse ships 1620
+        toys to 20 stores.
+      expression: 1620 ÷ 20
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide 1620 by 20 to find how many toys each store receives.
+      expression: 1620 ÷ 20 = 81
+      common_mistake: null
+    final_answer: 81 toys
+  random_seed: 976201
+  rendered_question: A warehouse ships 1620 toys equally to 20 stores. How many toys does each store receive?
+  option_a: 162 toys
+  option_b: 81 toys
+  option_c: 1600 toys
+  option_d: 810 toys
+  correct_option: b
+- question_template_id: authored-g4_word_problems-d2-976202
+  topic_id: g4_word_problems
+  skill_id: g4_wp_division
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - off_by_one_arithmetic_error
+  - divided_by_half_the_divisor
+  - subtracted_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A farmer harvests 1764 apples and packs them equally into 18 crates. How many apples are in each
+    crate?
+  context_block: null
+  answer_expression: Eq(x, 1764 / 18)
+  hint_ladder:
+  - Think about what operation you use when sharing a total equally into groups.
+  - 'Write a division: the total number of apples divided by the number of crates.'
+  - Set up 1764 ÷ 18 and compute the quotient.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to share 1764 apples equally into 18 crates, so we divide the total by the
+        number of crates.
+      expression: x = 1764 / 18
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide 1764 by 18. 18 × 98 = 1764, so the quotient is 98.
+      expression: x = 98
+      common_mistake: null
+    final_answer: 98 apples
+  random_seed: 976202
+  rendered_question: A farmer harvests 1764 apples and packs them equally into 18 crates. How many apples
+    are in each crate?
+  option_a: 1746 apples
+  option_b: 98 apples
+  option_c: 99 apples
+  option_d: 882 apples
+  correct_option: b
+- question_template_id: authored-g4_word_problems-d4-977400
+  topic_id: g4_word_problems
+  skill_id: g4_wp_formula_mixed
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - ignored_parentheses_and_added_all_terms
+  - multiplied_only_first_term
+  - added_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular garden is 12 feet long and 7 feet wide. To find the perimeter, Maya uses the formula
+    P = 2(l + w). What is the perimeter of the garden?
+  context_block: null
+  answer_expression: x = 2 * (12 + 7)
+  hint_ladder:
+  - The formula tells you to add the length and width first.
+  - Substitute l = 12 and w = 7 into P = 2(l + w) and work inside the parentheses.
+  - Once you have the sum inside the parentheses, multiply that result by 2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the perimeter formula with the given values: P = 2(12 + 7).'
+      expression: P = 2(12 + 7)
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the length and width inside the parentheses first.
+      expression: 12 + 7 = 19
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the sum by 2 to find the perimeter.
+      expression: P = 2 × 19 = 38
+      common_mistake: null
+    final_answer: 38 feet
+  random_seed: 977400
+  rendered_question: A rectangular garden is 12 feet long and 7 feet wide. To find the perimeter, Maya
+    uses the formula P = 2(l + w). What is the perimeter of the garden?
+  option_a: 38 feet
+  option_b: 48 feet
+  option_c: 31 feet
+  option_d: 19 feet
+  correct_option: a
+- question_template_id: authored-g4_word_problems-d4-977402
+  topic_id: g4_word_problems
+  skill_id: g4_wp_formula_mixed
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_add_extra_amount
+  - added_all_three_numbers_instead_of_multiplying_first
+  - added_the_extra_amount_to_the_batch_size_instead_of_the_total
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker makes 9 batches of cookies with 12 cookies per batch, plus 6 extra cookies. How many cookies
+    does the baker have altogether?
+  context_block: null
+  answer_expression: x = 9 * 12 + 6
+  hint_ladder:
+  - Find how many cookies are in the 9 batches first, before thinking about the extra cookies.
+  - Multiply the number of batches by the number of cookies per batch, then add the extra cookies.
+  - Write the total as 9 times 12, plus 6.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the number of cookies in the 9 batches by multiplying the number of batches by
+        cookies per batch.
+      expression: 9 * 12 = 108
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the 6 extra cookies to the batch total.
+      expression: 108 + 6 = 114
+      common_mistake: null
+    final_answer: 114 cookies
+  random_seed: 977402
+  rendered_question: A baker makes 9 batches of cookies with 12 cookies per batch, plus 6 extra cookies.
+    How many cookies does the baker have altogether?
+  option_a: 27 cookies
+  option_b: 120 cookies
+  option_c: 114 cookies
+  option_d: 108 cookies
+  correct_option: c

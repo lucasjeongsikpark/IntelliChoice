@@ -208,10 +208,14 @@ def test_the_pipeline_path_requires_the_equation_the_loader_requires():
     from intellichoice_curriculum import ai_pipeline
 
     source = pathlib.Path(ai_pipeline.__file__).read_text()
-    assert "if not item.equation:" in source
-    assert "equation_present" in source
-    # Before the solvers: an item that cannot pass the loader should not be paid for three
-    # more times first.
-    # The *call*, not the definition - `def solver_objections` sits near the top of the
-    # module, so searching for the bare name compares against the wrong offset.
-    assert source.index("if not item.equation:") < source.index("objections = solver_objections(")
+    # D-276 widened this from a presence check to the whole gate: exporting the wave showed
+    # 5 further items with wrong answer keys, which only `check_sympy_independent_solve`
+    # catches - and it runs in `loader.py`, so those items could never enter the bank anyway.
+    # One gate, called from both places.
+    assert "gate = validate_authored_item(difficulty_label, item)" in source
+    # Before the solvers: an item that cannot enter the bank should not be paid for three
+    # more times first. The *call*, not the definition - `def solver_objections` sits near
+    # the top of the module, so searching for the bare name compares against the wrong offset.
+    assert source.index("gate = validate_authored_item(") < source.index(
+        "objections = solver_objections("
+    )

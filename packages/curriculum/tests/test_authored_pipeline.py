@@ -1795,17 +1795,24 @@ def test_a_gated_rejection_persists_the_whole_candidate() -> None:
         async with _rollback_session() as session:
             # Candidate 2's defect: an equation that restates arithmetic instead of
             # modelling the question, so the deterministic gate rejects before any solver.
+            #
+            # **D-276: the assertion below now matches that comment again.** `8.5 != 9`, so
+            # this equation is false, and the comment has always said the gate catches it
+            # first. It asserted `"solver"` because D-202 removed the gate from this path and
+            # the candidate fell through to a paid solver call - the comment stayed right and
+            # the assertion drifted to match the regression. Restoring `validate_authored_item`
+            # here restores the documented behaviour, and the item is rejected for free.
             gateway = _ScriptedAuthoredGateway(
                 item=_good_item(equation="Eq((20 - 3) / 2, (25 - 7) / 2)", proposed_difficulty=2),
                 solver_objection=dict(_SOLVER_OBJECTION),
             )
             outcome, run_row = await _reject_and_fetch(session, gateway, seed=501001)
-            assert outcome.rejected_at == "solver"  # type: ignore[attr-defined]
+            assert outcome.rejected_at == "validation"  # type: ignore[attr-defined]
             snapshot = run_row.stage_results["candidate_snapshot"]
             assert snapshot["equation"] == "Eq((20 - 3) / 2, (25 - 7) / 2)"
             # The stage evidence is still there - the snapshot is an addition, not a
             # replacement. A reviewer needs the content *and* the reading that rejected it.
-            assert run_row.stage_results["solver_a"]["no_option_matches"] is True
+            assert run_row.stage_results["deterministic_gate"]["passed"] is False
             assert run_row.reasons
 
     asyncio.run(run())

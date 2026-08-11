@@ -287,17 +287,29 @@ skills:
     topic_id: number_sense
     name: "Tell odd numbers from even numbers"
     difficulty_tiers: [1, 2]
-    structure: "the remainder on division by two, e.g. Eq(x, Mod(47, 2)) - an answer of 1 means
-      the number is odd and 0 means it is even, so the item asks for that remainder rather than
-      stating the answer outright"
+    # D-276: same defect as `number_large_compare` below. A shipped item asked "is 47 odd or
+    # even" with options "Odd"/"Even" - the equation derives 1 and no word can match it. The
+    # stem has to ask for the REMAINDER, not for the classification the remainder implies.
+    structure: "the remainder on division by two, e.g. Eq(x, Mod(47, 2)). The STEM MUST ASK FOR
+      THE REMAINDER - 'what is the remainder when 47 is divided by 2?' - and the four OPTIONS
+      MUST BE NUMBERS (0, 1, 2, 3). Options that are the words 'Odd' and 'Even' cannot be
+      verified, because the answer is checked by deriving the remainder; state in the stem that
+      a remainder of 1 means odd and 0 means even, so the student still learns the rule"
 
   - skill_id: number_large_compare
     topic_id: number_sense
     name: "Compare and order large numbers"
     difficulty_tiers: [2, 3]
+    # D-276: the Max form only verifies when the OPTIONS ARE THE NUMBERS. Two shipped items
+    # asked "which museum raised the most" with options like "Museum B" - the equation derives
+    # 86892 and no label can match it, so the gate rejected an item whose maths was fine. The
+    # options requirement is now part of the structure, because it is what makes the form work.
     structure: "a comparison expressed with Max or Min over the numbers being compared, e.g.
       Eq(x, Max(34281, 34218, 34128)) - the answer IS one of the stated numbers, and writing
-      Eq(x, 34281) instead states the answer rather than modelling the question"
+      Eq(x, 34281) instead states the answer rather than modelling the question. The four
+      OPTIONS MUST BE THE NUMBERS THEMSELVES (34281, 34218, ...), never labels like
+      'Museum B' or 'City A' - the answer is verified by deriving the number, so an option
+      naming an entity cannot be matched and the item is rejected"
 
   - skill_id: number_rounding
     topic_id: number_sense
