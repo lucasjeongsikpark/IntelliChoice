@@ -30,8 +30,8 @@ templates:
       expression: 43 has more tens than 34
       common_mistake: Comparing only the ones digits
     - step_number: 2
-      explanation: Find the gap between the two amounts.
-      expression: 34 plus something makes 43
+      explanation: Find the gap by taking Ben's amount away from Ana's.
+      expression: 43 - 34 = 9
       common_mistake: Adding the two amounts together
     final_answer: '9'
   random_seed: 200104
@@ -310,8 +310,8 @@ templates:
       expression: 4 hundreds against 1 hundred
       common_mistake: Comparing the ones digits
     - step_number: 3
-      explanation: Find the gap between the two amounts.
-      expression: 145 plus something makes 451
+      explanation: Find the gap by taking Sam's amount away from Leo's.
+      expression: 451 - 145 = 306
       common_mistake: Adding the two amounts together
     final_answer: '306'
   random_seed: 200403
@@ -356,8 +356,8 @@ templates:
       expression: 6 hundreds against 1 hundred
       common_mistake: null
     - step_number: 3
-      explanation: Find the gap between the two counts.
-      expression: 2160 plus something makes 2610
+      explanation: Find the gap by taking Saturday's count away from Friday's.
+      expression: 2610 - 2160 = 450
       common_mistake: Adding the two counts together
     final_answer: '450'
   random_seed: 200402
@@ -448,8 +448,8 @@ templates:
       expression: 0 tens against 6 tens
       common_mistake: Reading the zero as a large amount
     - step_number: 3
-      explanation: Find the gap between the two amounts.
-      expression: 4507 plus something makes 4570
+      explanation: Find the gap by taking Town A's amount away from Town B's.
+      expression: 4570 - 4507 = 63
       common_mistake: Adding the two amounts together
     final_answer: '63'
   random_seed: 200503
@@ -494,8 +494,8 @@ templates:
       expression: 4 hundreds against 3 hundreds
       common_mistake: null
     - step_number: 3
-      explanation: Find the gap between the two counts.
-      expression: 12340 plus something makes 12430
+      explanation: Find the gap by taking June's count away from July's.
+      expression: 12430 - 12340 = 90
       common_mistake: Adding the two counts together
     final_answer: '90'
   random_seed: 200502
@@ -541,8 +541,8 @@ templates:
       expression: 3, then 6, then 8
       common_mistake: null
     - step_number: 3
-      explanation: Find the gap between the two numbers that were built.
-      expression: 368 plus something makes 863
+      explanation: Find the gap by taking the smaller number away from the larger.
+      expression: 863 - 368 = 495
       common_mistake: Adding the two numbers together
     final_answer: '495'
   random_seed: 200504
@@ -588,8 +588,8 @@ templates:
       expression: 0 tens against 5 tens
       common_mistake: Reading the tens as hundreds
     - step_number: 3
-      explanation: Find the gap between the two totals.
-      expression: 24,105 plus something makes 24,150
+      explanation: Find the gap by taking Saturday's total away from Sunday's.
+      expression: 24,150 - 24,105 = 45
       common_mistake: null
     final_answer: '45'
   random_seed: 200506
@@ -635,8 +635,8 @@ templates:
       expression: 2, then 5, then 9
       common_mistake: null
     - step_number: 3
-      explanation: Find the gap between the two numbers that were built.
-      expression: 259 plus something makes 952
+      explanation: Find the gap by taking the smaller number away from the larger.
+      expression: 952 - 259 = 693
       common_mistake: Adding the two numbers together
     final_answer: '693'
   random_seed: 200507

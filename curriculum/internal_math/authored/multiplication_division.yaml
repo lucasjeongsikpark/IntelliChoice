@@ -410,6 +410,10 @@ templates:
       explanation: Forty-eight badges make the complete sets, and two are left over.
       expression: 50 - 48 = 2
       common_mistake: Counting the two left over as another set
+    - step_number: 3
+      explanation: You counted eight six times before stopping, so six complete sets can be made.
+      expression: 48 / 8 = 6
+      common_mistake: null
     final_answer: '6'
   random_seed: 300404
   rendered_question: A club has 50 badges to share into sets of 8. It makes as many complete sets as it
@@ -763,7 +767,7 @@ templates:
       common_mistake: Adding 7 and 6
     - step_number: 2
       explanation: Start from six groups of six and add one more group.
-      expression: 36 + 6
+      expression: 36 + 6 = 42
       common_mistake: Stopping at six groups
     final_answer: '42'
   random_seed: 300201
@@ -851,7 +855,7 @@ templates:
       common_mistake: Adding 7 and 8
     - step_number: 2
       explanation: Six groups of eight would be forty-eight, and one more group follows.
-      expression: 48 + 8
+      expression: 48 + 8 = 56
       common_mistake: Answering with a single day's pages
     final_answer: '56'
   random_seed: 300205
@@ -897,7 +901,7 @@ templates:
       common_mistake: Multiplying only one of the two parts
     - step_number: 3
       explanation: Add the two results together.
-      expression: 60 + 9
+      expression: 60 + 9 = 69
       common_mistake: null
     final_answer: '69'
   random_seed: 300301
@@ -943,7 +947,7 @@ templates:
       common_mistake: Multiplying only the tens
     - step_number: 3
       explanation: Add the two results together.
-      expression: 60 + 8
+      expression: 60 + 8 = 68
       common_mistake: null
     final_answer: '68'
   random_seed: 300302

@@ -19263,8 +19263,15 @@ acceptance still defective.
 
 Every applied item passed `make curriculum-load`'s §5.8.5 gate (29 updated, 101 unchanged, 0
 retired) and the file was canonicalised by `make question-export`, restricted to the three edited
-topics — a whole-bank export would have added **21 uncommitted `linear_equations` items**, since
-the dev database holds 68 approved and the bank ships 47.
+topics.
+
+> **Correction (D-271).** This entry claimed a whole-bank export "would have added 21 uncommitted
+> `linear_equations` items, since the dev database holds 68 approved and the bank ships 47".
+> **That hazard does not exist.** `export_cli` filters on `active_status == "active"` as well as
+> `validation_status == "approved"` — D-210 added exactly that, so retiring an item cannot make
+> the file and the export disagree. The extra rows are approved-but-*retired*; a full export
+> writes 47. My query omitted the filter, and restricting the export was a precaution against
+> nothing.
 
 ### Asking a model to preserve a field does not work, and this is how badly
 
@@ -19333,3 +19340,53 @@ original 160, and the missing one is named.
 
 Verified: `make curriculum-load` reports 5 updated / 125 unchanged, canonical export leaves item
 counts at 30/47/25/28, and the diff is **7 lines, all `common_mistake`**.
+
+## D-271 — the last 15, authored by hand: 44 unambiguous defects to zero (accepted, 2026-08-10)
+
+The 15 items D-264 concluded automated repair could not reach. **0 of 130 now carry an
+unambiguous defect**, down from 44.
+
+### Reading all 15 collapsed four problems into one
+
+They were filed as three separate classes — `place_value_compare` ×8, `mult_facts`/`mult_multi_digit`
+×4, `div_remainder`, and stragglers. Read by hand, fourteen are **one defect**: *the final solution
+step names an operation and stops before computing it.* `[60 + 9]` for 69. `[levels = 21 / 3]` for
+7. `[2160 plus something makes 2610]` for 450.
+
+The fix is the same fourteen times: carry the arithmetic the step already describes to its result.
+**No method, hint, option or answer was changed.**
+
+`multiplication_division-d4-300404` is the one genuine exception. It is `div_remainder`, the
+answer is the number of complete *sets*, and the solution ended on the *remainder*
+(`[50 - 48 = 2]`). A completed step cannot fix that; it needed a step it never had, stating
+`48 / 8 = 6`.
+
+### This corrects D-264's diagnosis, which I had taken from the reviewers
+
+D-264 concluded that `place_value_compare`'s hint ladders "teach a method that cannot answer the
+question asked" — comparison for a subtraction question — and that no solution-step repair could
+reach it. **Reading all eight says otherwise.** Hint 3 in *every one* already points at the
+difference: *"Find what has to be added to Ben's amount to reach Ana's amount."* That is the
+missing-addend framing of subtraction, which is standard at these grades. **The ladders are
+sound; only the solutions were incomplete.**
+
+The reviewers said the ladder was wrong and I reported it without checking eight items against
+the claim. The lesson is not that the panel is unreliable — its *blocks* have been right every
+time one was read (D-257: 6 of 6) — but that a reviewer's **explanation** of a defect is a
+different artifact from its detection of one, and only the second has been measured.
+
+### And D-269's own claim was wrong too
+
+That entry said restricting the export avoided adding "21 uncommitted `linear_equations` items".
+`export_cli` filters on `active_status == "active"` as well as approved — **D-210 added exactly
+that filter**, so the extra rows are approved-but-retired and a full export writes 47 either way.
+Corrected in place above. The precaution was against nothing, which is worth recording precisely
+because it read as diligence.
+
+### Verification
+
+`make curriculum-load`: **15 updated, 115 unchanged, 0 retired** — every edit through the §5.8.5
+gate. Canonical export leaves counts at 30/47/25/28 = **130**. The diff touches `expression`,
+`explanation` and one new step's `common_mistake`, nothing else. Audit: **0 unambiguous, 15 at the
+outer bound** — and those 15 are the mixed bucket D-257 built on purpose (`[18 = 18 ✓]`
+verification steps, `[4 groups of ten]` word answers), not a residue of this work.
