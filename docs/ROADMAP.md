@@ -1817,6 +1817,36 @@ item are recorded — these numbers are Phase 3's evidence.
 > deliberately narrow (D-223) — `g2_word_problems` has 3 skills over 5 tiers, so its plan
 > schedules 10 and yielded 7. Raising `--candidates-per-slot` is the lever, not widening spans.
 
+> **✅ 3-5 WAVE DONE — 2026-08-11 (D-275/D-276).** 7 topics, 26 skills, **160 items generated at
+> 91% acceptance for $6.03**, 153 surviving to the bank. Every criterion but one now holds:
+>
+> | criterion | K-2 | **3-5** |
+> |---|---|---|
+> | ≥10 approved items per topic | 2 of 6 ⛔ | **7 of 7** ✅ (19/16/33/14/18/36/17) |
+> | every skill stocked ≥1 | 17 of 17 ✅ | **26 of 26** ✅ |
+> | multi-tier where the skill spans | 5 of 6 | **7 of 7** ✅ |
+> | judge dispersion real per topic | 6 of 6 ✅ | **7 of 7** ✅ (dominant 28-42%) |
+> | stems exercise their filed skill | ⛔ not measured | **partially** - the restored gate now
+>   rejects an item whose equation does not model its own question, which is the mechanical half
+>   of this criterion; 5 such items were caught on export |
+> | yield and cost recorded | 86%, ~3¢ | **91%, ~3.7¢** ✅ |
+> | human-rejection rate recorded | ⛔ N/A | **⛔ still N/A** - review was skipped again on the
+>   user's instruction, so Phase 3's central number does not exist after two waves |
+>
+> **`--candidates-per-slot 3` was the lever, exactly as the K-2 entry predicted.** Tier spans
+> were not widened and every topic cleared the bar.
+>
+> **What the wave cost in defects, and what it bought.** Five defects in the machinery
+> (D-275) and one architectural one (D-276), all found by *reading output*, none by reading
+> code. The most expensive to have missed: the pipeline had never run
+> `check_sympy_independent_solve`, so **5 items with wrong answer keys were generated, approved
+> and exported** before the bank's own gate caught them. Pipeline and loader now share one gate.
+>
+> **The bar for the next wave (6-8):** it starts with the gate the 3-5 wave ended with, so its
+> yield is not comparable to 91% - a fair reading needs the *rejection* mix, not the headline.
+> And it is the last chance to supply a human-rejection rate before Phase 3 has to decide
+> without one.
+
 **Phase 3 — Scale + the auto-approval decision.**
 Go/no-go per pre-registered criteria: yield ≥ ~50% of scheduled slots, human rejection < ~30%,
 dispersion real per rubric, zero leaked-answer/meta-text defects reaching `pending`, cost per

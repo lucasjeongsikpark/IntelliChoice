@@ -20064,3 +20064,131 @@ which would have rewritten ~14 test assertions to prove a point the projection a
 The `rational` path is proven **at the gate**, by unit tests in both directions — not end to end,
 because the mock provider's design stub returns integer equations, so no mock run exercises a
 decimal. The first real 3-5 run is what tests it in anger.
+
+---
+
+### D-275 — What the first real 3-5 run repeated, and why a pass rate is not a quality measurement
+
+**Date:** 2026-08-11 · **Session:** C1 (3-5 wave)
+
+The `decimals` run accepted **17 of 17 candidates with zero rejections at any gate**. Read as a
+yield number that is a success. Reading the *items* found three defects, none of which any gate
+can see, and the measurements are the entry:
+
+| | before | after |
+|---|---|---|
+| stems about ribbon | **11 of 17 (65%)** | **3 of 21 (14%)** |
+| duplicate calculations | 1 | **0** |
+| `decimal_divide` non-whole answers | **0 of 6** | **5 of 6** |
+| `decimal_multiply` non-whole answers | **0 of 2** | **2 of 6** |
+| distinct equation shapes | 6 | 8 |
+| cost per candidate | 3.56¢ | 3.62¢ |
+
+*(An earlier note in this session said `decimal_divide` was 2 of 6 before. It was 0 of 6 — that
+analysis mis-parsed the `x = …` form. Recorded because the correction makes the fix look
+better, and a correction that only ever runs in the flattering direction is not a correction.)*
+
+**1. Scenario collapse.** `avoid_equations` told the design call which *numbers* were taken and
+nothing about the setting, so the model varied exactly what it was asked to vary: Lena, Emma,
+Ava, Lila and Maya all cutting ribbon. The last five `scenario_sketch` values for the skill now
+travel the same way — as **data**, on D-252's finding that a prompt clause protecting one field
+held 0 of 52 times while a field that carries the fact holds by construction. The mock had to
+learn to vary too: a double that returns one setting forever was faithful only while nothing
+told the model what was used.
+
+**2. Cross-tier duplicates.** The accumulator was keyed `(skill, tier)`. A skill's tiers differ
+in how demanding the numbers are, not in *which numbers exist*, so `Eq(x, 6.3 / 0.9)` was
+authored at tier 4 and again at tier 5. Keyed on the skill now — a student meets a topic's items
+as one set. **Known remaining limit, measured:** the key cannot see *across skills*, and the band
+produced 2 such pairs in 160 items (`measurement_capacity` and `measurement_weight` both
+`3 * 1000 + 450`). Left alone deliberately: 1.25%, with a real pedagogical difference between
+the two items, and widening the key to topic level would exhaust the number space for a 6-skill
+topic.
+
+**3. Structures that hid their own skill.** "at least one factor is a decimal" admitted
+`2.5 * 12`, answer 30; six "how many whole pieces fit" divisions all came out even. Both
+structures now require the answer kind the skill exists for. Written in its **general form** —
+every `rational` skill must state what its answers look like — the check caught a third case eye
+inspection had missed, `number_rounding`, whose tier-4 anchor rounds decimals while its structure
+said nothing about a non-whole answer.
+
+**Two fail-closed violations found while measuring:**
+
+- `route_answer` **raised** `AttributeError` on `"None"`, `"True"`, `"..."` — `parse_expr` returns
+  those as plain Python objects. **Third occurrence of this class** (Phase R's `TokenError`,
+  D-274's `sympify('4,700')` tuple). The first two were patched at the site that reported them;
+  this one is fixed in `_parse_side`, which all ten callers already wrap in `except
+  _PARSE_ERRORS`, so every route is covered at once.
+- 1 of 21 candidates stored `equation: null` and reached `pending`. See D-276 — the narrow fix
+  taken here was not enough.
+
+---
+
+### D-276 — The pipeline and the bank must apply the same gate, and auto-approval is what proved it
+
+**Date:** 2026-08-11 · **Session:** C1 (3-5 wave, export)
+
+The user instructed that the wave be approved without review. 160 items approved, 0 refused,
+through `approve()` per item so the fail-closed servability check still ran. Then the export.
+
+#### 1. What the export found
+
+Running the bank's own gate over the exported files: **7 of 344 items fail, and 5 are wrong
+answer keys** — an equation deriving `6*x - 48` for an item keyed "8 pencils"; two options both
+matching the derived 8848; options that are not unique; `86892` against a key of "Museum B";
+`1` against a key of "Odd".
+
+**The pipeline never ran `check_sympy_independent_solve`.** D-202 removed the whole deterministic
+gate from the generation path; D-275 restored one *presence* check on a narrow argument. The
+narrow argument does not survive this measurement: **two solvers and a judge passed all five**.
+
+**The decisive argument is agreement, not coverage.** `loader.py` runs `validate_authored_item`,
+so an item failing it **cannot be in the bank**. A pipeline applying a weaker gate does not
+produce more content — it produces content that is rejected later, after being paid for,
+reviewed, approved and exported. One gate now, called from both places (D-223: share the
+predicate, not the intent). `check_difficulty_rubric_compliance` is included and does not fight
+the re-tier flow: it asserts only that the tier is on the 1-5 scale and the time estimate is
+positive.
+
+**Two of the five are a specification error made in D-274.** `Eq(x, Max(...))` for comparison and
+`Eq(x, Mod(n, 2))` for odd/even only verify **when the options are the numbers**. The generator
+wrote "Museum B" and "Odd", and no label can match a derived value. Both structures now say so.
+
+The 7 were **rejected, not hand-repaired**: repairing them means authoring content, which is the
+review step that was deliberately skipped. Every topic still clears ≥10 (19/16/33/14/18/36/17).
+
+#### 2. Three things that were asserted and had never been run
+
+- **`make curriculum-load` reporting "344 unchanged" is not evidence of validity.** `_gate` runs
+  on the insert and update paths only, so an unchanged row is never re-validated. This session
+  claimed the load had verified every item; it verified none of them. The bank **test** is the
+  gate.
+- **`scripts/list_unreviewed_bank_items.py` — the documented way to undo auto-approval —
+  crashed.** It selected `option_a..option_d` from `question_templates`, where they do not exist.
+  Its filter also required `review_priority='high'` on the belief that auto-approved items keep
+  that value: **37 of 38 `decimals` rows are `normal`**, so the filter hid 97% of exactly what the
+  script exists to surface. And its revert SQL named `active_status` where the approve/reject
+  guard reads `validation_status` — following it would have left every item un-re-reviewable.
+  A first correction of its docstring then over-claimed the marker was exact; it returns **305,
+  not 160**, because `linear_equations` and K-2 are in there and earlier sessions reviewed item
+  by item. It is an **upper bound**, now stated as one. The real fix is an `approved_by` column.
+- **`test_a_gated_rejection_persists_the_whole_candidate` asserted `rejected_at == "solver"`
+  while its own comment said the deterministic gate rejects first.** The comment was right and
+  the assertion had drifted to match D-202's regression. `8.5 != 9` is caught for free again.
+
+#### 3. Seed offsets are shared state between tests and real runs
+
+The wave ran `measurement` at seed offset `950_000`, which a preflight test asserts is free — so
+the suite began failing on any database that had seen the wave. That test had **already learned
+this once**: its first offset moved to a reserved range after a pilot claimed `810_000`. Its
+second offset was left a bare literal, as were six more DB-touching tests. All moved into the
+reserved range; the report assertion that hardcoded `"seed offset: 840000"` now derives it. Pure
+plan-arithmetic tests keep their literals — they claim no ids.
+
+#### 4. The wave's result
+
+**337 items across 17 files, 0 failing the gate.** Per the Phase 1 criteria: ≥10 items in **7 of
+7** topics (K-2 managed 2 of 6), **26 of 26** skills stocked, multi-tier in 7 of 7, and **judge
+dispersion discriminates in 7 of 7** (dominant tier 28–42%, floor 80%). Yield 91%, ~3.7¢ per
+candidate, **$6.03** for the band. **The human-rejection rate is still absent** — two waves now,
+and it remains the evidence Phase 3's auto-approval decision is supposed to rest on.

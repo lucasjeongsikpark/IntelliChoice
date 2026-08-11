@@ -7,40 +7,61 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1: Phase 0 ✅, Phase R ✅, Phase 1 (K-2 wave) ⏸ partial (2026-08-11, D-273).
-184 items in the bank (130 + 54 new), ~$2.50 spent, 1228 passing, CI green, PR #234.**
+**Session C1: Phases 0 ✅, R ✅, and Phase 1's K-2 ⏸ and 3-5 ✅ waves (2026-08-11,
+D-273/274/275/276). 337 items in the bank across 17 topics, ~$9.14 spent this session,
+1304 passing, PR #234.**
 
-**Phase 1 is ⏸ for two reasons worth knowing before the next wave.** Only 2 of 6 topics reached
-the ≥10-item bar (the rest are 8/8/8/7 — `candidates_per_slot` is 2 and tier spans are
-deliberately narrow, so raise `--candidates-per-slot`, do not widen spans). And **no
-human-rejection rate exists for this wave**, because review was skipped on the user's
-instruction — which is precisely the number Phase 3's auto-approval decision is supposed to rest
-on. A later wave has to supply it, or that decision gets made without its evidence.
+**The 3-5 wave cleared every Phase 1 criterion except one.** 7 topics, 26 skills, 160 items at
+91% acceptance for $6.03; ≥10 items in **7 of 7** topics (K-2 managed 2 of 6), **26 of 26**
+skills stocked, and **judge dispersion discriminates in 7 of 7**. `--candidates-per-slot 3` was
+the lever the K-2 entry predicted, and tier spans were not widened.
 
-What did hold: every one of the 17 skills is stocked, and **all six topics' judge dispersion
-discriminates** (dominant tier 25-75%, under the 80% floor) — so the anchors written this session
-are doing real work, which is the thing D-232 and D-238 spent three sessions failing at.
+**The exception is the same one, and it is now two waves old: there is no human-rejection
+rate.** Review was skipped on the user's instruction both times. That is precisely the number
+Phase 3's auto-approval decision is supposed to rest on, so either the 6-8 wave supplies it or
+that decision gets made without its evidence. This is the single most important carry-over.
 
-**Next, in the order they compound:**
+**What the wave cost in defects.** Eight, all found by *running code and reading output*, none
+by reading code. Ranked by what they would have cost unfixed:
 
-1. **Wire the arithmetic dedup.** 27 of 55 generated items shared a number set; four were
-   `9 + 9`. `arithmetic_identity` is built and tested both ways but not called, because the
-   **mock returns a constant `Eq(x, 2 + 2)`** so every candidate after the first is a real
-   duplicate — the double is wrong, not the check. Fix: an `EquationDesignResponse` branch in
-   the mock (it falls through to `_generic_json` today) plus honouring
-   `verified_design.equation`. Do this before the 3-5 wave or 33 more topics inherit ~50%
-   repeated sums.
-2. **Fix `QuestionJudgePayload`'s missing `correct_option`.** The judge has no answer key and
-   invents one, rejecting correct items; ~75% of items are exposed. Adding the field lapses all
-   16 adjudication verdicts *by design*, so it needs the re-decision done properly (~16 judge
-   calls, ~10-20¢ — cheap; the human decisions are the real cost).
-3. **The 3-5 wave.** Same shape as K-2. `skill_groups.yaml` names the cross-grade `measurement`
-   topic that Length/Weight/Money/Capacity should form rather than four per-grade copies.
+1. **The pipeline had never run `check_sympy_independent_solve`** (D-276). D-202 removed the
+   deterministic gate from the generation path, so **5 items with wrong answer keys were
+   generated, approved and exported** before the bank's own gate caught them - two solvers and a
+   judge passed all five. Pipeline and loader now share one gate, which also means a doomed
+   candidate is rejected before three paid calls rather than after.
+2. **A family rule was installed as a universal constant** (D-274). Every answer in the taxonomy
+   had to be a positive whole number, and **26 of 184 shipped items failed it** - the pipeline
+   could not regenerate 14% of its own bank. `AnswerFamily` now lives in the taxonomy.
+3. **Per-skill config lived in Python** (D-274). A skill missing from `TOPIC_SKILL_DIFFICULTIES`
+   raised `PipelineConfigError`, so every new skill needed a source edit to be generatable at
+   all. Now fields on `SkillDef`; the registries are projections.
+4. **Scenario collapse** (D-275): 11 of 17 stems were about cutting ribbon. Fixed by carrying
+   used scenarios as data, measured down to 3 of 21.
+5. **Two fail-closed violations** (D-274, D-275): a comma in an answer crashed the gate and was
+   order-dependent; `route_answer` raised on `"None"`/`"True"`. Third occurrence of that class,
+   so the second one is fixed at the shared parser rather than at the reporting site.
+6. **Cross-tier duplicates** (D-275), fixed; a **cross-skill** remainder is recorded and
+   deliberately not fixed (2 of 160, real pedagogical difference).
+7. **Two structures hid the skill they exist for** (D-275) - and the general form of that check
+   caught a third case eye inspection had missed.
+8. **The documented undo path for auto-approval had never been run** (D-276): it crashed, its
+   filter hid 97% of the set, and its revert SQL named the wrong column.
 
-**Two things this wave established that the next one should not re-litigate:** Sonnet 4.5 is the
-Generator (Sonnet 5 reports `AVAILABLE` and denies the call), and rubric work must teach
-`Eq(x, Max(...))` — comparison questions were always expressible and 15 shipped items had been
-reshaped into subtraction because nobody reached for the form.
+**Three corrections to claims made in this session, kept because a correction that only ever
+runs in the flattering direction is not a correction:** `decimal_divide` was 0 of 6 non-whole
+before the fix, not 2 of 6; `make curriculum-load` reporting "344 unchanged" verified *nothing*
+(the gate runs on insert/update only); and `list_unreviewed_bank_items.py` reports an **upper
+bound** (305), not the auto-approved set (160).
+
+**Two things the next wave should not re-litigate:** Sonnet 4.5 is the Generator and Haiku 4.5
+Solver A (Sonnet 5 reports `AVAILABLE` and denies the call; the shipped defaults make both
+solvers one model). And seed offsets are shared state between tests and real runs - the reserved
+range exists, use it.
+
+**Next, in order:** (1) the **6-8 wave**, which starts with the gate the 3-5 wave ended with, so
+its yield is not comparable to 91% - read the rejection mix, not the headline; (2) **review one
+wave by hand** so Phase 3 has its number; (3) Phase 4's video catalog, which needs the taxonomy
+that now exists.
 
 **Superseded plan text below, kept for the phase definitions:** Phase 1 is the first phase that spends money, and two
 things it must carry from Phase R: **teach `Eq(x, Max(...))` in the rubric work** — comparison
