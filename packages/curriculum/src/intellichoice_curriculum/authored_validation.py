@@ -202,6 +202,27 @@ _MATH_TEXT_SUBSTITUTIONS = {
 # "x = 7" as an option means the value 7 - a restated equation, not a different answer.
 _ASSIGNMENT_PREFIX_RE = re.compile(r"^\s*[A-Za-z]\w*\s*=\s*")
 
+# A thousands separator: a comma between digits, followed by exactly three more digits and
+# no whitespace on either side. `sympy.sympify('4,700')` returns the *tuple* `(4, 700)`, so
+# without this an option written the way a grade-4 answer is naturally written parses as two
+# numbers (D-274). Found by probing the router before the 3-5 wave, where large numbers are
+# routine; K-2 never reached four digits in an option and so never hit it.
+#
+# Deliberately narrow, because a comma is genuinely overloaded here - `_option_as_value_set`
+# splits multi-root answers on it. Requiring no surrounding whitespace and exactly three
+# trailing digits leaves `'3, -3'`, `'100, 200'` and `'(2, 3)'` untouched.
+#
+# **The one case no rule can separate is `'100,200'` written tight**: a thousands separator
+# and a two-root set are the same six characters. It is read as 100200, which makes a correct
+# two-root item *fail* the gate rather than pass it - the safe direction, and a review finding
+# rather than a defect in front of a student.
+_THOUSANDS_SEPARATOR_RE = re.compile(r"(?<=\d),(?=\d{3}(?!\d))")
+
+
+def _strip_thousands_separators(text: str) -> str:
+    """`'34,281'` -> `'34281'`, leaving every other comma alone. See the regex above."""
+    return _THOUSANDS_SEPARATOR_RE.sub("", text)
+
 
 def _normalize_math_text(text: str, *, strip_assignment: bool = True) -> str:
     """Make human-written math text parseable without changing what it asserts.
@@ -225,8 +246,13 @@ def _normalize_math_text(text: str, *, strip_assignment: bool = True) -> str:
     for character, replacement in _MATH_TEXT_SUBSTITUTIONS.items():
         text = text.replace(character, replacement)
     if not strip_assignment:
+        # `strip_assignment=False` means "this is an equation", and thousands separators must
+        # NOT be stripped from one. An equation is written in SymPy syntax, where a comma is
+        # an argument separator: rewriting `Max(340,218)` to `Max(340218)` would silently turn
+        # a comparison of two numbers into one number. The separator only ever appears in text
+        # a human wrote to be *read*, which is the other branch.
         return text
-    return _ASSIGNMENT_PREFIX_RE.sub("", text, count=1)
+    return _ASSIGNMENT_PREFIX_RE.sub("", _strip_thousands_separators(text), count=1)
 
 
 # A trailing unit ("12 minutes", "40 cm", "2/3 of a cup") or a leading currency symbol.
@@ -250,19 +276,30 @@ def _sympify(text: str) -> sympy.Basic | None:
     still re-solves the expression and compares values, so `'12 minutes'` and
     `'15 minutes'` remain different answers - what changes is that both are now comparable
     instead of both being unparseable and therefore silently exempt.
+
+    **Returns None for anything that is not a single value, and that is a correctness fix,
+    not defensive padding** (D-274). `sympy.sympify` does not only raise or return a `Basic`
+    - handed comma-separated text it returns a plain Python *tuple*, which has no `.equals`,
+    so every caller that compared the result crashed with `AttributeError` instead of
+    reporting a verdict. That made the gate order-dependent: `answers_agree('4,700', '4700')`
+    raised while `answers_agree('4700', '4,700')` returned False. Same defect class as the
+    `TokenError` that escaped `derive_answer` in Phase R - a crash where a decision belongs.
     """
     normalized = _normalize_math_text(text)
     try:
-        return sympy.sympify(normalized)
+        parsed = sympy.sympify(normalized)
     except _PARSE_ERRORS:
-        pass
+        parsed = None
+    if isinstance(parsed, sympy.Basic):
+        return parsed
     stripped = _TRAILING_UNIT_RE.sub("", _LEADING_CURRENCY_RE.sub("", normalized)).strip()
     if not stripped or stripped == normalized:
         return None
     try:
-        return sympy.sympify(stripped)
+        retried = sympy.sympify(stripped)
     except _PARSE_ERRORS:
         return None
+    return retried if isinstance(retried, sympy.Basic) else None
 
 
 def _values_equal(a: sympy.Basic, b: sympy.Basic) -> bool:
@@ -672,7 +709,12 @@ def arithmetic_identity(equation: str) -> tuple[tuple[str, ...], tuple[str, ...]
 
 
 def _option_as_value_set(text: str) -> frozenset[sympy.Basic] | None:
-    """`'3 or -3'`, `'3, -3'`, `'x = 3 or x = -3'` -> {3, -3}."""
+    """`'3 or -3'`, `'3, -3'`, `'x = 3 or x = -3'` -> {3, -3}.
+
+    Thousands separators come out **before** the split, not after: this function splits on
+    commas, so `'1,200 or -1,200'` would otherwise become four roots instead of two (D-274).
+    """
+    text = _strip_thousands_separators(text)
     parts = [p for p in _ANSWER_SET_SPLIT_RE.split(text.strip()) if p.strip()]
     if not parts:
         return None
@@ -765,8 +807,11 @@ def _option_as_tuple(text: str) -> tuple[sympy.Basic, ...] | None:
     variables are not alphabetical in the order the option states them would need the
     option to name them - which `_COMPONENT_ASSIGNMENT_RE` strips, so it is not read here.
     That limit is real and is why systems are worth one careful review each.
+
+    Thousands separators come out before the comma split, for the same reason as
+    `_option_as_value_set`: `'(1,200, 3)'` is a two-component tuple, not a four-component one.
     """
-    stripped = text.strip().strip("()").strip()
+    stripped = _strip_thousands_separators(text).strip().strip("()").strip()
     parts = [p for p in re.split(r"\s*,\s*", stripped) if p.strip()]
     if len(parts) < 2:
         return None
