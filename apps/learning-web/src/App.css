@@ -856,43 +856,92 @@ button.link {
   margin-top: 0;
 }
 
+/* D-272: the tutor is a *mode* of the right column now, so the panel owns the column's
+   height instead of sitting in a 220px box at the bottom of the help panel.
+
+   `min-height` rather than a fixed one: the column is a grid cell that sizes to content, so
+   without a floor an empty conversation would be a two-line panel and every reply would
+   resize the page under the student's cursor. `min()` keeps it inside a short laptop
+   viewport - 60vh of an 800px window is 480px, which is the room the header, the input row
+   and the footer leave. */
 .chat-panel {
-  margin-top: 14px;
-  border-top: 1px solid var(--border);
-  padding-top: 14px;
-}
-
-.chat-open {
-  margin-top: 8px;
-}
-
-.chat-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  flex-direction: column;
+  min-height: min(60vh, 520px);
 }
 
-.chat-head h3 {
-  margin: 0;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.chat-empty {
   color: var(--text);
 }
 
-.chat-collapse {
-  width: auto;
-  margin-top: 0;
-  padding: 0;
-  font-size: 13px;
+.chat-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 
+.chat-starter {
+  width: auto;
+  margin-top: 0;
+  padding: 6px 12px;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* The Help / Ask-your-tutor switch. Not a tab strip over hint/solution/video: those spend a
+   Bedrock call and change the attempt's outcome label, so they must not look like views. */
+.assistance-modes {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.assistance-mode {
+  flex: 1;
+  width: auto;
+  margin-top: 0;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  font-size: 13px;
+  border-radius: calc(var(--radius-control) - 2px);
+}
+
+.assistance-mode.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.assistance-mode-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 11px;
+}
+
+
+/* D-272: `flex: 1` and no `max-height`. It was `max-height: 220px`, which is about three
+   messages, on a panel that already had a hint above it - the "the chat window is too
+   small" report. It now takes whatever the column has and scrolls only past that. */
 .chat-messages {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 220px;
   overflow-y: auto;
   margin-bottom: 10px;
 }
@@ -1528,38 +1577,8 @@ ul {
   margin-top: 24px;
 }
 
-/* D-213: the question, inside the tutor panel.
 
-   The chat opens from the intervention screen, which does not show the question - so the
-   student was being asked to type a question about something they could no longer see.
-   `open` by default (set on the element, not here) because hiding it recreates the
-   problem; it stays a `<details>` so a long word problem can be collapsed once read. */
-.chat-question {
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--bg);
-}
 
-.chat-question > summary {
-  font-family: var(--heading);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text);
-  cursor: pointer;
-}
-
-.chat-question > p {
-  margin: 8px 0 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--text-h);
-  /* Word problems carry their own paragraph breaks, same as `.question-stem`. */
-  white-space: pre-line;
-}
 
 /* ---------------------------------------------------------------------------
    D-213 dashboard

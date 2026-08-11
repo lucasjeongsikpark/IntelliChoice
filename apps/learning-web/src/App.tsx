@@ -583,7 +583,6 @@ function App() {
             questionVariantId={assistanceQuestion?.question_variant_id ?? null}
             onSendChatMessage={session.sendChatMessage}
             chat={chat}
-            questionText={assistanceQuestion?.rendered_question ?? null}
           />
         );
 
