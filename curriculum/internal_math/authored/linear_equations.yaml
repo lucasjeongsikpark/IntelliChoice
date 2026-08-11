@@ -2202,7 +2202,7 @@ templates:
       common_mistake: Forgetting to divide by 3 or stopping here, which would leave the answer as 21.
     - step_number: 3
       explanation: Solve for the number of levels by dividing both sides of the equation by 3.
-      expression: levels = 21 / 3
+      expression: levels = 21 / 3 = 7
       common_mistake: Dividing 30 by 3 instead of 21, which would give 10.
     final_answer: '7'
   random_seed: 709100

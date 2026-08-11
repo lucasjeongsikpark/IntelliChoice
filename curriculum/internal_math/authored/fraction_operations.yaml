@@ -1217,8 +1217,8 @@ templates:
       expression: 3/4 / 3
       common_mistake: null
     - step_number: 3
-      explanation: Each part holds one of the three quarters.
-      expression: 3/12
+      explanation: Each part holds one of the three quarters, which simplifies to one quarter.
+      expression: 3/12 = 1/4
       common_mistake: Dividing the bottom number to get 1/12
     final_answer: 1/4
   random_seed: 100405
