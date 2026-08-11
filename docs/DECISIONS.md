@@ -19296,3 +19296,40 @@ re-adding notes to**, and are recorded for that rather than presented as clean.
 **15 items still carry an unambiguous defect**, and they are the ones D-264 diagnosed:
 `place_value_compare` and `div_remainder`, whose hint ladders teach a method that cannot answer
 the question asked. No solution-step repair reaches that. D-238's precedent is hand-authoring.
+
+## D-270 — the misconception notes restored by hand, and the one that could not be (accepted, 2026-08-10)
+
+D-269 applied 29 repairs and lost **8 `common_mistake` notes on 5 items** — the ones whose
+solutions grew a step, where the deterministic carry-over deliberately declines because position
+no longer identifies the same step. Seven are back. The eighth is gone on purpose.
+
+**Seven restored, each to a step it actually describes:**
+
+| item | note | step | why that step |
+|---|---|---|---|
+| `100504` | "Adding the readings to get 29/24" | 1 | step is character-identical to the original |
+| `100504` | "Subtracting straight across to get 6/5" | 2 | identical |
+| `300203` | "Taking 4 away from 24" | 1 | identical |
+| `300101` | "Adding 3 and 4" | 1 | identical |
+| `300104` | "Adding 3 and 8" | 1 | identical |
+| `300104` | **"Adding it only twice"** | **3**, not 2 | the repair split `8 + 8 + 8` into `8 + 8` then `16 + 8`. New step 2 *deliberately* adds twice, so the note would contradict it; the mistake is stopping **before** step 3 |
+| `200203` | "Adding the two scores together" | 3 | where the answer is produced |
+
+**The eighth is genuinely obsolete.** `200203`'s *"Comparing only the ones digits"* warned about a
+place-value comparison error — and the repair **replaced the method entirely**, from comparison
+(`58 plus something makes 85`) to counting on (`58 + 20 = 78`, `78 + 7 = 85`, total `27`). Nothing
+in the solution compares digits any more, so the misconception has no step to attach to.
+Re-attaching it somewhere for the sake of the count would be worse than losing it.
+
+**That repair is also the most interesting one in the whole run**: it fixed the *deeper* D-264
+defect — a `place_value_compare` item whose ladder taught comparison for a "how many more"
+question — which is the class D-264 concluded automated repair could not reach. One of them it
+did.
+
+**Why by hand.** The carry-over is deterministic and refuses ambiguity by design; deciding that
+"adding it only twice" belongs to step 3 rather than step 2 is a reading of what the step means,
+which is exactly what a positional rule must not guess at. The count is now **159**, one below the
+original 160, and the missing one is named.
+
+Verified: `make curriculum-load` reports 5 updated / 125 unchanged, canonical export leaves item
+counts at 30/47/25/28, and the diff is **7 lines, all `common_mistake`**.

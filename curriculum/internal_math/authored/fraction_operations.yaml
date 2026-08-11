@@ -790,11 +790,11 @@ templates:
     - step_number: 1
       explanation: The water used is the difference between the starting and ending readings.
       expression: 7/8 - 1/3
-      common_mistake: null
+      common_mistake: Adding the readings to get 29/24
     - step_number: 2
       explanation: Build a shared bottom number for eighths and thirds by multiplying them.
       expression: 8 x 3 = 24
-      common_mistake: null
+      common_mistake: Subtracting straight across to get 6/5
     - step_number: 3
       explanation: Rewrite both readings over twenty-fourths and subtract.
       expression: 21/24 - 8/24

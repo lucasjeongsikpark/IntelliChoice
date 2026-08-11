@@ -69,7 +69,7 @@ templates:
     - step_number: 1
       explanation: Four tables share the class, so it splits into four equal groups.
       expression: 24 split into 4 equal groups
-      common_mistake: null
+      common_mistake: Taking 4 away from 24
     - step_number: 2
       explanation: Use the times table backwards. Which number times four makes twenty-four?
       expression: 4 x ? = 24
@@ -577,7 +577,7 @@ templates:
     - step_number: 1
       explanation: There are three pages, and each page is one equal group of four.
       expression: 3 groups of 4
-      common_mistake: null
+      common_mistake: Adding 3 and 4
     - step_number: 2
       explanation: Count the four stickers three times over.
       expression: 4 + 4 + 4
@@ -710,7 +710,7 @@ templates:
     - step_number: 1
       explanation: Three packs of eight pencils each are three equal groups.
       expression: 3 groups of 8
-      common_mistake: null
+      common_mistake: Adding 3 and 8
     - step_number: 2
       explanation: First, add 8 and 8 to get the sum of two packs of pencils.
       expression: 8 + 8
@@ -719,7 +719,7 @@ templates:
       explanation: Add another 8 to the result for the third pack of pencils. 3 groups of 8 is the same
         as multiplying 3 by 8. The product is 24.
       expression: 16 + 8
-      common_mistake: null
+      common_mistake: Adding it only twice
     - step_number: 4
       explanation: Adding eight three times is the same as multiplying 3 by 8, which equals 24.
       expression: 8 + 8 + 8 = 24
