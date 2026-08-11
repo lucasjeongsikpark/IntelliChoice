@@ -6,8 +6,7 @@ path but the two ways a progress bar in front of a child goes wrong: moving forw
 student has *not* finished something, and never moving at all.
 """
 
-from types import SimpleNamespace
-
+from intellichoice_db.models.mastery import StudyAttempt, StudyItem, StudySession
 from learning_api.services import study_outcomes, study_progress
 
 SKILLS = [
@@ -19,16 +18,42 @@ SKILLS = [
 ]
 
 
-def _session(max_attempts: int = 4) -> SimpleNamespace:
-    return SimpleNamespace(target_skill_ids=list(SKILLS), maximum_attempts_per_skill=max_attempts)
+# Real ORM instances, unattached to any session. They are ordinary Python objects until
+# something adds them to one, and using them means this tests the shape the router actually
+# passes rather than a stand-in that could drift from it.
+def _session(max_attempts: int = 4) -> StudySession:
+    return StudySession(
+        student_external_id="student-ext-1",
+        topic_id="linear_equations",
+        target_skill_ids=list(SKILLS),
+        starting_difficulty=1,
+        base_problem_count=len(SKILLS),
+        maximum_attempts_per_skill=max_attempts,
+        intervention_policy={},
+    )
 
 
-def _item(variant: str, skill: str) -> SimpleNamespace:
-    return SimpleNamespace(question_variant_id=variant, target_skill_id=skill)
+def _item(variant: str, skill: str) -> StudyItem:
+    return StudyItem(
+        study_session_id="ss",
+        question_variant_id=variant,
+        target_skill_id=skill,
+        skill_id=skill,
+        display_order=0,
+        is_remediation=False,
+    )
 
 
-def _attempt(variant: str, label: str | None) -> SimpleNamespace:
-    return SimpleNamespace(question_variant_id=variant, outcome_label=label)
+def _attempt(variant: str, label: str | None) -> StudyAttempt:
+    return StudyAttempt(
+        student_external_id="student-ext-1",
+        study_session_id="ss",
+        question_variant_id=variant,
+        selected_option="a",
+        is_correct=False,
+        retry_count=0,
+        outcome_label=label,
+    )
 
 
 def test_no_attempts_yet_is_zero_of_five_on_the_first_skill() -> None:

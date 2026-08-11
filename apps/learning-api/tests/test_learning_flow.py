@@ -24,11 +24,13 @@ from intellichoice_curriculum.content import load_curriculum
 from intellichoice_curriculum.loader import load_curriculum_and_templates
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
 from intellichoice_db.models.assessment import BlockedSession
+from intellichoice_db.models.hints import HintEvent
 from intellichoice_db.models.interrupts import InterruptApproval
 from intellichoice_db.models.mastery import Mastery, StudyAttempt, StudyItem
 from intellichoice_db.models.memory import LearningEvent, SemanticMemory
 from intellichoice_db.models.stage_transition import StageTransition
 from intellichoice_db.repositories.assessment import AssessmentRepository
+from intellichoice_db.repositories.hints import HintEventRepository
 from intellichoice_db.repositories.questions import QuestionRepository
 from intellichoice_shared.auth import Audience, Role
 from learning_api.main import app
@@ -264,6 +266,41 @@ def _study_attempt(study_session_id: str, question_variant_id: str) -> StudyAtte
             await engine.dispose()
 
     return asyncio.run(fetch())
+
+
+def _authored_hint_ladder(question_variant_id: str) -> list[str]:
+    """The template's own hint ladder, for the variant served - what a canonical hint has to
+    match verbatim (D-272)."""
+
+    async def _run() -> list[str]:
+        engine = create_engine()
+        try:
+            factory = create_session_factory(engine)
+            async with session_scope(factory) as session:
+                repo = QuestionRepository(session)
+                variant = await repo.get_variant(question_variant_id)
+                assert variant is not None
+                template = await repo.get_template(variant.question_template_id)
+                assert template is not None and template.hint_ladder is not None
+                return list(template.hint_ladder)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(_run())
+
+
+def _hint_events_for_attempt(attempt_id: str) -> list[HintEvent]:
+    async def _run() -> list[HintEvent]:
+        engine = create_engine()
+        try:
+            factory = create_session_factory(engine)
+            async with session_scope(factory) as session:
+                return await HintEventRepository(session).get_events_for_attempt(attempt_id)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(_run())
+
 
 
 def _study_items(study_session_id: str) -> list[StudyItem]:
@@ -2296,3 +2333,108 @@ def test_study_progress_reaches_the_wire_and_counts_lines() -> None:
         assert after["study_progress"]["skills_resolved"] == 1
         assert after["study_progress"]["current_skill_position"] == 2
         assert after["study_progress"]["attempt_in_line"] == 1
+
+
+def test_a_hint_is_served_canonically_and_personalization_is_deferred() -> None:
+    """D-272: "Get a hint" stops waiting ~2.3s for a Bedrock call.
+
+    Under a real provider the turn serves the *authored* rung immediately and hands an
+    ids-only marker to the background personalizer. Three things have to hold together, and
+    the middle one is the reason this is worth a test rather than a comment:
+
+    1. The response carries a complete hint, not a placeholder - the same object every
+       existing failure path already falls back to (`tutor.canonical_hint_response`).
+    2. The `hint_events` audit row exists **before** anything can fail, carrying the
+       canonical text and `was_personalized=False`. D-026's posture is that every attempt
+       gets a row; a two-stage hint whose row appeared only on success would lose the row
+       for exactly the hints that went wrong.
+    3. The scheduling marker is ids only. A marker carrying hint *text* would put generated
+       content into the checkpoint, and it would go stale against the row it names.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    scheduled: list[dict] = []
+
+    class _RecordingScheduler:
+        async def schedule(self, *, learning_session_id: str, marker: dict) -> None:
+            scheduled.append(marker)
+
+    from learning_api.dependencies import get_hint_personalization_scheduler
+
+    app.dependency_overrides[get_hint_personalization_scheduler] = lambda: _RecordingScheduler()
+    try:
+        with TestClient(app) as client:
+            session_id = client.post("/learning/sessions", headers=headers).json()[
+                "learning_session_id"
+            ]
+            client.post(
+                f"/learning/sessions/{session_id}/student",
+                headers=headers,
+                json={"student_id": STUDENT_UNLINKED},
+            )
+            pre_items = client.post(
+                f"/learning/sessions/{session_id}/topics",
+                headers=headers,
+                json={"topic_id": "linear_equations"},
+            ).json()["items"]
+            pre_correct = _correct_options([i["question_variant_id"] for i in pre_items])
+            for index, item in enumerate(pre_items):
+                variant_id = item["question_variant_id"]
+                client.post(
+                    f"/learning/sessions/{session_id}/answers",
+                    headers={**headers, "Idempotency-Key": f"defer-hint-pre-{index}"},
+                    json={
+                        "question_variant_id": variant_id,
+                        "selected_option": pre_correct[variant_id],
+                        "response_time_ms": 2000,
+                    },
+                )
+
+            study_variant_id = _finalize_exam(client, headers, session_id)["items"][0][
+                "question_variant_id"
+            ]
+            wrong = _other_option(_correct_options([study_variant_id])[study_variant_id])
+            client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"defer-hint-study-{session_id}"},
+                json={
+                    "question_variant_id": study_variant_id,
+                    "selected_option": wrong,
+                    "response_time_ms": 2000,
+                },
+            )
+            hint = client.post(
+                f"/learning/sessions/{session_id}/respond",
+                headers=headers,
+                json={"interrupt_type": "intervention_choice", "choice": "hint"},
+            ).json()
+
+            intervention = hint["intervention"]
+            assert intervention["type"] == "hint"
+            assert intervention["hint_level"] == 1
+            assert intervention["answer_revealed"] is False
+            # A whole hint, not a stub: the ladder position, the reminder and the prompt are
+            # all present, so the panel renders exactly as it does for a personalized one.
+            assert intervention["hint_text"]
+            assert intervention["concept_reminder"]
+            assert intervention["next_step_prompt"]
+            # And it is the *authored* rung, character for character.
+            canonical = _authored_hint_ladder(study_variant_id)
+            assert intervention["hint_text"] == canonical[0]
+
+            study_session_id = _study_session_id(session_id)
+    finally:
+        app.dependency_overrides.pop(get_hint_personalization_scheduler, None)
+
+    assert len(scheduled) == 1, "the hint round did not hand a marker to the scheduler"
+    marker = scheduled[0]
+    assert set(marker) == {"attempt_id", "hint_event_id", "level"}
+    assert marker["level"] == 1
+
+    attempt = _study_attempt(study_session_id, study_variant_id)
+    assert marker["attempt_id"] == attempt.attempt_id
+    events = _hint_events_for_attempt(attempt.attempt_id)
+    assert len(events) == 1
+    assert events[0].hint_event_id == marker["hint_event_id"]
+    assert events[0].was_personalized is False
+    assert events[0].canonical_hint_text == canonical[0]
+    assert events[0].personalized_hint_text == canonical[0]

@@ -109,6 +109,14 @@ class TurnContext:
     # for a Bedrock call. False under the mock provider, so every existing test still sees
     # the narrative synchronously on the turn that fired it.
     defer_study_narrative: bool = False
+    # D-272: same idea, for hints. When True (real Bedrock), `_hint_round` serves the
+    # *authored* rung straight away and leaves a marker; a background task personalizes it
+    # and publishes the replacement over SSE. The measured wait was ~2.3s per hint, and the
+    # thing being waited for is a rewrite of text the bank already has - text that has just
+    # been through two independent LLM reviewers (D-251-271), so what the student sees first
+    # is not a placeholder. False under the mock provider, so every existing test still sees
+    # the personalized hint on the turn that asked for it.
+    defer_hint_personalization: bool = False
     requested_student_id: str | None = None
     topic_id: str | None = None
     question_variant_id: str | None = None
@@ -881,6 +889,12 @@ async def _hint_round(
     served for this variant). Records a `hint_events` row regardless of whether the
     result was personalized or fell back to canonical text (D-026-style "every attempt
     gets an audit row" posture).
+
+    **D-272: two-stage under real Bedrock.** With `ctx.defer_hint_personalization`, this
+    returns the authored rung immediately - the same text `tutor.generate_personalized_hint`
+    already falls back to on every failure path - and leaves a marker for the background
+    personalizer. The student stopped waiting ~2.3s to be shown a rewrite of a sentence the
+    bank already holds.
     """
     variant = await ctx.question_repo.get_variant(attempt.question_variant_id)
     assert variant is not None
@@ -893,6 +907,39 @@ async def _hint_round(
     level = min(level, len(ladder))
     canonical_text = ladder[level - 1]
     next_canonical_text = ladder[level] if level < len(ladder) else None
+    misconception_tag = topic_resolver.resolve_misconception_tag(
+        template, variant, attempt.selected_option
+    )
+
+    if ctx.defer_hint_personalization:
+        # The audit row is written now, canonical, so it exists before anything can fail -
+        # the background task completes it. A row that says `was_personalized=False` and
+        # carries the canonical text is exactly what today's failure paths already write,
+        # so nothing downstream has to learn a new state.
+        event = await ctx.hint_event_repo.record(
+            HintEvent(
+                student_external_id=attempt.student_external_id,
+                study_attempt_id=attempt.attempt_id,
+                question_variant_id=attempt.question_variant_id,
+                hint_level=level,
+                canonical_hint_text=canonical_text,
+                personalized_hint_text=canonical_text,
+                misconception_tag=misconception_tag,
+                was_personalized=False,
+            )
+        )
+        content = {
+            "type": "hint",
+            **tutor.canonical_hint_response(canonical_text).model_dump(),
+            "hint_level": level,
+            "max_hint_level": len(ladder),
+        }
+        marker = {
+            "attempt_id": attempt.attempt_id,
+            "hint_event_id": event.hint_event_id,
+            "level": level,
+        }
+        return {**content, "_pending_personalization": marker}, 0.0
 
     context = await topic_resolver.resolve_tutor_context(
         profile_adapter=ctx.profile_adapter,
@@ -902,9 +949,6 @@ async def _hint_round(
         student_external_id=attempt.student_external_id,
         question_variant_id=attempt.question_variant_id,
         selected_option=attempt.selected_option,
-    )
-    misconception_tag = topic_resolver.resolve_misconception_tag(
-        template, variant, attempt.selected_option
     )
     correct_answer_text = await topic_resolver.resolve_correct_answer_text(
         question_repo=ctx.question_repo, question_variant_id=attempt.question_variant_id
@@ -1053,12 +1097,19 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
     assistance_levels = dict(state.assistance_level_by_variant)
     awaiting_next_hint = False
 
+    # D-272: lifted out of the content dict rather than returned alongside it, because
+    # `last_intervention` is checkpointed and sent to the client verbatim - a private
+    # scheduling marker must not travel to a browser or survive in the checkpoint as part
+    # of the hint. Popped exactly once, here.
+    pending_personalization: dict | None = None
+
     if choice_value == "hint":
         current_level = assistance_levels.get(attempt.question_variant_id, 0)
         next_level = current_level + 1
         last_intervention, cost = await _generate_intervention_content(
             ctx, attempt, "hint", next_level, bedrock_spend_cents
         )
+        pending_personalization = last_intervention.pop("_pending_personalization", None)
         bedrock_spend_cents += cost
         assistance_levels[attempt.question_variant_id] = next_level
         awaiting_next_hint = next_level < last_intervention["max_hint_level"]
@@ -1092,6 +1143,7 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
             "hint_ladder_awaiting_choice": True,
             "last_intervention": last_intervention,
             "bedrock_spend_cents": bedrock_spend_cents,
+            "pending_hint_personalization": pending_personalization,
         }
 
     # Runs the §5.11.7 retry ladder now that the support choice is recorded: labels this
@@ -1134,6 +1186,9 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
         "bedrock_spend_cents": bedrock_spend_cents,
         "assistance_level_by_variant": assistance_levels,
         "hint_ladder_awaiting_choice": False,
+        # D-272. Set on the ladder's *final* rung too - the pause closes, but the hint on
+        # screen is still the canonical one until the background rewrite lands.
+        "pending_hint_personalization": pending_personalization,
         **narrative_update,
     }
     return update

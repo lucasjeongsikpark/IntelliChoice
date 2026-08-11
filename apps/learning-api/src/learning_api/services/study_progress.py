@@ -30,6 +30,7 @@ Skill *names* from the curriculum content, never `skill_id` (SPEC §5.10.3: inte
 internal). Names are curriculum text, not student data.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from intellichoice_curriculum.content import load_curriculum
@@ -54,8 +55,8 @@ def _skill_names() -> dict[str, str]:
 
 def compute(
     session_row: StudySession,
-    items: list[StudyItem],
-    attempts: list[StudyAttempt],
+    items: Sequence[StudyItem],
+    attempts: Sequence[StudyAttempt],
 ) -> StudyProgress:
     """Pure: rows in, counters out. No I/O, so the routing arithmetic is unit-testable on
     its own the way `study_outcomes` is.

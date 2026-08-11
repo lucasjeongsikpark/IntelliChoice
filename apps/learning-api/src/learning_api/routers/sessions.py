@@ -46,6 +46,7 @@ from learning_api.dependencies import (
     get_current_claims,
     get_db_session,
     get_graph,
+    get_hint_personalization_scheduler,
     get_mcp_registry,
     get_profile_adapter,
     get_session_events,
@@ -64,6 +65,9 @@ from learning_api.services import (
 from learning_api.services.assessment_builder import AssessmentBuildError
 from learning_api.services.consolidation_scheduler import ConsolidationScheduler
 from learning_api.services.effective_policy import effective_assistance_policy
+from learning_api.services.hint_personalization_scheduler import (
+    BackgroundHintPersonalizationScheduler,
+)
 from learning_api.services.session_events import SessionEventBus
 from learning_api.services.stage_narrative_scheduler import (
     BackgroundStudyNarrativeScheduler,
@@ -470,6 +474,52 @@ async def build_deferred_narrative_snapshot(
     return event.model_dump(mode="json")
 
 
+async def build_personalized_hint_snapshot(
+    db: AsyncSession,
+    learning_session_id: str,
+    state: dict,
+    intervention: dict,
+) -> dict | None:
+    """D-272: the snapshot the background hint personalizer publishes.
+
+    Separate from `build_deferred_narrative_snapshot` because of one field. That builder
+    omits `pending_interrupt` deliberately - a study narrative only fires when the turn
+    *advanced*, so nothing is paused. A hint is the opposite case: the ladder is usually
+    still open, and the client replaces its whole snapshot per frame, so dropping the
+    pending interrupt here would tell the browser the pause had ended and collapse the panel
+    the replacement hint was meant to land in.
+
+    Returns `None` if the checkpoint has no interrupt state to read, rather than publishing
+    a frame that would move the student backwards.
+    """
+    assistance = await _assistance_question(db, state, help_open=True)
+    if assistance is None:
+        return None
+    event = SessionSnapshotEvent(
+        learning_session_id=learning_session_id,
+        phase=state.get("phase", "created"),
+        message=state.get("last_message"),
+        is_correct=state.get("last_is_correct"),
+        items=_items_response(state.get("last_items")),
+        intervention=InterventionContentResponse.from_dict(intervention),
+        assistance_question=assistance,
+        study_progress=await _study_progress(db, state),
+        attendance_resolution=state.get("attendance_resolution"),
+        # The pause, rebuilt from the checkpoint's own flag rather than from a
+        # `StateSnapshot` this function does not have. `hint_ladder_awaiting_choice` is
+        # exactly "the graph is parked on `intervention_choice` for this question".
+        pending_interrupt=(
+            PendingInterruptResponse(
+                interrupt_type="intervention_choice",
+                question_variant_id=assistance.question_variant_id,
+            )
+            if state.get("hint_ladder_awaiting_choice")
+            else None
+        ),
+    )
+    return event.model_dump(mode="json")
+
+
 def _items_response(items: list[dict] | None) -> list[QuestionItemResponse] | None:
     if items is None:
         return None
@@ -706,6 +756,7 @@ def _turn_context(
     student_message: str | None = None,
     consolidation_scheduler: ConsolidationScheduler | None = None,
     defer_study_narrative: bool = False,
+    defer_hint_personalization: bool = False,
 ) -> TurnContext:
     return TurnContext(
         claims=claims,
@@ -726,6 +777,7 @@ def _turn_context(
         cost_ledger=cost_ledger,
         rng=random.Random(),
         defer_study_narrative=defer_study_narrative,
+        defer_hint_personalization=defer_hint_personalization,
         requested_student_id=requested_student_id,
         topic_id=topic_id,
         question_variant_id=question_variant_id,
@@ -1203,6 +1255,30 @@ async def submit_answer(
     return response
 
 
+async def _schedule_deferred_hint(
+    scheduler: "BackgroundHintPersonalizationScheduler | None",
+    learning_session_id: str,
+    result: dict,
+) -> None:
+    """D-272: if this turn served a canonical hint and left a marker, hand it to the
+    background personalizer. No-op under the mock provider, where the hint was personalized
+    inline in the graph node.
+    """
+    marker = result.get("pending_hint_personalization")
+    if scheduler is None or marker is None:
+        return
+    # `ainvoke` returns the whole state, and `pending_hint_personalization` is a `LastValue`
+    # channel - so a later `/respond` that resumes a *different* interrupt would hand back
+    # the previous hint's marker and schedule it a second time, spending a second Bedrock
+    # call for a hint that is already personalized. `intervention_choice` overwrites the
+    # channel on every one of its own turns (with `None` for solution/video/continue), so
+    # today this cannot happen; the guard is here so it stays that way rather than depending
+    # on which interrupts exist.
+    if marker.get("attempt_id") != result.get("last_study_attempt_id"):
+        return
+    await scheduler.schedule(learning_session_id=learning_session_id, marker=marker)
+
+
 async def _schedule_deferred_narrative(
     scheduler: "BackgroundStudyNarrativeScheduler | None",
     learning_session_id: str,
@@ -1618,6 +1694,10 @@ async def respond_to_interrupt(
         "BackgroundStudyNarrativeScheduler | None",
         Depends(get_study_narrative_scheduler),
     ],
+    hint_scheduler: Annotated[
+        "BackgroundHintPersonalizationScheduler | None",
+        Depends(get_hint_personalization_scheduler),
+    ] = None,
 ) -> RespondResponse:
     """Resumes whichever `interrupt()` is currently paused on this thread (SPEC §5.1.4,
     Phase 8 §6.9) - child selection, attendance-email approval, or hint/solution/video
@@ -1672,6 +1752,7 @@ async def respond_to_interrupt(
         bedrock_gateway=bedrock_gateway,
         attendance_choice="ask_branch_manager" if body.interrupt_type == "email_approval" else None,
         defer_study_narrative=study_narrative_scheduler is not None,
+        defer_hint_personalization=hint_scheduler is not None,
     )
     try:
         result = await graph.ainvoke(
@@ -1727,6 +1808,9 @@ async def respond_to_interrupt(
     )
     _publish_snapshot(events, response)
     await _schedule_deferred_narrative(study_narrative_scheduler, learning_session_id, result)
+    # D-272: after the publish, so the canonical hint is already on the student's screen
+    # before the rewrite of it is even requested.
+    await _schedule_deferred_hint(hint_scheduler, learning_session_id, result)
     return response
 
 
