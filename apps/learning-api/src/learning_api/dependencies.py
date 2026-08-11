@@ -14,6 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from learning_api.config import get_settings
 from learning_api.graph.build import LearningGraph
 from learning_api.services.consolidation_scheduler import ConsolidationScheduler
+from learning_api.services.hint_personalization_scheduler import (
+    BackgroundHintPersonalizationScheduler,
+)
 from learning_api.services.session_events import SessionEventBus
 from learning_api.services.stage_narrative_scheduler import (
     BackgroundStudyNarrativeScheduler,
@@ -65,6 +68,16 @@ def get_study_narrative_scheduler(
     where a ~1.5s narrative call would otherwise block the answer response.
     """
     return request.app.state.study_narrative_scheduler
+
+
+def get_hint_personalization_scheduler(
+    request: Request,
+) -> "BackgroundHintPersonalizationScheduler | None":
+    """D-272. `None` under the mock provider, where hint personalization stays inline in
+    the graph node (the mock returns in microseconds, so there is nothing to defer and every
+    existing test still sees the personalized hint on the turn that asked for it).
+    """
+    return request.app.state.hint_personalization_scheduler
 
 
 def get_graph(request: Request) -> LearningGraph:

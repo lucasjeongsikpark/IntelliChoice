@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { RichText } from "../components/RichText";
 import { TutorChatPanel, type ChatTranscript } from "../components/TutorChatPanel";
 import type { ChatMessageResult } from "../api/client";
@@ -16,13 +17,10 @@ interface AssistancePanelProps {
   busy: boolean;
   onChoose: (choice: Choice) => void;
   onDismiss: () => void;
-  // S24: the question this pause is about (`PendingInterrupt.question_variant_id`).
-  // `TutorChatPanel` is the 4th `AssistancePanel` option (Hint / Solution / Video /
-  // Chat, per ROADMAP S24) - omitted (not shown) when `null`, which happens on a
-  // `/respond`-resumed ladder round (S21's pre-existing, documented gap: `ctx.
-  // question_variant_id` isn't guaranteed set on that call path, so `PendingInterrupt.
-  // question_variant_id` can be missing then too) - the hint/solution/video buttons
-  // this panel already offers are unaffected either way.
+  // D-272: the id of the question this help is about, from `snapshot.assistance_question`.
+  // It used to be `pending.question_variant_id`, which is absent on a `/respond`-resumed
+  // ladder round (S21's documented gap) - and since this prop decides whether the chat
+  // renders at all, the tutor silently vanished from every round after the first.
   questionVariantId: string | null;
   onSendChatMessage: (
     questionVariantId: string,
@@ -33,20 +31,28 @@ interface AssistancePanelProps {
   // took the conversation with it - a student who asked a question, took a hint, then
   // came back found an empty chat. See `useTutorChat`.
   chat: ChatTranscript;
-  // D-213: the stem of the question this pause is about, so the tutor panel can show it
-  // alongside the conversation. `null` when the snapshot no longer carries the item.
-  questionText: string | null;
   // D-216: a refused/failed choice used to show nothing at all on this panel - the same
   // `session.error` the exam screen renders.
   error: string | null;
 }
 
 /**
- * D-207 rewrite. The content was correct before this and read as an undifferentiated
- * wall: a hint's three fields (`hint_text`, `concept_reminder`, `next_step_prompt`) were
- * three bare `<p>`s, two of them `.dim`, so nothing said which one was the hint and which
- * two were context. Solution steps put `explanation` and `expression` in the same run of
- * text. Each part now says what it is.
+ * The right-hand column of the study screen: the help, and the tutor.
+ *
+ * ### D-272: two modes, not one stack
+ *
+ * The chat used to sit at the *bottom* of this panel, under the hint text and four
+ * buttons, inside a 220px scroll box. On a real conversation that is three visible
+ * messages, below the fold, on a panel that already had a hint on it.
+ *
+ * It is now a mode of the column rather than a section of it: a segmented control at the
+ * top switches between **Help** and **Tutor**, and the chat gets the column's full height.
+ *
+ * **Deliberately not a tab strip over Hint / Solution / Video.** Those are not views. Each
+ * one spends a Bedrock call, and "Show the solution" permanently changes the attempt's
+ * outcome label (SPEC §5.11.5: a later correct answer becomes `correct_after_solution`).
+ * Making an irreversible, paid, graded action look like switching tabs would be a lie about
+ * what a click does. Switching to the tutor costs nothing, so that one *is* a view.
  */
 export function AssistancePanel({
   intervention,
@@ -57,21 +63,80 @@ export function AssistancePanel({
   questionVariantId,
   onSendChatMessage,
   chat,
-  questionText,
   error,
 }: AssistancePanelProps) {
-  const chatPanel = questionVariantId && (
-    <TutorChatPanel
-      questionVariantId={questionVariantId}
-      onSendMessage={onSendChatMessage}
-      transcript={chat}
-      questionText={questionText}
-    />
-  );
+  // Local because it is about this render of this column, not about the session. It
+  // survives the ladder (the panel keeps its position in the grid while help is open) and
+  // resets when help closes, which is what should happen - a new question starts on Help.
+  const [view, setView] = useState<"help" | "tutor">("help");
+  const chatAvailable = questionVariantId !== null;
+  const showing = chatAvailable ? view : "help";
 
+  return (
+    <div className="intervention-panel">
+      {chatAvailable && (
+        <div className="assistance-modes" role="tablist" aria-label="Help or tutor">
+          <button
+            role="tab"
+            aria-selected={showing === "help"}
+            className={`assistance-mode ${showing === "help" ? "active" : ""}`}
+            onClick={() => setView("help")}
+          >
+            Help
+          </button>
+          <button
+            role="tab"
+            aria-selected={showing === "tutor"}
+            className={`assistance-mode ${showing === "tutor" ? "active" : ""}`}
+            onClick={() => setView("tutor")}
+          >
+            Ask your tutor
+            {/* So a student who switched away can see a reply landed without switching back. */}
+            {chat.messages.length > 0 && (
+              <span className="assistance-mode-count">{chat.messages.length}</span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {showing === "tutor" && questionVariantId ? (
+        <TutorChatPanel
+          questionVariantId={questionVariantId}
+          onSendMessage={onSendChatMessage}
+          transcript={chat}
+        />
+      ) : (
+        <HelpView
+          intervention={intervention}
+          ladderOpen={ladderOpen}
+          busy={busy}
+          error={error}
+          onChoose={onChoose}
+          onDismiss={onDismiss}
+        />
+      )}
+    </div>
+  );
+}
+
+function HelpView({
+  intervention,
+  ladderOpen,
+  busy,
+  error,
+  onChoose,
+  onDismiss,
+}: {
+  intervention: InterventionContent | null;
+  ladderOpen: boolean;
+  busy: boolean;
+  error: string | null;
+  onChoose: (choice: Choice) => void;
+  onDismiss: () => void;
+}) {
   if (!intervention) {
     return (
-      <div className="panel">
+      <>
         <h1>Not quite — want a hand?</h1>
         <p className="subtitle">Choose how you'd like to work through this one.</p>
         {error && <p className="error">{error}</p>}
@@ -98,8 +163,7 @@ export function AssistancePanel({
             No thanks — next question
           </button>
         </div>
-        {chatPanel}
-      </div>
+      </>
     );
   }
 
@@ -110,7 +174,7 @@ export function AssistancePanel({
     intervention.hint_level >= intervention.max_hint_level;
 
   return (
-    <div className="intervention-panel">
+    <>
       {intervention.type === "hint" && <HintContent intervention={intervention} />}
       {intervention.type === "solution" && <SolutionContent intervention={intervention} />}
       {intervention.type === "video" && <VideoContent intervention={intervention} />}
@@ -118,37 +182,34 @@ export function AssistancePanel({
       {error && <p className="error">{error}</p>}
 
       {ladderOpen ? (
-        <>
-          <div className="assistance-choices">
-            {isHint && !atFinalLevel && (
-              <button disabled={busy} onClick={() => onChoose("hint")}>
-                {/* D-213: names the rung the student is about to get rather than "another",
-                    so the choice between one more hint and the full solution is informed.
-                    Falls back when the levels are absent, which is the same condition
-                    `atFinalLevel` already tolerates. */}
-                {intervention.hint_level != null && intervention.max_hint_level != null
-                  ? `Next hint (${intervention.hint_level + 1} of ${intervention.max_hint_level})`
-                  : "Get another hint"}
-              </button>
-            )}
-            <button className="secondary" disabled={busy} onClick={() => onChoose("solution")}>
-              Show the solution
+        <div className="assistance-choices">
+          {isHint && !atFinalLevel && (
+            <button disabled={busy} onClick={() => onChoose("hint")}>
+              {/* D-213: names the rung the student is about to get rather than "another",
+                  so the choice between one more hint and the full solution is informed.
+                  Falls back when the levels are absent, which is the same condition
+                  `atFinalLevel` already tolerates. */}
+              {intervention.hint_level != null && intervention.max_hint_level != null
+                ? `Next hint (${intervention.hint_level + 1} of ${intervention.max_hint_level})`
+                : "Get another hint"}
             </button>
-            <button className="secondary" disabled={busy} onClick={() => onChoose("video")}>
-              Watch a video
-            </button>
-            <button className="secondary" disabled={busy} onClick={() => onChoose("continue")}>
-              I'll try again now
-            </button>
-          </div>
-          {chatPanel}
-        </>
+          )}
+          <button className="secondary" disabled={busy} onClick={() => onChoose("solution")}>
+            Show the solution
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => onChoose("video")}>
+            Watch a video
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => onChoose("continue")}>
+            I'll try again now
+          </button>
+        </div>
       ) : (
         <button className="secondary" onClick={onDismiss}>
           Got it — next question
         </button>
       )}
-    </div>
+    </>
   );
 }
 
@@ -271,6 +332,15 @@ function SolutionContent({ intervention }: { intervention: InterventionContent }
       <p className="solution-answer">
         <span className="solution-answer-label">Answer</span>
         <strong>{intervention.final_answer}</strong>
+      </p>
+      {/* D-272: one self-explanation prompt after the worked solution. Rendered client-side,
+          so it costs nothing and cannot say anything wrong - and asking a student to put the
+          method in their own words is the single best-evidenced thing you can do with a
+          worked example (Chi et al.'s self-explanation effect). No input box: the value is
+          in the pause and the attempt, and a text field here would look like something that
+          gets graded. */}
+      <p className="self-explain">
+        Before you move on — how would you explain this one to a friend?
       </p>
     </>
   );

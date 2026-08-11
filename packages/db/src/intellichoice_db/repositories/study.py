@@ -95,6 +95,14 @@ class StudyRepository:
     async def get_study_session(self, study_session_id: str) -> StudySession | None:
         return await self._session.get(StudySession, study_session_id)
 
+    async def get_attempt(self, attempt_id: str) -> StudyAttempt | None:
+        """One attempt by id. D-272: the router needs the attempt named by
+        `LearningState.last_study_attempt_id` to say which question the current hint or
+        solution is about - that binding is what stops the UI pairing one problem's help
+        with a different problem's stem.
+        """
+        return await self._session.get(StudyAttempt, attempt_id)
+
     async def get_items(self, study_session_id: str) -> list[StudyItem]:
         stmt = (
             select(StudyItem)

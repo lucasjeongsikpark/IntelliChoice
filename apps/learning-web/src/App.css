@@ -26,12 +26,20 @@
   color: var(--text-h);
 }
 
+/* D-272: top-aligned, not vertically centred.
+   `justify-content: center` was fine when every screen was one small card, and wrong for the
+   study screen: two full-height columns were pushed into the middle of a 900px viewport with
+   dead space above and below, and any column that grew (a six-step solution) made the whole
+   page shift under the student as it re-centred. Content now starts at the top and grows
+   downward, which is also what makes the "use the screen" complaint fixable at all - a
+   centred flex parent cannot give its child the height. Short screens still look centred
+   because `min-height` only kicks in when there is room. */
 .app-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 24px;
   /* AUD-F-24: a stage narrative renders as a sibling above the phase screen rather than
      inside a wrapper (a conditional wrapper remounts the screen below it - see App.tsx).
@@ -382,10 +390,16 @@ button.link {
    forcing the grid to overflow the viewport. */
 .study-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
   width: 100%;
-  max-width: 1200px;
+  /* D-272: 1200 -> 1560. At 1440px the grid used barely 60% of the width and the rest was
+     empty page; the help column in particular was cramped enough that a solution's steps and
+     the chat could not both be read without scrolling. Still a cap rather than `100%` -
+     prose past ~90ch stops being readable - but the cap is now near a laptop's width instead
+     of well inside it. The two columns are equal: the help side holds as much as the
+     question side does once the chat lives there (Phase 3). */
+  max-width: 1560px;
   align-items: start;
 }
 
@@ -394,12 +408,218 @@ button.link {
   min-width: 0;
 }
 
-/* The codebase's first width breakpoint (there were none before). Below it the two columns
-   stack - question first, then the help - so nothing is ever squeezed on a phone. */
+/* D-272: the *left* column stops being capped by `.panel.wide`'s 880px inside this grid.
+   The grid track is already the constraint, and two caps fighting is how D-213's question
+   card silently collapsed to 480px inside `.stack`. One owner per dimension. */
+.study-columns > .panel.wide {
+  max-width: 100%;
+}
+
+/* Below this the two columns stack - question first, then the help - so nothing is ever
+   squeezed on a phone. */
 @media (max-width: 900px) {
   .study-columns {
     grid-template-columns: 1fr;
   }
+
+  /* Stacked, the chat sits *below* the question rather than beside it, so 60vh of it is
+     60vh of scrolling past empty panel before the input row. The floor only has to be tall
+     enough that replies do not resize the page as they land. */
+  .chat-panel {
+    min-height: 320px;
+  }
+}
+
+/* D-272: the journey bar. Matches the width of whatever it sits above - 880px over a single
+   question card, the full grid width over the study columns - so it reads as that content's
+   header rather than as a floating strip. */
+.journey-slot {
+  width: 100%;
+  max-width: 880px;
+}
+
+.journey-slot.wide {
+  max-width: 1560px;
+}
+
+.journey {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+}
+
+.journey-stages {
+  display: flex;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.journey-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  min-width: 0;
+}
+
+.journey-stage.current {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.journey-stage.upcoming {
+  opacity: 0.5;
+}
+
+.journey-marker {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.journey-stage.done .journey-marker {
+  border-color: var(--brand-green, var(--accent));
+  color: var(--brand-green, var(--accent));
+}
+
+.journey-stage.current .journey-marker {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.journey-stage-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.journey-stage-label {
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.journey-stage-hint {
+  font-size: 12px;
+  color: var(--text);
+  /* One line. The hint is orientation, not instruction - it must never push the bar tall
+     enough to shove the question below the fold. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journey-study {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.journey-study-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.journey-study-skill {
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.journey-study-try {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Segments, one per skill line, rather than a continuous bar. A continuous fill would have
+   to interpolate within a line, and there is nothing honest to interpolate - a student on
+   try 3 of 4 is not 75% of the way to resolving it, they might get it on the next one. */
+.journey-meter {
+  display: flex;
+  gap: 4px;
+}
+
+.journey-meter-cell {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.journey-meter-cell.done {
+  background: var(--accent);
+}
+
+.journey-meter-cell.current {
+  background: var(--accent);
+  opacity: 0.45;
+}
+
+/* On a phone the three stages stack their text; the hints go, since vertical space is the
+   scarce thing there and the labels alone carry the sequence. */
+@media (max-width: 700px) {
+  .journey-stage-hint {
+    display: none;
+  }
+
+  .journey-stage {
+    padding: 6px 8px;
+  }
+}
+
+/* D-272: the locked question shown beside a hint or solution. Not buttons (nothing to
+   press), so these need their own resting appearance rather than inheriting `:disabled`,
+   which renders as "this control is broken" instead of "this question is answered". */
+.option.locked {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  cursor: default;
+  opacity: 0.75;
+}
+
+.option.locked.chosen {
+  opacity: 1;
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.option.locked.chosen .option-key {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.option-chosen-tag {
+  margin-left: auto;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 .intervention-panel {
@@ -643,43 +863,92 @@ button.link {
   margin-top: 0;
 }
 
+/* D-272: the tutor is a *mode* of the right column now, so the panel owns the column's
+   height instead of sitting in a 220px box at the bottom of the help panel.
+
+   `min-height` rather than a fixed one: the column is a grid cell that sizes to content, so
+   without a floor an empty conversation would be a two-line panel and every reply would
+   resize the page under the student's cursor. `min()` keeps it inside a short laptop
+   viewport - 60vh of an 800px window is 480px, which is the room the header, the input row
+   and the footer leave. */
 .chat-panel {
-  margin-top: 14px;
-  border-top: 1px solid var(--border);
-  padding-top: 14px;
-}
-
-.chat-open {
-  margin-top: 8px;
-}
-
-.chat-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  flex-direction: column;
+  min-height: min(60vh, 520px);
 }
 
-.chat-head h3 {
-  margin: 0;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.chat-empty {
   color: var(--text);
 }
 
-.chat-collapse {
-  width: auto;
-  margin-top: 0;
-  padding: 0;
-  font-size: 13px;
+.chat-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 
+.chat-starter {
+  width: auto;
+  margin-top: 0;
+  padding: 6px 12px;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* The Help / Ask-your-tutor switch. Not a tab strip over hint/solution/video: those spend a
+   Bedrock call and change the attempt's outcome label, so they must not look like views. */
+.assistance-modes {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.assistance-mode {
+  flex: 1;
+  width: auto;
+  margin-top: 0;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  font-size: 13px;
+  border-radius: calc(var(--radius-control) - 2px);
+}
+
+.assistance-mode.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.assistance-mode-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 11px;
+}
+
+
+/* D-272: `flex: 1` and no `max-height`. It was `max-height: 220px`, which is about three
+   messages, on a panel that already had a hint above it - the "the chat window is too
+   small" report. It now takes whatever the column has and scrolls only past that. */
 .chat-messages {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 220px;
   overflow-y: auto;
   margin-bottom: 10px;
 }
@@ -1315,38 +1584,8 @@ ul {
   margin-top: 24px;
 }
 
-/* D-213: the question, inside the tutor panel.
 
-   The chat opens from the intervention screen, which does not show the question - so the
-   student was being asked to type a question about something they could no longer see.
-   `open` by default (set on the element, not here) because hiding it recreates the
-   problem; it stays a `<details>` so a long word problem can be collapsed once read. */
-.chat-question {
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--bg);
-}
 
-.chat-question > summary {
-  font-family: var(--heading);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text);
-  cursor: pointer;
-}
-
-.chat-question > p {
-  margin: 8px 0 0;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--text-h);
-  /* Word problems carry their own paragraph breaks, same as `.question-stem`. */
-  white-space: pre-line;
-}
 
 /* ---------------------------------------------------------------------------
    D-213 dashboard

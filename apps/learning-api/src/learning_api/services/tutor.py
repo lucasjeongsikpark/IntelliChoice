@@ -238,6 +238,17 @@ async def generate_solution(
     return result.value, result.cost_cents
 
 
+def canonical_hint_response(canonical_hint_text: str) -> HintPersonalizationResponse:
+    """D-272: public alias, for the two-stage hint's first stage.
+
+    `_hint_round` serves this while the personalized rewrite runs in the background, and it
+    has to be the *same* object every failure path already produces - otherwise "the hint
+    that arrives instantly" and "the hint you get when the model is down" would be two
+    different things and only one of them tested.
+    """
+    return _canonical_as_response(canonical_hint_text)
+
+
 def _canonical_as_response(canonical_hint_text: str) -> HintPersonalizationResponse:
     return HintPersonalizationResponse(
         hint_text=canonical_hint_text,

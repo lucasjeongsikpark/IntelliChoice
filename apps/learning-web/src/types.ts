@@ -49,6 +49,44 @@ export interface QuestionItem {
   option_d: string;
 }
 
+/**
+ * D-272: the question the current hint/solution/video/chat is about, sent by the server
+ * alongside the help itself (`routers/sessions.py`'s `AssistanceQuestionResponse`).
+ *
+ * `items` could not answer this. At the intervention menu it is `null` (the incorrect-answer
+ * turn serves no new item), and once the ladder closes it is the *next* question - so the
+ * study screen had nothing correct to put on the left and collapsed to a single narrow panel.
+ * This field is bound to the attempt the help was generated for, so the pairing cannot drift.
+ *
+ * `selected_option` is what the student actually picked, shown back to them on the locked card.
+ */
+export interface AssistanceQuestion {
+  question_variant_id: string;
+  rendered_question: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  selected_option?: string | null;
+}
+
+/**
+ * D-272: how far through the study phase the student is.
+ *
+ * Two bounded counters, because only one honest denominator exists. The *question* total is
+ * genuinely unknown until the session ends - the retry ladder adds items as they are needed -
+ * but `target_skill_ids` is fixed at plan time, so "skill 3 of 5" is a fact and "try 2 of 4"
+ * is another. See `services/study_progress.py`.
+ */
+export interface StudyProgress {
+  skills_total: number;
+  skills_resolved: number;
+  current_skill_name?: string | null;
+  current_skill_position?: number | null;
+  attempt_in_line: number;
+  max_attempts: number;
+}
+
 export interface LearningGain {
   pre_raw_score: number;
   post_raw_score: number;
@@ -103,6 +141,11 @@ export interface SessionSnapshot {
   learning_gain?: LearningGain | null;
   pending_interrupt?: PendingInterrupt | null;
   intervention?: InterventionContent | null;
+  // D-272: present exactly when this snapshot carries help - an `intervention_choice`
+  // pause or an `intervention`. See `AssistanceQuestion`.
+  assistance_question?: AssistanceQuestion | null;
+  // D-272: present on every study-phase snapshot, absent everywhere else.
+  study_progress?: StudyProgress | null;
   // SPEC §5.6.5: "absence_acknowledged" is terminal (session ended, nothing more to
   // do); "email_requested" still allows trying a different choice next; `null`/absent
   // means the gate just blocked and no choice has been made yet.

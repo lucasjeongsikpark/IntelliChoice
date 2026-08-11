@@ -48,12 +48,18 @@ from learning_api.dependencies import get_current_claims, get_profile_adapter
 from learning_api.graph.build import build_graph
 from learning_api.routers.parents import router as parents_router
 from learning_api.routers.questions import router as questions_router
-from learning_api.routers.sessions import build_deferred_narrative_snapshot
+from learning_api.routers.sessions import (
+    build_deferred_narrative_snapshot,
+    build_personalized_hint_snapshot,
+)
 from learning_api.routers.sessions import router as sessions_router
 from learning_api.routers.stream import router as stream_router
 from learning_api.routers.students import router as students_router
 from learning_api.services.consolidation_scheduler import (
     BackgroundConsolidationScheduler,
+)
+from learning_api.services.hint_personalization_scheduler import (
+    BackgroundHintPersonalizationScheduler,
 )
 from learning_api.services.session_events import SessionEventBus
 from learning_api.services.stage_narrative_scheduler import (
@@ -225,8 +231,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 profile_adapter=adapter,
                 snapshot_builder=build_deferred_narrative_snapshot,
             )
+            # D-272: the same trade for hints. ~2.3s per rung, spent rewriting a sentence
+            # the authored bank already holds - so the rung is served instantly and the
+            # rewrite arrives over SSE. Mock provider keeps it inline, same as above.
+            app.state.hint_personalization_scheduler = (
+                BackgroundHintPersonalizationScheduler(
+                    session_factory=app.state.db_session_factory,
+                    gateway_factory=_narrative_gateway,
+                    graph_getter=lambda: app.state.learning_graph,
+                    events=app.state.session_events,
+                    profile_adapter=adapter,
+                    snapshot_builder=build_personalized_hint_snapshot,
+                )
+            )
         else:
             app.state.study_narrative_scheduler = None
+            app.state.hint_personalization_scheduler = None
         yield
 
     await adapter.close()

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import "./App.css";
 import * as api from "./api/client";
 import { friendlyError } from "./api/errors";
@@ -18,6 +18,12 @@ import { AssistancePanel } from "./screens/InterventionScreen";
 import { ResultsScreen } from "./screens/ResultsScreen";
 import { StageTransitionScreen } from "./screens/StageTransitionScreen";
 import { StudentDashboardScreen } from "./screens/StudentDashboardScreen";
+import { JourneyBar } from "./components/JourneyBar";
+
+// The phases the journey bar describes. Anything else (login, topic select, blocked,
+// error) has no journey to show and gets `null` in the slot - a permanent slot either way,
+// for the reconcile-by-position reason the narrative and stream banner already document.
+const JOURNEY_PHASES = ["pre_exam", "study", "post_exam", "completed"];
 
 const TOKEN_KEY = "intellichoice.token";
 const SUB_KEY = "intellichoice.sub";
@@ -147,12 +153,10 @@ function App() {
     snapshot?.pending_interrupt?.question_variant_id ?? null,
   );
   const [interventionDismissed, setInterventionDismissed] = useState(false);
-  // D-217 follow-up: the study intervention menu (and a chat opened from it) arrives with
-  // `items: []`, so the left column loses the question the student is getting help with. We
-  // remember the last study question we did have full data for, keyed by its variant id, and
-  // hand its stem back to `ExamScreen` when the pause is still about that same id. A ref, not
-  // state: this is a render-time cache, and writing it must not trigger a re-render.
-  const lastStudyQuestionRef = useRef<{ id: string; text: string } | null>(null);
+  // D-217's `lastStudyQuestionRef` is gone (D-272). It was a render-time cache of the last
+  // study question the client had seen, kept because the intervention snapshots did not
+  // carry one - a guess at something the server knew. `snapshot.assistance_question` is
+  // that answer, so the guess and its staleness rules are deleted rather than tuned.
   // AUD-F-04: both narrative gates now live in a `sessionStorage`-backed hook so they
   // survive a refresh - see useNarrativeGate.ts for why both of them had to move and why the
   // record is keyed by learning session id. The two properties they had as React state are
@@ -496,42 +500,31 @@ function App() {
         // intervention` already carries this round's content - both are read together.
         const ladderOpen = pending?.interrupt_type === "intervention_choice";
 
-        // Remember the current study question so the intervention menu/chat (which arrives
-        // with `items: []`) can keep showing it on the left. Updated during render as a cache;
-        // only the study phase, and only when we actually have the item.
-        const currentStudyItem =
-          snapshot.phase === "study" ? (snapshot.items?.[0] ?? null) : null;
-        if (currentStudyItem) {
-          lastStudyQuestionRef.current = {
-            id: currentStudyItem.question_variant_id,
-            text: currentStudyItem.rendered_question,
-          };
-        }
-        // Only reuse the remembered stem when the pause is still about that same question -
-        // never show a stale question next to help for a different one (the D-213 concern).
-        const remembered = lastStudyQuestionRef.current;
-        const pausedQuestionText =
-          ladderOpen &&
-          (snapshot.items?.length ?? 0) === 0 &&
-          remembered !== null &&
-          remembered.id === pending?.question_variant_id
-            ? remembered.text
-            : null;
+        // D-272: "is there help on screen right now". The server sends
+        // `assistance_question` on exactly the snapshots that carry help, so this one flag
+        // decides both columns and they cannot disagree.
+        //
+        // It replaces `ladderOpen` as the layout condition, and that is the whole fix.
+        // `ladderOpen` means "the graph is paused", which stops being true at hint 3 of 3
+        // and at every solution and video - so the layout collapsed to a lone narrow panel
+        // exactly when the student had the most to read. Reproduced locally 2026-08-10.
+        const assistanceQuestion = snapshot.assistance_question ?? null;
+        const helpOnScreen =
+          snapshot.phase === "study" &&
+          assistanceQuestion !== null &&
+          (ladderOpen || (snapshot.intervention != null && !interventionDismissed));
 
         const examView = (
           <ExamScreen
             phase={snapshot.phase}
             items={snapshot.items ?? null}
-            pausedQuestionText={pausedQuestionText}
             streak={streak}
             overview={session.examOverview}
             busy={session.busy}
-            // D-217: while the graph is paused on `intervention_choice` an answer has
-            // nowhere to land, so this question's controls are disabled - but as a clear
-            // "paused while you get help" state, not the misleading "Submitting…" the old
-            // `busy || ladderOpen` produced (it read as a request stuck in flight forever).
-            // The student proceeds through the panel on the right ("I'll try again now").
-            paused={ladderOpen}
+            // D-272: non-null exactly while help is on screen, and then this column shows
+            // that question locked instead of the live one. No separate "paused" flag - the
+            // question being there *is* the pause, and one source beats two that can drift.
+            assistanceQuestion={helpOnScreen ? assistanceQuestion : null}
             overlayOpen={overlayOpen}
             error={session.error}
             onSubmit={(questionVariantId, selectedOption, responseTimeMs) => {
@@ -581,19 +574,15 @@ function App() {
                 })
             }
             onDismiss={() => setInterventionDismissed(true)}
-            questionVariantId={pending?.question_variant_id ?? null}
+            // D-272: the *question's* variant id, not the pause's. `pending
+            // .question_variant_id` is absent on a `/respond`-resumed ladder round (S21's
+            // documented gap), and since this prop is what decides whether the tutor chat
+            // renders at all, the chat silently disappeared for every round after the first
+            // - confirmed locally 2026-08-10: present on the chooser, gone from hint 1
+            // onward. `assistance_question` is set on every one of those rounds.
+            questionVariantId={assistanceQuestion?.question_variant_id ?? null}
             onSendChatMessage={session.sendChatMessage}
             chat={chat}
-            // D-213: matched by id rather than assumed to be `items[0]`. During a retry
-            // ladder the snapshot can carry the *next* item while the pause is still about
-            // the previous one, and showing the wrong question next to the chat is worse
-            // than showing none - the student would be asked about a problem they were
-            // never given.
-            questionText={
-              snapshot.items?.find(
-                (item) => item.question_variant_id === pending?.question_variant_id,
-              )?.rendered_question ?? null
-            }
           />
         );
 
@@ -602,28 +591,23 @@ function App() {
           return examView;
         }
 
-        // D-217 (point 1): during study, while the hint/solution/video/chat ladder is open
-        // the question stays on the LEFT and the assistance on the RIGHT, both full-size,
-        // instead of the old single column that stacked the panel above a shrunk question.
-        // `ladderOpen` is exactly "the pause is still about the question in `snapshot.items`",
-        // so the left column shows the right question for the whole ladder (chooser and every
-        // hint round). The panel renders its own chooser when `intervention` is still null.
-        if (ladderOpen) {
+        // D-272: two columns for the *whole* time help is on screen - the chooser, every
+        // hint rung, the solution, the video and the chat - with the question the help is
+        // about on the left and the help on the right, both full size.
+        //
+        // The condition used to be `ladderOpen`, which is "the graph is paused". That is
+        // false at hint 3 of 3 and for every solution and video, so the layout collapsed to
+        // one narrow centred card with no question next to it. D-217's comment here was
+        // right that `snapshot.items` had by then moved on to the *next* question and must
+        // not be paired with this help - the answer was never to drop the question, it was
+        // for the server to say which question the help belongs to. It now does.
+        if (helpOnScreen) {
           return (
             <div className="study-columns">
               {examView}
               {assistancePanel}
             </div>
           );
-        }
-
-        // Ladder spent (hint 3 of 3, or any solution/video): the graph has already advanced
-        // and `snapshot.items` is the NEXT question, so the question is deliberately not
-        // shown beside this terminal help - pairing them put one problem's solution above a
-        // different problem (measured on staging 2026-08-07). The panel's "Got it — next
-        // question" dismisses it and returns to the question below.
-        if (snapshot.intervention && !interventionDismissed) {
-          return assistancePanel;
         }
         return examView;
       }
@@ -740,9 +724,18 @@ function App() {
           <button onClick={session.reconnectStream}>Reconnect</button>
         </div>
       ) : null;
+    // D-272: a permanent slot, like the two below it. A conditional wrapper here would
+    // remount the phase screen on every phase change (AUD-F-24), which is the defect this
+    // file already carries two comments about.
+    const journey = JOURNEY_PHASES.includes(snapshot.phase) ? (
+      <div className={`journey-slot ${snapshot.phase === "study" ? "wide" : ""}`}>
+        <JourneyBar phase={snapshot.phase} progress={snapshot.study_progress} />
+      </div>
+    ) : null;
     return (
       <>
         {streamBanner}
+        {journey}
         {showNarrative ? (
           <StageTransitionScreen
             narrative={narrative}

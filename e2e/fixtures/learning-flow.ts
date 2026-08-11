@@ -193,9 +193,18 @@ export async function answerWholeExam(page: Page, expectedItems = 10): Promise<n
   return answered;
 }
 
-/** Opens the finalize modal and confirms it. */
+/**
+ * Opens the finalize modal and confirms it.
+ *
+ * The locator was `.panel > button`, and D-241 moved the button into a `.submit-exam`
+ * wrapper (it added the "N questions left to answer" hint beside it), so it had been
+ * matching nothing: `stableClick` on an empty locator is a no-op, and the failure surfaced
+ * one line later as "the modal never appeared". Four journeys were failing on it, including
+ * `journey-student`, which is one of §2.6's own criteria. Confirmed pre-existing by running
+ * this spec against `main` (2026-08-10) - it fails there identically.
+ */
 export async function finalizeExam(page: Page): Promise<void> {
-  await stableClick(page.locator(".panel > button", { hasText: /^submit exam$/i }).last());
+  await stableClick(page.locator(".submit-exam > button", { hasText: /^submit exam$/i }).last());
   const modal = page.locator(".modal-backdrop .modal");
   await expect(modal).toBeVisible();
   await stableClick(modal.getByRole("button", { name: /^submit exam$/i }));

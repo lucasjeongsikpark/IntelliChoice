@@ -102,3 +102,8 @@ class LearningState(BaseModel):
     # name or grade - the background task re-derives those from its own session, keeping
     # the PII rule (SPEC §5.30) intact. `None` on every inline (mock-provider) turn.
     pending_study_narrative: dict | None = None
+    # D-272: the same shape as `pending_study_narrative`, for the hint that has been served
+    # canonically and is still waiting to be personalized. Ids only, never text - the
+    # background task re-reads everything it needs, so nothing here can go stale against the
+    # rows (SPEC §5.5.3).
+    pending_hint_personalization: dict | None = None

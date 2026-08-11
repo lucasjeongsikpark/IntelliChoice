@@ -35,53 +35,46 @@ export interface ChatTranscript {
 }
 
 interface TutorChatPanelProps {
-  // The question the pending `intervention_choice` pause is about (`PendingInterrupt.
-  // question_variant_id`) - chat is only ever shown alongside that same pause, so this
-  // is always set whenever this component renders.
+  // The question this conversation is about. `AssistancePanel` only renders this component
+  // when it has one (from `snapshot.assistance_question`, D-272).
   questionVariantId: string;
   onSendMessage: (
     questionVariantId: string,
     message: string,
   ) => Promise<ChatMessageResult | null>;
   // D-207: owned by `App` via `useTutorChat`, because this component is unmounted every
-  // time `AssistancePanel` switches between its chooser and content views - which used to
+  // time `AssistancePanel` switches between its help and tutor views - which used to
   // silently discard the conversation.
   transcript: ChatTranscript;
-  // D-213: the question this conversation is about, shown inside the panel.
-  //
-  // The chat opens from the intervention screen, which does not render the question - so a
-  // student was asked to type a question about something no longer on screen, and had to
-  // remember it. `null` when the current snapshot no longer carries the item (a
-  // `/respond`-resumed ladder round can arrive without it), in which case the block is
-  // omitted rather than rendered empty.
-  questionText: string | null;
 }
 
+/**
+ * D-272: a full-height conversation, not a 220px box.
+ *
+ * Three things went away in this rewrite and each was a symptom of the panel being a
+ * *section* of the help panel rather than a mode of the column:
+ *
+ * - The **collapse/expand** state and its "Chat with your tutor" button. The column now
+ *   has an explicit Help/Tutor switch above it, so a second way to hide the same thing was
+ *   one control too many.
+ * - The **`max-height: 220px`** scroll box, which showed about three messages.
+ * - The **`<details>` copy of the question**. The question is permanently on the left now,
+ *   so repeating it here was the split-attention problem being solved twice, badly.
+ */
 export function TutorChatPanel({
   questionVariantId,
   onSendMessage,
   transcript,
-  questionText,
 }: TutorChatPanelProps) {
-  // Whether the panel is *expanded* is genuinely local - it is about this render of this
-  // screen, not about the conversation. It opens itself once there is something to read,
-  // so a student returning from a hint sees their earlier exchange rather than a button
-  // that hides it.
-  const [open, setOpen] = useState(transcript.messages.length > 0);
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (transcript.messages.length > 0) setOpen(true);
-  }, [transcript.messages.length]);
-
   // Keep the newest message in view. `block: "nearest"` so this scrolls the transcript
   // box itself and never yanks the whole page while the student is reading the question
-  // above it.
+  // beside it.
   useEffect(() => {
-    if (!open) return;
     endRef.current?.scrollIntoView({ block: "nearest" });
-  }, [open, transcript.messages.length, transcript.sending]);
+  }, [transcript.messages.length, transcript.sending]);
 
   async function handleSend() {
     const text = input.trim();
@@ -90,31 +83,40 @@ export function TutorChatPanel({
     await transcript.send(text, () => onSendMessage(questionVariantId, text));
   }
 
-  if (!open) {
-    return (
-      <button className="secondary chat-open" onClick={() => setOpen(true)}>
-        Chat with your tutor
-      </button>
-    );
-  }
-
   return (
     <div className="chat-panel">
-      <div className="chat-head">
-        <h3>Your tutor</h3>
-        <button className="link chat-collapse" onClick={() => setOpen(false)}>
-          Hide
-        </button>
-      </div>
-      {questionText && (
-        <details className="chat-question" open>
-          <summary>The question you're working on</summary>
-          <p>{questionText}</p>
-        </details>
-      )}
       <div className="chat-messages" aria-live="polite">
         {transcript.messages.length === 0 && (
-          <p className="dim">Ask me anything about this question.</p>
+          <div className="chat-empty">
+            <p>Ask me anything about this question.</p>
+            {/* Openers, because "ask me anything" is the hardest prompt to answer when you
+                are stuck - if you knew what to ask you would be less stuck. These fill the
+                input rather than sending, so the student still chooses.
+
+                **Worded to classify as help, not as a hint request.** `classify_intent`
+                routes `request_hint` into the actual hint ladder, which spends a Bedrock
+                call and sets `hint_used` on the attempt - so a suggested opener containing
+                "hint" or "stuck" would quietly take a rung of help the student did not ask
+                for. Measured locally 2026-08-10: "I don't know where to start" came back
+                `off_topic` and got the refusal message, because it has neither a keyword nor
+                a question mark. These three each land on `question_help` or `why_wrong`. */}
+            <div className="chat-starters">
+              {[
+                "What is this question actually asking?",
+                "Why is my answer wrong?",
+                "Can you explain it a different way?",
+              ].map((starter) => (
+                <button
+                  key={starter}
+                  type="button"
+                  className="secondary chat-starter"
+                  onClick={() => setInput(starter)}
+                >
+                  {starter}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         {transcript.messages.map((message, index) => (
           <ChatBubble

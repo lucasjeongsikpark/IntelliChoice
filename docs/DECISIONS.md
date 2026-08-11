@@ -19390,3 +19390,154 @@ gate. Canonical export leaves counts at 30/47/25/28 = **130**. The diff touches 
 `explanation` and one new step's `common_mistake`, nothing else. Audit: **0 unambiguous, 15 at the
 outer bound** — and those 15 are the mixed bucket D-257 built on purpose (`[18 = 18 ✓]`
 verification steps, `[4 groups of ten]` word answers), not a residue of this work.
+
+## D-272 — The study screen stops collapsing, starts saying where you are, and stops waiting
+
+**Context.** The user re-walked the deployed learning app and reported nine things: the hint
+button jumps the screen somewhere unexpected; the two-column study layout asked for in D-217
+looks undone; the tutor chat is tiny; buttons feel slow, including first login; the page wastes
+screen space; study never says when it ends; and the whole thing should feel more personal to a
+K-12 student.
+
+D-217 **did** ship — `study-columns`, `RichText`, `ChatViz`, per-question chat and the background
+narrative scheduler are all on `main`. What the user is seeing is what D-217 left behind.
+
+### 1. What verification found, and where I refused to guess
+
+Measured read-only against `d35dfnjzmgrm01.cloudfront.net`: `index.html` TTFB 92–118 ms, the JS
+bundle 644 KB raw but brotli-compressed and fully downloaded in 385 ms, `/api/health` 80 ms.
+**Static delivery is not the problem**, so "first login is slow" is the authenticated sequence.
+
+I then drove a local session to each state and read the actual frames, which settled a question
+the code could not:
+
+- At the intervention **menu**, `items` is `None`. `flow.submit_answer` returns
+  `AnswerResult(items=None)` on the incorrect study path and the router's pending-interrupt
+  branch sends no items at all — so the student's question and its four options vanished the
+  instant they asked for help. They came back only on a *refresh*, because `/stream` rebuilds
+  from the checkpoint, which had retained them. That is why this read as intermittent.
+- At hint 3 of 3, and on every solution and video, the pause closes and `items` becomes the
+  **next** question. `App.tsx` refused to pair them — correctly — and collapsed to one narrow
+  centred card with no question at all. Reproduced, screenshotted.
+- The tutor chat disappeared from every ladder round after the first: `AssistancePanel` gated it
+  on `pending.question_variant_id`, absent on a `/respond`-resumed round (S21's documented gap).
+
+**What I did not do**: fix the login sequence. I measured static delivery and inferred the round
+trips from code, but never measured them. `GET /topics` 409s without a student, so it cannot be
+prefetched in parallel either. Shipping a speculative parallelization for an unmeasured cost is
+how the previous two rounds of this went wrong; it is carry-over with the measurement named.
+
+### 2. The client could not fix the layout, because it had no correct question to show
+
+New snapshot field `assistance_question` — the question the current help is about, bound to
+`LearningState.last_study_attempt_id` (the attempt the help was generated for), carrying the
+stem, all four options, and **the option the student chose**. The layout condition moves from
+`ladderOpen` ("the graph is paused") to "help is on screen", which is true for the whole ladder
+including its terminal round.
+
+Deliberately **not** derived from `last_intervention` alone: that channel goes stale, which is
+the hazard `stream._initial_snapshot` already gates behind `hint_ladder_awaiting_choice` (D-216).
+The caller says whether help is open, from the response it is building, so the pairing is
+self-consistent by construction.
+
+This deletes D-217's `lastStudyQuestionRef` render-time cache and the `paused` /
+`pausedQuestionText` prop pair — a guess at something the server knew.
+
+`selected_option` is not decoration. "You picked C" is information a student cannot recover once
+the answer path closes, and it is what makes a hint feel like it is about *their* attempt.
+
+### 3. Progress: the denominator that was there all along
+
+`ExamScreen` carried a comment explaining that the question total is unknowable — the retry
+ladder adds items as needed — and that printing `base_problem_count` would say "4 of 5" and then
+serve a sixth. **Right about questions, and it hid a denominator that is fixed.**
+`StudySession.target_skill_ids` is chosen once at plan time and never grows. So "Skill 3 of 5" is
+a fact and "try 2 of 4" is another: two bounded counters where there was one unbounded one.
+
+No single percentage. Rolling them together needs a question total, and a bar that ran backwards
+when a student needed an extra try would punish them for needing it.
+
+The counter advances only on a **resolving** outcome label. `incorrect` and `answer_revealed` are
+interim — counting those would step the bar forward every time a student got something wrong and
+reach 5 of 5 with nothing resolved. `answer_revealed` is the trap: the solution has been shown,
+so it *looks* terminal, and the ladder still owes the student their retry.
+
+### 4. Hints: serve the reviewed text, personalize behind it
+
+A hint was always a Bedrock call, ~2.3 s, on every rung — spent rewriting a sentence the authored
+bank already holds, and that **every failure path in `generate_personalized_hint` already falls
+back to verbatim**. Those rungs have just been through two independent reviewers and a repair
+loop (D-251–271). So the instant text is reviewed content, not a placeholder.
+
+Under real Bedrock the turn serves the authored rung and writes its `hint_events` row straight
+away (canonical text, `was_personalized=False` — exactly the row today's failure paths write, so
+nothing downstream learns a new state); a detached task personalizes, completes the row, and
+publishes over SSE. Mock keeps it inline, so every existing test still sees the personalized hint
+on the turn that asked for it.
+
+Two limits, stated rather than discovered later:
+
+- **No checkpoint write.** A refresh mid-hint falls back to the canonical rung — a downgrade to
+  reviewed content, not to nothing. The alternative is `aupdate_state` against a thread a
+  concurrent request may hold, to save a rewrite of a sentence already on screen.
+- **Cost lands on the `hint_events` row, not `bedrock_spend_cents`** — the same trade D-073/D-075
+  made for out-of-band spend. The gateway's own budget still bounds the call.
+
+Staleness is guarded twice: the task drops its result unless `last_study_attempt_id` still names
+the attempt, and the route refuses to schedule a marker that no longer matches.
+
+`post_outro` stays inline. It fires once, at the end, and deferring it needs a marker path
+`payload_from_marker` does not have — carry-over rather than half done.
+
+### 5. Chat, screen, copy
+
+The chat had `max-height: 220px` — about three messages — under the hint text and four buttons.
+It is now a **mode** of the right column, with the column's full height. Deliberately not a tab
+strip over Hint / Solution / Video: each of those spends a Bedrock call and "Show the solution"
+permanently changes the attempt's outcome label (SPEC §5.11.5), so making them look like view
+switches would misrepresent what a click does. Switching to the tutor costs nothing, so that one
+is a view.
+
+Its three conversation starters are worded from measurement, not taste: "I don't know where to
+start" classified as `off_topic` and got the refusal message, and anything containing "hint" or
+"stuck" routes into the real hint ladder — spending a rung of help nobody asked for.
+
+`.app-main` is top-aligned rather than vertically centred (a centred flex parent cannot give its
+child height, which is what made "use the screen" unfixable), and the study grid goes 1200 → 1560.
+
+**The narrative named all five skills of `linear_equations` in one sentence** — each a full clause
+— and the evidence box beneath repeated the same five. The prompt may now name at most one skill
+and must give a count for the rest; the names stay in the payload so any mention is still
+numerically grounded.
+
+### 6. Two places reading beat the thing that measures it, again
+
+- A similarity metric scored every `context_block` below threshold and reported **zero**
+  problems. Reading all six found one that restates its own stem almost verbatim
+  (`authored-linear_equations-d1-818100`). One item, not a systemic problem — but the metric
+  would have let me say there was nothing here.
+- `make e2e` was 63 passed / 3 failed **before this branch** (confirmed by running the spec on
+  `main`). `finalizeExam`'s locator was `.panel > button`; D-241 had moved that button into a
+  `.submit-exam` wrapper, and `stableClick` on an empty locator is a no-op — so the failure
+  surfaced a line later as "the modal never appeared" and read as four unrelated broken
+  journeys. Fixing the selector then exposed a real defect: `ExamScreen`'s restore effect fires
+  on the first overview response, which can land *after* an answer, putting the student back on
+  a locked question 1 with no way forward. It now stands down once this mount has answered
+  anything. 66 e2e passed.
+- **And a third, corrected in place rather than shipped.** The carry-over below first said
+  `GET /exam/overview` 500s "on a path that does not reconcile". It does reconcile —
+  `_get_state_values` calls `_reconcile_checkpoint` on every one of these reads. What is
+  actually true, and checkable, is narrower: `checkpoint_reconcile.find_repair` has a rule for a
+  checkpoint naming a missing **study** session and none for one naming a missing **assessment**
+  session, which is what the assertion hit. I wrote the wider claim from the symptom and only
+  went and read the reconciler afterwards. Same shape as D-271.
+
+### Verification
+
+`make lint` clean, `make typecheck` 0 errors, `make test` **1171 passed, 3 skipped, 1 xfailed**.
+`tsc` and `oxlint` clean for learning-web. **66 Playwright e2e passed** (from 63/3). New tests:
+`assistance_question` names the answered question and not the next one, and is absent when no
+help is on screen; `study_progress` across the retry ladder, the prerequisite case and the
+"never 6 of 5" clamp, plus its wiring onto `finalize`; the canonical-first hint with its audit
+row and ids-only marker. Content re-gated through `curriculum-load` (1 updated, 129 unchanged)
+and re-exported, with the round trip verified clean on unmodified content first.

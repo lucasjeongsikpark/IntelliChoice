@@ -7,6 +7,7 @@ for which of the nine spec'd endpoints are deferred and why.
 import logging
 import random
 import uuid
+from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
@@ -45,6 +46,7 @@ from learning_api.dependencies import (
     get_current_claims,
     get_db_session,
     get_graph,
+    get_hint_personalization_scheduler,
     get_mcp_registry,
     get_profile_adapter,
     get_session_events,
@@ -53,10 +55,19 @@ from learning_api.dependencies import (
 from learning_api.graph import nodes
 from learning_api.graph.build import EntryInput, LearningGraph
 from learning_api.graph.nodes import TurnContext
-from learning_api.services import attendance, checkpoint_reconcile, flow, topic_availability
+from learning_api.services import (
+    attendance,
+    checkpoint_reconcile,
+    flow,
+    study_progress,
+    topic_availability,
+)
 from learning_api.services.assessment_builder import AssessmentBuildError
 from learning_api.services.consolidation_scheduler import ConsolidationScheduler
 from learning_api.services.effective_policy import effective_assistance_policy
+from learning_api.services.hint_personalization_scheduler import (
+    BackgroundHintPersonalizationScheduler,
+)
 from learning_api.services.session_events import SessionEventBus
 from learning_api.services.stage_narrative_scheduler import (
     BackgroundStudyNarrativeScheduler,
@@ -123,6 +134,56 @@ class QuestionItemResponse(BaseModel):
     option_d: str
 
 
+class AssistanceQuestionResponse(BaseModel):
+    """D-272: the question the *current help* is about, so the client never has to guess.
+
+    The study screen shows the question on the left and the hint/solution/video/chat on the
+    right. Before this, the client derived the left column from `items`, and `items` does not
+    mean that:
+
+    - At the intervention **menu** (the turn right after a wrong answer) `items` is `None`.
+      `submit_answer` returns `AnswerResult(items=None)` on the incorrect path, and the router's
+      pending-interrupt early return sends no items at all - so the student's own question, with
+      its four options, disappeared the instant they asked for help. It came back only on a page
+      refresh, because `/stream` rebuilds from the checkpoint, which had retained it.
+    - Once the ladder **closes** (hint 3 of 3, or any solution or video) `items` is the *next*
+      question. `App.tsx` therefore refused to pair them - correctly - and collapsed to a single
+      narrow card with no question at all. Reproduced locally 2026-08-10 and it is the "the
+      screen jumps somewhere strange" report.
+
+    Bound to `LearningState.last_study_attempt_id`, which names the attempt the help was
+    generated for, so the pairing is right by construction rather than by position.
+
+    `selected_option` is the option the student actually chose. Showing it back to them is the
+    point of a worked hint: "you picked C" is information they cannot otherwise recover, and
+    without it the left column is a question they have already answered with no trace of how.
+    Not PII (an option letter), and no new storage - every field is already in Postgres.
+    """
+
+    question_variant_id: str
+    rendered_question: str
+    option_a: str
+    option_b: str
+    option_c: str
+    option_d: str
+    selected_option: str | None = None
+
+
+class StudyProgressResponse(BaseModel):
+    """D-272: where the student is in the study phase, so they can see how much is left.
+
+    Two bounded counters rather than one unbounded one - see
+    `services/study_progress.py` for why the denominator is skills and not questions.
+    """
+
+    skills_total: int
+    skills_resolved: int
+    current_skill_name: str | None = None
+    current_skill_position: int | None = None
+    attempt_in_line: int
+    max_attempts: int
+
+
 class TopicSelectionResponse(BaseModel):
     learning_session_id: str
     phase: str
@@ -179,6 +240,11 @@ class AnswerResponse(BaseModel):
     items: list[QuestionItemResponse] | None = None
     learning_gain: LearningGainResponse | None = None
     pending_interrupt: PendingInterruptResponse | None = None
+    # D-272: the question this turn's help is about. Set on the pending-interrupt branch,
+    # which is exactly where `items` is `None` and the student used to lose their question.
+    assistance_question: AssistanceQuestionResponse | None = None
+    # D-272: present on every study-phase response, absent everywhere else.
+    study_progress: StudyProgressResponse | None = None
     # S26 (plan §18-L7): set only when this turn fired a `study_step`/`study_outro`
     # narrative - never on the pending-interrupt early return above, since no narrative
     # can have fired before `intervention_choice` even runs.
@@ -221,6 +287,10 @@ class FinalizeExamResponse(BaseModel):
     phase: str
     items: list[QuestionItemResponse] | None = None
     learning_gain: LearningGainResponse | None = None
+    # D-272: finalizing the pre-exam is what *enters* the study phase, so this response is
+    # the first one the study screen renders - it needs the counters immediately, not one
+    # answer later.
+    study_progress: StudyProgressResponse | None = None
     # S26 (plan §18-L7): `pre_outro`/`post_outro`, whichever this finalize just fired.
     stage_narrative: str | None = None
     stage_narrative_evidence: list[str] | None = None
@@ -247,6 +317,10 @@ class ResumeResponse(BaseModel):
     items: list[QuestionItemResponse] | None = None
     learning_gain: LearningGainResponse | None = None
     pending_interrupt: PendingInterruptResponse | None = None
+    # D-272: set when the resumed session is paused on `intervention_choice`, so a resume
+    # lands on the same two-column view the student left rather than a bare help panel.
+    assistance_question: AssistanceQuestionResponse | None = None
+    study_progress: StudyProgressResponse | None = None
     # S26 (plan §18-L7): the checkpoint's own `stage_narrative` channel - re-served
     # verbatim on `/resume` like `message`, since it's just another `LastValue` field.
     stage_narrative: str | None = None
@@ -322,6 +396,11 @@ class RespondResponse(BaseModel):
     learning_gain: LearningGainResponse | None = None
     pending_interrupt: PendingInterruptResponse | None = None
     intervention: InterventionContentResponse | None = None
+    # D-272: paired with `intervention` on the same response, so the question shown beside
+    # a hint is the question that hint was written for - including after the ladder closes,
+    # when `items` has already moved on to the next question.
+    assistance_question: AssistanceQuestionResponse | None = None
+    study_progress: StudyProgressResponse | None = None
     attendance_resolution: str | None = None
     # S26 (plan §18-L7): `study_step`/`study_outro`, whichever `intervention_choice`
     # just fired this round.
@@ -346,6 +425,8 @@ class SessionSnapshotEvent(BaseModel):
     learning_gain: LearningGainResponse | None = None
     pending_interrupt: PendingInterruptResponse | None = None
     intervention: InterventionContentResponse | None = None
+    assistance_question: AssistanceQuestionResponse | None = None
+    study_progress: StudyProgressResponse | None = None
     attendance_resolution: str | None = None
     stage_narrative: str | None = None
     stage_narrative_evidence: list[str] | None = None
@@ -356,7 +437,8 @@ def _publish_snapshot(events: SessionEventBus, response: BaseModel) -> None:
     events.publish(snapshot.learning_session_id, snapshot.model_dump(mode="json"))
 
 
-def build_deferred_narrative_snapshot(
+async def build_deferred_narrative_snapshot(
+    db: AsyncSession,
     learning_session_id: str,
     state: dict,
     narrative_text: str,
@@ -383,8 +465,57 @@ def build_deferred_narrative_snapshot(
             else None
         ),
         attendance_resolution=state.get("attendance_resolution"),
+        # D-272: this frame replaces the client's whole snapshot, so the counters have to
+        # ride along or the progress bar blanks a beat after every correct answer.
+        study_progress=await _study_progress(db, state),
         stage_narrative=narrative_text,
         stage_narrative_evidence=narrative_evidence,
+    )
+    return event.model_dump(mode="json")
+
+
+async def build_personalized_hint_snapshot(
+    db: AsyncSession,
+    learning_session_id: str,
+    state: dict,
+    intervention: dict,
+) -> dict | None:
+    """D-272: the snapshot the background hint personalizer publishes.
+
+    Separate from `build_deferred_narrative_snapshot` because of one field. That builder
+    omits `pending_interrupt` deliberately - a study narrative only fires when the turn
+    *advanced*, so nothing is paused. A hint is the opposite case: the ladder is usually
+    still open, and the client replaces its whole snapshot per frame, so dropping the
+    pending interrupt here would tell the browser the pause had ended and collapse the panel
+    the replacement hint was meant to land in.
+
+    Returns `None` if the checkpoint has no interrupt state to read, rather than publishing
+    a frame that would move the student backwards.
+    """
+    assistance = await _assistance_question(db, state, help_open=True)
+    if assistance is None:
+        return None
+    event = SessionSnapshotEvent(
+        learning_session_id=learning_session_id,
+        phase=state.get("phase", "created"),
+        message=state.get("last_message"),
+        is_correct=state.get("last_is_correct"),
+        items=_items_response(state.get("last_items")),
+        intervention=InterventionContentResponse.from_dict(intervention),
+        assistance_question=assistance,
+        study_progress=await _study_progress(db, state),
+        attendance_resolution=state.get("attendance_resolution"),
+        # The pause, rebuilt from the checkpoint's own flag rather than from a
+        # `StateSnapshot` this function does not have. `hint_ladder_awaiting_choice` is
+        # exactly "the graph is parked on `intervention_choice` for this question".
+        pending_interrupt=(
+            PendingInterruptResponse(
+                interrupt_type="intervention_choice",
+                question_variant_id=assistance.question_variant_id,
+            )
+            if state.get("hint_ladder_awaiting_choice")
+            else None
+        ),
     )
     return event.model_dump(mode="json")
 
@@ -393,6 +524,86 @@ def _items_response(items: list[dict] | None) -> list[QuestionItemResponse] | No
     if items is None:
         return None
     return [QuestionItemResponse(**item) for item in items]
+
+
+async def _assistance_question(
+    db: AsyncSession, state: dict, *, help_open: bool
+) -> AssistanceQuestionResponse | None:
+    """D-272: the question the help on this same response belongs to, or `None`.
+
+    **`help_open` is decided by the caller, from the response it is building** - "this
+    response carries an `intervention_choice` pause, or an `intervention`". That keeps the
+    pairing self-consistent by construction: whatever a response says the help is, this is
+    the question it was written for.
+
+    Deliberately *not* derived from `last_intervention` alone. That channel goes stale - it
+    keeps a previous question's solution until something overwrites it, which is exactly the
+    hazard `stream._initial_snapshot` already gates behind `hint_ladder_awaiting_choice`
+    (D-216, "the D-215 §4 defect, in reverse"). Reading it here without a caller-supplied
+    gate would reintroduce that bug in a new place.
+
+    Two reads, both by primary key, both on a path that has already done several. Returning
+    `None` on any miss rather than raising: a missing attempt or variant means the left
+    column falls back to what it showed before this existed, which is a worse view, not a
+    broken one.
+    """
+    if not help_open:
+        return None
+    attempt_id = state.get("last_study_attempt_id")
+    if attempt_id is None:
+        return None
+    attempt = await StudyRepository(db).get_attempt(str(attempt_id))
+    if attempt is None:
+        return None
+    variant = await QuestionRepository(db).get_variant(attempt.question_variant_id)
+    if variant is None:
+        return None
+    return AssistanceQuestionResponse(
+        question_variant_id=variant.question_variant_id,
+        rendered_question=variant.rendered_question,
+        option_a=variant.option_a,
+        option_b=variant.option_b,
+        option_c=variant.option_c,
+        option_d=variant.option_d,
+        selected_option=attempt.selected_option,
+    )
+
+
+async def _study_progress(db: AsyncSession, state: dict) -> StudyProgressResponse | None:
+    """D-272: the study phase's two honest counters, or `None` outside study.
+
+    Three reads (session row, items, attempts), all already loaded elsewhere on the answer
+    turn - but re-read here rather than threaded through, because the router builds its
+    response *after* the graph turn has committed, and reusing the turn's own copies would
+    reintroduce the staleness `_serve_next_base_or_complete` documents (AUD-L-12: read the
+    row at serve time, not the value the plan started with).
+
+    Gated on the phase rather than on "a study session exists", so the numbers disappear at
+    the post-exam instead of freezing at their final values on a screen they no longer
+    describe.
+    """
+    if state.get("phase") != "study":
+        return None
+    study_session_id = state.get("study_session_id")
+    if study_session_id is None:
+        return None
+    repo = StudyRepository(db)
+    session_row = await repo.get_study_session(str(study_session_id))
+    if session_row is None:
+        return None
+    progress = study_progress.compute(
+        session_row,
+        await repo.get_items(str(study_session_id)),
+        await repo.get_attempts(str(study_session_id)),
+    )
+    return StudyProgressResponse(**asdict(progress))
+
+
+def _is_intervention_pause(pending: Interrupt | None) -> bool:
+    """Whether `pending` is the hint/solution/video choice, rather than child selection or
+    email approval. One place, because three call sites now ask it (D-223).
+    """
+    return pending is not None and pending.value["type"] == "intervention_choice"
 
 
 def _graph_config(learning_session_id: str) -> RunnableConfig:
@@ -545,6 +756,7 @@ def _turn_context(
     student_message: str | None = None,
     consolidation_scheduler: ConsolidationScheduler | None = None,
     defer_study_narrative: bool = False,
+    defer_hint_personalization: bool = False,
 ) -> TurnContext:
     return TurnContext(
         claims=claims,
@@ -565,6 +777,7 @@ def _turn_context(
         cost_ledger=cost_ledger,
         rng=random.Random(),
         defer_study_narrative=defer_study_narrative,
+        defer_hint_personalization=defer_hint_personalization,
         requested_student_id=requested_student_id,
         topic_id=topic_id,
         question_variant_id=question_variant_id,
@@ -1003,6 +1216,14 @@ async def submit_answer(
             phase=result["phase"],
             is_correct=result["last_is_correct"],
             pending_interrupt=await _pending_interrupt_response(pending, profile_adapter),
+            # D-272: this branch sends no `items` - `AnswerResult(items=None)` on the
+            # incorrect study path - which is precisely why the question used to vanish
+            # the moment a student asked for help. It comes back here, with its options
+            # and the option they chose.
+            assistance_question=await _assistance_question(
+                db, result, help_open=_is_intervention_pause(pending)
+            ),
+            study_progress=await _study_progress(db, result),
         )
         _publish_snapshot(events, response)
         return response
@@ -1025,12 +1246,37 @@ async def submit_answer(
             if result.get("last_learning_gain") is not None
             else None
         ),
+        study_progress=await _study_progress(db, result),
         stage_narrative=result.get("stage_narrative"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
     _publish_snapshot(events, response)
     await _schedule_deferred_narrative(study_narrative_scheduler, learning_session_id, result)
     return response
+
+
+async def _schedule_deferred_hint(
+    scheduler: "BackgroundHintPersonalizationScheduler | None",
+    learning_session_id: str,
+    result: dict,
+) -> None:
+    """D-272: if this turn served a canonical hint and left a marker, hand it to the
+    background personalizer. No-op under the mock provider, where the hint was personalized
+    inline in the graph node.
+    """
+    marker = result.get("pending_hint_personalization")
+    if scheduler is None or marker is None:
+        return
+    # `ainvoke` returns the whole state, and `pending_hint_personalization` is a `LastValue`
+    # channel - so a later `/respond` that resumes a *different* interrupt would hand back
+    # the previous hint's marker and schedule it a second time, spending a second Bedrock
+    # call for a hint that is already personalized. `intervention_choice` overwrites the
+    # channel on every one of its own turns (with `None` for solution/video/continue), so
+    # today this cannot happen; the guard is here so it stays that way rather than depending
+    # on which interrupts exist.
+    if marker.get("attempt_id") != result.get("last_study_attempt_id"):
+        return
+    await scheduler.schedule(learning_session_id=learning_session_id, marker=marker)
 
 
 async def _schedule_deferred_narrative(
@@ -1336,6 +1582,7 @@ async def finalize_exam(
             if result.get("last_learning_gain") is not None
             else None
         ),
+        study_progress=await _study_progress(db, result),
         stage_narrative=result.get("stage_narrative"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
@@ -1447,6 +1694,10 @@ async def respond_to_interrupt(
         "BackgroundStudyNarrativeScheduler | None",
         Depends(get_study_narrative_scheduler),
     ],
+    hint_scheduler: Annotated[
+        "BackgroundHintPersonalizationScheduler | None",
+        Depends(get_hint_personalization_scheduler),
+    ] = None,
 ) -> RespondResponse:
     """Resumes whichever `interrupt()` is currently paused on this thread (SPEC §5.1.4,
     Phase 8 §6.9) - child selection, attendance-email approval, or hint/solution/video
@@ -1501,6 +1752,7 @@ async def respond_to_interrupt(
         bedrock_gateway=bedrock_gateway,
         attendance_choice="ask_branch_manager" if body.interrupt_type == "email_approval" else None,
         defer_study_narrative=study_narrative_scheduler is not None,
+        defer_hint_personalization=hint_scheduler is not None,
     )
     try:
         result = await graph.ainvoke(
@@ -1540,12 +1792,25 @@ async def respond_to_interrupt(
             if result.get("last_intervention") is not None
             else None
         ),
+        # D-272: the terminal round (hint 3 of 3, or any solution/video) closes the pause
+        # and hands back the *next* question in `items`, so this is what keeps the help
+        # beside the question it explains instead of collapsing to a lone panel.
+        assistance_question=await _assistance_question(
+            db,
+            result,
+            help_open=_is_intervention_pause(next_pending)
+            or result.get("last_intervention") is not None,
+        ),
+        study_progress=await _study_progress(db, result),
         attendance_resolution=result.get("attendance_resolution"),
         stage_narrative=result.get("stage_narrative"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
     _publish_snapshot(events, response)
     await _schedule_deferred_narrative(study_narrative_scheduler, learning_session_id, result)
+    # D-272: after the publish, so the canonical hint is already on the student's screen
+    # before the rewrite of it is even requested.
+    await _schedule_deferred_hint(hint_scheduler, learning_session_id, result)
     return response
 
 
@@ -1594,6 +1859,10 @@ async def resume_session(
             learning_session_id=learning_session_id,
             phase=state.get("phase", "created"),
             pending_interrupt=await _pending_interrupt_response(pending, profile_adapter),
+            assistance_question=await _assistance_question(
+                db, state, help_open=_is_intervention_pause(pending)
+            ),
+            study_progress=await _study_progress(db, state),
         )
         _publish_snapshot(events, response)
         return response
@@ -1629,6 +1898,7 @@ async def resume_session(
             if result.get("last_learning_gain") is not None
             else None
         ),
+        study_progress=await _study_progress(db, result),
         stage_narrative=result.get("stage_narrative"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
