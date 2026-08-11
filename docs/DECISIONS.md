@@ -19958,3 +19958,109 @@ fights it); generating figures with an image model (unverifiable output where ev
 the item is deterministic — the SVG proposal keeps correctness inherited from gated parameters);
 and seeding videos before the taxonomy exists (the classifier would assign skills that are about
 to be renamed).
+
+---
+
+### D-274 — The generation pipeline gets a family contract, and its per-skill config leaves Python
+
+**Date:** 2026-08-11 · **Session:** C1 (3-5 wave, interrupted by an architecture review)
+
+The user's diagnosis: question generation is accumulating grade- and skill-specific logic that
+will not scale to K-12, and it should be restructured as a universal contract, problem-family
+contracts, skill/grade/difficulty requirements as configuration, and batch/run isolation. They
+asked whether the diagnosis was actually correct before anything was changed.
+
+**It is correct on three of four axes, and one axis was already built** — which is what kept the
+change small.
+
+| axis | as-found | evidence |
+|---|---|---|
+| universal contract | **already exists, sound** | `validate_authored_item` runs ten checks keyed on nothing but the item and its tier |
+| family contracts | **half-built** | `route_answer` is exactly this — on the *verification* side only. The design side had none |
+| skill/grade as config | **wrong home** | two per-skill registries in Python; a skill missing from one raises `PipelineConfigError` |
+| batch/run isolation | convention + a pre-check | preflight is TOCTOU; no run id on the row |
+
+#### 1. The blocking evidence was not the registries
+
+`validate_equation_design` required **every answer in the taxonomy** to be a positive whole
+number, with a docstring saying it would have to become a parameter "when such a topic exists,
+not before". Three measurements say the topic already existed:
+
+- **26 of the 184 shipped items fail it** — the whole of `fraction_operations`, whose answers are
+  `5/8`, `3/10`, `2/3`. **The pipeline could not regenerate 14% of its own bank.**
+- The cheap pre-gate was **stricter than the real gate it claims to duplicate**:
+  `check_sympy_independent_solve` accepts `5/8` without complaint. Its docstring says "this is the
+  same `derive_answer` check the full item already faces, moved to where it is cheap". It was not.
+- `Eq(x, 8.4 / 0.7)` **solves to 12** and was rejected as "not a whole number", because
+  `Float.is_Integer` is False — the check asked about the SymPy *type*, not the number. The
+  message then told the designer to change quantities that were already correct.
+
+So the rule was family-scoped all along and had been installed as a universal constant. That is
+the user's second axis, stated as a defect rather than as an architecture preference.
+
+#### 2. What was built
+
+`AnswerFamily` in `content.py`, with **two** members: `counting` (whole and positive — today's
+behaviour, and still the default, so every existing caller is unchanged) and `rational`. It lives
+in the taxonomy rather than beside the validator, for the reason D-232 gave when
+`difficulty_anchors` moved there: *a rule kept next to the code that reads it is a rule nobody
+edits when they add content.*
+
+**Deliberately two, not five.** A family names a genuinely different answer semantics, not a
+per-skill escape hatch. A `signed` family is the obvious third and is not here, on the same
+discipline that kept `selection` out of the Phase-R router until something used it.
+
+`_is_whole_number` asks about the value via the same `.equals` `_values_equal` uses, so
+`Float(12.0)` is whole and `5/8` is not.
+
+#### 3. Config moved to where the taxonomy already is
+
+`difficulty_tiers`, `structure` and `answer_family` are now fields on `SkillDef`.
+`TOPIC_SKILL_DIFFICULTIES` and `SKILL_STRUCTURES` survive as **projections** of the taxonomy
+rather than hand-written literals — the names stay because the planner and the tests read them,
+and a projection of one source is not the duplication being removed.
+
+Why it mattered concretely: a skill absent from the tier map raises `PipelineConfigError`, so
+**every new skill needed a Python edit before it could be generated at all.** At 21 skills that
+was a nuisance; the full taxonomy is 245.
+
+All 22 pre-existing spans and structures were extracted from git HEAD with `ast` and asserted
+byte-identical after the move, so "behaviour unchanged" is measured rather than believed.
+
+#### 4. Two defects found on the way, both by running code
+
+**A comma in an answer crashed the gate instead of deciding it.** Found by probing the router
+against the forms the 3-5 band needs, *before* authoring any of it. `sympy.sympify('4,700')`
+returns the plain Python tuple `(4, 700)` — it neither raises nor returns a `Basic` — so
+`_values_equal` called `.equals` on a tuple and died with `AttributeError`. The gate was also
+**order-dependent**: `answers_agree('4,700', '4700')` raised while the same pair reversed returned
+`False`, so which of the two solvers happened to be the first argument decided whether the run
+survived. Same defect class as the `TokenError` that escaped `derive_answer` in Phase R — a crash
+where a verdict belongs. Fixed by making `_sympify` honour its own annotation, and by stripping
+thousands separators from answer text but **never from an equation**, where a comma separates
+arguments and rewriting `Max(340,218)` to `Max(340218)` would silently change the question.
+
+**Preflight could not see a skill the database had never been loaded with.** Found by a test
+failing after the config move: `skills.yaml` is enough to *plan* a run, but
+`question_templates.skill_id` is a foreign key, so a run died on `ForeignKeyViolationError` at its
+first commit — **after paying for the candidate**. Preflight is free; that is where it belongs.
+
+#### 5. What was deliberately not done
+
+**Run isolation is deferred, not dismissed.** It is real: preflight checks id collisions against
+the database and then the run commits later, so two concurrent runs at one `--seed-offset` both
+pass and collide afterwards, and no run id is recorded on the row (D-194 notes every paid batch to
+date had to be reconstructed). It is deferred because its failure mode today is a *wasted run
+caught by a pre-check*, not bad content in front of a student, and bundling it would have tripled
+a diff whose point was to unblock four topics.
+
+**Also not done:** a family per skill (that is the registry problem again, wearing new clothes);
+making the family override the universal checks (a wrong `final_answer` is caught under every
+family, and there is a test asserting it); and deleting `TOPIC_SKILL_DIFFICULTIES` outright,
+which would have rewritten ~14 test assertions to prove a point the projection already makes.
+
+#### 6. Carried, not claimed
+
+The `rational` path is proven **at the gate**, by unit tests in both directions — not end to end,
+because the mock provider's design stub returns integer equations, so no mock run exercises a
+decimal. The first real 3-5 run is what tests it in anger.

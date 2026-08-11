@@ -540,6 +540,38 @@ to rot, because nothing fails when it does.)*
   being edited, and `test_every_topic_declares_a_full_difficulty_rubric` makes it a failure rather
   than a silent fallback to somebody else's ladder. Generalises D-226's lesson: the fix for a rule
   that drifts from what it governs is to move it, not to document it.
+- **What is universal, what is per-family, and what is configuration are three different
+  things — and a rule in the wrong one of them is a defect, not a style question** (D-274).
+  The generation pipeline now says which is which:
+  - **Universal** — `validate_authored_item`, ten checks keyed on nothing but the item and its
+    tier. Schema safety, one correct answer, no leaked answer, no meta-commentary. These hold for
+    every question this system will ever author, and a family may not switch one off.
+  - **Per-family** — the rules that differ by *answer semantics*. Verification already dispatched
+    this way (`route_answer`, above); design now does too, via `AnswerFamily`. The set is small on
+    purpose: **two** today, `counting` and `rational`. A family is not a per-skill escape hatch,
+    and a third gets added when a topic needs it, not in anticipation.
+  - **Configuration** — anything true of one skill: which tiers it spans, what structure its
+    equations must have, which family its answers belong to. These are fields on `SkillDef` in
+    `skills.yaml`, never tables in Python.
+
+  The measurement that forced the distinction: `validate_equation_design` required every answer in
+  the taxonomy to be a *positive whole number*, and **26 of the 184 shipped items failed it** — the
+  whole of `fraction_operations`, so the pipeline could not regenerate 14% of its own bank. The
+  cheap pre-gate was in fact *stricter* than the real gate it documents itself as duplicating. A
+  family rule installed as a universal constant is invisible until content arrives that it is
+  wrong for, and by then it reads as "the pipeline cannot do that" rather than "this rule is
+  misplaced".
+
+  The configuration half has a sharper test: a skill missing from the old Python tier map raised
+  `PipelineConfigError`, so **every new skill needed a source edit before it could be generated at
+  all**. Tolerable at 21 skills; the full taxonomy is 245. `TOPIC_SKILL_DIFFICULTIES` and
+  `SKILL_STRUCTURES` survive only as *projections* of the taxonomy — a projection of one source is
+  not duplication, a second literal is.
+
+  **Preflight owns the plan-versus-database gap.** The taxonomy is enough to plan a run, but
+  `question_templates.skill_id` is a foreign key into a table only `make curriculum-load`
+  populates, so a run planned from a fresh YAML died at its first commit *after paying*. Anything
+  a free check can know about a paid run belongs in preflight.
 - **Every measurement of a model's output ships with a control that can fail** (D-221, D-223, D-229,
   D-233) — a pass rate alone cannot distinguish "the bank is clean" from "the check stopped firing",
   and this codebase has now produced both. The controls are specific to the failure they exclude: the

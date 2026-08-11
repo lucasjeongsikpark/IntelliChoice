@@ -175,3 +175,211 @@ waves:
 # Money and Capacity recur across grades 2, 3, 4 and 6, so a cross-grade `measurement` topic
 # fits them far better than four per-grade copies - and building it from one grade's rows
 # would fix its ladder before the rest of the evidence is in. Scoped when the 3-5 wave runs.
+
+  g35:
+    status: taxonomy authored, not yet generated
+    topics:
+      # ---------------------------------------------------------------------------------
+      # Absorbed by topics that already teach them. 26 of the band's 91 rows.
+      # ---------------------------------------------------------------------------------
+      _grade_3_addition_subtraction:
+        source_book: "Grade 3 Addition & Subtraction"
+        not_a_topic: true
+        dispositions:
+          # `g2_add_multi_digit`'s declared structure is already "three- or four-digit
+          # numbers carrying in more than one column", and `g2_sub_multi_digit`'s is the
+          # borrow across a zero. These four rows are that skill, filed a grade later.
+          "3-Digit Addition": {mapping: covered_by, becomes: g2_add_multi_digit}
+          "4-Digit Addition": {mapping: covered_by, becomes: g2_add_multi_digit}
+          "3-Digit Subtraction": {mapping: covered_by, becomes: g2_sub_multi_digit}
+          "4-Digit Subtraction": {mapping: covered_by, becomes: g2_sub_multi_digit}
+
+      _grade_3_multiplication:
+        source_book: "Grade 3 Multiplication"
+        not_a_topic: true
+        # Ten rows that are one ladder, not ten skills - the K-2 finding, again. "2x Tables"
+        # through "9x Tables" are the same skill at ascending tiers, and `mult_facts` is
+        # that skill, already stocked and calibrated across six sessions of measurement.
+        dispositions:
+          "Repeated Addition": {mapping: covered_by, becomes: mult_facts}
+          "2x Tables": {mapping: covered_by, becomes: mult_facts}
+          "3x Tables": {mapping: covered_by, becomes: mult_facts}
+          "4x Tables": {mapping: covered_by, becomes: mult_facts}
+          "5x Tables": {mapping: covered_by, becomes: mult_facts}
+          "6x Tables": {mapping: covered_by, becomes: mult_facts}
+          "7x Tables": {mapping: covered_by, becomes: mult_facts}
+          "8x Tables": {mapping: covered_by, becomes: mult_facts}
+          "9x Tables": {mapping: covered_by, becomes: mult_facts}
+          "1x and 10x Tables": {mapping: covered_by, becomes: mult_facts}
+
+      _grade_3_division:
+        source_book: "Grade 3 Division"
+        not_a_topic: true
+        dispositions:
+          "Inverse Multiplication": {mapping: covered_by, becomes: div_basic}
+          "Division": {mapping: covered_by, becomes: div_basic}
+          "Division with Remainders": {mapping: covered_by, becomes: div_remainder}
+          "Vertical Form Division": {mapping: covered_by, becomes: div_basic}
+          "Division with Large Numbers": {mapping: covered_by, becomes: mult_multi_digit}
+
+      # ---------------------------------------------------------------------------------
+      # New topics.
+      # ---------------------------------------------------------------------------------
+      g4_multiplication_division:
+        source_book: "Grade 4 Multiplication + Grade 4 Division"
+        skills:
+          g4_mult_by_one_digit:
+            rows: ["2-Digit by 1-Digit Multiplication",
+                   "3-Digit and 4-Digit by 1-Digit Multiplication"]
+            mapping: tier
+          g4_mult_two_by_two:
+            rows: ["2-Digit by 2-Digit Multiplication"]
+            mapping: tier
+          g4_mult_large:
+            rows: ["3-Digit by 2-Digit Multiplication", "3-Digit by 3-Digit Multiplication",
+                   "Three Number Multiplication"]
+            mapping: tier
+          g4_div_by_one_digit:
+            rows: ["2-Digits / 1-Digits", "3-Digits / 1-Digits", "4-Digits / 1-Digits",
+                   "Checking the Answer"]
+            mapping: tier
+          g4_div_by_two_digit:
+            rows: ["3-Digits / 2-Digits", "4-Digits / 2-Digits",
+                   "Division with Large Numbers", "Mixed Calculations"]
+            mapping: tier
+
+      decimals:
+        source_book: "Grade 4 Decimals & Fractions + Grade 5 Decimals & Fractions"
+        # The topic that made the D-274 answer-family work necessary: every answer here is
+        # a decimal, and the design gate required a positive whole number.
+        skills:
+          decimal_add_sub:
+            rows: ["Addition of Decimals", "Subtraction of Decimals", "Three Decimals"]
+            mapping: tier
+          decimal_multiply:
+            rows: ["Multiplication of Decimals"]
+            mapping: tier
+          decimal_divide:
+            rows: ["Division of Decimals"]
+            mapping: tier
+        dispositions:
+          # Both grades' fraction rows. `fraction_operations` is banded 4-5 already and
+          # carries 26 shipped items; re-authoring them would mean two topics teaching one
+          # thing, and would discard the calibration D-222 through D-238 paid for.
+          "Fractions": {mapping: covered_by, becomes: fraction_add_sub_like}
+          "Addition of Fractions": {mapping: covered_by, becomes: fraction_add_sub_unlike}
+          "Subtraction of Fractions": {mapping: covered_by, becomes: fraction_add_sub_unlike}
+          "Three Fractions": {mapping: covered_by, becomes: fraction_mul_div}
+
+      number_sense:
+        source_book: "rows scattered across three Geometry & Measurement books"
+        # The topic that exercises Phase R's finding for real: `Eq(x, Max(...))` for a
+        # comparison and `Eq(x, 100 * round(n / 100))` for a rounding. Both model the
+        # question; `Eq(x, 4700)` states the answer and Phase R rejects it.
+        skills:
+          number_large_compare:
+            rows: ["Large Numbers"]
+            mapping: skill
+          number_rounding:
+            rows: ["Round Numbers", "Round Numbers, Odd & Even"]
+            mapping: skill
+          number_odd_even:
+            rows: ["Odd & Even Numbers"]
+            mapping: reshape
+            # Odd/even has no derivable form as "which of these is odd" - that is the
+            # vacuous `Eq(x, 47)`. It is authored as the remainder on division by two,
+            # `Eq(x, Mod(47, 2))`, which IS the definition rather than a proxy for it.
+
+      measurement:
+        source_book: "cross-grade: Grade 1/2/3/4/5 Geometry & Measurement"
+        # The cross-grade topic K-2 deferred, and this is the wave that was named as its
+        # condition. Building it from one grade's rows would have fixed its ladder before
+        # the rest of the evidence was in.
+        skills:
+          measurement_length:
+            rows: ["Length"]
+            mapping: skill
+          measurement_weight:
+            rows: ["Weight"]
+            mapping: skill
+          measurement_capacity:
+            rows: ["Capacity", "Volume, Capacity, Area"]
+            mapping: skill
+          measurement_money:
+            rows: ["Coins", "Money"]
+            mapping: skill
+          measurement_elapsed_time:
+            rows: ["Elapsed Time", "Time"]
+            mapping: skill
+          measurement_area_volume:
+            rows: ["Area", "Volume"]
+            mapping: skill
+        dispositions:
+          "Decimals, Measurements, and Fractions":
+            mapping: covered_by
+            becomes: decimal_add_sub
+          "Decimals": {mapping: covered_by, becomes: decimal_add_sub}
+
+      g3_word_problems:
+        source_book: "Grade 3 Word Problems"
+        skills:
+          g3_wp_add_sub:
+            rows: ["Addition or Subtraction", "Length", "Time"]
+            mapping: tier
+            # Length and Time here are addition/subtraction problems whose quantities carry
+            # a unit, not measurement-conversion problems. The conversion skills live in
+            # `measurement`; these are the same operation with a unit attached.
+          g3_wp_mult_div:
+            rows: ["Multiplication", "Division"]
+            mapping: tier
+          g3_wp_mixed:
+            rows: ["Mixed Calculations"]
+            mapping: tier
+
+      g4_word_problems:
+        source_book: "Grade 4 Word Problems"
+        skills:
+          g4_wp_division:
+            rows: ["Division"]
+            mapping: tier
+          g4_wp_decimals:
+            rows: ["Decimals"]
+            mapping: tier
+          g4_wp_formula_mixed:
+            rows: ["Using A Formula", "Mixed Calculations"]
+            mapping: tier
+
+      g5_word_problems:
+        source_book: "Grade 5 Word Problems"
+        skills:
+          g5_wp_fractions:
+            rows: ["Fractions"]
+            mapping: tier
+          g5_wp_decimals:
+            rows: ["Decimals"]
+            mapping: tier
+          g5_wp_ratios_mixed:
+            rows: ["Ratios", "Mixed Problems"]
+            mapping: tier
+
+      # ---------------------------------------------------------------------------------
+      # Family C: the figure IS the question. Deferred to the Phase 5 decision gate.
+      # Thirteen rows, and this band is where figures stop being avoidable - grade 5
+      # geometry is five of them in one book.
+      # ---------------------------------------------------------------------------------
+      _g35_figures:
+        not_a_topic: true
+        dispositions:
+          "Graphs & Tables": {mapping: phase_5, reason: the data is in the figure}
+          "Graphs, Percentages & Ratios": {mapping: phase_5, reason: the data is in the figure}
+          "Telling Time": {mapping: phase_5, reason: clock face}
+          "Triangles & Quadrilaterals": {mapping: phase_5, reason: the figure is the question}
+          "Boxes": {mapping: phase_5, reason: a net or solid must be pictured}
+          "Circles and Spheres": {mapping: phase_5, reason: the figure is the question}
+          "Areas and Triangles": {mapping: phase_5, reason: the figure carries the dimensions}
+          "Perpendicular & Parallel Lines": {mapping: phase_5, reason: the figure is the question}
+          "Quadrilaterals, Angles, and Polygons":
+            {mapping: phase_5, reason: the figure is the question}
+          "Congruent Figures": {mapping: phase_5, reason: two figures must be compared}
+          "Axial and Rotational Symmetry": {mapping: phase_5, reason: the figure is the question}
+          "Coordinate Geometry": {mapping: phase_5, reason: a plotted grid is the question}
