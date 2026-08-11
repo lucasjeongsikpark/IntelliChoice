@@ -1,0 +1,177 @@
+# Which source rows each internal skill covers (D-273, C1 Phase 1).
+#
+# `csv_row_dispositions.csv` answers "can the pipeline verify this row's answer model".
+# This file answers the question that came *after* it, and only after the first wave's
+# taxonomy was attempted: **at what granularity does a row become content.**
+#
+# The row-per-skill rule the matrix was built on does not survive contact with the source.
+# `grade_1_addition` has 13 rows - *Adding 1, Adding 2, Adding 3 ... Sums up to 28* - and
+# those are not 13 skills. They are points on one difficulty ladder, and the existing bank
+# (2-5 skills per topic, each spanning several tiers) is the shape the difficulty machinery
+# was calibrated against in D-232 and D-238. Thirteen skills each needing their own 1-5
+# anchors would produce twelve meaningless ladders: there is no hard version of "Adding 1".
+#
+# So a row maps to one of:
+#
+#   `tier`        - the row is a difficulty step inside a skill. Covered by authoring items
+#                   at that tier. This is the common case for drill progressions.
+#   `skill`       - the row is a strand of its own.
+#   `covered_by`  - an existing topic already teaches it. Not re-authored; the 130-item bank
+#                   carries calibration from six sessions of measurement and duplicating it
+#                   would mean two topics teaching one thing.
+#   `phase_5`     - needs a figure. Deferred to the figures decision gate, with the reason.
+#   `reshape`     - authorable only as a different question than the row's title suggests.
+#
+# **Coverage is still every row.** What changed is that a row can be covered as a tier rather
+# than as its own skill. `test_content_coverage.py` holds that: a row in neither a skill group
+# nor a non-authoring disposition fails.
+#
+# Waves fill this in as they run - K-2 first. A book with no entry here is not yet scoped,
+# which is different from being uncovered, and the test distinguishes the two.
+
+version: 1
+
+waves:
+  k2:
+    status: taxonomy authored, not yet generated
+    topics:
+      # ---------------------------------------------------------------------------------
+      # Coherent ladders: the rows *are* the difficulty progression.
+      # ---------------------------------------------------------------------------------
+      g1_addition:
+        source_book: "Grade 1 Addition"
+        skills:
+          g1_add_within_10:
+            rows: ["Table of Numbers", "Adding 1", "Adding 2", "Adding 3", "Adding 4", "Adding 5"]
+            mapping: tier
+          g1_add_within_20:
+            rows: ["Adding 6", "Adding 7 and 8", "Adding 9 and 10", "Adding Sums up to 16", "Adding Sums up to 20"]
+            mapping: tier
+          g1_add_within_28:
+            rows: ["Adding Sums up to 28"]
+            mapping: tier
+        dispositions:
+          "Writing Numbers":
+            mapping: reshape
+            # Family D in the matrix, and the reshape is now concrete. "Write the number for
+            # twenty-three" has no derivable answer and `Eq(x, 23)` is the vacuous form Phase R
+            # rejects. But the *composition* is derivable: `Eq(x, 20 + 3)` models "two tens and
+            # three ones", which is exactly how `place_value_identify` already writes its items.
+            # So it becomes a place-value composition item rather than an addition item.
+            becomes: place_value_identify
+
+      g1_subtraction:
+        source_book: "Grade 1 Subtraction"
+        skills:
+          g1_sub_within_10:
+            rows: ["Table of Numbers", "Subtracting 1", "Subtracting 2", "Subtracting 3", "Subtracting 4", "Subtracting 5"]
+            mapping: tier
+          g1_sub_within_20:
+            rows: ["Subtracting"]
+            mapping: tier
+          g1_sub_three_numbers:
+            rows: ["Three One-Digit Numbers"]
+            mapping: skill
+            # A strand, not a tier: choosing an order before subtracting is different work
+            # from subtracting once, and D-238's lesson is that two kinds of work under one
+            # rubric read as flat calibration.
+
+      g2_addition:
+        source_book: "Grade 2 Addition"
+        skills:
+          g2_add_within_100:
+            rows: ["Sums up to 28", "Addition of Tens", "1- and 2-Digit Addition", "Sums up to 50", "Sums up to 100"]
+            mapping: tier
+          g2_add_multi_digit:
+            rows: ["Sums Beyond 100", "3- and 4-Digit Addition"]
+            mapping: tier
+          g2_add_three_numbers:
+            rows: ["Three Numbers"]
+            mapping: skill
+
+      g2_subtraction:
+        source_book: "Grade 2 Subtraction"
+        skills:
+          g2_sub_two_digit:
+            rows: ["2-Digit Subtraction", "Subtraction", "Subtraction of Tens"]
+            mapping: tier
+          g2_sub_multi_digit:
+            rows: ["3-Digit Subtraction", "Subtraction of Hundreds", "Subtraction of Thousands"]
+            mapping: tier
+          g2_sub_three_numbers:
+            rows: ["Three Numbers"]
+            mapping: skill
+
+      # ---------------------------------------------------------------------------------
+      # Word problems: the strand is *which operation the situation calls for*, which is the
+      # work, so the rows split by that rather than by arithmetic difficulty.
+      # ---------------------------------------------------------------------------------
+      g1_word_problems:
+        source_book: "Grade 1 Word Problems"
+        skills:
+          g1_wp_single_operation:
+            rows: ["Addition", "Subtraction"]
+            mapping: tier
+          g1_wp_choose_operation:
+            rows: ["Addition or Subtraction", "Mixed Addition and Subtraction"]
+            mapping: tier
+            # Deciding *which* operation a situation needs is the skill here, and it is
+            # genuinely harder than being told. Kept apart from the single-operation rows.
+        dispositions:
+          "Ordinal Numbers":
+            mapping: reshape
+            # `selection` in the matrix. Authorable as a position question whose answer is
+            # derivable - "fifth in a line of 9 counted from the back" is `Eq(x, 9 - 5 + 1)`.
+            becomes: g1_wp_single_operation
+
+      g2_word_problems:
+        source_book: "Grade 2 Word Problems"
+        skills:
+          g2_wp_single_operation:
+            rows: ["Addition and Subtraction", "Addition or Subtraction"]
+            mapping: tier
+          g2_wp_measurement_context:
+            rows: ["Length", "Weight"]
+            mapping: tier
+            # Same arithmetic, but the quantities carry units that must survive the answer.
+          g2_wp_multi_step:
+            rows: ["Mixed Calculations"]
+            mapping: skill
+        dispositions:
+          "Tables & Graphs":
+            mapping: phase_5
+            reason: the data lives in a table or chart the student must read
+
+      # ---------------------------------------------------------------------------------
+      # The mixed books. Split by strand rather than authored as one topic, because their
+      # rows belong to unrelated ladders - the exact failure D-238 measured on `place_value`,
+      # where one rubric over two strands read as flat calibration and routed real students.
+      # ---------------------------------------------------------------------------------
+      _grade_1_geometry_measurement:
+        source_book: "Grade 1 Geometry & Measurement"
+        not_a_topic: true
+        dispositions:
+          "Numbers up to 10": {mapping: covered_by, becomes: place_value}
+          "Numbers up to 20": {mapping: covered_by, becomes: place_value}
+          "Numbers up to 120": {mapping: covered_by, becomes: place_value}
+          "Telling Time": {mapping: phase_5, reason: clock face}
+          "Measurements": {mapping: phase_5, reason: comparison against a pictured object}
+          "Shapes": {mapping: phase_5, reason: the shape is the question}
+          "Coins": {mapping: skill, becomes: measurement_money}
+
+      _grade_2_geometry_measurement:
+        source_book: "Grade 2 Geometry & Measurement"
+        not_a_topic: true
+        dispositions:
+          "Numbers up to 1000": {mapping: covered_by, becomes: place_value}
+          "Numbers up to 10000": {mapping: covered_by, becomes: place_value}
+          "Telling Time": {mapping: phase_5, reason: clock face}
+          "Triangles and Quadrilaterals": {mapping: phase_5, reason: the figure is the question}
+          "Length": {mapping: skill, becomes: measurement_length}
+          "Weight": {mapping: skill, becomes: measurement_weight}
+          "Money": {mapping: skill, becomes: measurement_money}
+
+# `measurement_*` skills are named here but deliberately have no topic yet. Length, Weight,
+# Money and Capacity recur across grades 2, 3, 4 and 6, so a cross-grade `measurement` topic
+# fits them far better than four per-grade copies - and building it from one grade's rows
+# would fix its ladder before the rest of the evidence is in. Scoped when the 3-5 wave runs.

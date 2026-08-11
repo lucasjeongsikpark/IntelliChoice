@@ -2,6 +2,13 @@ from intellichoice_curriculum.content import CurriculumContent, load_curriculum
 
 
 def test_loads_every_seeded_topic() -> None:
+    """The exact set, not a count - a topic added without a decision should fail here.
+
+    The four concept topics are the calibrated bank (D-222 through D-238). The six `g1_`/`g2_`
+    topics are C1's K-2 wave (D-273), whose taxonomy is authored but whose items are not
+    generated yet, so they will report `available=False` until the wave runs - which is a
+    fact about the bank, not about this file (D-187 made availability a bank read).
+    """
     content = load_curriculum()
 
     assert content.topic_ids() == {
@@ -9,6 +16,12 @@ def test_loads_every_seeded_topic() -> None:
         "fraction_operations",
         "multiplication_division",
         "place_value",
+        "g1_addition",
+        "g1_subtraction",
+        "g1_word_problems",
+        "g2_addition",
+        "g2_subtraction",
+        "g2_word_problems",
     }
     assert content.curriculum_version
 
@@ -60,11 +73,30 @@ def test_topics_for_grade_resolves_a_single_grade_through_its_band() -> None:
     # whole reason D-187 could read a map that had been loaded and ignored since S3.
     assert content.topics_for_grade("6") == ["linear_equations"]
     assert content.topics_for_grade("7") == ["linear_equations"]
-    assert content.topics_for_grade("2") == ["place_value"]
     # D-228: a band may name more than one topic, and the order is the recommendation
-    # order. Grade 3's own year is multiplication and division; `place_value` follows as
-    # the review half of the same §5.7.3 band.
-    assert content.topics_for_grade("3") == ["multiplication_division", "place_value"]
+    # order. C1's K-2 wave (D-273) put six topics into the two bands that already existed
+    # rather than adding a "K-1" band, which would have matched grade 1 first and taken it
+    # from `place_value` - the theft the next test guards. A grade-2 student's own year is
+    # addition and subtraction, so those lead and the support skills follow.
+    assert content.topics_for_grade("1") == [
+        "g1_addition",
+        "g1_subtraction",
+        "g1_word_problems",
+        "place_value",
+    ]
+    assert content.topics_for_grade("2") == [
+        "g1_addition",
+        "g1_subtraction",
+        "g1_word_problems",
+        "place_value",
+    ]
+    assert content.topics_for_grade("3") == [
+        "g2_addition",
+        "g2_subtraction",
+        "g2_word_problems",
+        "multiplication_division",
+        "place_value",
+    ]
 
 
 def test_adding_a_band_never_steals_a_grade_from_an_existing_one() -> None:

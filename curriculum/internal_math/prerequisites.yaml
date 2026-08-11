@@ -38,3 +38,55 @@ prerequisites:
 
   - skill_id: div_remainder
     prerequisite_skill_id: div_basic
+
+  # C1 wave K-2 (D-273). Chains within a topic follow the ladder; the cross-topic edges are
+  # the ones worth reading, because they are what routes a struggling grade-2 student back to
+  # a grade-1 skill rather than to an easier version of the same one (SPEC §5.11).
+  - skill_id: g1_add_within_20
+    prerequisite_skill_id: g1_add_within_10
+
+  - skill_id: g1_add_within_28
+    prerequisite_skill_id: g1_add_within_20
+
+  - skill_id: g1_sub_within_10
+    prerequisite_skill_id: g1_add_within_10
+
+  - skill_id: g1_sub_within_20
+    prerequisite_skill_id: g1_sub_within_10
+
+  - skill_id: g1_sub_three_numbers
+    prerequisite_skill_id: g1_sub_within_20
+
+  - skill_id: g1_wp_single_operation
+    prerequisite_skill_id: g1_add_within_20
+
+  - skill_id: g1_wp_choose_operation
+    prerequisite_skill_id: g1_wp_single_operation
+
+  # Grade 2 builds on grade 1, so an intervention can drop a band rather than only a tier.
+  - skill_id: g2_add_within_100
+    prerequisite_skill_id: g1_add_within_28
+
+  - skill_id: g2_add_multi_digit
+    prerequisite_skill_id: g2_add_within_100
+
+  - skill_id: g2_add_three_numbers
+    prerequisite_skill_id: g2_add_within_100
+
+  - skill_id: g2_sub_two_digit
+    prerequisite_skill_id: g1_sub_within_20
+
+  - skill_id: g2_sub_multi_digit
+    prerequisite_skill_id: g2_sub_two_digit
+
+  - skill_id: g2_sub_three_numbers
+    prerequisite_skill_id: g2_sub_two_digit
+
+  - skill_id: g2_wp_single_operation
+    prerequisite_skill_id: g1_wp_choose_operation
+
+  - skill_id: g2_wp_measurement_context
+    prerequisite_skill_id: g2_wp_single_operation
+
+  - skill_id: g2_wp_multi_step
+    prerequisite_skill_id: g2_wp_single_operation

@@ -27,10 +27,25 @@
 # *first* match, so a "3-4" key placed above "4-5" would take grade 4 away from
 # `fraction_operations`, and placed below it would never be reached by grade 3. Pinned by
 # `test_adding_a_band_never_steals_a_grade_from_an_existing_one`.
+# C1 wave K-2 (D-273) added six topics to the two bands that already existed rather than
+# adding a "K-1" band for the grade-1 books. That is deliberate: a "K-1" band placed above
+# "1-2" would match grade 1 first and take it away from `place_value`, which is precisely
+# the theft `test_adding_a_band_never_steals_a_grade_from_an_existing_one` exists to catch.
+# The grade-1 books sit in "1-2" instead, where they serve the same grades and steal nothing.
+#
+# Order within a band is the recommendation order a student sees, so the arithmetic topics
+# lead: a grade-1 student's own year is addition and subtraction, and `place_value` is the
+# support skill underneath them rather than the headline.
 grade_topic_candidates:
   "1-2":
+    - g1_addition
+    - g1_subtraction
+    - g1_word_problems
     - place_value
   "2-3":
+    - g2_addition
+    - g2_subtraction
+    - g2_word_problems
     - multiplication_division
     - place_value
   "4-5":

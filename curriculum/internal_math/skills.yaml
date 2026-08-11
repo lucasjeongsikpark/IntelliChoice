@@ -55,6 +55,79 @@ skills:
     topic_id: multiplication_division
     name: "Divide with remainders"
 
+  # C1 wave K-2 (D-273). Two or three skills per book, not one per source row - the rows are
+  # the difficulty ladder. `curriculum/coverage/skill_groups.yaml` records the row->skill map.
+  # The `*_three_numbers` skills are separate strands rather than a top tier of their
+  # neighbours: choosing an order before calculating is different work from calculating once,
+  # and D-238 measured what happens when two kinds of work share one rubric.
+  - skill_id: g1_add_within_10
+    topic_id: g1_addition
+    name: "Add within 10"
+
+  - skill_id: g1_add_within_20
+    topic_id: g1_addition
+    name: "Add by bridging through ten"
+
+  - skill_id: g1_add_within_28
+    topic_id: g1_addition
+    name: "Add with totals past twenty"
+
+  - skill_id: g1_sub_within_10
+    topic_id: g1_subtraction
+    name: "Subtract within 10"
+
+  - skill_id: g1_sub_within_20
+    topic_id: g1_subtraction
+    name: "Subtract within 20 by breaking a ten"
+
+  - skill_id: g1_sub_three_numbers
+    topic_id: g1_subtraction
+    name: "Combine three one-digit numbers"
+
+  - skill_id: g1_wp_single_operation
+    topic_id: g1_word_problems
+    name: "Solve a word problem using the operation the story names"
+
+  - skill_id: g1_wp_choose_operation
+    topic_id: g1_word_problems
+    name: "Decide which operation a situation calls for"
+
+  - skill_id: g2_add_within_100
+    topic_id: g2_addition
+    name: "Add two-digit numbers within 100"
+
+  - skill_id: g2_add_multi_digit
+    topic_id: g2_addition
+    name: "Add three- and four-digit numbers"
+
+  - skill_id: g2_add_three_numbers
+    topic_id: g2_addition
+    name: "Add three numbers"
+
+  - skill_id: g2_sub_two_digit
+    topic_id: g2_subtraction
+    name: "Subtract two-digit numbers"
+
+  - skill_id: g2_sub_multi_digit
+    topic_id: g2_subtraction
+    name: "Subtract three- and four-digit numbers"
+
+  - skill_id: g2_sub_three_numbers
+    topic_id: g2_subtraction
+    name: "Subtract with three numbers"
+
+  - skill_id: g2_wp_single_operation
+    topic_id: g2_word_problems
+    name: "Solve a two-digit word problem with one operation"
+
+  - skill_id: g2_wp_measurement_context
+    topic_id: g2_word_problems
+    name: "Solve a word problem whose quantities carry units"
+
+  - skill_id: g2_wp_multi_step
+    topic_id: g2_word_problems
+    name: "Solve a word problem needing two operations"
+
   # place_value
   - skill_id: place_value_identify
     topic_id: place_value

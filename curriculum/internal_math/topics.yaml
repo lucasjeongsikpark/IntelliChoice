@@ -70,6 +70,114 @@ topics:
       5: "a remainder that must be interpreted in the situation rather than reported, or a
         three-digit number multiplied by a one-digit number (128 x 3)"
 
+  # ---------------------------------------------------------------------------------------
+  # C1 wave K-2 (D-273). Six topics from the source taxonomy's grade 1 and 2 books.
+  #
+  # The rows of these books *are* the difficulty ladder - "Adding 1, Adding 2 ... Sums up to
+  # 28" is a progression, not thirteen skills - so each book collapses to 2-3 skills whose
+  # tiers the rows populate. `curriculum/coverage/skill_groups.yaml` records which row feeds
+  # which skill.
+  #
+  # Every anchor below names a STRUCTURAL feature (D-232) and, where a topic's skills differ
+  # in kind, names the skill the clause belongs to (D-238). Tier 5 in each of the four
+  # arithmetic topics is the three-number strand precisely because choosing an order is
+  # different work from calculating once, and a rubric that hid that difference is what made
+  # `place_value` read as flat calibration.
+  - topic_id: g1_addition
+    name: "Addition to 28"
+    grade_band: "1-2"
+    description: >
+      Adding within 10, bridging through ten to 20, and totals reaching into the twenties.
+    difficulty_anchors:
+      1: "both addends are single digits and the total is 10 or less, so it can be counted on
+        from the larger one (6 + 3)"
+      2: "the total lands between 11 and 16, so ten is crossed once and the student must split
+        the smaller addend to bridge it (8 + 5)"
+      3: "one addend is 9 or 10, so the efficient route is making a ten and adjusting rather
+        than counting on (9 + 7 as 10 + 6)"
+      4: "the total lands between 17 and 20, so ten is crossed and the remainder carried past
+        it is larger (8 + 9)"
+      5: "the total passes 20, so a second ten is reached and the tens digit changes twice
+        across the calculation (19 + 9)"
+
+  - topic_id: g1_subtraction
+    name: "Subtraction within 20"
+    grade_band: "1-2"
+    description: >
+      Taking away within 10, breaking a ten to subtract within 20, and combining three
+      one-digit numbers.
+    difficulty_anchors:
+      1: "a single-digit number is taken from a total of 10 or less and can be counted back
+        without breaking anything (7 - 2)"
+      2: "the total is still 10 or less but the amount taken is close to it, so counting back
+        is inefficient and the related addition fact is the route (9 - 7)"
+      3: "the total is between 11 and 20 and its ones digit is larger than the amount taken,
+        so no ten has to be broken (17 - 4)"
+      4: "the total is between 11 and 20 and its ones digit is SMALLER than the amount taken,
+        so a ten must be broken first (14 - 6)"
+      5: "three one-digit numbers are combined, so an order must be chosen before any
+        subtraction happens (12 - 3 - 4)"
+
+  - topic_id: g1_word_problems
+    name: "Word Problems: Adding and Taking Away"
+    grade_band: "1-2"
+    description: >
+      Situations that call for one addition or subtraction, and situations where the
+      student must decide which.
+    difficulty_anchors:
+      1: "the situation states what joins what, and the totals stay within 10"
+      2: "the situation states what is taken away, and the totals stay within 20"
+      3: "the operation is NOT named and must be inferred from the situation (totals within 20)"
+      4: "the question asks for the starting amount or the change rather than the result, so
+        the operation runs backwards from the way the story is told"
+      5: "two steps are needed and the result of the first is what the second acts on"
+
+  - topic_id: g2_addition
+    name: "Addition to 4 Digits"
+    grade_band: "2-3"
+    description: >
+      Two-digit addition with and without carrying, multi-digit addition, and combining
+      three numbers.
+    difficulty_anchors:
+      1: "both addends are multiples of ten, so only the tens column is added (30 + 40)"
+      2: "a two-digit and a one-digit number whose ones digits do not reach ten, so no carry
+        happens (34 + 5)"
+      3: "two two-digit numbers whose ones digits sum past ten, so exactly one carry is
+        needed (37 + 25)"
+      4: "three- or four-digit addition carrying in more than one column (2,478 + 1,365)"
+      5: "three numbers are added, so an order must be chosen and a running total held
+        across two steps (46 + 27 + 18)"
+
+  - topic_id: g2_subtraction
+    name: "Subtraction to 4 Digits"
+    grade_band: "2-3"
+    description: >
+      Two-digit subtraction with and without regrouping, multi-digit subtraction including
+      across a zero, and combining three numbers.
+    difficulty_anchors:
+      1: "both numbers are multiples of ten, so only the tens column is subtracted (80 - 30)"
+      2: "two-digit subtraction where every digit of the total is larger than the digit below
+        it, so nothing is regrouped (57 - 23)"
+      3: "two-digit subtraction needing exactly one regroup from the tens (52 - 27)"
+      4: "three- or four-digit subtraction needing a regroup ACROSS A ZERO, so the borrow
+        travels more than one column (400 - 128)"
+      5: "three numbers are combined, so an order must be chosen and an intermediate result
+        carried (95 - 27 - 18)"
+
+  - topic_id: g2_word_problems
+    name: "Word Problems: Two-Digit Quantities"
+    grade_band: "2-3"
+    description: >
+      Situations on two-digit quantities, including lengths and weights that carry units,
+      and situations needing two operations.
+    difficulty_anchors:
+      1: "one operation, named by the situation, on two-digit quantities"
+      2: "one operation the student must infer from the situation, on two-digit quantities"
+      3: "the quantities carry a unit that has to survive into the answer (centimetres, grams)"
+      4: "a quantity is given RELATIVE to another rather than directly, so it must be worked
+        out before the question can be answered"
+      5: "two operations are needed and the intermediate result is not what is asked for"
+
   - topic_id: place_value
     name: "Place Value"
     grade_band: "1-2"

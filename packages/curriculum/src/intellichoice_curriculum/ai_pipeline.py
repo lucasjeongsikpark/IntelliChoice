@@ -112,7 +112,47 @@ TOPIC_SKILL_DIFFICULTIES: dict[str, dict[str, list[int]]] = {
         "linear_neg_frac_coeff": [2, 3, 4],
         "linear_both_sides": [3, 4, 5],
         "linear_distribute": [5],
-    }
+    },
+    # C1 wave K-2 (D-273). Until now this registry held `linear_equations` alone, which is
+    # why the D-239 re-tier gate had never fired on a real population: the topics where tier
+    # disagreement actually lives were all hand-authored and the pipeline never saw them
+    # (PROGRESS carry-over #6). These six give it one.
+    #
+    # **A skill's tier span is where the skill actually spans, not 1-5 by default** (D-223).
+    # `g1_add_within_10` tops out at 2 because there is no difficulty-5 version of adding
+    # within ten, and claiming one is what produced `place_value_identify`'s flat ladder in
+    # D-238 - a rubric that claims a range the skill does not have makes the tier decorative,
+    # and a decorative tier still routes a real student. The spans below follow each topic's
+    # own anchors in topics.yaml.
+    "g1_addition": {
+        "g1_add_within_10": [1, 2],
+        "g1_add_within_20": [2, 3, 4],
+        "g1_add_within_28": [4, 5],
+    },
+    "g1_subtraction": {
+        "g1_sub_within_10": [1, 2],
+        "g1_sub_within_20": [3, 4],
+        "g1_sub_three_numbers": [5],
+    },
+    "g1_word_problems": {
+        "g1_wp_single_operation": [1, 2],
+        "g1_wp_choose_operation": [3, 4, 5],
+    },
+    "g2_addition": {
+        "g2_add_within_100": [1, 2, 3],
+        "g2_add_multi_digit": [4],
+        "g2_add_three_numbers": [5],
+    },
+    "g2_subtraction": {
+        "g2_sub_two_digit": [1, 2, 3],
+        "g2_sub_multi_digit": [4],
+        "g2_sub_three_numbers": [5],
+    },
+    "g2_word_problems": {
+        "g2_wp_single_operation": [1, 2],
+        "g2_wp_measurement_context": [3, 4],
+        "g2_wp_multi_step": [5],
+    },
 }
 
 _REQUIRED_DISTRACTOR_COUNT = 3  # 4 options total: 1 correct + 3 distractors.
@@ -1105,6 +1145,48 @@ SKILL_STRUCTURES: dict[str, str] = {
     "this skill however hard it is otherwise",
     "linear_distribute": "a bracket that MUST be distributed before like terms can be "
     "combined, e.g. Eq(5*(c + 2) + 12, 42)",
+    # C1 wave K-2 (D-273). Each names the structure the skill is *defined by*, because the
+    # tier alone is not enough to separate two skills that can share one - the collision this
+    # registry exists to prevent.
+    #
+    # Two of these lean on the Phase R finding rather than on arithmetic: `Eq(x, Max(...))`
+    # and `Eq(x, <composition>)` model questions whose answer is *selected* or *composed*
+    # rather than calculated. That form always worked and nobody reached for it, which is how
+    # 15 `place_value_compare` items became subtraction problems. Naming it here is what
+    # stops the same reshaping happening again at 34-topic scale.
+    "g1_add_within_10": "one addition of two single-digit numbers with a total of 10 or "
+    "less, e.g. Eq(x, 6 + 3) - no bridging through ten",
+    "g1_add_within_20": "one addition of two single-digit numbers whose total is between 11 "
+    "and 20, so ten is crossed, e.g. Eq(x, 8 + 5)",
+    "g1_add_within_28": "one addition whose total passes 20, e.g. Eq(x, 19 + 9) - a second "
+    "ten must be reached",
+    "g1_sub_within_10": "one subtraction from a total of 10 or less, e.g. Eq(x, 9 - 4), or "
+    "the same as a missing addend, e.g. Eq(4 + x, 9)",
+    "g1_sub_within_20": "one subtraction from a total between 11 and 20 where the total's "
+    "ones digit is SMALLER than the amount taken, so a ten must be broken, e.g. Eq(x, 14 - 6)",
+    "g1_sub_three_numbers": "three one-digit numbers combined in one expression, e.g. "
+    "Eq(x, 12 - 3 - 4) - two operations, not one",
+    "g1_wp_single_operation": "one operation the story names outright, on totals within 20, "
+    "e.g. Eq(x, 7 + 5) - or a missing-part form, Eq(7 + x, 12)",
+    "g1_wp_choose_operation": "one operation the story does NOT name, so the situation "
+    "decides it, e.g. Eq(13 - x, 5) for how many were taken away",
+    "g2_add_within_100": "addition of two-digit numbers totalling at most 100, e.g. "
+    "Eq(x, 37 + 25)",
+    "g2_add_multi_digit": "addition of three- or four-digit numbers carrying in more than "
+    "one column, e.g. Eq(x, 2478 + 1365)",
+    "g2_add_three_numbers": "three numbers added in one expression, e.g. Eq(x, 46 + 27 + 18)",
+    "g2_sub_two_digit": "subtraction of two-digit numbers, e.g. Eq(x, 52 - 27), or the "
+    "missing-addend form Eq(27 + x, 52)",
+    "g2_sub_multi_digit": "subtraction of three- or four-digit numbers where the borrow "
+    "travels across a zero, e.g. Eq(x, 400 - 128)",
+    "g2_sub_three_numbers": "three numbers combined in one expression with at least one "
+    "subtraction, e.g. Eq(x, 95 - 27 - 18)",
+    "g2_wp_single_operation": "one operation on two-digit quantities, e.g. Eq(x, 48 + 27)",
+    "g2_wp_measurement_context": "one operation whose quantities carry a unit that must "
+    "appear in the answer, e.g. Eq(x, 145 - 68) for centimetres",
+    "g2_wp_multi_step": "TWO operations where the first result feeds the second, e.g. "
+    "Eq(x, (24 + 18) - 15) - a single operation is wrong for this skill however large the "
+    "numbers are",
 }
 
 
