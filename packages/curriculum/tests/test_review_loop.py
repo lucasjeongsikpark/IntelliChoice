@@ -26,6 +26,7 @@ from intellichoice_shared.bedrock import (
     SolutionResponse,
     SolutionStep,
 )
+from pydantic import ValidationError
 
 
 def _item(**overrides: object) -> AuthoredGeneratedItemResponse:
@@ -238,8 +239,7 @@ def test_the_repair_prompt_forbids_moving_the_answer_and_the_house_style() -> No
 
 def test_the_repair_payload_carries_at_least_one_defect() -> None:
     """`min_length=1`: a repair prompt with no defects is a re-roll (§4.6)."""
-    from pydantic import ValidationError
-
+    
     with pytest.raises(ValidationError):
         build_payload(_item(), [], skill_name="s", grade_band="6-8")
 
@@ -250,12 +250,15 @@ def test_apply_repair_replaces_only_the_ladder_and_the_solution() -> None:
         item,
         HintSolutionRepairResponse(
             reasoning="r",
-            hint_ladder=["one", "two"],
+            # Three rungs, because that is what an item allows (D-267). This fixture used
+            # two and passed until the bound was corrected - the fixture was wrong, not the
+            # rule.
+            hint_ladder=["one", "two", "three"],
             solution_steps=[SolutionStep(step_number=1, explanation="e", expression="x")],
             solution_final_answer="13",
         ),
     )
-    assert repaired.hint_ladder == ["one", "two"]
+    assert repaired.hint_ladder == ["one", "two", "three"]
     assert len(repaired.canonical_solution.steps) == 1
     assert repaired.stem == item.stem and repaired.option_b == item.option_b
 
@@ -456,3 +459,144 @@ def test_the_panel_still_decides_acceptance_when_a_defect_was_contributed() -> N
         ],
     )
     assert outcome.status == "discarded"
+
+
+def test_a_repair_that_leaves_the_contributed_defect_unresolved_is_rejected() -> None:
+    """D-266, closing the hole D-264 measured at 2 of 44. The panel cannot verify a
+    contributed defect - it never saw one - so the contributor has to be able to say whether
+    its own finding survived.
+    """
+    outcome = _run(
+        first_round_defects=[
+            HintSolutionDefect(
+                target="canonical_solution", index=2, problem="p", suggested_fix="f"
+            )
+        ],
+        contributed_resolved=lambda _item: False,
+    )
+    assert outcome.status == "discarded"
+    assert outcome.stopped_because == "contributed defect not resolved"
+    assert outcome.rounds[0].contributed_unresolved
+
+
+def test_the_item_keeps_its_original_text_when_a_repair_is_rejected() -> None:
+    """"Reject the repair, keep the item" - the audit still cannot reject an *item*, only
+    decline to repair one. For bank repair that is identical to doing nothing, which is why
+    this does not make the audit the gate D-257 forbade.
+    """
+    original = _item(hint_ladder=["Divide 52 by 4.", "Divide 52 by 4.", "What is 52/4?"])
+    outcome = _run(
+        item=original,
+        first_round_defects=[
+            HintSolutionDefect(
+                target="canonical_solution", index=2, problem="p", suggested_fix="f"
+            )
+        ],
+        contributed_resolved=lambda _item: False,
+    )
+    assert outcome.item.hint_ladder == original.hint_ladder
+    assert outcome.item.canonical_solution == original.canonical_solution
+
+
+def test_a_resolved_contributed_defect_lets_the_repair_stand() -> None:
+    outcome = _run(
+        first_round_defects=[
+            HintSolutionDefect(
+                target="canonical_solution", index=2, problem="p", suggested_fix="f"
+            )
+        ],
+        contributed_resolved=lambda _item: True,
+    )
+    assert outcome.status == "accepted"
+
+
+def test_without_a_verifier_the_previous_behaviour_is_unchanged() -> None:
+    """The callback is opt-in: a caller with no way to check its own contribution must not be
+    silently given a stricter loop than it asked for.
+    """
+    outcome = _run(
+        first_round_defects=[
+            HintSolutionDefect(
+                target="canonical_solution", index=2, problem="p", suggested_fix="f"
+            )
+        ]
+    )
+    assert outcome.status == "accepted"
+
+
+def test_a_repair_cannot_produce_an_item_that_violates_its_own_schema() -> None:
+    """D-267. `model_copy(update=...)` does not run validators, so before this an illegal
+    item travelled the whole loop unnoticed - two four-rung ladders against `max_length=3`,
+    passed by both reviewers, caught only by the bank loader.
+    """
+    item = _item()
+    # Constructed by copy to sidestep the response model's own bound, which is the exact
+    # situation `apply_repair` has to survive: a value that reached it without validation.
+    over_long = HintSolutionRepairResponse(
+        reasoning="r",
+        hint_ladder=["one", "two", "three"],
+        solution_steps=[SolutionStep(step_number=1, explanation="e", expression="x")],
+        solution_final_answer="13",
+    ).model_copy(update={"hint_ladder": ["one", "two", "three", "four"]})
+    with pytest.raises(ValidationError):
+        apply_repair(item, over_long)
+
+
+def test_the_repair_response_allows_exactly_the_ladder_length_an_item_allows() -> None:
+    """The bound has to reach the model, and it does so through the tool's JSON schema.
+    Asserted against the item's own constraint rather than the literal 3, so a future change
+    to one cannot leave the two disagreeing - D-194's rule for `proposed_difficulty`.
+    """
+    item_field = AuthoredGeneratedItemResponse.model_fields["hint_ladder"]
+    repair_field = HintSolutionRepairResponse.model_fields["hint_ladder"]
+
+    def bounds(field: object) -> tuple[object, object]:
+        meta = getattr(field, "metadata", [])
+        return (
+            next((getattr(m, "min_length", None) for m in meta if hasattr(m, "min_length")), None),
+            next((getattr(m, "max_length", None) for m in meta if hasattr(m, "max_length")), None),
+        )
+
+    assert bounds(repair_field) == bounds(item_field)
+
+
+def test_dropping_a_step_s_common_mistake_counts_as_a_collateral_edit() -> None:
+    """D-268. `collateral_edits` compared `explanation` and `expression` and ignored the
+    third field, so 67 misconception notes were silently deleted across 25 repaired items -
+    found in a diff review, not by the invariant whose whole job that is.
+    """
+    item = _item(
+        canonical_solution=SolutionResponse(
+            steps=[
+                SolutionStep(
+                    step_number=1,
+                    explanation="Divide by 4",
+                    expression="n = 52/4",
+                    common_mistake="Multiplying instead of dividing",
+                ),
+                SolutionStep(step_number=2, explanation="Simplify", expression="n = 13"),
+            ],
+            final_answer="13",
+        )
+    )
+    defect = HintSolutionDefect(
+        target="canonical_solution", index=2, problem="p", suggested_fix="f"
+    )
+    stripped = HintSolutionRepairResponse(
+        reasoning="r",
+        hint_ladder=list(item.hint_ladder),
+        solution_steps=[
+            # Step 1 identical except the misconception note is gone.
+            SolutionStep(step_number=1, explanation="Divide by 4", expression="n = 52/4"),
+            SolutionStep(step_number=2, explanation="Simplify", expression="n = 13 exactly"),
+        ],
+        solution_final_answer="13",
+    )
+    assert collateral_edits(item, stripped, [defect]) == [
+        "canonical_solution[1] changed but no defect named it"
+    ]
+
+
+def test_the_repair_prompt_says_to_carry_the_misconception_note_across() -> None:
+    assert "common_mistake" in SYSTEM_PROMPT
+    assert "dropping it silently removes feedback" in SYSTEM_PROMPT

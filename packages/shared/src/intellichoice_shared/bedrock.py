@@ -1329,7 +1329,14 @@ class HintSolutionRepairResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     reasoning: str
-    hint_ladder: list[str] = Field(min_length=1, max_length=8)
+    # **Exactly three, because that is what the item it repairs allows** (D-267).
+    # `AuthoredGeneratedItemResponse.hint_ladder` is `min_length=3, max_length=3`, and this
+    # was `1..8`. The repairer was never told the real rule, so it returned four rungs on two
+    # items, both reviewers passed them - they have no reason to know the constraint - and the
+    # defect surfaced only when the loader refused the bank file. The bound travels to the
+    # model in the tool's JSON schema, which is how D-194 fixed the same class for
+    # `proposed_difficulty`.
+    hint_ladder: list[str] = Field(min_length=3, max_length=3)
     solution_steps: list[SolutionStep] = Field(min_length=1, max_length=12)
     solution_final_answer: str
 

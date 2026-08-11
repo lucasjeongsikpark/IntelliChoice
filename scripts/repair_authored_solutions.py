@@ -103,6 +103,18 @@ def _flagged_items() -> list:
     return ordered
 
 
+def _still_states_no_answer(item) -> bool:
+    """The same check `_still_flagged` runs, against a bare item rather than an outcome."""
+    last = item.canonical_solution.steps[-1]
+    return (
+        classify(
+            last_step_text({"explanation": last.explanation, "expression": last.expression}),
+            str(item.canonical_solution.final_answer),
+        )
+        is not None
+    )
+
+
 def _still_flagged(outcome) -> bool:
     """Does the *repaired* item still fail to state its answer? R2, and the metric that
     decides whether a repair worked.
@@ -118,16 +130,9 @@ def _still_flagged(outcome) -> bool:
     end (D-257). Using a bucket built to avoid false positives on authored content as a success
     criterion for repaired content inverted its purpose.
     """
-    last = outcome.item.canonical_solution.steps[-1]
     # Both fields (D-262). Scoring `expression` alone made a working repair - one that put the
     # computation in the prose - read as the panel approving something it had not fixed.
-    return (
-        classify(
-            last_step_text({"explanation": last.explanation, "expression": last.expression}),
-            str(outcome.item.canonical_solution.final_answer),
-        )
-        is not None
-    )
+    return _still_states_no_answer(outcome.item)
 
 
 async def main() -> int:
@@ -212,6 +217,14 @@ async def main() -> int:
             per_item_budget_cents=args.per_item_cents,
             session_spend_cents=spend,
             first_round_defects=contributed,
+            # D-266. The panel cannot verify the contributed defect, so the contributor does.
+            # For bank repair a rejection means the item keeps its current text, which is what
+            # would have happened anyway - so this costs nothing and closes the 2-of-44 hole.
+            contributed_resolved=(
+                (lambda repaired: not _still_states_no_answer(repaired))
+                if args.contribute_audit_defect
+                else None
+            ),
         )
         spend += outcome.spend_cents
         still = _still_flagged(outcome)

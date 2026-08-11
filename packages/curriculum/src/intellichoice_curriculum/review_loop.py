@@ -23,6 +23,7 @@ worth more than it was then - and it is a plain dict for `question_validation_ru
 rather than a new table, following the `candidate_snapshot` precedent in `ai_pipeline`.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from intellichoice_shared.bedrock import (
@@ -61,6 +62,7 @@ class Round:
     # D-261: positions the repair changed that no defect named. A rejected repair is not a
     # rejected item - the round is discarded and the item keeps the text it came in with.
     collateral_edits: list[str] = field(default_factory=list)
+    contributed_unresolved: bool = False
 
 
 @dataclass
@@ -89,6 +91,7 @@ class LoopOutcome:
                     "repaired_hint_ladder": r.repaired_hint_ladder,
                     "repair_error": r.repair_error,
                     "collateral_edits": r.collateral_edits,
+                    "contributed_unresolved": r.contributed_unresolved,
                 }
                 for r in self.rounds
             ],
@@ -138,6 +141,7 @@ async def run_review_loop(
     max_rounds: int = MAX_REPAIR_ROUNDS,
     session_spend_cents: float = 0.0,
     first_round_defects: list[HintSolutionDefect] | None = None,
+    contributed_resolved: Callable[[AuthoredGeneratedItemResponse], bool] | None = None,
 ) -> LoopOutcome:
     """Read, repair, re-read, until unanimity or a limit. Never raises for a model failure.
 
@@ -163,6 +167,19 @@ async def run_review_loop(
       one. A false positive costs one repair round, not an item.
     - **Acceptance stays the panel's verdict.** The contributed defect buys an attempt, never
       an approval.
+
+    `contributed_resolved` closes the hole D-264 measured (D-266). A contributed defect opens a
+    repair that **nothing verifies** - the panel cannot check it, because the panel never saw it,
+    which is the entire reason it had to be contributed. Two of 44 items reached acceptance with
+    the contributed defect untouched. When the callback is supplied and returns `False` after a
+    repair, **the repair is rejected and the item keeps the text it came in with** - the same
+    shape as `collateral_edits`, and the reason it does not violate D-257's "the audit is not a
+    gate":
+
+    **the audit still cannot reject an item; it can only decline to repair one.** For bank
+    repair those are the same outcome as doing nothing, so a false positive costs nothing at
+    all. That asymmetry does *not* hold in the generation pipeline, where a discard throws away
+    a candidate that was paid for - so a generation caller should think before passing this.
     """
     rounds: list[Round] = []
     spend = 0.0
@@ -238,8 +255,15 @@ async def run_review_loop(
             # a prompt clause anyone has to trust. The item keeps what it came in with.
             record.collateral_edits = collateral
             return LoopOutcome("discarded", current, rounds, spend, "repair edited unnamed text")
+        repaired = apply_repair(current, repair.value)
+        if number == 1 and first_round_defects and contributed_resolved is not None:
+            if not contributed_resolved(repaired):
+                record.contributed_unresolved = True
+                return LoopOutcome(
+                    "discarded", current, rounds, spend, "contributed defect not resolved"
+                )
         record.repaired_hint_ladder = list(repair.value.hint_ladder)
-        current = apply_repair(current, repair.value)
+        current = repaired
 
     # Unreachable: the loop returns from inside. Present so a future edit to the range cannot
     # fall out of the function with no outcome.
