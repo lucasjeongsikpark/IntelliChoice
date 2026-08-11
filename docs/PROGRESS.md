@@ -7,8 +7,32 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**The study screen no longer collapses when a student asks for help, and it now says where they
-are (D-272).** Verified on the deployed build and reproduced locally before changing anything:
+**Session C1 in progress — Phase 0 and Phase R are ✅ done (2026-08-11, D-273). Next is
+Phase 1: seeding waves, K-2 first.** Phase 1 is the first phase that spends money, and two
+things it must carry from Phase R: **teach `Eq(x, Max(...))` in the rubric work** — comparison
+questions were always expressible and 15 shipped items were reshaped into subtraction because
+nobody reached for the form — and **use Sonnet 4.5 as Generator**, since Sonnet 5 reports
+`AVAILABLE` and denies the call.
+
+What Phase 0/R produced: `docs/CONTENT_COVERAGE.md` + `curriculum/coverage/csv_row_dispositions.csv`
+(245 unique rows → 34 topics → 245 skills; **A 173 / B 37 / C 34 / D 1**), the answer-model
+router (`multi_root`/`interval`/`tuple`/`symbolic`, fail-closed, both-directions tested), two
+latent gate defects closed, and `place_value_compare` re-authored **15/15 → 0/15**.
+**1214 passed**, lint and pyright clean. Spend: three 1-token Bedrock probes.
+
+**Original plan, still the shape of the session:** One session, phases run in order, each iterated until its "done when" holds:
+coverage matrix over all 246 CSV rows → family-A seeding in grade-band waves → the verifier
+router → the scale/auto-approval decision → videos → the figures decision gate → per-band E2E
+and deploy. Phase 0 is free (no model calls) and starts with the 246-row triage, the
+books→topics/rows→skills mapping, verifying what the §5.8.5 gate does with an unparseable
+`answer_expression`, and the third-Anthropic-model access request. The `pre_intro`-in-the-SSE-
+connect fix (carry-over 1 below) is **still queued and not superseded** — it can be taken as C1
+Phase 6's first item or as its own interlude, but it should not silently fall off.
+
+---
+
+**Prior state, still true. The study screen no longer collapses when a student asks for help, and
+it now says where they are (D-272).** Verified on the deployed build and reproduced locally before changing anything:
 at the intervention menu the answer response carries `items: None`, so the question and its four
 options vanished the moment "Get a hint" was clicked — and came back only on a refresh, because
 `/stream` rebuilds from the checkpoint. At hint 3 of 3, and on every solution and video, the
@@ -137,8 +161,9 @@ stem**, so not one item exercised the skill it was filed under. Anchors split pe
 rewritten, both topics now pass the pre-registered discrimination criterion that neither passed
 before.
 
-No numbered ROADMAP session is queued; integration (S43+) stays deliberately deferred (D-152) until
-the user starts it.
+**Session C1 (full-taxonomy content seeding, D-273) is queued** — see the top of this block.
+Integration (S43+) stays deliberately deferred (D-152) until the user starts it; C1 is content
+work and touches none of it.
 
 **Three things are worth knowing before touching any of this.**
 

@@ -19577,3 +19577,266 @@ intercepts clicks on the question navigator. A student meets the same thing — 
 question 1 and a dialog appears over it ~2.6 s later. That is the measured `pre_intro`-inside-
 the-SSE-connect design, and it is now carry-over 1's strongest argument: it is not only 2.6 s of
 waiting, it is a modal arriving after the student has started working.
+
+## D-273 — Full-taxonomy content seeding: plan of record (accepted, 2026-08-11)
+
+**Context.** The user set the content goal at **all 246 rows** of
+`knowledge-content/intellichoice_math_topics.csv` (grades 1–12): questions, hint ladders,
+canonical solutions, and video catalog coverage for the whole taxonomy — with an explicit ask to
+verify whether the current pipeline generalizes to every topic and, where it does not, to name
+what must be replaced. Execution structure is also the user's: **one session (C1), phases run
+in order, each phase iterated until its "done when" holds** — not a sequence of separate
+sessions. The full plan is ROADMAP.md Session C1; this entry records the decisions and the
+verification they rest on.
+
+**The verdict on the pipeline, stated before the work:** the core (generator → seeded shuffle →
+deterministic gate → dedup → two solvers → blind judge → human review) is content-agnostic and
+is **kept, not replaced**. Four things do not generalize, and each gets a targeted build:
+
+1. **The math verifier — and this entry's original text was wrong about it.** *Superseded by the
+   §"Corrected by verification" block below; kept because the correction is the point.* It read:
+   the gate covers single-numeric answers only, and "`authored_validation.py`'s docstring says the
+   SymPy check applies *when it parses*, which reads as a silent skip". That was a read of the
+   **docstring**, not the code, and the code says otherwise.
+2. **Figures.** The serving path is text-only MCQ end to end — no image field in the data model,
+   no renderer in the frontend. Clock faces, shapes, coins, graphs & tables, and most
+   figure-based geometry (~18% of rows on the Phase 0-pending estimate) are blocked on this
+   *feature*, not on the pipeline. Proposal on the table: deterministic parameterized SVG
+   rendered client-side from fields the gate already verified — no image generation, no blob
+   storage, no new PII surface. Own decision gate (Phase 5) before any code.
+3. **Difficulty rubrics at scale.** ~40–50 per-topic `difficulty_anchors` ladders are the real
+   authoring bottleneck, and this project has measured twice what a lazy rubric does (D-232: a
+   borrowed rubric makes the judge a constant; D-238: one rubric over two skills is two ladders
+   wearing one coat). Rubrics will be AI-drafted but human-owned, and validated by the D-238
+   dispersion method — per skill, never pooled.
+4. **Review throughput.** Nothing is auto-approved (D-026), and full depth is thousands of
+   items — not reviewable by one person item-by-item. The deferred auto-approval condition
+   (QUESTION_GENERATION.md §9: "a near-zero human rejection rate over a real sample") is exactly
+   what Phase 1's waves measure; the user decides explicitly on those numbers (Phase 3), with
+   random spot-check sampling if adopted.
+
+**Taxonomy mapping decision:** CSV **books → internal topics** (~40–50), CSV **rows → skills**.
+The serving model — exams per topic, anchors per topic, five skill-lines per study session — is
+built on that shape; 246 one-skill topics would mean 246 rubrics and 246 topic cards. "Every row
+covered" therefore means "every row is a stocked skill", and rows that cannot be covered get an
+explicit disposition in `docs/CONTENT_COVERAGE.md` (Phase 0) rather than silence — the
+TRACEABILITY.md posture applied to content.
+
+**Row triage estimate, to be finalized (not asserted) in Phase 0:** ~65% family A
+(numeric-answer text word problems — pipeline works today), ~14% B (needs the verifier router),
+~18% C (needs figures), ~2% D (not MCQ-able as written: Writing Numbers, Table of Numbers —
+reshape into counting MCQs or disposition out).
+
+**Also verified while planning, and folded into the phases:**
+
+- **The video catalog is empty in anger:** `video_catalog.py`'s own docstring records staging has
+  had zero `youtube_videos` rows since it was built — every "Video" click today returns the
+  §5.11.6 fallback. Seeding it is `make youtube-sync` (a DB path, not the YAML/CI path), which
+  can only classify against skills that exist — so Phase 4 follows Phase 1's taxonomy, not the
+  other way round.
+- **Tutor chat has nothing to seed** — runtime LLM grounded on the served question and hints; its
+  quality inherits from question content and is *verified* per band in Phase 6, including
+  grade-1 reading level, which no existing content has ever exercised.
+- **Only `linear_equations` has ever been through the paid pipeline** — the other three topics
+  were hand-authored (D-222/223/225/228). Per-topic generated yield is unmeasured, which is why
+  Phase 1 runs in waves that record yield/rejection/cost before the next wave spends.
+- **Solver B still shares the Generator's model** (two accessible Anthropic models,
+  QUESTION_GENERATION.md §6). At one topic that was a documented asymmetry; at 246 rows it
+  compounds, so Phase 0 submits the third-model access request rather than deferring it again.
+
+### Corrected by verification, 2026-08-11 (before any C1 work began)
+
+Four things this entry asserted or estimated were checked against the code and the CSV. Three
+were wrong or imprecise; the fourth turned into the session's reordering.
+
+**a. The gate does not silently skip — it is strictly fail-closed.** `derive_answer` rejects on
+all six paths: missing equation, not a single relation, a tautology (`Eq(4,4)` → `BooleanTrue`),
+≠1 unknown, unsolvable by SymPy, ≠1 solution. D-191 had already closed the missing-equation hole.
+**The docstring's "when it parses" describes `_sympify` on the *option* texts, not the equation.**
+Reading the code settled in one look what reading the docstring got backwards — the same lesson
+D-265, D-268 and D-271 each recorded.
+
+**b. But the true constraint is stronger, and worse for this session.** The pipeline can only
+produce items modelable as **one equation, one unknown, one solution**. Structurally excluded:
+inequalities (not an `Equality`), systems (2 unknowns), **quadratics (2 solutions)**, and
+factorization / differentiation / integration (no unknown to solve for). Quadratics are not an
+edge case — SPEC §5.7.3 gives them their own grade band and the CSV has four such rows. So
+family B is not "weakly verified"; it is **unauthorable through the pipeline as written**.
+
+**c. The CSV is 34 books / 245 unique rows, not "~40–50 topics / 246 rows".**
+`('6','Grade 6 Fractions','Three Fractions')` appears twice. And there are only **194 distinct
+topic strings** across the 246 rows — "Fractions" appears in **7** different books — so a row is
+meaningful **only** as a `(grade, book, topic)` triple. Consequence for Phase 0: skill ids must
+be book-qualified, coverage is tracked by triple and never by name, and the honest denominator
+is **245**.
+
+**d. The finding that reordered the session: the gate reshapes content it cannot model, and it
+is live in shipped content.** `place_value_compare` is **15 of 15** *"how many more"* subtraction
+word problems, filed under *"Compare and order multi-digit numbers by place value"*. Not one item
+asks a student to compare. Measured across the whole bank, every other skill is **0/N** — the
+distortion appears exactly where the skill's natural question is not an equation.
+
+**e. The mechanism — and my first account of it, written into this entry an hour earlier, was
+also wrong.** I claimed *"`Eq(x, 43)` is the tautology check (a) rejects, so an author must invent
+a difference"*. Executed against the real function, `derive_answer('Eq(x, 43)')` returns **43 —
+it passes**. The tautology arm only catches `Eq(4,4)`, which collapses to `BooleanTrue`; a
+free symbol never collapses. Three claims in one session, each settled by running the code
+instead of reasoning about it.
+
+The accurate mechanism is worse in a more interesting way. For a skill whose answer is not
+derived — compare, identify, classify, name — the gate leaves an author exactly two moves:
+
+- **Write `Eq(x, <the answer>)`.** It passes and verifies *nothing*: it is D-191's defect wearing
+  a relation costume. D-191 closed the bare-string form (`answer_expression: '7'`) and left the
+  relation-shaped form open, because the check it added tests the *shape* of the model, not
+  whether the model does any work.
+- **Reshape the question until something is derivable.** This is what happened: 15 of 15
+  `place_value_compare` items became "how many more".
+
+So the gate does not forbid non-equation skills — it makes the honest version of them
+unverifiable and the verifiable version of them a different question. **Measured, and this is
+the good news: 0 of 130 shipped items use the vacuous form, and 0 are unsolvable.** The hole is
+latent, not live; the distortion is live. Phase R closes both — a real verifier for selection
+answers removes the reason to reshape, and rejecting `Eq(x, <bare constant>)` removes the
+vacuous escape before a generator at 34-topic scale finds it.
+
+**f. Family A is larger than this entry estimated, which lowers the router's urgency but not its
+necessity.** `Eq(x, <expression>)` is fully supported and genuinely verifying — measured:
+`Eq(x, round(3847,-2))` → 3800, `Eq(x, 2**5)` → 32. So rounding, GCF, exponents, order of
+operations, averages, percents and formula-driven area/volume are all family A today. What stays
+structurally blocked is narrower and sharper: **multi-root** (`x**2 = 9` → "has 2 solutions"),
+**interval** (`3*x + 2 > 11` → "is not a single equation"), **tuple** (`Eq(x + y, 10)` → "has 2
+unknowns"), symbolic equivalence, and selection/ordering.
+
+**Two decisions taken by the user on these findings (2026-08-11):**
+
+1. **The answer-model router moves ahead of seeding** (ROADMAP C1 Phase R, was Phase 2). It was
+   scoped as a family-B extension; it is a **prerequisite for family-A correctness at scale**,
+   because the 34-book taxonomy is full of compare / identify / round / classify / order / read
+   skills and seeding first would propagate this distortion across all of them instead of one.
+   The 15 `place_value_compare` items are re-authored in the same phase as the router's proof
+   case — a router nothing exercises is not verified.
+2. **Volume target is D-223's measured 5–7 per occupied tier** (~25–35/topic, ~1,000 items across
+   34 topics), **deliberately diverging from SPEC §5.8.1's 100/topic** (~3,400 items, 3× the
+   spend and review burden). §5.8.1's number has never been met by any topic — the bank is
+   47/30/28/25 — and nothing in the project has measured it as necessary, whereas D-223 measured
+   5–7/tier as the depth at which exams stop repeating themselves. Recorded here so the
+   divergence is a decision rather than a drift.
+
+### Phase 0 outcome, 2026-08-11 — and a fourth thing measured rather than assumed
+
+The matrix is built (`docs/CONTENT_COVERAGE.md`, `curriculum/coverage/csv_row_dispositions.csv`,
+`scripts/build_content_coverage.py`, 7 tests). **245 unique rows → 34 topics → 245 skills**;
+**A 173 (70.6%) / B 37 (15.1%) / C 34 (13.9%) / D 1**. Close to the estimate above, with A higher
+and C lower than guessed. The user approved the book→topic mapping as built.
+
+**Algebra I is 0 family A of 6 rows** — Square Roots, Quadratic Equations, Inequalities, Functions
+and Graphs, Systems of Equations, Factorization. The pipeline cannot author a single item in that
+book, and no prompt or rubric work changes it because every rejection is structural. Grades 10-12
+are 3/6, 3/7, 3/4. **High school is router-gated; elementary is not** — which is why Phase R
+builds `selection` first despite `symbolic` being larger: `selection` holds the only live defect
+and 10 of its 11 rows are grades 1-5.
+
+**Model access, checked on the user's instruction rather than assumed from the doc.** The §6
+table (measured 2026-08-05) said two Anthropic models had agreements. There are now **three** —
+`claude-sonnet-4-5` has become AVAILABLE. But the check that mattered was the one the doc had
+never run: **a 1-token `invoke-model` against each.**
+
+| model | agreement | invoked |
+|---|---|---|
+| Haiku 4.5 | AVAILABLE | ✅ |
+| **Sonnet 4.5** | AVAILABLE (new) | ✅ |
+| **Sonnet 5** | AVAILABLE | ❌ **AccessDenied** |
+
+**`agreementAvailability.status = AVAILABLE` is not a promise you can call the model.** Sonnet 5
+reports AVAILABLE and denies the call — and §6 named it the intended premium Generator, so that
+configuration would have failed on its first paid call, *after* preflight passed. The same class
+of error as D-084's "the shipped default is not invocable as written", found the same way: by
+calling it.
+
+So the invocable set is **two**, not three, and §6's pigeonhole stands — Generator, Solver A and
+Solver B cannot all differ when preflight also forbids Solver A == Solver B. The gain is a
+**better Generator** (Sonnet 4.5, verified), not an independent third solver; Solver B still
+shares the Generator's weights and the asymmetric weakness is unchanged. `_MODEL_RATES_PER_1K_CENTS`
+gained an explicit Sonnet 4.5 entry — the fallback already produced the same (0.3, 1.5), so
+accounting does not change; the key exists so a mid-tier generator is billed by a chosen entry
+rather than a default that happened to be right.
+
+**Left open deliberately, for the first wave to measure:** Sonnet 4.5 bills 3× Haiku, and D-243
+measured 55% acceptance with Haiku as Generator. Whether a better generator lowers *cost per
+accepted item* is a measurement, not a prediction — the wave structure exists to take it before
+the next wave spends.
+
+### Phase R outcome, 2026-08-11 — the router, and the hypothesis it falsified
+
+**The phase's own premise was wrong, and measuring it first is what saved the work.** Phase R
+was ordered ahead of seeding because `selection` skills were believed unauthorable, forcing the
+`place_value_compare` distortion. Measured before writing any router code:
+**`Eq(x, Max(34, 43))` derives 43 and passes the gate today, unchanged.** So were
+`Eq(x, gcd(12, 18))`, `Eq(x, floor(3847/100)*100)` and `Eq(x, Mod(7, 2))`. Comparison questions
+were always expressible; nobody reached for the form. **The 15-item defect is an authoring
+failure, not a gate limitation**, and `selection` needed no verifier at all.
+
+The reordering still earned its place — just not for the reason given. What it bought was
+finding this before 34 topics of rubrics were written against a false constraint.
+
+**What the router actually adds**, all of it fail-closed (`route_answer`, `_option_matches`):
+
+| model | written as | why the old gate refused it |
+|---|---|---|
+| `value` | `Eq(3*x + 2, 11)` | — unchanged, and all 130 shipped items still take this path |
+| `multi_root` | `Eq(x**2, 9)` | *"has 2 solutions, expected exactly one"* |
+| `interval` | `3*x + 2 > 11` | *"is not a single equation"* |
+| `tuple` | `Eq(x + y, 10); Eq(x - y, 2)` | *"has 2 unknowns, expected exactly one"* |
+| `symbolic` | `(x - 3)*(x + 3)` | no relation at all; compared by equivalence, not value |
+
+Algebra I needed every one of these — that is why it was 0 family A of 6.
+
+**Three defects fixed, and only one of them was the one I set out to fix.**
+
+1. **The vacuous form.** `Eq(x, 43)` passed while verifying nothing. Now rejected — **and the
+   obvious implementation of that rejection banned `Eq(x, Max(34, 43))` too**, because SymPy
+   folds `Max` to `43` while parsing and `evaluate=False` does not stop it (measured; `gcd`
+   folds the same way). A check on the parsed value cannot tell the two apart, so it reads the
+   **source text**: an identifier alone on one side and a bare numeral on the other. Caught by
+   the router's own test table, one line after I wrote the wrong version.
+2. **`TokenError` escaped the gate.** `derive_answer('Eq(x, ((')` and `derive_answer('x = (')`
+   **raised** rather than returning an error — `tokenize.TokenError` was in none of the six
+   `except` clauses. A curriculum load would have crashed instead of reporting the item. This is
+   pre-existing, not introduced here, and it was found by the one test in the new file that
+   feeds the router garbage. Every parse site now shares `_PARSE_ERRORS`.
+3. **`place_value_compare`, 15 of 15 → 0 of 15.** Re-authored to real comparisons: four numbers
+   whose *rubric discriminator* decides the answer (tier 2 the ones digit misleads, tier 3 the
+   hundreds are shared, tier 4 the leading digits are shared, tier 5 the first difference sits
+   outside the leading two), plus three BUILD items modelled as `Eq(x, Max(<every permutation>))`
+   so SymPy picks the maximum rather than the author asserting it. Re-gated through the real
+   loader (**15 updated, 115 unchanged**) and canonicalised through `question-export`.
+
+**Both directions, per D-246.** Every model is tested with the right answer *and* a near miss
+chosen to be tempting: one root of two for `multi_root`, `x >= 3` against `x > 3` for `interval`,
+`(4, 6)` against `(6, 4)` for `tuple`, `x**2 + 9` against `x**2 - 9` for `symbolic`. An
+unparseable option never counts as a match, which is the direction D-188 found the old gate was
+*quieter* on.
+
+**Two adjudication verdicts deleted as moot, not refreshed.** Re-authoring lapsed
+`place_value-d4-200403` and `-d5-200504`, and `test_the_shipped_record_is_live` failed exactly
+as designed. Deleted on D-238's own precedent — a verdict is a claim about a specific question,
+and both questions are gone. **One open item recorded rather than answered:** `200504` is
+declared tier 5, upheld by D-238 against a stable judge reading of 3 on the argument that
+"arranging the digits is a real place-value insight". The old item built *two* numbers and
+subtracted; the new one builds *one*. That is less work, so the tier-5 case is **weaker than
+when it was upheld**, and this session did not measure it — item-level verdicts in this topic
+are not supportable at any affordable n (8 of 28 stable over four runs). It needs the next
+`--judge` run, testing the BUILD *clause* as D-238 said, not the item.
+
+**Verification:** `ruff` clean, `pyright` 0 errors, **1214 passed** / 2 skipped / 1 xfailed
+(+41 on the session baseline of 1173). No model calls; the only spend this session was three
+1-token Bedrock probes.
+
+**Rejected alternatives, so they are not re-proposed:** replacing the pipeline wholesale (its
+gates have caught real defects at every paid run — D-195's four-for-four is the strongest
+evidence *for* it); making each CSV row an internal topic (246 rubrics, and the serving model
+fights it); generating figures with an image model (unverifiable output where everything else in
+the item is deterministic — the SVG proposal keeps correctness inherited from gated parameters);
+and seeding videos before the taxonomy exists (the classifier would assign skills that are about
+to be renamed).
