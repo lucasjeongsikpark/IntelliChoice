@@ -239,10 +239,27 @@ export function ExamScreen({
   // answer 2 through 10, refresh, and this lands on 1 rather than 10. That is unfinished work
   // and a defensible place to land, but it is an approximation of "exact position" and a
   // future change that wants the literal one has to persist it server-side.
+  //
+  // **D-272: it must not fire once this mount has answered something.** The first overview
+  // is fetched on mount and its response can land *after* an answer, and this effect then
+  // "restores" a position derived from a snapshot taken before that answer - pulling the
+  // student back to question 1 with question 1 already locked. Measured 2026-08-10 in
+  // `hint-displacement.spec.ts`, which answers faster than the fetch resolves and then sat
+  // on a locked question 1 for the rest of the run.
+  //
+  // The gate is `answeredSelections`, which `handleSubmitClick` writes synchronously (the
+  // same property D-207 relies on) - so "this mount has made progress of its own" is known
+  // without waiting for any request. A restore is only ever correct on arrival; after that
+  // the local position is the better answer.
   const restoredPhaseRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isExamPhase || !overview) return;
     if (restoredPhaseRef.current === phase) return;
+    if (Object.keys(answeredSelections).length > 0) {
+      // Not a restore any more, and never will be for this phase.
+      restoredPhaseRef.current = phase;
+      return;
+    }
     // App keeps holding the previous phase's overview after the phase moves on (the staleness
     // AUD-F-24 documents), so without this the post-exam would restore a position derived
     // from the pre-exam's item statuses.
@@ -255,7 +272,7 @@ export function ExamScreen({
     const firstUnanswered = ordered.find((item) => item.status !== "answered");
     const target = firstUnanswered ?? ordered[ordered.length - 1];
     if (target) setCurrentDisplayOrder(target.display_order);
-  }, [isExamPhase, phase, overview]);
+  }, [isExamPhase, phase, overview, answeredSelections]);
 
   // Gated on `isExamPhase`, which AUD-F-24 turned from a nicety into a correctness
   // requirement. `overview` is the *exam's* item list and App keeps holding it after the
