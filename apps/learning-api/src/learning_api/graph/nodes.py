@@ -524,7 +524,17 @@ async def _study_narrative_update(
     assert state.student_external_id is not None
     marker = _study_narrative_marker(state, result)
     if marker is None:
-        return {}, bedrock_spend_cents
+        # D-272: **`None`, not `{}`.** `pending_study_narrative` is a `LastValue` channel and
+        # `ainvoke` returns the whole state, so returning nothing here left the *previous*
+        # turn's marker in place - and the route, which reads the marker off the turn result,
+        # scheduled it again. Measured on staging: taking a hint re-published a narrative
+        # snapshot ~100 ms later, and `build_deferred_narrative_snapshot` omits
+        # `pending_interrupt`, `intervention` and `assistance_question`, so that frame wiped
+        # the hint the student had just asked for off the screen.
+        #
+        # The channel now means "the marker *this* turn produced", which is what every reader
+        # already assumed it meant.
+        return {"pending_study_narrative": None}, bedrock_spend_cents
 
     if ctx.defer_study_narrative:
         return {"pending_study_narrative": marker}, bedrock_spend_cents
@@ -539,7 +549,13 @@ async def _study_narrative_update(
     text, evidence, spend = await _fire_stage_narrative(
         ctx, state, payload, bedrock_spend_cents, related_skill_id=related
     )
-    return {"stage_narrative": text, "stage_narrative_evidence": evidence}, spend
+    # Inline path: the narrative is on this response, so there is nothing left to defer -
+    # and the marker must still be cleared for the same reason as above.
+    return {
+        "stage_narrative": text,
+        "stage_narrative_evidence": evidence,
+        "pending_study_narrative": None,
+    }, spend
 
 
 async def submit_answer(state: LearningState, runtime: Runtime[TurnContext]) -> dict:
@@ -1144,6 +1160,11 @@ async def intervention_choice(state: LearningState, runtime: Runtime[TurnContext
             "last_intervention": last_intervention,
             "bedrock_spend_cents": bedrock_spend_cents,
             "pending_hint_personalization": pending_personalization,
+            # D-272: this branch never reaches `_study_narrative_update`, so it clears the
+            # channel itself. Verified by reverting each fix in turn: either one alone stops
+            # the re-schedule, and this is the one that covers the path `_study_narrative_update`
+            # never runs on.
+            "pending_study_narrative": None,
         }
 
     # Runs the §5.11.7 retry ladder now that the support choice is recorded: labels this

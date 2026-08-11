@@ -122,6 +122,24 @@ class BackgroundStudyNarrativeScheduler:
             # question already served rather than the state mid-turn.
             config: RunnableConfig = {"configurable": {"thread_id": learning_session_id}}
             snapshot = await self._graph_getter().aget_state(config)
+            if snapshot.values.get("hint_ladder_awaiting_choice"):
+                # D-272, second layer. The publish below omits `pending_interrupt`,
+                # `intervention` and `assistance_question` — deliberately, per this class's
+                # docstring, because "a study-transition narrative only fires when the turn
+                # advanced". That was a claim about *when narratives fire*, and it stopped
+                # being true the moment a stale marker could fire one during a pause: the
+                # frame then wiped the hint a student had just asked for off their screen.
+                #
+                # The stale marker itself is fixed in `nodes._study_narrative_update`. This
+                # is the belt: whatever schedules a narrative, it must never be published
+                # over an open hint ladder. Nothing is lost — the durable `stage_transitions`
+                # row is already written, and the narrative was a between-questions message
+                # for a moment that is no longer between questions.
+                logger.info(
+                    "stage_narrative_publish_skipped_mid_ladder learning_session=%s",
+                    learning_session_id,
+                )
+                return
             if snapshot.values:
                 # D-272: a second, short-lived session. The snapshot now carries
                 # `study_progress`, which is read from the study rows, and the session
