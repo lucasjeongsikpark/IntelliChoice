@@ -19178,3 +19178,72 @@ a genuine error in a hint that nothing had asked about: *"put the two results to
 
 They are still not applied. What changed is that the number is now honest and the three failures
 are named rather than averaged into a headline.
+
+## D-266/267/268 — applying the repairs, and three defects the attempt exposed (accepted, 2026-08-10)
+
+The user's three calls: apply the verified repairs, close the unverified-contributed-defect hole,
+and defer the 17 items repair cannot fix. **The repairs are still not applied**, because trying
+to apply them found three defects and one of them was silent data loss.
+
+### D-266 — the contributed-defect hole, closed
+
+D-264 measured 2 of 44 items reaching acceptance with the contributed defect untouched: the panel
+cannot verify a contributed defect *because it never saw one*, which is why it had to be
+contributed. `run_review_loop` now takes `contributed_resolved`, and a repair that leaves the
+contribution standing is rejected — **the item keeps the text it came in with.**
+
+**This does not make the audit the gate D-257 forbade**, and the reason is an asymmetry worth
+stating: the audit still cannot reject an *item*, only decline to repair one. For bank repair
+those are the same outcome as doing nothing, so a false positive costs nothing at all. **That
+asymmetry does not hold in the generation pipeline**, where a discard throws away a candidate
+that was paid for — so a generation caller has a real decision to make where a repair caller does
+not. Opt-in by callback for exactly that reason.
+
+### D-267 — a repair could produce an item that violates its own schema
+
+`make curriculum-load` refused the edited bank: a **four-rung hint ladder** against
+`AuthoredGeneratedItemResponse.hint_ladder`'s `min_length=3, max_length=3`. Two items, both
+passed by both reviewers — who have no reason to know the constraint, because nothing told them.
+
+Two causes, both fixed:
+
+- **`HintSolutionRepairResponse.hint_ladder` was `1..8`.** It is now exactly 3, matching the item
+  it repairs, and the bound travels to the model in the tool's JSON schema — D-194's fix for
+  `proposed_difficulty`, applied to the same class of defect.
+- **`apply_repair` used `model_copy(update=...)`, which does not run validators.** An illegal
+  item therefore travelled the entire loop unnoticed. It now revalidates, so a repair that cannot
+  produce a legal item raises instead of being carried to the loader.
+
+**The loader catching this is the round trip earning its place.** Editing YAML and exporting are
+different operations, and only `make curriculum-load && make question-export` establishes that a
+bank file is both valid and canonical.
+
+### D-268 — the targeting invariant inspected two fields of three
+
+The canonical export diff **deleted 67 `common_mistake` fields** — essentially every step of
+every repaired item. That field records the misconception a student is likely to have at that
+step; **160 of the bank's 448 steps carry one**, and losing them removes feedback silently.
+
+`collateral_edits` compared `explanation` and `expression` and ignored the third field, so the
+invariant built to catch exactly this class did not fire. **A targeting check that inspects a
+subset of a record is not a targeting check.** It now compares whole steps, and the repair prompt
+says to carry the note across.
+
+Found in a diff review, not by any check. That is the second time in two days that reading the
+output beat the metric measuring it (D-265 was the first).
+
+### Where applying stands
+
+**Nothing was written.** The bank is untouched: the 25 that survived every filter were applied,
+loaded, exported, reviewed as a diff, and reverted when the `common_mistake` loss showed up.
+
+The dump is now stale — it predates the corrected ladder bound and the corrected targeting check,
+so its repairs cannot be trusted to satisfy either. **Applying needs a fresh run** (~$2.50), and
+that run should now produce repairs that keep the misconception notes.
+
+### The 17 that repair cannot fix — deferred, with the diagnosis attached
+
+`place_value_compare` ×14, `div_remainder` ×2, and one more. Their defect is a hint ladder
+teaching a method that cannot answer the question asked, which no solution-step repair reaches
+(D-264). D-238's precedent is hand-authoring, and that is a content session rather than an
+engineering one.

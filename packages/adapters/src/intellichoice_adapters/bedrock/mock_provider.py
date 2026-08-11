@@ -634,7 +634,11 @@ def _hint_solution_repair_json(payload: dict) -> dict:
     # `min_length=1`, and the schema-conformance test calls every branch with an empty
     # payload. An empty list here was a real defect that test caught - the same fallback
     # already existed for `solution_steps` and was simply missed for the ladder.
-    ladder = list(payload.get("hint_ladder") or ["mock repaired hint"])
+    # Exactly three (D-267): the response model now matches the item's own bound, and the
+    # schema-conformance test calls this branch with an empty payload.
+    ladder = list(
+        payload.get("hint_ladder") or ["mock hint one", "mock hint two", "mock hint three"]
+    )
     for index in range(1, len(ladder)):
         if ladder[index].strip() and ladder[index].strip() == ladder[index - 1].strip():
             ladder[index] = f"{ladder[index].rstrip('.')} - now think about what that gives you."

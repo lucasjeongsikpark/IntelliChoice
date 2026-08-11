@@ -47,8 +47,11 @@ _MAX_OUTPUT_TOKENS = 2000
 
 _TARGETING = (
     "Change ONLY what the defects name. Every hint and every solution step the defects do "
-    "not mention must come back word for word as you received it. You are editing an item "
-    "that is mostly correct, not writing a new one."
+    "not mention must come back word for word as you received it, **including its "
+    "`common_mistake`** - that field records a misconception a student is likely to have at "
+    "that step and dropping it silently removes feedback they would otherwise get. If you "
+    "rewrite a step, carry its `common_mistake` across unless the rewrite makes it wrong. "
+    "You are editing an item that is mostly correct, not writing a new one."
 )
 
 _SUGGESTIONS = (
@@ -137,6 +140,12 @@ def collateral_edits(
     step **every** time while still fixing the defect it was asked about. A prompt clause
     cannot be relied on for this; a comparison can.
 
+    **Compares the whole step, not selected fields (D-268).** It used to compare `explanation`
+    and `expression` and ignore `common_mistake`, which is the third. The repairer does not
+    return that field, so every repaired step silently lost its misconception note - 67 of them
+    across 25 items, caught in a diff review rather than by this function, which is what it
+    exists for. A targeting check that inspects a subset of a record is not a targeting check.
+
     Two deliberate limits:
 
     - A defect with `index=None` puts its whole target in scope, so nothing in that target is
@@ -169,8 +178,7 @@ def collateral_edits(
             for position, (before, after) in enumerate(
                 zip(original_steps, repair.solution_steps, strict=True), start=1
             )
-            if position not in named["canonical_solution"]
-            and (before.explanation != after.explanation or before.expression != after.expression)
+            if position not in named["canonical_solution"] and before != after
         )
     return edits
 
@@ -180,20 +188,29 @@ def apply_repair(
 ) -> AuthoredGeneratedItemResponse:
     """The repaired item, with everything outside the ladder and the solution untouched.
 
-    `model_copy(update=...)` rather than reconstruction on purpose: a constructor call would
-    have to name every field, and the day a field is added to
-    `AuthoredGeneratedItemResponse` is the day that list silently drops it.
+    Built by copy rather than by constructor so that the day a field is added to
+    `AuthoredGeneratedItemResponse` is not the day this silently drops it - **but revalidated**
+    (D-267). `model_copy(update=...)` does **not** run validators, so before this a repair
+    could produce an item that violates its own schema and the loop would carry it to the end
+    without noticing. It happened: two four-rung hint ladders against a `max_length=3` field,
+    accepted by both reviewers, caught only when the bank loader refused the file.
+
+    Raises `ValidationError` if the repair does not produce a legal item. That is the right
+    shape - the caller already treats a failing repair as a discard, and an item that cannot
+    be constructed is not a repair.
     """
-    return item.model_copy(
-        update={
-            "hint_ladder": list(repair.hint_ladder),
-            "canonical_solution": item.canonical_solution.model_copy(
-                update={
-                    "steps": list(repair.solution_steps),
-                    "final_answer": repair.solution_final_answer,
-                }
-            ),
-        }
+    return AuthoredGeneratedItemResponse.model_validate(
+        item.model_copy(
+            update={
+                "hint_ladder": list(repair.hint_ladder),
+                "canonical_solution": item.canonical_solution.model_copy(
+                    update={
+                        "steps": list(repair.solution_steps),
+                        "final_answer": repair.solution_final_answer,
+                    }
+                ),
+            }
+        ).model_dump()
     )
 
 
