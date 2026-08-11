@@ -1,0 +1,418 @@
+curriculum_version: '2026.1'
+topic_id: g1_word_problems
+templates:
+- question_template_id: authored-g1_word_problems-d5-5500
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_all_numbers_instead_of_recognizing_subtraction
+  - stopped_after_first_operation
+  - subtracted_both_changes_instead_of_adding_then_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Juan has a basket with 15 marbles. He adds 9 more marbles to the basket. Then 6 marbles roll away.
+    How many marbles are in the basket now?
+  context_block: ''
+  answer_expression: Eq(x, 15 + 9 - 6)
+  hint_ladder:
+  - Start with the number of marbles in the basket, then think about what happens when Juan adds more.
+  - After adding, how many are there? Then think about what happens when some roll away.
+  - Write down the starting number, add what came in, then take away what rolled out.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Juan starts with 15 marbles in the basket.
+      expression: '15'
+      common_mistake: null
+    - step_number: 2
+      explanation: He adds 9 more marbles, so we add 9 to 15.
+      expression: 15 + 9 = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: Then 6 marbles roll away, so we subtract 6 from 24.
+      expression: 24 - 6 = 18
+      common_mistake: null
+    final_answer: 18 marbles
+  random_seed: 5500
+  rendered_question: Juan has a basket with 15 marbles. He adds 9 more marbles to the basket. Then 6 marbles
+    roll away. How many marbles are in the basket now?
+  option_a: 12 marbles
+  option_b: 18 marbles
+  option_c: 24 marbles
+  option_d: 30 marbles
+  correct_option: b
+- question_template_id: authored-g1_word_problems-d3-5300
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting
+  - answered_with_remaining_amount_instead_of_change
+  - confused_starting_amount_with_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maria has 15 stickers. She gives some to her friend and now has 9 stickers left. How many stickers
+    did Maria give away?
+  context_block: ''
+  answer_expression: Eq(15 - x, 9)
+  hint_ladder:
+  - Maria started with 15 stickers and ended with 9. Did she gain or lose stickers?
+  - When you give something away, you subtract. What number plus 9 equals 15?
+  - Write 15 minus some number equals 9, then find the missing number.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maria started with 15 stickers and has 9 left after giving some away. We need to find
+        how many she gave away.
+      expression: 15 - x = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: 'To find x, we can think: what number do we take away from 15 to get 9? We can also
+        add 9 to both sides or just subtract 9 from 15.'
+      expression: x = 15 - 9
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 15 minus 9.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 stickers
+  random_seed: 5300
+  rendered_question: Maria has 15 stickers. She gives some to her friend and now has 9 stickers left.
+    How many stickers did Maria give away?
+  option_a: 15 stickers
+  option_b: 24 stickers
+  option_c: 9 stickers
+  option_d: 6 stickers
+  correct_option: d
+- question_template_id: authored-g1_word_problems-d3-5301
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - chose_ending_amount_as_answer
+  - chose_starting_amount_as_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam had 15 apples in his basket. He ate some apples during the day. Now he has 9 apples left.
+    How many apples did Liam eat?
+  context_block: ''
+  answer_expression: Eq(15 - x, 9)
+  hint_ladder:
+  - Liam started with some apples and ended with fewer, so think about what operation shows taking away.
+  - If Liam ate x apples, his basket went from 15 apples down to 9 apples.
+  - Write an equation that says 15 minus the apples eaten equals 9, then find what number makes that true.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam started with 15 apples and now has 9 apples, so we need to find how many were
+        eaten.
+      expression: 15 - x = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: 'To find x, we can think: what number subtracted from 15 gives 9? Or we can subtract
+        9 from both sides: x = 15 - 9.'
+      expression: x = 15 - 9
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract to find the number of apples eaten.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 apples
+  random_seed: 5301
+  rendered_question: Liam had 15 apples in his basket. He ate some apples during the day. Now he has 9
+    apples left. How many apples did Liam eat?
+  option_a: 24 apples
+  option_b: 6 apples
+  option_c: 9 apples
+  option_d: 15 apples
+  correct_option: b
+- question_template_id: authored-g1_word_problems-d4-5400
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - answered_with_amount_given_away
+  - answered_with_final_amount_not_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Jayden had some trading cards. He gave 8 cards to his friend. Now Jayden has 15 cards left. How
+    many cards did Jayden start with?
+  context_block: ''
+  answer_expression: Eq(x - 8, 15)
+  hint_ladder:
+  - 'Think about what operation Jayden used: he started with some cards and took away 8.'
+  - If Jayden started with x cards and gave away 8, he would have x - 8 left. That equals 15.
+  - To find x, add 8 to both sides of x - 8 = 15.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Jayden started with x cards, gave away 8, and has 15 left, so we write x - 8 = 15.
+      expression: x - 8 = 15
+      common_mistake: null
+    - step_number: 2
+      explanation: Add 8 to both sides to undo the subtraction.
+      expression: x = 15 + 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 15 + 8.
+      expression: x = 23
+      common_mistake: null
+    final_answer: 23 cards
+  random_seed: 5400
+  rendered_question: Jayden had some trading cards. He gave 8 cards to his friend. Now Jayden has 15 cards
+    left. How many cards did Jayden start with?
+  option_a: 8 cards
+  option_b: 7 cards
+  option_c: 23 cards
+  option_d: 15 cards
+  correct_option: c
+- question_template_id: authored-g1_word_problems-d4-5401
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_the_remaining_instead_of_adding
+  - multiplied_instead_of_adding
+  - confused_the_eaten_amount_with_the_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maria started with some apples. She ate 3 of them. Now she has 5 apples left. How many apples
+    did Maria start with?
+  context_block: null
+  answer_expression: Eq(x - 3, 5)
+  hint_ladder:
+  - 'Think about what happened: Maria ate some apples and then had 5 left.'
+  - If she started with some number and took away 3, she ended up with 5.
+  - Write an equation where the starting number minus 3 equals 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maria started with an unknown number of apples, which we call x. She ate 3 apples,
+        so we subtract 3 from x.
+      expression: x - 3
+      common_mistake: null
+    - step_number: 2
+      explanation: After eating 3 apples, Maria has 5 apples left. So x - 3 must equal 5.
+      expression: x - 3 = 5
+      common_mistake: null
+    - step_number: 3
+      explanation: To find x, add 3 to both sides of the equation.
+      expression: x = 5 + 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Adding 5 and 3 gives us the starting number of apples.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 apples
+  random_seed: 5401
+  rendered_question: Maria started with some apples. She ate 3 of them. Now she has 5 apples left. How
+    many apples did Maria start with?
+  option_a: 8 apples
+  option_b: 15 apples
+  option_c: 3 apples
+  option_d: 2 apples
+  correct_option: a
+- question_template_id: authored-g1_word_problems-d5-5501
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_instead_of_added_final_amount
+  - stopped_after_combining_constants
+  - added_all_numbers_in_stem
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maria had 12 stickers. She gave some away, then her friend gave her 5 more stickers. Now Maria
+    has 14 stickers. How many stickers did Maria give away?
+  context_block: null
+  answer_expression: Eq((12 - x) + 5, 14)
+  hint_ladder:
+  - Start by writing how many stickers Maria has after she gave some away.
+  - If she gave away x stickers, she had 12 - x left. Then she received 5 more.
+  - 'Write the equation: 12 - x + 5 = 14. Now combine the numbers on the left.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maria started with 12 stickers and gave away x stickers, so she had 12 - x stickers
+        left.
+      expression: 12 - x
+      common_mistake: null
+    - step_number: 2
+      explanation: Then her friend gave her 5 more stickers, so she had (12 - x) + 5 stickers.
+      expression: (12 - x) + 5
+      common_mistake: null
+    - step_number: 3
+      explanation: We know she ended up with 14 stickers, so we set up the equation (12 - x) + 5 = 14.
+      expression: (12 - x) + 5 = 14
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine the numbers on the left: 12 + 5 = 17, so 17 - x = 14.'
+      expression: 17 - x = 14
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Subtract 17 from both sides to isolate -x: -x = 14 - 17 = -3.'
+      expression: -x = -3
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Multiply both sides by -1 to find x: x = 3.'
+      expression: x = 3
+      common_mistake: null
+    final_answer: 3 stickers
+  random_seed: 5501
+  rendered_question: Maria had 12 stickers. She gave some away, then her friend gave her 5 more stickers.
+    Now Maria has 14 stickers. How many stickers did Maria give away?
+  option_a: 21 stickers
+  option_b: 7 stickers
+  option_c: 3 stickers
+  option_d: 9 stickers
+  correct_option: c
+- question_template_id: authored-g1_word_problems-d1-6100
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_added
+  - multiplied_instead_of_added
+  - concatenated_digits_instead_of_operating
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has 5 toy cars on her shelf. Her friend gives her 3 more toy cars. How many toy cars does
+    Maya have now?
+  context_block: null
+  answer_expression: x = 5 + 3
+  hint_ladder:
+  - Maya starts with some cars and then gets more. Think about what operation adds things together.
+  - You need to combine the 5 cars she had with the 3 cars she was given.
+  - Write down 5 plus 3 and find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with 5 toy cars.
+      expression: '5'
+      common_mistake: null
+    - step_number: 2
+      explanation: Her friend gives her 3 more toy cars, so we add 3 to what she already has.
+      expression: 5 + 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Adding 5 and 3 gives us the total number of toy cars.
+      expression: '8'
+      common_mistake: null
+    final_answer: 8 toy cars
+  random_seed: 6100
+  rendered_question: Maya has 5 toy cars on her shelf. Her friend gives her 3 more toy cars. How many
+    toy cars does Maya have now?
+  option_a: 2 toy cars
+  option_b: 15 toy cars
+  option_c: 8 toy cars
+  option_d: 53 toy cars
+  correct_option: c
+- question_template_id: authored-g1_word_problems-d1-6101
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracted
+  - confused_the_change_with_the_starting_amount
+  - multiplied_instead_of_subtracted
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maria starts with some apples. She gets 3 more apples from her friend. Now Maria has 9 apples.
+    How many apples did Maria start with?
+  context_block: ''
+  answer_expression: Eq(x + 3, 9)
+  hint_ladder:
+  - Maria has 9 apples now, after getting 3 more from her friend.
+  - 'Write an equation: what she started with plus 3 equals 9.'
+  - Take away the 3 apples she got from both sides.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maria ends up with 9 apples after receiving 3 more. We need to find how many she started
+        with.
+      expression: x + 3 = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: To find what Maria started with, we subtract 3 from both sides.
+      expression: x = 9 - 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract to find the starting number of apples.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 apples
+  random_seed: 6101
+  rendered_question: Maria starts with some apples. She gets 3 more apples from her friend. Now Maria
+    has 9 apples. How many apples did Maria start with?
+  option_a: 12 apples
+  option_b: 3 apples
+  option_c: 6 apples
+  option_d: 27 apples
+  correct_option: c

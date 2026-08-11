@@ -1,0 +1,423 @@
+curriculum_version: '2026.1'
+topic_id: g2_addition
+templates:
+- question_template_id: authored-g2_addition-d4-5400
+  topic_id: g2_addition
+  skill_id: g2_add_multi_digit
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_carry_in_tens_place
+  - added_incorrectly_in_hundreds_place
+  - added_extra_thousand
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library owns 2456 books on science and 1378 books on history. How many books do they own altogether?
+  context_block: null
+  answer_expression: x = 2456 + 1378
+  hint_ladder:
+  - Think about what operation you need to find a combined total from two separate groups.
+  - Add the number of science books to the number of history books.
+  - Line up the place values and add column by column, remembering to carry when needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the addition with place values aligned: 2456 plus 1378.'
+      expression: 2456 + 1378
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones place: 6 + 8 = 14. Write 4 and carry 1.'
+      expression: 'ones: 6 + 8 = 14, write 4, carry 1'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tens place: 5 + 7 + 1 (carried) = 13. Write 3 and carry 1.'
+      expression: 'tens: 5 + 7 + 1 = 13, write 3, carry 1'
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the hundreds place: 4 + 3 + 1 (carried) = 8. Write 8.'
+      expression: 'hundreds: 4 + 3 + 1 = 8'
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Add the thousands place: 2 + 1 = 3. Write 3.'
+      expression: 'thousands: 2 + 1 = 3'
+      common_mistake: null
+    final_answer: 3834 books
+  random_seed: 5400
+  rendered_question: A library owns 2456 books on science and 1378 books on history. How many books do
+    they own altogether?
+  option_a: 3824 books
+  option_b: 3734 books
+  option_c: 3834 books
+  option_d: 4834 books
+  correct_option: c
+- question_template_id: authored-g2_addition-d4-5401
+  topic_id: g2_addition
+  skill_id: g2_add_multi_digit
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_carry_from_ones_place
+  - forgot_to_carry_from_tens_place
+  - added_thousands_digit_twice
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school library receives a donation of 2456 books and another donation of 1378 books. How many
+    books does the library receive altogether?
+  context_block: null
+  answer_expression: x = 2456 + 1378
+  hint_ladder:
+  - Think about how you would combine the number of books from each donation.
+  - Write an addition problem that adds the first donation and the second donation together.
+  - Line up the place values carefully and add column by column, starting from the ones place. Remember
+    to carry when needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the two numbers one below the other, lining up the place values: 2456 on top
+        and 1378 below.'
+      expression: 2456 + 1378
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones place: 6 + 8 = 14. Write 4 in the ones place and carry 1 to the tens
+        place.'
+      expression: 6 + 8 = 14, write 4 carry 1
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tens place: 5 + 7 + 1 (carried) = 13. Write 3 in the tens place and carry
+        1 to the hundreds place.'
+      expression: 5 + 7 + 1 = 13, write 3 carry 1
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the hundreds place: 4 + 3 + 1 (carried) = 8. Write 8 in the hundreds place.'
+      expression: 4 + 3 + 1 = 8
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Add the thousands place: 2 + 1 = 3. Write 3 in the thousands place.'
+      expression: 2 + 1 = 3
+      common_mistake: null
+    final_answer: 3834 books
+  random_seed: 5401
+  rendered_question: A school library receives a donation of 2456 books and another donation of 1378 books.
+    How many books does the library receive altogether?
+  option_a: 3834 books
+  option_b: 3824 books
+  option_c: 4834 books
+  option_d: 3734 books
+  correct_option: a
+- question_template_id: authored-g2_addition-d5-6501
+  topic_id: g2_addition
+  skill_id: g2_add_three_numbers
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_after_adding_first_two_numbers
+  - addition_error_in_ones_place
+  - added_only_first_and_last_ignoring_middle
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Emma collects stickers from three places. She gets 24 stickers from her friend, 35 stickers from
+    the store, and 31 stickers from trading cards. How many stickers does Emma collect in total?
+  context_block: null
+  answer_expression: Eq(x, 24 + 35 + 31)
+  hint_ladder:
+  - You need to add all three amounts together to find the total.
+  - First add the stickers from her friend and the store, then add the stickers from trading cards to
+    that sum.
+  - Write the sum 24 + 35 + 31 and calculate it step by step from left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Add the first two amounts: the stickers from her friend and the stickers from the
+        store.'
+      expression: 24 + 35 = 59
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the stickers from trading cards to the sum from step 1.
+      expression: 59 + 31 = 90
+      common_mistake: null
+    final_answer: 90 stickers
+  random_seed: 6501
+  rendered_question: Emma collects stickers from three places. She gets 24 stickers from her friend, 35
+    stickers from the store, and 31 stickers from trading cards. How many stickers does Emma collect in
+    total?
+  option_a: 55 stickers
+  option_b: 59 stickers
+  option_c: 90 stickers
+  option_d: 89 stickers
+  correct_option: c
+- question_template_id: authored-g2_addition-d1-7101
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted instead of added
+  - added only the ones digits
+  - forgot to add the second number completely
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 30 stickers in his collection and his friend gives him 40 more stickers. How many stickers
+    does Liam have now?
+  context_block: null
+  answer_expression: Eq(x, 30 + 40)
+  hint_ladder:
+  - Think about how many stickers Liam starts with and how many he gets from his friend.
+  - Write an addition problem that combines the stickers he has with the stickers he receives.
+  - Add 30 and 40 together to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 30 stickers.
+      expression: '30'
+      common_mistake: null
+    - step_number: 2
+      explanation: His friend gives him 40 more stickers, so we add 40 to the starting amount.
+      expression: 30 + 40
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Adding the tens: 3 tens plus 4 tens equals 7 tens, which is 70.'
+      expression: '70'
+      common_mistake: null
+    final_answer: 70 stickers
+  random_seed: 7101
+  rendered_question: Liam has 30 stickers in his collection and his friend gives him 40 more stickers.
+    How many stickers does Liam have now?
+  option_a: 60 stickers
+  option_b: 10 stickers
+  option_c: 70 stickers
+  option_d: 34 stickers
+  correct_option: c
+- question_template_id: authored-g2_addition-d2-7200
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_added
+  - added_wrong_digit_or_place_value
+  - added_ten_instead_of_correct_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student has 42 stickers in an album and gets 6 more stickers as a gift. How many stickers does
+    the student have now?
+  context_block: ''
+  answer_expression: x = 42 + 6
+  hint_ladder:
+  - The student starts with some stickers and then gets more. What operation combines two amounts?
+  - You need to add the stickers the student already has to the stickers received as a gift.
+  - Write 42 plus 6 and then find the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student starts with 42 stickers and receives 6 more. To find the total, we add
+        these two amounts together.
+      expression: 42 + 6
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones digits: 2 + 6 = 8. The tens digit remains 4.'
+      expression: '48'
+      common_mistake: null
+    final_answer: 48 stickers
+  random_seed: 7200
+  rendered_question: A student has 42 stickers in an album and gets 6 more stickers as a gift. How many
+    stickers does the student have now?
+  option_a: 48 stickers
+  option_b: 36 stickers
+  option_c: 52 stickers
+  option_d: 46 stickers
+  correct_option: a
+- question_template_id: authored-g2_addition-d2-7201
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - added_only_ones_place_forgot_tens
+  - added_each_digit_without_place_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maria has 32 stickers and her friend gives her 24 more stickers. How many stickers does Maria
+    have now?
+  context_block: null
+  answer_expression: Eq(x, 32 + 24)
+  hint_ladder:
+  - Maria starts with some stickers and receives more. What operation combines these two amounts?
+  - Write an addition sentence using the starting number of stickers and the number her friend gives her.
+  - 'Add the ones place first: 2 + 4. Then add the tens place: 30 + 20.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maria starts with 32 stickers and receives 24 more, so we need to add these two amounts.
+      expression: x = 32 + 24
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones digits: 2 + 4 = 6.'
+      expression: 'ones place: 6'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tens digits: 30 + 20 = 50.'
+      expression: 'tens place: 50'
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the tens and ones to get the total.
+      expression: 50 + 6 = 56
+      common_mistake: null
+    final_answer: 56 stickers
+  random_seed: 7201
+  rendered_question: Maria has 32 stickers and her friend gives her 24 more stickers. How many stickers
+    does Maria have now?
+  option_a: 66 stickers
+  option_b: 16 stickers
+  option_c: 55 stickers
+  option_d: 56 stickers
+  correct_option: d
+- question_template_id: authored-g2_addition-d3-7300
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_carry_during_addition
+  - concatenated_digits_instead_of_adding
+  - mismanaged_ones_place_in_regrouping
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has 28 stickers and her friend gives her 34 more stickers. How many stickers does Maya have
+    now?
+  context_block: ''
+  answer_expression: Eq(x, 28 + 34)
+  hint_ladder:
+  - Start by writing down the number of stickers Maya started with and how many she received.
+  - You need to combine these two amounts to find the total.
+  - Write the addition 28 + 34 and add the ones first, then the tens.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with 28 stickers and receives 34 more, so we add these amounts together.
+      expression: x = 28 + 34
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones place: 8 + 4 = 12. Write down 2 and carry 1 to the tens place.'
+      expression: 8 + 4 = 12
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tens place: 2 + 3 = 5, plus the carried 1 gives 6 tens.'
+      expression: 20 + 30 + 10 = 60
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the tens and ones to get the final total.
+      expression: 60 + 2 = 62
+      common_mistake: null
+    final_answer: 62 stickers
+  random_seed: 7300
+  rendered_question: Maya has 28 stickers and her friend gives her 34 more stickers. How many stickers
+    does Maya have now?
+  option_a: 62 stickers
+  option_b: 512 stickers
+  option_c: 54 stickers
+  option_d: 52 stickers
+  correct_option: a
+- question_template_id: authored-g2_addition-d3-7301
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_carry
+  - concatenated_digits_instead_of_adding
+  - subtracted_instead_of_added
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student has 28 stickers in her collection and receives 35 more stickers as a birthday gift.
+    How many stickers does she have now?
+  context_block: null
+  answer_expression: x = 28 + 35
+  hint_ladder:
+  - Start by identifying how many stickers the student begins with and how many she receives.
+  - You need to combine the starting amount and the new amount to find the total.
+  - Write the addition 28 + 35 and add the ones place first, remembering to carry if needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student starts with 28 stickers and receives 35 more. We need to add these two
+        amounts together.
+      expression: x = 28 + 35
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones place: 8 + 5 = 13. Write down 3 and carry 1 to the tens place.'
+      expression: 8 + 5 = 13, write 3 carry 1
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tens place: 2 + 3 + 1 (carried) = 6. Write down 6 in the tens place.'
+      expression: 2 + 3 + 1 = 6
+      common_mistake: null
+    - step_number: 4
+      explanation: Combining the tens and ones places gives us the total.
+      expression: x = 63
+      common_mistake: null
+    final_answer: 63 stickers
+  random_seed: 7301
+  rendered_question: A student has 28 stickers in her collection and receives 35 more stickers as a birthday
+    gift. How many stickers does she have now?
+  option_a: 53 stickers
+  option_b: 63 stickers
+  option_c: 7 stickers
+  option_d: 513 stickers
+  correct_option: b

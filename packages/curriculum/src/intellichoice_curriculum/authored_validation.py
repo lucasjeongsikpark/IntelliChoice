@@ -641,6 +641,36 @@ def _route_system(equation: str, normalized: str) -> tuple[DerivedAnswer | None,
     return DerivedAnswer("tuple", tuple(solved[0][s] for s in unknowns)), None
 
 
+def arithmetic_identity(equation: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
+    """What calculation this item actually asks for, ignoring the story around it.
+
+    **Measured need (D-273, C1 wave K-2).** The first 55 generated items reported 86%
+    acceptance and read well one at a time. Counted by their arithmetic, **27 of the 55
+    shared their number set with another item** - four separate items were `9 + 9`, three
+    were `4 + 5` or `5 + 4`. Every one passed dedup, because dedup asks two questions and
+    neither is about the mathematics: exact `rendered_question` text, then stem-embedding
+    cosine distance. "Liam has 9 apples and gets 9 more" and "Maria has 9 stickers and gets
+    9 more" are different stems by both measures and the same problem by any that matters.
+
+    The consequence is the one D-223 measured for bank depth: a topic whose items repeat
+    their arithmetic serves a student the same sum under new names, and two independently
+    built exams draw it twice.
+
+    Returns `(sorted numeric literals, sorted operators)`, so `4 + 5` and `5 + 4` collide
+    while `9 + 9` and `9 - 9` do not. Deliberately coarse: it is a *duplicate* check, not an
+    equivalence proof, and a false collision costs one candidate while a missed one costs a
+    repeat in front of a child. Returns None when the equation does not parse, and the
+    caller then skips the check - an unparseable equation is already rejected upstream by
+    `route_answer`, so there is nothing to add here.
+    """
+    normalized = _normalize_math_text(equation, strip_assignment=False)
+    numbers = tuple(sorted(re.findall(r"\d+(?:\.\d+)?", normalized)))
+    if not numbers:
+        return None
+    operators = tuple(sorted({ch for ch in normalized if ch in "+-*/"}))
+    return numbers, operators
+
+
 def _option_as_value_set(text: str) -> frozenset[sympy.Basic] | None:
     """`'3 or -3'`, `'3, -3'`, `'x = 3 or x = -3'` -> {3, -3}."""
     parts = [p for p in _ANSWER_SET_SPLIT_RE.split(text.strip()) if p.strip()]

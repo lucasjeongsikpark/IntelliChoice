@@ -141,8 +141,13 @@ def test_multi_root_requires_every_root_not_merely_a_subset():
 
 
 def test_the_whole_shipped_bank_still_routes_as_value_and_matches_its_own_key():
-    """The regression that matters most: 130 items were authored against the single-value
-    gate, and this phase must add models rather than move any of them.
+    """The regression that matters most: the bank was authored against the single-value
+    gate, and this phase must add models rather than move any of it.
+
+    The count is asserted rather than the shape alone, so a topic silently vanishing from
+    the export shows up here. It moved 130 -> 184 when C1's K-2 wave landed (54 generated
+    items across six new topics; a 55th was rejected for two options carrying the same
+    value written two ways).
     """
     import glob
     import pathlib
@@ -160,4 +165,4 @@ def test_the_whole_shipped_bank_still_routes_as_value_and_matches_its_own_key():
             matching = [k for k, v in options.items() if _option_matches(derivation, v)]
             assert matching == [template["correct_option"]], template["question_template_id"]
             checked += 1
-    assert checked == 130
+    assert checked == 184

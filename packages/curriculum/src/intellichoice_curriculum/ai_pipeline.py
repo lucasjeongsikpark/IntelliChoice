@@ -1724,6 +1724,25 @@ async def _attempt_authored_candidate(
             ["duplicate rendered_question (exact text match)"], stage_results, "dedup"
         )
 
+    # --- 2b. Same calculation, different story (D-273) - MEASURED, NOT YET WIRED ---
+    #
+    # `arithmetic_identity` exists, is tested in both directions, and would have caught 13
+    # of the 55 items the first wave shipped (27 of 55 share a number set; 13 are the
+    # second-and-later copies within a topic). It is deliberately **not** called here yet.
+    #
+    # Wiring it as written made four pipeline tests fail, and the reason is the one
+    # `QuestionRepository.rendered_question_exists` documents at length: it turned a
+    # *content* question ("is this a new calculation?") into a question about *shared
+    # database state*, because the comparison population is every authored template in the
+    # topic and the dev database is shared by the suite. That exact coupling produced a
+    # false positive that recurred four times across S17, S22 and S31, each time "fixed" by
+    # deleting one row. Shipping a fifth instance in a hurry is worse than shipping the
+    # duplicates it prevents, which are a quality problem rather than a correctness one.
+    #
+    # What it needs before it goes live, and none of it is hard: a bounded population
+    # (active templates only, the way D-106 scoped the text check to canonical variants),
+    # and pipeline tests whose fixtures do not depend on bank contents. Recorded as
+    # carry-over rather than left as a half-wired branch.
     # --- 3. Near-duplicate check: embed the stem, cosine-compare against every ---
     # --- other authored template's stem in this topic -----------------------------
     try:

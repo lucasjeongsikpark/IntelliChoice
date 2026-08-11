@@ -1,0 +1,328 @@
+curriculum_version: '2026.1'
+topic_id: g2_word_problems
+templates:
+- question_template_id: authored-g2_word_problems-d3-5301
+  topic_id: g2_word_problems
+  skill_id: g2_wp_measurement_context
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - added_only_the_ones_place
+  - reported_only_the_amount_received
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 35 stickers in his album. His friend gives him 28 more stickers. How many stickers does
+    Liam have now?
+  context_block: ''
+  answer_expression: x = 35 + 28
+  hint_ladder:
+  - Start by figuring out how many stickers Liam begins with.
+  - The question asks for the total after his friend gives him more stickers.
+  - Write an expression that adds what he starts with to what he receives.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 35 stickers.
+      expression: x = 35 + ...
+      common_mistake: null
+    - step_number: 2
+      explanation: His friend gives him 28 more stickers, so we add that amount.
+      expression: x = 35 + 28
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the two numbers together.
+      expression: x = 63
+      common_mistake: null
+    final_answer: 63 stickers
+  random_seed: 5301
+  rendered_question: Liam has 35 stickers in his album. His friend gives him 28 more stickers. How many
+    stickers does Liam have now?
+  option_a: 7 stickers
+  option_b: 63 stickers
+  option_c: 53 stickers
+  option_d: 28 stickers
+  correct_option: b
+- question_template_id: authored-g2_word_problems-d5-6500
+  topic_id: g2_word_problems
+  skill_id: g2_wp_multi_step
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_after_first_operation
+  - subtracted_instead_of_added_earned_amount
+  - added_all_numbers_ignoring_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Liam has 15 dollars. He earns 12 more dollars helping a neighbour. Then he spends 8 dollars on
+    a book. How much money does Liam have left?
+  context_block: ''
+  answer_expression: Eq(x, (15 + 12) - 8)
+  hint_ladder:
+  - Start by finding how much money Liam has after he earns the extra dollars.
+  - Add the starting amount and the amount earned, then think about what happens when he buys the book.
+  - Write the total as 15 plus 12, then subtract the 8 dollars he spent.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 15 dollars and earns 12 more, so we add those amounts together.
+      expression: 15 + 12 = 27
+      common_mistake: null
+    - step_number: 2
+      explanation: Now Liam has 27 dollars and spends 8 dollars on a book, so we subtract 8 from 27.
+      expression: 27 - 8 = 19
+      common_mistake: null
+    final_answer: 19 dollars
+  random_seed: 6500
+  rendered_question: Liam has 15 dollars. He earns 12 more dollars helping a neighbour. Then he spends
+    8 dollars on a book. How much money does Liam have left?
+  option_a: 35 dollars
+  option_b: 27 dollars
+  option_c: 19 dollars
+  option_d: 11 dollars
+  correct_option: c
+- question_template_id: authored-g2_word_problems-d5-6501
+  topic_id: g2_word_problems
+  skill_id: g2_wp_multi_step
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_after_first_operation
+  - added_all_three_numbers_instead_of_subtracting_the_spent_amount
+  - subtracted_from_first_amount_only_ignoring_grandmother_gift
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Luca saves 35 dollars from his allowance. His grandmother gives him 25 more dollars. Then he spends
+    18 dollars on a board game. How much money does Luca have left?
+  context_block: ''
+  answer_expression: Eq(x, (35 + 25) - 18)
+  hint_ladder:
+  - Start by finding how much money Luca has before he buys the game.
+  - Add the 35 dollars he saved and the 25 dollars his grandmother gave him.
+  - Now take away the 18 dollars he spent on the board game.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the amount Luca saved and the amount his grandmother gave him.
+      expression: 35 + 25 = 60
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the amount he spent on the board game from the total he had.
+      expression: 60 - 18 = 42
+      common_mistake: null
+    final_answer: 42 dollars
+  random_seed: 6501
+  rendered_question: Luca saves 35 dollars from his allowance. His grandmother gives him 25 more dollars.
+    Then he spends 18 dollars on a board game. How much money does Luca have left?
+  option_a: 32 dollars
+  option_b: 60 dollars
+  option_c: 42 dollars
+  option_d: 78 dollars
+  correct_option: c
+- question_template_id: authored-g2_word_problems-d1-7100
+  topic_id: g2_word_problems
+  skill_id: g2_wp_single_operation
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - arithmetic_error_added_two_extra
+  - off_by_one_addition_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Jamal has 35 stickers in his collection. His friend gives him 24 more stickers. How many stickers
+    does Jamal have now?
+  context_block: null
+  answer_expression: Eq(x, 35 + 24)
+  hint_ladder:
+  - How many stickers did Jamal start with, and how many did his friend give him?
+  - You need to combine the number of stickers Jamal already had with the number he received.
+  - Write 35 plus 24 and find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Jamal starts with 35 stickers and receives 24 more, so we add them together.
+      expression: 35 + 24
+      common_mistake: null
+    - step_number: 2
+      explanation: Adding 35 and 24 gives 59.
+      expression: '59'
+      common_mistake: null
+    final_answer: 59 stickers
+  random_seed: 7100
+  rendered_question: Jamal has 35 stickers in his collection. His friend gives him 24 more stickers. How
+    many stickers does Jamal have now?
+  option_a: 11 stickers
+  option_b: 59 stickers
+  option_c: 61 stickers
+  option_d: 58 stickers
+  correct_option: b
+- question_template_id: authored-g2_word_problems-d1-7101
+  topic_id: g2_word_problems
+  skill_id: g2_wp_single_operation
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - subtracted_in_wrong_order
+  - added_but_made_ones_place_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maria has 34 stickers. Her friend gives her 25 more stickers. How many stickers does Maria have
+    now?
+  context_block: null
+  answer_expression: x = 34 + 25
+  hint_ladder:
+  - Maria starts with some stickers and receives more. What operation combines the two amounts?
+  - Add the number of stickers she had at the start to the number her friend gave her.
+  - Write 34 + 25 and find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maria starts with 34 stickers and her friend gives her 25 more. To find the total,
+        add the two amounts.
+      expression: 34 + 25
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones place: 4 + 5 = 9. Add the tens place: 30 + 20 = 50. Combine them: 50
+        + 9 = 59.'
+      expression: '59'
+      common_mistake: null
+    final_answer: 59 stickers
+  random_seed: 7101
+  rendered_question: Maria has 34 stickers. Her friend gives her 25 more stickers. How many stickers does
+    Maria have now?
+  option_a: 60 stickers
+  option_b: 11 stickers
+  option_c: 59 stickers
+  option_d: 9 stickers
+  correct_option: c
+- question_template_id: authored-g2_word_problems-d2-7200
+  topic_id: g2_word_problems
+  skill_id: g2_wp_single_operation
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_added
+  - added_only_tens_or_ones
+  - off_by_one_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has 24 stickers in her collection. Her friend gives her 35 more stickers. How many stickers
+    does Maya have now?
+  context_block: null
+  answer_expression: Eq(x, 24 + 35)
+  hint_ladder:
+  - Start by thinking about how many stickers Maya had at first and how many she got from her friend.
+  - When you get more of something, you add the amount you started with to the amount you received.
+  - Write down 24 plus 35 and find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with 24 stickers and receives 35 more from her friend.
+      expression: x = 24 + 35
+      common_mistake: null
+    - step_number: 2
+      explanation: Add 24 and 35 together.
+      expression: x = 59
+      common_mistake: null
+    final_answer: 59 stickers
+  random_seed: 7200
+  rendered_question: Maya has 24 stickers in her collection. Her friend gives her 35 more stickers. How
+    many stickers does Maya have now?
+  option_a: 59 stickers
+  option_b: 11 stickers
+  option_c: 58 stickers
+  option_d: 60 stickers
+  correct_option: a
+- question_template_id: authored-g2_word_problems-d2-7201
+  topic_id: g2_word_problems
+  skill_id: g2_wp_single_operation
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - added_only_ones_place
+  - added_tens_to_ones
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Sarah has 34 stickers in her collection. Her friend gives her 23 more stickers. How many stickers
+    does Sarah have now?
+  context_block: null
+  answer_expression: x = 34 + 23
+  hint_ladder:
+  - Start by writing down how many stickers Sarah had before her friend gave her more.
+  - Now add the number of stickers her friend gave her to the number she already had.
+  - Calculate 34 plus 23 to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Sarah starts with 34 stickers.
+      expression: '34'
+      common_mistake: null
+    - step_number: 2
+      explanation: Her friend gives her 23 more stickers, so we add 23 to what she already has.
+      expression: 34 + 23
+      common_mistake: null
+    - step_number: 3
+      explanation: Adding 34 and 23 together gives the total number of stickers.
+      expression: '57'
+      common_mistake: null
+    final_answer: 57 stickers
+  random_seed: 7201
+  rendered_question: Sarah has 34 stickers in her collection. Her friend gives her 23 more stickers. How
+    many stickers does Sarah have now?
+  option_a: 67 stickers
+  option_b: 11 stickers
+  option_c: 56 stickers
+  option_d: 57 stickers
+  correct_option: d
