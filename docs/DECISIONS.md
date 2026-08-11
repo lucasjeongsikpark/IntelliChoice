@@ -19534,8 +19534,10 @@ numerically grounded.
 
 ### Verification
 
-`make lint` clean, `make typecheck` 0 errors, `make test` **1171 passed, 3 skipped, 1 xfailed**.
-`tsc` and `oxlint` clean for learning-web. **66 Playwright e2e passed** (from 63/3). New tests:
+`make lint` clean, `make typecheck` 0 errors, `make test` **1173 passed, 2 skipped, 1 xfailed**
+(1161/2/1 at session start). `tsc` clean for learning-web, chat-web and e2e; `oxlint` clean.
+**66 Playwright e2e passed locally** (from 63/3); **24 of 25 against staging** — the one failure
+is `pre_intro`'s overlay, see the postscript. New tests:
 `assistance_question` names the answered question and not the next one, and is absent when no
 help is on screen; `study_progress` across the retry ladder, the prerequisite case and the
 "never 6 of 5" clamp, plus its wiring onto `finalize`; the canonical-first hint with its audit

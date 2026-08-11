@@ -8898,8 +8898,9 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   full-height mode of the right column rather than a 220px box; two-stage hints (authored rung
   instantly, personalization in a detached task); the narrative stopped listing five skill names
   twice; `.app-main` top-aligned and the study grid 1200 → 1560.
-- **Verification:** `make lint` clean, `make typecheck` 0 errors, `make test` **1171 passed, 3
-  skipped, 1 xfailed** (from 1161/2/1). `tsc` + `oxlint` clean. **66 Playwright e2e passed
+- **Verification (final, after #233):** `make lint` clean, `make typecheck` 0 errors,
+  `make test` **1173 passed, 2 skipped, 1 xfailed** (from 1161/2/1 at session start — +12
+  tests). `tsc` clean for learning-web, chat-web and e2e; `oxlint` clean. **66 Playwright e2e passed
   locally**, up from 63 passed / 3 failed — the 3 were failing on `main` too, confirmed by
   checking it out and running the spec. **Against staging: 24 of 25**, with
   `time-telemetry.spec.ts` failing 3 of 3 on the `pre_intro` overlay — see carry-over 1. The
