@@ -56,6 +56,21 @@ _EMBEDDING_DIM = 1024
 # Deliberately absurd, so no real authoring run would ever choose it and consume the ids
 # these tests assert are free (D-201).
 _TEST_RESERVED_SEED_OFFSET = 990_000_000
+# The SAME lesson, learned twice (D-276). `test_preflight_sees_a_taken_id...` fixed its
+# first offset when a pilot picked 810_000, and left its second one - the 'and the
+# documented remedy works' half - as the bare literal 950_000. The 3-5 wave ran
+# `measurement` at exactly that offset, so the test began failing on any database that
+# had seen the wave. A reserved range is only reserved if every offset in the test uses it.
+_TEST_RESERVED_SEED_OFFSET_ALT = 991_000_000
+# Every other offset these DB-touching tests claim, moved into the same reserved range
+# for the same reason. The pure plan-arithmetic tests (0, 40_000, 400_000) keep their
+# literals - they never touch a database, so no run can take their ids.
+_TEST_RESERVED_SEED_OFFSET_2 = 992_000_000
+_TEST_RESERVED_SEED_OFFSET_3 = 993_000_000
+_TEST_RESERVED_SEED_OFFSET_4 = 994_000_000
+_TEST_RESERVED_SEED_OFFSET_5 = 995_000_000
+_TEST_RESERVED_SEED_OFFSET_6 = 996_000_000
+_TEST_RESERVED_SEED_OFFSET_7 = 997_000_000
 
 
 def _postgres_skip_reason() -> str | None:
@@ -1442,7 +1457,9 @@ def test_two_inference_profiles_for_one_model_are_not_two_solvers() -> None:
 
     async def run() -> None:
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=870_000)
+            plan = pipeline_cli.build_plan(
+                candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET_2
+            )
             report = await pipeline_cli.preflight(
                 session,
                 _settings(solver_a=f"us.{haiku}", solver_b=f"global.{haiku}"),
@@ -1466,7 +1483,9 @@ def test_preflight_sees_a_taken_id_before_the_run_pays_for_it() -> None:
     async def run() -> None:
         curriculum = load_curriculum()
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=900_000)
+            plan = pipeline_cli.build_plan(
+                candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET_3
+            )
             report = await pipeline_cli.preflight(session, _settings(), plan)
             assert report.ok, "a fresh offset should be clear"
 
@@ -1502,7 +1521,9 @@ def test_preflight_sees_a_taken_id_before_the_run_pays_for_it() -> None:
             assert "id availability:       FAIL" in report.text
 
             # And the documented remedy works without deleting anything.
-            fresh = pipeline_cli.build_plan(candidates_per_slot=1, seed_offset=950_000)
+            fresh = pipeline_cli.build_plan(
+                candidates_per_slot=1, seed_offset=_TEST_RESERVED_SEED_OFFSET_ALT
+            )
             assert (await pipeline_cli.preflight(session, _settings(), fresh)).ok
 
     asyncio.run(run())
@@ -1541,7 +1562,9 @@ def test_preflight_refuses_a_budget_above_the_configured_hard_cap() -> None:
     async def run() -> None:
         async with _rollback_session() as session:
             plan = pipeline_cli.build_plan(
-                candidates_per_slot=1, seed_offset=820_000, run_budget_cents=500.0
+                candidates_per_slot=1,
+                seed_offset=_TEST_RESERVED_SEED_OFFSET_4,
+                run_budget_cents=500.0,
             )
             report = await pipeline_cli.preflight(session, _settings(cap=100.0), plan)
             assert not report.ok
@@ -1566,7 +1589,9 @@ def test_preflight_and_dry_run_make_no_provider_call() -> None:
 
     async def run() -> None:
         async with _rollback_session() as session:
-            plan = pipeline_cli.build_plan(candidates_per_slot=2, seed_offset=830_000)
+            plan = pipeline_cli.build_plan(
+                candidates_per_slot=2, seed_offset=_TEST_RESERVED_SEED_OFFSET_5
+            )
             report = await pipeline_cli.preflight(session, _settings(), plan)
             assert report.text  # it produced a report...
             # ...and the gateway it never touched still refuses to be touched.
@@ -1597,7 +1622,7 @@ def test_preflight_reports_every_field_a_paid_decision_needs() -> None:
                 skill_ids=["linear_both_sides"],
                 difficulties=[4],
                 candidates_per_slot=2,
-                seed_offset=840_000,
+                seed_offset=_TEST_RESERVED_SEED_OFFSET_6,
             )
             report = await pipeline_cli.preflight(session, _settings(), plan)
             for expected in [
@@ -1614,7 +1639,10 @@ def test_preflight_reports_every_field_a_paid_decision_needs() -> None:
                 "scheduled candidates:  2",
                 "planned template ids:",
                 "already-used ids:      0",
-                "seed offset:           840000",
+                # Derived, not hardcoded: this line asserts the report *carries* the
+                # offset, and pinning the digits couples the assertion to a value that
+                # has to move whenever a real run claims it (D-276).
+                f"seed offset:           {_TEST_RESERVED_SEED_OFFSET_6}",
                 "run budget ceiling:",
                 "estimated max calls:   10",
                 "estimated max spend:",
@@ -1637,7 +1665,7 @@ def test_per_candidate_settlement_survives_a_duplicate_id() -> None:
             plan = pipeline_cli.build_plan(skill_ids=["linear_one_step"],
                 difficulties=[1],
                 candidates_per_slot=1,
-                seed_offset=860_000,
+                seed_offset=_TEST_RESERVED_SEED_OFFSET_7,
             )
             slot = plan.slots[0]
             # Take the id first, so the run's only candidate is guaranteed to collide.
@@ -2893,7 +2921,7 @@ def test_a_real_run_builds_its_own_dispersion_and_then_retiers_on_it() -> None:
                 skill_ids=["linear_one_step"],
                 difficulties=[1],
                 candidates_per_slot=12,
-                seed_offset=870_000,
+                seed_offset=_TEST_RESERVED_SEED_OFFSET_2,
             )
             summary = await pipeline_cli.run_plan(
                 session,
