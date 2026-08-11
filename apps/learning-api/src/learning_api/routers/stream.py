@@ -49,6 +49,7 @@ from .sessions import (
     _items_response,
     _pending_interrupt_response,
     _pending_task_interrupt,
+    _study_progress,
 )
 
 router = APIRouter(prefix="/learning/sessions", tags=["learning-sessions"])
@@ -222,6 +223,7 @@ async def _initial_snapshot(
         assistance_question=await _assistance_question(
             db, state, help_open=_is_intervention_pause(pending)
         ),
+        study_progress=await _study_progress(db, state),
         attendance_resolution=state.get("attendance_resolution"),
         stage_narrative=narrative_text,
         stage_narrative_evidence=narrative_evidence,

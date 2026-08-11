@@ -30,6 +30,24 @@ ANSWER_REVEALED = "answer_revealed"
 UNRESOLVED = "unresolved"
 INCORRECT = "incorrect"  # interim: wrong answer, skill line still open
 
+# The labels that *close* a skill line. Everything else - `INCORRECT`, `ANSWER_REVEALED`,
+# and an unlabelled attempt - leaves it open for another rung of the ladder.
+#
+# Named here rather than at the one call site because "which labels are terminal" is the
+# same fact `advance_study` already encodes in its `resolved` flag, and a second copy of it
+# in the progress service would be free to drift (D-223). `ANSWER_REVEALED` is the one that
+# looks terminal and is not: the solution was shown, the answer was effectively given, and
+# the student still gets their retry.
+RESOLVING_LABELS = frozenset(
+    {
+        INDEPENDENT_CORRECT,
+        CORRECT_AFTER_HINT,
+        CORRECT_AFTER_VIDEO,
+        CORRECT_AFTER_SOLUTION,
+        UNRESOLVED,
+    }
+)
+
 # The full retry ladder before a skill line is declared unresolved (SPEC §5.11.7):
 # attempt 1 (base) + two same-skill retries + one easier-prerequisite problem = 4.
 MAX_ATTEMPTS_PER_SKILL = 4

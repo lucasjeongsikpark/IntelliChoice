@@ -423,6 +423,164 @@ button.link {
   }
 }
 
+/* D-272: the journey bar. Matches the width of whatever it sits above - 880px over a single
+   question card, the full grid width over the study columns - so it reads as that content's
+   header rather than as a floating strip. */
+.journey-slot {
+  width: 100%;
+  max-width: 880px;
+}
+
+.journey-slot.wide {
+  max-width: 1560px;
+}
+
+.journey {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+}
+
+.journey-stages {
+  display: flex;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.journey-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  min-width: 0;
+}
+
+.journey-stage.current {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.journey-stage.upcoming {
+  opacity: 0.5;
+}
+
+.journey-marker {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.journey-stage.done .journey-marker {
+  border-color: var(--brand-green, var(--accent));
+  color: var(--brand-green, var(--accent));
+}
+
+.journey-stage.current .journey-marker {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.journey-stage-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.journey-stage-label {
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.journey-stage-hint {
+  font-size: 12px;
+  color: var(--text);
+  /* One line. The hint is orientation, not instruction - it must never push the bar tall
+     enough to shove the question below the fold. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journey-study {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.journey-study-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.journey-study-skill {
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.journey-study-try {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Segments, one per skill line, rather than a continuous bar. A continuous fill would have
+   to interpolate within a line, and there is nothing honest to interpolate - a student on
+   try 3 of 4 is not 75% of the way to resolving it, they might get it on the next one. */
+.journey-meter {
+  display: flex;
+  gap: 4px;
+}
+
+.journey-meter-cell {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.journey-meter-cell.done {
+  background: var(--accent);
+}
+
+.journey-meter-cell.current {
+  background: var(--accent);
+  opacity: 0.45;
+}
+
+/* On a phone the three stages stack their text; the hints go, since vertical space is the
+   scarce thing there and the labels alone carry the sequence. */
+@media (max-width: 700px) {
+  .journey-stage-hint {
+    display: none;
+  }
+
+  .journey-stage {
+    padding: 6px 8px;
+  }
+}
+
 /* D-272: the locked question shown beside a hint or solution. Not buttons (nothing to
    press), so these need their own resting appearance rather than inheriting `:disabled`,
    which renders as "this control is broken" instead of "this question is answered". */

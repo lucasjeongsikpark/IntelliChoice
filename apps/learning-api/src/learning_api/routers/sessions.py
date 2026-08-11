@@ -7,6 +7,7 @@ for which of the nine spec'd endpoints are deferred and why.
 import logging
 import random
 import uuid
+from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
@@ -53,7 +54,13 @@ from learning_api.dependencies import (
 from learning_api.graph import nodes
 from learning_api.graph.build import EntryInput, LearningGraph
 from learning_api.graph.nodes import TurnContext
-from learning_api.services import attendance, checkpoint_reconcile, flow, topic_availability
+from learning_api.services import (
+    attendance,
+    checkpoint_reconcile,
+    flow,
+    study_progress,
+    topic_availability,
+)
 from learning_api.services.assessment_builder import AssessmentBuildError
 from learning_api.services.consolidation_scheduler import ConsolidationScheduler
 from learning_api.services.effective_policy import effective_assistance_policy
@@ -158,6 +165,21 @@ class AssistanceQuestionResponse(BaseModel):
     selected_option: str | None = None
 
 
+class StudyProgressResponse(BaseModel):
+    """D-272: where the student is in the study phase, so they can see how much is left.
+
+    Two bounded counters rather than one unbounded one - see
+    `services/study_progress.py` for why the denominator is skills and not questions.
+    """
+
+    skills_total: int
+    skills_resolved: int
+    current_skill_name: str | None = None
+    current_skill_position: int | None = None
+    attempt_in_line: int
+    max_attempts: int
+
+
 class TopicSelectionResponse(BaseModel):
     learning_session_id: str
     phase: str
@@ -217,6 +239,8 @@ class AnswerResponse(BaseModel):
     # D-272: the question this turn's help is about. Set on the pending-interrupt branch,
     # which is exactly where `items` is `None` and the student used to lose their question.
     assistance_question: AssistanceQuestionResponse | None = None
+    # D-272: present on every study-phase response, absent everywhere else.
+    study_progress: StudyProgressResponse | None = None
     # S26 (plan §18-L7): set only when this turn fired a `study_step`/`study_outro`
     # narrative - never on the pending-interrupt early return above, since no narrative
     # can have fired before `intervention_choice` even runs.
@@ -259,6 +283,10 @@ class FinalizeExamResponse(BaseModel):
     phase: str
     items: list[QuestionItemResponse] | None = None
     learning_gain: LearningGainResponse | None = None
+    # D-272: finalizing the pre-exam is what *enters* the study phase, so this response is
+    # the first one the study screen renders - it needs the counters immediately, not one
+    # answer later.
+    study_progress: StudyProgressResponse | None = None
     # S26 (plan §18-L7): `pre_outro`/`post_outro`, whichever this finalize just fired.
     stage_narrative: str | None = None
     stage_narrative_evidence: list[str] | None = None
@@ -288,6 +316,7 @@ class ResumeResponse(BaseModel):
     # D-272: set when the resumed session is paused on `intervention_choice`, so a resume
     # lands on the same two-column view the student left rather than a bare help panel.
     assistance_question: AssistanceQuestionResponse | None = None
+    study_progress: StudyProgressResponse | None = None
     # S26 (plan §18-L7): the checkpoint's own `stage_narrative` channel - re-served
     # verbatim on `/resume` like `message`, since it's just another `LastValue` field.
     stage_narrative: str | None = None
@@ -367,6 +396,7 @@ class RespondResponse(BaseModel):
     # a hint is the question that hint was written for - including after the ladder closes,
     # when `items` has already moved on to the next question.
     assistance_question: AssistanceQuestionResponse | None = None
+    study_progress: StudyProgressResponse | None = None
     attendance_resolution: str | None = None
     # S26 (plan §18-L7): `study_step`/`study_outro`, whichever `intervention_choice`
     # just fired this round.
@@ -392,6 +422,7 @@ class SessionSnapshotEvent(BaseModel):
     pending_interrupt: PendingInterruptResponse | None = None
     intervention: InterventionContentResponse | None = None
     assistance_question: AssistanceQuestionResponse | None = None
+    study_progress: StudyProgressResponse | None = None
     attendance_resolution: str | None = None
     stage_narrative: str | None = None
     stage_narrative_evidence: list[str] | None = None
@@ -402,7 +433,8 @@ def _publish_snapshot(events: SessionEventBus, response: BaseModel) -> None:
     events.publish(snapshot.learning_session_id, snapshot.model_dump(mode="json"))
 
 
-def build_deferred_narrative_snapshot(
+async def build_deferred_narrative_snapshot(
+    db: AsyncSession,
     learning_session_id: str,
     state: dict,
     narrative_text: str,
@@ -429,6 +461,9 @@ def build_deferred_narrative_snapshot(
             else None
         ),
         attendance_resolution=state.get("attendance_resolution"),
+        # D-272: this frame replaces the client's whole snapshot, so the counters have to
+        # ride along or the progress bar blanks a beat after every correct answer.
+        study_progress=await _study_progress(db, state),
         stage_narrative=narrative_text,
         stage_narrative_evidence=narrative_evidence,
     )
@@ -482,6 +517,36 @@ async def _assistance_question(
         option_d=variant.option_d,
         selected_option=attempt.selected_option,
     )
+
+
+async def _study_progress(db: AsyncSession, state: dict) -> StudyProgressResponse | None:
+    """D-272: the study phase's two honest counters, or `None` outside study.
+
+    Three reads (session row, items, attempts), all already loaded elsewhere on the answer
+    turn - but re-read here rather than threaded through, because the router builds its
+    response *after* the graph turn has committed, and reusing the turn's own copies would
+    reintroduce the staleness `_serve_next_base_or_complete` documents (AUD-L-12: read the
+    row at serve time, not the value the plan started with).
+
+    Gated on the phase rather than on "a study session exists", so the numbers disappear at
+    the post-exam instead of freezing at their final values on a screen they no longer
+    describe.
+    """
+    if state.get("phase") != "study":
+        return None
+    study_session_id = state.get("study_session_id")
+    if study_session_id is None:
+        return None
+    repo = StudyRepository(db)
+    session_row = await repo.get_study_session(str(study_session_id))
+    if session_row is None:
+        return None
+    progress = study_progress.compute(
+        session_row,
+        await repo.get_items(str(study_session_id)),
+        await repo.get_attempts(str(study_session_id)),
+    )
+    return StudyProgressResponse(**asdict(progress))
 
 
 def _is_intervention_pause(pending: Interrupt | None) -> bool:
@@ -1106,6 +1171,7 @@ async def submit_answer(
             assistance_question=await _assistance_question(
                 db, result, help_open=_is_intervention_pause(pending)
             ),
+            study_progress=await _study_progress(db, result),
         )
         _publish_snapshot(events, response)
         return response
@@ -1128,6 +1194,7 @@ async def submit_answer(
             if result.get("last_learning_gain") is not None
             else None
         ),
+        study_progress=await _study_progress(db, result),
         stage_narrative=result.get("stage_narrative"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
@@ -1439,6 +1506,7 @@ async def finalize_exam(
             if result.get("last_learning_gain") is not None
             else None
         ),
+        study_progress=await _study_progress(db, result),
         stage_narrative=result.get("stage_narrative"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )
@@ -1652,6 +1720,7 @@ async def respond_to_interrupt(
             help_open=_is_intervention_pause(next_pending)
             or result.get("last_intervention") is not None,
         ),
+        study_progress=await _study_progress(db, result),
         attendance_resolution=result.get("attendance_resolution"),
         stage_narrative=result.get("stage_narrative"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
@@ -1709,6 +1778,7 @@ async def resume_session(
             assistance_question=await _assistance_question(
                 db, state, help_open=_is_intervention_pause(pending)
             ),
+            study_progress=await _study_progress(db, state),
         )
         _publish_snapshot(events, response)
         return response
@@ -1744,6 +1814,7 @@ async def resume_session(
             if result.get("last_learning_gain") is not None
             else None
         ),
+        study_progress=await _study_progress(db, result),
         stage_narrative=result.get("stage_narrative"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
     )

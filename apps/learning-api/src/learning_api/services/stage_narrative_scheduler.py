@@ -31,7 +31,7 @@ mastery, and next question were all committed by the synchronous turn, and the d
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from intellichoice_db.repositories.curriculum import CurriculumRepository
@@ -40,7 +40,7 @@ from intellichoice_db.repositories.study import StudyRepository
 from intellichoice_shared.bedrock import BedrockGateway
 from intellichoice_shared.profiles import ProfileAdapter
 from langchain_core.runnables import RunnableConfig
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from learning_api.services import stage_narrative
 from learning_api.services.session_events import SessionEventBus
@@ -64,7 +64,9 @@ class BackgroundStudyNarrativeScheduler:
         graph_getter: "Callable[[], LearningGraph]",
         events: SessionEventBus,
         profile_adapter: ProfileAdapter,
-        snapshot_builder: Callable[[str, dict, str, list[str]], dict],
+        snapshot_builder: Callable[
+            [AsyncSession, str, dict, str, list[str]], Awaitable[dict]
+        ],
     ) -> None:
         self._session_factory = session_factory
         self._gateway_factory = gateway_factory
@@ -121,12 +123,23 @@ class BackgroundStudyNarrativeScheduler:
             config: RunnableConfig = {"configurable": {"thread_id": learning_session_id}}
             snapshot = await self._graph_getter().aget_state(config)
             if snapshot.values:
-                event = self._snapshot_builder(
-                    learning_session_id,
-                    snapshot.values,
-                    result.narrative_text,
-                    result.evidence_summary,
-                )
+                # D-272: a second, short-lived session. The snapshot now carries
+                # `study_progress`, which is read from the study rows, and the session
+                # above is already closed by here - deliberately, since the narrative call
+                # sits between them and holding a connection across it would tie up a pool
+                # slot for ~1.5s per background narrative.
+                #
+                # This frame *replaces* the client's whole snapshot, so anything it omits
+                # is erased from the screen. Leaving the counters out would have blanked
+                # the progress bar a second after every correct answer.
+                async with self._session_factory() as snapshot_session:
+                    event = await self._snapshot_builder(
+                        snapshot_session,
+                        learning_session_id,
+                        snapshot.values,
+                        result.narrative_text,
+                        result.evidence_summary,
+                    )
                 self._events.publish(learning_session_id, event)
         except Exception:
             # Swallowed on purpose (same reasoning as the consolidation scheduler): nothing

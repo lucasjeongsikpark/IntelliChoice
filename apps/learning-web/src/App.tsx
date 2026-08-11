@@ -18,6 +18,12 @@ import { AssistancePanel } from "./screens/InterventionScreen";
 import { ResultsScreen } from "./screens/ResultsScreen";
 import { StageTransitionScreen } from "./screens/StageTransitionScreen";
 import { StudentDashboardScreen } from "./screens/StudentDashboardScreen";
+import { JourneyBar } from "./components/JourneyBar";
+
+// The phases the journey bar describes. Anything else (login, topic select, blocked,
+// error) has no journey to show and gets `null` in the slot - a permanent slot either way,
+// for the reconcile-by-position reason the narrative and stream banner already document.
+const JOURNEY_PHASES = ["pre_exam", "study", "post_exam", "completed"];
 
 const TOKEN_KEY = "intellichoice.token";
 const SUB_KEY = "intellichoice.sub";
@@ -719,9 +725,18 @@ function App() {
           <button onClick={session.reconnectStream}>Reconnect</button>
         </div>
       ) : null;
+    // D-272: a permanent slot, like the two below it. A conditional wrapper here would
+    // remount the phase screen on every phase change (AUD-F-24), which is the defect this
+    // file already carries two comments about.
+    const journey = JOURNEY_PHASES.includes(snapshot.phase) ? (
+      <div className={`journey-slot ${snapshot.phase === "study" ? "wide" : ""}`}>
+        <JourneyBar phase={snapshot.phase} progress={snapshot.study_progress} />
+      </div>
+    ) : null;
     return (
       <>
         {streamBanner}
+        {journey}
         {showNarrative ? (
           <StageTransitionScreen
             narrative={narrative}

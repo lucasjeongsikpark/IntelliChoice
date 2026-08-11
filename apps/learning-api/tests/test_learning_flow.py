@@ -34,6 +34,7 @@ from intellichoice_shared.auth import Audience, Role
 from learning_api.main import app
 from learning_api.services import study_plan, video_catalog
 from learning_api.services.attendance import BLOCKED_MESSAGE, UNKNOWN_MESSAGE
+from learning_api.services.study_outcomes import MAX_ATTEMPTS_PER_SKILL
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -2224,3 +2225,74 @@ def test_assistance_question_is_absent_when_no_help_is_on_screen() -> None:
         ).json()
         assert correct["is_correct"] is True
         assert correct.get("assistance_question") is None
+
+
+def test_study_progress_reaches_the_wire_and_counts_lines() -> None:
+    """D-272: the counters are on every study-phase response and absent from the exams.
+
+    The unit tests in `test_study_progress.py` pin the arithmetic; this pins the wiring,
+    which is the half that silently breaks - a field can be computed correctly and left off
+    the one response the student's screen is built from. `finalize` is that response here:
+    it is what *enters* study, so it is the first the study screen ever renders.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        topics = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        ).json()
+        # Pre-exam: no study phase, so no counters to show.
+        assert topics["phase"] == "pre_exam"
+        assert topics.get("study_progress") is None
+
+        pre_items = topics["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"sp-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+
+        finalize = _finalize_exam(client, headers, session_id)
+        assert finalize["phase"] == "study"
+        progress = finalize["study_progress"]
+        assert progress["skills_total"] == study_plan.BASE_PROBLEM_COUNT
+        assert progress["skills_resolved"] == 0
+        assert progress["current_skill_position"] == 1
+        assert progress["attempt_in_line"] == 1
+        assert progress["max_attempts"] == MAX_ATTEMPTS_PER_SKILL
+        # A name a student can read, never the internal id (SPEC §5.10.3).
+        assert progress["current_skill_name"]
+        assert "_" not in progress["current_skill_name"]
+
+        # One clean answer resolves the first line and moves the bar exactly one step.
+        study_variant_id = finalize["items"][0]["question_variant_id"]
+        after = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": f"sp-study-{session_id}"},
+            json={
+                "question_variant_id": study_variant_id,
+                "selected_option": _correct_options([study_variant_id])[study_variant_id],
+                "response_time_ms": 2000,
+            },
+        ).json()
+        assert after["study_progress"]["skills_resolved"] == 1
+        assert after["study_progress"]["current_skill_position"] == 2
+        assert after["study_progress"]["attempt_in_line"] == 1
