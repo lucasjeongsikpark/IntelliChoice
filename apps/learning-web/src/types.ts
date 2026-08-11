@@ -49,6 +49,27 @@ export interface QuestionItem {
   option_d: string;
 }
 
+/**
+ * D-272: the question the current hint/solution/video/chat is about, sent by the server
+ * alongside the help itself (`routers/sessions.py`'s `AssistanceQuestionResponse`).
+ *
+ * `items` could not answer this. At the intervention menu it is `null` (the incorrect-answer
+ * turn serves no new item), and once the ladder closes it is the *next* question - so the
+ * study screen had nothing correct to put on the left and collapsed to a single narrow panel.
+ * This field is bound to the attempt the help was generated for, so the pairing cannot drift.
+ *
+ * `selected_option` is what the student actually picked, shown back to them on the locked card.
+ */
+export interface AssistanceQuestion {
+  question_variant_id: string;
+  rendered_question: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  selected_option?: string | null;
+}
+
 export interface LearningGain {
   pre_raw_score: number;
   post_raw_score: number;
@@ -103,6 +124,9 @@ export interface SessionSnapshot {
   learning_gain?: LearningGain | null;
   pending_interrupt?: PendingInterrupt | null;
   intervention?: InterventionContent | null;
+  // D-272: present exactly when this snapshot carries help - an `intervention_choice`
+  // pause or an `intervention`. See `AssistanceQuestion`.
+  assistance_question?: AssistanceQuestion | null;
   // SPEC §5.6.5: "absence_acknowledged" is terminal (session ended, nothing more to
   // do); "email_requested" still allows trying a different choice next; `null`/absent
   // means the gate just blocked and no choice has been made yet.

@@ -26,12 +26,20 @@
   color: var(--text-h);
 }
 
+/* D-272: top-aligned, not vertically centred.
+   `justify-content: center` was fine when every screen was one small card, and wrong for the
+   study screen: two full-height columns were pushed into the middle of a 900px viewport with
+   dead space above and below, and any column that grew (a six-step solution) made the whole
+   page shift under the student as it re-centred. Content now starts at the top and grows
+   downward, which is also what makes the "use the screen" complaint fixable at all - a
+   centred flex parent cannot give its child the height. Short screens still look centred
+   because `min-height` only kicks in when there is room. */
 .app-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 24px;
   /* AUD-F-24: a stage narrative renders as a sibling above the phase screen rather than
      inside a wrapper (a conditional wrapper remounts the screen below it - see App.tsx).
@@ -382,10 +390,16 @@ button.link {
    forcing the grid to overflow the viewport. */
 .study-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
   width: 100%;
-  max-width: 1200px;
+  /* D-272: 1200 -> 1560. At 1440px the grid used barely 60% of the width and the rest was
+     empty page; the help column in particular was cramped enough that a solution's steps and
+     the chat could not both be read without scrolling. Still a cap rather than `100%` -
+     prose past ~90ch stops being readable - but the cap is now near a laptop's width instead
+     of well inside it. The two columns are equal: the help side holds as much as the
+     question side does once the chat lives there (Phase 3). */
+  max-width: 1560px;
   align-items: start;
 }
 
@@ -394,12 +408,53 @@ button.link {
   min-width: 0;
 }
 
-/* The codebase's first width breakpoint (there were none before). Below it the two columns
-   stack - question first, then the help - so nothing is ever squeezed on a phone. */
+/* D-272: the *left* column stops being capped by `.panel.wide`'s 880px inside this grid.
+   The grid track is already the constraint, and two caps fighting is how D-213's question
+   card silently collapsed to 480px inside `.stack`. One owner per dimension. */
+.study-columns > .panel.wide {
+  max-width: 100%;
+}
+
+/* Below this the two columns stack - question first, then the help - so nothing is ever
+   squeezed on a phone. */
 @media (max-width: 900px) {
   .study-columns {
     grid-template-columns: 1fr;
   }
+}
+
+/* D-272: the locked question shown beside a hint or solution. Not buttons (nothing to
+   press), so these need their own resting appearance rather than inheriting `:disabled`,
+   which renders as "this control is broken" instead of "this question is answered". */
+.option.locked {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  cursor: default;
+  opacity: 0.75;
+}
+
+.option.locked.chosen {
+  opacity: 1;
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.option.locked.chosen .option-key {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.option-chosen-tag {
+  margin-left: auto;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 .intervention-panel {

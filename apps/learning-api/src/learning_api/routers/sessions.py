@@ -123,6 +123,41 @@ class QuestionItemResponse(BaseModel):
     option_d: str
 
 
+class AssistanceQuestionResponse(BaseModel):
+    """D-272: the question the *current help* is about, so the client never has to guess.
+
+    The study screen shows the question on the left and the hint/solution/video/chat on the
+    right. Before this, the client derived the left column from `items`, and `items` does not
+    mean that:
+
+    - At the intervention **menu** (the turn right after a wrong answer) `items` is `None`.
+      `submit_answer` returns `AnswerResult(items=None)` on the incorrect path, and the router's
+      pending-interrupt early return sends no items at all - so the student's own question, with
+      its four options, disappeared the instant they asked for help. It came back only on a page
+      refresh, because `/stream` rebuilds from the checkpoint, which had retained it.
+    - Once the ladder **closes** (hint 3 of 3, or any solution or video) `items` is the *next*
+      question. `App.tsx` therefore refused to pair them - correctly - and collapsed to a single
+      narrow card with no question at all. Reproduced locally 2026-08-10 and it is the "the
+      screen jumps somewhere strange" report.
+
+    Bound to `LearningState.last_study_attempt_id`, which names the attempt the help was
+    generated for, so the pairing is right by construction rather than by position.
+
+    `selected_option` is the option the student actually chose. Showing it back to them is the
+    point of a worked hint: "you picked C" is information they cannot otherwise recover, and
+    without it the left column is a question they have already answered with no trace of how.
+    Not PII (an option letter), and no new storage - every field is already in Postgres.
+    """
+
+    question_variant_id: str
+    rendered_question: str
+    option_a: str
+    option_b: str
+    option_c: str
+    option_d: str
+    selected_option: str | None = None
+
+
 class TopicSelectionResponse(BaseModel):
     learning_session_id: str
     phase: str
@@ -179,6 +214,9 @@ class AnswerResponse(BaseModel):
     items: list[QuestionItemResponse] | None = None
     learning_gain: LearningGainResponse | None = None
     pending_interrupt: PendingInterruptResponse | None = None
+    # D-272: the question this turn's help is about. Set on the pending-interrupt branch,
+    # which is exactly where `items` is `None` and the student used to lose their question.
+    assistance_question: AssistanceQuestionResponse | None = None
     # S26 (plan §18-L7): set only when this turn fired a `study_step`/`study_outro`
     # narrative - never on the pending-interrupt early return above, since no narrative
     # can have fired before `intervention_choice` even runs.
@@ -247,6 +285,9 @@ class ResumeResponse(BaseModel):
     items: list[QuestionItemResponse] | None = None
     learning_gain: LearningGainResponse | None = None
     pending_interrupt: PendingInterruptResponse | None = None
+    # D-272: set when the resumed session is paused on `intervention_choice`, so a resume
+    # lands on the same two-column view the student left rather than a bare help panel.
+    assistance_question: AssistanceQuestionResponse | None = None
     # S26 (plan §18-L7): the checkpoint's own `stage_narrative` channel - re-served
     # verbatim on `/resume` like `message`, since it's just another `LastValue` field.
     stage_narrative: str | None = None
@@ -322,6 +363,10 @@ class RespondResponse(BaseModel):
     learning_gain: LearningGainResponse | None = None
     pending_interrupt: PendingInterruptResponse | None = None
     intervention: InterventionContentResponse | None = None
+    # D-272: paired with `intervention` on the same response, so the question shown beside
+    # a hint is the question that hint was written for - including after the ladder closes,
+    # when `items` has already moved on to the next question.
+    assistance_question: AssistanceQuestionResponse | None = None
     attendance_resolution: str | None = None
     # S26 (plan §18-L7): `study_step`/`study_outro`, whichever `intervention_choice`
     # just fired this round.
@@ -346,6 +391,7 @@ class SessionSnapshotEvent(BaseModel):
     learning_gain: LearningGainResponse | None = None
     pending_interrupt: PendingInterruptResponse | None = None
     intervention: InterventionContentResponse | None = None
+    assistance_question: AssistanceQuestionResponse | None = None
     attendance_resolution: str | None = None
     stage_narrative: str | None = None
     stage_narrative_evidence: list[str] | None = None
@@ -393,6 +439,56 @@ def _items_response(items: list[dict] | None) -> list[QuestionItemResponse] | No
     if items is None:
         return None
     return [QuestionItemResponse(**item) for item in items]
+
+
+async def _assistance_question(
+    db: AsyncSession, state: dict, *, help_open: bool
+) -> AssistanceQuestionResponse | None:
+    """D-272: the question the help on this same response belongs to, or `None`.
+
+    **`help_open` is decided by the caller, from the response it is building** - "this
+    response carries an `intervention_choice` pause, or an `intervention`". That keeps the
+    pairing self-consistent by construction: whatever a response says the help is, this is
+    the question it was written for.
+
+    Deliberately *not* derived from `last_intervention` alone. That channel goes stale - it
+    keeps a previous question's solution until something overwrites it, which is exactly the
+    hazard `stream._initial_snapshot` already gates behind `hint_ladder_awaiting_choice`
+    (D-216, "the D-215 §4 defect, in reverse"). Reading it here without a caller-supplied
+    gate would reintroduce that bug in a new place.
+
+    Two reads, both by primary key, both on a path that has already done several. Returning
+    `None` on any miss rather than raising: a missing attempt or variant means the left
+    column falls back to what it showed before this existed, which is a worse view, not a
+    broken one.
+    """
+    if not help_open:
+        return None
+    attempt_id = state.get("last_study_attempt_id")
+    if attempt_id is None:
+        return None
+    attempt = await StudyRepository(db).get_attempt(str(attempt_id))
+    if attempt is None:
+        return None
+    variant = await QuestionRepository(db).get_variant(attempt.question_variant_id)
+    if variant is None:
+        return None
+    return AssistanceQuestionResponse(
+        question_variant_id=variant.question_variant_id,
+        rendered_question=variant.rendered_question,
+        option_a=variant.option_a,
+        option_b=variant.option_b,
+        option_c=variant.option_c,
+        option_d=variant.option_d,
+        selected_option=attempt.selected_option,
+    )
+
+
+def _is_intervention_pause(pending: Interrupt | None) -> bool:
+    """Whether `pending` is the hint/solution/video choice, rather than child selection or
+    email approval. One place, because three call sites now ask it (D-223).
+    """
+    return pending is not None and pending.value["type"] == "intervention_choice"
 
 
 def _graph_config(learning_session_id: str) -> RunnableConfig:
@@ -1003,6 +1099,13 @@ async def submit_answer(
             phase=result["phase"],
             is_correct=result["last_is_correct"],
             pending_interrupt=await _pending_interrupt_response(pending, profile_adapter),
+            # D-272: this branch sends no `items` - `AnswerResult(items=None)` on the
+            # incorrect study path - which is precisely why the question used to vanish
+            # the moment a student asked for help. It comes back here, with its options
+            # and the option they chose.
+            assistance_question=await _assistance_question(
+                db, result, help_open=_is_intervention_pause(pending)
+            ),
         )
         _publish_snapshot(events, response)
         return response
@@ -1540,6 +1643,15 @@ async def respond_to_interrupt(
             if result.get("last_intervention") is not None
             else None
         ),
+        # D-272: the terminal round (hint 3 of 3, or any solution/video) closes the pause
+        # and hands back the *next* question in `items`, so this is what keeps the help
+        # beside the question it explains instead of collapsing to a lone panel.
+        assistance_question=await _assistance_question(
+            db,
+            result,
+            help_open=_is_intervention_pause(next_pending)
+            or result.get("last_intervention") is not None,
+        ),
         attendance_resolution=result.get("attendance_resolution"),
         stage_narrative=result.get("stage_narrative"),
         stage_narrative_evidence=result.get("stage_narrative_evidence"),
@@ -1594,6 +1706,9 @@ async def resume_session(
             learning_session_id=learning_session_id,
             phase=state.get("phase", "created"),
             pending_interrupt=await _pending_interrupt_response(pending, profile_adapter),
+            assistance_question=await _assistance_question(
+                db, state, help_open=_is_intervention_pause(pending)
+            ),
         )
         _publish_snapshot(events, response)
         return response

@@ -43,7 +43,9 @@ from .sessions import (
     InterventionContentResponse,
     LearningGainResponse,
     SessionSnapshotEvent,
+    _assistance_question,
     _graph_config,
+    _is_intervention_pause,
     _items_response,
     _pending_interrupt_response,
     _pending_task_interrupt,
@@ -212,6 +214,13 @@ async def _initial_snapshot(
             if state.get("hint_ladder_awaiting_choice")
             and state.get("last_intervention") is not None
             else None
+        ),
+        # D-272: gated on the *pause*, not on `hint_ladder_awaiting_choice`. A reconnect
+        # that lands on the intervention menu has no intervention yet - that is the state
+        # this whole change exists for - and the checkpoint's retained `last_items` is the
+        # right question only by luck. This names it.
+        assistance_question=await _assistance_question(
+            db, state, help_open=_is_intervention_pause(pending)
         ),
         attendance_resolution=state.get("attendance_resolution"),
         stage_narrative=narrative_text,

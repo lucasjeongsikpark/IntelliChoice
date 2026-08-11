@@ -3,7 +3,7 @@ import { ExamTimer } from "../components/ExamTimer";
 import { QuestionNavBar } from "../components/QuestionNavBar";
 import { QuestionStem } from "../components/QuestionStem";
 import { SubmitConfirmationModal } from "../components/SubmitConfirmationModal";
-import type { ExamOverview, QuestionItem } from "../types";
+import type { AssistanceQuestion, ExamOverview, QuestionItem } from "../types";
 
 interface Props {
   phase: string;
@@ -16,18 +16,16 @@ interface Props {
   streak: number;
   overview: ExamOverview | null;
   busy: boolean;
-  // D-217: the study-phase intervention pause. Distinct from `busy` (a request in flight):
-  // the controls are disabled because this question's answer path is closed while the
-  // student works through the hint/solution/video on the right, and the Submit button says
-  // so plainly instead of showing a stuck "Submitting…".
-  paused?: boolean;
-  // D-217 follow-up: during the study intervention *menu* (and a chat opened from it) the
-  // snapshot arrives with `items: []` - the graph has no current item while it waits for the
-  // student's choice - so `currentItem` is null and this screen would otherwise show
-  // "Loading the next question…", which is both untrue (nothing is loading) and drops the
-  // question out of the two-column view the student is getting help with. The parent passes
-  // the last study question it saw so the left column keeps showing it, read-only, throughout.
-  pausedQuestionText?: string | null;
+  // D-272: the question the help on screen right now is about, straight from the server
+  // (`assistance_question`). Non-null means this column shows *that* question, locked, with
+  // the option the student chose marked - for the whole time help is up, chooser through
+  // hint 3, solution and video included.
+  //
+  // It replaces D-217's `paused` + `pausedQuestionText` pair, and the replacement is the
+  // fix rather than a tidy-up. Those two could only produce a *stem* - no options - and only
+  // while the client happened to have cached the right question; once the ladder closed,
+  // `App.tsx` had no correct question at all and rendered the help alone in a narrow card.
+  assistanceQuestion?: AssistanceQuestion | null;
   // D-218: true while a stage-transition narrative is over this screen. The overlay is
   // `aria-modal` with a scroll lock, so the exam behind it is genuinely unreachable - which
   // is why the time limit must not be counting yet, and why focus must not be moved into a
@@ -65,14 +63,69 @@ function difficultyLabel(difficulty: number | undefined): string {
 
 const OVERVIEW_POLL_MS = 20000;
 
+/**
+ * D-272: the question a hint, solution, video or chat is about - locked, complete, and with
+ * the option the student actually chose marked.
+ *
+ * **The options are the point.** The screen this replaces showed the stem alone, and only
+ * sometimes. A student reading "start by working out how many are in 5 rows" with no answer
+ * choices in front of them has to hold four numbers in memory while they read - the
+ * split-attention cost the whole two-column layout exists to remove.
+ *
+ * Marking their own choice is the other half. "You picked C" is information they cannot get
+ * back any other way once the answer path closes, and it is what makes the hint feel like it
+ * is about *their* attempt rather than about the question in general.
+ */
+function AnsweredQuestionCard({
+  phase,
+  label,
+  question,
+}: {
+  phase: string;
+  label: string;
+  question: AssistanceQuestion;
+}) {
+  const options: [string, string][] = [
+    ["a", question.option_a],
+    ["b", question.option_b],
+    ["c", question.option_c],
+    ["d", question.option_d],
+  ];
+  return (
+    <div className="panel wide">
+      <div className="progress-bar">
+        <span className="phase-chip">{label}</span>
+        {phase === "study" && <span>The question you're working on</span>}
+      </div>
+      <QuestionStem text={question.rendered_question} />
+      <div className="options">
+        {options.map(([key, text]) => {
+          const chosen = question.selected_option === key;
+          return (
+            // A `div`, not a disabled `button`. There is nothing to press here, and a row of
+            // disabled buttons reads to a screen reader as four controls that are broken
+            // rather than as a question that has been answered.
+            <div key={key} className={`option locked ${chosen ? "chosen" : ""}`}>
+              <span className="option-key" aria-hidden="true">
+                {key.toUpperCase()}
+              </span>
+              <span className="option-text">{text}</span>
+              {chosen && <span className="option-chosen-tag">you chose this</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function ExamScreen({
   phase,
   items,
   streak,
   overview,
   busy,
-  paused = false,
-  pausedQuestionText = null,
+  assistanceQuestion = null,
   overlayOpen = false,
   error,
   onSubmit,
@@ -304,13 +357,13 @@ export function ExamScreen({
       answeredSelections[currentDisplayOrder] !== undefined);
 
   function handleSelect(key: string) {
-    if (busy || isReadOnly || paused) return;
+    if (busy || isReadOnly) return;
     setSelected(key);
     setStatusMessage(`Option ${key.toUpperCase()} selected.`);
   }
 
   function handleSubmitClick() {
-    if (!currentItem || !selected || busy || paused) return;
+    if (!currentItem || !selected || busy) return;
     const chosen = selected;
     const responseTimeMs = Date.now() - viewStartRef.current;
     onSubmit(currentItem.question_variant_id, chosen, responseTimeMs);
@@ -383,7 +436,7 @@ export function ExamScreen({
   }
 
   function handleContainerKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (busy || isReadOnly || paused || !currentItem) return;
+    if (busy || isReadOnly || !currentItem) return;
     if (["1", "2", "3", "4"].includes(event.key)) {
       const index = Number(event.key) - 1;
       const key = ["a", "b", "c", "d"][index];
@@ -397,23 +450,28 @@ export function ExamScreen({
     }
   }
 
+  // D-272. Ahead of the `!currentItem` guard on purpose: help can be open while `items`
+  // still holds a question (mid-ladder) *and* while it holds nothing (the chooser) *and*
+  // while it already holds the next one (after the ladder closes). All three must show the
+  // same thing - the question the help is about - and only the server knows which that is.
+  //
+  // Rendered from inside this component rather than as a sibling the parent swaps in, for
+  // AUD-F-24's reason: React reconciles by position, so swapping the element type here
+  // would unmount and remount the exam screen every time a student asked for help.
+  if (assistanceQuestion) {
+    return (
+      <AnsweredQuestionCard
+        phase={phase}
+        label={PHASE_LABELS[phase] ?? phase}
+        question={assistanceQuestion}
+      />
+    );
+  }
+
   if (!currentItem) {
-    // Paused on the intervention menu/chat (items: []): keep the question the student is
-    // getting help with on the left, read-only, rather than a misleading "Loading…".
-    if (paused && pausedQuestionText) {
-      return (
-        <div className="panel wide">
-          <div className="progress-bar">
-            <span className="phase-chip">{PHASE_LABELS[phase] ?? phase}</span>
-          </div>
-          <QuestionStem text={pausedQuestionText} />
-          <p className="readonly-note">Work through the help on the right →</p>
-        </div>
-      );
-    }
     return (
       <div className="panel">
-        <p>{paused ? "Work through the help on the right →" : "Loading the next question…"}</p>
+        <p>Loading the next question…</p>
       </div>
     );
   }
@@ -499,7 +557,7 @@ export function ExamScreen({
               key={key}
               type="button"
               className={`option ${isSelected ? "selected" : ""}`}
-              disabled={busy || isReadOnly || paused}
+              disabled={busy || isReadOnly}
               aria-pressed={isSelected}
               onClick={() => handleSelect(key)}
             >
@@ -522,16 +580,8 @@ export function ExamScreen({
 
       {!isReadOnly && (
         <>
-          <button
-            type="button"
-            disabled={busy || paused || !selected}
-            onClick={handleSubmitClick}
-          >
-            {paused
-              ? "Work through the help first →"
-              : busy
-                ? "Submitting…"
-                : "Submit answer"}
+          <button type="button" disabled={busy || !selected} onClick={handleSubmitClick}>
+            {busy ? "Submitting…" : "Submit answer"}
           </button>
           {isExamPhase && (
             <div className="exam-actions">

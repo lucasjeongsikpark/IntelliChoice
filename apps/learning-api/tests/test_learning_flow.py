@@ -2081,3 +2081,146 @@ def test_a_study_answer_cannot_be_recorded_twice() -> None:
         ]
         assert len(attempts) == 1
         assert attempts[0].is_correct is True
+
+
+def test_assistance_question_names_the_question_the_help_is_about() -> None:
+    """D-272: the study screen shows the question beside the help, so the server has to say
+    which question that is. `items` cannot: it is `None` at the intervention menu and the
+    *next* question once the ladder closes.
+
+    Walks the three states that used to break, and asserts the one that is easy to get wrong:
+    after a terminal `solution`, `items` has already advanced and `assistance_question` must
+    still name the question the solution explains. Pairing the two by position - which is what
+    the client did before this field existed - puts one problem's worked solution beside a
+    different problem.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        pre_items = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        ).json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"aq-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            )
+
+        study_variant_id = _finalize_exam(client, headers, session_id)["items"][0][
+            "question_variant_id"
+        ]
+        wrong_option = _other_option(_correct_options([study_variant_id])[study_variant_id])
+        menu = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": f"aq-study-{session_id}"},
+            json={
+                "question_variant_id": study_variant_id,
+                "selected_option": wrong_option,
+                "response_time_ms": 2000,
+            },
+        ).json()
+
+        # 1. The menu. `items` is absent here - that is the whole reason this field exists.
+        assert menu["pending_interrupt"]["interrupt_type"] == "intervention_choice"
+        assert menu.get("items") is None
+        assistance = menu["assistance_question"]
+        assert assistance["question_variant_id"] == study_variant_id
+        # The four options, which the stem-only fallback this replaces could never show.
+        assert all(assistance[f"option_{key}"] for key in ("a", "b", "c", "d"))
+        # Their own answer, echoed back.
+        assert assistance["selected_option"] == wrong_option
+
+        # 2. Mid-ladder: still the same question, not the retry the ladder is preparing.
+        hint = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "hint"},
+        ).json()
+        assert hint["intervention"]["hint_level"] == 1
+        assert hint["assistance_question"]["question_variant_id"] == study_variant_id
+
+        # 3. Terminal: the solution closes the pause and `items` becomes the NEXT question.
+        solution = client.post(
+            f"/learning/sessions/{session_id}/respond",
+            headers=headers,
+            json={"interrupt_type": "intervention_choice", "choice": "solution"},
+        ).json()
+        assert solution["pending_interrupt"] is None
+        assert solution["intervention"]["type"] == "solution"
+        served_next = solution["items"][0]["question_variant_id"]
+        assert served_next != study_variant_id, "the ladder should have served a retry"
+        assert solution["assistance_question"]["question_variant_id"] == study_variant_id
+
+
+def test_assistance_question_is_absent_when_no_help_is_on_screen() -> None:
+    """The other half of D-272, and the one that keeps it honest: a plain correct study
+    answer carries no help, so it must carry no `assistance_question` either.
+
+    Without this the field would go stale exactly the way `last_intervention` does - holding
+    the previous question forever - and the client, which uses its presence to decide whether
+    to render two columns at all, would show a help panel next to a question the student has
+    already moved past.
+    """
+    token = _student_token(STUDENT_UNLINKED)
+    headers = _auth_header(token)
+
+    with TestClient(app) as client:
+        session_id = client.post("/learning/sessions", headers=headers).json()[
+            "learning_session_id"
+        ]
+        client.post(
+            f"/learning/sessions/{session_id}/student",
+            headers=headers,
+            json={"student_id": STUDENT_UNLINKED},
+        )
+        pre_items = client.post(
+            f"/learning/sessions/{session_id}/topics",
+            headers=headers,
+            json={"topic_id": "linear_equations"},
+        ).json()["items"]
+        pre_correct = _correct_options([item["question_variant_id"] for item in pre_items])
+        for index, item in enumerate(pre_items):
+            variant_id = item["question_variant_id"]
+            resp = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"aq2-pre-{index}"},
+                json={
+                    "question_variant_id": variant_id,
+                    "selected_option": pre_correct[variant_id],
+                    "response_time_ms": 2000,
+                },
+            ).json()
+            assert resp.get("assistance_question") is None
+
+        study_variant_id = _finalize_exam(client, headers, session_id)["items"][0][
+            "question_variant_id"
+        ]
+        correct = client.post(
+            f"/learning/sessions/{session_id}/answers",
+            headers={**headers, "Idempotency-Key": f"aq2-study-{session_id}"},
+            json={
+                "question_variant_id": study_variant_id,
+                "selected_option": _correct_options([study_variant_id])[study_variant_id],
+                "response_time_ms": 2000,
+            },
+        ).json()
+        assert correct["is_correct"] is True
+        assert correct.get("assistance_question") is None
