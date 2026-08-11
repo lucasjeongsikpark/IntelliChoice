@@ -62,19 +62,29 @@ templates:
   context_block: null
   answer_expression: Eq(58 + x, 85)
   hint_ladder:
-  - Both scores use the same two digits, so the order of the digits is what matters.
-  - Tara has more groups of ten, which is what makes her score the larger one.
-  - Find what has to be added to Ravi's score to reach Tara's score.
+  - To find how many more points Tara scored, we need to calculate the difference between her score and
+    Ravi's score.
+  - One way to find the difference is to figure out what number must be added to Ravi's score (58) to
+    match Tara's score (85).
+  - 'Start with the tens place: 85 has 8 tens, and 58 has 5 tens. Add 2 more tens (20) to make 78. Then
+    add the remaining 7 ones to reach Tara''s score.'
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: Compare the tens first. Tara has eight tens and Ravi has five.
-      expression: 85 has more tens than 58
-      common_mistake: Comparing only the ones digits
+      explanation: 'To find how many more points Tara scored than Ravi, we can figure out what number
+        needs to be added to 58 to reach 85. Start with the tens place: Tara has 8 tens and Ravi has 5
+        tens. Add 2 more tens to 58 to get 78.'
+      expression: 58 + 20 = 78
+      common_mistake: null
     - step_number: 2
-      explanation: Find the gap between the two scores.
-      expression: 58 plus something makes 85
-      common_mistake: Adding the two scores together
+      explanation: 'Now move to the ones place: 85 has 5 ones, so add 7 ones to 78 to get 85. The total
+        added is 20 (from step 1) plus 7 (from this step): 20 + 7 = 27.'
+      expression: 78 + 7 = 85
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Total points Tara scored more than Ravi: Add the numbers found in the previous steps.'
+      expression: '27'
+      common_mistake: null
     final_answer: '27'
   random_seed: 200203
   rendered_question: Ravi scored 58 points in a game. Tara scored 85 points. How many more points did
@@ -114,8 +124,8 @@ templates:
       expression: 76 has more tens than 67
       common_mistake: Comparing only the ones digits
     - step_number: 2
-      explanation: Find the gap between the two totals.
-      expression: 67 plus something makes 76
+      explanation: Find the gap between the two totals by subtracting the smaller number from the larger.
+      expression: 76 – 67 = 9
       common_mistake: Answering with the larger total
     final_answer: '9'
   random_seed: 200205
@@ -161,7 +171,7 @@ templates:
       common_mistake: null
     - step_number: 3
       explanation: Find the gap between the two counts.
-      expression: 348 plus something makes 384
+      expression: 384 - 348 = 36
       common_mistake: Adding the two counts together
     final_answer: '36'
   random_seed: 200302
@@ -194,7 +204,7 @@ templates:
   hint_ladder:
   - Both totals have the same hundreds digit, so the hundreds do not decide this.
   - Move to the tens place next, because that is the first place where the totals differ.
-  - Find what has to be added to Monday's total to reach Tuesday's total.
+  - Count up from 128 to 182 to see how many more apples were sold on Tuesday.
   canonical_solution:
     steps:
     - step_number: 1
@@ -206,8 +216,9 @@ templates:
       expression: 8 tens against 2 tens
       common_mistake: null
     - step_number: 3
-      explanation: Find the gap between the two totals.
-      expression: 128 plus something makes 182
+      explanation: 'Count up from 128 to 182 in chunks: 128 → 130 is 2, 130 → 180 is 50, 180 → 182 is
+        2. Total is 2 + 50 + 2 = 54.'
+      expression: 128 + 2 = 130; 130 + 50 = 180; 180 + 2 = 182
       common_mistake: Adding the two totals together
     final_answer: '54'
   random_seed: 200304
@@ -252,8 +263,9 @@ templates:
       expression: 0 tens against 3 tens
       common_mistake: Reading the zero as a large amount
     - step_number: 3
-      explanation: Find the gap between the two numbers.
-      expression: 703 plus something makes 730
+      explanation: Find the gap between the two numbers by calculating the difference directly as 730
+        - 703 = 27.
+      expression: 703 + 27 = 730
       common_mistake: Adding the two numbers together
     final_answer: '27'
   random_seed: 200305
@@ -671,8 +683,8 @@ templates:
       expression: 1, then 3, then 7
       common_mistake: null
     - step_number: 3
-      explanation: Find the gap between the two numbers that were built.
-      expression: 137 plus something makes 731
+      explanation: 'Subtract the smaller number from the larger: 731 − 137 = 594.'
+      expression: 731 − 137 = 594
       common_mistake: Adding the two numbers together
     final_answer: '594'
   random_seed: 200508

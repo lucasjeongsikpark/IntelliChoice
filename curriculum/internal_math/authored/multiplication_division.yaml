@@ -69,10 +69,14 @@ templates:
     - step_number: 1
       explanation: Four tables share the class, so it splits into four equal groups.
       expression: 24 split into 4 equal groups
-      common_mistake: Taking 4 away from 24
+      common_mistake: null
     - step_number: 2
       explanation: Use the times table backwards. Which number times four makes twenty-four?
       expression: 4 x ? = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: The number that, when multiplied by 4, gives 24 is the number of students at each table.
+      expression: 24 ÷ 4 = 6
       common_mistake: null
     final_answer: '6'
   random_seed: 300203
@@ -153,7 +157,7 @@ templates:
       common_mistake: Answering with the size of a bag
     - step_number: 2
       explanation: Use the times table backwards. Which number times nine makes sixty-three?
-      expression: 9 x ? = 63
+      expression: 9 x 7 = 63
       common_mistake: null
     final_answer: '7'
   random_seed: 300303
@@ -194,7 +198,7 @@ templates:
       common_mistake: Taking 8 away from 72
     - step_number: 2
       explanation: Use the times table backwards.
-      expression: 8 x ? = 72
+      expression: 8 x 9 = 72
       common_mistake: Answering with the number of shelves
     final_answer: '9'
   random_seed: 300304
@@ -534,7 +538,7 @@ templates:
       common_mistake: Answering with the ten students left over
     - step_number: 3
       explanation: Those ten still need a coach, so one more is added to the full ones.
-      expression: 3 + 1
+      expression: 3 + 1 = 4
       common_mistake: Leaving the last ten students behind
     final_answer: '4'
   random_seed: 300501
@@ -573,10 +577,19 @@ templates:
     - step_number: 1
       explanation: There are three pages, and each page is one equal group of four.
       expression: 3 groups of 4
-      common_mistake: Adding 3 and 4
+      common_mistake: null
     - step_number: 2
       explanation: Count the four stickers three times over.
       expression: 4 + 4 + 4
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Instead of adding the three fours, you can multiply: the number of pages times the
+        stickers on each gives the total.'
+      expression: 3 × 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Compute 3 × 4 to find the total number of stickers.
+      expression: 3 × 4 = 12
       common_mistake: null
     final_answer: '12'
   random_seed: 300101
@@ -690,18 +703,27 @@ templates:
   answer_expression: Eq(x, 3*8)
   hint_ladder:
   - Every pack holds the same number, so the packs are equal groups.
-  - Three groups of eight is the same as eight counted three times.
-  - Work out how much eight, and eight again, and eight once more come to.
+  - What is 8 + 8? Add 8 more to that answer.
+  - Add eight, then add another eight, then add another eight to find the total.
   canonical_solution:
     steps:
     - step_number: 1
       explanation: Three packs of eight pencils each are three equal groups.
       expression: 3 groups of 8
-      common_mistake: Adding 3 and 8
+      common_mistake: null
     - step_number: 2
-      explanation: Add eight three times over.
-      expression: 8 + 8 + 8
-      common_mistake: Adding it only twice
+      explanation: First, add 8 and 8 to get the sum of two packs of pencils.
+      expression: 8 + 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Add another 8 to the result for the third pack of pencils. 3 groups of 8 is the same
+        as multiplying 3 by 8. The product is 24.
+      expression: 16 + 8
+      common_mistake: null
+    - step_number: 4
+      explanation: Adding eight three times is the same as multiplying 3 by 8, which equals 24.
+      expression: 8 + 8 + 8 = 24
+      common_mistake: null
     final_answer: '24'
   random_seed: 300104
   rendered_question: Ana buys 3 packs of pencils. Each pack holds 8 pencils. How many pencils does Ana
@@ -787,7 +809,7 @@ templates:
       common_mistake: null
     - step_number: 3
       explanation: There is one group fewer, so take four away.
-      expression: 40 - 4
+      expression: 40 - 4 = 36
       common_mistake: Answering with the ten-group total
     final_answer: '36'
   random_seed: 300202
@@ -967,7 +989,7 @@ templates:
       common_mistake: Multiplying only the ten
     - step_number: 3
       explanation: Add the two results together.
-      expression: 40 + 20
+      expression: 40 + 20 = 60
       common_mistake: null
     final_answer: '60'
   random_seed: 300305
@@ -1012,7 +1034,7 @@ templates:
       common_mistake: Multiplying only the tens
     - step_number: 3
       explanation: Add the two results together.
-      expression: 200 + 30
+      expression: 200 + 30 = 230
       common_mistake: null
     final_answer: '230'
   random_seed: 300403
@@ -1058,7 +1080,7 @@ templates:
       common_mistake: Multiplying only the hundreds
     - step_number: 3
       explanation: Add all three results together.
-      expression: 300 + 60 + 24
+      expression: 300 + 60 + 24 = 384
       common_mistake: Answering with a single week
     final_answer: '384'
   random_seed: 300503

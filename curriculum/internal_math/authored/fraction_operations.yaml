@@ -228,7 +228,7 @@ templates:
       common_mistake: null
     - step_number: 3
       explanation: Divide the top and bottom by 6 to write it in lowest terms.
-      expression: 6/12
+      expression: 6/12 = 1/2
       common_mistake: Leaving the answer unsimplified
     final_answer: 1/2
   random_seed: 100204
@@ -273,7 +273,7 @@ templates:
       expression: (2 + 3 + 1)/9 = 6/9
       common_mistake: Adding the bottom numbers to get 6/27
     - step_number: 3
-      explanation: Divide the top and bottom by 3 to write it in lowest terms.
+      explanation: 'Divide the top and bottom by 3 to write it in lowest terms: 6/9 ÷ 3/3 = 2/3.'
       expression: 6/9
       common_mistake: null
     final_answer: 2/3
@@ -322,7 +322,7 @@ templates:
       common_mistake: null
     - step_number: 3
       explanation: Divide the top and bottom by 8 to write it in lowest terms.
-      expression: 8/16
+      expression: 8/16 = 1/2
       common_mistake: Leaving the answer unsimplified
     final_answer: 1/2
   random_seed: 100304
@@ -368,8 +368,8 @@ templates:
       expression: (7 - 3)/10 = 4/10
       common_mistake: null
     - step_number: 3
-      explanation: Divide the top and bottom by 2 to write it in lowest terms.
-      expression: 4/10
+      explanation: Divide the numerator and denominator by 2 to simplify the fraction.
+      expression: 4/10 = 2/5
       common_mistake: Leaving the answer unsimplified
     final_answer: 2/5
   random_seed: 100305
@@ -416,7 +416,7 @@ templates:
       common_mistake: null
     - step_number: 3
       explanation: Add the top numbers, keep 6 underneath, then simplify by 2.
-      expression: 1/6 + 3/6 = 4/6
+      expression: 1/6 + 3/6 = 4/6 = 2/3
       common_mistake: Leaving the answer unsimplified
     final_answer: 2/3
   random_seed: 100206
@@ -462,8 +462,9 @@ templates:
       expression: 1/2 = 2/4
       common_mistake: null
     - step_number: 3
-      explanation: Add the top numbers and keep the bottom number.
-      expression: 2/4 + 1/4
+      explanation: Add the top numbers and keep the bottom number. Combining the numerators, 2 + 1 = 3,
+        and keeping the denominator 4 gives 3/4.
+      expression: 2/4 + 1/4 = 3/4
       common_mistake: null
     final_answer: 3/4
   random_seed: 100104
@@ -749,7 +750,7 @@ templates:
       common_mistake: Subtracting straight across
     - step_number: 3
       explanation: Subtract the top numbers and keep the bottom number.
-      expression: 10/12 - 3/12
+      expression: 10/12 - 3/12 = 7/12
       common_mistake: null
     final_answer: 7/12
   random_seed: 100404
@@ -789,14 +790,18 @@ templates:
     - step_number: 1
       explanation: The water used is the difference between the starting and ending readings.
       expression: 7/8 - 1/3
-      common_mistake: Adding the readings to get 29/24
+      common_mistake: null
     - step_number: 2
       explanation: Build a shared bottom number for eighths and thirds by multiplying them.
       expression: 8 x 3 = 24
-      common_mistake: Subtracting straight across to get 6/5
+      common_mistake: null
     - step_number: 3
       explanation: Rewrite both readings over twenty-fourths and subtract.
       expression: 21/24 - 8/24
+      common_mistake: null
+    - step_number: 4
+      explanation: Perform the subtraction to calculate the total used.
+      expression: 13/24
       common_mistake: null
     final_answer: 13/24
   random_seed: 100504
@@ -894,7 +899,7 @@ templates:
       common_mistake: null
     - step_number: 3
       explanation: The whole group is 12/12, so take the named groups away from it.
-      expression: 12/12 - 7/12
+      expression: 12/12 - 7/12 = 5/12
       common_mistake: Answering with the named groups instead of the rest
     final_answer: 5/12
   random_seed: 100505
@@ -935,7 +940,7 @@ templates:
       common_mistake: Taking away 2 apples instead of splitting the group
     - step_number: 2
       explanation: Split six apples into two equal groups.
-      expression: 6 / 2
+      expression: 6 / 2 = 3
       common_mistake: null
     final_answer: '3'
   random_seed: 100105
@@ -1074,7 +1079,7 @@ templates:
       common_mistake: null
     - step_number: 3
       explanation: Three eighths is three of those parts.
-      expression: 3 x 3
+      expression: 3 x 3 = 9 beads
       common_mistake: Stopping after one part
     final_answer: '9'
   random_seed: 100306
@@ -1120,7 +1125,7 @@ templates:
       common_mistake: Adding straight across to get 3/5
     - step_number: 3
       explanation: Divide the top and bottom by 2 to write it in lowest terms.
-      expression: 2/6
+      expression: 2/6 = 1/3
       common_mistake: null
     final_answer: 1/3
   random_seed: 100307
@@ -1387,7 +1392,8 @@ templates:
   hint_ladder:
   - The second fraction describes a part of the planted area, not a part of the whole field.
   - Taking a fraction of a fraction is done by multiplying the two together.
-  - Multiply the top numbers together and the bottom numbers together, then simplify.
+  - Multiply the top numbers together and the bottom numbers together, then simplify to get the final
+    result.
   canonical_solution:
     steps:
     - step_number: 1
@@ -1399,8 +1405,8 @@ templates:
       expression: (5 x 2)/(6 x 5) = 10/30
       common_mistake: Adding to get 37/30
     - step_number: 3
-      explanation: Divide the top and bottom by 10 to write it in lowest terms.
-      expression: 10/30
+      explanation: Divide the top and bottom by 10 to write it in lowest terms, giving 1/3.
+      expression: 10 ÷ 10 / 30 ÷ 10 = 1/3
       common_mistake: null
     final_answer: 1/3
   random_seed: 100506
