@@ -84,7 +84,7 @@ templates:
     - step_number: 3
       explanation: 'Total points Tara scored more than Ravi: Add the numbers found in the previous steps.'
       expression: '27'
-      common_mistake: null
+      common_mistake: Adding the two scores together
     final_answer: '27'
   random_seed: 200203
   rendered_question: Ravi scored 58 points in a game. Tara scored 85 points. How many more points did
