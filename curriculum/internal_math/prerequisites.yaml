@@ -187,3 +187,114 @@ prerequisites:
 
   - skill_id: g5_wp_ratios_mixed
     prerequisite_skill_id: g5_wp_fractions
+
+  # ====================================================================================
+  # C1 waves 6-8 and 9-12 (D-277). Edges reach back into the earlier bands, because that
+  # is where the prerequisite actually lives: quadratics rest on factorisation, which
+  # rests on distribution, which rests on the multiplication tables of grade 3.
+  # ====================================================================================
+
+  - skill_id: g6_fraction_reduce
+    prerequisite_skill_id: fraction_mul_div
+  - skill_id: g6_fraction_mul_div
+    prerequisite_skill_id: g6_fraction_reduce
+  - skill_id: g6_fraction_decimal_percent
+    prerequisite_skill_id: g6_fraction_reduce
+  - skill_id: g6_wp_average
+    prerequisite_skill_id: g5_wp_decimals
+  - skill_id: g6_wp_rate_speed
+    prerequisite_skill_id: g5_wp_ratios_mixed
+  - skill_id: g6_wp_ratio_proportion
+    prerequisite_skill_id: g5_wp_ratios_mixed
+  - skill_id: g6_factors_multiples
+    prerequisite_skill_id: mult_facts
+  - skill_id: g6_circle_measures
+    prerequisite_skill_id: measurement_area_volume
+  - skill_id: g6_surface_area_volume
+    prerequisite_skill_id: measurement_area_volume
+  - skill_id: prealg_gcf_lcm
+    prerequisite_skill_id: g6_factors_multiples
+  - skill_id: prealg_percent_convert
+    prerequisite_skill_id: g6_fraction_decimal_percent
+  - skill_id: prealg_exponents
+    prerequisite_skill_id: g4_mult_two_by_two
+  - skill_id: prealg_order_of_operations
+    prerequisite_skill_id: prealg_exponents
+  - skill_id: prealg_negative_numbers
+    prerequisite_skill_id: g2_sub_multi_digit
+  - skill_id: prealg_evaluate_expressions
+    prerequisite_skill_id: prealg_order_of_operations
+  - skill_id: prealg_evaluate_expressions
+    prerequisite_skill_id: prealg_negative_numbers
+  - skill_id: alg_simplify_expressions
+    prerequisite_skill_id: prealg_evaluate_expressions
+  - skill_id: alg_distribute
+    prerequisite_skill_id: alg_simplify_expressions
+  - skill_id: alg_linear_functions
+    prerequisite_skill_id: alg_simplify_expressions
+  - skill_id: alg_inequalities
+    prerequisite_skill_id: linear_two_step
+  - skill_id: alg_simultaneous
+    prerequisite_skill_id: linear_both_sides
+  - skill_id: geo_area
+    prerequisite_skill_id: measurement_area_volume
+  - skill_id: geo_volume
+    prerequisite_skill_id: geo_area
+  - skill_id: geo_surface_area
+    prerequisite_skill_id: geo_volume
+  - skill_id: geo_pythagorean
+    prerequisite_skill_id: geo_area
+  - skill_id: geo_ratios
+    prerequisite_skill_id: geo_area
+  - skill_id: g68_wp_equations
+    prerequisite_skill_id: linear_two_step
+  - skill_id: g68_wp_proportion
+    prerequisite_skill_id: g6_wp_ratio_proportion
+  - skill_id: g68_wp_inequalities
+    prerequisite_skill_id: alg_inequalities
+  - skill_id: alg1_square_roots
+    prerequisite_skill_id: prealg_exponents
+  - skill_id: alg1_factorization
+    prerequisite_skill_id: alg_distribute
+  - skill_id: alg1_quadratics
+    prerequisite_skill_id: alg1_factorization
+  - skill_id: alg1_inequalities
+    prerequisite_skill_id: alg_inequalities
+  - skill_id: alg1_systems
+    prerequisite_skill_id: alg_simultaneous
+  - skill_id: alg1_functions
+    prerequisite_skill_id: alg_linear_functions
+  - skill_id: alg2_irrational
+    prerequisite_skill_id: alg1_square_roots
+  - skill_id: alg2_polynomial_factor
+    prerequisite_skill_id: alg1_factorization
+  - skill_id: alg2_quadratic_functions
+    prerequisite_skill_id: alg1_quadratics
+  - skill_id: alg2_remainder_factor_theorem
+    prerequisite_skill_id: alg2_polynomial_factor
+  - skill_id: alg2_rational_radical
+    prerequisite_skill_id: alg2_polynomial_factor
+  - skill_id: alg2_exponential_log
+    prerequisite_skill_id: prealg_exponents
+  - skill_id: alg2_sequences
+    prerequisite_skill_id: alg_linear_functions
+  - skill_id: trig_ratios
+    prerequisite_skill_id: geo_pythagorean
+  - skill_id: trig_functions
+    prerequisite_skill_id: trig_ratios
+  - skill_id: calc_limits
+    prerequisite_skill_id: alg2_rational_radical
+  - skill_id: calc_derivatives
+    prerequisite_skill_id: calc_limits
+  - skill_id: calc_integrals
+    prerequisite_skill_id: calc_derivatives
+  - skill_id: calc_differential_equations
+    prerequisite_skill_id: calc_integrals
+  - skill_id: stat_descriptive
+    prerequisite_skill_id: g6_wp_average
+  - skill_id: stat_probability
+    prerequisite_skill_id: g6_fraction_reduce
+  - skill_id: adv_matrices
+    prerequisite_skill_id: alg_simplify_expressions
+  - skill_id: adv_vectors
+    prerequisite_skill_id: geo_pythagorean

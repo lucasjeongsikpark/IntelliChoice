@@ -66,11 +66,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from intellichoice_curriculum.authored_validation import (
     _is_whole_number,
-    _sympify,
-    _values_equal,
+    _option_matches,
     answer_leaked_beyond_the_question,
     derive_answer,
     leak_phrase_present,
+    route_answer,
     validate_authored_item,
 )
 from intellichoice_curriculum.content import (
@@ -1089,20 +1089,37 @@ def validate_equation_design(
 
     The default keeps every existing caller's behaviour exactly: `counting` is
     whole-and-positive, which is what the constant said.
+
+    **The answer MODEL comes from the router, not from `derive_answer` (D-277).** This gate
+    used to require one equation, one unknown, one solution - the pre-Phase-R contract - while
+    the item gate it claims to duplicate had already been widened to a router. Measured before
+    the 6-8/9-12 taxonomy was written: **all five B-family forms are rejected here**, so a
+    quadratic, an inequality, a system, a factorisation and a surd could each pass the item
+    gate and none could ever be *designed*. That is the same defect as D-274's number rule -
+    a rule scoped to one answer model, installed as universal - one dimension over.
+
+    The number rules apply only to the `value` model, because they are claims about a number:
+    an interval is not "positive", a factorisation is not "whole". For every other model the
+    family is silent by construction, which is why no `symbolic` family is needed.
     """
-    failures: list[str] = []
-    solved, error = derive_answer(design.equation)
-    if solved is None:
+    derivation, error = route_answer(design.equation)
+    if derivation is None:
         return [error or f"equation {design.equation!r} could not be solved"]
 
-    declared = _sympify(design.final_answer)
-    if declared is None:
-        failures.append(f"final_answer {design.final_answer!r} is not a bare number")
-    elif not _values_equal(declared, solved):
-        failures.append(
-            f"equation solves to {solved}, but final_answer says {design.final_answer!r} - "
-            f"the numbers do not divide evenly, so change the quantities"
-        )
+    failures: list[str] = []
+    # The same predicate the item gate uses, rather than a second comparison that would drift
+    # from it (D-223). It reads `'3 or -3'` as a root set and `'(6, 4)'` as a tuple, which a
+    # bare `_sympify` cannot.
+    if not _option_matches(derivation, design.final_answer):
+        return [
+            f"equation derives the {derivation.model} answer {derivation.payload}, but "
+            f"final_answer says {design.final_answer!r} - they must state the same thing"
+        ]
+
+    if derivation.model != "value":
+        return failures
+
+    (solved,) = derivation.payload  # type: ignore[misc]
     if family.whole_numbers_only and not _is_whole_number(solved):
         failures.append(
             f"equation solves to {solved}, which is not a whole number - {family.guidance}"

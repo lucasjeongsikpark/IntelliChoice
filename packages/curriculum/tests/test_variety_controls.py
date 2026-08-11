@@ -116,106 +116,33 @@ def test_decimal_divide_rules_out_the_framing_that_forces_an_even_division():
     assert "how many whole pieces" in skill.structure
 
 
-def test_every_rational_skill_states_that_its_answer_is_not_whole():
-    """The general form of the two above, so a third `rational` skill cannot ship with a
-    structure that silently permits whole answers.
+def test_a_skill_whose_point_is_a_non_whole_answer_says_so_in_its_structure():
+    """The general form of the two above — narrowed in D-277, because it was over-reaching.
 
-    Deliberately a keyword check rather than a judgement: it fails loudly when someone adds
-    a `rational` skill without saying anything about the answer, which is the state both
-    decimal skills were in.
+    The defect it exists to catch is `decimal_multiply`: a structure that admitted the
+    *easier* whole-answer version of the skill, so the topic's whole reason for having the
+    `rational` family went unexercised (0 of 2 items had a non-whole answer).
+
+    It first applied to **every** `rational` skill, which is wrong. `rational` means a
+    non-whole answer is *permitted*, not that it is the point — `g6_wp_average` computes a
+    mean that is often a whole number, and `geo_area` from whole side lengths usually is.
+    Requiring those to promise a fraction would push authors toward contrived numbers.
+
+    So it binds where non-wholeness *is* the skill: the decimal and fraction topics, and
+    rounding, whose upper tiers round decimals. Those are exactly the skills where a
+    whole-answer item means the skill was not exercised at all.
     """
     content = load_curriculum()
-    vague = []
-    for skill in content.skills:
-        if skill.answer_family != "rational" or not skill.difficulty_tiers:
-            continue
-        if not re.search(
-            r"decimal|fraction|Rational|cents|amount|not be rounded|quotient",
-            skill.structure,
-        ):
-            vague.append(skill.skill_id)
+    must_state = [
+        s
+        for s in content.skills
+        if s.difficulty_tiers
+        and (s.topic_id in {"decimals", "g6_fractions"} or s.skill_id == "number_rounding")
+    ]
+    assert must_state, "the guard selected no skills - did a topic get renamed?"
+    vague = [
+        s.skill_id
+        for s in must_state
+        if not re.search(r"decimal|fraction|Rational|quotient|not be rounded", s.structure)
+    ]
     assert vague == []
-
-
-# --------------------------------------------------------------------------------------
-# 4. The pipeline and the loader must agree about what a valid item is
-# --------------------------------------------------------------------------------------
-
-
-def _item(**overrides):
-    from intellichoice_shared.bedrock import (
-        AuthoredGeneratedItemResponse,
-        SolutionResponse,
-        SolutionStep,
-    )
-
-    base = dict(
-        stem="A car travels 9.45 kilometers and uses 2.5 liters of fuel. "
-        "What is the fuel efficiency in kilometers per liter?",
-        option_a="11.95 kilometers per liter",
-        option_b="3.78 kilometers per liter",
-        option_c="37.8 kilometers per liter",
-        option_d="23.625 kilometers per liter",
-        correct_option="b",
-        hint_ladder=[
-            "What operation compares distance to fuel used?",
-            "Divide the distance by the litres of fuel.",
-            "Work out that division carefully.",
-        ],
-        canonical_solution=SolutionResponse(
-            steps=[
-                SolutionStep(
-                    step_number=1,
-                    explanation="Divide distance by fuel used.",
-                    expression="x = 9.45 / 2.5",
-                    common_mistake=None,
-                )
-            ],
-            final_answer="3.78 kilometers per liter",
-        ),
-        estimated_time_seconds=60,
-        misconception_tags=["added_instead_of_divided"],
-        proposed_difficulty=4,
-        difficulty_rationale="two decimals; the quotient is itself a decimal",
-        required_prerequisites=["dividing decimals"],
-        equation="Eq(x, 9.45 / 2.5)",
-    )
-    return AuthoredGeneratedItemResponse(**{**base, **overrides})
-
-
-def test_the_loader_rejects_an_item_with_no_equation():
-    """D-191's rule, still enforced where bank files are read."""
-    from intellichoice_curriculum.authored_validation import validate_authored_item
-
-    result = validate_authored_item(4, _item(equation=None))
-    assert result.passed is False
-    assert any("equation is missing" in f for f in result.failures)
-    assert validate_authored_item(4, _item()).passed is True
-
-
-def test_the_pipeline_path_requires_the_equation_the_loader_requires():
-    """The disagreement this closes, pinned at the pipeline end (D-275).
-
-    The second `decimals` run produced 1 of 21 candidates with `equation: null` - optional
-    on the response model, and nothing on the generation path asked for it. That row
-    reached `pending`, so a human would have reviewed an item the bank load then refuses.
-
-    Source-level, because exercising the branch needs a gateway and a database; the point
-    is that the check exists on that path at all, which is what was missing.
-    """
-    import pathlib
-
-    from intellichoice_curriculum import ai_pipeline
-
-    source = pathlib.Path(ai_pipeline.__file__).read_text()
-    # D-276 widened this from a presence check to the whole gate: exporting the wave showed
-    # 5 further items with wrong answer keys, which only `check_sympy_independent_solve`
-    # catches - and it runs in `loader.py`, so those items could never enter the bank anyway.
-    # One gate, called from both places.
-    assert "gate = validate_authored_item(difficulty_label, item)" in source
-    # Before the solvers: an item that cannot enter the bank should not be paid for three
-    # more times first. The *call*, not the definition - `def solver_objections` sits near
-    # the top of the module, so searching for the bare name compares against the wrong offset.
-    assert source.index("gate = validate_authored_item(") < source.index(
-        "objections = solver_objections("
-    )

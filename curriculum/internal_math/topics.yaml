@@ -354,3 +354,189 @@ topics:
         before either share can be"
       5: "two operations across two different number kinds (a fraction of a decimal
         quantity), or a ratio followed by a comparison"
+
+  # ====================================================================================
+  # C1 waves 6-8 and 9-12 (D-277). Twelve topics covering the 79 authorable rows of
+  # grades 6-12. The remaining 15 rows are family C (a figure IS the question) and stay
+  # deferred to the Phase 5 decision gate, which is a user decision and has not been made.
+  #
+  # **These are the first topics whose answers are not single values.** Phase R built the
+  # router for them and nothing had used it: quadratics answer a root SET, inequalities an
+  # INTERVAL, systems a TUPLE, factorisation an EXPRESSION. D-277 had to route the design
+  # gate too - it still required one equation, one unknown, one solution, so every one of
+  # these could pass the item gate and none could ever be designed.
+  # ====================================================================================
+
+  - topic_id: g6_fractions
+    name: "Fractions: Reducing, Multiplying and Converting"
+    grade_band: "6-7"
+    description: >
+      Fractions past the adding stage: reducing to lowest terms, multiplying and dividing,
+      mixed numbers, and moving between fractions, decimals and percents.
+    difficulty_anchors:
+      1: "reduce a fraction whose numerator and denominator share an obvious factor (6/8)"
+      2: "multiply two proper fractions, or reduce where the common factor is not obvious
+        (24/36)"
+      3: "divide by a fraction, so the operation must be turned into a multiplication first"
+      4: "a mixed number must be converted before the operation, and converted back after"
+      5: "move between a fraction, a decimal and a percent in one problem, or combine three
+        fractions where the order of operations decides the answer"
+
+  - topic_id: g6_word_problems
+    name: "Word Problems: Rates, Ratios and Averages"
+    grade_band: "6-7"
+    description: >
+      Situations whose quantity is a relationship rather than a count - a rate, a ratio, an
+      average, or a proportion.
+    difficulty_anchors:
+      1: "an average of a small set of whole numbers, or a unit price from a total"
+      2: "a rate stated directly, applied once (distance from speed and time)"
+      3: "a ratio shares a total, so the number of parts must be found before either share"
+      4: "the rate is what is asked for, so the relationship must be inverted"
+      5: "two relationships combine - a proportion feeding an average, or a speed feeding a
+        total cost - and the intermediate value is not what is asked for"
+
+  - topic_id: g6_geometry_measurement
+    name: "Geometry and Measurement: Circles, Prisms and Factors"
+    grade_band: "6-7"
+    description: >
+      Measures computed from stated dimensions - circumference, area, surface area, volume -
+      and the factor/multiple work that grade 6 puts beside them.
+    difficulty_anchors:
+      1: "list or count factors and multiples of a two-digit number"
+      2: "the greatest common factor or least common multiple of two numbers"
+      3: "circumference or area of a circle from its radius, using pi as 3.14"
+      4: "volume of a rectangular prism from three stated dimensions"
+      5: "surface area of a prism, so every face must be accounted for, or a measure that
+        needs a factor result first"
+
+  - topic_id: pre_algebra
+    name: "Pre-Algebra"
+    grade_band: "6-7"
+    description: >
+      The arithmetic algebra rests on: factors, percents, exponents, order of operations,
+      negative numbers, and evaluating an expression at a given value.
+    difficulty_anchors:
+      1: "the greatest common factor of two numbers, or a percent of a quantity"
+      2: "a power with a small whole exponent, or a conversion between a fraction, a decimal
+        and a percent"
+      3: "an expression whose order of operations decides the answer (brackets and powers
+        together)"
+      4: "negative numbers in more than one place, so signs must be tracked through the
+        calculation"
+      5: "evaluate an algebraic expression at a given value where a negative and a power
+        interact (-3 squared is not -9)"
+
+  - topic_id: algebra_foundations
+    name: "Algebra: Expressions, Functions and Inequalities"
+    grade_band: "6-7"
+    description: >
+      Algebra as manipulation rather than solving - simplifying, distributing, describing a
+      linear function - plus the two answer shapes that are not single numbers: an interval
+      and a pair.
+    difficulty_anchors:
+      1: "collect like terms in an expression with two terms of each kind"
+      2: "distribute a single factor over a bracket and collect what results"
+      3: "a linear inequality in one variable, so the answer is a RANGE rather than a value"
+      4: "a system of two linear equations, so the answer is a PAIR"
+      5: "an inequality whose multiplication by a negative reverses it, or a system needing
+        both equations rearranged before elimination"
+
+  - topic_id: geometry_measures
+    name: "Geometry: Area, Volume and the Pythagorean Theorem"
+    grade_band: "6-7"
+    description: >
+      Geometry that is computable from stated lengths, with no figure required - areas,
+      surface areas, volumes, right-triangle sides, and ratios between them.
+    difficulty_anchors:
+      1: "area of a rectangle or triangle from two stated lengths"
+      2: "area of a compound shape stated as two rectangles, or a parallelogram"
+      3: "volume of a prism or cylinder from stated dimensions"
+      4: "the hypotenuse of a right triangle from its two legs"
+      5: "a missing leg from the hypotenuse, or a surface area where one face must be
+        derived before the total"
+
+  - topic_id: g68_word_problems
+    name: "Word Problems: Equations, Proportions and Inequalities"
+    grade_band: "6-7"
+    description: >
+      Situations that must become algebra before they can be answered - an equation, a
+      proportion, or a constraint whose answer is a range.
+    difficulty_anchors:
+      1: "one linear equation the story states almost directly"
+      2: "a proportion between two quantities, solved for the missing one"
+      3: "an inverse proportion, so more of one means less of the other"
+      4: "a constraint rather than an equality, so the answer is a RANGE"
+      5: "the situation must be written as an expression before it can be solved, and the
+        expression is what the question asks for"
+
+  - topic_id: algebra_1
+    name: "Algebra I"
+    grade_band: "8-9"
+    description: >
+      The first course whose answers are mostly not single numbers - square roots and
+      quadratics answer a root set, inequalities an interval, systems a pair, factorisation
+      an expression.
+    difficulty_anchors:
+      1: "a square root of a perfect square, or a quadratic already in the form x squared
+        equals a number"
+      2: "factorise a quadratic whose leading coefficient is 1"
+      3: "solve a quadratic by factorising, so BOTH roots must be stated"
+      4: "a system of two linear equations needing elimination or substitution"
+      5: "a compound inequality, a quadratic with a leading coefficient other than 1, or a
+        factorisation needing a common factor extracted first"
+
+  - topic_id: algebra_2
+    name: "Algebra II"
+    grade_band: "10-11"
+    description: >
+      Polynomials beyond the quadratic, the theorems that divide them, and the exponential,
+      logarithmic and sequence families.
+    difficulty_anchors:
+      1: "simplify a surd, or identify a term of an arithmetic sequence"
+      2: "evaluate a logarithm or an exponential at a whole value"
+      3: "factorise a polynomial of degree three by grouping or by a common factor"
+      4: "apply the remainder or factor theorem to decide a coefficient"
+      5: "a rational or radical expression that must be simplified before it can be
+        evaluated, or a geometric series sum"
+
+  - topic_id: trigonometry
+    name: "Trigonometry"
+    grade_band: "10-11"
+    description: >
+      Ratios in a right triangle and the functions they generalise to, computed from stated
+      lengths and angles rather than from a drawn figure.
+    difficulty_anchors:
+      1: "a sine, cosine or tangent ratio from two stated side lengths"
+      2: "a side length from an angle and one other side"
+      3: "an exact value at a special angle (30, 45, 60 degrees)"
+      4: "an identity that must be applied before the expression can be evaluated"
+      5: "an expression combining two ratios, or a function whose period or amplitude
+        decides the answer"
+
+  - topic_id: calculus
+    name: "Calculus"
+    grade_band: "11-12"
+    description: >
+      Limits, derivatives, integrals and simple differential equations, where the answer is
+      usually an expression rather than a number.
+    difficulty_anchors:
+      1: "a limit that can be evaluated by substitution"
+      2: "the derivative of a polynomial term by the power rule"
+      3: "the derivative of a polynomial with several terms, or an indefinite integral of one"
+      4: "a product, quotient or chain rule application"
+      5: "a definite integral evaluated between limits, or a separable differential equation"
+
+  - topic_id: statistics_advanced
+    name: "Statistics, Probability and Vectors"
+    grade_band: "11-12"
+    description: >
+      Summary statistics, probability of stated events, and the matrix and vector arithmetic
+      that sits beside them in the final year.
+    difficulty_anchors:
+      1: "a mean, median or mode of a stated data set"
+      2: "the probability of a single event from stated counts"
+      3: "a range or a weighted mean, or the probability of two independent events"
+      4: "a matrix sum or product, or a vector sum and magnitude"
+      5: "a conditional probability, or a scalar product used to decide an angle or a
+        perpendicularity"

@@ -72,8 +72,31 @@ ANSWER_FAMILIES: dict[str, AnswerFamily] = {
         whole_numbers_only=False,
         positive_only=True,
         guidance=(
-            "this skill's answers are fractions, decimals or amounts of money, so a "
+            "this skill's answers are fractions, decimals, amounts of money or surds, so a "
             "non-whole answer is correct and expected - but it must still be positive"
+        ),
+    ),
+    # D-277 adds the two the 6-8 and 9-12 bands need. Both were deliberately withheld in
+    # D-274 - "a third belongs here when a topic needs it, not in anticipation" - and the
+    # topics now exist: `prealg_negative_numbers` is *about* negative integers, and an
+    # algebra or calculus answer is routinely negative, which `counting` and `rational` both
+    # forbid. The four members are the two booleans crossed, and that is the whole space.
+    "integer": AnswerFamily(
+        name="integer",
+        whole_numbers_only=True,
+        positive_only=False,
+        guidance=(
+            "this skill's answers are whole numbers and may be negative - a negative answer "
+            "is correct here, but a fraction is not"
+        ),
+    ),
+    "signed": AnswerFamily(
+        name="signed",
+        whole_numbers_only=False,
+        positive_only=False,
+        guidance=(
+            "this skill's answers may be negative and need not be whole - the value is "
+            "whatever the mathematics gives, and no sign or roundness rule applies"
         ),
     ),
 }

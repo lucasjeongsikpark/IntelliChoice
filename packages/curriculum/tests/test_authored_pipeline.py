@@ -2503,7 +2503,11 @@ def test_the_design_gate_rejects_an_answer_the_equation_does_not_produce() -> No
         final_answer="9",
     )
     failures = ai_pipeline.validate_equation_design(design, target_difficulty=3)
-    assert any("do not divide evenly" in f for f in failures)
+    # The behaviour, not the wording. D-277 routed this gate over answer models, so the
+    # message no longer assumes the cause was an uneven division - it names both values,
+    # which is what the designer needs in order to change one of them.
+    assert failures
+    assert any("62/7" in f and "'9'" in f for f in failures), failures
 
 
 def test_the_design_gate_rejects_a_negative_answer() -> None:
