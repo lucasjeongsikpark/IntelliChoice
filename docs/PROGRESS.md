@@ -8915,8 +8915,22 @@ recorded here so the gap reads as drifted practice, not as unlogged work._
   deferring it needs a marker path `payload_from_marker` does not have. Both are carry-over with
   the measurement named rather than half-done.
 - **Carry-over opened:**
-  1. **Measure the authenticated login → first-question sequence on staging**, then decide. This
-     is the one user report not addressed.
+  1. ~~Measure the authenticated login → first-question sequence on staging~~ **— measured
+     2026-08-10 on `57c44d1`, and it is not the REST path.** Per step: `/dev/token` 111 ms,
+     `POST /sessions` 110 ms, `POST /student` (MySQL) 186 ms, `GET /topics` 182 ms,
+     `POST /topics` (attendance + 10-question exam build) 300 ms — **889 ms for the whole
+     sequence**. The wait is the **SSE connect**: **2.58 s cold vs 0.158 s warm**, because
+     `stream._initial_snapshot` calls `_maybe_fire_pre_intro`, a real Bedrock call made *inside*
+     the connect, and the browser opens `EventSource` as soon as it has a session id. So the
+     first screen is ~3.5 s and one narrative call is ~75% of it.
+
+     **The fix is not shipped, deliberately.** It is the same "publish it a beat later" shape as
+     D-217 and D-241, but this one publishes into `stream_session`, and that is the exact path
+     AUD-F-36's indefinite-hang P1 came from: `build_deferred_narrative_snapshot` omits
+     `pending_interrupt`, and a `pre_intro` frame can land while a parent's `child_selection`
+     interrupt is open — clearing the screen they are meant to act on. A third background-publish
+     variant needs its own careful pass with that guard tested, not a tired one appended to a
+     large PR. **Next session's first task**, with the numbers above as the before.
   2. **`post_outro` is still awaited inside `finalize_exam`** (`nodes.py`) — one ~1.5 s wait
      before the results screen.
   3. **`GET /exam/overview` 500s** (`assert session_row is not None`, `sessions.py:1417`) when the
