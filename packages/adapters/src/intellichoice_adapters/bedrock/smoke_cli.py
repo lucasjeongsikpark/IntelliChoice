@@ -150,6 +150,7 @@ def _contract_specs() -> dict[str, tuple[type[BaseModel], str, BaseModel]]:
                 option_b="2 minutes",
                 option_c="12 minutes",
                 option_d="3 minutes",
+                correct_option="a",
                 hint_ladder=[
                     "Write an expression for each robot's total after m minutes.",
                     "Robot A has 4 + 4m and Robot B has 16 + 2m; set them equal.",

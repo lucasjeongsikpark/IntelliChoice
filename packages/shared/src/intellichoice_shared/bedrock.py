@@ -612,6 +612,22 @@ class QuestionJudgePayload(BaseModel):
     option_b: str
     option_c: str
     option_d: str
+    # Which option is keyed correct (D-273). Its absence was a live source of false
+    # rejections, measured on C1's first wave: the judge was given four options and a
+    # solution text but never told which letter the key names, and asked whether the item is
+    # internally consistent it **assumed option_a**. On a correct item - 17 + 8 = 25, keyed
+    # `b`, with `24 stickers` as an ordinary distractor at `a` - it declared an "internal
+    # contradiction" because option_a was not the answer, and the item was rejected while
+    # both independent solvers had picked `b` and marked it unambiguous.
+    #
+    # `shuffle_options` is seeded and deterministic (D-191), so roughly three items in four
+    # have a non-`a` answer and were exposed to this.
+    #
+    # **This does not weaken the blind review.** D-194's blindness is about *difficulty*:
+    # the judge must not see the requested or proposed tier, and it still does not. The
+    # answer was never hidden - `canonical_solution` states it in words - so this adds the
+    # letter, not the answer, and lets the consistency question actually be answerable.
+    correct_option: Literal["a", "b", "c", "d"]
     hint_ladder: list[str]
     canonical_solution: str
     topic_name: str

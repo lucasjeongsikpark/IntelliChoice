@@ -22,8 +22,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the tens column - the number with the largest digit there is
-    the largest number.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -35,9 +35,10 @@ templates:
       expression: the tens column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 43
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '43'
   random_seed: 200104
   rendered_question: Which of these numbers is the largest?
@@ -67,8 +68,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the tens column - the number with the largest digit there is
-    the largest number.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -80,9 +81,10 @@ templates:
       expression: the tens column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 85
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '85'
   random_seed: 200203
   rendered_question: Which of these numbers is the largest?
@@ -112,8 +114,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the tens column - the number with the largest digit there is
-    the largest number.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -125,9 +127,10 @@ templates:
       expression: the tens column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 76
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '76'
   random_seed: 200205
   rendered_question: Which of these numbers is the largest?
@@ -157,8 +160,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the tens column - the number with the largest digit there is
-    the largest number.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -170,9 +173,10 @@ templates:
       expression: the tens column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 384
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '384'
   random_seed: 200302
   rendered_question: Which of these numbers is the largest?
@@ -202,8 +206,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the tens column - the number with the largest digit there is
-    the largest number.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -215,9 +219,10 @@ templates:
       expression: the tens column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 182
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '182'
   random_seed: 200304
   rendered_question: Which of these numbers is the largest?
@@ -247,8 +252,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the tens column - the number with the largest digit there is
-    the largest number.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -260,9 +265,10 @@ templates:
       expression: the tens column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 730
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '730'
   random_seed: 200305
   rendered_question: Which of these numbers is the largest?
@@ -292,8 +298,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the tens column - the number with the largest digit there is
-    the largest number.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -305,9 +311,10 @@ templates:
       expression: the tens column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 451
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '451'
   random_seed: 200403
   rendered_question: Which of these numbers is the largest?
@@ -337,8 +344,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the hundreds column - the number with the largest digit there
-    is the largest number.
+  - The first column where they differ is the hundreds column. Keep the numbers with the largest digit
+    there, and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -350,9 +357,10 @@ templates:
       expression: the hundreds column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 2610
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '2610'
   random_seed: 200402
   rendered_question: Which of these numbers is the largest?
@@ -382,8 +390,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the tens column - the number with the largest digit there is
-    the largest number.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -395,9 +403,10 @@ templates:
       expression: the tens column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 1098
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '1098'
   random_seed: 200405
   rendered_question: Which of these numbers is the largest?
@@ -427,8 +436,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the tens column - the number with the largest digit there is
-    the largest number.
+  - The first column where they differ is the tens column. Keep the numbers with the largest digit there,
+    and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -440,9 +449,10 @@ templates:
       expression: the tens column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 4570
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '4570'
   random_seed: 200503
   rendered_question: Which of these numbers is the largest?
@@ -472,8 +482,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the hundreds column - the number with the largest digit there
-    is the largest number.
+  - The first column where they differ is the hundreds column. Keep the numbers with the largest digit
+    there, and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -485,9 +495,10 @@ templates:
       expression: the hundreds column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 12430
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '12430'
   random_seed: 200502
   rendered_question: Which of these numbers is the largest?
@@ -564,8 +575,8 @@ templates:
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
-  - The first column where they differ is the hundreds column - the number with the largest digit there
-    is the largest number.
+  - The first column where they differ is the hundreds column. Keep the numbers with the largest digit
+    there, and if two of them tie, compare the next column to the right.
   canonical_solution:
     steps:
     - step_number: 1
@@ -577,9 +588,10 @@ templates:
       expression: the hundreds column is the first one that differs
       common_mistake: Jumping straight to the ones digit
     - step_number: 3
-      explanation: The number with the largest digit in that column is the largest number.
+      explanation: Keep the numbers with the largest digit in that column. If two of them tie, compare
+        the next column to the right until one is larger.
       expression: largest = 24150
-      common_mistake: null
+      common_mistake: Stopping at the first differing column when two numbers tie there
     final_answer: '24150'
   random_seed: 200506
   rendered_question: Which of these numbers is the largest?

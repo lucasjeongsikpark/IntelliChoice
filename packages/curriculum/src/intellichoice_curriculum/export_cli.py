@@ -17,6 +17,7 @@ step, and it is where a human sees what is about to ship.
 import argparse
 import asyncio
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from intellichoice_db.engine import create_engine, create_session_factory, session_scope
@@ -102,12 +103,29 @@ async def build_bank_file(
                 option_b=variant.option_b,
                 option_c=variant.option_c,
                 option_d=variant.option_d,
-                correct_option=variant.correct_option,
+                # Checked rather than cast (D-273). `question_variants.correct_option` is a
+                # plain text column, so the narrowing on `AuthoredTemplateDef` cannot be
+                # taken on trust here the way it can inside the file format. A row that
+                # somehow holds anything else should stop the export with the id attached,
+                # not be written into a bank file that then fails to load in every
+                # environment at once.
+                correct_option=_checked_option(row.question_template_id, variant.correct_option),
             )
         )
     return AuthoredBankFile(
         curriculum_version=curriculum_version, topic_id=topic_id, templates=templates
     )
+
+
+
+def _checked_option(template_id: str, value: str) -> Literal["a", "b", "c", "d"]:
+    """Narrow a database text column to the four options the file format allows."""
+    if value not in ("a", "b", "c", "d"):
+        raise ValueError(
+            f"{template_id}: correct_option is {value!r}, which is not one of a/b/c/d - "
+            f"exporting it would write a bank file that fails to load everywhere"
+        )
+    return value  # type: ignore[return-value]
 
 
 def render_bank_file(bank: AuthoredBankFile) -> str:

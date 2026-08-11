@@ -104,11 +104,19 @@ def _comparison_item(existing: dict[str, Any], numbers: list[int], answer: int) 
         "Read the numbers left to right without lining up the places",
         "Chose the number with the most digits showing rather than the largest value",
     ]
+    # **The third hint used to say the first differing column decides it, and in 7 of these
+    # 15 items it does not** - two numbers tie there and the student is left choosing
+    # between them. Found by the §5.8.5 judge on `200502` (12340/12430/12403/12034, where
+    # 12430 and 12403 both carry 4 in the hundreds), then measured across the set. The
+    # deterministic gate passed all 15, because it checks that the answer is right and not
+    # that the hint is sufficient to reach it - which is exactly the class of defect the
+    # human review skipped for this wave exists to catch.
     item["hint_ladder"] = [
         "Line the numbers up so their place-value columns sit under each other.",
         "Start at the leftmost column and move right until the digits stop matching.",
-        f"The first column where they differ is the {place} column - the number with the "
-        f"largest digit there is the largest number.",
+        f"The first column where they differ is the {place} column. Keep the numbers with "
+        f"the largest digit there, and if two of them tie, compare the next column to the "
+        f"right.",
     ]
     item["canonical_solution"] = {
         "steps": [
@@ -129,10 +137,13 @@ def _comparison_item(existing: dict[str, Any], numbers: list[int], answer: int) 
             {
                 "step_number": 3,
                 "explanation": (
-                    "The number with the largest digit in that column is the largest number."
+                    "Keep the numbers with the largest digit in that column. If two of them "
+                    "tie, compare the next column to the right until one is larger."
                 ),
                 "expression": f"largest = {answer}",
-                "common_mistake": None,
+                "common_mistake": (
+                    "Stopping at the first differing column when two numbers tie there"
+                ),
             },
         ],
         "final_answer": str(answer),

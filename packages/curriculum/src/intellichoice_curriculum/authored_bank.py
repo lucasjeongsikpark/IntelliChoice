@@ -33,6 +33,7 @@ rejections.
 """
 
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from intellichoice_shared.bedrock import (
@@ -104,7 +105,12 @@ class AuthoredTemplateDef(BaseModel):
     option_b: str
     option_c: str
     option_d: str
-    correct_option: str
+    # Narrowed from `str` (D-273). It has only ever held one of these four, and every
+    # consumer treats it that way - but the bank file is hand-editable, so a typo'd `correct_
+    # option: e` used to load fine and fail somewhere further downstream. Pydantic now
+    # rejects it at parse time with the id attached, and the two payload constructions that
+    # previously needed `# type: ignore[arg-type]` to pass it along no longer do.
+    correct_option: Literal["a", "b", "c", "d"]
 
     def rendered_for_model(self) -> str:
         """What a student is actually shown - context block first (D-196).
@@ -143,7 +149,7 @@ class AuthoredTemplateDef(BaseModel):
             option_b=self.option_b,
             option_c=self.option_c,
             option_d=self.option_d,
-            correct_option=self.correct_option,  # type: ignore[arg-type]
+            correct_option=self.correct_option,
             equation=self.answer_expression,
             hint_ladder=self.hint_ladder,
             canonical_solution=SolutionResponse.model_validate(self.canonical_solution),
