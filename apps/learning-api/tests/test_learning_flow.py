@@ -2438,3 +2438,107 @@ def test_a_hint_is_served_canonically_and_personalization_is_deferred() -> None:
     assert events[0].was_personalized is False
     assert events[0].canonical_hint_text == canonical[0]
     assert events[0].personalized_hint_text == canonical[0]
+
+
+def test_a_hint_turn_does_not_reschedule_a_previous_narrative() -> None:
+    """D-272: `pending_study_narrative` means "the marker *this* turn produced".
+
+    It did not. `_study_narrative_update` returned `{}` when a turn produced no marker, and
+    `pending_study_narrative` is a `LastValue` channel — so the previous transition's marker
+    stayed in state, `ainvoke` handed it back on the next turn, and the route scheduled it a
+    second time. Measured on staging 2026-08-10 with the SSE frames open: taking a hint
+    published a narrative snapshot ~100 ms later, and `build_deferred_narrative_snapshot`
+    omits `pending_interrupt`, `intervention` and `assistance_question` — so that frame wiped
+    the hint the student had just asked for off the screen. The e2e probe reported it as "the
+    hint panel unmounted after ~1519 ms without the student doing anything".
+
+    A correct study answer resolves a skill line and produces a real `study_step` marker; the
+    wrong answer and the hint that follow produce none. Exactly one schedule call is correct.
+    """
+    headers = _auth_header(_student_token(STUDENT_UNLINKED))
+    scheduled: list[dict] = []
+
+    class _RecordingScheduler:
+        async def schedule(
+            self, *, learning_session_id: str, student_external_id: str, marker: dict
+        ) -> None:
+            scheduled.append(marker)
+
+    from learning_api.dependencies import get_study_narrative_scheduler
+
+    app.dependency_overrides[get_study_narrative_scheduler] = lambda: _RecordingScheduler()
+    try:
+        with TestClient(app) as client:
+            session_id = client.post("/learning/sessions", headers=headers).json()[
+                "learning_session_id"
+            ]
+            client.post(
+                f"/learning/sessions/{session_id}/student",
+                headers=headers,
+                json={"student_id": STUDENT_UNLINKED},
+            )
+            pre_items = client.post(
+                f"/learning/sessions/{session_id}/topics",
+                headers=headers,
+                json={"topic_id": "linear_equations"},
+            ).json()["items"]
+            pre_correct = _correct_options([i["question_variant_id"] for i in pre_items])
+            for index, item in enumerate(pre_items):
+                variant_id = item["question_variant_id"]
+                client.post(
+                    f"/learning/sessions/{session_id}/answers",
+                    headers={**headers, "Idempotency-Key": f"restale-pre-{index}"},
+                    json={
+                        "question_variant_id": variant_id,
+                        "selected_option": pre_correct[variant_id],
+                        "response_time_ms": 2000,
+                    },
+                )
+
+            study_variant_id = _finalize_exam(client, headers, session_id)["items"][0][
+                "question_variant_id"
+            ]
+            # Finalizing the pre-exam schedules `pre_outro` (D-241); that is the baseline.
+            assert [m["stage"] for m in scheduled] == ["pre_outro"]
+
+            # A correct study answer: resolves the line, produces a `study_step` marker.
+            served = client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"restale-ok-{session_id}"},
+                json={
+                    "question_variant_id": study_variant_id,
+                    "selected_option": _correct_options([study_variant_id])[study_variant_id],
+                    "response_time_ms": 2000,
+                },
+            ).json()
+            after_correct = len(scheduled)
+            assert [m["stage"] for m in scheduled] == ["pre_outro", "study_step"]
+
+            # Now a wrong answer and a hint. Neither produces a marker, so neither may
+            # schedule one - and before this fix both handed back the marker above.
+            next_variant_id = served["items"][0]["question_variant_id"]
+            wrong = _other_option(_correct_options([next_variant_id])[next_variant_id])
+            client.post(
+                f"/learning/sessions/{session_id}/answers",
+                headers={**headers, "Idempotency-Key": f"restale-wrong-{session_id}"},
+                json={
+                    "question_variant_id": next_variant_id,
+                    "selected_option": wrong,
+                    "response_time_ms": 2000,
+                },
+            )
+            assert len(scheduled) == after_correct, "the wrong answer re-scheduled a narrative"
+
+            hint = client.post(
+                f"/learning/sessions/{session_id}/respond",
+                headers=headers,
+                json={"interrupt_type": "intervention_choice", "choice": "hint"},
+            ).json()
+            assert hint["intervention"]["hint_level"] == 1
+            # The response itself still carries the help, which is what the stale frame
+            # published a beat later would have taken away.
+            assert hint["pending_interrupt"]["interrupt_type"] == "intervention_choice"
+            assert hint["assistance_question"] is not None
+            assert len(scheduled) == after_correct, "the hint turn re-scheduled a narrative"
+    finally:
+        app.dependency_overrides.pop(get_study_narrative_scheduler, None)
