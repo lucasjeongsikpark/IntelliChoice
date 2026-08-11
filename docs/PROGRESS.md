@@ -7,6 +7,45 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
+**The authored bank has no unambiguously incomplete solutions left, and staging is serving the
+fix (D-252 → D-271).** 44 of 130 items ended their worked solution without ever stating the
+answer; that is now **0**. 29 were repaired by the two-reviewer loop, 15 by hand, all 44 re-gated
+through §5.8.5 and loaded onto staging (`44 updated, 86 unchanged`, run 31448577846 on
+`c45dac0`). Total spend across the arc: **~$7.90**.
+
+**What exists now that did not before:** a `PASS/REPAIR/REJECT` reviewer measured in both
+directions (D-254/D-256), a two-reviewer panel with unanimity and fail-closed-on-silence
+(D-259), a targeted repair whose schema makes it structurally unable to move an answer key
+(D-260), a bounded loop with four independent stopping conditions (D-260), and a free
+deterministic audit that is deliberately **not** a gate (D-257). **Nothing is wired into the
+generation pipeline** — every part of this was built for the bank-repair caller and stays
+uncalled elsewhere by choice.
+
+**The four things most worth carrying forward, all of them things that went wrong:**
+
+1. **Enforce structurally; asking does not work.** A prompt clause telling the repairer to
+   preserve `common_mistake` was measured at **0 of 52 preserved**. The schema having no
+   answer-key field, the ladder bound travelling in the tool schema, and the note being carried
+   across in code are the three that did work.
+2. **Reading the output beat the metric measuring it, twice.** D-265 found the success criterion
+   was scoring repairs against a bucket built to avoid false positives on *authored* content.
+   D-268 found the targeting invariant inspected two fields of a three-field record and let 67
+   misconception notes be deleted.
+3. **A criterion has to name the mechanism it claims to detect.** "R2 < R1" fired exactly as
+   pre-registered and the reason attached to it was wrong: it conflates a detector that misses
+   with a repairer that does not repair, which need opposite fixes (D-262).
+4. **A reviewer's *explanation* of a defect is a different artifact from its *detection* of one,
+   and only detection has been measured.** D-264 reported that `place_value_compare`'s ladders
+   taught the wrong method, taken from the reviewers; reading all eight showed the ladders were
+   sound and only the solutions incomplete (D-271).
+
+**Two corrections live in the log rather than being quietly fixed:** D-269's claim that
+restricting the export avoided adding 21 uncommitted items (`export_cli` already filters
+`active_status`, D-210 — the precaution was against nothing), and D-264's ladder diagnosis above.
+
+**One item of content debt:** `200203` lost a misconception note that no longer maps to any step,
+because its repair replaced comparison with counting on. 159 of the original 160 remain (D-270).
+
 **Before pricing any measurement run, query what the pipeline already stored (D-252).** Carry-over
 #18 asked for a paid measurement of `_HINT_QUALITY_REJECT_BELOW`; `question_validation_runs
 .stage_results->'judge'` had **110 real judge verdicts** sitting in it, so the answer cost nothing.
@@ -14,8 +53,11 @@ The floor **has never fired** — 126 in-scale readings, minimum 2, zero below i
 D-240's precedent. `stage_results` is a full `judge.model_dump()` on every run, accepted *and*
 rejected, and it is the first place to look for any question about judge behaviour on candidates.
 
-**Start here: the hint & solution review instrument exists, is wired to nothing, and the next
-step costs money (D-251).** [HINT_SOLUTION_REVIEW.md](HINT_SOLUTION_REVIEW.md) is the design.
+**Historical, and superseded by the block above — kept because its design reasoning still
+holds.** The instrument described here was built, measured (D-254/D-256), wired into a
+bank-repair loop, and used; it remains wired to nothing in the *generation* pipeline.
+Originally written as: *the hint & solution review instrument exists, is wired to nothing, and
+the next step costs money (D-251).* [HINT_SOLUTION_REVIEW.md](HINT_SOLUTION_REVIEW.md) is the design.
 `BedrockTask.HINT_SOLUTION_REVIEW` returns `PASS | REPAIR | REJECT` with located, actionable
 defects and an uncertainty level for routing — no scalar anywhere, and a test that fails if one
 reappears. **Step 4 is the falsification run** and it is the first paid step: check 1 (~8 items ×
