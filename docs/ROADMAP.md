@@ -1751,6 +1751,12 @@ QUESTION_GENERATION.md §6) or record the user declining it.
 *Done when:* `docs/CONTENT_COVERAGE.md` exists with all 245 rows dispositioned by answer model,
 the topic/skill mapping is user-reviewed, and the model-access question has an answer recorded.
 
+> **✅ DONE 2026-08-11.** 245 unique rows → 34 topics → 245 skills; **A 173 / B 37 / C 34 / D 1**,
+> pinned by 7 tests that fail if a row loses its disposition or the matrix drifts from the CSV.
+> Mapping approved by the user as built. Model access **measured, not assumed**: three Anthropic
+> agreements exist but only **two are invocable** — Sonnet 5 reports `AVAILABLE` and denies the
+> call, and §6 had named it the intended premium Generator.
+
 **Phase R — Answer-model router *(was Phase 2; moved ahead of seeding — see the note above)*.**
 The gate today requires every item to be **one equation, one unknown, one solution**
 (`derive_answer`, verified fail-closed on all six paths — it does *not* silently skip). Extend it
@@ -1789,6 +1795,27 @@ row) stocked at ≥1 item and multi-tier where the skill spans; **each item's st
 skill it is filed under** (the D-238/Phase-R check, measured not asserted); judge dispersion is
 real per topic (never pooled across skills); yield, human-rejection rate, and cost per accepted
 item are recorded — these numbers are Phase 3's evidence.
+
+> **⏸ PARTIAL — K-2 wave, 2026-08-11.** Taxonomy done; 54 items generated at 86% acceptance for
+> **$1.51**. What holds and what does not, criterion by criterion:
+>
+> | criterion | result |
+> |---|---|
+> | ≥10 approved items per topic | **2 of 6** — g1_addition 13, g1_subtraction 10; the rest 8/8/8/7 |
+> | every skill stocked ≥1 | ✅ **17 of 17** across all six topics |
+> | multi-tier where the skill spans | **5 of 6** — `g2_word_problems` spans only tiers 1-3 |
+> | judge dispersion real per topic | ✅ **6 of 6 discriminate** (dominant tier 25-75%, all under the 80% floor) |
+> | stems exercise their filed skill | ⛔ **not measured on the new items** — the Phase-R check was run on `place_value_compare`, not here |
+> | yield and cost recorded | ✅ 86%, ~3¢/candidate |
+> | human-rejection rate recorded | ⛔ **N/A — review was skipped on the user's instruction**, so Phase 3's central number does not exist for this wave |
+>
+> The last row is the one that matters for sequencing: **Phase 3's auto-approval decision needs a
+> human-rejection rate, and this wave produced none.** A later wave has to supply it, or the
+> decision is made without its evidence.
+>
+> Three topics fell short of 10 because `candidates_per_slot` is 2 and a skill's tier span is
+> deliberately narrow (D-223) — `g2_word_problems` has 3 skills over 5 tiers, so its plan
+> schedules 10 and yielded 7. Raising `--candidates-per-slot` is the lever, not widening spans.
 
 **Phase 3 — Scale + the auto-approval decision.**
 Go/no-go per pre-registered criteria: yield ≥ ~50% of scheduled slots, human rejection < ~30%,

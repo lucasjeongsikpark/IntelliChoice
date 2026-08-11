@@ -7,8 +7,19 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1 in progress — Phases 0, R and the K-2 wave are ✅ done (2026-08-11, D-273).
-184 items in the bank (130 + 54 new), $1.51 spent, 1228 tests passing, CI green.**
+**Session C1: Phase 0 ✅, Phase R ✅, Phase 1 (K-2 wave) ⏸ partial (2026-08-11, D-273).
+184 items in the bank (130 + 54 new), ~$2.50 spent, 1228 passing, CI green, PR #234.**
+
+**Phase 1 is ⏸ for two reasons worth knowing before the next wave.** Only 2 of 6 topics reached
+the ≥10-item bar (the rest are 8/8/8/7 — `candidates_per_slot` is 2 and tier spans are
+deliberately narrow, so raise `--candidates-per-slot`, do not widen spans). And **no
+human-rejection rate exists for this wave**, because review was skipped on the user's
+instruction — which is precisely the number Phase 3's auto-approval decision is supposed to rest
+on. A later wave has to supply it, or that decision gets made without its evidence.
+
+What did hold: every one of the 17 skills is stocked, and **all six topics' judge dispersion
+discriminates** (dominant tier 25-75%, under the 80% floor) — so the anchors written this session
+are doing real work, which is the thing D-232 and D-238 spent three sessions failing at.
 
 **Next, in the order they compound:**
 
@@ -391,6 +402,57 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the taxonomy scoped, the gate widened, and the first wave seeded (2026-08-11, D-273)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1228 passed**, 2 skipped, 1 xfailed
+(+55 on the 1173 baseline) · bank loads **184 clean** · PR #234, all checks green. **~$2.50**:
+$1.51 for the K-2 wave, ~$1 for a 184-item judge re-run, three 1-token model probes.
+
+**Built:** the 245-row coverage matrix (34 topics, A 173 / B 37 / C 34 / D 1, test-pinned); the
+answer-model router (`multi_root`/`interval`/`tuple`/`symbolic`, fail-closed, both-directions
+tested); K-2 taxonomy (6 topics, 17 skills, anchors, prerequisites, bands); 54 generated items at
+86% acceptance.
+
+**Seventeen defects, and every one was found by running something or reading output — none by
+reasoning about code.** The five worth carrying:
+
+1. **`/curriculum/` was gitignored.** The 13 existing files were tracked only because git does
+   not apply `.gitignore` to already-tracked files, so the rule was invisible — and this wave
+   wrote six new YAML files by exactly the route it would have swallowed. D-240's fix had
+   committed a line that was never meant to be committed.
+2. **`make question-gen-preflight` could not run.** It passed `--mode authored`, dropped when
+   D-226 deleted the shape pipeline. The command the docs call *"run before every paid batch"*
+   had been broken since.
+3. **`AVAILABLE` is not a promise you can call the model.** Sonnet 5 reports available and
+   returns AccessDenied; QUESTION_GENERATION.md §6 named it the intended premium Generator, so
+   that configuration would have failed on its first paid call *after preflight passed*.
+4. **The judge had no answer key and invented one.** `QuestionJudgePayload` never carried
+   `correct_option`, so asked about internal consistency it assumed `option_a` and rejected
+   correct items; ~3 items in 4 were exposed. Adding it lapsed all 16 adjudication verdicts by
+   design; re-judging the bank made **15 of 16 moot** (D-237's 8-of-12 shape, third time running).
+5. **The duplicate sums had a cause.** 27 of 55 items shared a number set — and every duplicate
+   group was a *same-slot pair*, because both candidates of a slot received an identical design
+   payload. `avoid_equations` removes the reason rather than rejecting the result after paying
+   for it.
+
+**Two metrics read clean and were wrong, which is the session's real lesson.** 86% acceptance hid
+27 duplicate calculations. And the deterministic gate passed all 15 of my re-authored
+`place_value_compare` items while **7 of them carried a hint that cannot reach the answer** — it
+claimed the first differing column decides, and in 7 items two numbers tie there. The gate checks
+that the answer is right, not that the hint is *sufficient to reach it*. The LLM judge caught it;
+the skipped human review is what should have.
+
+**Six of my own claims were wrong and are corrected in D-273 rather than quietly fixed:** the
+gate "silently skips" (it is fail-closed), `Eq(x, 43)` is rejected (it passes, verifying
+nothing), Sonnet 5 is usable, Phase 0's row-per-skill rule (rows are often tiers), a test
+assumption about symbolic input, and my first vacuous-form fix — which banned
+`Eq(x, Max(34, 43))` too, because SymPy folds `Max` while parsing.
+
+**Carry-over:** the arithmetic-dedup backstop is built and both-ways tested but unwired (four
+tests call the generator directly, so no `avoid_equations` reaches them — a fixture change);
+Phase 1's ≥10-item bar and its missing human-rejection rate; `g2_word_problems` spans only tiers
+1-3.
 
 ### Session log — 44 incomplete solutions to zero, and the checks that missed them (2026-08-10 → 08-11, D-252 → D-271)
 

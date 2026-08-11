@@ -19894,6 +19894,63 @@ already-tracked files, so the rule was invisible until this wave wrote six new Y
 **Verification:** `ruff` clean, `pyright` 0 errors, **1228 passed** / 2 skipped / 1 xfailed,
 bank loads 184 clean, CI green. Total session spend: **$1.51** plus three 1-token probes.
 
+### Two fixes after the wave, 2026-08-11 — both cause-level rather than symptom-level
+
+**a. The duplicate sums had a cause.** 27 of 55 items shared a number set, and the obvious
+response was a dedup check on the arithmetic. Counting *which* items collided found the better
+one: **every duplicate group was a same-slot pair** (seeds 6200/6201 both `6 + 7`, 6400/6401 both
+`9 + 9`). `candidates_per_slot` is 2 and both candidates were receiving an *identical* design
+payload — the seed distinguished their template ids and nothing else — so the model had no
+reason to choose different numbers. A dedup check would only have rejected the second candidate
+after paying to generate it.
+
+`EquationDesignPayload` gains `avoid_equations`, stated in the anchor text as an instruction
+rather than left as a field the prompt never mentions (D-252: a clause the model is not shown is
+a clause it ignores). `run_plan` accumulates per `(skill, tier)` and records **rejected**
+candidates' equations too, since a rejected `9 + 9` is as used up as an accepted one.
+
+The mock gains an `EquationDesignResponse` branch it never had — the design stage fell through to
+`_generic_json`, so the free path could not rehearse the stage that fixes an item's numbers.
+Verified: two candidates of one slot now design `Eq(x, 4 + 5)` then `Eq(x, 5 + 5)`.
+
+`arithmetic_identity` stays built and both-ways tested but **unwired**, as the backstop for
+repeats across slots or runs. Wiring it fails four pipeline tests for a narrow reason: they call
+`generate_authored_candidate` directly rather than through `run_plan`, so no `avoid_equations`
+reaches them and two calls at one difficulty legitimately design the same equation. A fixture
+change, not a gate change.
+
+**b. The judge had no answer key.** `QuestionJudgePayload` carried four options and a solution
+text but never which letter is keyed correct, so asked whether an item is internally consistent
+it **assumed `option_a`** — rejecting a correct item keyed `b` while both independent solvers had
+picked `b` and marked it unambiguous. `shuffle_options` is seeded, so ~3 items in 4 were exposed.
+This does not weaken D-194's blind review: that blindness is about *difficulty*, and the answer
+was never hidden — `canonical_solution` states it in words. It adds the letter, not the answer.
+
+Adding the field lapsed all 16 adjudication verdicts, exactly as `fingerprint`'s docstring says
+it must. Re-judging the whole bank (184 items, ~$1): **15 of 16 became moot** and were deleted on
+D-237/D-238's precedent; one survived, re-decided with its new fingerprint.
+
+**What that run does not establish, recorded because claiming it is tempting:** that the key
+*caused* the agreement. This is n=1 against a judge whose run-to-run variance D-237 measured at
+**6 and 13 out of 16 on identical inputs**, over a population that differs from the baseline's.
+The verdicts are moot — a fact about the current instrument, and what decides their disposition —
+but "the key fixed them" cannot be separated from variance by this run. A control would need the
+same items re-judged without the field.
+
+**c. The run caught a defect in content authored earlier the same session.** Three items came
+back flagged internally inconsistent; one was `place_value-d5-200502`, from the Phase R
+re-authoring. Its answer is right and its **third hint is not**: it claimed the first differing
+column decides the comparison, and for `12340 / 12430 / 12403 / 12034` two numbers tie there.
+Counted across the set: **7 of the 15** re-authored comparison items. The deterministic gate
+passed all 15, because it checks that the answer is right and not that the hint is *sufficient to
+reach it* — which is exactly the class of defect the skipped human review exists to catch. Hints
+and solution steps now describe continuing right through a tie.
+
+**Two boundaries hardened on the way:** `AuthoredTemplateDef.correct_option` is narrowed from
+`str` to a literal, so a typo'd `correct_option: e` in a hand-edited bank file fails at parse time
+with the id attached instead of downstream; and the export path checks the database's text column
+rather than casting it.
+
 **Rejected alternatives, so they are not re-proposed:** replacing the pipeline wholesale (its
 gates have caught real defects at every paid run — D-195's four-for-four is the strongest
 evidence *for* it); making each CSV row an internal topic (246 rubrics, and the serving model

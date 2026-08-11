@@ -514,6 +514,22 @@ to rot, because nothing fails when it does.)*
   could serve. Stated as a rule because the duplication was invisible from inside either file, and
   because a fix to one copy could silently *open* a hole in the other. If a second gate is ever
   needed again, share the predicate rather than the intent.
+- **The §5.8.5 answer check is a router over answer models, and it fails closed** (D-273) — it
+  used to answer exactly one question, "what single value does this equation solve to?", which is
+  right for most of this bank and wrong for the rest of the taxonomy. Measured: `x**2 = 9` was
+  rejected as *"has 2 solutions"*, `3*x + 2 > 11` as *"not a single equation"*, `Eq(x + y, 10)` as
+  *"has 2 unknowns"* — and **all six rows of Algebra I** fail on one of those, so the pipeline
+  could not author a single item in that book. `route_answer` now dispatches on the form the item
+  is written in (`value` unchanged, plus `multi_root` / `interval` / `tuple` / `symbolic`), and a
+  form no model claims is a **rejection, never a skip**: an item whose answer nothing can check
+  must not reach a student on the strength of nobody having checked it.
+  Two properties are worth keeping because both took a wrong attempt to reach. The vacuous form
+  `Eq(x, <bare constant>)` is rejected on its **source text**, not its parsed value — SymPy folds
+  `Max(34, 43)` to `43` while parsing, so a value-based check bans the exact form that makes
+  comparison questions expressible. And the check is not the fix for duplicate content: the
+  duplication measured in C1's first wave had an upstream cause (both candidates of a slot got an
+  identical design payload), and `avoid_equations` removes the reason rather than rejecting the
+  result after paying for it.
 - **A rule that grades content lives with the content** (D-232) — the §5.8.5 judge's 1-5
   difficulty rubric sits in `topics.yaml`, on the topic it rates, not beside the prompt that uses it.
   It used to be one global table written for `linear_equations`, correct for it, and applied
