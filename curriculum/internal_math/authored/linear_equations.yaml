@@ -1892,8 +1892,7 @@ templates:
   version: 1
   stem: Liam’s father is preparing a fish tank for a community event. The tank already has 30 litres of
     water. He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?
-  context_block: Liam’s father is filling a large fish tank for a community event. The tank already has
-    some water in it, and he adds more every day.
+  context_block: Liam’s father is setting up for a community event.
   answer_expression: Eq(30 + 5*d, 70)
   hint_ladder:
   - Think about how much water is already in the tank and how much is added each day.

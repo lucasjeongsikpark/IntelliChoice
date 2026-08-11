@@ -421,6 +421,13 @@ button.link {
   .study-columns {
     grid-template-columns: 1fr;
   }
+
+  /* Stacked, the chat sits *below* the question rather than beside it, so 60vh of it is
+     60vh of scrolling past empty panel before the input row. The floor only has to be tall
+     enough that replies do not resize the page as they land. */
+  .chat-panel {
+    min-height: 320px;
+  }
 }
 
 /* D-272: the journey bar. Matches the width of whatever it sits above - 880px over a single

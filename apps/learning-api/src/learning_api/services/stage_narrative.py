@@ -121,9 +121,21 @@ _SYSTEM_PROMPT = (
     "A study-plan list is the order skills will be practised in, not a list of things the "
     "student is bad at - describe it as what comes next, and only call a skill out as "
     "needing work if a number you were given says so. "
+    # D-272. Measured on screen 2026-08-10: the message named all five skills of
+    # `linear_equations` in one sentence, each of them a full clause ("Solve linear
+    # equations with negative or fractional coefficients"), and the evidence box below it
+    # repeated the same five. Two hundred-odd words of list, for a child, between them and
+    # the question. The names stay in the payload so any mention is still grounded; what
+    # changes is how many the message is allowed to spend.
+    "Name at most one skill - the one coming next. If the data lists more, say how many "
+    "there are rather than listing them. "
     # D-217 (point 3): rendered as plain text, so no Markdown or LaTeX.
     "Write plain sentences only - no Markdown headings or bullet characters and no LaTeX."
 )
+
+
+# D-272: how many skill names the evidence box prints before it starts counting instead.
+_EVIDENCE_SKILL_LIMIT = 2
 
 
 @dataclass(frozen=True)
@@ -160,7 +172,15 @@ def _evidence_summary(payload: StageNarrativePayload) -> list[str]:
         #
         # The ordering is genuinely useful and is left alone; only the claim about it is
         # corrected. `Next up:` below remains the actionable line.
-        lines.append(f"Study plan, weakest first: {', '.join(payload.weak_skill_names)}")
+        #
+        # D-272: truncated for display. Five skill names, each a full clause, is a
+        # paragraph of list in a box headed "why this is your next step" - and the student
+        # only acts on the first one. The count keeps it honest about what was hidden;
+        # the full list is still in the stored evidence and in the payload.
+        shown = list(payload.weak_skill_names[:_EVIDENCE_SKILL_LIMIT])
+        hidden = len(payload.weak_skill_names) - len(shown)
+        listed = ", ".join(shown) + (f", and {hidden} more" if hidden > 0 else "")
+        lines.append(f"Study plan, weakest first: {listed}")
     if payload.completed_skill_name is not None:
         lines.append(f"Just completed: {payload.completed_skill_name}")
     if payload.target_skill_name is not None:
@@ -183,13 +203,14 @@ def _fallback_text(payload: StageNarrativePayload) -> str:
         parts = []
         if payload.pre_raw_score is not None:
             parts.append(f"You scored {payload.pre_raw_score} on the pre-exam.")
-        if payload.weak_skill_names:
-            # Same correction as `_evidence_summary`: this is the plan's order, not a
-            # verdict that every one of these skills is weak.
-            names = ", ".join(payload.weak_skill_names)
-            parts.append(f"Your plan starts with the ones to work on most: {names}.")
+        # D-272: the full list is gone from here. It said the same thing as the line
+        # below it - "your plan starts with A, B, C, D, E" immediately followed by "your
+        # plan starts with A" - and the count is the part a student can act on.
         if payload.target_skill_name:
-            parts.append(f"Your study plan starts with {payload.target_skill_name}.")
+            parts.append(f"First up: {payload.target_skill_name}.")
+        if payload.weak_skill_names and len(payload.weak_skill_names) > 1:
+            rest = len(payload.weak_skill_names) - 1
+            parts.append(f"Then {rest} more skill{'s' if rest != 1 else ''} after that.")
         return " ".join(parts) or "Let's get started with your study plan."
     if payload.stage == "study_step":
         parts = []
