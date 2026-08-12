@@ -631,7 +631,7 @@ templates:
     steps:
     - step_number: 1
       explanation: Write the expression for all plants. Front yard has 5 rose bushes and 2 tulip bulbs.
-        Back yard has 3 rose bushes and 6 tulip bulbs. Total is 5*r + 2*t + 3*r + 6*t.
+        Back yard has 3 rose bushes and 6 tulip bulbs. Total is 5r + 2t + 3r + 6t.
       expression: 5*r + 2*t + 3*r + 6*t
       common_mistake: null
     - step_number: 2
@@ -642,15 +642,15 @@ templates:
       explanation: 'Add the coefficients of r: 5 + 3 = 8. Add the coefficients of t: 2 + 6 = 8.'
       expression: 8*r + 8*t
       common_mistake: null
-    final_answer: 8*r + 8*t
+    final_answer: 8r + 8t
   random_seed: 1188102
   rendered_question: A gardener plants 5 rose bushes and 2 tulip bulbs in the front yard, then plants
     3 more rose bushes and 6 more tulip bulbs in the back yard. Which expression shows the total number
     of plants?
-  option_a: 8*r + 8*t
-  option_b: 16*r*t
-  option_c: 8*r + 2*t
-  option_d: 5*r + 8*t
+  option_a: 8r + 8t
+  option_b: 16rt
+  option_c: 8r + 2t
+  option_d: 5r + 8t
   correct_option: a
 - question_template_id: authored-algebra_foundations-d1-1428100
   topic_id: algebra_foundations
@@ -702,17 +702,17 @@ templates:
       explanation: 'Combine the constant terms: 7 - 2 = 5.'
       expression: 7*x + 5
       common_mistake: null
-    final_answer: 7*x + 5
+    final_answer: 7x + 5
   random_seed: 1428100
   rendered_question: 'Each pack contains x cards.
 
 
     Liam collects trading cards over two days. On Monday he gets 4 packs plus 7 loose cards. On Tuesday
     he gets 3 packs minus 2 cards he traded away. How many cards does he have in total?'
-  option_a: 7*x + 5
-  option_b: 12*x + 5
-  option_c: 7*x + 9
-  option_d: 7*x
+  option_a: 7x + 5
+  option_b: 12x + 5
+  option_c: 7x + 9
+  option_d: 7x
   correct_option: a
 - question_template_id: authored-algebra_foundations-d1-1428101
   topic_id: algebra_foundations
@@ -760,15 +760,15 @@ templates:
       explanation: Combine 3 and 4.
       expression: 7*x + 7
       common_mistake: null
-    final_answer: 7*x + 7
+    final_answer: 7x + 7
   random_seed: 1428101
   rendered_question: A baker makes cookies in two batches. In the morning she bakes 5x + 3 cookies, and
     in the afternoon she bakes 2x + 4 cookies. Which expression shows the total number of cookies she
     baked?
-  option_a: 5*x + 9
-  option_b: 7*x + 12
-  option_c: 10*x + 7
-  option_d: 7*x + 7
+  option_a: 5x + 9
+  option_b: 7x + 12
+  option_c: 10x + 7
+  option_d: 7x + 7
   correct_option: d
 - question_template_id: authored-algebra_foundations-d2-1188200
   topic_id: algebra_foundations
@@ -797,7 +797,7 @@ templates:
   figure_reading: null
   hint_ladder:
   - Write an expression for the morning books and another for the afternoon books.
-  - The morning gives you 6*f + 2*r and the afternoon gives you 3*f + 7*r. Add those two expressions together.
+  - The morning gives you 6f + 2r and the afternoon gives you 3f + 7r. Add those two expressions together.
   - Combine the terms that have f and combine the terms that have r separately.
   canonical_solution:
     steps:
@@ -814,26 +814,26 @@ templates:
       expression: 6*f + 2*r + 3*f + 7*r
       common_mistake: null
     - step_number: 4
-      explanation: 'Combine the fiction terms: 6*f + 3*f = 9*f.'
+      explanation: 'Combine the fiction terms: 6f + 3f = 9f.'
       expression: 9*f
       common_mistake: null
     - step_number: 5
-      explanation: 'Combine the reference terms: 2*r + 7*r = 9*r.'
+      explanation: 'Combine the reference terms: 2r + 7r = 9r.'
       expression: 9*r
       common_mistake: null
     - step_number: 6
       explanation: Write the simplified expression.
       expression: 9*f + 9*r
       common_mistake: null
-    final_answer: 9*f + 9*r
+    final_answer: 9f + 9r
   random_seed: 1188200
   rendered_question: A librarian shelves 6 fiction books and 2 reference books in the morning, then shelves
     3 more fiction books and 7 more reference books in the afternoon. Which expression shows the total
     number of books she shelved?
-  option_a: 11*f + 11*r
-  option_b: 9*f + 2*r
-  option_c: 6*f + 7*r
-  option_d: 9*f + 9*r
+  option_a: 11f + 11r
+  option_b: 9f + 2r
+  option_c: 6f + 7r
+  option_d: 9f + 9r
   correct_option: d
 - question_template_id: authored-algebra_foundations-d2-1188202
   topic_id: algebra_foundations
@@ -861,18 +861,18 @@ templates:
   figure_reading: null
   hint_ladder:
   - Identify how many soccer balls are stored in total and how many helmets are stored in total.
-  - Write an expression for the gym closet (2*s + 6*h) and another for the equipment shed (5*s + 3*h),
-    then combine them.
+  - Write an expression for the gym closet (2s + 6h) and another for the equipment shed (5s + 3h), then
+    combine them.
   - Collect the terms with s together and the terms with h together to simplify.
   canonical_solution:
     steps:
     - step_number: 1
-      explanation: 'Write the expression for the gym closet: 2 soccer balls and 6 helmets is 2*s + 6*h.'
+      explanation: 'Write the expression for the gym closet: 2 soccer balls and 6 helmets is 2s + 6h.'
       expression: 2*s + 6*h
       common_mistake: null
     - step_number: 2
-      explanation: 'Write the expression for the equipment shed: 5 soccer balls and 3 helmets is 5*s +
-        3*h.'
+      explanation: 'Write the expression for the equipment shed: 5 soccer balls and 3 helmets is 5s +
+        3h.'
       expression: 5*s + 3*h
       common_mistake: null
     - step_number: 3
@@ -880,26 +880,26 @@ templates:
       expression: 2*s + 6*h + 5*s + 3*h
       common_mistake: null
     - step_number: 4
-      explanation: 'Collect the terms with s: 2*s + 5*s equals 7*s.'
+      explanation: 'Collect the terms with s: 2s + 5s equals 7s.'
       expression: 7*s
       common_mistake: null
     - step_number: 5
-      explanation: 'Collect the terms with h: 6*h + 3*h equals 9*h.'
+      explanation: 'Collect the terms with h: 6h + 3h equals 9h.'
       expression: 9*h
       common_mistake: null
     - step_number: 6
       explanation: Combine the simplified terms to write the final expression.
       expression: 7*s + 9*h
       common_mistake: null
-    final_answer: 7*s + 9*h
+    final_answer: 7s + 9h
   random_seed: 1188202
   rendered_question: A coach stores 2 soccer balls and 6 helmets in the gym closet, then stores 5 more
     soccer balls and 3 more helmets in the equipment shed. Which expression shows the total equipment
     stored?
-  option_a: 2*s + 5*h
-  option_b: 7*s + 6*h
-  option_c: 7*s + 9*h
-  option_d: 16*s + 11*h
+  option_a: 2s + 5h
+  option_b: 7s + 6h
+  option_c: 7s + 9h
+  option_d: 16s + 11h
   correct_option: c
 - question_template_id: authored-algebra_foundations-d2-1428200
   topic_id: algebra_foundations
@@ -1012,14 +1012,14 @@ templates:
       explanation: 'Combine the constant terms: 8 minus 3 equals 5.'
       expression: 11x + 5
       common_mistake: null
-    final_answer: 11*x + 5
+    final_answer: 11x + 5
   random_seed: 1428201
   rendered_question: A librarian organizes books on 2 shelves with 3x + 4 books on each shelf, then adds
     5x more books and removes 3 books. Write the simplified expression for the total number of books.
-  option_a: 11*x + 11
-  option_b: 10*x + 5
-  option_c: 6*x + 13
-  option_d: 11*x + 5
+  option_a: 11x + 11
+  option_b: 10x + 5
+  option_c: 6x + 13
+  option_d: 11x + 5
   correct_option: d
 - question_template_id: authored-algebra_foundations-d4-1189400
   topic_id: algebra_foundations

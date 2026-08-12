@@ -87,6 +87,17 @@ export const FIXTURES = {
   studentUnknownAttendance: { role: "student", sub: "student-ext-3" },
   /** Present, no parent link. */
   studentUnlinked: { role: "student", sub: "student-ext-4" },
+  /**
+   * The per-band walk students (D-288), one per grade band the bank serves. Each walk gets
+   * its own student because staging's sessions persist: two tests signing in as the same
+   * student resume each other's exams (the journey-student isolation finding). All present.
+   */
+  studentBandK2: { role: "student", sub: "student-ext-5" },
+  studentBand35: { role: "student", sub: "student-ext-6" },
+  studentBand68: { role: "student", sub: "student-ext-7" },
+  studentBand912: { role: "student", sub: "student-ext-8" },
+  /** The refresh-restores-position test's own student, isolating it from the full walk. */
+  studentResume: { role: "student", sub: "student-ext-9" },
   /** One linked child - exercises the auto-select path. */
   parentOneChild: { role: "parent", sub: "parent-ext-1" },
   /** Two linked children - exercises the child_selection interrupt. */

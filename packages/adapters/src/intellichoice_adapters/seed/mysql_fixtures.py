@@ -1,7 +1,14 @@
 """Fixture data for the dev-fake MySQL (SPEC §5.4.1 tables).
 
-2 parents (1-child and 2-child cases) + 1 unlinked student = 4 students total,
-2 branches, and attendance covering present / absent / unknown (no row).
+2 parents (1-child and 2-child cases) + 7 students, 2 branches, and attendance covering
+present / absent / unknown (no row).
+
+Students 1-4 cover the *gate* cases (present/absent/unknown/unlinked). Students 5-8 exist
+for the per-band e2e walks (D-288): the original four are grades 2-5 only, so the 6-8 and
+9-12 bands were unwalkable, and staging's persistent sessions mean two tests signing in as
+the same student resume each other's exams - so each band walk gets its own student rather
+than sharing. All four are present and unlinked: the walks test content serving, not the
+gate, and the gate cases stay with students 1-4.
 """
 
 from sqlalchemy import text
@@ -17,6 +24,15 @@ STUDENT_ONLY_CHILD = "student-ext-1"  # child of PARENT_ONE_CHILD, attendance: p
 STUDENT_FIRST_CHILD = "student-ext-2"  # child of PARENT_TWO_CHILDREN, attendance: absent
 STUDENT_SECOND_CHILD = "student-ext-3"  # child of PARENT_TWO_CHILDREN, attendance: unknown (no row)
 STUDENT_UNLINKED = "student-ext-4"  # no parent link, attendance: present
+
+# The per-band walk students (D-288). One per grade band the bank serves, present and
+# unlinked; -8 is the second 6-7-band student, so `journey-student.spec.ts`'s two tests
+# stop sharing one student against staging's persistent sessions.
+STUDENT_BAND_K2 = "student-ext-5"  # grade 1, attendance: present
+STUDENT_BAND_35 = "student-ext-6"  # grade 4, attendance: present
+STUDENT_BAND_68 = "student-ext-7"  # grade 7, attendance: present
+STUDENT_BAND_912 = "student-ext-8"  # grade 10, attendance: present
+STUDENT_RESUME = "student-ext-9"  # grade 3, attendance: present - the refresh test's own
 
 BRANCH_MAIN = "branch-ext-1"
 BRANCH_NORTH = "branch-ext-2"
@@ -63,6 +79,41 @@ _USERS = [
         "display_name": "Drew Unlinked",
         "grade": "4",
         "branch_external_id": BRANCH_NORTH,
+    },
+    {
+        "external_id": STUDENT_BAND_K2,
+        "role": "student",
+        "display_name": "Finn FirstGrader",
+        "grade": "1",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_BAND_35,
+        "role": "student",
+        "display_name": "Gia Fourth",
+        "grade": "4",
+        "branch_external_id": BRANCH_MAIN,
+    },
+    {
+        "external_id": STUDENT_BAND_68,
+        "role": "student",
+        "display_name": "Hana Seventh",
+        "grade": "7",
+        "branch_external_id": BRANCH_NORTH,
+    },
+    {
+        "external_id": STUDENT_BAND_912,
+        "role": "student",
+        "display_name": "Iris Tenth",
+        "grade": "10",
+        "branch_external_id": BRANCH_NORTH,
+    },
+    {
+        "external_id": STUDENT_RESUME,
+        "role": "student",
+        "display_name": "Jae Resume",
+        "grade": "3",
+        "branch_external_id": BRANCH_MAIN,
     },
 ]
 
@@ -111,6 +162,11 @@ _ATTENDANCE = [
         "student_external_id": STUDENT_UNLINKED,
         "status": "present",
     },
+    {"student_external_id": STUDENT_BAND_K2, "status": "present"},
+    {"student_external_id": STUDENT_BAND_35, "status": "present"},
+    {"student_external_id": STUDENT_BAND_68, "status": "present"},
+    {"student_external_id": STUDENT_BAND_912, "status": "present"},
+    {"student_external_id": STUDENT_RESUME, "status": "present"},
 ]
 
 

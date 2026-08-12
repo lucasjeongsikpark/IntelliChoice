@@ -118,7 +118,12 @@ test("student walks sign-in → pre-exam → finalize → study (the ladder incl
 // per phase - `exam-position-refresh.spec.ts` covers the "once per phase" half, which this
 // test cannot see.
 test("a refresh mid-exam restores the exact position (SPEC Phase 11)", async ({ page, audit }) => {
-  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentPresent);
+  // Its own student, NOT studentPresent (D-288). Staging's sessions persist, so a second
+  // test signing in as the full walk's student resumes that walk's exam mid-flight -
+  // measured on staging as "answerWholeExam returned 1 of 10" and a refresh comparison
+  // between two different questions (PROGRESS 2026-08-07). Resume-on-sign-in is the
+  // *feature this test exists to check*, which is exactly why it must not share a student.
+  await signInViaUi(page, LEARNING_WEB, FIXTURES.studentResume);
   await startSession(page);
   await settleToInteractiveScreen(page);
   await chooseTopic(page);

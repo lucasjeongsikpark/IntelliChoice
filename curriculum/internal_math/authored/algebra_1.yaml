@@ -53,15 +53,15 @@ templates:
         the original expression.'
       expression: x² + 7x + 12
       common_mistake: null
-    final_answer: (x + 3)*(x + 4)
+    final_answer: (x + 3)(x + 4)
   random_seed: 1405200
   rendered_question: A storage crate has a width of x metres. Its length is 3 metres more than its width,
     and its height is 4 metres more than its width. If the expression x² + 7x + 12 represents the product
     of two of these measurements, which factored form is equivalent?
-  option_a: (x + 1)*(x + 12)
-  option_b: (x + 7)*(x + 12)
-  option_c: (x + 3)*(x + 4)
-  option_d: (x + 2)*(x + 6)
+  option_a: (x + 1)(x + 12)
+  option_b: (x + 7)(x + 12)
+  option_c: (x + 3)(x + 4)
+  option_d: (x + 2)(x + 6)
   correct_option: c
 - question_template_id: authored-algebra_1-d3-1245302
   topic_id: algebra_1

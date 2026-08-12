@@ -54,14 +54,14 @@ templates:
       explanation: Combine all the derivatives to get the velocity function.
       expression: d'(t) = 6*t + 8 + 0 = 6*t + 8
       common_mistake: null
-    final_answer: 6*t + 8
+    final_answer: 6t + 8
   random_seed: 1305201
   rendered_question: A car travels along a straight highway. Its distance in kilometers from the starting
     point after t hours is given by d(t) = 3t² + 8t + 5. What is the velocity function d'(t)?
-  option_a: 6*t + 5
-  option_b: 3*t + 8
-  option_c: 6*t + 8
-  option_d: 6*t
+  option_a: 6t + 5
+  option_b: 3t + 8
+  option_c: 6t + 8
+  option_d: 6t
   correct_option: c
 - question_template_id: authored-calculus-d3-1305300
   topic_id: calculus

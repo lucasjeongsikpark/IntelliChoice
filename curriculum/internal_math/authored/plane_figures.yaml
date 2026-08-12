@@ -49,6 +49,54 @@ templates:
   option_c: 20 square cm
   option_d: 48 square cm
   correct_option: a
+- question_template_id: figure-plane_figures-d1-720108
+  topic_id: plane_figures
+  skill_id: figure_measure_shape
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - wrong_formula
+  - doubled_the_answer
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The rectangle is labelled with its two side lengths. What is its area?
+  context_block: null
+  answer_expression: Eq(x, 9 * 4)
+  figure_spec:
+    kind: shape
+    shape: rectangle
+    side_lengths:
+    - 9.0
+    - 4.0
+    angle_degrees: []
+    unit: cm
+  figure_reading: null
+  hint_ladder:
+  - Read the labels on the figure before choosing what to calculate.
+  - The measurements shown are 9, 4 cm.
+  - Use the rule for this shape, then check the units of your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the labelled measurements from the figure.
+      expression: 9, 4
+      common_mistake: using a length the figure does not label
+    - step_number: 2
+      explanation: Apply the rule for this shape.
+      expression: Eq(x, 9 * 4)
+      common_mistake: null
+    final_answer: 36 square cm
+  random_seed: 720108
+  rendered_question: The rectangle is labelled with its two side lengths. What is its area?
+  option_a: 36 square cm
+  option_b: 72 square cm
+  option_c: 18 square cm
+  option_d: 45 square cm
+  correct_option: a
 - question_template_id: figure-plane_figures-d2-720101
   topic_id: plane_figures
   skill_id: figure_measure_shape
@@ -389,3 +437,53 @@ templates:
   option_c: 83.5 square cm
   option_d: 78.5 square cm
   correct_option: d
+- question_template_id: figure-plane_figures-d5-720109
+  topic_id: plane_figures
+  skill_id: figure_measure_shape
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - wrong_formula
+  - doubled_the_answer
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The trapezoid is labelled with its two parallel sides and its height. What is its area?
+  context_block: null
+  answer_expression: Eq(x, (6 + 10) / 2 * 4)
+  figure_spec:
+    kind: shape
+    shape: trapezoid
+    side_lengths:
+    - 6.0
+    - 10.0
+    - 4.0
+    angle_degrees: []
+    unit: cm
+  figure_reading: null
+  hint_ladder:
+  - Read the labels on the figure before choosing what to calculate.
+  - The measurements shown are 6, 10, 4 cm.
+  - Use the rule for this shape, then check the units of your answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the labelled measurements from the figure.
+      expression: 6, 10, 4
+      common_mistake: using a length the figure does not label
+    - step_number: 2
+      explanation: Apply the rule for this shape.
+      expression: Eq(x, (6 + 10) / 2 * 4)
+      common_mistake: null
+    final_answer: 32 square cm
+  random_seed: 720109
+  rendered_question: The trapezoid is labelled with its two parallel sides and its height. What is its
+    area?
+  option_a: 38 square cm
+  option_b: 32 square cm
+  option_c: 64 square cm
+  option_d: 16 square cm
+  correct_option: b

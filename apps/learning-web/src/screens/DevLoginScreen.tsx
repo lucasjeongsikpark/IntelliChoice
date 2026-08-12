@@ -18,6 +18,13 @@ const FIXTURE_IDS: { label: string; role: Role; sub: string }[] = [
     sub: "student-ext-3",
   },
   { label: "Student — Drew Unlinked (present, no parent)", role: "student", sub: "student-ext-4" },
+  // The per-band walk students (D-288) - grades 1/4/7/10, all present, so every band the
+  // bank serves can be walked by hand as well as by the e2e suite.
+  { label: "Student — Finn FirstGrader (grade 1, present)", role: "student", sub: "student-ext-5" },
+  { label: "Student — Gia Fourth (grade 4, present)", role: "student", sub: "student-ext-6" },
+  { label: "Student — Hana Seventh (grade 7, present)", role: "student", sub: "student-ext-7" },
+  { label: "Student — Iris Tenth (grade 10, present)", role: "student", sub: "student-ext-8" },
+  { label: "Student — Jae Resume (grade 3, present)", role: "student", sub: "student-ext-9" },
   { label: "Parent — Priya One (1 linked child)", role: "parent", sub: "parent-ext-1" },
   { label: "Parent — Paul Two (2 linked children)", role: "parent", sub: "parent-ext-2" },
 ];

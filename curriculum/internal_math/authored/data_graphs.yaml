@@ -163,6 +163,60 @@ templates:
   option_c: Mon
   option_d: Tue
   correct_option: a
+- question_template_id: figure-data_graphs-d2-710106
+  topic_id: data_graphs
+  skill_id: graph_read_bar_chart
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - read_wrong_bar
+  - ignored_scale
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The chart shows stickers collected. Which one is the lowest?
+  context_block: null
+  answer_expression: null
+  figure_spec:
+    kind: bar_chart
+    title: Stickers collected
+    axis_label: ''
+    categories:
+    - Mia
+    - Noah
+    - Ori
+    - Pia
+    values:
+    - 16.0
+    - 9.0
+    - 13.0
+    - 11.0
+  figure_reading: chart_min_label
+  hint_ladder:
+  - Look along the bottom to find each bar, then read its height.
+  - Write down the height of every bar before comparing them.
+  - Compare the heights you wrote down and pick out the one the question asks about.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the height of each bar from the scale.
+      expression: 16, 9, 13, 11
+      common_mistake: reading the label instead of the height
+    - step_number: 2
+      explanation: Compare or combine them as the question asks.
+      expression: Eq(x, Min(16, 9, 13, 11))
+      common_mistake: null
+    final_answer: Noah
+  random_seed: 710106
+  rendered_question: The chart shows stickers collected. Which one is the lowest?
+  option_a: Ori
+  option_b: Pia
+  option_c: Mia
+  option_d: Noah
+  correct_option: d
 - question_template_id: figure-data_graphs-d3-710103
   topic_id: data_graphs
   skill_id: graph_read_bar_chart
@@ -216,6 +270,60 @@ templates:
   option_b: '60'
   option_c: '25'
   option_d: '35'
+  correct_option: d
+- question_template_id: figure-data_graphs-d3-710107
+  topic_id: data_graphs
+  skill_id: graph_read_bar_chart
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - read_wrong_bar
+  - ignored_scale
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The chart shows laps swum. How much more is the highest than the lowest?
+  context_block: null
+  answer_expression: Eq(x, 22 - 8)
+  figure_spec:
+    kind: bar_chart
+    title: Laps swum
+    axis_label: ''
+    categories:
+    - Week 1
+    - Week 2
+    - Week 3
+    - Week 4
+    values:
+    - 14.0
+    - 22.0
+    - 8.0
+    - 17.0
+  figure_reading: null
+  hint_ladder:
+  - Look along the bottom to find each bar, then read its height.
+  - Write down the height of every bar before comparing them.
+  - Find the tallest and shortest bars first, then do the arithmetic the question asks for.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the height of each bar from the scale.
+      expression: 14, 22, 8, 17
+      common_mistake: reading the label instead of the height
+    - step_number: 2
+      explanation: Compare or combine them as the question asks.
+      expression: Eq(x, 22 - 8)
+      common_mistake: null
+    final_answer: '14'
+  random_seed: 710107
+  rendered_question: The chart shows laps swum. How much more is the highest than the lowest?
+  option_a: '30'
+  option_b: '22'
+  option_c: '8'
+  option_d: '14'
   correct_option: d
 - question_template_id: figure-data_graphs-d4-710104
   topic_id: data_graphs
@@ -322,4 +430,112 @@ templates:
   option_b: '55'
   option_c: '95'
   option_d: '75'
+  correct_option: b
+- question_template_id: figure-data_graphs-d5-710108
+  topic_id: data_graphs
+  skill_id: graph_read_bar_chart
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - read_wrong_bar
+  - ignored_scale
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The chart shows cans recycled. What is the total?
+  context_block: null
+  answer_expression: Eq(x, 135 + 168 + 149)
+  figure_spec:
+    kind: bar_chart
+    title: Cans recycled
+    axis_label: ''
+    categories:
+    - Grade 3
+    - Grade 4
+    - Grade 5
+    values:
+    - 135.0
+    - 168.0
+    - 149.0
+  figure_reading: null
+  hint_ladder:
+  - Look along the bottom to find each bar, then read its height.
+  - Write down the height of every bar before comparing them.
+  - Find the tallest and shortest bars first, then do the arithmetic the question asks for.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the height of each bar from the scale.
+      expression: 135, 168, 149
+      common_mistake: reading the label instead of the height
+    - step_number: 2
+      explanation: Compare or combine them as the question asks.
+      expression: Eq(x, 135 + 168 + 149)
+      common_mistake: null
+    final_answer: '452'
+  random_seed: 710108
+  rendered_question: The chart shows cans recycled. What is the total?
+  option_a: '452'
+  option_b: '317'
+  option_c: '168'
+  option_d: '3'
+  correct_option: a
+- question_template_id: figure-data_graphs-d5-710109
+  topic_id: data_graphs
+  skill_id: graph_read_bar_chart
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - read_wrong_bar
+  - ignored_scale
+  generator_model: authored-figure-script
+  review_model_versions: {}
+  review_priority: normal
+  version: 1
+  stem: The chart shows minutes practised. How much more is the highest than the lowest?
+  context_block: null
+  answer_expression: Eq(x, 50 - 20)
+  figure_spec:
+    kind: bar_chart
+    title: Minutes practised
+    axis_label: ''
+    categories:
+    - Mon
+    - Tue
+    - Wed
+    - Thu
+    - Fri
+    values:
+    - 35.0
+    - 50.0
+    - 20.0
+    - 45.0
+    - 40.0
+  figure_reading: null
+  hint_ladder:
+  - Look along the bottom to find each bar, then read its height.
+  - Write down the height of every bar before comparing them.
+  - Find the tallest and shortest bars first, then do the arithmetic the question asks for.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Read the height of each bar from the scale.
+      expression: 35, 50, 20, 45, 40
+      common_mistake: reading the label instead of the height
+    - step_number: 2
+      explanation: Compare or combine them as the question asks.
+      expression: Eq(x, 50 - 20)
+      common_mistake: null
+    final_answer: '30'
+  random_seed: 710109
+  rendered_question: The chart shows minutes practised. How much more is the highest than the lowest?
+  option_a: '20'
+  option_b: '30'
+  option_c: '70'
+  option_d: '50'
   correct_option: b

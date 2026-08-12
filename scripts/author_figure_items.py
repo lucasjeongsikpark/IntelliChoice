@@ -51,6 +51,11 @@ _CLOCKS = [
     (11, 50, [10, 45, 55], 4),
     (2, 35, [25, 40, 5], 4),
     (12, 25, [35, 20, 30], 5),
+    # D-288: the serving floor is 2 approved items at EVERY difficulty (D-187 +
+    # QUESTIONS_PER_DIFFICULTY), and this topic sat at d3:1, d5:1 - so no student could
+    # open it at all. These two rows are what make telling_time servable.
+    (8, 40, [20, 35, 45], 3),
+    (1, 55, [5, 50, 45], 5),
 ]
 
 
@@ -127,6 +132,19 @@ _CHARTS = [
     ("Trees planted", ["North", "South", "East", "West"], [45, 30, 60, 25], "difference", 3),
     ("Tickets sold", ["Fri", "Sat", "Sun"], [120, 185, 140], "total", 4),
     ("Rainfall in mm", ["Apr", "May", "Jun", "Jul"], [55, 40, 75, 20], "difference", 4),
+    # D-288: data_graphs sat at d2:1, d3:1 and no d5 at all, below the 2-per-tier serving
+    # floor. Four categories on the "least" row deliberately - three would trigger the
+    # option-padding path, and a padded duplicate label fails `check_unique_options`.
+    ("Stickers collected", ["Mia", "Noah", "Ori", "Pia"], [16, 9, 13, 11], "least", 2),
+    ("Laps swum", ["Week 1", "Week 2", "Week 3", "Week 4"], [14, 22, 8, 17], "difference", 3),
+    ("Cans recycled", ["Grade 3", "Grade 4", "Grade 5"], [135, 168, 149], "total", 5),
+    (
+        "Minutes practised",
+        ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        [35, 50, 20, 45, 40],
+        "difference",
+        5,
+    ),
 ]
 
 
@@ -250,6 +268,11 @@ _SHAPES = [
     ("trapezoid", [8.0, 12.0, 5.0], "cm", "area", 4),
     ("circle", [7.0], "cm", "circumference", 4),
     ("circle", [5.0], "cm", "area", 5),
+    # D-288: plane_figures sat at d1:1, d5:1, below the 2-per-tier serving floor. [9, 4]
+    # rather than [6, 3] deliberately: a 6x3 rectangle's area and perimeter are both 18,
+    # and the distractor set would collide with itself.
+    ("rectangle", [9.0, 4.0], "cm", "area", 1),
+    ("trapezoid", [6.0, 10.0, 4.0], "cm", "area", 5),
 ]
 
 
@@ -372,6 +395,13 @@ _GRIDS = [
     ([(1.0, 1.0), (5.0, 1.0)], ["A", "B"], "distance", 3),
     ([(-2.0, 4.0), (-2.0, -1.0)], ["C", "D"], "distance", 3),
     ([(0.0, 0.0), (4.0, 0.0), (4.0, 3.0)], ["X", "Y", "Z"], "hypotenuse", 5),
+    # D-288: coordinate_geometry sat at d1:1, d5:1 with no d4 at all, below the 2-per-tier
+    # serving floor. One vertical and one horizontal distance at d4, so the tier tests both
+    # reading directions rather than the same one twice.
+    ([(2.0, 5.0)], ["S"], "name", 1),
+    ([(3.0, -2.0), (3.0, 4.0)], ["E", "F"], "distance", 4),
+    ([(-3.0, -1.0), (2.0, -1.0)], ["G", "H"], "distance", 4),
+    ([(0.0, 0.0), (6.0, 0.0), (6.0, 8.0)], ["K", "L", "M"], "hypotenuse", 5),
 ]
 
 
