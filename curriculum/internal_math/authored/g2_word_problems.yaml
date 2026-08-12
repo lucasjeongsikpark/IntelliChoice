@@ -23,6 +23,8 @@ templates:
     Liam have now?
   context_block: ''
   answer_expression: x = 35 + 28
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by figuring out how many stickers Liam begins with.
   - The question asks for the total after his friend gives him more stickers.
@@ -72,6 +74,8 @@ templates:
     a book. How much money does Liam have left?
   context_block: ''
   answer_expression: Eq(x, (15 + 12) - 8)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by finding how much money Liam has after he earns the extra dollars.
   - Add the starting amount and the amount earned, then think about what happens when he buys the book.
@@ -117,6 +121,8 @@ templates:
     18 dollars on a board game. How much money does Luca have left?
   context_block: ''
   answer_expression: Eq(x, (35 + 25) - 18)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by finding how much money Luca has before he buys the game.
   - Add the 35 dollars he saved and the 25 dollars his grandmother gave him.
@@ -162,6 +168,8 @@ templates:
     does Jamal have now?
   context_block: null
   answer_expression: Eq(x, 35 + 24)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many stickers did Jamal start with, and how many did his friend give him?
   - You need to combine the number of stickers Jamal already had with the number he received.
@@ -207,6 +215,8 @@ templates:
     now?
   context_block: null
   answer_expression: x = 34 + 25
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Maria starts with some stickers and receives more. What operation combines the two amounts?
   - Add the number of stickers she had at the start to the number her friend gave her.
@@ -254,6 +264,8 @@ templates:
     does Maya have now?
   context_block: null
   answer_expression: Eq(x, 24 + 35)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by thinking about how many stickers Maya had at first and how many she got from her friend.
   - When you get more of something, you add the amount you started with to the amount you received.
@@ -299,6 +311,8 @@ templates:
     does Sarah have now?
   context_block: null
   answer_expression: x = 34 + 23
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by writing down how many stickers Sarah had before her friend gave her more.
   - Now add the number of stickers her friend gave her to the number she already had.

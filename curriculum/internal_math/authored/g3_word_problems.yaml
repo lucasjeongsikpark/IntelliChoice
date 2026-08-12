@@ -23,6 +23,8 @@ templates:
     in total. How many books did the library have originally?
   context_block: ''
   answer_expression: Eq(x + 450, 1200)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what number plus 450 books equals 1200 books.
   - Write an equation where x is the original number of books, and x plus 450 equals 1200.
@@ -78,6 +80,8 @@ templates:
     morning?
   context_block: null
   answer_expression: Eq(x + 320, 1150)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many tickets were sold altogether, and how many of those were sold in the evening?
   - If the morning tickets are x, then x plus 320 equals the total of 1150.
@@ -129,6 +133,8 @@ templates:
     has 1340 boxes in total. How many boxes were in storage before the delivery?
   context_block: null
   answer_expression: Eq(x + 275, 1340)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an equation showing what was in storage, plus what was delivered, equals the total now.
   - If the warehouse had x boxes before, then x + 275 equals 1340.
@@ -179,6 +185,8 @@ templates:
     Now the farm has 1680 eggs in total. How many eggs did the farm collect earlier in the week?
   context_block: ''
   answer_expression: Eq(x + 540, 1680)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what the farm started with plus what they collected on Saturday.
   - 'Write an equation: the earlier eggs plus 540 eggs equals 1680 eggs total.'
@@ -230,6 +238,8 @@ templates:
     each. How many complete bundles can she make?
   context_block: null
   answer_expression: x = (5 * 28) // 8
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - First find the total number of pencils the teacher has by multiplying the number of boxes by the number
     of pencils in each box.
@@ -285,6 +295,8 @@ templates:
     How many full boxes can the baker make?
   context_block: null
   answer_expression: x = (4 * 35) // 6
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - First, find the total number of cookies the baker made across all trays.
   - Divide the total number of cookies by the number of cookies in each box.
@@ -337,6 +349,8 @@ templates:
     that hold exactly 10 books each. How many books are on the last shelf that is not completely full?
   context_block: null
   answer_expression: x = (6 * 43) % 10
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - First find the total number of books on all 6 carts combined.
   - Now divide that total by 10 to see how many complete shelves can be filled and how many are left over.
@@ -389,6 +403,8 @@ templates:
     How many eggs are not broken?
   context_block: ''
   answer_expression: Eq(x, (8 * 45) - 52)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - First find the total number of eggs the farmer collected in all 8 baskets.
   - Multiply the number of baskets by the number of eggs in each basket, then subtract the eggs that broke.
@@ -436,6 +452,8 @@ templates:
     bloom?
   context_block: null
   answer_expression: Eq(x, (6 * 42) - 85)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - First find out how many flowers were planted in total by the gardener.
   - Multiply the number of boxes by the flowers in each box, then subtract the ones that don't bloom.
@@ -484,6 +502,8 @@ templates:
     6 classrooms. How many marbles does each classroom receive?
   context_block: null
   answer_expression: Eq(x, 756 / 6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many groups are the 756 marbles being divided into?
   - You need to find 756 divided by 6.
@@ -532,6 +552,8 @@ templates:
     the bakery fill?
   context_block: ''
   answer_expression: Eq(8*x, 432)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many cookies go into one box and how many cookies there are in total.
   - If each of the x boxes holds 8 cookies, then 8 times x equals 432.
@@ -587,6 +609,8 @@ templates:
     receive?
   context_block: ''
   answer_expression: Eq(7*x, 945)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - If each student gets the same number of stickers, and there are 7 students, how can you describe the
     total number of stickers?
@@ -638,6 +662,8 @@ templates:
     each classroom receive?
   context_block: null
   answer_expression: Eq(x, 648 / 9)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - If you share 648 pencils equally among 9 classrooms, what operation will tell you the size of each
     share?
@@ -684,6 +710,8 @@ templates:
   stem: A library has 864 books to place equally on 6 shelves. How many books go on each shelf?
   context_block: null
   answer_expression: x = 864 / 6
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how you share a total equally among several groups.
   - Since 864 books are split equally across 6 shelves, you need to divide the total by the number of
@@ -731,6 +759,8 @@ templates:
     fill?
   context_block: null
   answer_expression: Eq(5*x, 735)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - If the farm fills b bags with 5 oranges each, how many oranges are used in total?
   - The total number of oranges is 5 times the number of bags, and that must equal 735.
@@ -785,6 +815,8 @@ templates:
     so that each gallery shows the same number of photographs. How many photographs are in each gallery?
   context_block: null
   answer_expression: Eq(x, 644 / 7)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how the 644 photographs are split among the 7 galleries.
   - Since the photographs are shared equally, you need to divide the total number by the number of galleries.

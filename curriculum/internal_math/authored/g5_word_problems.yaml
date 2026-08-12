@@ -23,6 +23,8 @@ templates:
     does she give away?
   context_block: ''
   answer_expression: Eq(x, 0.5 * 36)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What does 0.5 of a number mean in terms of multiplication?
   - To find 0.5 of 36, multiply 0.5 by 36.
@@ -68,6 +70,8 @@ templates:
     books?
   context_block: ''
   answer_expression: Eq(x, 0.4 * 45)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - To find part of a quantity, multiply the decimal by the total amount Mia brought.
   - Write 0.4 times 45 dollars to find how much she spent.
@@ -118,6 +122,8 @@ templates:
     many pounds of flour does she use?
   context_block: ''
   answer_expression: Eq(x, 0.6 * 25)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What does 0.6 of the bag mean in terms of a calculation?
   - To find a decimal part of a quantity, multiply the decimal by the total amount.
@@ -163,6 +169,8 @@ templates:
   stem: A gardener plants flowers in 0.8 of her 35 garden beds. How many beds does she plant with flowers?
   context_block: null
   answer_expression: x = 0.8 * 35
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - 'Think about what 0.8 means: it is the fraction of beds that get flowers.'
   - To find 0.8 of 35, multiply the decimal by the total number of beds.
@@ -213,6 +221,8 @@ templates:
     did Liam complete?
   context_block: null
   answer_expression: x = 0.7 * 40
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What operation tells you a part of a total amount?
   - Find 0.7 times the total number of problems Liam has.
@@ -259,6 +269,8 @@ templates:
     does he collect?
   context_block: null
   answer_expression: x = 0.6 * 45
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What operation finds a fraction or decimal part of a whole group?
   - Multiply 0.6 by the total number of eggs to find how many he collects.
@@ -310,6 +322,8 @@ templates:
     did he read?
   context_block: ''
   answer_expression: Eq(x, Rational(3,4) * 240)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Three-quarters means 3 out of every 4 parts. How many pages are in one quarter of the book?
   - Divide the total pages by 4 to find one quarter, then multiply by 3.
@@ -359,6 +373,8 @@ templates:
     of flour does the baker use?
   context_block: ''
   answer_expression: Eq(x, Rational(2,3) * 450)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Two thirds means 2 parts out of every 3 parts, so you need to find 2 parts when 450 grams is divided
     into 3 equal parts.
@@ -406,6 +422,8 @@ templates:
     How many seeds does she plant?
   context_block: null
   answer_expression: Eq(x, Rational(3,5) * 320)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - 'Think about what 3/5 means: out of every 5 seeds, the gardener plants 3 of them.'
   - To find 3/5 of 320, you multiply 320 by the fraction 3/5.
@@ -455,6 +473,8 @@ templates:
     them. How many papers has he graded?
   context_block: ''
   answer_expression: Eq(x, Rational(4,5) * 180)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Four-fifths means you multiply the whole stack by the fraction four-fifths.
   - Write the number of papers graded as four-fifths times 180.
@@ -504,6 +524,8 @@ templates:
     How many songs will she practice?
   context_block: ''
   answer_expression: Eq(x, Rational(3,8) * 200)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - To find a fraction of a number, multiply that fraction by the total.
   - Write 3/8 × 200 and simplify by dividing 200 by 8 first.
@@ -553,6 +575,8 @@ templates:
     day. How many miles did she ride on the first day?
   context_block: ''
   answer_expression: Eq(x, Rational(2,5) * 240)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What does 'two-fifths of 240 miles' mean in this problem?
   - 'To find a fraction of a number, multiply the fraction by that number: (2/5) times 240.'
@@ -603,6 +627,8 @@ templates:
     friend with the smaller share receive?
   context_block: null
   answer_expression: x = 60 * 2 / 5
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - In a 2:3 ratio, the total is split into 2 + 3 equal parts. How many parts is that altogether?
   - Each part is worth 60 marbles divided by the total number of parts you just found.
@@ -653,6 +679,8 @@ templates:
   stem: Two siblings share 72 stickers in the ratio 5:4. How many stickers does the first sibling get?
   context_block: null
   answer_expression: x = 72 * 5 / 9
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The ratio 5:4 means the stickers are divided into 5 + 4 = 9 equal parts.
   - The first sibling gets 5 out of those 9 parts. Find what one part is worth first.
@@ -702,6 +730,8 @@ templates:
   stem: Liam and Jordan share 56 baseball cards in the ratio 3:4. How many cards does Liam receive?
   context_block: ''
   answer_expression: Eq(x, 56*3/7)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The ratio 3:4 means for every 3 cards Liam gets, Jordan gets 4 cards. How many total parts is that?
   - The 56 cards are divided into 3 + 4 = 7 equal parts. Find how many cards are in one part.
@@ -752,6 +782,8 @@ templates:
     altogether, how many does the cousin with the larger share get?
   context_block: ''
   answer_expression: Eq(x, 84 * 4 / 7)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The ratio 4:3 means that for every 4 seashells one cousin gets, the other gets 3. Count the total
     parts in the ratio.
@@ -803,6 +835,8 @@ templates:
     does the first partner receive?
   context_block: null
   answer_expression: Eq(x, 90 * 2 / 9)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Add the two parts of the ratio together to find how many equal parts the 90 stamps are divided into.
   - Each part is worth 90 divided by the total number of parts, and the first partner gets 2 of those
@@ -853,6 +887,8 @@ templates:
   stem: Two classmates share 80 pencils in the ratio 3:5. How many pencils does the first classmate get?
   context_block: ''
   answer_expression: Eq(x, 80 * 3 / 8)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Add the two parts of the ratio together to find the total number of parts being shared.
   - Each part represents 80 pencils divided by the sum of the ratio parts.

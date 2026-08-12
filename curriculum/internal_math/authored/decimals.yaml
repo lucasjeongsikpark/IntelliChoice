@@ -23,6 +23,8 @@ templates:
     What is the total distance she walks?
   context_block: null
   answer_expression: x = 3.4 + 2.5
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What operation do you use when you want to find the total of two distances?
   - Add the distance from home to school and the distance from school to her friend's house.
@@ -72,6 +74,8 @@ templates:
     kilograms of flour did the baker use in total?
   context_block: ''
   answer_expression: x = 2.3 + 4.6
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation you use when you want to find a total from two amounts.
   - Add the morning amount and the afternoon amount, making sure to line up the decimal points.
@@ -126,6 +130,8 @@ templates:
     How many liters of water does he use altogether?
   context_block: null
   answer_expression: x = 1.2 + 3.5
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write down the two amounts of water used and think about how to combine them.
   - You need to add the morning amount and the evening amount together.
@@ -181,6 +187,8 @@ templates:
     of paint does the painter use in total?
   context_block: ''
   answer_expression: Eq(x, 2.75 + 1.6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - To find the total, you need to combine the amount used for the walls with the amount used for the
     ceiling.
@@ -239,6 +247,8 @@ templates:
     of fruit?
   context_block: ''
   answer_expression: x = 3.85 + 2.7
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write down the two weights and think about what operation combines them into a total.
   - 'Line up the decimal points when you add: 3.85 plus 2.7 means treating 2.7 as 2.70.'
@@ -296,6 +306,8 @@ templates:
     she ride in total?
   context_block: null
   answer_expression: x = 3.65 + 2.8
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write the total distance as Monday's distance plus Tuesday's distance.
   - Line up the decimal points when you add 3.65 and 2.8.
@@ -357,6 +369,8 @@ templates:
     cakes. How many kilograms of flour does the baker use in total?
   context_block: null
   answer_expression: x = 1.5 + 2.3 + 1.8
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - List all three amounts of flour the baker uses for the different items.
   - Add the first two amounts together, then add the third amount to that sum.
@@ -408,6 +422,8 @@ templates:
     did she use in total?
   context_block: ''
   answer_expression: x = 2.4 + 1.75 + 3.2
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write down the three amounts of water the gardener used during the day.
   - 'To find the total, you need to add all three amounts: 2.4 + 1.75 + 3.2.'
@@ -459,6 +475,8 @@ templates:
     can be made?
   context_block: ''
   answer_expression: x = 6.72 / 1.4
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many times 1.4 meters fits into 6.72 meters.
   - The number of pieces is found by dividing the total length by the length of one piece.
@@ -510,6 +528,8 @@ templates:
     does the painter use per wall?
   context_block: null
   answer_expression: x = 7.68 / 1.6
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - You know the total paint used and the number of walls. What operation finds the amount per wall?
   - Divide the total litres by the number of walls to find litres per wall.
@@ -561,6 +581,8 @@ templates:
     does each batch use?
   context_block: null
   answer_expression: Eq(2.5 * x, 8.75)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation connects the total flour used, the number of batches, and the flour per
     batch.
@@ -618,6 +640,8 @@ templates:
     is used per square meter?
   context_block: null
   answer_expression: x = 5.76 / 1.8
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What operation will tell you how much water is used for each square meter?
   - Divide the total liters by the number of square meters to find the amount per square meter.
@@ -669,6 +693,8 @@ templates:
     does the cyclist travel per liter of water?
   context_block: ''
   answer_expression: Eq(x, 10.8 / 1.2)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - To find kilometers per liter, you need to divide the total distance by the amount of water used.
   - Set up the division 10.8 ÷ 1.2 to find the rate.
@@ -718,6 +744,8 @@ templates:
     How much does she spend in total?
   context_block: ''
   answer_expression: Eq(x, 2.5 * 4.0)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Find the total cost by multiplying the price per meter by the number of meters Lena buys.
   - You need to multiply 2.50 by 4.0, treating the decimals carefully.
@@ -771,6 +799,8 @@ templates:
   stem: A bag of apples weighs 1.6 pounds. The store charges $2.50 per pound. How much does the bag cost?
   context_block: ''
   answer_expression: Eq(x, 1.6 * 2.5)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Find the total cost by multiplying the weight in pounds by the price per pound.
   - Multiply 1.6 by 2.5. Line up the decimals or count the total decimal places in both factors.
@@ -825,6 +855,8 @@ templates:
     rooms. How many gallons of paint does she use in total?
   context_block: ''
   answer_expression: Eq(x, 2.4 * 2.5)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Find the total by multiplying the amount of paint per room by the number of rooms.
   - Write 2.4 times 2.5 to find the total gallons.
@@ -879,6 +911,8 @@ templates:
     plot?
   context_block: null
   answer_expression: x = 3.2 * 1.5
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The area of a rectangle is found by multiplying the length by the width.
   - You need to calculate 3.2 times 1.5.
@@ -935,6 +969,8 @@ templates:
     party. How much does she spend?
   context_block: ''
   answer_expression: Eq(x, 3.2 * 2.5)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - 'Identify the two numbers you need to multiply: the price per pack and the number of packs Maya buys.'
   - You need to find 3.2 multiplied by 2.5.
@@ -990,6 +1026,8 @@ templates:
     she pay?
   context_block: ''
   answer_expression: x = 1.8 * 3.5
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Find the price of one yard of ribbon and how many yards Emma is buying.
   - 'Multiply the price per yard by the number of yards: 1.80 times 3.5.'

@@ -19,6 +19,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(34, 43, 38, 29))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -65,6 +67,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(58, 85, 59, 49))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -111,6 +115,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(67, 76, 69, 59))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -157,6 +163,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(348, 384, 359, 371))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -203,6 +211,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(128, 182, 149, 167))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -249,6 +259,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(703, 730, 719, 725))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -295,6 +307,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(415, 451, 429, 437))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -341,6 +355,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(2610, 2160, 2601, 2016))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -387,6 +403,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(1089, 1098, 1079, 1092))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -433,6 +451,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(4507, 4570, 4519, 4552))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -479,6 +499,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(12340, 12430, 12403, 12034))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -526,6 +548,8 @@ templates:
     number he can. What number does he make?'
   context_block: null
   answer_expression: Eq(x, Max(368, 386, 638, 683, 836, 863))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The hundreds place is worth the most, so decide which card goes there first.
   - To make a number as large as possible, the largest digit belongs in the largest place.
@@ -572,6 +596,8 @@ templates:
   stem: Which of these numbers is the largest?
   context_block: null
   answer_expression: Eq(x, Max(24105, 24150, 24015, 24051))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Line the numbers up so their place-value columns sit under each other.
   - Start at the leftmost column and move right until the digits stop matching.
@@ -619,6 +645,8 @@ templates:
     number he can. What number does he make?'
   context_block: null
   answer_expression: Eq(x, Max(259, 295, 529, 592, 925, 952))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The hundreds place is worth the most, so decide which card goes there first.
   - To make a number as large as possible, the largest digit belongs in the largest place.
@@ -666,6 +694,8 @@ templates:
     number he can. What number does he make?'
   context_block: null
   answer_expression: Eq(x, Max(137, 173, 317, 371, 713, 731))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The hundreds place is worth the most, so decide which card goes there first.
   - To make a number as large as possible, the largest digit belongs in the largest place.
@@ -712,6 +742,8 @@ templates:
   stem: Leo writes the number 47 on his card. His teacher points to the 4. What is that digit worth?
   context_block: null
   answer_expression: Eq(x, 4*10)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - A digit is worth different amounts depending on where it sits in the number.
   - The digit on the left of a two digit number counts groups of ten.
@@ -754,6 +786,8 @@ templates:
     Mia have in total?
   context_block: null
   answer_expression: Eq(x, 6*10 + 3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Each bag holds ten, so the bags tell you how many groups of ten there are.
   - The loose pencils are the ones that did not fill a bag.
@@ -796,6 +830,8 @@ templates:
     of ten are in that number?
   context_block: null
   answer_expression: Eq(x*10, 80)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The question asks how many whole groups of ten fit inside the number.
   - There are no loose ones here, because the ones place holds a zero.
@@ -838,6 +874,8 @@ templates:
     What number of crayons does Sam write down?
   context_block: null
   answer_expression: Eq(x, 5*10)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Each pack holds ten, so the packs count groups of ten.
   - Nothing is left over, so the ones place holds a zero.
@@ -880,6 +918,8 @@ templates:
     digit worth?
   context_block: null
   answer_expression: Eq(x, 3*100)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - In a three digit number the leftmost digit counts the largest groups.
   - That leftmost place counts groups of one hundred, not groups of ten.
@@ -922,6 +962,8 @@ templates:
     worth in the number?
   context_block: null
   answer_expression: Eq(x, 6*1000)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Count the places from the right hand end, starting with the ones place.
   - The places from the right are ones, then tens, then hundreds, then thousands.
@@ -964,6 +1006,8 @@ templates:
     does Jonah have in total?
   context_block: null
   answer_expression: Eq(x, 4*100 + 2)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Each box holds one hundred, so the boxes count groups of one hundred.
   - There are no groups of ten here, so a zero has to hold the tens place open.
@@ -1009,6 +1053,8 @@ templates:
   stem: Priya writes the number 470 on the board. Her teacher points at the 7. What is that digit worth?
   context_block: null
   answer_expression: Eq(x, 7*10)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The middle digit of a three digit number does not count the largest groups.
   - The middle place counts groups of ten, and the place to its left counts hundreds.
@@ -1051,6 +1097,8 @@ templates:
     worth in the number?
   context_block: null
   answer_expression: Eq(x, 2*100)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start from the right hand end, where the ones place sits, and work leftwards.
   - The places from the right are ones, then tens, then hundreds, then thousands.
@@ -1093,6 +1141,8 @@ templates:
     has Maya built?
   context_block: null
   answer_expression: Eq(x, 3*100 + 0*10 + 9)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every place needs a digit, even a place with nothing in it.
   - A place with nothing in it is written with a zero so the other digits stay where they belong.
@@ -1139,6 +1189,8 @@ templates:
     What number does Jonah make?
   context_block: null
   answer_expression: Eq(x, 2*1000 + 7*100 + 0*10 + 4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every place needs a digit, even a place with nothing in it.
   - A place with nothing in it is written with a zero so the other digits stay where they belong.
@@ -1185,6 +1237,8 @@ templates:
     worth in the number?
   context_block: null
   answer_expression: Eq(x, 5*100)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Count the places from the right hand end, starting with the ones place.
   - A zero still takes up a place, so it has to be counted like any other digit.
@@ -1227,6 +1281,8 @@ templates:
     does Sam build?
   context_block: null
   answer_expression: Eq(x, 4*1000 + 0*100 + 6*10 + 0)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Two of the four places have nothing in them, and both still need a digit.
   - A place with nothing in it is written with a zero so the other digits stay where they belong.

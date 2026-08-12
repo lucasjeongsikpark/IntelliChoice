@@ -23,6 +23,8 @@ templates:
     in total. If she saved $8.75 every week, how many weeks has she been saving?
   context_block: null
   answer_expression: x = 52.50 / 8.75
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What operation tells you how many groups of $8.75 fit into $52.50?
   - You need to divide the total saved by the amount saved each week.
@@ -69,6 +71,8 @@ templates:
     How many notebooks did she buy?
   context_block: ''
   answer_expression: x = 20.00 / 2.50
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Divide the total money spent by the cost of one notebook.
   - The operation is 20.00 ÷ 2.50 to find the number of notebooks.
@@ -119,6 +123,8 @@ templates:
     How many tickets does the customer buy?
   context_block: ''
   answer_expression: Eq(4.50*x, 36.00)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation connects total cost, ticket price, and the number of tickets.
   - If each ticket is $4.50 and you buy x tickets, then you spend 4.50 times x dollars.
@@ -169,6 +175,8 @@ templates:
     baker purchase?
   context_block: null
   answer_expression: Eq(7.00 * x, 63.00)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation connects total cost, number of bags, and price per bag.
   - If each bag costs $7.00, then the number of bags multiplied by $7.00 equals $63.00.
@@ -219,6 +227,8 @@ templates:
     did the teacher purchase?
   context_block: ''
   answer_expression: x = 42.00 / 3.50
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What operation will you use to find how many equal-priced items fit into a total amount of money?
   - Divide the total amount spent by the price per box.
@@ -269,6 +279,8 @@ templates:
     shopper buy?
   context_block: null
   answer_expression: Eq(6.00 * x, 48.00)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation connects the total cost, the cost per bottle, and the number of bottles.
   - If each bottle costs $6.00 and you bought some number of bottles, multiplying the price by the number
@@ -324,6 +336,8 @@ templates:
     box?
   context_block: ''
   answer_expression: Eq(12*x, 1536)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation you use when dividing things equally into groups.
   - Write a division that has 1536 cookies going into 12 boxes.
@@ -373,6 +387,8 @@ templates:
   stem: A library donates 1440 books equally into 15 schools. How many books does each school receive?
   context_block: null
   answer_expression: x = 1440 / 15
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how to share a total equally among a number of groups.
   - You need to divide the total number of books by the number of schools.
@@ -419,6 +435,8 @@ templates:
     each classroom receive?
   context_block: ''
   answer_expression: Eq(x, 1350 / 18)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation you use when you share a total equally among several groups.
   - You need to divide the total number of pencils by the number of classrooms.
@@ -464,6 +482,8 @@ templates:
     How many bottles does each stand receive?
   context_block: ''
   answer_expression: Eq(x, 1680 / 14)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation shares a total equally among groups.
   - You need to divide the total number of bottles by the number of stands.
@@ -510,6 +530,8 @@ templates:
   stem: A warehouse ships 1620 toys equally to 20 stores. How many toys does each store receive?
   context_block: null
   answer_expression: Eq(x, 1620 / 20)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many stores are sharing the total number of toys equally?
   - You need to divide the total number of toys by the number of stores.
@@ -555,6 +577,8 @@ templates:
     crate?
   context_block: null
   answer_expression: Eq(x, 1764 / 18)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation you use when sharing a total equally into groups.
   - 'Write a division: the total number of apples divided by the number of crates.'
@@ -601,6 +625,8 @@ templates:
     P = 2(l + w). What is the perimeter of the garden?
   context_block: null
   answer_expression: x = 2 * (12 + 7)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The formula tells you to add the length and width first.
   - Substitute l = 12 and w = 7 into P = 2(l + w) and work inside the parentheses.
@@ -650,6 +676,8 @@ templates:
     does the baker have altogether?
   context_block: null
   answer_expression: x = 9 * 12 + 6
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Find how many cookies are in the 9 batches first, before thinking about the extra cookies.
   - Multiply the number of batches by the number of cookies per batch, then add the extra cookies.

@@ -23,6 +23,8 @@ templates:
     have left?
   context_block: ''
   answer_expression: Eq(x, 12 - 3 - 4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by finding how many stickers Maya has after giving some to her friend.
   - Maya now has 12 - 3 stickers, and then she gives away 4 more to her sister.
@@ -69,6 +71,8 @@ templates:
     stickers does Liam have left?
   context_block: ''
   answer_expression: Eq(x, 15 - 6 - 4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by figuring out how many stickers Liam gave away in total.
   - Liam gave away 6 stickers first, then 4 more stickers.
@@ -113,6 +117,8 @@ templates:
   stem: Maria has 7 stickers and gives 3 to her friend. How many stickers does she have left?
   context_block: ''
   answer_expression: Eq(x, 7 - 3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what happens when Maria gives stickers away.
   - Write a subtraction to show the stickers she started with minus the stickers she gave away.
@@ -160,6 +166,8 @@ templates:
   stem: Lena has 8 apple slices on her plate. She eats 2 of them. How many apple slices are left?
   context_block: null
   answer_expression: Eq(x, 8 - 2)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the number of apple slices Lena had on her plate.
   - If she eats some slices, do you have more or fewer slices left?
@@ -208,6 +216,8 @@ templates:
   stem: Maya has 9 stickers and gives 7 of them to her friend. How many stickers does Maya have left?
   context_block: null
   answer_expression: Eq(x, 9 - 7)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what happens to Maya's stickers when she gives some away.
   - You need to subtract the number of stickers she gave away from the number she started with.
@@ -252,6 +262,8 @@ templates:
   stem: Maya has 9 apples and gives away 7 of them to her friend. How many apples does Maya have left?
   context_block: ''
   answer_expression: Eq(x, 9 - 7)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many apples Maya started with and how many she gave away.
   - You need to subtract the number of apples she gave away from the number she started with.
@@ -296,6 +308,8 @@ templates:
   stem: Leo has 13 stickers and gives 7 of them to his friend. How many stickers does Leo have left?
   context_block: ''
   answer_expression: Eq(x, 13 - 7)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many stickers Leo starts with and how many he gives away.
   - You need to subtract the number of stickers he gives away from the number he starts with.
@@ -344,6 +358,8 @@ templates:
   stem: Leo has 13 marbles and gives 6 of them to his friend. How many marbles does Leo have now?
   context_block: ''
   answer_expression: Eq(x, 13 - 6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Leo started with 13 marbles and gave some away. Does he have more or fewer now?
   - When you give away marbles, you subtract. Write 13 minus 6.
@@ -393,6 +409,8 @@ templates:
     Luca have left?
   context_block: null
   answer_expression: Eq(x, 13 - 5)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the number of stickers Luca has and think about what happens when he gives some away.
   - You need to subtract 5 from 13. Since 3 is less than 5, break the ten into ones first.
@@ -446,6 +464,8 @@ templates:
     left?
   context_block: ''
   answer_expression: Eq(x, 13 - 7)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many stickers Liam started with and how many he gave away.
   - You need to subtract the number of stickers he gave away from the number he started with.

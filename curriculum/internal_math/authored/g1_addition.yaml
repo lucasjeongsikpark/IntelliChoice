@@ -23,6 +23,8 @@ templates:
     have now?
   context_block: ''
   answer_expression: Eq(x, 4 + 5)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the number of apples Liam already has in his basket.
   - 'Count on from 4: how many more does he pick?'
@@ -72,6 +74,8 @@ templates:
     the child have now?
   context_block: null
   answer_expression: Eq(x, 5 + 4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The child starts with some apples and gets more - think about what operation combines those amounts.
   - Write down the number of apples in the basket, then add the number of apples the friend gives.
@@ -120,6 +124,8 @@ templates:
   stem: Liam has 7 red crayons and 2 blue crayons in his pencil case. How many crayons does he have altogether?
   context_block: null
   answer_expression: x = 7 + 2
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Count how many crayons of each color Liam has.
   - Write down the number of red crayons and the number of blue crayons, then think about the operation
@@ -170,6 +176,8 @@ templates:
     does she have now?
   context_block: null
   answer_expression: x = 5 + 4
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by writing down how many stickers the child had at the beginning.
   - She gets 4 more stickers, so you need to combine that with what she already had.
@@ -218,6 +226,8 @@ templates:
   stem: A child has 7 stickers and receives 6 more stickers. How many stickers does the child have now?
   context_block: null
   answer_expression: Eq(x, 7 + 6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - You start with 7 stickers and get 6 more. Think about how to add them together.
   - Break 6 into 3 and 3 to help you. Add 3 to 7 to make 10 first.
@@ -271,6 +281,8 @@ templates:
     have now?
   context_block: null
   answer_expression: x = 7 + 6
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Leo started with 7 marbles and found 6 more.
   - To add 7 and 6, first split 6 into the part that gets you to 10 and the part left over.
@@ -324,6 +336,8 @@ templates:
     Liam have now?
   context_block: null
   answer_expression: Eq(x, 9 + 6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many stickers Liam starts with and how many he gets.
   - You need to add 9 and 6 together. Try making 10 first by breaking apart the 6.
@@ -372,6 +386,8 @@ templates:
   stem: A child has 9 stickers and finds 6 more stickers. How many stickers does the child have now?
   context_block: null
   answer_expression: Eq(x, 9 + 6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the 9 stickers the child already has.
   - To add 6 more, think about how many you need to reach 10 first.
@@ -420,6 +436,8 @@ templates:
   stem: Liam has 9 red marbles and 9 blue marbles. How many marbles does he have in total?
   context_block: null
   answer_expression: Eq(x, 9 + 9)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many marbles Liam has of each color.
   - You need to add 9 red marbles and 9 blue marbles together.
@@ -472,6 +490,8 @@ templates:
     does the child have altogether?
   context_block: null
   answer_expression: Eq(x, 9 + 9)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many marbles did the child start with, and how many more were found?
   - You need to add the 9 marbles already in the pocket and the 9 marbles found on the playground.
@@ -521,6 +541,8 @@ templates:
     does Liam have now?
   context_block: ''
   answer_expression: Eq(x, 9 + 9)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Count how many stickers Liam starts with, then how many his friend gives him.
   - When you add the same number to itself, you get double that number.
@@ -570,6 +592,8 @@ templates:
     Maya have now?
   context_block: ''
   answer_expression: x = 9 + 9
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by counting the stickers Maya already has, then think about how many more she gets.
   - You need to add the 9 stickers she starts with to the 9 stickers her friend gives her.
@@ -619,6 +643,8 @@ templates:
     does she have now?
   context_block: ''
   answer_expression: Eq(x, 18 + 7)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by identifying how many stickers the child had at first and how many she received.
   - To find the total number of stickers, you need to add the stickers she had to the stickers she received.

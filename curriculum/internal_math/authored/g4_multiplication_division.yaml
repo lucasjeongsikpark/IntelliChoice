@@ -22,6 +22,8 @@ templates:
   stem: A baker has 72 cookies to pack equally into 8 boxes. How many cookies will be in each box?
   context_block: null
   answer_expression: 8 * x = 72
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many cookies are shared equally among the 8 boxes?
   - If each box holds the same number of cookies, write 8 times that number equals the total.
@@ -71,6 +73,8 @@ templates:
   stem: A librarian has 63 books to arrange equally on 9 shelves. How many books will be on each shelf?
   context_block: null
   answer_expression: 9 * x = 63
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how division helps when you need to share items equally.
   - You need to find how many groups of books fit into 63 when you make 9 equal groups.
@@ -120,6 +124,8 @@ templates:
     bed?
   context_block: ''
   answer_expression: Eq(4*x, 156)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for the total number of flowers if each of the 4 beds gets the same amount.
   - If each bed gets x flowers, then 4 beds hold 4 times x flowers altogether.
@@ -170,6 +176,8 @@ templates:
     team member receive?
   context_block: null
   answer_expression: 7 * x = 217
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how division splits a total into equal groups.
   - You need to divide the total number of cards by the number of team members.
@@ -224,6 +232,8 @@ templates:
     will each station receive?
   context_block: ''
   answer_expression: 5 * x = 365
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - If you want to share 365 stickers equally among 5 stations, what operation will you use?
   - 'Write a division problem: the total number of stickers divided by the number of stations.'
@@ -279,6 +289,8 @@ templates:
     does each classroom receive?
   context_block: null
   answer_expression: Eq(6 * x, 1248)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for the total number of pencils when 6 classrooms each get the same amount.
   - If each classroom gets x pencils, then the total is 6 times x, and that equals 1248.
@@ -329,6 +341,8 @@ templates:
     box?
   context_block: null
   answer_expression: 7 * x = 2856
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation splits a total into equal parts.
   - If you call the number in one box x, then 7 boxes would hold 7 times x.
@@ -378,6 +392,8 @@ templates:
   stem: A librarian has 3648 books to arrange equally onto 8 shelves. How many books will be on each shelf?
   context_block: null
   answer_expression: 8 * x = 3648
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How would you write the total number of books if each shelf holds the same number?
   - If x books go on each shelf, then 8 shelves hold 8 times x books, and that must equal 3648.
@@ -428,6 +444,8 @@ templates:
     boxes that each hold exactly 24 pencils. How many boxes will be filled?
   context_block: null
   answer_expression: x = 3240 / 24
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many pencils go into each box, and how many pencils in total need to be packed?
   - Write a division to find how many groups of 24 pencils fit into 3,240 pencils.
@@ -479,6 +497,8 @@ templates:
     the bakery fill?
   context_block: null
   answer_expression: x = 2352 / 28
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation you use when you split a total into equal groups.
   - You need to divide the total number of cookies by the number of cookies in one box.
@@ -533,6 +553,8 @@ templates:
     books. How many shelves are needed?
   context_block: ''
   answer_expression: Eq(36*x, 2736)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write down how many books will fit if you use a certain number of shelves.
   - If you use s shelves and each shelf holds 36 books, the total number of books is 36 times s.
@@ -586,6 +608,8 @@ templates:
     How many crates will be needed to pack all the bottles?
   context_block: ''
   answer_expression: Eq(x, 4536 / 42)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - You need to find how many groups of 42 bottles fit into 4,536 bottles total.
   - 'Write a division: 4,536 divided by 42.'
@@ -641,6 +665,8 @@ templates:
     exactly 32 people. How many sections will be completely filled?
   context_block: null
   answer_expression: x = 3680 / 32
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many groups of 32 can be made from 3,680 tickets.
   - You need to divide the total number of tickets by the number of seats in each section.
@@ -696,6 +722,8 @@ templates:
     cartons are needed?
   context_block: ''
   answer_expression: Eq(35*x, 2940)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write down how many eggs will be packed if the farm uses x cartons, with 35 eggs in each carton.
   - The total number of eggs is 35 times the number of cartons, and that must equal 2,940.
@@ -749,6 +777,8 @@ templates:
     will receive 63 pencils. How many classrooms are there?
   context_block: ''
   answer_expression: x = 5796 / 63
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What operation finds how many equal groups fit into a total?
   - You need to divide the total number of pencils by the number each classroom receives.
@@ -799,6 +829,8 @@ templates:
     boxes are needed?
   context_block: null
   answer_expression: Eq(57*x, 4788)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many cookies go into each box, and how many cookies does the bakery have in total?
   - You need to find how many groups of 57 are in 4,788.
@@ -858,6 +890,8 @@ templates:
     How many shelves are needed?
   context_block: ''
   answer_expression: Eq(x, 6435 / 45)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many books go on each shelf, and how many books does the library have in total?
   - Divide the total number of books by how many fit on one shelf to find how many shelves are needed.
@@ -917,6 +951,8 @@ templates:
     need in total?
   context_block: null
   answer_expression: Eq(x, 23 * 4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many cookies go into one box, and how many boxes are being filled?
   - The total is the number of cookies per box multiplied by the number of boxes.
@@ -970,6 +1006,8 @@ templates:
     the gardener plant in total?
   context_block: null
   answer_expression: Eq(x, 32 * 3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many seeds are in one row?
   - To find the total, multiply the number of seeds per row by the number of rows.
@@ -1020,6 +1058,8 @@ templates:
     total?
   context_block: null
   answer_expression: x = 42 * 2
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many books go on one shelf, then how many shelves are filled.
   - Multiply the number of books per shelf by the number of shelves.
@@ -1069,6 +1109,8 @@ templates:
     in total?
   context_block: null
   answer_expression: Eq(x, 147 * 5)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many teams are there, and how many balls does each team receive?
   - Multiply the number of balls per team by the number of teams to find the total.
@@ -1127,6 +1169,8 @@ templates:
     many pencils are ordered in total?
   context_block: ''
   answer_expression: Eq(x, 1428 * 6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many classrooms are there, and how many pencils does each one receive?
   - The total is found by multiplying the number of classrooms by the number of pencils per classroom.
@@ -1189,6 +1233,8 @@ templates:
     has 6 sections. How many plants are there in total?
   context_block: null
   answer_expression: x = 15 * 22 * 6
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many plants are on one shelf, and how many shelves are in one section?
   - Multiply the number of plants per shelf by the number of shelves to find plants per section, then
@@ -1237,6 +1283,8 @@ templates:
     and today the warehouse is sending out 8 trucks. How many boxes will be shipped in total?
   context_block: null
   answer_expression: x = 24 * 15 * 8
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by finding how many boxes one truck carries.
   - Multiply the boxes per crate by the crates per truck, then multiply that result by the number of trucks.
@@ -1282,6 +1330,8 @@ templates:
     How many toys are produced in that shift?
   context_block: null
   answer_expression: Eq(x, 18 * 12 * 25)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by finding how many toys fit in one carton.
   - Multiply the number of toys per box by the number of boxes per carton, then multiply that result by
@@ -1329,6 +1379,8 @@ templates:
     cookies does the bakery make in total?
   context_block: null
   answer_expression: x = 16 * 20 * 12
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Find how many cookies are on one rack by multiplying cookies per tray by trays per rack.
   - One rack holds 16 × 20 cookies; multiply that result by the number of racks.
@@ -1375,6 +1427,8 @@ templates:
     crate, and today they are shipping 15 crates. How many eggs are being shipped in total?
   context_block: ''
   answer_expression: Eq(x, 12 * 24 * 15)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by finding how many eggs are in one crate.
   - Multiply the eggs per carton by the cartons per crate, then multiply that result by the number of
@@ -1425,6 +1479,8 @@ templates:
     in total?
   context_block: null
   answer_expression: Eq(x, 24 * 35)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many books are in one box, and how many boxes there are.
   - To find the total number of books, multiply the number of boxes by the number of books in each box.
@@ -1478,6 +1534,8 @@ templates:
     collect in total?
   context_block: ''
   answer_expression: x = 23 * 46
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - You need to find the total number of eggs across all the coops.
   - Multiply the number of coops by the number of eggs in each coop.
@@ -1538,6 +1596,8 @@ templates:
   stem: A warehouse ships 28 boxes of toys, with 45 toys in each box. How many toys are shipped in total?
   context_block: null
   answer_expression: x = 28 * 45
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many toys are in all 28 boxes if each box contains the same number.
   - You need to multiply the number of boxes by the number of toys per box.
@@ -1592,6 +1652,8 @@ templates:
     there in total?
   context_block: null
   answer_expression: x = 34 * 27
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many plants are in one display, and how many displays are there?
   - 'To find the total, multiply the number of displays by the number of plants in each display: 34 ×
@@ -1651,6 +1713,8 @@ templates:
     bakery package in total?
   context_block: null
   answer_expression: Eq(x, 32 * 18)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what one tray holds and how many trays there are.
   - Multiply the number of trays by the number of muffins on each tray.
@@ -1704,6 +1768,8 @@ templates:
   stem: A theater has 26 rows of seats, with 14 seats in each row. How many seats are there in total?
   context_block: null
   answer_expression: x = 26 * 14
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many seats one row holds, then how many rows there are.
   - To find the total, multiply the number of rows by the number of seats in each row.

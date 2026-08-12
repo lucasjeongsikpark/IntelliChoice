@@ -1,0 +1,726 @@
+curriculum_version: '2026.1'
+topic_id: algebra_1
+templates:
+- question_template_id: authored-algebra_1-d2-1405200
+  topic_id: algebra_1
+  skill_id: alg1_factorization
+  grade_band: 8-9
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - chose_factors_that_sum_incorrectly
+  - chose_factors_of_constant_without_checking_sum
+  - added_constant_to_coefficient_as_factors
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school banner is shaped like a rectangle. Its width is x metres, its length is 3 metres more
+    than its width, and its height is 4 metres more than its width. If the expression x² + 7x + 12 represents
+    the product of two of these measurements, which factored form is equivalent?
+  context_block: null
+  answer_expression: x**2 + 7*x + 12
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for two numbers that multiply to give the constant term, 12.
+  - The two numbers must also add to give the coefficient of x, which is 7.
+  - Write the factored form as (x + first number)(x + second number), where the numbers multiply to 12
+    and add to 7.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the constant term and the coefficient of x in the expression x² + 7x + 12.
+        The constant is 12 and the coefficient of x is 7.
+      expression: x² + 7x + 12
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Find two numbers that multiply to 12 and add to 7. List factor pairs of 12: (1, 12),
+        (2, 6), (3, 4). Check sums: 1 + 12 = 13, 2 + 6 = 8, 3 + 4 = 7.'
+      expression: 3 + 4 = 7 and 3 * 4 = 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Write the factored form using the two numbers found. The expression becomes (x + 3)(x
+        + 4).
+      expression: (x + 3)(x + 4)
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Verify by expanding: (x + 3)(x + 4) = x² + 4x + 3x + 12 = x² + 7x + 12, which matches
+        the original expression.'
+      expression: x² + 7x + 12
+      common_mistake: null
+    final_answer: (x + 3)*(x + 4)
+  random_seed: 1405200
+  rendered_question: A school banner is shaped like a rectangle. Its width is x metres, its length is
+    3 metres more than its width, and its height is 4 metres more than its width. If the expression x²
+    + 7x + 12 represents the product of two of these measurements, which factored form is equivalent?
+  option_a: (x + 1)*(x + 12)
+  option_b: (x + 7)*(x + 12)
+  option_c: (x + 3)*(x + 4)
+  option_d: (x + 2)*(x + 6)
+  correct_option: c
+- question_template_id: authored-algebra_1-d3-1245302
+  topic_id: algebra_1
+  skill_id: alg1_factorization
+  grade_band: 8-9
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - swapped_dimensions
+  - substitution_error_in_quadratic
+  - stopped_at_area_without_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular window has an area of y² - 8y + 15 square inches, where y = 9. One dimension of
+    the window is y - 5 inches. What is the other dimension?
+  context_block: null
+  answer_expression: Eq((9**2 - 8*9 + 15) / (9 - 5), d)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First substitute y = 9 into the area expression to find the total area of the window.
+  - Now substitute y = 9 into the given dimension y - 5 to find one side length.
+  - Divide the area by the known dimension to find the other dimension.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute y = 9 into the area expression y² - 8y + 15.
+      expression: 9² - 8(9) + 15 = 81 - 72 + 15 = 24
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute y = 9 into the given dimension y - 5.
+      expression: 9 - 5 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the area by the known dimension to find the other dimension.
+      expression: 24 ÷ 4 = 6
+      common_mistake: null
+    final_answer: 6 inches
+  random_seed: 1245302
+  rendered_question: A rectangular window has an area of y² - 8y + 15 square inches, where y = 9. One
+    dimension of the window is y - 5 inches. What is the other dimension?
+  option_a: 8 inches
+  option_b: 4 inches
+  option_c: 6 inches
+  option_d: 24 inches
+  correct_option: c
+- question_template_id: authored-algebra_1-d2-1407200
+  topic_id: algebra_1
+  skill_id: alg1_inequalities
+  grade_band: 8-9
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - skipped_final_division
+  - divided_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Leo has $8 and saves $5 each week. He needs at least $43 to buy a new skateboard. For how many
+    weeks must he save?
+  context_block: null
+  answer_expression: 8 + 5*w >= 43
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for how much Leo has after w weeks.
+  - He will have 8 + 5w dollars. The question asks when that amount is at least 43.
+  - Subtract 8 from both sides, then divide by 5. Remember the inequality sign stays the same when dividing
+    by a positive number.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Leo starts with $8 and saves $5 each week. After w weeks, he will have 8 + 5w dollars.
+      expression: 8 + 5*w
+      common_mistake: null
+    - step_number: 2
+      explanation: He needs at least $43, so we set up the inequality 8 + 5w >= 43.
+      expression: 8 + 5*w >= 43
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 8 from both sides to isolate the term with w.
+      expression: 5*w >= 35
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 5 to solve for w. Since 5 is positive, the inequality sign does
+        not reverse.
+      expression: w >= 7
+      common_mistake: null
+    final_answer: w >= 7
+  random_seed: 1407200
+  rendered_question: Leo has $8 and saves $5 each week. He needs at least $43 to buy a new skateboard.
+    For how many weeks must he save?
+  option_a: w >= 7
+  option_b: w >= 9
+  option_c: w >= 35
+  option_d: w >= 8.6
+  correct_option: a
+- question_template_id: authored-algebra_1-d3-1407300
+  topic_id: algebra_1
+  skill_id: alg1_inequalities
+  grade_band: 8-9
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - divided_total_by_rate_instead_of_difference
+  - stopped_before_final_division
+  - arithmetic_error_in_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has already planted 15 flowers in a community garden. She plants 7 more flowers each
+    day. After how many days will she have at least 64 flowers in total?
+  context_block: ''
+  answer_expression: 15 + 7*d >= 64
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total number of flowers the gardener will have after d days of planting.
+  - The gardener starts with 15 flowers and adds 7 each day, so the total is 15 + 7d. Set up an inequality
+    showing when this total is at least 64.
+  - Subtract 15 from both sides of 15 + 7d >= 64, then divide both sides by 7.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The gardener starts with 15 flowers and plants 7 more each day. After d days, the total
+        number of flowers is 15 + 7d.
+      expression: 15 + 7*d
+      common_mistake: null
+    - step_number: 2
+      explanation: We need the total to be at least 64 flowers, so we set up the inequality 15 + 7d >=
+        64.
+      expression: 15 + 7*d >= 64
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 15 from both sides to isolate the term with d.
+      expression: 7*d >= 49
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 7 to solve for d.
+      expression: d >= 7
+      common_mistake: null
+    final_answer: d >= 7 days
+  random_seed: 1407300
+  rendered_question: A gardener has already planted 15 flowers in a community garden. She plants 7 more
+    flowers each day. After how many days will she have at least 64 flowers in total?
+  option_a: d >= 49 days
+  option_b: d >= 5 days
+  option_c: d >= 8 days
+  option_d: d >= 7 days
+  correct_option: d
+- question_template_id: authored-algebra_1-d5-1408500
+  topic_id: algebra_1
+  skill_id: alg1_quadratics
+  grade_band: 8-9
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - averaged_roots_or_factoring_error
+  - used_coefficient_as_answer
+  - found_only_one_solution
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A store offers a bulk discount. The manager finds that twice the square of the number of boxes
+    a customer orders, minus twelve times the number of boxes, plus sixteen, equals zero. How many boxes
+    satisfy this pricing rule?
+  context_block: null
+  answer_expression: 2*x**2 - 12*x + 16 = 0
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Write the equation using x for the number of boxes: 2x² - 12x + 16 = 0.'
+  - Factor out the common factor from all three terms first, then look for two numbers that multiply to
+    give the constant and add to give the middle coefficient.
+  - Once you have factored the quadratic completely, set each factor equal to zero to find both solutions.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the equation given in the problem.
+      expression: 2*x**2 - 12*x + 16 = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: Factor out the greatest common factor of 2 from all terms.
+      expression: 2*(x**2 - 6*x + 8) = 0
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 2 to simplify.
+      expression: x**2 - 6*x + 8 = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Factor the quadratic expression. We need two numbers that multiply to 8 and add to
+        -6: those are -2 and -4.'
+      expression: (x - 2)*(x - 4) = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Set each factor equal to zero and solve for x.
+      expression: x - 2 = 0  or  x - 4 = 0
+      common_mistake: null
+    - step_number: 6
+      explanation: The two solutions are x = 2 and x = 4.
+      expression: x = 2  or  x = 4
+      common_mistake: null
+    final_answer: 2 or 4 boxes
+  random_seed: 1408500
+  rendered_question: A store offers a bulk discount. The manager finds that twice the square of the number
+    of boxes a customer orders, minus twelve times the number of boxes, plus sixteen, equals zero. How
+    many boxes satisfy this pricing rule?
+  option_a: 2 or 4 boxes
+  option_b: 3 boxes
+  option_c: 2 boxes
+  option_d: 6 boxes
+  correct_option: a
+- question_template_id: authored-algebra_1-d4-1408401
+  topic_id: algebra_1
+  skill_id: alg1_quadratics
+  grade_band: 8-9
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - only_reported_one_root
+  - confused_constraint_with_answer
+  - divided_sum_instead_of_solving
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular poster has an area of 24 square inches. Its length plus width equals 11 inches.
+    What are the two possible values for the width?
+  context_block: ''
+  answer_expression: Eq(x**2 - 11*x + 24, 0)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Call the width x inches. Then the length is (11 - x) inches because they add to 11.
+  - The area is width times length, so x times (11 - x) equals 24.
+  - Expand x(11 - x) = 24, rearrange everything to one side, then factor or use the quadratic formula.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let the width be x inches. The length plus width equals 11, so the length is (11 -
+        x) inches.
+      expression: length = 11 - x
+      common_mistake: null
+    - step_number: 2
+      explanation: The area of a rectangle is width times length. We know the area is 24 square inches.
+      expression: x(11 - x) = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: Expand the left side by distributing x.
+      expression: 11x - x^2 = 24
+      common_mistake: null
+    - step_number: 4
+      explanation: Rearrange to standard quadratic form by moving all terms to one side.
+      expression: x^2 - 11x + 24 = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Factor the quadratic. Look for two numbers that multiply to 24 and add to -11: -3
+        and -8.'
+      expression: (x - 3)(x - 8) = 0
+      common_mistake: null
+    - step_number: 6
+      explanation: Set each factor equal to zero and solve.
+      expression: x - 3 = 0 or x - 8 = 0, so x = 3 or x = 8
+      common_mistake: null
+    - step_number: 7
+      explanation: Both values are valid dimensions for the poster. If width is 3 inches, length is 8
+        inches; if width is 8 inches, length is 3 inches.
+      expression: x = 3 or x = 8
+      common_mistake: null
+    final_answer: 3 or 8 inches
+  random_seed: 1408401
+  rendered_question: A rectangular poster has an area of 24 square inches. Its length plus width equals
+    11 inches. What are the two possible values for the width?
+  option_a: 3 inches
+  option_b: 5.5 inches
+  option_c: 3 or 8 inches
+  option_d: 11 inches
+  correct_option: c
+- question_template_id: authored-algebra_1-d5-1408501
+  topic_id: algebra_1
+  skill_id: alg1_quadratics
+  grade_band: 8-9
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 240
+  common_error_tags:
+  - gave_only_one_solution_of_quadratic
+  - gave_only_other_solution_of_quadratic
+  - factored_incorrectly_or_arithmetic_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A party planner arranges seating for an event. She discovers that triple the square of the number
+    of tables minus fifteen times the number of tables equals negative eighteen. How many tables did she
+    arrange?
+  context_block: ''
+  answer_expression: Eq(3*x**2 - 15*x, -18)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write the relationship described in the stem as an equation using x for the number of tables.
+  - Move all terms to one side so the equation equals zero, then look for a common factor you can divide
+    out.
+  - After factoring out the 3, you have a quadratic you can factor into two binomials; set each factor
+    equal to zero.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Translate the situation into an equation. Triple the square of the number of tables
+        is 3x², fifteen times the number of tables is 15x, so the relationship is 3x² - 15x = -18.
+      expression: 3*x**2 - 15*x = -18
+      common_mistake: null
+    - step_number: 2
+      explanation: Move -18 to the left side by adding 18 to both sides to set the equation to zero.
+      expression: 3*x**2 - 15*x + 18 = 0
+      common_mistake: null
+    - step_number: 3
+      explanation: Factor out the greatest common factor, which is 3, from all terms.
+      expression: 3*(x**2 - 5*x + 6) = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to simplify the equation.
+      expression: x**2 - 5*x + 6 = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Factor the quadratic expression into two binomials. We need two numbers that multiply
+        to 6 and add to -5: those are -2 and -3.'
+      expression: (x - 2)*(x - 3) = 0
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Apply the zero-product property: set each factor equal to zero and solve.'
+      expression: x - 2 = 0  or  x - 3 = 0
+      common_mistake: null
+    - step_number: 7
+      explanation: Solve each equation to find the two solutions.
+      expression: x = 2  or  x = 3
+      common_mistake: null
+    final_answer: 2 or 3 tables
+  random_seed: 1408501
+  rendered_question: A party planner arranges seating for an event. She discovers that triple the square
+    of the number of tables minus fifteen times the number of tables equals negative eighteen. How many
+    tables did she arrange?
+  option_a: 2 or 3 tables
+  option_b: 2 tables
+  option_c: 6 tables
+  option_d: 3 tables
+  correct_option: a
+- question_template_id: authored-algebra_1-d3-1410300
+  topic_id: algebra_1
+  skill_id: alg1_systems
+  grade_band: 8-9
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - solved_for_wrong_quantity
+  - sign_error_when_isolating_variable
+  - added_instead_of_subtracted_when_combining_terms
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: At a school fundraiser, adult tickets cost $2 each and student tickets cost $3 each. One family
+    buys a total of 8 tickets for $19. How many adult tickets did they buy?
+  context_block: null
+  answer_expression: Eq(2*a + 3*(8 - a), 19)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write one equation for the total number of tickets and another for the total cost.
+  - If there are a adult tickets, then there are 8 - a student tickets. The cost is 2a for adults plus
+    3(8 - a) for students.
+  - Set 2a + 3(8 - a) equal to 19, then distribute and solve for a.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let a represent the number of adult tickets. Since the family buys 8 tickets total,
+        the number of student tickets is 8 - a.
+      expression: a + (8 - a) = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Write the cost equation: adult tickets cost $2 each and student tickets cost $3 each,
+        for a total of $19.'
+      expression: 2a + 3(8 - a) = 19
+      common_mistake: null
+    - step_number: 3
+      explanation: Distribute the 3 into the bracket.
+      expression: 2a + 24 - 3a = 19
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine like terms: 2a - 3a gives -a.'
+      expression: -a + 24 = 19
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 24 from both sides.
+      expression: -a = -5
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by -1, or multiply by -1.
+      expression: a = 5
+      common_mistake: Forgetting to change the sign when dividing by -1, resulting in a = -5.
+    final_answer: 5 adult tickets
+  random_seed: 1410300
+  rendered_question: At a school fundraiser, adult tickets cost $2 each and student tickets cost $3 each.
+    One family buys a total of 8 tickets for $19. How many adult tickets did they buy?
+  option_a: 3 adult tickets
+  option_b: 4 adult tickets
+  option_c: 5 adult tickets
+  option_d: 6 adult tickets
+  correct_option: c
+- question_template_id: authored-algebra_1-d4-1410400
+  topic_id: algebra_1
+  skill_id: alg1_systems
+  grade_band: 8-9
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - solved_for_wrong_variable
+  - distribution_error_omitted_coefficient
+  - ignored_cost_constraint_used_only_count
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: At a fruit stand, apples cost $3 each and oranges cost $2 each. Lin buys 9 pieces of fruit and
+    spends $23 total. How many apples does she buy?
+  context_block: null
+  answer_expression: Eq(3*a + 2*(9 - a), 23)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for Lin's total cost using a = apples and o = oranges, then a second equation
+    for the total number of fruit.
+  - You have 3a + 2o = 23 and a + o = 9. Solve one equation for a variable to substitute into the other.
+  - From a + o = 9, write o = 9 - a. Replace o in 3a + 2o = 23 and simplify to find a.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let a be the number of apples and o be the number of oranges. The total cost is 3a
+        + 2o = 23, and the total count is a + o = 9.
+      expression: 3a + 2o = 23 and a + o = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: Solve the second equation for o.
+      expression: o = 9 - a
+      common_mistake: null
+    - step_number: 3
+      explanation: Substitute o = 9 - a into the first equation.
+      expression: 3a + 2(9 - a) = 23
+      common_mistake: null
+    - step_number: 4
+      explanation: Distribute the 2.
+      expression: 3a + 18 - 2a = 23
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine like terms.
+      expression: a + 18 = 23
+      common_mistake: null
+    - step_number: 6
+      explanation: Subtract 18 from both sides.
+      expression: a = 5
+      common_mistake: null
+    final_answer: 5 apples
+  random_seed: 1410400
+  rendered_question: At a fruit stand, apples cost $3 each and oranges cost $2 each. Lin buys 9 pieces
+    of fruit and spends $23 total. How many apples does she buy?
+  option_a: 5 apples
+  option_b: 4 apples
+  option_c: 6 apples
+  option_d: 9 apples
+  correct_option: a
+- question_template_id: authored-algebra_1-d5-1410500
+  topic_id: algebra_1
+  skill_id: alg1_systems
+  grade_band: 8-9
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - distributed_only_the_first_term
+  - used_total_as_coefficient
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: At a carnival, game tokens cost $5 each and ride tickets cost $2 each. Emma spends $44 total and
+    buys 10 items altogether. How many game tokens does she buy?
+  context_block: null
+  answer_expression: Eq(5*x + 2*(10 - x), 44)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the number of ride tickets in terms of the number of game tokens, using the
+    fact that she buys 10 items in total.
+  - If Emma buys x game tokens, she buys 10 - x ride tickets. Now write what her total spending would
+    be in terms of x.
+  - Set up the equation 5x + 2(10 - x) = 44, expand the bracket, then combine like terms and solve for
+    x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x represent the number of game tokens Emma buys. Since she buys 10 items total,
+        the number of ride tickets is 10 - x.
+      expression: ride tickets = 10 - x
+      common_mistake: null
+    - step_number: 2
+      explanation: The total cost is the cost of the game tokens plus the cost of the ride tickets. Game
+        tokens cost $5 each and ride tickets cost $2 each, so the total is 5x + 2(10 - x).
+      expression: 5*x + 2*(10 - x) = 44
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Distribute the 2 into the parentheses: 2 times 10 is 20, and 2 times negative x is
+        negative 2x.'
+      expression: 5*x + 20 - 2*x = 44
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine the x terms: 5x minus 2x equals 3x.'
+      expression: 3*x + 20 = 44
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 20 from both sides to isolate the term with x.
+      expression: 3*x = 24
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 3 to solve for x.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 tokens
+  random_seed: 1410500
+  rendered_question: At a carnival, game tokens cost $5 each and ride tickets cost $2 each. Emma spends
+    $44 total and buys 10 items altogether. How many game tokens does she buy?
+  option_a: 6 tokens
+  option_b: 4 tokens
+  option_c: 10 tokens
+  option_d: 8 tokens
+  correct_option: d
+- question_template_id: authored-algebra_1-d5-1410501
+  topic_id: algebra_1
+  skill_id: alg1_systems
+  grade_band: 8-9
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - subtracted_difference_instead_of_adding
+  - solved_second_equation_only
+  - swapped_variables
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: At a pet store, fish food costs $7 per box and bird seed costs $5 per bag. Tanya buys 2 more boxes
+    of fish food than bags of bird seed and spends $62 in total. How many boxes of fish food and bags
+    of bird seed does she buy?
+  context_block: null
+  answer_expression: Eq(7*x + 5*y, 62); Eq(x - y, 2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Define variables: let x be the number of fish food boxes and y be the number of bird seed bags. Write
+    two equations from the problem.'
+  - 'One equation relates cost: 7x + 5y = 62. The other relates quantities: x - y = 2.'
+  - Solve the second equation for x in terms of y, then substitute that expression into the first equation.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of boxes of fish food and y be the number of bags of bird seed.
+        The cost equation is 7x + 5y = 62 because fish food costs $7 per box and bird seed costs $5 per
+        bag.
+      expression: 7*x + 5*y = 62
+      common_mistake: null
+    - step_number: 2
+      explanation: The quantity relationship is x - y = 2 because Tanya buys 2 more boxes of fish food
+        than bags of bird seed.
+      expression: x - y = 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Solve the second equation for x by adding y to both sides.
+      expression: x = y + 2
+      common_mistake: null
+    - step_number: 4
+      explanation: Substitute x = y + 2 into the cost equation 7x + 5y = 62.
+      expression: 7*(y + 2) + 5*y = 62
+      common_mistake: null
+    - step_number: 5
+      explanation: Distribute the 7 into the parentheses.
+      expression: 7*y + 14 + 5*y = 62
+      common_mistake: null
+    - step_number: 6
+      explanation: Combine like terms on the left side.
+      expression: 12*y + 14 = 62
+      common_mistake: null
+    - step_number: 7
+      explanation: Subtract 14 from both sides to isolate the term with y.
+      expression: 12*y = 48
+      common_mistake: null
+    - step_number: 8
+      explanation: Divide both sides by 12 to solve for y.
+      expression: y = 4
+      common_mistake: null
+    - step_number: 9
+      explanation: Substitute y = 4 back into x = y + 2 to find x.
+      expression: x = 4 + 2
+      common_mistake: null
+    - step_number: 10
+      explanation: Simplify to find the number of boxes of fish food.
+      expression: x = 6
+      common_mistake: null
+    final_answer: (6, 4)
+  random_seed: 1410501
+  rendered_question: At a pet store, fish food costs $7 per box and bird seed costs $5 per bag. Tanya
+    buys 2 more boxes of fish food than bags of bird seed and spends $62 in total. How many boxes of fish
+    food and bags of bird seed does she buy?
+  option_a: (5, 3)
+  option_b: (4, 6)
+  option_c: (6, 4)
+  option_d: (8, 6)
+  correct_option: c

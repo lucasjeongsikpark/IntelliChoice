@@ -141,22 +141,31 @@ def test_multi_root_requires_every_root_not_merely_a_subset():
     assert not _option_matches(derivation, "3 or -3 or 9")
 
 
-def test_the_whole_shipped_bank_still_routes_as_value_and_matches_its_own_key():
-    """The regression that matters most: the bank was authored against the single-value
-    gate, and this phase must add models rather than move any of it.
+def test_every_shipped_item_routes_and_matches_its_own_key():
+    """The regression that matters most: every shipped item's answer is derivable from its
+    own equation, matches the option declared correct, and matches *no other* option.
 
-    The count is asserted rather than the shape alone, so a topic silently vanishing from
-    the export shows up here. It moved 130 -> 184 when C1's K-2 wave landed (54 generated
-    items across six new topics; a 55th was rejected for two options carrying the same
-    value written two ways).
+    **This used to assert `model == "value"` for the whole bank**, which was the right guard
+    while the bank was K-2/3-5 only: the content had been authored against the single-value
+    gate, and the router work had to add models without moving any of it. The 6-12 wave
+    makes that premise false on purpose - D-277 exists because the design gate could not
+    produce a quadratic, an inequality, a system or a factorisation, and those route to
+    `multi_root`, `interval`, `tuple` and `symbolic` respectively.
+
+    So the assertion became a **census**, which catches strictly more than the old one did.
+    It still fails if existing single-value content is silently reshaped (the thing the
+    original guarded), and it now also fails if the B-family content silently disappears -
+    a topic dropping out of the export used to be invisible here unless it took the item
+    count below the floor.
     """
     import glob
     import pathlib
+    from collections import Counter
 
     import yaml
 
     root = pathlib.Path(__file__).resolve().parents[3]
-    checked = 0
+    models: Counter[str] = Counter()
     for path in sorted(glob.glob(str(root / "curriculum/internal_math/authored/*.yaml"))):
         for template in yaml.safe_load(open(path))["templates"]:
             # D-279: a family-C item is verified by its FIGURE, not by an equation - it
@@ -167,16 +176,27 @@ def test_the_whole_shipped_bank_still_routes_as_value_and_matches_its_own_key():
                 continue
             derivation, error = route_answer(template["answer_expression"])
             assert derivation is not None, f"{template['question_template_id']}: {error}"
-            assert derivation.model == "value"
             options = {label: template[f"option_{label}"] for label in "abcd"}
             matching = [k for k, v in options.items() if _option_matches(derivation, v)]
             assert matching == [template["correct_option"]], template["question_template_id"]
-            checked += 1
+            models[derivation.model] += 1
+
+    checked = sum(models.values())
     # A floor, not an equality (D-276). The exact count is a moving number - every wave
     # adds items and every rejection removes one - and pinning it makes an unrelated
     # content change fail here with a message about arithmetic. What this test is FOR is
     # that the loop ran over a real bank rather than an empty glob, and a floor says that.
-    assert checked >= 184, f"only {checked} items checked - did the bank glob match?"
+    assert checked >= 600, f"only {checked} items checked - did the bank glob match?"
+    assert set(models) <= {"value", "multi_root", "interval", "tuple", "symbolic"}, models
+    # The single-value bank is still the bulk of it, so a change that quietly re-routed
+    # existing content into another model fails here exactly as it did before.
+    assert models["value"] >= 550, models
+    # And every B-family model the 6-12 wave introduced is still represented. Deliberately
+    # `>= 1` rather than the counts measured today (symbolic 12, interval 5, multi_root 3,
+    # tuple 2): those are small enough that pinning them would make any future wave's
+    # ordinary variation fail here, but zero means a whole answer model stopped shipping.
+    for model in ("symbolic", "interval", "multi_root", "tuple"):
+        assert models[model] >= 1, f"no {model} items in the bank at all: {models}"
 
 
 # --------------------------------------------------------------------------------------

@@ -1,0 +1,856 @@
+curriculum_version: '2026.1'
+topic_id: g68_word_problems
+templates:
+- question_template_id: authored-g68_word_problems-d1-1225100
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_constant_instead_of_subtracting
+  - stopped_before_dividing_by_coefficient
+  - added_total_and_constant_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student buys some notebooks at $3 each and a pen for $5. She spends $26 in total. How many notebooks
+    did she buy?
+  context_block: ''
+  answer_expression: Eq(3*x + 5, 26)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total cost if the student buys x notebooks.
+  - The total is 3x for the notebooks plus 5 for the pen, and that equals 26.
+  - Subtract 5 from both sides, then divide by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The cost of x notebooks at $3 each is 3x dollars. Adding the pen that costs $5 gives
+        a total of 3x + 5 dollars.
+      expression: 3*x + 5
+      common_mistake: null
+    - step_number: 2
+      explanation: The total spent is $26, so we set 3x + 5 equal to 26.
+      expression: 3*x + 5 = 26
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 5 from both sides to isolate the term with x.
+      expression: 3*x = 21
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to solve for x.
+      expression: x = 7
+      common_mistake: null
+    final_answer: 7 notebooks
+  random_seed: 1225100
+  rendered_question: A student buys some notebooks at $3 each and a pen for $5. She spends $26 in total.
+    How many notebooks did she buy?
+  option_a: 9 notebooks
+  option_b: 31 notebooks
+  option_c: 7 notebooks
+  option_d: 21 notebooks
+  correct_option: c
+- question_template_id: authored-g68_word_problems-d1-1225101
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_the_fee_from_the_wrong_side
+  - divided_before_subtracting_constant
+  - stopped_without_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam rents a bike at the park. The shop charges $4 for each hour plus a one-time rental fee of
+    $7. Liam pays $35 in total. For how many hours did he rent the bike?
+  context_block: null
+  answer_expression: Eq(4*x + 7, 35)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total amount Liam pays after x hours.
+  - The rental cost is 4x plus the one-time fee of 7 dollars, which equals 35.
+  - Subtract 7 from both sides, then divide by 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the total cost as the hourly rate times the number of hours plus the rental fee.
+      expression: 4*x + 7 = 35
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the rental fee from both sides to isolate the hourly charge.
+      expression: 4*x = 28
+      common_mistake: Adding 7 to 35 instead of subtracting it
+    - step_number: 3
+      explanation: Divide both sides by 4 to find the number of hours.
+      expression: x = 7
+      common_mistake: Stopping at 4*x = 28 without dividing
+    final_answer: 7 hours
+  random_seed: 1225101
+  rendered_question: Liam rents a bike at the park. The shop charges $4 for each hour plus a one-time
+    rental fee of $7. Liam pays $35 in total. For how many hours did he rent the bike?
+  option_a: 6 hours
+  option_b: 28 hours
+  option_c: 9 hours
+  option_d: 7 hours
+  correct_option: d
+- question_template_id: authored-g68_word_problems-d1-1225102
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_fee_instead_of_subtracting
+  - skipped_final_division
+  - ignored_flat_fee
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A babysitter earns $6 per hour plus an $8 transportation fee. Today she made $44 in total. How
+    many hours did she work?
+  context_block: ''
+  answer_expression: Eq(6*x + 8, 44)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for how much money she makes after working x hours.
+  - Her total is 6x + 8, and that equals the $44 she made today.
+  - Subtract the transportation fee from both sides, then divide by the hourly rate.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The babysitter earns $6 for each hour worked, so after x hours she earns 6x dollars
+        from her hourly work.
+      expression: 6*x
+      common_mistake: null
+    - step_number: 2
+      explanation: She also receives a flat $8 transportation fee, so her total earnings are 6x + 8 dollars.
+      expression: 6*x + 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Her total earnings today equal $44, so we set up the equation.
+      expression: 6*x + 8 = 44
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 8 from both sides to isolate the term with x.
+      expression: 6*x = 36
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 6 to solve for x.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 hours
+  random_seed: 1225102
+  rendered_question: A babysitter earns $6 per hour plus an $8 transportation fee. Today she made $44
+    in total. How many hours did she work?
+  option_a: 36 hours
+  option_b: 7 hours
+  option_c: 9 hours
+  option_d: 6 hours
+  correct_option: d
+- question_template_id: authored-g68_word_problems-d2-1225200
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_constant_instead_of_subtracting
+  - divided_total_by_coefficient_ignoring_constant
+  - stopped_before_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Jordan visits a bookstore and buys some notebooks at $2 each and a poster for $6. The total cost
+    is $26. How many notebooks did Jordan buy?
+  context_block: null
+  answer_expression: Eq(2*x + 6, 26)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total cost if Jordan buys x notebooks.
+  - The total cost is 2x + 6, and that equals 26.
+  - Subtract the poster price from both sides, then divide by the price per notebook.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x represent the number of notebooks. Each notebook costs $2, so x notebooks cost
+        2x dollars. The poster costs $6, so the total is 2x + 6.
+      expression: 2*x + 6
+      common_mistake: null
+    - step_number: 2
+      explanation: The total cost is $26, so we set our expression equal to 26.
+      expression: 2*x + 6 = 26
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 6 from both sides to isolate the term with x.
+      expression: 2*x = 20
+      common_mistake: Adding 6 instead of subtracting gives 2*x = 32.
+    - step_number: 4
+      explanation: Divide both sides by 2 to solve for x.
+      expression: x = 10
+      common_mistake: Stopping at 2*x = 20 without dividing gives 20 notebooks.
+    final_answer: 10 notebooks
+  random_seed: 1225200
+  rendered_question: Jordan visits a bookstore and buys some notebooks at $2 each and a poster for $6.
+    The total cost is $26. How many notebooks did Jordan buy?
+  option_a: 13 notebooks
+  option_b: 10 notebooks
+  option_c: 16 notebooks
+  option_d: 20 notebooks
+  correct_option: b
+- question_template_id: authored-g68_word_problems-d2-1225201
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_entrance_fee_instead_of_subtracting
+  - skipped_final_division
+  - divided_total_by_per_game_cost_ignoring_entrance_fee
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam visits an arcade and pays a $9 entrance fee. Each game costs $5. He spends $39 in total.
+    How many games does he play?
+  context_block: null
+  answer_expression: Eq(5*x + 9, 39)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total cost if Liam plays x games.
+  - The total cost is 5x + 9, and that needs to equal 39.
+  - Subtract the entrance fee from both sides, then divide by the cost per game.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam pays $9 to enter the arcade, then $5 for each game he plays. If he plays x games,
+        his total spending is 5x + 9 dollars.
+      expression: 5*x + 9
+      common_mistake: null
+    - step_number: 2
+      explanation: We know Liam spends $39 in total, so we set our expression equal to 39.
+      expression: 5*x + 9 = 39
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the entrance fee from both sides to isolate the term with x.
+      expression: 5*x = 30
+      common_mistake: Adding 9 instead of subtracting, giving 5*x = 48.
+    - step_number: 4
+      explanation: Divide both sides by 5 to solve for x.
+      expression: x = 6
+      common_mistake: Stopping at 5*x = 30 without dividing by 5.
+    final_answer: 6 games
+  random_seed: 1225201
+  rendered_question: Liam visits an arcade and pays a $9 entrance fee. Each game costs $5. He spends $39
+    in total. How many games does he play?
+  option_a: 8 games
+  option_b: 6 games
+  option_c: 7 games
+  option_d: 30 games
+  correct_option: b
+- question_template_id: authored-g68_word_problems-d2-1225202
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_constant_instead_of_subtracting
+  - ignored_fixed_fee
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Liam orders pizza slices for a party. Each slice costs $7, and there is a $10 delivery fee. He
+    spends $52 in total. How many slices did he order?
+  context_block: ''
+  answer_expression: Eq(7*x + 10, 52)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total cost if Liam orders x slices at $7 each, plus the delivery fee.
+  - The total cost is 7x + 10, and that equals 52.
+  - Subtract the delivery fee from both sides, then divide by the cost per slice.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x represent the number of slices. Each slice costs $7, so x slices cost 7x dollars.
+        Adding the $10 delivery fee gives a total cost of 7x + 10 dollars.
+      expression: 7*x + 10
+      common_mistake: null
+    - step_number: 2
+      explanation: The total Liam spent is $52, so we set our expression equal to 52.
+      expression: 7*x + 10 = 52
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 10 from both sides to isolate the term with x.
+      expression: 7*x = 42
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 7 to solve for x.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 pizza slices
+  random_seed: 1225202
+  rendered_question: Liam orders pizza slices for a party. Each slice costs $7, and there is a $10 delivery
+    fee. He spends $52 in total. How many slices did he order?
+  option_a: 42 pizza slices
+  option_b: 6 pizza slices
+  option_c: 8 pizza slices
+  option_d: 7 pizza slices
+  correct_option: b
+- question_template_id: authored-g68_word_problems-d3-1225301
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - subtracted_daily_rate_instead_of_insurance
+  - stopped_before_final_division
+  - added_insurance_to_total_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A person rents a car that costs $9 per day plus an $11 insurance fee. The total bill is $65. How
+    many days was the car rented?
+  context_block: null
+  answer_expression: Eq(9*x + 11, 65)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total cost if the car is rented for d days.
+  - The cost is 9d + 11, and that must equal the total bill of $65.
+  - Subtract the insurance fee from both sides, then divide by the daily rate.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The daily rental cost is $9 per day, so for d days it is 9d. The insurance fee is $11,
+        so the total cost is 9d + 11.
+      expression: 9*d + 11
+      common_mistake: null
+    - step_number: 2
+      explanation: The total bill is $65, so we set the expression equal to 65.
+      expression: 9*d + 11 = 65
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 11 from both sides to isolate the term with d.
+      expression: 9*d = 54
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 9 to solve for d.
+      expression: d = 6
+      common_mistake: null
+    final_answer: 6 days
+  random_seed: 1225301
+  rendered_question: A person rents a car that costs $9 per day plus an $11 insurance fee. The total bill
+    is $65. How many days was the car rented?
+  option_a: 5 days
+  option_b: 54 days
+  option_c: 7 days
+  option_d: 6 days
+  correct_option: d
+- question_template_id: authored-g68_word_problems-d3-1225302
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_instead_of_subtracting_constant
+  - stopped_after_isolating_variable_term
+  - added_all_terms_together
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam subscribes to a streaming service. He pays an $8 setup fee plus $3 each month. After several
+    months his total charge is $35. For how many months has he subscribed?
+  context_block: ''
+  answer_expression: Eq(3*x + 8, 35)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for Liam's total cost after x months, including the setup fee.
+  - His total is 8 + 3x, and you know that equals 35.
+  - Subtract 8 from both sides, then divide by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The setup fee is $8 and the monthly charge is $3 per month, so after x months Liam's
+        total cost is 8 + 3x.
+      expression: 8 + 3*x
+      common_mistake: null
+    - step_number: 2
+      explanation: We are told his total charge is $35, so we set our expression equal to 35.
+      expression: 8 + 3*x = 35
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 8 from both sides to isolate the term with x.
+      expression: 3*x = 27
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 3 to solve for x.
+      expression: x = 9
+      common_mistake: null
+    final_answer: 9 months
+  random_seed: 1225302
+  rendered_question: Liam subscribes to a streaming service. He pays an $8 setup fee plus $3 each month.
+    After several months his total charge is $35. For how many months has he subscribed?
+  option_a: 9 months
+  option_b: 43 months
+  option_c: 27 months
+  option_d: 11 months
+  correct_option: a
+- question_template_id: authored-g68_word_problems-d2-1227200
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_wrong_quantities
+  - stopped_after_cross_multiplication
+  - confused_scale_factor_with_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A recipe uses 3 cups of flour to make 12 cookies. Ellie wants to make 48 cookies for a bake sale.
+    How many cups of flour does she need?
+  context_block: null
+  answer_expression: x/48 = 3/12
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write the ratio of flour to cookies for the original recipe.
+  - 'Set up a proportion: 3 cups to 12 cookies equals x cups to 48 cookies.'
+  - Cross-multiply to get 12x = 144, then solve for x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The original recipe's ratio is 3 cups of flour for 12 cookies.
+      expression: 3/12
+      common_mistake: null
+    - step_number: 2
+      explanation: We set up a proportion where x cups of flour makes 48 cookies, so x/48 = 3/12.
+      expression: x/48 = 3/12
+      common_mistake: null
+    - step_number: 3
+      explanation: Cross-multiply to get 12 times x equals 3 times 48.
+      expression: 12*x = 3*48
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Simplify the right side: 3 times 48 equals 144.'
+      expression: 12*x = 144
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 12 to find x.
+      expression: x = 144/12
+      common_mistake: null
+    - step_number: 6
+      explanation: 144 divided by 12 equals 12.
+      expression: x = 12
+      common_mistake: null
+    final_answer: 12 cups
+  random_seed: 1227200
+  rendered_question: A recipe uses 3 cups of flour to make 12 cookies. Ellie wants to make 48 cookies
+    for a bake sale. How many cups of flour does she need?
+  option_a: 4 cups
+  option_b: 16 cups
+  option_c: 12 cups
+  option_d: 144 cups
+  correct_option: c
+- question_template_id: authored-g68_word_problems-d2-1227201
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - subtracted instead of using proportion
+  - divided hours by rooms instead of setting up correct ratio
+  - multiplied all given numbers without considering the relationship
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A painter can complete 6 rooms in 4 hours. Working at the same rate, how many rooms can the painter
+    complete in 20 hours?
+  context_block: null
+  answer_expression: Eq(x/20, 6/4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Find the rate: how many rooms are painted per hour?'
+  - 'Set up a proportion comparing rooms to hours: the ratio 6 rooms to 4 hours equals x rooms to 20 hours.'
+  - Write x/20 = 6/4 and solve by cross-multiplying or by multiplying both sides by 20.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set up the proportion. The ratio of rooms to hours is constant, so 6 rooms in 4 hours
+        equals x rooms in 20 hours.
+      expression: x/20 = 6/4
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply both sides by 20 to isolate x.
+      expression: x = (6/4) * 20
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side. First multiply 6 and 20 to get 120, then divide by 4.
+      expression: x = 120/4
+      common_mistake: null
+    - step_number: 4
+      explanation: Perform the division.
+      expression: x = 30
+      common_mistake: null
+    final_answer: 30 rooms
+  random_seed: 1227201
+  rendered_question: A painter can complete 6 rooms in 4 hours. Working at the same rate, how many rooms
+    can the painter complete in 20 hours?
+  option_a: 30 rooms
+  option_b: 24 rooms
+  option_c: 120 rooms
+  option_d: 5 rooms
+  correct_option: a
+- question_template_id: authored-g68_word_problems-d2-1227202
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - used_the_given_time_period_as_answer
+  - inverted_the_proportion_setup
+  - multiplied_instead_of_cross_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student reads 4 books in 6 weeks. At the same rate, how many books can the student read in 15
+    weeks?
+  context_block: null
+  answer_expression: Eq(x/15, 4/6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about the ratio of books to weeks that stays constant. Write it for both situations.
+  - The rate is 4 books per 6 weeks, which equals x books per 15 weeks. Set those two ratios equal.
+  - Set up the proportion x/15 = 4/6, then cross-multiply to find 6x = 60.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student reads at a constant rate, so the ratio of books to weeks stays the same.
+        Write the rate for both periods.
+      expression: 4/6 = x/15
+      common_mistake: null
+    - step_number: 2
+      explanation: Cross-multiply the proportion to eliminate the fractions.
+      expression: 6*x = 4*15
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: 6*x = 60
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 6 to solve for x.
+      expression: x = 10
+      common_mistake: null
+    final_answer: 10 books
+  random_seed: 1227202
+  rendered_question: A student reads 4 books in 6 weeks. At the same rate, how many books can the student
+    read in 15 weeks?
+  option_a: 10 books
+  option_b: 22.5 books
+  option_c: 15 books
+  option_d: 9 books
+  correct_option: a
+- question_template_id: authored-g68_word_problems-d3-1227300
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - treated_inverse_proportion_as_direct_addition
+  - confused_number_of_workers_with_time
+  - stopped_at_total_worker_days_without_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A construction crew of 8 workers can finish building a playground in 6 days. If the crew is increased
+    to 12 workers working at the same rate, how many days will it take to complete the playground?
+  context_block: ''
+  answer_expression: Eq(x * 12, 8 * 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about the total amount of work. How many worker-days does it take to build the playground?
+  - If 8 workers need 6 days, the project requires 8 × 6 worker-days. With 12 workers, the same total
+    work must be done.
+  - 'Write an equation: 12 times the number of days equals the total worker-days you found.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the total work required in worker-days by multiplying the number of workers by
+        the number of days.
+      expression: 8 * 6 = 48
+      common_mistake: null
+    - step_number: 2
+      explanation: With 12 workers, the same 48 worker-days of work must be completed, so set up the equation
+        12 times the unknown number of days equals 48.
+      expression: 12 * x = 48
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 12 to solve for the number of days.
+      expression: x = 48 / 12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the division.
+      expression: x = 4
+      common_mistake: null
+    final_answer: 4 days
+  random_seed: 1227300
+  rendered_question: A construction crew of 8 workers can finish building a playground in 6 days. If the
+    crew is increased to 12 workers working at the same rate, how many days will it take to complete the
+    playground?
+  option_a: 8 days
+  option_b: 48 days
+  option_c: 4 days
+  option_d: 9 days
+  correct_option: c
+- question_template_id: authored-g68_word_problems-d3-1227301
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - treated_inverse_proportion_as_direct
+  - arithmetic_guess_unrelated_to_relationship
+  - stopped_before_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Ten pumps working together can drain a swimming pool in 8 hours. How many hours will it take 16
+    pumps working at the same rate to drain the same pool?
+  context_block: null
+  answer_expression: Eq(x * 16, 10 * 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In an inverse proportion, when the number of pumps increases, the time needed decreases. Look for
+    the relationship between pumps and time.
+  - 'The product of the number of pumps and the time stays constant: 10 pumps times 8 hours equals 16
+    pumps times the unknown time.'
+  - Write the equation 16 times x equals 10 times 8, then divide both sides by 16.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Because more pumps drain the pool faster, this is an inverse proportion. The product
+        of pumps and time remains constant.
+      expression: 10 * 8 = 16 * x
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the left side.
+      expression: 80 = 16 * x
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 16 to solve for x.
+      expression: x = 80 / 16
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the division.
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 hours
+  random_seed: 1227301
+  rendered_question: Ten pumps working together can drain a swimming pool in 8 hours. How many hours will
+    it take 16 pumps working at the same rate to drain the same pool?
+  option_a: 80 hours
+  option_b: 6 hours
+  option_c: 5 hours
+  option_d: 12.8 hours
+  correct_option: c
+- question_template_id: authored-g68_word_problems-d3-1227302
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - treated_inverse_proportion_as_direct
+  - multiplied_final_values_instead_of_dividing
+  - multiplied_both_factors_without_isolating_variable
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Nine machines working together can package a shipment of boxes in 5 hours. How many hours will
+    it take 15 machines to package the same shipment?
+  context_block: null
+  answer_expression: x * 15 = 9 * 5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - When more machines work on the same job, does it take more time or less time?
+  - The total amount of work is the same either way, and work equals machines multiplied by hours.
+  - Write 9 times 5 on one side and 15 times x on the other, then solve for x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total amount of work is the product of machines and hours. Nine machines take 5
+        hours, so the work is 9 × 5.
+      expression: 9 * 5 = 45
+      common_mistake: null
+    - step_number: 2
+      explanation: Fifteen machines must do the same amount of work, so 15 times the unknown number of
+        hours equals 45.
+      expression: 15 * x = 45
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 15 to find x.
+      expression: x = 45 / 15
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the division.
+      expression: x = 3
+      common_mistake: null
+    final_answer: 3 hours
+  random_seed: 1227302
+  rendered_question: Nine machines working together can package a shipment of boxes in 5 hours. How many
+    hours will it take 15 machines to package the same shipment?
+  option_a: 8.33 hours
+  option_b: 75 hours
+  option_c: 7.5 hours
+  option_d: 3 hours
+  correct_option: d
+- question_template_id: authored-g68_word_problems-d4-1227400
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - confused_inverse_with_direct_proportion
+  - divided_wrong_quantities
+  - stopped_at_total_work_without_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery has 6 ovens that can bake a batch of cookies in 10 hours. The bakery needs to bake the
+    same batch in at most 4 hours. What is the minimum number of ovens needed?
+  context_block: ''
+  answer_expression: Eq(x * 4, 6 * 10)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the total amount of work by multiplying the number of ovens by the hours it takes them to finish.
+  - If 6 ovens working for 10 hours complete the batch, the total work is 60 oven-hours. The same work
+    must be done in 4 hours.
+  - Write an equation where x ovens working for 4 hours equals 60 oven-hours, then solve for x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the total work required in oven-hours by multiplying the number of ovens
+        by the time they take.
+      expression: 6 * 10 = 60
+      common_mistake: null
+    - step_number: 2
+      explanation: Set up an equation where x ovens working for 4 hours equals the total work of 60 oven-hours.
+      expression: x * 4 = 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 4 to solve for x.
+      expression: x = 60 / 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify to find the minimum number of ovens needed.
+      expression: x = 15
+      common_mistake: null
+    final_answer: 15 ovens
+  random_seed: 1227400
+  rendered_question: A bakery has 6 ovens that can bake a batch of cookies in 10 hours. The bakery needs
+    to bake the same batch in at most 4 hours. What is the minimum number of ovens needed?
+  option_a: 15 ovens
+  option_b: 2 ovens
+  option_c: 24 ovens
+  option_d: 60 ovens
+  correct_option: a

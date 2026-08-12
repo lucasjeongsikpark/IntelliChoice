@@ -23,6 +23,8 @@ templates:
     How many marbles are in the basket now?
   context_block: ''
   answer_expression: Eq(x, 15 + 9 - 6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the number of marbles in the basket, then think about what happens when Juan adds more.
   - After adding, how many are there? Then think about what happens when some roll away.
@@ -72,6 +74,8 @@ templates:
     did Maria give away?
   context_block: ''
   answer_expression: Eq(15 - x, 9)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Maria started with 15 stickers and ended with 9. Did she gain or lose stickers?
   - When you give something away, you subtract. What number plus 9 equals 15?
@@ -123,6 +127,8 @@ templates:
     How many apples did Liam eat?
   context_block: ''
   answer_expression: Eq(15 - x, 9)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Liam started with some apples and ended with fewer, so think about what operation shows taking away.
   - If Liam ate x apples, his basket went from 15 apples down to 9 apples.
@@ -174,6 +180,8 @@ templates:
     many cards did Jayden start with?
   context_block: ''
   answer_expression: Eq(x - 8, 15)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - 'Think about what operation Jayden used: he started with some cards and took away 8.'
   - If Jayden started with x cards and gave away 8, he would have x - 8 left. That equals 15.
@@ -223,6 +231,8 @@ templates:
     did Maria start with?
   context_block: null
   answer_expression: Eq(x - 3, 5)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - 'Think about what happened: Maria ate some apples and then had 5 left.'
   - If she started with some number and took away 3, she ended up with 5.
@@ -277,6 +287,8 @@ templates:
     has 14 stickers. How many stickers did Maria give away?
   context_block: null
   answer_expression: Eq((12 - x) + 5, 14)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by writing how many stickers Maria has after she gave some away.
   - If she gave away x stickers, she had 12 - x left. Then she received 5 more.
@@ -339,6 +351,8 @@ templates:
     Maya have now?
   context_block: null
   answer_expression: x = 5 + 3
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Maya starts with some cars and then gets more. Think about what operation adds things together.
   - You need to combine the 5 cars she had with the 3 cars she was given.
@@ -388,6 +402,8 @@ templates:
     How many apples did Maria start with?
   context_block: ''
   answer_expression: Eq(x + 3, 9)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Maria has 9 apples now, after getting 3 more from her friend.
   - 'Write an equation: what she started with plus 3 equals 9.'

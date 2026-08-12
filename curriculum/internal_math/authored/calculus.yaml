@@ -1,0 +1,1587 @@
+curriculum_version: '2026.1'
+topic_id: calculus
+templates:
+- question_template_id: authored-calculus-d2-1305201
+  topic_id: calculus
+  skill_id: calc_derivatives
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_differentiate_linear_term
+  - forgot_to_apply_power_rule_to_quadratic
+  - forgot_linear_and_constant_terms
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A car travels along a straight highway. Its distance in kilometers from the starting point after
+    t hours is given by d(t) = 3t² + 8t + 5. What is the velocity function d'(t)?
+  context_block: null
+  answer_expression: diff(3*t**2 + 8*t + 5, t)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Velocity is the rate of change of distance, which means you need to find the derivative of the distance
+    function.
+  - 'Apply the power rule to each term: the derivative of t² is 2t, the derivative of t is 1, and the
+    derivative of a constant is 0.'
+  - Multiply each term's derivative by its coefficient and combine the results.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the function to differentiate: d(t) = 3t² + 8t + 5.'
+      expression: d(t) = 3*t**2 + 8*t + 5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Apply the power rule to the first term: the derivative of 3t² is 3 times 2t, which
+        equals 6t.'
+      expression: 3*(2*t) = 6*t
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the power rule to the second term: the derivative of 8t is 8.'
+      expression: '8'
+      common_mistake: null
+    - step_number: 4
+      explanation: The derivative of the constant 5 is 0.
+      expression: '0'
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine all the derivatives to get the velocity function.
+      expression: d'(t) = 6*t + 8 + 0 = 6*t + 8
+      common_mistake: null
+    final_answer: 6*t + 8
+  random_seed: 1305201
+  rendered_question: A car travels along a straight highway. Its distance in kilometers from the starting
+    point after t hours is given by d(t) = 3t² + 8t + 5. What is the velocity function d'(t)?
+  option_a: 6*t + 5
+  option_b: 3*t + 8
+  option_c: 6*t + 8
+  option_d: 6*t
+  correct_option: c
+- question_template_id: authored-calculus-d3-1305300
+  topic_id: calculus
+  skill_id: calc_derivatives
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - failed_to_differentiate_forgot_to_remove_original_terms
+  - applied_power_rule_only_to_coefficient_not_exponent
+  - differentiated_only_first_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory's total production cost in dollars is given by C(x) = 4x² - 6x + 15, where x is the
+    number of units produced. What is the marginal cost function C'(x)?
+  context_block: null
+  answer_expression: diff(4*x**2 - 6*x + 15, x)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The marginal cost is the derivative of the total cost function, showing how cost changes as production
+    increases.
+  - 'Apply the power rule to each term: bring down the exponent as a coefficient and reduce the exponent
+    by one.'
+  - For 4x², you get 8x; for -6x, you get -6; and for the constant 15, you get 0.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the marginal cost function, differentiate the total cost function C(x) = 4x²
+        - 6x + 15 with respect to x.
+      expression: C'(x) = d/dx(4x² - 6x + 15)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Apply the power rule to the first term: d/dx(4x²) = 4·2·x^(2-1) = 8x.'
+      expression: d/dx(4x²) = 8x
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the power rule to the second term: d/dx(-6x) = -6·1·x^(1-1) = -6.'
+      expression: d/dx(-6x) = -6
+      common_mistake: null
+    - step_number: 4
+      explanation: 'The derivative of a constant is zero: d/dx(15) = 0.'
+      expression: d/dx(15) = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine the derivatives of all terms to get the marginal cost function.
+      expression: C'(x) = 8x - 6
+      common_mistake: null
+    final_answer: 8x - 6
+  random_seed: 1305300
+  rendered_question: A factory's total production cost in dollars is given by C(x) = 4x² - 6x + 15, where
+    x is the number of units produced. What is the marginal cost function C'(x)?
+  option_a: 8x - 6x + 15
+  option_b: 8x²
+  option_c: 8x - 6
+  option_d: 4x - 6
+  correct_option: c
+- question_template_id: authored-calculus-d3-1465300
+  topic_id: calculus
+  skill_id: calc_derivatives
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_subtract_after_differentiation
+  - used_original_function_instead_of_derivative
+  - sign_error_in_derivative_evaluation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A weather station models the temperature T (in degrees Celsius) h hours after midnight using T(h)
+    = 2h³ - 6h² + 4h + 10. At what rate is the temperature changing at 2 hours after midnight?
+  context_block: null
+  answer_expression: d = 6*2**2 - 12*2 + 4
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The rate of temperature change is found by taking the derivative of T(h) with respect to h.
+  - 'Apply the power rule to each term: bring down the exponent and reduce the power by one.'
+  - Evaluate the derivative at h = 2 by substituting into your new expression.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The rate of temperature change is the derivative of T(h). Apply the power rule to each
+        term.
+      expression: T'(h) = 6h² - 12h + 4
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute h = 2 into the derivative to find the rate at 2 hours after midnight.
+      expression: T'(2) = 6(2)² - 12(2) + 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 6 times 4, which is 24.
+      expression: T'(2) = 24 - 24 + 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify by combining the terms.
+      expression: T'(2) = 4
+      common_mistake: null
+    final_answer: 4 degrees Celsius per hour
+  random_seed: 1465300
+  rendered_question: A weather station models the temperature T (in degrees Celsius) h hours after midnight
+    using T(h) = 2h³ - 6h² + 4h + 10. At what rate is the temperature changing at 2 hours after midnight?
+  option_a: 4 degrees Celsius per hour
+  option_b: 16 degrees Celsius per hour
+  option_c: 8 degrees Celsius per hour
+  option_d: -8 degrees Celsius per hour
+  correct_option: a
+- question_template_id: authored-calculus-d3-1465301
+  topic_id: calculus
+  skill_id: calc_derivatives
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - forgot_to_subtract_middle_term
+  - evaluated_original_not_derivative
+  - arithmetic_error_in_squaring
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A startup's profit is modeled by P(t) = 4t³ - 9t² + 6t + 20, where P is profit in thousands of
+    dollars and t is months after launch. At what rate is profit changing when t = 3?
+  context_block: null
+  answer_expression: v = 12*(3)**2 - 18*3 + 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The rate of change of profit is given by the derivative P'(t).
+  - 'Use the power rule on each term: bring down the exponent and reduce the power by one.'
+  - After finding P'(t) = 12t² - 18t + 6, substitute t = 3 and compute.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The rate of change of profit is the derivative of P(t). Apply the power rule to each
+        term.
+      expression: P'(t) = 12t² - 18t + 6
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute t = 3 into the derivative.
+      expression: P'(3) = 12(3)² - 18(3) + 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Compute 12 times 9.
+      expression: 12(9) = 108
+      common_mistake: null
+    - step_number: 4
+      explanation: Compute 18 times 3.
+      expression: 18(3) = 54
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine all the terms.
+      expression: 108 - 54 + 6 = 60
+      common_mistake: null
+    final_answer: 60 thousands of dollars per month
+  random_seed: 1465301
+  rendered_question: A startup's profit is modeled by P(t) = 4t³ - 9t² + 6t + 20, where P is profit in
+    thousands of dollars and t is months after launch. At what rate is profit changing when t = 3?
+  option_a: 60 thousands of dollars per month
+  option_b: 102 thousands of dollars per month
+  option_c: 54 thousands of dollars per month
+  option_d: 114 thousands of dollars per month
+  correct_option: a
+- question_template_id: authored-calculus-d4-1465400
+  topic_id: calculus
+  skill_id: calc_derivatives
+  grade_band: 11-12
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - evaluated_original_function_instead_of_derivative
+  - stopped_after_first_term_of_derivative
+  - arithmetic_error_in_substitution
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A wildlife biologist tracks a rare bird species. The population in hundreds is P(t) = 5t³ - 8t²
+    + 3t + 15, where t is years after observation began. What is the rate of population change at t =
+    4 years?
+  context_block: null
+  answer_expression: x = 15*4**2 - 16*4 + 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The rate of population change is the derivative of the population function P(t).
+  - 'Use the power rule to differentiate: bring down each exponent and reduce the power by one for each
+    term.'
+  - Evaluate the derivative P'(t) = 15t² - 16t + 3 at t = 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The rate of population change is given by the derivative of P(t) = 5t³ - 8t² + 3t +
+        15.
+      expression: P'(t) = d/dt[5t³ - 8t² + 3t + 15]
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Apply the power rule to each term: bring down the exponent and reduce the power by
+        one.'
+      expression: P'(t) = 15t² - 16t + 3
+      common_mistake: Forgetting to multiply the coefficient by the original exponent.
+    - step_number: 3
+      explanation: Substitute t = 4 into the derivative.
+      expression: P'(4) = 15(4)² - 16(4) + 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Calculate 4² = 16, so 15(16) = 240.
+      expression: P'(4) = 240 - 64 + 3
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the terms: 240 - 64 = 176, then 176 + 3 = 179.'
+      expression: P'(4) = 179
+      common_mistake: null
+    final_answer: 179 hundreds per year
+  random_seed: 1465400
+  rendered_question: A wildlife biologist tracks a rare bird species. The population in hundreds is P(t)
+    = 5t³ - 8t² + 3t + 15, where t is years after observation began. What is the rate of population change
+    at t = 4 years?
+  option_a: 240 hundreds per year
+  option_b: 179 hundreds per year
+  option_c: 403 hundreds per year
+  option_d: 187 hundreds per year
+  correct_option: b
+- question_template_id: authored-calculus-d4-1465401
+  topic_id: calculus
+  skill_id: calc_derivatives
+  grade_band: 11-12
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 240
+  common_error_tags:
+  - arithmetic_error_in_evaluation
+  - failed_to_distribute_constant_correctly
+  - stopped_before_completing_evaluation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A reservoir's water volume is modeled by V(t) = (2t + 3)(t² - 4) thousand cubic meters, where
+    t is the number of days after a storm. At what rate is the volume changing three days after the storm?
+  context_block: ''
+  answer_expression: x = 6*3**2 + 6*3 - 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The rate of change of volume is the derivative V'(t). Identify which rule is needed because V is a
+    product of two factors.
+  - 'Use the product rule: if V(t) = (2t + 3)(t² - 4), then V''(t) = (derivative of first)(second) + (first)(derivative
+    of second).'
+  - Compute V'(t) = 2(t² - 4) + (2t + 3)(2t), simplify by expanding and combining like terms, then substitute
+    t = 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify that V(t) is a product of two functions: u = 2t + 3 and v = t² - 4. The derivative
+        requires the product rule.'
+      expression: V(t) = (2t + 3)(t² - 4)
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the derivative of each factor. The derivative of u = 2t + 3 is 2, and the derivative
+        of v = t² - 4 is 2t.
+      expression: u' = 2, v' = 2t
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Apply the product rule: V''(t) = u''v + uv''.'
+      expression: V'(t) = 2(t² - 4) + (2t + 3)(2t)
+      common_mistake: null
+    - step_number: 4
+      explanation: Expand each term. The first term becomes 2t² - 8, and the second term becomes 4t² +
+        6t.
+      expression: V'(t) = 2t² - 8 + 4t² + 6t
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine like terms to simplify the derivative.
+      expression: V'(t) = 6t² + 6t - 8
+      common_mistake: null
+    - step_number: 6
+      explanation: Substitute t = 3 into the derivative to find the rate of change at three days.
+      expression: V'(3) = 6(3)² + 6(3) - 8
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Evaluate the expression: 6(9) + 18 - 8 = 54 + 18 - 8 = 64.'
+      expression: V'(3) = 64
+      common_mistake: null
+    final_answer: 64 thousands of cubic meters per day
+  random_seed: 1465401
+  rendered_question: A reservoir's water volume is modeled by V(t) = (2t + 3)(t² - 4) thousand cubic meters,
+    where t is the number of days after a storm. At what rate is the volume changing three days after
+    the storm?
+  option_a: 72 thousands of cubic meters per day
+  option_b: 64 thousands of cubic meters per day
+  option_c: 62 thousands of cubic meters per day
+  option_d: 54 thousands of cubic meters per day
+  correct_option: b
+- question_template_id: authored-calculus-d3-1307301
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - Used endpoint value instead of integrating
+  - Stopped before simplifying the fraction
+  - Arithmetic error with fractional coefficient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Water flows into a tank at a rate of r(t) = kt gallons per minute. From t = 0 to t = 5 minutes,
+    exactly 75 gallons flow in. What is the value of k?
+  context_block: null
+  answer_expression: 25*k/2 = 75
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the total volume of water, integrate the rate function r(t) = kt from t = 0 to t = 5.
+  - The definite integral is ∫₀⁵ kt dt, which equals [kt²/2] evaluated from 0 to 5.
+  - Substitute the bounds into kt²/2 to get an expression in k, then set that equal to 75 and solve.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set up the definite integral of the rate function from t = 0 to t = 5 to find total
+        gallons.
+      expression: ∫₀⁵ kt dt
+      common_mistake: null
+    - step_number: 2
+      explanation: Integrate kt with respect to t. The antiderivative of kt is (k/2)t².
+      expression: '[k t² / 2]₀⁵'
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the upper bound t = 5.
+      expression: k (5)² / 2 = 25k / 2
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the antiderivative at the lower bound t = 0.
+      expression: k (0)² / 2 = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract the lower bound value from the upper bound value.
+      expression: 25k / 2 - 0 = 25k / 2
+      common_mistake: null
+    - step_number: 6
+      explanation: Set the result equal to the total volume of 75 gallons.
+      expression: 25k / 2 = 75
+      common_mistake: null
+    - step_number: 7
+      explanation: Multiply both sides by 2 to clear the fraction.
+      expression: 25k = 150
+      common_mistake: null
+    - step_number: 8
+      explanation: Divide both sides by 25 to solve for k.
+      expression: k = 150 / 25 = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 1307301
+  rendered_question: Water flows into a tank at a rate of r(t) = kt gallons per minute. From t = 0 to
+    t = 5 minutes, exactly 75 gallons flow in. What is the value of k?
+  option_a: '30'
+  option_b: '6'
+  option_c: '3'
+  option_d: '15'
+  correct_option: b
+- question_template_id: authored-calculus-d5-1307500
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_square_bound
+  - omitted_coefficient_after_integration
+  - forgot_to_divide_by_new_exponent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A car accelerates along a straight track. Its velocity at time t seconds is given by v(t) = 8t
+    meters per second. How far does the car travel between t = 0 and t = 3 seconds?
+  context_block: null
+  answer_expression: x = 4*9
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Distance traveled is the integral of velocity over time.
+  - Set up the definite integral of 8t from 0 to 3 seconds.
+  - The antiderivative of 8t is 4t², so evaluate 4t² at the upper and lower bounds.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Distance traveled is found by integrating velocity over the time interval.
+      expression: ∫₀³ 8t dt
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the antiderivative of 8t.
+      expression: 8t²/2 = 4t²
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the upper bound t = 3.
+      expression: 4(3)² = 4(9) = 36
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the antiderivative at the lower bound t = 0.
+      expression: 4(0)² = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract the lower bound evaluation from the upper bound evaluation.
+      expression: 36 - 0 = 36
+      common_mistake: null
+    final_answer: 36 meters
+  random_seed: 1307500
+  rendered_question: A car accelerates along a straight track. Its velocity at time t seconds is given
+    by v(t) = 8t meters per second. How far does the car travel between t = 0 and t = 3 seconds?
+  option_a: 72 meters
+  option_b: 36 meters
+  option_c: 24 meters
+  option_d: 12 meters
+  correct_option: b
+- question_template_id: authored-calculus-d4-1307401
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_divide_by_new_exponent
+  - applied_power_rule_incorrectly
+  - arithmetic_error_in_evaluation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory machine produces widgets at a rate that increases over time. The rate is r(t) = 5t widgets
+    per hour, where t is the number of hours since the machine started. How many widgets does the machine
+    produce during the first 4 hours?
+  context_block: null
+  answer_expression: 5*16/2 = x
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The total number of widgets is the area under the rate curve from t = 0 to t = 4.
+  - You need to integrate r(t) = 5t from 0 to 4; the antiderivative of 5t is (5/2)t².
+  - Evaluate (5/2)t² at t = 4 and subtract its value at t = 0.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total number of widgets is the definite integral of the rate function from t =
+        0 to t = 4.
+      expression: ∫₀⁴ 5t dt
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the antiderivative of 5t, which is (5/2)t².
+      expression: (5/2)t²
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the upper limit t = 4.
+      expression: (5/2)(4²) = (5/2)(16) = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the antiderivative at the lower limit t = 0.
+      expression: (5/2)(0²) = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract the lower limit value from the upper limit value.
+      expression: 40 - 0 = 40
+      common_mistake: null
+    final_answer: 40 widgets
+  random_seed: 1307401
+  rendered_question: A factory machine produces widgets at a rate that increases over time. The rate is
+    r(t) = 5t widgets per hour, where t is the number of hours since the machine started. How many widgets
+    does the machine produce during the first 4 hours?
+  option_a: 80 widgets
+  option_b: 20 widgets
+  option_c: 40 widgets
+  option_d: 10 widgets
+  correct_option: c
+- question_template_id: authored-calculus-d4-1307402
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_apply_power_rule_denominator
+  - multiplied_rate_by_time_directly
+  - squared_the_coefficient_instead_of_the_variable
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A printer's speed increases as it warms up. After starting, it prints at a rate of 7t pages per
+    minute, where t is the number of minutes since the start. How many pages are printed in the first
+    4 minutes?
+  context_block: null
+  answer_expression: 7 * 8 = x
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The rate 7t tells you how fast the printer is working at any instant, but the total pages printed
+    requires adding up all those changing rates over the interval.
+  - To find the total pages, integrate the rate function from t = 0 to t = 4 minutes.
+  - Set up the definite integral of 7t from 0 to 4, apply the power rule, and then evaluate at the endpoints.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total number of pages is the integral of the rate function from t = 0 to t = 4.
+      expression: ∫₀⁴ 7t dt
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Apply the power rule for integration: the integral of t is t²/2.'
+      expression: 7 · [t²/2]₀⁴
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Evaluate at the upper limit: substitute t = 4.'
+      expression: 7 · (16/2) = 7 · 8
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Evaluate at the lower limit: substitute t = 0, which gives 0.'
+      expression: 7 · 8 - 0 = 56
+      common_mistake: null
+    final_answer: 56 pages
+  random_seed: 1307402
+  rendered_question: A printer's speed increases as it warms up. After starting, it prints at a rate of
+    7t pages per minute, where t is the number of minutes since the start. How many pages are printed
+    in the first 4 minutes?
+  option_a: 32 pages
+  option_b: 56 pages
+  option_c: 112 pages
+  option_d: 28 pages
+  correct_option: b
+- question_template_id: authored-calculus-d4-1467400
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - evaluated_at_upper_bound_only_forgot_subtraction
+  - added_bounds_instead_of_subtracting
+  - incorrect_antiderivative_power_rule
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A car accelerates at a rate of 4t + 6 metres per second squared, where t is time in seconds. What
+    is the change in the car's velocity from t = 0 to t = 3 seconds?
+  context_block: null
+  answer_expression: v = (2*3**2 + 6*3) - (2*0**2 + 6*0)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the change in velocity from an acceleration function, you need to integrate the acceleration
+    over the given time interval.
+  - The antiderivative of 4t + 6 is 2t² + 6t. Evaluate this at both t = 3 and t = 0.
+  - Calculate [2(3)² + 6(3)] minus [2(0)² + 6(0)] to find the total change.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The change in velocity is the definite integral of acceleration from t = 0 to t = 3.
+        We need to find the antiderivative of 4t + 6.
+      expression: ∫(4t + 6) dt = 2t² + 6t + C
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate the antiderivative at the upper bound t = 3.
+      expression: 2(3)² + 6(3) = 2(9) + 18 = 18 + 18 = 36
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the lower bound t = 0.
+      expression: 2(0)² + 6(0) = 0 + 0 = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract the lower bound value from the upper bound value to find the change in velocity.
+      expression: 36 - 0 = 36
+      common_mistake: null
+    final_answer: 36 metres per second
+  random_seed: 1467400
+  rendered_question: A car accelerates at a rate of 4t + 6 metres per second squared, where t is time
+    in seconds. What is the change in the car's velocity from t = 0 to t = 3 seconds?
+  option_a: 18 metres per second
+  option_b: 36 metres per second
+  option_c: 30 metres per second
+  option_d: 42 metres per second
+  correct_option: b
+- question_template_id: authored-calculus-d4-1467401
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_subtract_lower_bound
+  - evaluated_only_upper_bound
+  - subtracted_in_wrong_order
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory produces widgets at a rate of p(t) = 6t² - 4t + 10 widgets per hour. How many widgets
+    are produced between hour 1 and hour 3?
+  context_block: null
+  answer_expression: x = (2*3**3 - 2*3**2 + 10*3) - (2*1**3 - 2*1**2 + 10*1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find total production, you need to accumulate the rate over the time interval from t = 1 to t =
+    3.
+  - The antiderivative of 6t² - 4t + 10 is 2t³ - 2t² + 10t. Evaluate this at both endpoints.
+  - Compute the antiderivative at t = 3 and subtract the antiderivative at t = 1.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the total number of widgets produced, integrate the rate function p(t) = 6t²
+        - 4t + 10 from t = 1 to t = 3.
+      expression: ∫(6t² - 4t + 10) dt from 1 to 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the antiderivative of 6t² - 4t + 10, which is 2t³ - 2t² + 10t.
+      expression: 2t³ - 2t² + 10t
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the upper bound t = 3.
+      expression: 2(3)³ - 2(3)² + 10(3) = 54 - 18 + 30 = 66
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the antiderivative at the lower bound t = 1.
+      expression: 2(1)³ - 2(1)² + 10(1) = 2 - 2 + 10 = 10
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract the lower bound value from the upper bound value to find the total production.
+      expression: 66 - 10 = 56
+      common_mistake: null
+    final_answer: 56 widgets
+  random_seed: 1467401
+  rendered_question: A factory produces widgets at a rate of p(t) = 6t² - 4t + 10 widgets per hour. How
+    many widgets are produced between hour 1 and hour 3?
+  option_a: 46 widgets
+  option_b: 10 widgets
+  option_c: 56 widgets
+  option_d: 66 widgets
+  correct_option: c
+- question_template_id: authored-calculus-d3-1307302
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - skipped_final_division
+  - confused_total_with_rate
+  - multiplied_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A plant grows at a rate of g(t) = at cm per day, where t is time in days. After 6 days the plant
+    has grown a total of 108 cm. What is the value of a?
+  context_block: null
+  answer_expression: 18*a = 108
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Total growth is found by integrating the rate function from day 0 to day 6.
+  - Set up the definite integral of at from 0 to 6 and evaluate it using the power rule.
+  - Your integral will give you an expression in terms of a that equals 108; solve for a.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Total growth is the definite integral of the rate function from t = 0 to t = 6.
+      expression: ∫₀⁶ at dt
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Apply the power rule for integration: the antiderivative of at is (a t²)/2.'
+      expression: '[a t²/2] from 0 to 6'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Evaluate at the upper limit: a(6²)/2 = 36a/2 = 18a.'
+      expression: 18a
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Evaluate at the lower limit: a(0²)/2 = 0.'
+      expression: '0'
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Subtract to find the total growth: 18a - 0 = 18a.'
+      expression: 18a
+      common_mistake: null
+    - step_number: 6
+      explanation: Set the total growth equal to 108 cm.
+      expression: 18a = 108
+      common_mistake: null
+    - step_number: 7
+      explanation: Divide both sides by 18 to solve for a.
+      expression: a = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 1307302
+  rendered_question: A plant grows at a rate of g(t) = at cm per day, where t is time in days. After 6
+    days the plant has grown a total of 108 cm. What is the value of a?
+  option_a: '648'
+  option_b: '6'
+  option_c: '18'
+  option_d: '108'
+  correct_option: b
+- question_template_id: authored-calculus-d3-1467300
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_subtract_lower_limit
+  - arithmetic_error_in_evaluation
+  - ignored_one_term_of_antiderivative
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A particle moves along a straight track with velocity v(t) = 6t² + 4t meters per second. Find
+    the particle's displacement between t = 0 seconds and t = 2 seconds.
+  context_block: null
+  answer_expression: d = 2*(2)**3 + 2*(2)**2 - (2*(0)**3 + 2*(0)**2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Displacement is the definite integral of velocity over the time interval.
+  - Find the antiderivative of 6t² + 4t, then evaluate it at the endpoints t = 2 and t = 0.
+  - 'The antiderivative is 2t³ + 2t². Substitute both endpoints and subtract: bottom from top.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find displacement, integrate the velocity function v(t) = 6t² + 4t with respect
+        to t.
+      expression: ∫(6t² + 4t) dt
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Apply the power rule for integration: the antiderivative of 6t² is 2t³, and the antiderivative
+        of 4t is 2t².'
+      expression: 2t³ + 2t²
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the upper limit t = 2.
+      expression: 2(2)³ + 2(2)² = 2(8) + 2(4) = 16 + 8 = 24
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the antiderivative at the lower limit t = 0.
+      expression: 2(0)³ + 2(0)² = 0 + 0 = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract the lower limit value from the upper limit value to find the displacement.
+      expression: 24 - 0 = 24
+      common_mistake: null
+    final_answer: 24 meters
+  random_seed: 1467300
+  rendered_question: A particle moves along a straight track with velocity v(t) = 6t² + 4t meters per
+    second. Find the particle's displacement between t = 0 seconds and t = 2 seconds.
+  option_a: 28 meters
+  option_b: 20 meters
+  option_c: 24 meters
+  option_d: 16 meters
+  correct_option: c
+- question_template_id: authored-calculus-d3-1467301
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_antiderivative_coefficient
+  - forgot_to_subtract_lower_bound
+  - integrated_only_one_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A water tank is being filled at a variable rate. The rate in liters per hour is r(t) = 3t² + 6t,
+    where t is the number of hours since filling started. How many liters of water are added to the tank
+    during the first 3 hours?
+  context_block: null
+  answer_expression: V = (3**3 + 3*3**2) - (0**3 + 3*0**2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find total volume added over time, you need to integrate the rate function from the start time
+    to the end time.
+  - The antiderivative of 3t² + 6t is t³ + 3t². Evaluate this expression at both t = 3 and t = 0.
+  - Substitute t = 3 into t³ + 3t², then subtract the result when t = 0.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the antiderivative of the rate function r(t) = 3t² + 6t. The antiderivative
+        of 3t² is t³, and the antiderivative of 6t is 3t².
+      expression: F(t) = t³ + 3t²
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate the antiderivative at the upper bound t = 3.
+      expression: F(3) = 3³ + 3(3²) = 27 + 27 = 54
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the lower bound t = 0.
+      expression: F(0) = 0³ + 3(0²) = 0 + 0 = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract the lower bound evaluation from the upper bound evaluation to find the definite
+        integral.
+      expression: V = F(3) - F(0) = 54 - 0 = 54
+      common_mistake: null
+    final_answer: 54 liters
+  random_seed: 1467301
+  rendered_question: A water tank is being filled at a variable rate. The rate in liters per hour is r(t)
+    = 3t² + 6t, where t is the number of hours since filling started. How many liters of water are added
+    to the tank during the first 3 hours?
+  option_a: 45 liters
+  option_b: 27 liters
+  option_c: 54 liters
+  option_d: 81 liters
+  correct_option: c
+- question_template_id: authored-calculus-d5-1307501
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_square_in_power_rule
+  - doubled_correct_answer_coefficient_error
+  - evaluated_without_squaring
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A water tank fills at a rate that increases over time. The rate is given by r(t) = 6t liters per
+    minute, where t is the time in minutes. How many liters of water enter the tank from t = 0 to t =
+    4 minutes?
+  context_block: null
+  answer_expression: x = 3 * 16
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The total volume is the definite integral of the rate function from 0 to 4 minutes.
+  - Find the antiderivative of r(t) = 6t, then evaluate it at the upper and lower limits.
+  - The antiderivative is 3t². Substitute t = 4 and t = 0, then subtract.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total volume is the definite integral of the rate function r(t) = 6t from t = 0
+        to t = 4.
+      expression: ∫₀⁴ 6t dt
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Find the antiderivative of 6t using the power rule: the antiderivative of t is t²/2,
+        so the antiderivative of 6t is 6t²/2 = 3t².'
+      expression: 3t²
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the upper limit t = 4.
+      expression: 3(4)² = 3(16) = 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the antiderivative at the lower limit t = 0.
+      expression: 3(0)² = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract the value at the lower limit from the value at the upper limit.
+      expression: 48 - 0 = 48
+      common_mistake: null
+    final_answer: 48 liters
+  random_seed: 1307501
+  rendered_question: A water tank fills at a rate that increases over time. The rate is given by r(t)
+    = 6t liters per minute, where t is the time in minutes. How many liters of water enter the tank from
+    t = 0 to t = 4 minutes?
+  option_a: 24 liters
+  option_b: 96 liters
+  option_c: 48 liters
+  option_d: 12 liters
+  correct_option: c
+- question_template_id: authored-calculus-d5-1307502
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 240
+  common_error_tags:
+  - multiplied_rate_by_time_directly
+  - forgot_to_divide_by_new_exponent
+  - forgot_to_subtract_lower_bound
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A garden hose fills a pool at a rate that increases over time. After t hours, the rate is 10t
+    gallons per hour. How many gallons of water enter the pool during the first 3 hours?
+  context_block: null
+  answer_expression: x = 5*3**2 - 5*0**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The rate changes with time, so you need to accumulate all the water added across the interval from
+    0 to 3 hours.
+  - Find the antiderivative of the rate function 10t, then evaluate it at the upper and lower bounds.
+  - The antiderivative of 10t is 5t². Substitute t = 3 and t = 0, then subtract.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total volume is the definite integral of the rate function r(t) = 10t from t =
+        0 to t = 3.
+      expression: ∫₀³ 10t dt
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the antiderivative of 10t. Using the power rule, the antiderivative is 10t²/2
+        = 5t².
+      expression: 5t²
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the upper bound t = 3.
+      expression: 5(3)² = 5(9) = 45
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the antiderivative at the lower bound t = 0.
+      expression: 5(0)² = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract the lower bound value from the upper bound value to find the total volume.
+      expression: 45 - 0 = 45
+      common_mistake: null
+    final_answer: 45 gallons
+  random_seed: 1307502
+  rendered_question: A garden hose fills a pool at a rate that increases over time. After t hours, the
+    rate is 10t gallons per hour. How many gallons of water enter the pool during the first 3 hours?
+  option_a: 45 gallons
+  option_b: 90 gallons
+  option_c: 30 gallons
+  option_d: 15 gallons
+  correct_option: a
+- question_template_id: authored-calculus-d5-1467500
+  topic_id: calculus
+  skill_id: calc_integrals
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 240
+  common_error_tags:
+  - evaluated_only_upper_limit
+  - added_limits_instead_of_subtracting
+  - incorrect_limit_arithmetic
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A pipe drains water at a rate that changes over time. At t minutes, the rate is 3t² + 9 gallons
+    per minute. How much total water flows through the pipe from t = 1 minute to t = 3 minutes?
+  context_block: null
+  answer_expression: x = (3**3 + 9*3) - (1**3 + 9*1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - When the rate of flow changes over time, the total amount is the area under the rate curve from the
+    start time to the end time.
+  - Find the antiderivative of 3t² + 9, which tells you the accumulated total up to any time t.
+  - Evaluate your antiderivative at t = 3 and at t = 1, then subtract the value at 1 from the value at
+    3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total water drained is the definite integral of the rate function from t = 1 to
+        t = 3.
+      expression: ∫₁³ (3t² + 9) dt
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the antiderivative of 3t² + 9. The antiderivative of 3t² is t³, and the antiderivative
+        of 9 is 9t.
+      expression: t³ + 9t
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the antiderivative at the upper limit t = 3.
+      expression: 3³ + 9(3) = 27 + 27 = 54
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate the antiderivative at the lower limit t = 1.
+      expression: 1³ + 9(1) = 1 + 9 = 10
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract the lower evaluation from the upper evaluation to find the total water drained.
+      expression: 54 - 10 = 44
+      common_mistake: null
+    final_answer: 44 gallons
+  random_seed: 1467500
+  rendered_question: A pipe drains water at a rate that changes over time. At t minutes, the rate is 3t²
+    + 9 gallons per minute. How much total water flows through the pipe from t = 1 minute to t = 3 minutes?
+  option_a: 64 gallons
+  option_b: 44 gallons
+  option_c: 54 gallons
+  option_d: 34 gallons
+  correct_option: b
+- question_template_id: authored-calculus-d1-1308100
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_square
+  - stopped_before_final_subtraction
+  - misread_coefficient_sign
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A drone's altitude in metres is given by the expression x² + 3x - 5, where x is the number of
+    seconds since launch. What altitude does the drone approach as time approaches 4 seconds?
+  context_block: ''
+  answer_expression: Eq(x, 4**2 + 3*4 - 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find a limit as x approaches 4, check whether you can substitute x = 4 directly into the expression.
+  - Since x² + 3x - 5 is a polynomial, it is continuous everywhere, so substitute 4 for x.
+  - Calculate 4² first, then 3·4, then combine all three terms.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Because the altitude is given by a polynomial, the function is continuous at x = 4.
+        Evaluate the limit by direct substitution.
+      expression: x² + 3x - 5 at x = 4
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute x = 4 into the expression.
+      expression: 4² + 3(4) - 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Compute 4 squared.
+      expression: 16 + 3(4) - 5
+      common_mistake: null
+    - step_number: 4
+      explanation: Compute 3 times 4.
+      expression: 16 + 12 - 5
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 16 and 12, then subtract 5.
+      expression: 28 - 5 = 23
+      common_mistake: null
+    final_answer: 23 metres
+  random_seed: 1308100
+  rendered_question: A drone's altitude in metres is given by the expression x² + 3x - 5, where x is the
+    number of seconds since launch. What altitude does the drone approach as time approaches 4 seconds?
+  option_a: 21 metres
+  option_b: 19 metres
+  option_c: 28 metres
+  option_d: 23 metres
+  correct_option: d
+- question_template_id: authored-calculus-d1-1308102
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_subtract_constant
+  - added_instead_of_subtracting_constant
+  - squared_only_coefficient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A drone's distance from its launch pad in miles is modeled by the expression 3h² + 2h − 4, where
+    h is the number of hours it has been flying. What is the distance as h approaches 3 hours?
+  context_block: null
+  answer_expression: Eq(d, 3*3**2 + 2*3 - 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Since the expression is a polynomial, you can substitute h = 3 directly into 3h² + 2h − 4.
+  - 'Replace every h with 3: 3(3)² + 2(3) − 4, and compute each term.'
+  - Calculate 3 times 9, then add 2 times 3, then subtract 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute h = 3 into the expression 3h² + 2h − 4.
+      expression: 3(3)² + 2(3) − 4
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the square: 3² = 9.'
+      expression: 3(9) + 2(3) − 4
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply: 3 times 9 is 27, and 2 times 3 is 6.'
+      expression: 27 + 6 − 4
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add and subtract from left to right: 27 + 6 = 33, then 33 − 4 = 29.'
+      expression: '29'
+      common_mistake: null
+    final_answer: 29 miles
+  random_seed: 1308102
+  rendered_question: A drone's distance from its launch pad in miles is modeled by the expression 3h²
+    + 2h − 4, where h is the number of hours it has been flying. What is the distance as h approaches
+    3 hours?
+  option_a: 33 miles
+  option_b: 29 miles
+  option_c: 23 miles
+  option_d: 25 miles
+  correct_option: b
+- question_template_id: authored-calculus-d1-1468100
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_square
+  - added_constant_instead_of_subtracting
+  - subtracted_wrong_constant
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A drone's altitude in metres is modelled by the function h(x) = x² + 3x - 2, where x is the number
+    of seconds after launch. What value does the altitude approach as the time approaches 4 seconds?
+  context_block: null
+  answer_expression: Eq(L, 4**2 + 3*4 - 2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - For a polynomial, the limit as x approaches a value is the same as the function's value at that point.
+  - Substitute x = 4 into h(x) = x² + 3x - 2.
+  - Calculate 4² first, then 3(4), then combine all three terms.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute x = 4 into the function h(x) = x² + 3x - 2.
+      expression: h(4) = 4² + 3(4) - 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate the squared term.
+      expression: 4² = 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the linear term.
+      expression: 3(4) = 12
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine all three terms.
+      expression: 16 + 12 - 2 = 26
+      common_mistake: null
+    final_answer: '26'
+  random_seed: 1468100
+  rendered_question: A drone's altitude in metres is modelled by the function h(x) = x² + 3x - 2, where
+    x is the number of seconds after launch. What value does the altitude approach as the time approaches
+    4 seconds?
+  option_a: '24'
+  option_b: '30'
+  option_c: '26'
+  option_d: '14'
+  correct_option: c
+- question_template_id: authored-calculus-d1-1468101
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_subtract_5
+  - stopped_after_exponent_and_multiply
+  - added_5_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A scientist models temperature data for a reaction using f(x) = 2x² - x + 3, where x is time in
+    hours and f(x) is temperature in degrees. What is the limit of f(x) as x approaches 5?
+  context_block: null
+  answer_expression: Eq(L, 2*5**2 - 5 + 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find a limit as x approaches 5 for a polynomial, substitute x = 5 into the function.
+  - Evaluate 2(5)² - 5 + 3 step by step, starting with the exponent.
+  - Compute 2 times 25, then subtract 5, then add 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Since the function is a polynomial, the limit as x approaches 5 is found by direct
+        substitution.
+      expression: L = 2(5)² - 5 + 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate the exponent first.
+      expression: L = 2(25) - 5 + 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 2 by 25.
+      expression: L = 50 - 5 + 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 5 from 50.
+      expression: L = 45 + 3
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 3 to 45 to find the limit.
+      expression: L = 48
+      common_mistake: null
+    final_answer: 48 degrees
+  random_seed: 1468101
+  rendered_question: A scientist models temperature data for a reaction using f(x) = 2x² - x + 3, where
+    x is time in hours and f(x) is temperature in degrees. What is the limit of f(x) as x approaches 5?
+  option_a: 45 degrees
+  option_b: 53 degrees
+  option_c: 48 degrees
+  option_d: 50 degrees
+  correct_option: c
+- question_template_id: authored-calculus-d2-1308201
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_final_subtraction
+  - forgot_linear_term
+  - added_terms_instead_of_evaluating
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular garden's area in square feet is given by the expression 2s² + 3s − 1, where s is
+    the width in feet. What is the area as s approaches 6 feet?
+  context_block: null
+  answer_expression: Eq(A, 2*6**2 + 3*6 - 1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Since the limit is evaluated at s = 6, substitute that value directly into the expression.
+  - Replace every s in 2s² + 3s − 1 with 6, then simplify using order of operations.
+  - Calculate 2(6)² first, then 3(6), and finally combine all three terms.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute s = 6 into the area expression 2s² + 3s − 1.
+      expression: 2(6)² + 3(6) − 1
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the exponent: 6² = 36.'
+      expression: 2(36) + 3(6) − 1
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply: 2 × 36 = 72 and 3 × 6 = 18.'
+      expression: 72 + 18 − 1
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add and subtract from left to right: 72 + 18 = 90, then 90 − 1 = 89.'
+      expression: '89'
+      common_mistake: null
+    final_answer: 89 square feet
+  random_seed: 1308201
+  rendered_question: A rectangular garden's area in square feet is given by the expression 2s² + 3s −
+    1, where s is the width in feet. What is the area as s approaches 6 feet?
+  option_a: 89 square feet
+  option_b: 90 square feet
+  option_c: 71 square feet
+  option_d: 17 square feet
+  correct_option: a
+- question_template_id: authored-calculus-d2-1308202
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_square_before_multiplying
+  - subtracted_constant_instead_of_adding
+  - added_constant_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A bakery's daily cost in dollars is modeled by the expression 3r² - 2r + 5, where r is the number
+    of batches of bread produced. What is the cost as the number of batches approaches 4?
+  context_block: null
+  answer_expression: Eq(C, 3*4**2 - 2*4 + 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Since the cost expression is a polynomial, you can find the limit by evaluating it directly at the
+    value r is approaching.
+  - Substitute r = 4 into the expression 3r² - 2r + 5.
+  - Calculate 3(4)² first, then subtract 2(4), and finally add 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Because the cost function is a polynomial, we evaluate the limit by direct substitution
+        of r = 4.
+      expression: 3(4)^2 - 2(4) + 5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'First compute the squared term: 4² = 16, so 3(16) = 48.'
+      expression: 48 - 2(4) + 5
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Next compute the linear term: 2(4) = 8, so we have 48 - 8 + 5.'
+      expression: 48 - 8 + 5
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine the terms: 48 - 8 = 40, then 40 + 5 = 45.'
+      expression: '45'
+      common_mistake: null
+    final_answer: 45 dollars
+  random_seed: 1308202
+  rendered_question: A bakery's daily cost in dollars is modeled by the expression 3r² - 2r + 5, where
+    r is the number of batches of bread produced. What is the cost as the number of batches approaches
+    4?
+  option_a: 53 dollars
+  option_b: 40 dollars
+  option_c: 43 dollars
+  option_d: 45 dollars
+  correct_option: d
+- question_template_id: authored-calculus-d2-1468200
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - miscalculated_exponent_or_dropped_term
+  - added_final_constant_instead_of_subtracting
+  - stopped_before_final_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An engineer models the strength of a beam under load with the function f(x) = x³ + 2x - 1, where
+    x is the load in tons. What is the limit of f(x) as x approaches 3?
+  context_block: null
+  answer_expression: Eq(L, 3**3 + 2*3 - 1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Because the function is a polynomial, you can find the limit by substituting the value directly into
+    the expression.
+  - Substitute x = 3 into f(x) = x³ + 2x - 1.
+  - Compute 3³ first, then add 2 times 3, then subtract 1.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The function is a polynomial, so the limit as x approaches 3 is found by direct substitution.
+      expression: f(3) = 3³ + 2(3) - 1
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the cube: 3³ equals 27.'
+      expression: f(3) = 27 + 2(3) - 1
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 2 by 3 to get 6.
+      expression: f(3) = 27 + 6 - 1
+      common_mistake: null
+    - step_number: 4
+      explanation: Add 27 and 6 to get 33, then subtract 1.
+      expression: f(3) = 33 - 1 = 32
+      common_mistake: null
+    final_answer: 32 units
+  random_seed: 1468200
+  rendered_question: An engineer models the strength of a beam under load with the function f(x) = x³
+    + 2x - 1, where x is the load in tons. What is the limit of f(x) as x approaches 3?
+  option_a: 34 units
+  option_b: 32 units
+  option_c: 28 units
+  option_d: 33 units
+  correct_option: b
+- question_template_id: authored-calculus-d2-1468201
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting_middle_term
+  - dropped_constant_term
+  - squared_entire_expression_instead_of_first_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory's profit is modeled by P(x) = x² - 2x + 5, where x is production in thousands of units.
+    What is the limit of P(x) as x approaches 6?
+  context_block: null
+  answer_expression: Eq(L, 6**2 - 2*6 + 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Since P is a polynomial, the limit as x approaches 6 is the same as the value of P at 6.
+  - Substitute x = 6 into the expression x² - 2x + 5.
+  - Calculate 6² first, then subtract 2 times 6, and finally add 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Because P(x) is a polynomial, it is continuous everywhere, so the limit as x approaches
+        6 equals P(6).
+      expression: lim (x→6) P(x) = P(6)
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute x = 6 into the function P(x) = x² - 2x + 5.
+      expression: P(6) = 6² - 2(6) + 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate 6 squared.
+      expression: 6² = 36
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 2 by 6.
+      expression: 2(6) = 12
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the terms: 36 - 12 + 5.'
+      expression: 36 - 12 + 5 = 29
+      common_mistake: null
+    final_answer: 29 thousand dollars
+  random_seed: 1468201
+  rendered_question: A factory's profit is modeled by P(x) = x² - 2x + 5, where x is production in thousands
+    of units. What is the limit of P(x) as x approaches 6?
+  option_a: 31 thousand dollars
+  option_b: 29 thousand dollars
+  option_c: 24 thousand dollars
+  option_d: 41 thousand dollars
+  correct_option: b
