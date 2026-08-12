@@ -236,6 +236,31 @@ export async function dismissNarrativeIfPresent(page: Page): Promise<boolean> {
 export async function clearInterventionIfPresent(page: Page): Promise<boolean> {
   const firstPause = page.getByRole("heading", { name: /want a hand/i });
   const content = page.locator(".intervention-panel");
+
+  // **Wait for the pause to ARRIVE, not merely test whether it has** (D-288).
+  //
+  // This used to read `count()` once and return false the instant neither locator was
+  // present. Locally that is right - MockBedrock answers in milliseconds, so the pause is
+  // already on screen. Against staging it is a race the walk always lost: a wrong answer's
+  // intervention arrives over SSE after a real network round trip, the walk read "no
+  // pause", and `answerCurrentQuestion` then clicked straight through the panel. Measured
+  // on the first whole staging run: 11 study answers, **0 ladder pauses**, on a walk that
+  // picks the first option every time and is therefore wrong ~74% of the time (the bank's
+  // correct answer sits at A in 26% of items). The retry ladder - SPEC §5.11.3, the
+  // centrepiece of the study phase - had never once been exercised against staging, and
+  // only `expect(interventions).toBeGreaterThan(0)` noticed.
+  //
+  // Raced against the question's own options rather than given a fixed timeout, so a
+  // question with genuinely no pause costs nothing: whichever screen materialises first
+  // ends the wait.
+  const options = page.locator(".option-text");
+  await firstPause
+    .or(content)
+    .or(options)
+    .first()
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .catch(() => undefined);
+
   if ((await firstPause.count()) === 0 && (await content.count()) === 0) return false;
 
   if ((await firstPause.count()) > 0) {
