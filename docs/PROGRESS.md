@@ -8,8 +8,13 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 ### Next session
 
 **Session C1: Phases 0 ✅, R ✅, 1 ✅ (all four grade bands), 5 ✅ (figures). 2026-08-11/12,
-D-273 through D-284. 620 approved and exported, 0 pending, ~$28 spent, 1375 passing.
-Merged as #234, #235, #236, #237 and deployed — the bank is live on staging.**
+D-273 through D-285. 620 approved and exported, 0 pending, ~$28 spent, 1375 passing.
+Merged as #234, #235, #236, #237, #238, #239 and deployed — the bank is live on staging.**
+
+**The first hand audit of generated content happened here (D-285), four waves late.** 54 items,
+every answer re-derived: **0 wrong keys, 13% carrying a defect determinism cannot see.** Six
+fixed. The two patterns it exposed — duplicate scenarios across skills, and a difficulty ladder
+that does not ascend — are carry-over #2 and are worth more than the 13%.
 
 **The 6-12 wave is shipped.** It had been generated but never exported, so twelve topics held
 approvable content and zero served items; ten topic files were created for the first time.
@@ -100,14 +105,20 @@ the auto-approved set; the readability ceiling is **not** miscalibrated for olde
 
 **Carry-over, in the order they matter:**
 
-1. **There is still no human-rejection rate, and it is now worse than "unmeasured".** Four waves,
-   review skipped on the user's instruction each time — and the 620 items are no longer pending
-   in a queue, they are **approved, exported, committed and deployed to staging**. Nobody has
-   read one. This is the evidence Phase 3's auto-approval decision is supposed to rest on, and
-   the decision has now been taken four times without it. `list_unreviewed_bank_items.py` still
-   reproduces the set and `review_priority='high'` still sorts them first, so the revert is one
-   command — but the item that was cheap to do at wave one is now the largest single unknown in
-   the product.
+1. ~~**There is no human-rejection rate.**~~ **Taken, four waves late — D-285.** 54 items read
+   end to end, one per (topic × difficulty) across the twelve topics that shipped, every answer
+   re-derived. **All 54 answer keys correct**; **7 of 54 (13%)** carry a defect the gate cannot
+   see, all of it prose: 2 incoherent, 5 impossible-world. Six fixed, one withdrawn on a closer
+   read. Auto-approval ships a bank whose *answers* are trustworthy and whose *prose* is roughly
+   one-in-eight unreliable — a credibility cost for a K-12 product, not a correctness one.
+   **Still open:** the sample over-weights high tiers, so 13% is an order of magnitude rather
+   than a rate, and 566 of the 620 items remain unread.
+2. **Two systemic patterns cost more than the 13%** (D-285), and neither is a per-item defect:
+   - **28% of the sample sits in a near-duplicate pair or trio.** D-275's scenario memory is
+     `_SCENARIO_MEMORY = 5` **per skill**, so it cannot see across skills — and that is exactly
+     where these landed, including nearly the same gift-bag sentence in two different topics.
+   - **The difficulty ladder does not ascend.** Three identical "mean of five numbers" tasks at
+     d1, d2 and d3. The judge scores each item against a rubric; nothing scores a *ladder*.
 2. **29 approved `linear_equations` items are unreachable** (D-284) — `active_status='pending'`,
    a value nothing in this codebase writes, so they are excluded from both the export and the
    serving path. Establish where they came from *before* deciding whether to activate them.
