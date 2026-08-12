@@ -20328,3 +20328,68 @@ words and should be two sentences. **The rule is right and the content is wrong.
 The generator prompt already says "keep every sentence under 30 words" and 19 items broke it
 anyway — D-252's finding a third time. Asking does not hold; the lever is D-198's repair path,
 which is off by default and is what the re-run turns on.
+
+### D-281 — A verified model can answer more than one question, and the gate assumed it could not
+
+**Date:** 2026-08-12 · **Session:** C1 (during the repair re-run)
+
+**The measurement: 0 candidates accepted out of 28**, across all three inequality skills —
+`alg1_inequalities`, `alg_inequalities`, `g68_wp_inequalities`. Not a low yield; none. And the
+rejected items were correct:
+
+```
+stem     "A collector has 12 trading cards and receives 6 new cards each month.
+          She wants at least 54 cards. What is the smallest number of months?"
+equation "12 + 6*m >= 54"
+answer   "7 months"
+```
+
+`route_answer` reads an inequality as the `interval` model, derived `Interval(7, oo)`, and
+compared a solution **set** against the string `"7 months"`. Both are honest readings of one
+correctly-modelled inequality — "which values work?" wants the set, "what is the smallest
+number of months?" wants the boundary — and the gate admitted only the first. So a **threshold
+word problem, the ordinary way to ask an inequality, could not be accepted at all.** A bare
+polynomial had the same shape: `-2*t**2 + 10*t - 12` reads as `symbolic` ("the answer *is* this
+expression") when the stem asks at what two times the balloon reaches the ground.
+
+**`route_answer` is unchanged.** Its form-over-declaration contract is right (D-252: a declared
+model is a second field that can disagree with the first). The gap is narrower than the router:
+for two forms the form does not determine *what the student is asked to write*. So the second
+reading lives in `check_sympy_independent_solve`, where the options are — and the item's own
+options, data the gate already trusts, do the disambiguating. Nothing is asked of a model.
+
+**Why this is not a loosening**, which is the only real question about a fix that turns
+rejections into passes:
+
+1. It runs **only when the first reading matches nothing** — so it can turn a rejection into a
+   pass, never into a *different* pass, and an item the gate already accepted never reaches it.
+2. The second reading must match **exactly one** option — the same bar the first one clears.
+3. **An open boundary yields nothing rather than an off-by-one guess.** `m >= 7` admits 7;
+   `m > 7` does not, and its smallest *whole* value is 8 only if the quantity is counted at all.
+   That off-by-one is precisely the distractor these items carry. This costs nothing measurable:
+   all 19 recovered inequality items came from closed boundaries, none from open ones.
+
+**Result: 27 rejections recover**, 17 in the three inequality skills, re-gated offline for $0.
+
+**Two corrections of my own, recorded because both were the kind that survive if unstated.**
+
+*The first number was 80 and it was wrong.* Re-gating every stored rejection showed 80 now
+passing — but 53 of those had **already passed the deterministic gate** and been rejected by the
+solvers, the judge, or the difficulty check, which a gate fix cannot touch. The honest figure is
+27, and even those clear only the gate; they still face the paid stages.
+
+*The negative control was vacuous.* The script reported "0 accepted items would change verdict",
+which examined **nothing**: only *rejected* runs store a `candidate_snapshot`, so there were 158
+accepted runs and 0 re-gatable ones. It is labelled as vacuous in the script rather than deleted,
+so the next reader does not rediscover that the accepted side is unobservable from that table.
+Precision rests on the structural argument above and on the distractor tests, which score the
+direction that matters — every off-by-one is still rejected when declared correct (D-246).
+
+**The method lesson, and it is the reusable part.** D-280's offline re-gate read all 109
+rejections and recovered 11 — and **missed this entirely**, because it measured "what do the
+fixes I already wrote recover", not "what else is wrong". What found it was classifying the
+rejection *messages* and noticing one class was 36% of the total, then reading three of its items
+end to end. **A re-gate scores a hypothesis; reading the rejections generates one.** The
+0-of-28 number was available the whole time and nothing was looking at it, which is also why
+`generation_plan` acceptance should be tracked per skill, not per topic — a topic average of
+33% hid a skill at zero.

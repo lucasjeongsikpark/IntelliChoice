@@ -916,6 +916,53 @@ def _option_as_tuple(text: str) -> tuple[sympy.Basic, ...] | None:
     return tuple(values)
 
 
+def _second_readings(derivation: DerivedAnswer, equation: str) -> list[DerivedAnswer]:
+    """Other answers the same verified model legitimately supports (D-281).
+
+    `route_answer` decides the model from the equation's *form*, which is right (D-252) but
+    incomplete: for two forms the form does not determine what the student is asked to
+    write, and the gate was treating its own first reading as the only one.
+
+    - **An inequality.** `12 + 6*m >= 54` solves to `Interval(7, oo)`. A question asking
+      "which values work?" wants that set; "what is the smallest number of months?" wants
+      `7`. Both are honest readings of one verified inequality. Measured cost of admitting
+      only the first: **0 candidates accepted out of 28 across all three inequality
+      skills** - the gate could not accept a threshold word problem at all, which is the
+      ordinary way to ask one.
+    - **A bare polynomial.** `-2*t**2 + 10*t - 12` with no relation is read as `symbolic`
+      ("the answer IS this expression"), but a stem asking "at what two times is the
+      balloon at ground level" means `Eq(expr, 0)`, whose roots are 2 and 3.
+
+    **Only a closed finite boundary yields a value.** `m >= 7` admits 7; `m > 7` does not,
+    and its smallest *whole* value is 8 only if the quantity is counted at all. That
+    distinction is exactly the off-by-one the distractors in these items carry, so an open
+    boundary returns nothing rather than guessing. This is not a hypothetical restraint:
+    all 19 recovered inequality items came from closed boundaries and none from open ones,
+    so declining costs nothing measurable and removes the only way this could be lenient.
+
+    The readings are *candidates*, not verdicts. The caller accepts one only when it
+    matches exactly one option, so the item's own options - data the gate already trusts -
+    do the disambiguating, and nothing is asked of a model.
+    """
+    if derivation.model == "interval":
+        if not isinstance(derivation.payload, sympy.Interval):
+            return []
+        return [
+            DerivedAnswer("value", (endpoint,))
+            for endpoint, is_open in (
+                (derivation.payload.left, derivation.payload.left_open),
+                (derivation.payload.right, derivation.payload.right_open),
+            )
+            if not is_open and endpoint.is_number and endpoint not in (sympy.oo, -sympy.oo)
+        ]
+
+    if derivation.model == "symbolic":
+        solved, _ = route_answer(f"Eq({equation}, 0)")
+        return [solved] if solved is not None else []
+
+    return []
+
+
 def check_sympy_independent_solve(
     item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
 ) -> None:
@@ -943,6 +990,22 @@ def check_sympy_independent_solve(
     options = _options(item)
     matches = [label for label, text in options.items() if _option_matches(derivation, text)]
     derived = derivation.payload
+
+    # D-281. Only when the first reading matches *nothing* - never to break a tie the first
+    # reading already made, and never to add a second match to one it made. So this can
+    # turn a rejection into a pass, but it can never turn a rejection into a *different*
+    # pass, and an item the gate already accepted takes this path not at all.
+    if not matches:
+        for reading in _second_readings(derivation, item.equation):
+            second = [
+                label for label, text in options.items() if _option_matches(reading, text)
+            ]
+            # Exactly one, or the item is still ambiguous and stays rejected - the same
+            # bar the first reading has to clear.
+            if len(second) == 1:
+                matches, derivation, derived = second, reading, reading.payload
+                break
+
     if item.correct_option not in matches:
         result.fail(
             f"{derivation.model} answer {derived} derived from the equation does not match "
