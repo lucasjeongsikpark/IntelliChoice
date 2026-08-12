@@ -1737,6 +1737,29 @@ async def _attempt_authored_candidate(
             ["duplicate rendered_question (exact text match)"], stage_results, "dedup"
         )
 
+    # D-286: the same sentence with different numbers, in a *different topic*. Free - one
+    # indexed-scan query, no embedding call - and placed before the paid embedding below
+    # for that reason. It closes the gap between the exact check above (global, but needs
+    # the digits to match) and the cosine check below (fuzzy, but scoped to one topic),
+    # which is precisely where three collisions landed in the shipped bank: "Liam has 9
+    # stickers in his album..." reached both `g1_addition` and `g2_word_problems`.
+    if duplicate_id := await repo.stem_skeleton_exists_in_another_topic(
+        topic_id=topic_id, rendered_question=rendered_question
+    ):
+        stage_results["deduplication"] = {
+            "passed": False,
+            "reason": "same stem skeleton in another topic",
+            "existing_question_template_id": duplicate_id,
+        }
+        return await _reject(
+            [
+                f"the same question with different numbers already exists in another topic "
+                f"({duplicate_id}) - change the setting, not just the digits"
+            ],
+            stage_results,
+            "dedup",
+        )
+
     # --- 2b. Same calculation, different story (D-273) ----------------------------
     #
     # **The cause is fixed upstream; this backstop is not wired, and that ordering is the

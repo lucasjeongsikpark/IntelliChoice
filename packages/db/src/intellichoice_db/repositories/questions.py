@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 
 from sqlalchemy import func, select
@@ -239,6 +240,53 @@ class QuestionRepository:
         )
         result = await self._session.execute(stmt)
         return result.first() is not None
+
+    async def stem_skeleton_exists_in_another_topic(
+        self, *, topic_id: str, rendered_question: str
+    ) -> str | None:
+        """The same sentence with different numbers, already used by a **different** topic
+        (D-286). Returns the offending template id, or None.
+
+        **The gap this closes, measured.** `rendered_question_exists` above is global but
+        needs an *exact* match, and the near-duplicate embedding check is scoped to one
+        `topic_id`. Between them sits the case that actually occurred three times:
+
+            g1_addition        "Liam has 9 stickers in his album. His friend gives him 6 more..."
+            g2_word_problems   "Liam has 9 stickers in his album. His friend gives him 6 more..."
+
+        Different numbers, so not an exact match; different topics, so the embedding check
+        never compared them. A student meeting Liam and his stickers in two grades notices.
+
+        **Why different topics only, and not everywhere.** Within one topic a repeated
+        skeleton is usually *correct*: `place_value_compare` asks "Which of these numbers is
+        the largest?" twelve times and there is no other way to phrase it - the question
+        lives in the options. Applying this globally would reject eleven of those twelve.
+        Across topics there is no such case: a topic is the unit of curriculum content, and
+        two topics sharing a story verbatim is duplication whatever the grades involved.
+
+        **Why not widen the embedding check instead.** Grade-1 and grade-2 addition problems
+        are *supposed* to resemble each other - that is the curriculum spiral - so a global
+        cosine threshold would reject correct content by design. Normalising the digits is
+        the narrower instrument: it fires only on the same sentence, never on the same idea.
+        """
+        skeleton = func.regexp_replace(
+            func.lower(QuestionVariant.rendered_question), r"[0-9]+(\.[0-9]+)?", "#", "g"
+        )
+        target = re.sub(r"[0-9]+(\.[0-9]+)?", "#", rendered_question.lower())
+        stmt = (
+            select(QuestionTemplate.question_template_id)
+            .join(
+                QuestionVariant,
+                QuestionVariant.question_template_id == QuestionTemplate.question_template_id,
+            )
+            .where(
+                QuestionVariant.origin == VARIANT_ORIGIN_CANONICAL,
+                QuestionTemplate.topic_id != topic_id,
+                skeleton == target,
+            )
+            .limit(1)
+        )
+        return (await self._session.execute(stmt)).scalar_one_or_none()
 
     async def activate_template(self, question_template_id: str) -> QuestionTemplate:
         """SPEC §5.8.3 "Activate" step. Only promotes a template already sitting at
