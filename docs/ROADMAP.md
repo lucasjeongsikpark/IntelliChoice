@@ -1919,6 +1919,23 @@ test` + e2e (never concurrently with pytest — shared dev Postgres).
 *Done when:* e2e green including new-band walks, zero console errors on the full walks, and
 staging serves the seeded bank end to end.
 
+⏸ **partial, 2026-08-12 — D-288.** Measured against the criterion above, clause by clause:
+
+- **New-band walks: ✅** `journey-bands.spec.ts` walks grade 1 × Telling the Time (the figure
+  walk — the clock SVG is asserted), grade 4 × Multi-Digit, grade 7 × Pre-Algebra, grade 10 ×
+  Calculus. All four pass **on staging**, each on its own fixture student.
+- **Zero console errors on those walks: ✅** enforced by the capture fixture over each walk.
+- **Staging serves the seeded bank: ✅ and it did not before.** 17 of 33 topics were below the
+  per-difficulty serving floor and could not be opened at all; the four figure topics are fixed
+  here, and the other 13 are Phase 3's deepening pass with a per-tier shopping list.
+- **e2e green as a whole run: ❌** staging is 22 passed / 2 failed. One is a product defect with
+  four explanations tested and killed (D-288); the other is `time-telemetry`.
+- **Math rendering for advanced content: ✅, and it was broken** — options rendered raw, so 64
+  fields showed students SymPy. Fixed, with a gate check.
+- **Grade-1 reading level in tutor replies: ⏸ not measured.** The stems are gate-checked; the
+  replies are not, and no runtime readability check exists (the plug points are named in D-288's
+  exploration). This is the one clause of the criterion no work was done against.
+
 **Budget guardrails, session-wide:** every paid run behind a green preflight and an explicit
 `--run-budget-cents`; waves sized to ~100–150 review items so the human bottleneck is paced;
 generation is the cheap part (pilot ~$15–40, full depth low hundreds of dollars at the one

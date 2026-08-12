@@ -7,9 +7,30 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1: Phases 0 ✅, R ✅, 1 ✅ (all four grade bands), 5 ✅ (figures). 2026-08-11/12,
-D-273 through D-285. 620 approved and exported, 0 pending, ~$28 spent, 1375 passing.
-Merged as #234, #235, #236, #237, #238, #239 and deployed — the bank is live on staging.**
+**Session C1: Phases 0 ✅, R ✅, 1 ✅ (all four grade bands), 5 ✅ (figures), 6 ⏸ partial.
+2026-08-11/12, D-273 through D-288. 658 approved and exported, 0 pending, ~$28 spent,
+1392 passing. Merged as #234 through #244 and deployed — the bank is live on staging.**
+
+**Phase 6 watched all four grade bands for the first time (D-288), and found four defects
+before the staging run even started.** The order matters: the frontend one came from *reading*
+during planning, the serving-floor one from *preparing* fixture students, the 503 from the
+*first local* walk, and the retry-ladder one from the *first staging* walk.
+
+1. **Students were reading SymPy.** Options and stems render as raw strings — `RichText` covers
+   tutor text only — so 64 fields showed `(x + 1)*(x + 12)`, `6*t + 5`, `2**5`. Rewritten, plus
+   a gate check so no wave re-ships it.
+2. **17 of 33 topics were invisible to students** — 208 approved items in topics that could not
+   be opened, because serving needs ≥2 items at *every* tier and no wave's "done when" checked
+   it. `algebra_1`, hand-audited that morning and deployed twice, has **zero d1 items**.
+3. **Exam finalize 503'd on calculus.** An empty *taxonomy* skill has no mastery row, ties at
+   0.0, and wins study-target selection **because nobody has ever practised it**.
+4. **The staging walk had never once exercised the retry ladder** — 11 study answers, 0 pauses,
+   on a walk that is wrong ~74% of the time.
+
+**Open, with its wrong explanations already eliminated:** `journey-student`'s refresh test
+fails on staging (Question 3 → Question 1 after a reload) and passes locally. Session sharing,
+answer durability, CloudFront caching and the D-272 restore guard were each tested and killed;
+the next step is server-side logs.
 
 **The first hand audit of generated content happened here (D-285), four waves late.** 54 items,
 every answer re-derived: **0 wrong keys, 13% carrying a defect determinism cannot see.** Six
@@ -113,23 +134,34 @@ the auto-approved set; the readability ceiling is **not** miscalibrated for olde
    one-in-eight unreliable — a credibility cost for a K-12 product, not a correctness one.
    **Still open:** the sample over-weights high tiers, so 13% is an order of magnitude rather
    than a rate, and 566 of the 620 items remain unread.
-2. **Two systemic patterns cost more than the 13%** (D-285), and neither is a per-item defect:
-   - **28% of the sample sits in a near-duplicate pair or trio.** D-275's scenario memory is
-     `_SCENARIO_MEMORY = 5` **per skill**, so it cannot see across skills — and that is exactly
-     where these landed, including nearly the same gift-bag sentence in two different topics.
-   - **The difficulty ladder does not ascend.** Three identical "mean of five numbers" tasks at
-     d1, d2 and d3. The judge scores each item against a rubric; nothing scores a *ladder*.
-2. **29 approved `linear_equations` items are unreachable** (D-284) — `active_status='pending'`,
-   a value nothing in this codebase writes, so they are excluded from both the export and the
-   serving path. Establish where they came from *before* deciding whether to activate them.
-3. **The rejection messages name symptoms, not remedies** (D-283). Rewriting them is the
+2. ~~**Two systemic patterns cost more than the 13%.**~~ **Both measured and closed** — the
+   duplicate half in D-286 (bank-wide it is **1.5%, not 28%**; the audit's strata took adjacent
+   tiers *within* a skill, which is where a generator repeats itself, so the sample design
+   manufactured the rate — and the real defect, three cross-topic story repeats, is closed by a
+   skeleton check), the ladder half in D-287 (**19% of rungs are flat**, measured and reported
+   rather than gated, because `9 + 8` and `7 + 2` share a shape and a magnitude and one is
+   genuinely harder). The **content** work those two measurements name is Phase 3's.
+3. **13 topics are still below the serving floor** (D-288) — every difficulty needs ≥2 approved
+   items or the topic cannot be opened at all, and 208 approved items sit in ones that cannot.
+   `algebra_1` has zero d1 items. This is Phase 3's deepening pass and it now has an exact
+   per-tier shopping list rather than a guess.
+4. **A refresh mid-exam restores the wrong question, on staging only** (D-288). Question 3 →
+   Question 1 after a reload; passes locally. Session sharing, answer durability, CloudFront
+   caching and the D-272 restore guard were each tested and **killed** — the next step is
+   server-side logs for that session. `time-telemetry` also fails on staging, uninvestigated.
+5. **Grade-1 reading level in tutor replies is unmeasured** (D-288) — the one clause of Phase
+   6's own "done when" that no work was done against. Stems are gate-checked at authoring; the
+   replies are not, and no runtime readability check exists. Prompts say "age-appropriate" and
+   carry the student's grade, but never tie the two together.
+6. **`session_scope` never commits** (D-284 addendum) — any one-off script writing through it
+   without an explicit commit is a no-op **that reports success**. The pipeline and CLIs commit
+   deliberately; the exposure is ad-hoc scripts.
+7. **The rejection messages name symptoms, not remedies** (D-283). Rewriting them is the
    experiment that decides whether repair is worth turning on, and it is cheap: one topic,
    repair on, compare.
-4. The figure renderers have **no e2e walk** — they typecheck and their specs are gated, but no
-   test has watched a student answer a clock question.
-5. `arithmetic_identity` is still unwired (from D-273), and the cross-skill duplicate limit
+8. `arithmetic_identity` is still unwired (from D-273), and the cross-skill duplicate limit
    (2 of 160 in `measurement`) is recorded rather than fixed.
-6. **`main` is still unprotected** — carried since #20. Everything this session went through a
+9. **`main` is still unprotected** — carried since #20. Everything this session went through a
    PR with CI, but by choice rather than by anything preventing otherwise.
 
 **Superseded plan text below, kept for the phase definitions:** Phase 1 is the first phase that spends money, and two
