@@ -15,6 +15,7 @@ against the values already in hand, mirroring `validation.py`'s own scope split 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from tokenize import TokenError
 
@@ -515,6 +516,35 @@ _COMPONENT_ASSIGNMENT_RE = re.compile(r"^\s*[A-Za-z]\w*\s*=\s*")
 _IDENTIFIER_ONLY_RE = re.compile(r"[A-Za-z]\w*")
 _NUMERIC_LITERAL_RE = re.compile(r"[+-]?\d+(?:\.\d+)?")
 
+# How a child states a solution set (D-282). Read only when the option carries no `<` or
+# `>` at all, so nothing that parses as mathematics is reinterpreted as English.
+#
+# **Order is load-bearing.** "no more than 10" contains "more than 10", so the negated forms
+# must be tried first or every one of them would be read as its own opposite - the single
+# worst failure available here, since it would accept an item stating exactly the wrong
+# bound. The tests pin this ordering directly rather than trusting the arrangement below.
+_NUMBER_IN_TEXT_RE = re.compile(r"-?\d+(?:\.\d+)?")
+_PROSE_INTERVAL_FORMS: tuple[tuple[re.Pattern[str], Callable[[sympy.Expr], sympy.Set]], ...] = (
+    (
+        re.compile(r"\bno (?:more|greater|later|higher) than\b"),
+        lambda n: sympy.Interval(-sympy.oo, n),
+    ),
+    (
+        re.compile(r"\bno (?:fewer|less|earlier|lower) than\b"),
+        lambda n: sympy.Interval(n, sympy.oo),
+    ),
+    (re.compile(r"\bat least\b|\bminimum of\b"), lambda n: sympy.Interval(n, sympy.oo)),
+    (re.compile(r"\bat most\b|\bmaximum of\b|\bup to\b"), lambda n: sympy.Interval(-sympy.oo, n)),
+    (
+        re.compile(r"\b(?:more|greater|larger) than\b|\bover\b|\babove\b"),
+        lambda n: sympy.Interval.open(n, sympy.oo),
+    ),
+    (
+        re.compile(r"\b(?:fewer|less|smaller) than\b|\bunder\b|\bbelow\b"),
+        lambda n: sympy.Interval.open(-sympy.oo, n),
+    ),
+)
+
 
 def _equation_side_texts(normalized: str) -> tuple[str, str] | None:
     """The two sides of the equation **as written**, before SymPy evaluates anything.
@@ -860,7 +890,7 @@ def _option_as_solution_set(text: str) -> sympy.Set | None:
     """
     normalized = _normalize_math_text(text, strip_assignment=False)
     if not any(op in normalized for op in ("<", ">")):
-        return None
+        return _option_as_prose_interval(text)
 
     def _usable(candidate: str) -> sympy.Basic | None:
         """A relation in exactly one unknown, or None."""
@@ -889,6 +919,48 @@ def _option_as_solution_set(text: str) -> sympy.Set | None:
         return sympy.solveset(relation, unknowns[0], sympy.S.Reals)
     except (NotImplementedError, TypeError, ValueError):
         return None
+
+
+def _option_as_prose_interval(text: str) -> sympy.Set | None:
+    """`'more than 10 hours'` -> `Interval.open(10, oo)`, the way a child reads it (D-282).
+
+    **The incentive this removes.** `_option_as_solution_set` needed a `<` or `>` to read
+    anything, so the gate could check `'x > 10'` and not `'more than 10 hours'` - and an
+    item whose options were written in the age-appropriate language SPEC §5.10.3 asks for
+    was rejected as *wrong*, not as unreadable. The gate was quietly paying the generator to
+    write algebra at children. Measured on the 6-12 wave: 6 correct items rejected for this
+    alone, every one of them phrased the way a teacher would phrase it.
+
+    Only reached when the symbolic reading found nothing, so no option that parses today
+    changes meaning - the same ordering rule the unit-stripping fallback follows (D-280).
+
+    Strict on purpose in two ways. The phrase decides the *strictness* of the boundary, so
+    "more than 10" and "at least 10" produce different sets and an item cannot pass by
+    getting that distinction wrong - it is the commonest real mistake in inequality work,
+    and a gate that blurred it would be worse than no gate. And exactly one number may
+    appear: "between 5 and 10 hours" names two and is deliberately not read here rather
+    than guessed at, because which bound is which is not recoverable from the phrase alone.
+    """
+    lowered = text.casefold()
+    for pattern, build in _PROSE_INTERVAL_FORMS:
+        if not pattern.search(lowered):
+            continue
+        numbers = _NUMBER_IN_TEXT_RE.findall(_strip_thousands_separators(lowered))
+        if len(numbers) != 1:
+            return None
+        try:
+            bound = sympy.Rational(numbers[0])
+        except (TypeError, ValueError):
+            return None
+        # `Rational` is documented to return NaN or ComplexInfinity for some inputs. The
+        # regex above cannot produce either, so this is unreachable today - and it is a
+        # check rather than a cast because the alternative is an interval with a
+        # non-numeric bound comparing equal to nothing, which is a silent no-match instead
+        # of a refusal.
+        if not bound.is_finite:
+            return None
+        return build(bound)
+    return None
 
 
 def _option_as_tuple(text: str) -> tuple[sympy.Basic, ...] | None:
