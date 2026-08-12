@@ -97,6 +97,58 @@ templates:
   option_c: 44 square feet
   option_d: 56 square feet
   correct_option: a
+- question_template_id: authored-measurement-d4-97401
+  topic_id: measurement
+  skill_id: measurement_area_volume
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - found_perimeter_instead_of_area
+  - divided_instead_of_multiplied
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular classroom rug has a length of 15 feet and a width of 6 feet. What is the area of
+    the rug?
+  context_block: null
+  answer_expression: x = 15 * 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Area measures how much surface the rug covers. What two measurements do you need to find that?
+  - For a rectangle, multiply the length by the width to find the area.
+  - 'Write the multiplication: 15 feet times 6 feet.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the area of a rectangle: area equals length times width.'
+      expression: area = length × width
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Substitute the given dimensions into the formula: length is 15 feet and width is 6
+        feet.'
+      expression: area = 15 × 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the length by the width to find the area.
+      expression: area = 90
+      common_mistake: null
+    final_answer: 90 square feet
+  random_seed: 97401
+  rendered_question: A rectangular classroom rug has a length of 15 feet and a width of 6 feet. What is
+    the area of the rug?
+  option_a: 42 square feet
+  option_b: 9 square feet
+  option_c: 90 square feet
+  option_d: 21 square feet
+  correct_option: c
 - question_template_id: authored-measurement-d5-955500
   topic_id: measurement
   skill_id: measurement_area_volume
@@ -257,6 +309,111 @@ templates:
   option_c: 408 square meters
   option_d: 82 square meters
   correct_option: c
+- question_template_id: authored-measurement-d5-97500
+  topic_id: measurement
+  skill_id: measurement_area_volume
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_only_two_dimensions
+  - stopped_after_first_multiplication
+  - added_dimensions_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular storage box has a length of 10 inches, a width of 7 inches, and a height of 4 inches.
+    What is the volume of the box?
+  context_block: null
+  answer_expression: Eq(x, 10 * 7 * 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume is the amount of space inside a three-dimensional object. What three measurements do you need
+    to multiply?
+  - For a rectangular box, multiply length times width times height to find the volume.
+  - Set up the calculation 10 × 7 × 4 and work from left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the volume of a rectangular box, multiply the length, width, and height together.
+      expression: V = 10 × 7 × 4
+      common_mistake: null
+    - step_number: 2
+      explanation: First multiply 10 by 7.
+      expression: 10 × 7 = 70
+      common_mistake: null
+    - step_number: 3
+      explanation: Now multiply that result by 4.
+      expression: 70 × 4 = 280
+      common_mistake: null
+    final_answer: 280 cubic inches
+  random_seed: 97500
+  rendered_question: A rectangular storage box has a length of 10 inches, a width of 7 inches, and a height
+    of 4 inches. What is the volume of the box?
+  option_a: 280 cubic inches
+  option_b: 21 cubic inches
+  option_c: 70 cubic inches
+  option_d: 240 cubic inches
+  correct_option: a
+- question_template_id: authored-measurement-d5-97501
+  topic_id: measurement
+  skill_id: measurement_area_volume
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - multiplied_only_two_dimensions
+  - stopped_after_first_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular aquarium has a length of 8 inches, a width of 5 inches, and a height of 6 inches.
+    What is the volume of the aquarium?
+  context_block: null
+  answer_expression: x = 8 * 5 * 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume measures how much space is inside a three-dimensional shape. For a rectangular prism, you need
+    all three dimensions.
+  - The volume of a rectangular prism is found by multiplying length times width times height.
+  - Set up the multiplication 8 × 5 × 6 and work through it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the volume of a rectangular prism: volume equals length times
+        width times height.'
+      expression: V = 8 × 5 × 6
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the length and width first.
+      expression: 8 × 5 = 40
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply that result by the height to find the volume.
+      expression: 40 × 6 = 240
+      common_mistake: null
+    final_answer: 240 cubic inches
+  random_seed: 97501
+  rendered_question: A rectangular aquarium has a length of 8 inches, a width of 5 inches, and a height
+    of 6 inches. What is the volume of the aquarium?
+  option_a: 240 cubic inches
+  option_b: 40 cubic inches
+  option_c: 19 cubic inches
+  option_d: 48 cubic inches
+  correct_option: a
 - question_template_id: authored-measurement-d2-956200
   topic_id: measurement
   skill_id: measurement_capacity
@@ -757,6 +914,206 @@ templates:
   option_c: 145 minutes
   option_d: 165 minutes
   correct_option: d
+- question_template_id: authored-measurement-d4-99400
+  topic_id: measurement
+  skill_id: measurement_elapsed_time
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_only_minutes_ignored_hour_difference
+  - added_times_instead_of_subtracting
+  - subtracted_start_hour_from_end_minute
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam starts his homework at 2:35 PM and finishes at 4:15 PM. How many minutes did his homework
+    take?
+  context_block: null
+  answer_expression: Eq(x, (4*60 + 15) - (2*60 + 35))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Convert both times to minutes after midnight to make them easier to compare.
+  - The start time is 2×60 + 35 minutes and the end time is 4×60 + 15 minutes.
+  - Subtract the start time from the end time to find how many minutes passed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the start time 2:35 PM to minutes after midnight. There are 60 minutes in each
+        hour, so 2 hours is 2 × 60 = 120 minutes, plus 35 minutes gives 155 minutes.
+      expression: 2*60 + 35 = 155
+      common_mistake: null
+    - step_number: 2
+      explanation: Convert the end time 4:15 PM to minutes after midnight. 4 hours is 4 × 60 = 240 minutes,
+        plus 15 minutes gives 255 minutes.
+      expression: 4*60 + 15 = 255
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the start time from the end time to find the elapsed time.
+      expression: 255 - 155 = 100
+      common_mistake: null
+    final_answer: 100 minutes
+  random_seed: 99400
+  rendered_question: Liam starts his homework at 2:35 PM and finishes at 4:15 PM. How many minutes did
+    his homework take?
+  option_a: 80 minutes
+  option_b: 100 minutes
+  option_c: 40 minutes
+  option_d: 140 minutes
+  correct_option: b
+- question_template_id: authored-measurement-d4-99401
+  topic_id: measurement
+  skill_id: measurement_elapsed_time
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_only_hours_not_minutes
+  - counted_only_minutes_within_hour
+  - added_instead_of_subtracted_minutes
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A movie marathon starts at 10:50 AM and ends at 1:25 PM. How many minutes does the marathon last?
+  context_block: null
+  answer_expression: Eq(x, (13*60 + 25) - (10*60 + 50))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about converting both times to minutes from midnight so they are easier to compare.
+  - 10:50 AM is 10×60 + 50 minutes from midnight, and 1:25 PM is 13×60 + 25 minutes from midnight.
+  - Subtract the start time from the end time to find the elapsed minutes.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the start time 10:50 AM into minutes from midnight by multiplying hours by
+        60 and adding the minutes.
+      expression: 10*60 + 50 = 650
+      common_mistake: null
+    - step_number: 2
+      explanation: Convert the end time 1:25 PM (which is 13:25 in 24-hour time) into minutes from midnight.
+      expression: 13*60 + 25 = 805
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract the start time in minutes from the end time in minutes to find the elapsed
+        time.
+      expression: 805 - 650 = 155
+      common_mistake: null
+    final_answer: 155 minutes
+  random_seed: 99401
+  rendered_question: A movie marathon starts at 10:50 AM and ends at 1:25 PM. How many minutes does the
+    marathon last?
+  option_a: 95 minutes
+  option_b: 135 minutes
+  option_c: 155 minutes
+  option_d: 165 minutes
+  correct_option: c
+- question_template_id: authored-measurement-d1-100100
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_conversion_factor_instead_of_multiplying
+  - added_meters_and_centimeters_without_converting
+  - concatenated_digits_instead_of_converting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A ribbon used for wrapping gifts is 4 meters and 25 centimeters long. What is the total length
+    of the ribbon in centimeters?
+  context_block: null
+  answer_expression: x = 4 * 100 + 25
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many centimeters are in one meter?
+  - Convert the 4 meters to centimeters first, then think about what to do with the 25 centimeters.
+  - Multiply 4 by 100 to change meters to centimeters, then add the extra 25 centimeters.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recognize that 1 meter equals 100 centimeters, so to convert 4 meters to centimeters,
+        multiply 4 by 100.
+      expression: 4 × 100 = 400
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the additional 25 centimeters to the 400 centimeters from the meter conversion.
+      expression: 400 + 25 = 425
+      common_mistake: null
+    final_answer: 425 centimeters
+  random_seed: 100100
+  rendered_question: A ribbon used for wrapping gifts is 4 meters and 25 centimeters long. What is the
+    total length of the ribbon in centimeters?
+  option_a: 425 centimeters
+  option_b: 4025 centimeters
+  option_c: 429 centimeters
+  option_d: 65 centimeters
+  correct_option: a
+- question_template_id: authored-measurement-d1-100101
+  topic_id: measurement
+  skill_id: measurement_length
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_conversion_factor_instead_of_multiplying
+  - concatenated_digits_instead_of_converting
+  - added_meters_and_centimeters_without_converting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A garden path is 5 meters and 80 centimeters long. What is the total length of the path in centimeters?
+  context_block: ''
+  answer_expression: x = 5 * 100 + 80
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many centimeters are in 1 meter?
+  - Multiply the number of meters by 100 to convert to centimeters, then add the extra centimeters.
+  - Write 5 times 100 plus 80 and calculate the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert 5 meters to centimeters by multiplying by 100, since there are 100 centimeters
+        in 1 meter.
+      expression: 5 * 100 = 500
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the additional 80 centimeters to the converted amount.
+      expression: 500 + 80 = 580
+      common_mistake: null
+    final_answer: 580 centimeters
+  random_seed: 100101
+  rendered_question: A garden path is 5 meters and 80 centimeters long. What is the total length of the
+    path in centimeters?
+  option_a: 580 centimeters
+  option_b: 130 centimeters
+  option_c: 585 centimeters
+  option_d: 5080 centimeters
+  correct_option: a
 - question_template_id: authored-measurement-d1-958102
   topic_id: measurement
   skill_id: measurement_length
@@ -1186,6 +1543,105 @@ templates:
   option_b: 4015 centimeters
   option_c: 415 centimeters
   option_d: 19 centimeters
+  correct_option: c
+- question_template_id: authored-measurement-d1-101100
+  topic_id: measurement
+  skill_id: measurement_money
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracted
+  - misread_or_miscalculated_cents
+  - regrouping_error_in_subtraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has $12.50 and spends $4.75 on a book. How much money does he have left?
+  context_block: null
+  answer_expression: x = 12.50 - 4.75
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what operation you use when you spend money from an amount you have.
+  - Subtract the amount Liam spent from the amount he started with.
+  - Write 12.50 minus 4.75 and calculate the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with $12.50.
+      expression: '12.50'
+      common_mistake: null
+    - step_number: 2
+      explanation: He spends $4.75, so we subtract that amount from what he had.
+      expression: 12.50 - 4.75
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Subtract the dollars: 12 - 4 = 8, then subtract the cents: 50 - 75 requires regrouping,
+        so we borrow 1 dollar (100 cents). 150 - 75 = 75 cents, and we now have 11 - 4 = 7 dollars.'
+      expression: '7.75'
+      common_mistake: null
+    final_answer: $7.75
+  random_seed: 101100
+  rendered_question: Liam has $12.50 and spends $4.75 on a book. How much money does he have left?
+  option_a: $8.25
+  option_b: $7.75
+  option_c: $17.25
+  option_d: $7.25
+  correct_option: b
+- question_template_id: authored-measurement-d1-101101
+  topic_id: measurement
+  skill_id: measurement_money
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - rounded_or_misread_cents_value
+  - dropped_cents_from_one_amount
+  - subtracted_instead_of_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam does chores for his family. He earns $8.25 one week and $6.50 the next week. How much money
+    has he saved altogether?
+  context_block: ''
+  answer_expression: x = 8.25 + 6.50
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the total by combining the amount Liam earned each week.
+  - 'Add the two amounts of money together: the $8.25 from the first week and the $6.50 from the second
+    week.'
+  - Write 8.25 + 6.50 and compute the sum, lining up the decimal points.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam earned $8.25 in the first week and $6.50 in the second week. To find the total
+        saved, add these two amounts.
+      expression: 8.25 + 6.50
+      common_mistake: null
+    - step_number: 2
+      explanation: Line up the decimal points and add. 8.25 + 6.50 = 14.75.
+      expression: '14.75'
+      common_mistake: null
+    final_answer: $14.75
+  random_seed: 101101
+  rendered_question: Liam does chores for his family. He earns $8.25 one week and $6.50 the next week.
+    How much money has he saved altogether?
+  option_a: $15.75
+  option_b: $1.75
+  option_c: $14.75
+  option_d: $14.25
   correct_option: c
 - question_template_id: authored-measurement-d1-959100
   topic_id: measurement

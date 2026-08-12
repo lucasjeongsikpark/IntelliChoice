@@ -929,6 +929,114 @@ templates:
   option_c: 153 shelves
   option_d: 1,430 shelves
   correct_option: b
+- question_template_id: authored-g4_multiplication_division-d5-96500
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - stopped_at_partial_quotient
+  - off_by_one_in_division
+  - subtracted_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school library receives 3456 books that need to be packed into boxes. Each box holds exactly
+    48 books. How many boxes are needed?
+  context_block: ''
+  answer_expression: Eq(x, 3456 / 48)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what operation you use when you know the total and the size of each group.
+  - You need to find how many groups of 48 fit into 3456.
+  - Set up the division 3456 ÷ 48 and work through it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The library has 3456 books total and each box holds 48 books, so we divide the total
+        by the number per box.
+      expression: 3456 ÷ 48
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Estimate first: 48 × 70 = 3360, which leaves 3456 - 3360 = 96 books still to pack.'
+      expression: 3456 - 3360 = 96
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Now find how many more boxes are needed for the remaining 96 books: 96 ÷ 48 = 2.'
+      expression: 96 ÷ 48 = 2
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the two parts together: 70 + 2 = 72 boxes.'
+      expression: 70 + 2 = 72
+      common_mistake: null
+    final_answer: 72 boxes
+  random_seed: 96500
+  rendered_question: A school library receives 3456 books that need to be packed into boxes. Each box
+    holds exactly 48 books. How many boxes are needed?
+  option_a: 70 boxes
+  option_b: 71 boxes
+  option_c: 72 boxes
+  option_d: 3408 boxes
+  correct_option: c
+- question_template_id: authored-g4_multiplication_division-d5-96501
+  topic_id: g4_multiplication_division
+  skill_id: g4_div_by_two_digit
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - off_by_one_rounding_up
+  - off_by_one_subtracting
+  - subtracted_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A concert hall has 2436 seats that need to be arranged into rows, with 58 seats in each row. How
+    many rows are there?
+  context_block: ''
+  answer_expression: Eq(x, 2436 / 58)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what multiplication fact connects the number of rows, the seats per row, and the total
+    seats.
+  - If there are x rows and each row has 58 seats, then the total number of seats is 58 times x.
+  - Set up the equation 58x = 2436, then divide both sides by 58.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total number of seats equals the number of rows multiplied by the seats per row.
+      expression: 58 * x = 2436
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both sides by 58 to isolate x.
+      expression: x = 2436 / 58
+      common_mistake: null
+    - step_number: 3
+      explanation: Perform the division. 58 goes into 2436 exactly 42 times because 58 × 42 = 2436.
+      expression: x = 42
+      common_mistake: null
+    final_answer: 42 rows
+  random_seed: 96501
+  rendered_question: A concert hall has 2436 seats that need to be arranged into rows, with 58 seats in
+    each row. How many rows are there?
+  option_a: 2378 rows
+  option_b: 41 rows
+  option_c: 43 rows
+  option_d: 42 rows
+  correct_option: d
 - question_template_id: authored-g4_multiplication_division-d1-927100
   topic_id: g4_multiplication_division
   skill_id: g4_mult_by_one_digit
@@ -1457,6 +1565,55 @@ templates:
   option_c: 51 eggs
   option_d: 4320 eggs
   correct_option: d
+- question_template_id: authored-g4_multiplication_division-d5-98500
+  topic_id: g4_multiplication_division
+  skill_id: g4_mult_large
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_after_first_multiplication
+  - multiplied_only_two_factors
+  - added_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school orders 12 boxes of pencils. Each box contains 15 packs, and each pack contains 8 pencils.
+    How many pencils does the school receive in total?
+  context_block: null
+  answer_expression: x = 12 * 15 * 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by finding how many packs are in all 12 boxes together.
+  - Now determine how many pencils are in that many packs.
+  - Multiply all three numbers—boxes, packs per box, and pencils per pack—to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: First, find the total number of packs by multiplying the number of boxes by the number
+        of packs in each box.
+      expression: 12 * 15 = 180
+      common_mistake: null
+    - step_number: 2
+      explanation: Next, multiply the total number of packs by the number of pencils in each pack to find
+        the total number of pencils.
+      expression: 180 * 8 = 1440
+      common_mistake: null
+    final_answer: 1440 pencils
+  random_seed: 98500
+  rendered_question: A school orders 12 boxes of pencils. Each box contains 15 packs, and each pack contains
+    8 pencils. How many pencils does the school receive in total?
+  option_a: 1440 pencils
+  option_b: 96 pencils
+  option_c: 35 pencils
+  option_d: 180 pencils
+  correct_option: a
 - question_template_id: authored-g4_multiplication_division-d2-929200
   topic_id: g4_multiplication_division
   skill_id: g4_mult_two_by_two

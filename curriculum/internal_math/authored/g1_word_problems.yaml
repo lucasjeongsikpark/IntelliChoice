@@ -52,6 +52,58 @@ templates:
   option_c: 24 marbles
   option_d: 30 marbles
   correct_option: b
+- question_template_id: authored-g1_word_problems-d5-96500
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting
+  - confused_final_amount_with_change
+  - confused_starting_amount_with_change
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A farmer has 13 eggs in a basket and sells some at the market. Now 7 eggs are left. How many eggs
+    did the farmer sell?
+  context_block: ''
+  answer_expression: Eq(13 - x, 7)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what you started with and what you have now.
+  - You started with 13 eggs and now have 7, so some were taken away.
+  - 'Write an equation: 13 minus the number sold equals 7.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The farmer started with 13 eggs and now has 7 eggs left, so we need to find how many
+        were sold.
+      expression: 13 - x = 7
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, subtract 7 from both sides of the equation.
+      expression: 13 - 7 = x
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the difference.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 eggs
+  random_seed: 96500
+  rendered_question: A farmer has 13 eggs in a basket and sells some at the market. Now 7 eggs are left.
+    How many eggs did the farmer sell?
+  option_a: 20 eggs
+  option_b: 7 eggs
+  option_c: 6 eggs
+  option_d: 13 eggs
+  correct_option: c
 - question_template_id: authored-g1_word_problems-d3-5300
   topic_id: g1_word_problems
   skill_id: g1_wp_choose_operation
@@ -158,6 +210,163 @@ templates:
   option_c: 9 apples
   option_d: 15 apples
   correct_option: b
+- question_template_id: authored-g1_word_problems-d3-96300
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - used_starting_value_as_answer
+  - used_remaining_value_as_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Leo had 15 marbles in his pocket. He gave some marbles to his friend, and now Leo has 8 marbles
+    left. How many marbles did Leo give away?
+  context_block: null
+  answer_expression: Eq(15 - x, 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what Leo started with and what he has now.
+  - Write an equation showing that 15 minus some number equals 8.
+  - The number you are looking for is what you subtract from 15 to get 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Leo started with 15 marbles and has 8 marbles left. The marbles he gave away are the
+        difference.
+      expression: 15 - x = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, we can subtract 8 from 15.
+      expression: x = 15 - 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract to find the number of marbles given away.
+      expression: x = 7
+      common_mistake: null
+    final_answer: 7 marbles
+  random_seed: 96300
+  rendered_question: Leo had 15 marbles in his pocket. He gave some marbles to his friend, and now Leo
+    has 8 marbles left. How many marbles did Leo give away?
+  option_a: 15 marbles
+  option_b: 7 marbles
+  option_c: 23 marbles
+  option_d: 8 marbles
+  correct_option: b
+- question_template_id: authored-g1_word_problems-d3-96301
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - identified_remainder_as_answer
+  - identified_starting_amount_as_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Ella had 14 stickers and used some to decorate her notebook. Now she has 6 stickers left. How
+    many stickers did she use?
+  context_block: ''
+  answer_expression: Eq(14 - x, 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens when you start with stickers and use some – what is left over?
+  - 'Write an equation: 14 minus the stickers used equals 6 left.'
+  - Now find what number makes 14 minus that number equal to 6.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Ella started with 14 stickers and has 6 left after using some. The number she used
+        can be found by subtracting what remains from what she started with.
+      expression: 14 - x = 6
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, add x to both sides and subtract 6 from both sides, which gives x = 14 -
+        6.
+      expression: x = 14 - 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 6 from 14.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 stickers
+  random_seed: 96301
+  rendered_question: Ella had 14 stickers and used some to decorate her notebook. Now she has 6 stickers
+    left. How many stickers did she use?
+  option_a: 8 stickers
+  option_b: 6 stickers
+  option_c: 20 stickers
+  option_d: 14 stickers
+  correct_option: a
+- question_template_id: authored-g1_word_problems-d5-96501
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - answered_with_wrong_quantity
+  - answered_with_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A gardener had 18 flowers in the garden and picked some to make a bouquet. Now 10 flowers are
+    left in the garden. How many flowers did the gardener pick?
+  context_block: null
+  answer_expression: Eq(18 - x, 10)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many flowers the gardener started with and how many are still in the garden.
+  - The number picked plus the number left should equal the number the gardener started with.
+  - Write an equation where 18 minus the flowers picked equals 10, then solve for the number picked.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The gardener started with 18 flowers and after picking some, 10 are left. So 18 minus
+        the number picked equals 10.
+      expression: 18 - x = 10
+      common_mistake: null
+    - step_number: 2
+      explanation: To find the number picked, subtract 10 from both sides.
+      expression: 18 - 10 = x
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the left side.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 flowers
+  random_seed: 96501
+  rendered_question: A gardener had 18 flowers in the garden and picked some to make a bouquet. Now 10
+    flowers are left in the garden. How many flowers did the gardener pick?
+  option_a: 18 flowers
+  option_b: 10 flowers
+  option_c: 28 flowers
+  option_d: 8 flowers
+  correct_option: d
 - question_template_id: authored-g1_word_problems-d4-5400
   topic_id: g1_word_problems
   skill_id: g1_wp_choose_operation
@@ -265,6 +474,165 @@ templates:
   option_c: 3 apples
   option_d: 2 apples
   correct_option: a
+- question_template_id: authored-g1_word_problems-d4-96401
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - confused_quantity_with_result
+  - confused_quantity_with_starting_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian had 16 books on a cart and put some back on the shelf. Now the librarian has 9 books
+    left on the cart. How many books did the librarian put back?
+  context_block: null
+  answer_expression: Eq(16 - x, 9)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what the librarian started with and what is left now.
+  - If the librarian started with 16 books and has 9 left, what operation shows taking some away?
+  - Write 16 minus the number of books put back, and set that equal to 9.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The librarian started with 16 books and has 9 left after putting some back. The number
+        put back is the unknown, x.
+      expression: 16 - x = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: To solve for x, subtract 9 from both sides to isolate the term with x.
+      expression: 16 - 9 = x
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 16 minus 9.
+      expression: x = 7
+      common_mistake: null
+    final_answer: 7 books
+  random_seed: 96401
+  rendered_question: A librarian had 16 books on a cart and put some back on the shelf. Now the librarian
+    has 9 books left on the cart. How many books did the librarian put back?
+  option_a: 16 books
+  option_b: 7 books
+  option_c: 25 books
+  option_d: 9 books
+  correct_option: b
+- question_template_id: authored-g1_word_problems-d5-35501
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - confused_remaining_with_removed
+  - gave_starting_quantity
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library had 35 books on a shelf. The librarian lent some books to students. Now 14 books are
+    left on the shelf. How many books were lent out?
+  context_block: null
+  answer_expression: 35 - x = 14
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Start by identifying what you know: the number of books at the beginning and the number left at the
+    end.'
+  - 'Think about what happens when books are lent out: the shelf starts with fewer books than before.'
+  - Write an equation showing that the starting number minus the lent books equals the number left.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation where the starting number of books minus the number lent out equals
+        the number left.
+      expression: 35 - x = 14
+      common_mistake: null
+    - step_number: 2
+      explanation: To isolate x, subtract 14 from both sides, which is equivalent to adding x to both
+        sides and then subtracting 14.
+      expression: 35 - 14 = x
+      common_mistake: null
+    - step_number: 3
+      explanation: Perform the subtraction.
+      expression: 21 = x
+      common_mistake: null
+    final_answer: 21 books
+  random_seed: 35501
+  rendered_question: A library had 35 books on a shelf. The librarian lent some books to students. Now
+    14 books are left on the shelf. How many books were lent out?
+  option_a: 49 books
+  option_b: 14 books
+  option_c: 35 books
+  option_d: 21 books
+  correct_option: d
+- question_template_id: authored-g1_word_problems-d5-35502
+  topic_id: g1_word_problems
+  skill_id: g1_wp_choose_operation
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - off_by_one_counting_error
+  - confused_remaining_with_removed
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A bakery had 42 cookies in the morning. During the day customers bought some cookies. Now 17 cookies
+    are left. How many cookies did customers buy?
+  context_block: ''
+  answer_expression: Eq(42 - x, 17)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the number of cookies the bakery had in the morning, then think about what happened to
+    them.
+  - 'Write a subtraction: morning cookies minus cookies sold equals cookies left.'
+  - Set up 42 minus the unknown number equals 17, then find what number makes that true.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an equation showing that the bakery started with 42 cookies, sold x cookies,
+        and has 17 left.
+      expression: 42 - x = 17
+      common_mistake: null
+    - step_number: 2
+      explanation: To find x, subtract 17 from 42.
+      expression: x = 42 - 17
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the difference.
+      expression: x = 25
+      common_mistake: null
+    final_answer: 25 cookies
+  random_seed: 35502
+  rendered_question: A bakery had 42 cookies in the morning. During the day customers bought some cookies.
+    Now 17 cookies are left. How many cookies did customers buy?
+  option_a: 24 cookies
+  option_b: 17 cookies
+  option_c: 25 cookies
+  option_d: 59 cookies
+  correct_option: c
 - question_template_id: authored-g1_word_problems-d5-5501
   topic_id: g1_word_problems
   skill_id: g1_wp_choose_operation
@@ -329,6 +697,155 @@ templates:
   option_c: 3 stickers
   option_d: 9 stickers
   correct_option: c
+- question_template_id: authored-g1_word_problems-d1-36100
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_added
+  - added_one_too_many
+  - added_one_too_few
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 4 marbles and his friend gives him 3 more marbles. How many marbles does Liam have now?
+  context_block: ''
+  answer_expression: x = 4 + 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with how many marbles Liam had at the beginning.
+  - His friend gave him more marbles, so you need to add those to what he had.
+  - Write the number he had, then add the number his friend gave him.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 4 marbles.
+      expression: '4'
+      common_mistake: null
+    - step_number: 2
+      explanation: His friend gives him 3 more marbles, so we add those to the 4 he already has.
+      expression: 4 + 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Adding 4 and 3 gives us the total number of marbles.
+      expression: '7'
+      common_mistake: null
+    final_answer: 7 marbles
+  random_seed: 36100
+  rendered_question: Liam has 4 marbles and his friend gives him 3 more marbles. How many marbles does
+    Liam have now?
+  option_a: 7 marbles
+  option_b: 1 marble
+  option_c: 6 marbles
+  option_d: 8 marbles
+  correct_option: a
+- question_template_id: authored-g1_word_problems-d1-36101
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_added
+  - added_one_too_many
+  - concatenated_digits_instead_of_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Ava has 5 stickers in her album and her friend gives her 2 more stickers. How many stickers does
+    Ava have now?
+  context_block: null
+  answer_expression: x = 5 + 2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Ava starts with 5 stickers and gets more stickers from her friend.
+  - When you get more, you add the number she started with and the number her friend gave her.
+  - Write 5 plus 2 and find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Ava starts with 5 stickers, and her friend gives her 2 more stickers. To find the total,
+        we add those amounts together.
+      expression: 5 + 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Adding 5 and 2 gives us the total number of stickers Ava has now.
+      expression: '7'
+      common_mistake: null
+    final_answer: 7 stickers
+  random_seed: 36101
+  rendered_question: Ava has 5 stickers in her album and her friend gives her 2 more stickers. How many
+    stickers does Ava have now?
+  option_a: 52 stickers
+  option_b: 7 stickers
+  option_c: 8 stickers
+  option_d: 3 stickers
+  correct_option: b
+- question_template_id: authored-g1_word_problems-d1-36102
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - added_one_extra
+  - miscounted_by_one
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A child finds 3 shells on the beach. Then she finds 4 more shells. How many shells does she have
+    now?
+  context_block: ''
+  answer_expression: x = 3 + 4
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You need to put together the shells the child found first and the shells she found next.
+  - The word 'more' tells you to add the two groups of shells.
+  - Write 3 plus 4 to find how many shells she has altogether.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The child starts with 3 shells.
+      expression: '3'
+      common_mistake: null
+    - step_number: 2
+      explanation: She finds 4 more shells, so we add 4 to the 3 she already has.
+      expression: 3 + 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the two numbers together.
+      expression: '7'
+      common_mistake: null
+    final_answer: 7 shells
+  random_seed: 36102
+  rendered_question: A child finds 3 shells on the beach. Then she finds 4 more shells. How many shells
+    does she have now?
+  option_a: 6 shells
+  option_b: 7 shells
+  option_c: 1 shell
+  option_d: 8 shells
+  correct_option: b
 - question_template_id: authored-g1_word_problems-d1-6100
   topic_id: g1_word_problems
   skill_id: g1_wp_single_operation
@@ -380,6 +897,359 @@ templates:
   option_c: 8 toy cars
   option_d: 53 toy cars
   correct_option: c
+- question_template_id: authored-g1_word_problems-d1-97100
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_added
+  - multiplied_instead_of_added
+  - stopped_one_before_final_sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 3 apples in his basket. His mom gives him 4 more apples. How many apples does Liam have
+    now?
+  context_block: null
+  answer_expression: Eq(x, 3 + 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Liam starts with 3 apples and gets more. What does 'gives him more' tell you to do?
+  - When you get more of something, you add. Write 3 plus 4.
+  - Now count or add 3 + 4 to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 3 apples.
+      expression: '3'
+      common_mistake: null
+    - step_number: 2
+      explanation: His mom gives him 4 more, so we add 4 to what he already has.
+      expression: 3 + 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Adding 3 and 4 gives us 7.
+      expression: '7'
+      common_mistake: null
+    final_answer: 7 apples
+  random_seed: 97100
+  rendered_question: Liam has 3 apples in his basket. His mom gives him 4 more apples. How many apples
+    does Liam have now?
+  option_a: 6 apples
+  option_b: 12 apples
+  option_c: 1 apple
+  option_d: 7 apples
+  correct_option: d
+- question_template_id: authored-g1_word_problems-d1-97101
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted instead of adding
+  - multiplied the two numbers
+  - only counted the new stickers received
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Leo has 2 stickers and his friend gives him 5 more stickers. How many stickers does Leo have now?
+  context_block: ''
+  answer_expression: Eq(x, 2 + 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Leo starts with some stickers and gets more. What does 'gets more' tell you to do?
+  - You need to put together the stickers Leo started with and the new stickers his friend gave him.
+  - Write 2 plus 5 and find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Leo starts with 2 stickers.
+      expression: '2'
+      common_mistake: null
+    - step_number: 2
+      explanation: His friend gives him 5 more stickers, so we add those to what he already has.
+      expression: 2 + 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Adding 2 and 5 gives 7.
+      expression: '7'
+      common_mistake: null
+    final_answer: 7 stickers
+  random_seed: 97101
+  rendered_question: Leo has 2 stickers and his friend gives him 5 more stickers. How many stickers does
+    Leo have now?
+  option_a: 10 stickers
+  option_b: 7 stickers
+  option_c: 5 stickers
+  option_d: 3 stickers
+  correct_option: b
+- question_template_id: authored-g1_word_problems-d2-36200
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - stopped_at_number_eaten
+  - did_not_perform_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Leo has 12 cookies on his plate. He eats 5 of them. How many cookies are left on his plate?
+  context_block: null
+  answer_expression: x = 12 - 5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Leo starts with a certain number of cookies and eats some. What operation shows taking away?
+  - You need to subtract the number of cookies Leo eats from the number he starts with.
+  - Write 12 minus 5 to find how many cookies are left.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Leo starts with 12 cookies on his plate.
+      expression: '12'
+      common_mistake: null
+    - step_number: 2
+      explanation: He eats 5 cookies, so we subtract 5 from 12.
+      expression: 12 - 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract to find the number of cookies left.
+      expression: '7'
+      common_mistake: null
+    final_answer: 7 cookies
+  random_seed: 36200
+  rendered_question: Leo has 12 cookies on his plate. He eats 5 of them. How many cookies are left on
+    his plate?
+  option_a: 7 cookies
+  option_b: 12 cookies
+  option_c: 5 cookies
+  option_d: 17 cookies
+  correct_option: a
+- question_template_id: authored-g1_word_problems-d2-36201
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracted
+  - read_given_quantity_as_answer
+  - did_not_perform_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 15 toy cars. He gives 6 of them to his friend. How many toy cars does Liam have left?
+  context_block: ''
+  answer_expression: x = 15 - 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens when Liam gives away some of his toy cars.
+  - You need to take away the number of cars he gave away from the number he started with.
+  - Write 15 minus 6 to find how many are left.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 15 toy cars.
+      expression: '15'
+      common_mistake: null
+    - step_number: 2
+      explanation: He gives away 6 toy cars, so we subtract 6 from 15.
+      expression: 15 - 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract to find the number of toy cars left.
+      expression: '9'
+      common_mistake: Adding instead of subtracting would give 21.
+    final_answer: 9 toy cars
+  random_seed: 36201
+  rendered_question: Liam has 15 toy cars. He gives 6 of them to his friend. How many toy cars does Liam
+    have left?
+  option_a: 15 toy cars
+  option_b: 21 toy cars
+  option_c: 9 toy cars
+  option_d: 6 toy cars
+  correct_option: c
+- question_template_id: authored-g1_word_problems-d2-36202
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - subtracted_one_less
+  - stated_amount_given_away_as_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 14 crayons in his pencil case. He gives 5 crayons to his friend. How many crayons does
+    Liam have now?
+  context_block: null
+  answer_expression: x = 14 - 5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Liam starts with some crayons and then gives some away.
+  - When you give crayons away, you have fewer than you started with.
+  - Write down how many Liam had, then take away how many he gave.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 14 crayons.
+      expression: '14'
+      common_mistake: null
+    - step_number: 2
+      explanation: He gives away 5 crayons, so we subtract 5 from 14.
+      expression: 14 - 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract to find the number of crayons left.
+      expression: '9'
+      common_mistake: null
+    final_answer: 9 crayons
+  random_seed: 36202
+  rendered_question: Liam has 14 crayons in his pencil case. He gives 5 crayons to his friend. How many
+    crayons does Liam have now?
+  option_a: 9 crayons
+  option_b: 10 crayons
+  option_c: 19 crayons
+  option_d: 5 crayons
+  correct_option: a
+- question_template_id: authored-g1_word_problems-d2-97200
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - took_only_the_number_received
+  - stopped_at_the_starting_amount
+  - added_one_less_than_the_received_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 6 toy cars and his friend gives him 3 more toy cars. How many toy cars does Liam have
+    now?
+  context_block: null
+  answer_expression: Eq(x, 6 + 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Liam starts with some toy cars and then gets more. What operation helps you find the new total?
+  - Count how many toy cars Liam has at the beginning and how many he receives.
+  - Write the number Liam starts with plus the number he gets, then find that total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 6 toy cars.
+      expression: '6'
+      common_mistake: null
+    - step_number: 2
+      explanation: His friend gives him 3 more toy cars, so we add those to what he already has.
+      expression: 6 + 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Adding 6 and 3 gives the total number of toy cars.
+      expression: '9'
+      common_mistake: null
+    final_answer: 9 toy cars
+  random_seed: 97200
+  rendered_question: Liam has 6 toy cars and his friend gives him 3 more toy cars. How many toy cars does
+    Liam have now?
+  option_a: 6 toy cars
+  option_b: 9 toy cars
+  option_c: 3 toy cars
+  option_d: 8 toy cars
+  correct_option: b
+- question_template_id: authored-g1_word_problems-d2-97201
+  topic_id: g1_word_problems
+  skill_id: g1_wp_single_operation
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted instead of adding
+  - added one more than correct (counting error)
+  - subtracted one from the correct sum (counting error)
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 5 marbles and his friend gives him 7 more marbles. How many marbles does Liam have now?
+  context_block: null
+  answer_expression: Eq(x, 5 + 7)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens when Liam gets more marbles. Does he have more or fewer?
+  - You need to combine the marbles Liam starts with and the marbles he gets.
+  - Write the number Liam starts with plus the number he receives.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 5 marbles.
+      expression: '5'
+      common_mistake: null
+    - step_number: 2
+      explanation: His friend gives him 7 more marbles, so we add those to what he already has.
+      expression: 5 + 7
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the two numbers together.
+      expression: '12'
+      common_mistake: null
+    final_answer: 12 marbles
+  random_seed: 97201
+  rendered_question: Liam has 5 marbles and his friend gives him 7 more marbles. How many marbles does
+    Liam have now?
+  option_a: 12 marbles
+  option_b: 13 marbles
+  option_c: 11 marbles
+  option_d: 2 marbles
+  correct_option: a
 - question_template_id: authored-g1_word_problems-d1-6101
   topic_id: g1_word_problems
   skill_id: g1_wp_single_operation

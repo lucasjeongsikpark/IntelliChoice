@@ -103,6 +103,109 @@ templates:
   option_c: 1 apple
   option_d: 8 apples
   correct_option: b
+- question_template_id: authored-g1_addition-d1-97100
+  topic_id: g1_addition
+  skill_id: g1_add_within_10
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_added
+  - counted_only_one_group_plus_one
+  - added_one_extra
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student has 5 pencils in their desk and 3 pencils in their backpack. How many pencils does the
+    student have in total?
+  context_block: null
+  answer_expression: Eq(x, 5 + 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Count how many pencils are in the desk and how many are in the backpack.
+  - You need to put the two groups of pencils together.
+  - Write 5 + 3 to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student has 5 pencils in their desk.
+      expression: '5'
+      common_mistake: null
+    - step_number: 2
+      explanation: The student has 3 pencils in their backpack.
+      expression: '3'
+      common_mistake: null
+    - step_number: 3
+      explanation: To find the total, add the two groups together.
+      expression: 5 + 3
+      common_mistake: null
+    - step_number: 4
+      explanation: 5 plus 3 equals 8.
+      expression: '8'
+      common_mistake: null
+    final_answer: 8 pencils
+  random_seed: 97100
+  rendered_question: A student has 5 pencils in their desk and 3 pencils in their backpack. How many pencils
+    does the student have in total?
+  option_a: 9 pencils
+  option_b: 7 pencils
+  option_c: 2 pencils
+  option_d: 8 pencils
+  correct_option: d
+- question_template_id: authored-g1_addition-d1-97101
+  topic_id: g1_addition
+  skill_id: g1_add_within_10
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 30
+  common_error_tags:
+  - read_only_the_second_addend
+  - added_only_half_the_numbers
+  - subtracted_instead_of_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Maya finds 4 seashells on the beach in the morning and 2 seashells in the afternoon. How many
+    seashells does she find in total?
+  context_block: null
+  answer_expression: Eq(x, 4 + 2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many seashells Maya has from the morning and how many from the afternoon.
+  - To find the total, you need to combine the morning seashells and the afternoon seashells.
+  - Write down 4 plus 2 and find what that equals.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya finds 4 seashells in the morning and 2 seashells in the afternoon, so we add those
+        amounts together.
+      expression: 4 + 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Adding 4 and 2 gives us 6.
+      expression: '6'
+      common_mistake: null
+    final_answer: 6 seashells
+  random_seed: 97101
+  rendered_question: Maya finds 4 seashells on the beach in the morning and 2 seashells in the afternoon.
+    How many seashells does she find in total?
+  option_a: 5 seashells
+  option_b: 6 seashells
+  option_c: 3 seashells
+  option_d: 2 seashells
+  correct_option: b
 - question_template_id: authored-g1_addition-d2-5200
   topic_id: g1_addition
   skill_id: g1_add_within_10
@@ -204,6 +307,109 @@ templates:
   option_b: 1 sticker
   option_c: 10 stickers
   option_d: 8 stickers
+  correct_option: a
+- question_template_id: authored-g1_addition-d2-97200
+  topic_id: g1_addition
+  skill_id: g1_add_within_10
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - off_by_one_counting_error
+  - misremembered_addition_fact
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 6 stickers in his book and his friend gives him 4 more stickers. How many stickers does
+    Liam have now?
+  context_block: ''
+  answer_expression: Eq(x, 6 + 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by thinking about how many stickers Liam had at first, and how many he received.
+  - When you get more of something, you add the amounts together.
+  - Write down 6 plus 4 and find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 6 stickers in his book.
+      expression: '6'
+      common_mistake: null
+    - step_number: 2
+      explanation: His friend gives him 4 more stickers, so we add those to what he already has.
+      expression: 6 + 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Adding 6 and 4 gives us the total number of stickers Liam has now.
+      expression: '10'
+      common_mistake: null
+    final_answer: 10 stickers
+  random_seed: 97200
+  rendered_question: Liam has 6 stickers in his book and his friend gives him 4 more stickers. How many
+    stickers does Liam have now?
+  option_a: 9 stickers
+  option_b: 10 stickers
+  option_c: 2 stickers
+  option_d: 11 stickers
+  correct_option: b
+- question_template_id: authored-g1_addition-d2-97201
+  topic_id: g1_addition
+  skill_id: g1_add_within_10
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - Subtracted instead of adding
+  - Counted only one number up instead of adding
+  - Added one extra by mistake
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A child has 7 apples in a basket and picks 2 more apples from a tree. How many apples does the
+    child have now?
+  context_block: ''
+  answer_expression: Eq(x, 7 + 2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by counting how many apples the child had in the basket.
+  - When you pick more apples, you add them to the ones you already have.
+  - Write the total as 7 plus 2, then count to find the answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The child starts with 7 apples in the basket.
+      expression: '7'
+      common_mistake: null
+    - step_number: 2
+      explanation: The child picks 2 more apples from the tree, so we add those to the 7 apples already
+        in the basket.
+      expression: 7 + 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Adding 7 and 2 gives us the total number of apples.
+      expression: '9'
+      common_mistake: null
+    final_answer: 9 apples
+  random_seed: 97201
+  rendered_question: A child has 7 apples in a basket and picks 2 more apples from a tree. How many apples
+    does the child have now?
+  option_a: 9 apples
+  option_b: 8 apples
+  option_c: 10 apples
+  option_d: 5 apples
   correct_option: a
 - question_template_id: authored-g1_addition-d2-6200
   topic_id: g1_addition
@@ -314,6 +520,166 @@ templates:
   option_c: '14'
   option_d: '10'
   correct_option: b
+- question_template_id: authored-g1_addition-d2-98200
+  topic_id: g1_addition
+  skill_id: g1_add_within_20
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - miscounted_addend_by_one_low
+  - miscounted_addend_by_one_high
+  - subtracted_instead_of_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya collected 8 shells on the beach in the morning and 5 shells in the afternoon. How many shells
+    did she collect in all?
+  context_block: ''
+  answer_expression: Eq(x, 8 + 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by counting how many shells Maya had after the morning.
+  - Now you need to add the 5 afternoon shells to the 8 morning shells.
+  - Break the 5 into 2 and 3 so you can make a ten first, then add what is left.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya collected 8 shells in the morning and 5 shells in the afternoon, so we add those
+        amounts.
+      expression: 8 + 5
+      common_mistake: null
+    - step_number: 2
+      explanation: To bridge through ten, split the 5 into 2 and 3. First add 8 + 2 to reach 10.
+      expression: 8 + 2 = 10
+      common_mistake: null
+    - step_number: 3
+      explanation: Now add the remaining 3 to the 10.
+      expression: 10 + 3 = 13
+      common_mistake: null
+    final_answer: 13 shells
+  random_seed: 98200
+  rendered_question: Maya collected 8 shells on the beach in the morning and 5 shells in the afternoon.
+    How many shells did she collect in all?
+  option_a: 12 shells
+  option_b: 14 shells
+  option_c: 13 shells
+  option_d: 3 shells
+  correct_option: c
+- question_template_id: authored-g1_addition-d2-98201
+  topic_id: g1_addition
+  skill_id: g1_add_within_20
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - miscounted_remainder_after_bridging
+  - off_by_one_counting_error
+  - stopped_at_ten_without_adding_remainder
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam picked 7 apples from one tree and 6 apples from another tree. How many apples did he pick
+    altogether?
+  context_block: ''
+  answer_expression: Eq(x, 7 + 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You need to combine the apples from both trees.
+  - 'Make 10 first: split the 6 into 3 and 3, then add 7 and 3.'
+  - Now you have 10 plus the remaining 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Start with the 7 apples from the first tree and add 3 from the second tree to make
+        10.
+      expression: 7 + 3 = 10
+      common_mistake: null
+    - step_number: 2
+      explanation: The second tree gave 6 apples, and we used 3 to make 10, so 3 more apples remain.
+      expression: 6 - 3 = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the remaining 3 apples to the 10.
+      expression: 10 + 3 = 13
+      common_mistake: null
+    final_answer: 13 apples
+  random_seed: 98201
+  rendered_question: Liam picked 7 apples from one tree and 6 apples from another tree. How many apples
+    did he pick altogether?
+  option_a: 14 apples
+  option_b: 13 apples
+  option_c: 12 apples
+  option_d: 10 apples
+  correct_option: b
+- question_template_id: authored-g1_addition-d4-98400
+  topic_id: g1_addition
+  skill_id: g1_add_within_20
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - counted_off_by_one_low
+  - counted_off_by_one_high
+  - stopped_at_intermediate_ten
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Ava has 9 crayons in her pencil case and 9 crayons in her desk drawer. How many crayons does she
+    have altogether?
+  context_block: null
+  answer_expression: Eq(x, 9 + 9)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many crayons are in the pencil case and how many are in the desk drawer?
+  - Add the two groups of crayons together. Start with 9, then add 9 more.
+  - 'You can break the second 9 into 1 and 8 to make ten first: 9 + 1 = 10, then add the remaining 8.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to add the crayons in the pencil case (9) and the crayons in the desk drawer
+        (9).
+      expression: 9 + 9
+      common_mistake: null
+    - step_number: 2
+      explanation: To bridge through ten, we break the second 9 into 1 and 8 so that 9 + 1 makes 10.
+      expression: 9 + 1 + 8
+      common_mistake: null
+    - step_number: 3
+      explanation: First add 9 + 1 to get 10.
+      expression: 10 + 8
+      common_mistake: null
+    - step_number: 4
+      explanation: Now add 10 + 8 to get 18.
+      expression: '18'
+      common_mistake: null
+    final_answer: 18 crayons
+  random_seed: 98400
+  rendered_question: Ava has 9 crayons in her pencil case and 9 crayons in her desk drawer. How many crayons
+    does she have altogether?
+  option_a: 10 crayons
+  option_b: 18 crayons
+  option_c: 17 crayons
+  option_d: 19 crayons
+  correct_option: b
 - question_template_id: authored-g1_addition-d3-6300
   topic_id: g1_addition
   skill_id: g1_add_within_20
@@ -414,6 +780,105 @@ templates:
   option_b: 15 stickers
   option_c: 16 stickers
   option_d: 14 stickers
+  correct_option: b
+- question_template_id: authored-g1_addition-d3-98300
+  topic_id: g1_addition
+  skill_id: g1_add_within_20
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - bridged_but_lost_remainder
+  - miscounted_when_adding
+  - stopped_after_making_ten
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Sofia has 9 stickers in her album and her friend gives her 7 more stickers. How many stickers
+    does Sofia have now?
+  context_block: ''
+  answer_expression: Eq(x, 9 + 7)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many stickers Sofia started with and how many she received.
+  - 'You need to add the two amounts together: 9 stickers plus 7 stickers.'
+  - Try adding 1 to the 9 to make 10, then add what is left from the 7.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Sofia starts with 9 stickers and receives 7 more, so we need to add 9 + 7.
+      expression: 9 + 7
+      common_mistake: null
+    - step_number: 2
+      explanation: To bridge through ten, split the 7 into 1 and 6 so that 9 + 1 = 10.
+      expression: 9 + 1 + 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Now add 10 + 6 to get the total.
+      expression: 10 + 6 = 16
+      common_mistake: null
+    final_answer: 16 stickers
+  random_seed: 98300
+  rendered_question: Sofia has 9 stickers in her album and her friend gives her 7 more stickers. How many
+    stickers does Sofia have now?
+  option_a: 15 stickers
+  option_b: 10 stickers
+  option_c: 17 stickers
+  option_d: 16 stickers
+  correct_option: d
+- question_template_id: authored-g1_addition-d3-98301
+  topic_id: g1_addition
+  skill_id: g1_add_within_20
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - counting_error_one_less
+  - counting_error_one_more
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Ethan has 10 toy cars in his red box and 4 toy cars in his blue box. How many toy cars does he
+    have altogether?
+  context_block: null
+  answer_expression: Eq(x, 10 + 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by thinking about how many cars are in the red box and how many are in the blue box.
+  - To find the total, you need to add the cars from both boxes together.
+  - 'Write 10 + 4 and solve by bridging through ten: 10 + 4 is 10 plus 4 more.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Ethan has 10 toy cars in the red box and 4 in the blue box, so I need to add those
+        amounts.
+      expression: 10 + 4
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Starting at 10, I count on 4 more: 11, 12, 13, 14.'
+      expression: '14'
+      common_mistake: null
+    final_answer: 14 toy cars
+  random_seed: 98301
+  rendered_question: Ethan has 10 toy cars in his red box and 4 toy cars in his blue box. How many toy
+    cars does he have altogether?
+  option_a: 6 toy cars
+  option_b: 14 toy cars
+  option_c: 15 toy cars
+  option_d: 13 toy cars
   correct_option: b
 - question_template_id: authored-g1_addition-d4-6400
   topic_id: g1_addition
@@ -519,6 +984,165 @@ templates:
   option_c: 17 marbles
   option_d: 19 marbles
   correct_option: b
+- question_template_id: authored-g1_addition-d4-98401
+  topic_id: g1_addition
+  skill_id: g1_add_within_20
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - counted_only_to_ten
+  - added_ones_digits_only
+  - stopped_at_first_addend_plus_one
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Ben found 8 marbles in his backpack and 9 marbles in his toy chest. How many marbles did he find
+    altogether?
+  context_block: ''
+  answer_expression: Eq(x, 8 + 9)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the 8 marbles from the backpack. How many more do you need to make 10?
+  - Take 2 from the 9 marbles in the toy chest to make 10. How many of the 9 marbles are left?
+  - Now add 10 and the marbles that are left over.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Ben found 8 marbles in his backpack and 9 marbles in his toy chest, so we need to add
+        those two amounts.
+      expression: x = 8 + 9
+      common_mistake: null
+    - step_number: 2
+      explanation: To bridge through ten, split the 9 into 2 and 7 because 8 plus 2 makes 10.
+      expression: 8 + 2 = 10
+      common_mistake: null
+    - step_number: 3
+      explanation: Now add the remaining 7 marbles to the 10.
+      expression: 10 + 7 = 17
+      common_mistake: null
+    final_answer: 17 marbles
+  random_seed: 98401
+  rendered_question: Ben found 8 marbles in his backpack and 9 marbles in his toy chest. How many marbles
+    did he find altogether?
+  option_a: 17 marbles
+  option_b: 16 marbles
+  option_c: 10 marbles
+  option_d: 18 marbles
+  correct_option: a
+- question_template_id: authored-g1_addition-d4-99400
+  topic_id: g1_addition
+  skill_id: g1_add_within_28
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - miscounted_by_one_short
+  - miscounted_by_one_over
+  - subtracted_instead_of_added
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A student collects 8 shells on Monday and 9 shells on Tuesday. How many shells did she collect
+    in total?
+  context_block: null
+  answer_expression: Eq(x, 8 + 9)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many shells were collected across both days?
+  - Add the Monday shells and the Tuesday shells together.
+  - Write 8 + 9 and find the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the number of shells collected each day: 8 on Monday and 9 on Tuesday.'
+      expression: 8 + 9
+      common_mistake: null
+    - step_number: 2
+      explanation: Add 8 and 9. Start with 8, add 2 to reach 10, then add the remaining 7 from 9.
+      expression: 8 + 2 + 7 = 10 + 7
+      common_mistake: null
+    - step_number: 3
+      explanation: Combine to find the total.
+      expression: 10 + 7 = 17
+      common_mistake: null
+    final_answer: 17 shells
+  random_seed: 99400
+  rendered_question: A student collects 8 shells on Monday and 9 shells on Tuesday. How many shells did
+    she collect in total?
+  option_a: 16 shells
+  option_b: 17 shells
+  option_c: 1 shell
+  option_d: 18 shells
+  correct_option: b
+- question_template_id: authored-g1_addition-d5-99501
+  topic_id: g1_addition
+  skill_id: g1_add_within_28
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_added
+  - added_only_the_ones_place
+  - off_by_one_counting_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker makes 14 cookies in the morning and 9 cookies in the afternoon. How many cookies did the
+    baker make in all?
+  context_block: null
+  answer_expression: Eq(x, 14 + 9)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many cookies were made in the morning and how many in the afternoon?
+  - You need to put together 14 and 9 to find the total.
+  - Write 14 + 9 and then add the ones and tens.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker made 14 cookies in the morning and 9 cookies in the afternoon. We need to
+        add these amounts together.
+      expression: 14 + 9
+      common_mistake: null
+    - step_number: 2
+      explanation: Break 14 into 10 + 4 to make it easier. Now we add 4 + 9 first.
+      expression: 10 + (4 + 9)
+      common_mistake: null
+    - step_number: 3
+      explanation: 4 + 9 equals 13.
+      expression: 10 + 13
+      common_mistake: null
+    - step_number: 4
+      explanation: Now add 10 + 13 to get the total.
+      expression: '23'
+      common_mistake: null
+    final_answer: 23 cookies
+  random_seed: 99501
+  rendered_question: A baker makes 14 cookies in the morning and 9 cookies in the afternoon. How many
+    cookies did the baker make in all?
+  option_a: 24 cookies
+  option_b: 23 cookies
+  option_c: 13 cookies
+  option_d: 5 cookies
+  correct_option: b
 - question_template_id: authored-g1_addition-d4-7400
   topic_id: g1_addition
   skill_id: g1_add_within_28
@@ -621,6 +1245,104 @@ templates:
   option_c: 17 stickers
   option_d: 19 stickers
   correct_option: a
+- question_template_id: authored-g1_addition-d4-99401
+  topic_id: g1_addition
+  skill_id: g1_add_within_28
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_added
+  - subtracted_smaller_from_larger_ignoring_order
+  - stopped_at_the_decade_boundary
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Lina reads 12 pages in the morning and 9 pages in the afternoon. How many pages did she read altogether?
+  context_block: null
+  answer_expression: Eq(x, 12 + 9)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You need to find the total number of pages Lina read by putting together the morning and afternoon
+    amounts.
+  - Write an addition to combine 12 pages and 9 pages.
+  - Start at 12 and count on 9 more, or break 9 into parts to make it easier to cross 20.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the total pages as the sum of morning pages and afternoon pages.
+      expression: x = 12 + 9
+      common_mistake: null
+    - step_number: 2
+      explanation: Add 12 and 9. Start at 12, add 8 to reach 20, then add 1 more to get 21.
+      expression: x = 21
+      common_mistake: null
+    final_answer: 21 pages
+  random_seed: 99401
+  rendered_question: Lina reads 12 pages in the morning and 9 pages in the afternoon. How many pages did
+    she read altogether?
+  option_a: 3 pages
+  option_b: 11 pages
+  option_c: 21 pages
+  option_d: 20 pages
+  correct_option: c
+- question_template_id: authored-g1_addition-d5-37501
+  topic_id: g1_addition
+  skill_id: g1_add_within_28
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - counted_incorrectly_past_twenty
+  - added_only_ones_place
+  - subtracted_instead_of_added
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A child completes 19 math problems in the morning and 8 math problems in the afternoon. How many
+    math problems did the child complete in total?
+  context_block: null
+  answer_expression: Eq(x, 19 + 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many problems were completed in each part of the day?
+  - Add the morning problems and the afternoon problems together.
+  - Write 19 + 8 and find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of problems completed in the morning.
+      expression: '19'
+      common_mistake: null
+    - step_number: 2
+      explanation: Identify the number of problems completed in the afternoon.
+      expression: '8'
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the morning and afternoon problems to find the total.
+      expression: 19 + 8 = 27
+      common_mistake: null
+    final_answer: 27 math problems
+  random_seed: 37501
+  rendered_question: A child completes 19 math problems in the morning and 8 math problems in the afternoon.
+    How many math problems did the child complete in total?
+  option_a: 27 math problems
+  option_b: 11 math problems
+  option_c: 28 math problems
+  option_d: 26 math problems
+  correct_option: a
 - question_template_id: authored-g1_addition-d5-7500
   topic_id: g1_addition
   skill_id: g1_add_within_28
@@ -676,3 +1398,55 @@ templates:
   option_c: 11 stickers
   option_d: 24 stickers
   correct_option: b
+- question_template_id: authored-g1_addition-d5-99500
+  topic_id: g1_addition
+  skill_id: g1_add_within_28
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - bridging_error_through_ten
+  - subtracted_instead_of_added
+  - added_only_ones_digits
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A child wins 17 stickers at the ring toss booth and 8 stickers at the balloon dart booth. How
+    many stickers does the child have altogether?
+  context_block: null
+  answer_expression: Eq(x, 17 + 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Count how many stickers came from each booth.
+  - To find the total, you need to add the stickers from the ring toss and the balloon dart booth together.
+  - Write 17 + 8 and find the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of stickers from each booth. The child won 17 stickers at the ring
+        toss and 8 stickers at the balloon dart booth.
+      expression: 17 and 8
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the two amounts together to find the total.
+      expression: 17 + 8
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Break 8 into 3 + 5 to make a ten: 17 + 3 = 20, then 20 + 5 = 25.'
+      expression: '25'
+      common_mistake: Adding only part of the 8, such as stopping at 20 + 4 = 24.
+    final_answer: 25 stickers
+  random_seed: 99500
+  rendered_question: A child wins 17 stickers at the ring toss booth and 8 stickers at the balloon dart
+    booth. How many stickers does the child have altogether?
+  option_a: 15 stickers
+  option_b: 9 stickers
+  option_c: 25 stickers
+  option_d: 24 stickers
+  correct_option: c

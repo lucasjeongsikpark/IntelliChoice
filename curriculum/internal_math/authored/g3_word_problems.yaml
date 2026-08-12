@@ -111,6 +111,114 @@ templates:
   option_c: 1150 tickets
   option_d: 830 tickets
   correct_option: d
+- question_template_id: authored-g3_word_problems-d1-97100
+  topic_id: g3_word_problems
+  skill_id: g3_wp_add_sub
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - added_only_hundreds_place
+  - added_with_place_value_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library has 425 books on its shelves. A nearby school donates 318 more books. How many books
+    does the library have now?
+  context_block: null
+  answer_expression: x = 425 + 318
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Start by thinking about what you need to find: the total number of books after the donation.'
+  - You know the library started with 425 books and received 318 more. What operation combines those amounts?
+  - Write the equation that adds the starting books and the donated books together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The library starts with 425 books and receives 318 more books. To find the total, add
+        these two quantities.
+      expression: x = 425 + 318
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the hundreds: 400 + 300 = 700. Add the tens: 20 + 10 = 30. Add the ones: 5 + 8
+        = 13.'
+      expression: 700 + 30 + 13 = 743
+      common_mistake: null
+    final_answer: 743 books
+  random_seed: 97100
+  rendered_question: A library has 425 books on its shelves. A nearby school donates 318 more books. How
+    many books does the library have now?
+  option_a: 753 books
+  option_b: 643 books
+  option_c: 107 books
+  option_d: 743 books
+  correct_option: d
+- question_template_id: authored-g3_word_problems-d1-97101
+  topic_id: g3_word_problems
+  skill_id: g3_wp_add_sub
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - forgot_to_regroup_ones
+  - misaligned_place_values
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A school collected 547 bottles for recycling in October and 429 bottles in November. How many
+    bottles did the school collect in all?
+  context_block: null
+  answer_expression: x = 547 + 429
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You need to combine the October bottles and the November bottles to find the total.
+  - Write an addition expression with the two monthly amounts.
+  - Add 547 and 429 to find the total number of bottles.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the two monthly amounts: October had 547 bottles and November had 429 bottles.'
+      expression: 547 + 429
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the hundreds: 500 + 400 = 900.'
+      expression: '900'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tens: 40 + 20 = 60.'
+      expression: '60'
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the ones: 7 + 9 = 16.'
+      expression: '16'
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the place values: 900 + 60 + 16 = 976.'
+      expression: '976'
+      common_mistake: null
+    final_answer: 976 bottles
+  random_seed: 97101
+  rendered_question: A school collected 547 bottles for recycling in October and 429 bottles in November.
+    How many bottles did the school collect in all?
+  option_a: 866 bottles
+  option_b: 976 bottles
+  option_c: 966 bottles
+  option_d: 118 bottles
+  correct_option: b
 - question_template_id: authored-g3_word_problems-d2-965200
   topic_id: g3_word_problems
   skill_id: g3_wp_add_sub
@@ -216,6 +324,102 @@ templates:
   option_c: 1240 eggs
   option_d: 1140 eggs
   correct_option: d
+- question_template_id: authored-g3_word_problems-d5-98500
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mixed
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_instead_of_subtracting
+  - stopped_after_first_operation
+  - subtraction_place_value_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A store manager receives 6 boxes of toys. Each box holds 45 toys. Then the manager finds that
+    38 toys are damaged and must be thrown away. How many toys are not damaged?
+  context_block: null
+  answer_expression: Eq(x, (6 * 45) - 38)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find how many toys arrived in all 6 boxes together.
+  - The total number of toys is 6 times 45, and then 38 of those are damaged.
+  - Write the total and subtract the damaged toys to find how many are not damaged.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the total number of toys in all 6 boxes by multiplying the number of boxes by
+        the number of toys per box.
+      expression: 6 * 45 = 270
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the number of damaged toys from the total to find how many toys are not damaged.
+      expression: 270 - 38 = 232
+      common_mistake: null
+    final_answer: 232 toys
+  random_seed: 98500
+  rendered_question: A store manager receives 6 boxes of toys. Each box holds 45 toys. Then the manager
+    finds that 38 toys are damaged and must be thrown away. How many toys are not damaged?
+  option_a: 232 toys
+  option_b: 270 toys
+  option_c: 242 toys
+  option_d: 308 toys
+  correct_option: a
+- question_template_id: authored-g3_word_problems-d5-98501
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mixed
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting
+  - forgot_to_complete_second_operation
+  - subtracted_before_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A librarian receives 7 boxes of books with 28 books in each box. Then 45 books are checked out.
+    How many books remain?
+  context_block: null
+  answer_expression: Eq(x, (7 * 28) - 45)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find how many books the librarian receives in all the boxes.
+  - Multiply the number of boxes by the number of books per box, then subtract the number checked out.
+  - 'Set up the expression: total books received minus books checked out.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the total number of books received by multiplying the number of boxes by the number
+        of books in each box.
+      expression: 7 * 28 = 196
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the number of books checked out from the total received.
+      expression: 196 - 45 = 151
+      common_mistake: null
+    final_answer: 151 books
+  random_seed: 98501
+  rendered_question: A librarian receives 7 boxes of books with 28 books in each box. Then 45 books are
+    checked out. How many books remain?
+  option_a: 151 books
+  option_b: 106 books
+  option_c: 196 books
+  option_d: 241 books
+  correct_option: a
 - question_template_id: authored-g3_word_problems-d4-966400
   topic_id: g3_word_problems
   skill_id: g3_wp_mixed
@@ -381,6 +585,115 @@ templates:
   option_c: 25 books
   option_d: 3 books
   correct_option: b
+- question_template_id: authored-g3_word_problems-d4-98400
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mixed
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_after_first_operation
+  - reported_quotient_instead_of_remainder
+  - added_quotient_and_remainder
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher buys 4 packs of stickers with 35 in each pack and divides them equally among 9 students.
+    How many stickers are left over?
+  context_block: null
+  answer_expression: Eq(x, Mod(4 * 35, 9))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find the total number of stickers the teacher bought by multiplying the number of packs by the
+    number in each pack.
+  - Divide that total by the number of students to see how many each student gets and whether any are
+    left.
+  - The remainder from the division is the answer to how many stickers are left over.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Multiply the number of packs by the number of stickers in each pack to find the total.
+      expression: 4 * 35 = 140
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total number of stickers by the number of students to find how many each
+        receives and how many remain.
+      expression: 140 ÷ 9 = 15 remainder 5
+      common_mistake: null
+    - step_number: 3
+      explanation: The remainder is the number of stickers left over after equal distribution.
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 stickers
+  random_seed: 98400
+  rendered_question: A teacher buys 4 packs of stickers with 35 in each pack and divides them equally
+    among 9 students. How many stickers are left over?
+  option_a: 6 stickers
+  option_b: 5 stickers
+  option_c: 140 stickers
+  option_d: 15 stickers
+  correct_option: b
+- question_template_id: authored-g3_word_problems-d4-98401
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mixed
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - mistaken_remainder_calculation
+  - stopped_after_first_operation
+  - reported_quotient_instead_of_remainder
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker makes 5 batches of cookies with 32 cookies in each batch. She packs them into boxes that
+    hold 7 cookies each. How many cookies are left over after packing?
+  context_block: ''
+  answer_expression: Eq(x, Mod(5 * 32, 7))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find the total number of cookies the baker made across all 5 batches.
+  - Now determine how many complete boxes of 7 cookies can be filled from that total.
+  - The leftover cookies are what remains after filling all the complete boxes – use division and look
+    for the remainder.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Multiply the number of batches by the number of cookies in each batch to find the total
+        cookies.
+      expression: 5 * 32 = 160
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total cookies by the number of cookies per box to find how many complete
+        boxes can be filled.
+      expression: 160 / 7 = 22 remainder 6
+      common_mistake: null
+    - step_number: 3
+      explanation: The remainder from the division is the number of cookies left over after packing all
+        complete boxes.
+      expression: 160 mod 7 = 6
+      common_mistake: null
+    final_answer: 6 cookies
+  random_seed: 98401
+  rendered_question: A baker makes 5 batches of cookies with 32 cookies in each batch. She packs them
+    into boxes that hold 7 cookies each. How many cookies are left over after packing?
+  option_a: 6 cookies
+  option_b: 2 cookies
+  option_c: 22 cookies
+  option_d: 160 cookies
+  correct_option: a
 - question_template_id: authored-g3_word_problems-d5-966500
   topic_id: g3_word_problems
   skill_id: g3_wp_mixed
@@ -793,6 +1106,104 @@ templates:
   option_c: 730 bags
   option_d: 147 bags
   correct_option: d
+- question_template_id: authored-g3_word_problems-d3-99300
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplied
+  - subtracted_instead_of_multiplied
+  - multiplied_only_the_ones_digit
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library receives 8 boxes of books. Each box contains 125 books. How many books did the library
+    receive in total?
+  context_block: null
+  answer_expression: x = 125 * 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many groups of books are there, and how many books are in each group?
+  - When you have equal groups, multiply the number of groups by the number in each group to find the
+    total.
+  - Write 8 times 125 and calculate the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of groups and the size of each group. There are 8 boxes, and each
+        box contains 125 books.
+      expression: 8 boxes × 125 books per box
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the number of boxes by the number of books in each box to find the total.
+      expression: 8 × 125 = 1000
+      common_mistake: null
+    final_answer: 1000 books
+  random_seed: 99300
+  rendered_question: A library receives 8 boxes of books. Each box contains 125 books. How many books
+    did the library receive in total?
+  option_a: 117 books
+  option_b: 625 books
+  option_c: 133 books
+  option_d: 1000 books
+  correct_option: d
+- question_template_id: authored-g3_word_problems-d3-99301
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied instead of dividing
+  - subtracted the divisor from the dividend
+  - divided but made an arithmetic error (off by 8)
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school has 896 pencils to distribute equally among 8 classes. How many pencils does each class
+    receive?
+  context_block: null
+  answer_expression: x = 896 / 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many pencils will be in each group when you share 896 pencils equally.
+  - You need to divide the total number of pencils by the number of classes to find how many each class
+    gets.
+  - Set up the division 896 ÷ 8 to find the number of pencils per class.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find how many pencils each class receives, divide the total number of pencils by
+        the number of classes.
+      expression: 896 / 8
+      common_mistake: null
+    - step_number: 2
+      explanation: Perform the division. 896 divided by 8 equals 112.
+      expression: '112'
+      common_mistake: null
+    final_answer: 112 pencils
+  random_seed: 99301
+  rendered_question: A school has 896 pencils to distribute equally among 8 classes. How many pencils
+    does each class receive?
+  option_a: 104 pencils
+  option_b: 112 pencils
+  option_c: 888 pencils
+  option_d: 7168 pencils
+  correct_option: b
 - question_template_id: authored-g3_word_problems-d4-967400
   topic_id: g3_word_problems
   skill_id: g3_wp_mult_div
@@ -841,4 +1252,110 @@ templates:
   option_b: 637 photographs
   option_c: 92 photographs
   option_d: 4508 photographs
+  correct_option: c
+- question_template_id: authored-g3_word_problems-d4-99400
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - counted_remainder_as_extra_group
+  - stopped_before_final_division
+  - confused_remainder_with_group_size
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery has 275 cookies and packs them into boxes. Each box holds exactly 6 cookies. After filling
+    as many boxes as possible, 5 cookies remain unpacked. How many full boxes did the bakery pack?
+  context_block: null
+  answer_expression: x * 6 + 5 = 275
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If the bakery filled x full boxes and had 5 cookies left over, how many cookies were used in the boxes?
+  - The boxes contain 6x cookies, and together with the 5 left over, that equals 275 total cookies.
+  - Write the equation 6x + 5 = 275, then subtract 5 from both sides and divide by 6.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bakery packs x full boxes with 6 cookies each, so the boxes contain 6x cookies.
+        With 5 cookies left over, the total is 6x + 5 = 275.
+      expression: 6*x + 5 = 275
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 5 from both sides to isolate the term with x.
+      expression: 6*x = 270
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 6 to solve for x.
+      expression: x = 45
+      common_mistake: null
+    final_answer: 45 boxes
+  random_seed: 99400
+  rendered_question: A bakery has 275 cookies and packs them into boxes. Each box holds exactly 6 cookies.
+    After filling as many boxes as possible, 5 cookies remain unpacked. How many full boxes did the bakery
+    pack?
+  option_a: 46 boxes
+  option_b: 45 boxes
+  option_c: 50 boxes
+  option_d: 270 boxes
+  correct_option: b
+- question_template_id: authored-g3_word_problems-d4-99401
+  topic_id: g3_word_problems
+  skill_id: g3_wp_mult_div
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - included_remainder_in_team_count
+  - stopped_before_final_division
+  - arithmetic_error_in_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A camp counselor has 157 campers. She organizes them into teams of 7. After making as many complete
+    teams as possible, 3 campers are left without a full team. How many complete teams of 7 did she make?
+  context_block: ''
+  answer_expression: Eq(7*x + 3, 157)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for how many campers are in x complete teams, then add the 3 who are left over.
+  - The total number of campers is 7x + 3, and that equals 157.
+  - Subtract 3 from both sides, then divide by 7.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the total number of campers as the number in complete teams plus the leftover
+        campers.
+      expression: 7*x + 3 = 157
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 3 from both sides to isolate the term with x.
+      expression: 7*x = 154
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 7 to find the number of complete teams.
+      expression: x = 22
+      common_mistake: null
+    final_answer: 22 teams
+  random_seed: 99401
+  rendered_question: A camp counselor has 157 campers. She organizes them into teams of 7. After making
+    as many complete teams as possible, 3 campers are left without a full team. How many complete teams
+    of 7 did she make?
+  option_a: 154 teams
+  option_b: 23 teams
+  option_c: 22 teams
+  option_d: 20 teams
   correct_option: c

@@ -20787,3 +20787,250 @@ grew every difficulty's candidate pool, so the seeded pre-exam capture in
 here — a **content** change legitimately moves the draw — but the same failure from a
 **refactor** would mean the opposite, and re-capturing would be the mistake. That distinction
 is now written next to the pin rather than left to whoever hits it next.
+
+### D-289 — The auto-approval go/no-go: all five criteria pass, and they never named the failure
+
+**Date:** 2026-08-12 · **Session:** C1 (Phase 3) · **Status:** decided by the user
+
+ROADMAP C1 Phase 3 pre-registered five criteria for auto-approval and required the decision to
+be recorded either way. Four waves had already shipped auto-approved on the user's instruction,
+so this is the evidence catching up with the practice rather than gating it.
+
+| # | criterion | threshold | measured | |
+|---|---|---|---|---|
+| 1 | yield ≥ scheduled slots | ~50% | K-2 86%, 3-5 91%, 6-8+9-12 57% | ✅ |
+| 2 | human rejection | <30% | **13%** prose defects, **0%** wrong answer keys (n=54, D-285) | ✅ |
+| 3 | dispersion real per rubric | dominant tier <80% | **0 of 26** generated topics collapse (max 57%); the judge rejected **66 of 582** candidates (11%) on tier disagreement | ✅ |
+| 4 | zero leaked-answer / meta-text defects reaching `pending` | 0 | **0 of 658** items fail today's full gate | ✅ |
+| 5 | cost per accepted item within cap | $10/run cap | **4.7¢** — $24.97 total for 529 serving generated items | ✅ |
+
+**Criterion 4's exact claim, because the loose version is false.** `scripts/measure_gate_census.py`
+re-gates every bank item against *today's* gate. That supports "nothing in the bank violates the
+rules we now hold" — the right claim for a go/no-go on *future* auto-approval. It does **not**
+support "no defect ever reached pending": D-288's 64 SymPy-notation fields did, under a gate
+that had no such check. The stronger claim is already contradicted by this project's own record.
+
+**Criterion 3 is not circular, and the reason is worth keeping.** Accepted items are exactly
+those whose judged tier matched the requested tier, so the bank's own tier spread partly
+reflects the *plan*. What makes it evidence is the rejections: 66 candidates died on the judge
+disagreeing about difficulty. A judge that rubber-stamped would produce the same spread and
+zero such rejections.
+
+**What the criteria never measured is where the bank actually fails.** All five pass and D-285
+still found roughly one item in eight carrying a prose defect — a toy chest 11 × 6 × 4
+centimetres, six ovens baking one batch in 10 hours. Correct mathematics, implausible world.
+No deterministic gate sees it, and D-251 records two attempts at scoring this class that both
+failed. A set of criteria can pass completely and leave the real defect unaddressed; that is a
+property of pre-registration, not a reason to abandon it.
+
+**The decision, taken by the user: auto-approve, no sampling.** A 20-item-per-wave spot check
+was recommended here and declined — 20 draws would catch a 13% family 94% of the time, which is
+the only cheap detector available for a defect class no gate can see. Recorded as offered and
+declined rather than silently dropped, because the consequence is specific: prose defects now
+reach students unless someone reads the bank for another reason. `review_priority='high'` is
+still set on every auto-approved item and `scripts/list_unreviewed_bank_items.py` still
+reproduces the set, so the suspension stays visible and revertible.
+
+### D-290 — A topic whose authoring plan cannot reach the tier its serving floor demands
+
+**Date:** 2026-08-12 · **Session:** C1 (Phase 3)
+
+`g5_word_problems` holds 18 approved items and no student can open it. Its three skills span
+tiers `[2,3]`, `[3,4]` and `[4,5]`, so `build_plan` **cannot schedule a difficulty-1 candidate
+at all** — while `topic_availability` opens a topic only when every tier 1-5 holds
+`QUESTIONS_PER_DIFFICULTY` approved templates.
+
+From outside the two look identical: a topic with items, sitting below the floor. One is a
+yield problem that money fixes; this one is unreachable by construction, and a re-run would
+have spent money reproducing exactly the same gap. It was found by asking, for each missing
+slot, *"was this ever attempted?"* — 9 of the 24 missing slots had zero recorded attempts, and
+checking the plan rather than assuming showed 8 of those 9 were simply never run and one was
+impossible.
+
+**A correction to my own first inference, kept because it ran in the alarming direction.** From
+the one example I inferred that the never-attempted slots were generally unplannable. Measured
+across all 13 topics that is wrong: exactly one topic is affected. The inference and the
+measurement disagreed, and the measurement was cheap.
+
+The fix is one tier on one skill — `g5_wp_fractions` now spans `[1,2,3]`, matching how
+`g4_wp_division` carries tier 1 in the sibling topic, and "half of 30" is honest grade-5 tier-1
+work. **The durable half is the test**: `test_every_generatable_topic_can_be_planned_at_every_serving_tier`
+asserts that every pipeline-authorable topic's plan spans all five tiers. Verified in both
+directions — it fails on the pre-fix taxonomy and passes after. Empty `difficulty_tiers` is
+exempt and that exemption is load-bearing rather than a loophole: it means "not authorable by
+the pipeline", which is the correct state for the three hand-authored topics and the four
+figure topics, whose route to the floor is `scripts/author_figure_items.py` and hand-authoring.
+
+This is D-288's serving-floor finding one level up. There, no wave's "done when" checked the
+bank against the floor. Here, nothing checked that the *plan* could even produce the bank state
+the floor requires.
+
+### D-291 — `multi_root` was rejecting correct items exactly the way `interval` was
+
+**Date:** 2026-08-12 · **Session:** C1 (Phase 3)
+
+The Phase 3 serving-floor batch opened on `algebra_1` difficulty 1 and took **0 of 3**, all
+three rejections identical in shape:
+
+```
+multi_root answer frozenset({-8, 8}) derived from the equation does not match
+declared correct option 'b' ('8 metres')
+```
+
+A square garden of area 64 m² has a side of 8 metres. `Eq(x**2, 64)` has roots ±8, and the gate
+compared the solution **set** against the **value** a student writes — which is D-281's interval
+defect (`Interval(7, oo)` versus "7 months") appearing in a second answer model. Counting the
+historical rejections with it: **7 of 7 candidates ever generated for `alg1_square_roots` at
+tier 1 died this way**, and tier 1 is the tier that kept the entire `algebra_1` topic below the
+serving floor.
+
+**The rule, and why the second condition is half of it.** At the D-281 seam — only when the
+first reading matched nothing, and the reading must still match exactly one option:
+
+1. exactly one root is positive, and
+2. **no option matches any non-positive root.**
+
+Condition 2 is what separates "a square's side" from "solve x² = 81". The abstract item offers
+−9 as a distractor *because* ±9 is its honest answer, so "9" alone would be a wrong key; a
+measurement item never offers "−9 metres", because a length cannot be negative. The domain
+constraint is therefore read off the item's own options — data the gate already trusts —
+rather than by parsing the stem for units or asking a model (D-252).
+
+**Measured before writing it, both directions (D-221), free because D-195 stores rejected
+candidate content** (`scripts/measure_multi_root_reading.py`): 12 mismatch rejections
+considered, **4 recovered**, 6 declined, 2 still ambiguous, and **0 items rejected for other
+reasons become acceptable**. The declines are the result worth reading:
+
+| declined because | n |
+|---|---|
+| a non-positive root is offered as an option | **3** |
+| two positive roots (a genuine two-solution quadratic) | 3 |
+
+So **3 of the 7 candidate applications would have been wrong without condition 2** — the guard
+is not a flourish, it is nearly half the rule.
+
+**The recovery number is small and the structural result is not.** Four items is not much bank.
+What changed is that a tier which had never once been achievable now can be, which is the
+difference between a topic that opens and one that does not.
+
+### D-292 — The difficulty judge does not reproduce its own labels
+
+**Date:** 2026-08-12 · **Session:** C1 (Phase 3) · **Status:** measured, not acted on
+
+**52% of the Phase 3 batch's rejections were the judge disagreeing about difficulty — 38 of
+73 — and every one pulled toward the middle of the scale:**
+
+| asked | judged | n |
+|---|---|---|
+| 1 | 3 | 3 |
+| 4 | 2 | **18** |
+| 5 | 2 | 6 |
+| 5 | 3 | 11 |
+
+Not one moved outward. Two readings fit, with opposite consequences: either these topics do
+not span five tiers (**content** — and the serving floor's "every tier 1-5" is what is wrong),
+or the judge's scale is compressed (**instrument** — and the floor is fine).
+
+**The test that separates them, for 10 cents.** Re-judge items **already in the bank at known
+tiers**, blind, exactly as the pipeline judges a candidate. Their labels are this same judge's
+own ratings: a disagreement at generation time would have rejected or retiered them. Sampled
+from the topics that produced the disagreements *and* already hold approved items at those
+tiers — the only population where the two readings predict different results.
+
+| bank tier | re-judged as | agrees |
+|---|---|---|
+| d1 | d1 ×2, d2 ×2 | 2 of 4 |
+| d3 | d2 ×4 | **0 of 4** |
+| d4 | d2 ×1, d3 ×3 | **0 of 4** |
+| d5 | d3 ×1, d4 ×2, d5 ×1 | 1 of 4 |
+
+**Exact agreement 3 of 16 (19%); within one tier 14 of 16 (88%); the drift is systematic and
+downward, about one tier.** So it is the instrument. The same judge would reject a large share
+of the bank it has already approved, and the tier-4/5 rejections say little about the content.
+
+**What that does *not* mean, and the correction matters.** "The judge is broken" was my first
+reading of the 38 and it is wrong in the other direction. Checking the rejections against the
+retiering rule: **every one of the 38 was ≥2 tiers away**, and the 7 items retiered in the same
+runs were the ≤1-tier cases. The pipeline already implements exactly the right policy — tolerate
+±1 by storing the judge's tier, reject beyond. Nothing here is misbehaving. The finding is that
+a **±1-resolution instrument is being asked for ±1 agreement**, which is the tightest tolerance
+it can possibly satisfy, so its noise lands directly on yield.
+
+**Consequences, in order of how much they cost:**
+
+1. **Tier-4/5 slots cost roughly 3× per accepted item, and that is a property of the
+   instrument.** Phase 3's depth pass at those tiers is priced against a coin flip, not against
+   the content's difficulty.
+2. **D-289's criterion 3 passed on a weaker basis than it looked.** "Dispersion real per topic"
+   is measured on *accepted* items, and acceptance requires the judge to agree — so accepted
+   items are well-tiered by construction. The 66 tier-disagreement rejections rescued that
+   argument from circularity, and this measurement shows what they actually were.
+3. **D-287's "19% of rungs are flat" has a companion.** That measured the *content* of a tier
+   ladder; this measures the *labels*. A ladder can look flat because the rungs are equal or
+   because the ruler is noisy, and both are now measured separately.
+
+**Not acted on, deliberately.** The two available fixes — widen the tolerance to ±2, or
+re-anchor the rubric so the judge's scale matches the topics' — are both quality decisions with
+opposite failure modes, and one of them (widening) directly weakens the only difficulty control
+the pipeline has. The measurement is cheap to repeat (`scripts/measure_judge_tier_agreement.py`,
+16 calls) and should be repeated against any rubric change, in both directions.
+
+**One methodological note worth keeping.** The first version of this script drew its whole
+sample alphabetically and got every d4/d5 item from `algebra_*` and `calculus` — none of which
+is where the disagreements happened. A sample that cannot see the phenomenon reports that the
+phenomenon is absent. The priority list is now in the script with that reason next to it.
+
+### D-293 — The same defect in a third place, and the tempting fix was the wrong one
+
+**Date:** 2026-08-12 · **Session:** C1 (Phase 3 depth run)
+
+Six candidates in one depth run died with a message this project has now seen three times in
+three different checks:
+
+```
+canonical_solution.final_answer 'x >= 10' does not match the declared correct
+option 'at least 10 boxes'
+```
+
+Every one an inequality skill. **D-281 taught `check_sympy_independent_solve` that a solution
+set and the boundary a student writes are both honest readings of one verified inequality.
+`check_hint_solution_answer_agreement` performs its own comparison and never learned it** — so
+a threshold word problem that now clears the equation check is rejected by the solution-text
+check immediately after. The gate had one door widened and the next one left shut.
+
+**Where the fix went, and why not the obvious place.** The natural edit is `answers_agree`,
+which both checks route through. It is also **shared with the serving path**: `tutor.generate_
+solution` uses it to decide whether a model's solution matches the question's answer (D-207).
+Widening it would have changed what the *running tutor* accepts, at runtime, for every item —
+a behaviour change nothing here measured and nobody asked for. The gate's tolerance and the
+tutor's are identical today by implementation accident rather than intent, and only one of them
+has this evidence behind it. The reading was therefore added to the check.
+
+**Both option shapes are needed, and the real rejections contained both:**
+
+| final answer | option | what matches |
+|---|---|---|
+| `x >= 10` | `at least 10 boxes` | the solution set directly, via D-282's prose-interval reading |
+| `x <= 10` | `10 movies` | only the boundary value, via D-281's second reading |
+
+**Precision is D-281's, unchanged**: only a *closed* boundary yields a value, so `x > 10` still
+fails; the boundary is compared by value, so the off-by-one distractor these items carry
+("11 boxes") still fails; and the two directions are not interchangeable — `x <= 10` against
+"at least 10 boxes" is refused.
+
+**A test of mine that was wrong in the flattering direction.** I first wrote
+`test_the_other_boundary_direction_agrees_too` asserting `x <= 10` agrees with "at least 10
+boxes". It does not, and it must not. The test failed, and the failure was the fix working. It
+is kept as `test_the_two_directions_are_not_interchangeable`, on the recall side of the file,
+because a recall test that was actually a precision test is worth showing rather than deleting.
+
+**And a census whose premise expired for the second time.**
+`test_every_shipped_item_routes_and_matches_its_own_key` required the *first* reading to match
+the declared option. Its own docstring records the first time that premise moved (from
+"everything routes to `value`" to a census over five models). D-281, D-282 and D-291 each
+admitted a second reading of an already-verified model, so items that match only under one of
+those are now in the bank **by design** — `authored-algebra_1-d1-69100`, one of the two items
+D-291 recovered, is the first, and it is what failed the test. Requiring the first reading
+there would have re-imposed in a test exactly the restriction three decisions measured and
+removed. The census now applies the same readings the gate does and still demands **exactly
+one** matching option, which is what it was written to protect.

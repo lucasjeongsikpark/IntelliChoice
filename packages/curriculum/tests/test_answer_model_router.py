@@ -13,6 +13,8 @@ import pytest
 from intellichoice_curriculum.authored_validation import (
     DerivedAnswer,
     _option_matches,
+    _positive_root_reading,
+    _second_readings,
     derive_answer,
     route_answer,
 )
@@ -178,6 +180,28 @@ def test_every_shipped_item_routes_and_matches_its_own_key():
             assert derivation is not None, f"{template['question_template_id']}: {error}"
             options = {label: template[f"option_{label}"] for label in "abcd"}
             matching = [k for k, v in options.items() if _option_matches(derivation, v)]
+            # **The premise moved a second time, and for the same reason as the first.**
+            # This used to require the *first* reading to match, which was true while every
+            # shipped item's answer model matched what the student writes. D-281, D-282 and
+            # D-291 each admitted a second reading of an already-verified model - a closed
+            # inequality boundary, a prose interval, the one positive root of a measured
+            # quantity - and items that only match under one of those are now in the bank
+            # by design (`authored-algebra_1-d1-69100` is the first). Requiring the first
+            # reading here would re-impose, in a test, exactly the restriction those three
+            # decisions measured and removed.
+            #
+            # The census still catches what it was written for: the item must match
+            # **exactly one** option under the same readings the gate uses, so a silently
+            # reshaped answer or an ambiguous option set still fails.
+            if matching != [template["correct_option"]]:
+                for reading in [
+                    *_second_readings(derivation, template["answer_expression"]),
+                    *_positive_root_reading(derivation, options),
+                ]:
+                    second = [k for k, v in options.items() if _option_matches(reading, v)]
+                    if len(second) == 1:
+                        matching = second
+                        break
             assert matching == [template["correct_option"]], template["question_template_id"]
             models[derivation.model] += 1
 

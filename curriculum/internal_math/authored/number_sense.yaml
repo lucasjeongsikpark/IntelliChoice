@@ -164,6 +164,113 @@ templates:
   option_c: 38472 books
   option_d: 38473 books
   correct_option: b
+- question_template_id: authored-number_sense-d2-95200
+  topic_id: number_sense
+  skill_id: number_large_compare
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - compared_only_last_two_digits
+  - confused_middle_values
+  - selected_first_listed_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Four schools held a canned-food drive. Lincoln collected 5872 cans, Washington collected 7341
+    cans, Jefferson collected 6295 cans, and Roosevelt collected 8104 cans. Which school collected the
+    most cans?
+  context_block: null
+  answer_expression: Eq(x, Max(5872, 7341, 6295, 8104))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look at the leftmost digit of each number first—that tells you the thousands place.
+  - The number with the largest thousands digit is the greatest number overall.
+  - Compare 5, 7, 6, and 8 in the thousands place to identify which school collected the most.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write down the four numbers and align them by place value: 5872, 7341, 6295, 8104.'
+      expression: 5872, 7341, 6295, 8104
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Compare the thousands place of each number: 5, 7, 6, and 8.'
+      expression: 5 < 6 < 7 < 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 8 is the largest digit in the thousands place, 8104 is the greatest number.
+      expression: '8104'
+      common_mistake: null
+    final_answer: 8104 cans
+  random_seed: 95200
+  rendered_question: Four schools held a canned-food drive. Lincoln collected 5872 cans, Washington collected
+    7341 cans, Jefferson collected 6295 cans, and Roosevelt collected 8104 cans. Which school collected
+    the most cans?
+  option_a: 5872 cans
+  option_b: 6295 cans
+  option_c: 7341 cans
+  option_d: 8104 cans
+  correct_option: d
+- question_template_id: authored-number_sense-d2-95201
+  topic_id: number_sense
+  skill_id: number_large_compare
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - selected_second_largest_instead_of_largest
+  - selected_third_largest_instead_of_largest
+  - confused_greatest_with_least
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Four amusement parks reported their attendance for opening day. Splash World had 6243 visitors,
+    Thunder Peak had 8157 visitors, Ocean Bay had 7429 visitors, and Sky Ridge had 9316 visitors. Which
+    park had the most visitors?
+  context_block: ''
+  answer_expression: Eq(x, Max(6243, 8157, 7429, 9316))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Line up the four attendance numbers so their place values match: thousands, hundreds, tens, and ones.'
+  - Compare the digits in the thousands place first - the number with the largest thousands digit is the
+    largest number.
+  - Once you find the number with the largest thousands digit, you have found the park with the most visitors.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write down all four attendance numbers: 6243, 8157, 7429, and 9316.'
+      expression: 6243, 8157, 7429, 9316
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Compare the thousands digits: 6, 8, 7, and 9. The largest thousands digit is 9.'
+      expression: 9 > 8 > 7 > 6
+      common_mistake: null
+    - step_number: 3
+      explanation: The number with thousands digit 9 is 9316, so Sky Ridge had the most visitors.
+      expression: '9316'
+      common_mistake: null
+    final_answer: 9316 visitors
+  random_seed: 95201
+  rendered_question: Four amusement parks reported their attendance for opening day. Splash World had
+    6243 visitors, Thunder Peak had 8157 visitors, Ocean Bay had 7429 visitors, and Sky Ridge had 9316
+    visitors. Which park had the most visitors?
+  option_a: 6243 visitors
+  option_b: 8157 visitors
+  option_c: 7429 visitors
+  option_d: 9316 visitors
+  correct_option: d
 - question_template_id: authored-number_sense-d3-945300
   topic_id: number_sense
   skill_id: number_large_compare
@@ -330,6 +437,61 @@ templates:
   option_c: '32'
   option_d: '1'
   correct_option: d
+- question_template_id: authored-number_sense-d1-96101
+  topic_id: number_sense
+  skill_id: number_odd_even
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - misidentified_odd_even
+  - used_divisor_as_remainder
+  - gave_quotient_not_remainder
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 83 students and wants to pair them up for a project. Each pair has 2 students. What
+    is the remainder when all students are placed into pairs?
+  context_block: ''
+  answer_expression: Eq(x, Mod(83, 2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about whether 83 students can be split into groups of exactly 2 with no one left over.
+  - Divide 83 by 2 and see what is left after making as many pairs as possible.
+  - Calculate 83 ÷ 2 and identify the remainder.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the remainder, divide 83 by 2.
+      expression: 83 ÷ 2
+      common_mistake: null
+    - step_number: 2
+      explanation: 83 divided by 2 equals 41 with a remainder.
+      expression: 83 = 2 × 41 + r
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Calculate what is left: 83 minus 82 (which is 2 times 41) equals 1.'
+      expression: 83 - 82 = 1
+      common_mistake: null
+    - step_number: 4
+      explanation: The remainder is 1, which means 83 is an odd number.
+      expression: remainder = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 96101
+  rendered_question: A teacher has 83 students and wants to pair them up for a project. Each pair has
+    2 students. What is the remainder when all students are placed into pairs?
+  option_a: '2'
+  option_b: '0'
+  option_c: '41'
+  option_d: '1'
+  correct_option: d
 - question_template_id: authored-number_sense-d2-946200
   topic_id: number_sense
   skill_id: number_odd_even
@@ -437,6 +599,69 @@ templates:
   option_b: '0'
   option_c: '1'
   option_d: '2'
+  correct_option: c
+- question_template_id: authored-number_sense-d2-96200
+  topic_id: number_sense
+  skill_id: number_odd_even
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - thought_odd_number_is_divisible_by_2
+  - confused_divisor_with_remainder
+  - confused_quotient_with_remainder
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A warehouse has 1235 boxes to load into trucks that each hold 2 boxes. How many boxes will be
+    left over after filling as many trucks as possible?
+  context_block: null
+  answer_expression: Eq(x, Mod(1235, 2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - When you group items by twos, any leftover tells you something about whether the total is even or
+    odd.
+  - Divide 1235 by 2 and look at the remainder, not the quotient.
+  - The remainder when an odd number is divided by 2 is always 1; when an even number is divided by 2,
+    the remainder is 0.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to find how many boxes remain when 1235 boxes are grouped into pairs (trucks
+        of 2 boxes each).
+      expression: 1235 ÷ 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide 1235 by 2. The quotient is 617 and the remainder is what we are looking for.
+      expression: 1235 = 617 × 2 + remainder
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 617 times 2 to see what is accounted for.
+      expression: 617 × 2 = 1234
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract that from the total to find the remainder.
+      expression: 1235 - 1234 = 1
+      common_mistake: null
+    - step_number: 5
+      explanation: Since 1235 is an odd number, one box is left over when pairing them into groups of
+        2.
+      expression: remainder = 1
+      common_mistake: Confusing the quotient (617) with the remainder.
+    final_answer: 1 box
+  random_seed: 96200
+  rendered_question: A warehouse has 1235 boxes to load into trucks that each hold 2 boxes. How many boxes
+    will be left over after filling as many trucks as possible?
+  option_a: 2 boxes
+  option_b: 0 boxes
+  option_c: 1 box
+  option_d: 617 boxes
   correct_option: c
 - question_template_id: authored-number_sense-d3-947300
   topic_id: number_sense
@@ -832,6 +1057,59 @@ templates:
   option_b: 15 degrees Celsius
   option_c: 15.4 degrees Celsius
   option_d: 15.5 degrees Celsius
+  correct_option: c
+- question_template_id: authored-number_sense-d4-97401
+  topic_id: number_sense
+  skill_id: number_rounding
+  grade_band: 4-5
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_down_when_digit_is_five_or_more
+  - rounded_to_wrong_place_value
+  - rounded_to_nearest_whole_instead_of_target_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A runner completes a race in 12.364 seconds. The official timer rounds the time to the nearest
+    tenth of a second. What time does the timer record?
+  context_block: ''
+  answer_expression: Eq(x, Rational(1,10) * round(12.364 * 10))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look at the digit in the hundredths place to decide whether the tenths digit stays or increases.
+  - The hundredths digit is 6, which is 5 or more, so you round the tenths place up.
+  - Increase the 3 in the tenths place to 4 and drop everything after it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the tenths place in 12.364. The tenths digit is 3.
+      expression: '12.364'
+      common_mistake: null
+    - step_number: 2
+      explanation: Look at the digit immediately to the right, in the hundredths place. That digit is
+        6.
+      expression: '6'
+      common_mistake: null
+    - step_number: 3
+      explanation: Since 6 is 5 or greater, round the tenths digit up from 3 to 4 and drop all digits
+        after the tenths place.
+      expression: '12.4'
+      common_mistake: null
+    final_answer: 12.4 seconds
+  random_seed: 97401
+  rendered_question: A runner completes a race in 12.364 seconds. The official timer rounds the time to
+    the nearest tenth of a second. What time does the timer record?
+  option_a: 12.36 seconds
+  option_b: 12 seconds
+  option_c: 12.4 seconds
+  option_d: 12.3 seconds
   correct_option: c
 - question_template_id: authored-number_sense-d5-947500
   topic_id: number_sense

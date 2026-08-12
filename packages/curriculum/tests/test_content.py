@@ -71,6 +71,43 @@ def test_every_skill_references_a_known_topic() -> None:
         assert skill.topic_id in topic_ids
 
 
+def test_every_generatable_topic_can_be_planned_at_every_serving_tier() -> None:
+    """A topic the pipeline can author must be *plannable* at all five tiers (C1 Phase 3).
+
+    `topic_availability` opens a topic only when every difficulty 1-5 holds at least
+    `QUESTIONS_PER_DIFFICULTY` approved templates. That floor is enforced at serving time
+    against the bank; nothing has ever checked it against the **authoring plan**, which is
+    the union of each skill's `difficulty_tiers` and is what `build_plan` schedules from.
+
+    When the two disagree the failure is silent and total: `g5_word_problems` spanned
+    [2,3], [3,4] and [4,5], so no run could ever schedule a difficulty-1 item and the topic
+    was unopenable *by construction*. It looked identical to a yield problem from the
+    outside - 18 approved items, a topic no student could enter - and a re-run would have
+    spent money reproducing exactly the same gap. This is the same class as D-288's serving
+    floor finding, one level further up: there, no wave's "done when" checked the bank; here,
+    nothing checked that the plan could even reach the bank state the floor demands.
+
+    **Empty `difficulty_tiers` is not a violation** - it means "not authorable by the
+    pipeline" (`content.py`), which is the correct and deliberate state for the three
+    hand-authored topics and the four figure topics. Those are stocked by
+    `scripts/author_figure_items.py` and by hand, so the plan is not their route. The
+    invariant therefore applies to topics with at least one authorable skill.
+    """
+    content = load_curriculum()
+
+    for topic_id in sorted(content.topic_ids()):
+        skills = content.skills_for_topic(topic_id)
+        planned = {tier for skill in skills for tier in skill.difficulty_tiers}
+        if not planned:
+            continue  # hand-authored or figure-authored; the plan is not its route
+        missing = sorted({1, 2, 3, 4, 5} - planned)
+        assert not missing, (
+            f"{topic_id} is pipeline-authorable but its plan cannot schedule tier(s) "
+            f"{missing}, so the topic can never meet the serving floor. Widen the span of "
+            f"the skill that genuinely holds that tier rather than inventing a skill for it"
+        )
+
+
 def test_linear_equations_has_five_skill_ladder() -> None:
     content = load_curriculum()
     linear_skills = {s.skill_id for s in content.skills_for_topic("linear_equations")}
