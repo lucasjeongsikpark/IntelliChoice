@@ -8,7 +8,40 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 ### Next session
 
 **Session C1: Phases 0 ✅, R ✅, 1 ✅ (all four grade bands), 5 ✅ (figures). 2026-08-11/12,
-D-273 through D-280. 471 approved + 204 pending in the bank, ~$22 spent, 1330 passing, PR #234.**
+D-273 through D-284. 620 approved and exported, 0 pending, ~$28 spent, 1375 passing.
+Merged as #234, #235, #236, #237 and deployed — the bank is live on staging.**
+
+**The 6-12 wave is shipped.** It had been generated but never exported, so twelve topics held
+approvable content and zero served items; ten topic files were created for the first time.
+Auto-approved without review on the user's instruction — the fourth wave that way. Every item
+keeps `review_priority='high'` and `scripts/list_unreviewed_bank_items.py` reproduces the set,
+so the skipped review stays visible and revertible.
+
+**Three gate defects found by reading the re-run's rejections rather than its acceptances:**
+
+1. **The gate could not accept an inequality word problem at all** (D-281) — **0 of 28** across
+   all three inequality skills. It derived the solution *set* (`Interval(7, oo)`) and compared
+   it against the boundary a student writes ("7 months"). A threshold question is the ordinary
+   way to ask an inequality. **27 rejections recovered**, free.
+2. **The gate could not read an answer written the way a child says it** (D-282) —
+   `_option_as_solution_set` needed a `<` or `>`, so `"more than 10 hours"` was rejected as
+   *wrong* rather than unreadable. That is an incentive, not a gap: the gate was paying the
+   generator to write algebra at children.
+3. **A skill at zero was invisible** — `algebra_1` reported 33% while three of its skills
+   accepted nothing, and `skill_id` was not in the structured logs either. The run summary now
+   names a shut-out skill and says re-running will not fix it.
+
+**Repair verdict (D-283): 199 Generator calls bought 13 items — the flag stays off.** The one
+topic where it paid (calculus, 27→7) is the only one whose deterministic gate rejected nothing,
+which points at the rejection *messages* rather than the mechanism. The cheap experiment that
+would settle it is written down in D-283.
+
+**A correction I had to make to my own work, mid-session.** D-281 justified declining open
+boundaries with "costs nothing measurable — all 19 recoveries came from closed boundaries."
+**Circular**: open-boundary items were excluded by construction, so none *could* appear. It
+costs 3 items, and the rule I declined would have misread 6. The conservative choice was right
+and the reason given for it was wrong — the combination that survives review and carries into
+the next decision. See D-282.
 
 **Every one of the 246 CSV rows is now either stocked or dispositioned.** 33 internal topics,
 112 skills. The figures decision — the last open gate in the plan — was taken by the user and
@@ -67,16 +100,26 @@ the auto-approved set; the readability ceiling is **not** miscalibrated for olde
 
 **Carry-over, in the order they matter:**
 
-1. **There is still no human-rejection rate. Three waves now.** Review was skipped on the user's
-   instruction each time, and it is the evidence Phase 3's auto-approval decision is supposed to
-   rest on. **204 items are pending and nobody has read one.**
-2. **The re-run's result is unread** — check `algebra_1`, `algebra_foundations`, `g6_fractions`,
-   `calculus`, `algebra_2`, `statistics_advanced` and decide whether repair earns its cost.
-3. **Nothing is merged or deployed.** PR #234 carries the whole session.
+1. **There is still no human-rejection rate, and it is now worse than "unmeasured".** Four waves,
+   review skipped on the user's instruction each time — and the 620 items are no longer pending
+   in a queue, they are **approved, exported, committed and deployed to staging**. Nobody has
+   read one. This is the evidence Phase 3's auto-approval decision is supposed to rest on, and
+   the decision has now been taken four times without it. `list_unreviewed_bank_items.py` still
+   reproduces the set and `review_priority='high'` still sorts them first, so the revert is one
+   command — but the item that was cheap to do at wave one is now the largest single unknown in
+   the product.
+2. **29 approved `linear_equations` items are unreachable** (D-284) — `active_status='pending'`,
+   a value nothing in this codebase writes, so they are excluded from both the export and the
+   serving path. Establish where they came from *before* deciding whether to activate them.
+3. **The rejection messages name symptoms, not remedies** (D-283). Rewriting them is the
+   experiment that decides whether repair is worth turning on, and it is cheap: one topic,
+   repair on, compare.
 4. The figure renderers have **no e2e walk** — they typecheck and their specs are gated, but no
    test has watched a student answer a clock question.
 5. `arithmetic_identity` is still unwired (from D-273), and the cross-skill duplicate limit
    (2 of 160 in `measurement`) is recorded rather than fixed.
+6. **`main` is still unprotected** — carried since #20. Everything this session went through a
+   PR with CI, but by choice rather than by anything preventing otherwise.
 
 **Superseded plan text below, kept for the phase definitions:** Phase 1 is the first phase that spends money, and two
 things it must carry from Phase R: **teach `Eq(x, Max(...))` in the rubric work** — comparison

@@ -20448,3 +20448,76 @@ and survives into the next decision, where the answer may differ. What exposed i
 re-measurement but reading a single rejection — `Interval.open(-oo, 16)` against `'15 hours'` —
 and noticing the gate was refusing something true. **Same lesson as D-281's method note, one
 level up: the aggregate said the rule was free, and one item said otherwise.**
+
+### D-283 — Repair bought 13 items for 199 Generator calls, and the one topic where it paid says why
+
+**Date:** 2026-08-12 · **Session:** C1 (re-run of the six weakest topics)
+
+D-280 ended by naming D-198's repair path as "the lever" for the mechanical defects, on the
+reasoning that the generator prompt *already* asks for what 19 items ignored, so asking again
+is not the fix — feeding back what was wrong might be. The re-run turned it on. **Decision:
+leave `--max-repair-attempts` off by default.**
+
+| topic | gate | accepted | repair calls | fixed |
+|---|---|---|---|---|
+| statistics_advanced | new | 14/20 (70%) | 21 | 0 |
+| calculus | new | 13/20 (65%) | 27 | **7** |
+| g6_fractions | old | 8/16 (50%) | 24 | 2 |
+| algebra_1 | old | 10/30 (33%) | 46 | 2 |
+| algebra_2 | new | 4/14 (29%) | 44 | 1 |
+| algebra_foundations | old | 5/24 (21%) | 37 | 1 |
+
+**199 paid Generator calls produced 13 items** — roughly 15 calls each, against about 2.3
+candidates per accepted item on the base path. Six times the cost per item, so the flag does
+not earn its default.
+
+**But the spread is the finding, not the total.** Calculus repaired 7 for 27 calls — *cheaper*
+per item than fresh generation — and calculus is the only topic in the run whose deterministic
+gate rejected **nothing** (`validation=0`, all six rejections from the design stage). Its
+repair attempts were answering design-stage feedback, which names a constraint the generator
+can act on. Everywhere else the repairs were answering validation messages, which name a
+symptom: *"symbolic answer x**2 - 11*x + 24 does not match declared correct option 'c'"* tells
+a model that something is wrong and nothing about what to write instead.
+
+That the message's actionability explains the spread is **inferred**. What is measured is the
+199→13 and the fact that the one profitable topic is the one with zero gate rejections. The
+experiment that would settle it is cheap and is the recommended next step: rewrite the
+validation rejection messages to state the remedy (*"the stem asks for the roots — model it as
+`Eq(expr, 0)`"*), then re-run one topic with repair on and compare. Until that runs, the flag
+is off and the reason is recorded rather than the conclusion overstated.
+
+**A confound to note before anyone compares these yields.** The run is not one experiment. The
+D-281 and D-282 gate fixes landed *during* it, so `algebra_1`, `algebra_foundations` and
+`g6_fractions` ran the old gate and `calculus`, `algebra_2` and `statistics_advanced` ran the
+new one. The two highest-yield topics are both new-gate, which is suggestive and is not
+evidence — they are also different mathematics.
+
+### D-284 — 29 approved items that no student can reach, and nothing in this codebase put them there
+
+**Date:** 2026-08-12 · **Session:** C1 (found while exporting)
+
+Exporting the 6-12 wave, the count did not match: **620 templates written, 676 approved in the
+database.** Checked rather than shrugged at, because "the export dropped something" and "the
+export is correct" are different situations and the difference is content that never reaches a
+student.
+
+27 of the gap is correct — retired items, excluded by D-210 so that "what the database would
+export" and "what the serving path draws from" mean the same thing.
+
+**The other 29 are `linear_equations` items with `validation_status='approved'` and
+`active_status='pending'`,** created 2026-08-06 to 08-10. That combination is invisible in both
+directions: `export_cli` filters on `active_status == "active"`, so they never reach a bank
+file, and the serving path's `_servable()` filters on the same column, so they are never drawn
+for a student. They are approved and dead.
+
+**Nothing in this repository writes that value.** `ai_pipeline` and `loader` both insert
+`active_status="active"`; the loader's only other write is `"retired"`. So these rows came from
+a code path that no longer exists, a manual edit, or a version predating the current writer —
+and which of those it is has to be established before deciding whether they should be
+activated, since "make them active" and "they were parked deliberately" have opposite
+consequences for 29 items nobody has read.
+
+Reported, not fixed, and carried over. The reusable part is smaller than the finding: **an
+export whose count does not match its source is a defect until proven otherwise.** This one
+was found only because the number was checked against the database rather than trusted, and
+the same check would have caught D-277's 160 unreachable items a wave earlier.
