@@ -28,8 +28,8 @@ templates:
   figure_reading: null
   hint_ladder:
   - Write an expression for each gardener's total flowers after t minutes.
-  - Asha has 5 + 3*t and Jasmine has 11 + 2*t. The question asks when those totals are equal.
-  - Subtract 2*t from both sides first, then subtract 5 from both sides to isolate t.
+  - Asha has 5 + 3t and Jasmine has 11 + 2t. The question asks when those totals are equal.
+  - Subtract 2t from both sides first, then subtract 5 from both sides to isolate t.
   canonical_solution:
     steps:
     - step_number: 1
@@ -41,7 +41,7 @@ templates:
       expression: 5 + 3*t = 11 + 2*t
       common_mistake: null
     - step_number: 3
-      explanation: Subtract 2*t from both sides to collect t terms on the left.
+      explanation: Subtract 2t from both sides to collect t terms on the left.
       expression: 5 + 3*t - 2*t = 11 + 2*t - 2*t
       common_mistake: Forgetting to subtract 2*t from both sides
     - step_number: 4
@@ -386,7 +386,7 @@ templates:
       expression: 12 + 5*t = 3 + 8*t
       common_mistake: null
     - step_number: 3
-      explanation: Subtract 5*t from both sides to collect variable terms on the right.
+      explanation: Subtract 5t from both sides to collect variable terms on the right.
       expression: 12 = 3 + 3*t
       common_mistake: null
     - step_number: 4
@@ -687,8 +687,8 @@ templates:
   figure_reading: null
   hint_ladder:
   - Write an expression for how much water each tank has after t minutes.
-  - Tank A has 8*t liters and Tank B has 20 + 3*t liters. These should be equal.
-  - Get all the t terms on one side by subtracting 3*t, then divide by what is left.
+  - Tank A has 8t liters and Tank B has 20 + 3t liters. These should be equal.
+  - Get all the t terms on one side by subtracting 3t, then divide by what is left.
   canonical_solution:
     steps:
     - step_number: 1
@@ -706,7 +706,7 @@ templates:
       expression: 8*t = 20 + 3*t
       common_mistake: null
     - step_number: 4
-      explanation: Subtract 3*t from both sides to collect t terms on the left.
+      explanation: Subtract 3t from both sides to collect t terms on the left.
       expression: 8*t - 3*t = 20 + 3*t - 3*t
       common_mistake: null
     - step_number: 5
@@ -1299,7 +1299,7 @@ templates:
   figure_reading: null
   hint_ladder:
   - Write an expression for how much soup is in the pot after t minutes.
-  - The chef starts with 2 liters and adds 0.5 liters per minute, so after t minutes she has 2 + 0.5*t
+  - The chef starts with 2 liters and adds 0.5 liters per minute, so after t minutes she has 2 + 0.5t
     liters.
   - Set your expression equal to 8, subtract 2 from both sides, then divide by 0.5.
   canonical_solution:
@@ -1452,7 +1452,7 @@ templates:
       expression: d = 9/4 \cdot 8
       common_mistake: null
     - step_number: 6
-      explanation: 'Simplify: 9/4 * 8 = 18.'
+      explanation: 'Simplify: 9/4 × 8 = 18.'
       expression: d = 18
       common_mistake: null
     final_answer: '18'
@@ -2260,7 +2260,7 @@ templates:
   hint_ladder:
   - Think about how many blocks Liam has used so far and how many he still needs.
   - The total blocks needed are 30, and he already has 9 stacked. How many blocks remain to be added?
-  - 'Each level uses 3 blocks, so write an equation for the remaining levels: 3 * levels = 30 - 9.'
+  - 'Each level uses 3 blocks, so write an equation for the remaining levels: 3 × levels = 30 - 9.'
   canonical_solution:
     steps:
     - step_number: 1

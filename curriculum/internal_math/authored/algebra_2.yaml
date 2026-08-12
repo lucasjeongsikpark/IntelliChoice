@@ -214,7 +214,7 @@ templates:
       expression: 2**5
       common_mistake: null
     - step_number: 2
-      explanation: 'Expand the exponent: 2**5 = 2 × 2 × 2 × 2 × 2.'
+      explanation: 'Expand the exponent: 2⁵ = 2 × 2 × 2 × 2 × 2.'
       expression: 2 * 2 * 2 * 2 * 2
       common_mistake: null
     - step_number: 3
@@ -558,14 +558,14 @@ templates:
         to 4. Those numbers are 1 and 3.
       expression: 3*x*(x + 1)*(x + 3)
       common_mistake: null
-    final_answer: 3*x*(x + 1)*(x + 3)
+    final_answer: 3x(x + 1)(x + 3)
   random_seed: 1267301
   rendered_question: A landscaper designs a rectangular garden border. The area of the border is given
     by the expression 3x³ + 12x² + 9x square feet. Write the expression in completely factored form.
-  option_a: 3*x*(x² + 4*x + 3)
-  option_b: 3*x*(x + 1)*(x + 3)
-  option_c: x*(x + 1)*(x + 3)
-  option_d: 3*x*(x + 2)*(x + 2)
+  option_a: 3x(x² + 4x + 3)
+  option_b: 3x(x + 1)(x + 3)
+  option_c: x(x + 1)(x + 3)
+  option_d: 3x(x + 2)(x + 2)
   correct_option: b
 - question_template_id: authored-algebra_2-d3-1268300
   topic_id: algebra_2

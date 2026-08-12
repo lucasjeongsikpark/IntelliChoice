@@ -1294,6 +1294,48 @@ def check_age_appropriate_wording(
                 )
 
 
+def check_math_notation_is_readable(
+    item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
+) -> None:
+    """No `*` in text a student reads as mathematics (D-288).
+
+    **Measured before written:** the frontend renders stems and options as raw strings -
+    `RichText` covers tutor text only - so 36 shipped option lines showed an eighth-grader
+    `(x + 1)*(x + 12)` and `6*t + 5` as programmer notation. Nothing asked the generator to
+    write SymPy syntax into student-facing fields; nothing refused it either, and D-252 says
+    what happens to unrefused requests. The 64 offending fields were rewritten by hand
+    (`(x + 1)(x + 12)`, `6t + 5`, `9/4 × 8`); this is what keeps the next wave from
+    re-shipping them.
+
+    **`step.expression` is deliberately exempt.** It renders inside `<code>`, where
+    `x = 9.45 / 2.5` is the honest form - that field is the worked calculation, not prose.
+    `answer_expression` never renders at all (SymPy input). Everything else a student sees
+    is covered, including `final_answer`, which the agreement check compares against option
+    text - so the two could not drift apart even if only one were gated.
+
+    The message states the remedy, not just the symptom (D-283): a repair loop fed
+    "contains '*'" can only guess, and one fed the replacement forms can act.
+    """
+    prose_fields: list[tuple[str, str | None]] = [
+        ("stem", item.stem),
+        ("context_block", item.context_block),
+        ("final_answer", item.canonical_solution.final_answer),
+        *((f"option_{label}", text) for label, text in _options(item).items()),
+        *((f"hint_ladder[{i}]", text) for i, text in enumerate(item.hint_ladder)),
+        *(
+            (f"steps[{i}].explanation", step.explanation)
+            for i, step in enumerate(item.canonical_solution.steps)
+        ),
+    ]
+    for name, text in prose_fields:
+        if text and "*" in text:
+            result.fail(
+                f"{name} contains '*', which a student sees as programmer notation - write "
+                f"multiplication as '6t', '(x + 1)(x + 3)' or '4 × 8', and powers with "
+                f"superscripts like x²"
+            )
+
+
 def check_no_meta_commentary(
     item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
 ) -> None:
@@ -1427,5 +1469,6 @@ def validate_authored_item(
     check_hint_solution_answer_agreement(item, result)
     check_difficulty_rubric_compliance(difficulty_label, item, result)
     check_age_appropriate_wording(item, result)
+    check_math_notation_is_readable(item, result)
     check_no_meta_commentary(item, result)
     return result
