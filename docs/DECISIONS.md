@@ -20521,3 +20521,54 @@ Reported, not fixed, and carried over. The reusable part is smaller than the fin
 export whose count does not match its source is a defect until proven otherwise.** This one
 was found only because the number was checked against the database rather than trusted, and
 the same check would have caught D-277's 160 unreachable items a wave earlier.
+
+### D-285 — The first hand audit in four waves: 0 wrong answers, 13% defective
+
+**Date:** 2026-08-12 · **Session:** C1 (after shipping) · **Status:** measured, partially fixed
+
+Four waves have been auto-approved on the user's instruction and the bank is deployed. Carry-over
+item #1 has been "there is still no human-rejection rate" since the first one. This is that
+number, finally taken: **54 items read end to end, stratified one per (topic × difficulty)
+across the twelve topics that shipped**, every answer independently re-derived.
+
+**All 54 answer keys are correct.** Stated first because it is the larger result. The
+deterministic gate's whole job is arithmetic truth, and across a 54-item sample it did not miss
+once. D-276's five wrong keys were a *missing* gate, not a weak one; with the gate wired in,
+this is what it buys.
+
+**7 of 54 (13%) carry a defect the gate cannot see**, and every one is in the same two families:
+
+| family | n | example |
+|---|---|---|
+| incoherent — the student is misled | 2 | a shape called "a rectangle" that is then given a width, a length **and** a height |
+| impossible world — the mathematics is right | 5 | a "toy chest" measuring 11 × 6 × 4 **centimetres**; six ovens that "bake a batch of cookies in 10 hours" |
+
+Six are fixed (wording only; `curriculum-load` reported **6 updated, 614 unchanged**, so the
+gate ran on exactly those six). The seventh was **withdrawn on a closer read** — I had counted
+"the base of the ladder" in a slide problem as incoherent, and a playground slide has a ladder.
+Recording the withdrawal because an audit that only ever finds *more* defects on re-reading is
+not an audit, it is a search for confirmation.
+
+**Two patterns cost more than the 13%, and neither is a per-item defect.**
+
+- **Duplicate scenarios: 15 of 54 (28%)** sit in a near-identical pair or trio. Three "mean of
+  five numbers" items at d1, d2 and d3 differing only in the digits. Two "X ÷ ¼ ÷ needed × 100"
+  items that both answer **50%**. And `g6_factors_multiples` vs `prealg_gcf_lcm` — *"A teacher
+  has 48 pencils and 72/36 erasers to divide into identical gift bags"* — nearly the same
+  sentence **in two different topics**. The per-skill scenario memory (D-275, `_SCENARIO_MEMORY
+  = 5`) cannot see across skills, which is exactly where these landed.
+- **Difficulty is weakly calibrated.** Those three mean items are one task at three tiers;
+  circle area appears at d3 and d4 with only the radius changed. The judge scores difficulty per
+  item against a rubric, and nothing scores a *tier ladder* for actually ascending.
+
+**What this changes about auto-approval.** It is not the catastrophe the D-195 pilot implied
+(0 accepted of 4) and it is not free either. The honest reading: auto-approval ships a bank
+whose answers are trustworthy and whose *prose* is roughly one-in-eight unreliable, in ways a
+child would notice before a maintainer does — a chest the size of a pencil case, a parking meter
+that loses ten minutes an hour. For a K-12 product that is a credibility cost, not a correctness
+one, and it is cheap to find: this audit took one pass and no model calls.
+
+**Caveat on the number.** One item per (topic × difficulty) over-weights high tiers relative to
+the bank, and 7 of 54 has a wide interval — treat 13% as the order of magnitude, not the rate.
+Widening the sample is the obvious next measurement and is now cheap, because the defect
+families above are what to look for.

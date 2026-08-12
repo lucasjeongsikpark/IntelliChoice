@@ -342,8 +342,8 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A prepaid parking meter starts with 240 minutes. Each hour the meter decreases by 10 minutes.
-    For how many hours can you park if you need more than 60 minutes remaining when you leave?
+  stem: A prepaid data plan starts with 240 gigabytes. Each hour of streaming uses 10 gigabytes. For how
+    many hours can you stream and still have more than 60 gigabytes left?
   context_block: null
   answer_expression: 240 - 10*x > 60
   figure_spec: null
@@ -372,8 +372,8 @@ templates:
         > 18.
     final_answer: x < 18
   random_seed: 1186501
-  rendered_question: A prepaid parking meter starts with 240 minutes. Each hour the meter decreases by
-    10 minutes. For how many hours can you park if you need more than 60 minutes remaining when you leave?
+  rendered_question: A prepaid data plan starts with 240 gigabytes. Each hour of streaming uses 10 gigabytes.
+    For how many hours can you stream and still have more than 60 gigabytes left?
   option_a: x < 12
   option_b: x < 30
   option_c: x < 18

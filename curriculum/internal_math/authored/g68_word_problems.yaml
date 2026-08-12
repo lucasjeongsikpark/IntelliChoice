@@ -815,8 +815,8 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A bakery has 6 ovens that can bake a batch of cookies in 10 hours. The bakery needs to bake the
-    same batch in at most 4 hours. What is the minimum number of ovens needed?
+  stem: A bakery has 6 ovens that can bake the day's whole order in 10 hours. The bakery needs to finish
+    the same order in at most 4 hours. What is the minimum number of ovens needed?
   context_block: ''
   answer_expression: Eq(x * 4, 6 * 10)
   figure_spec: null
@@ -847,8 +847,8 @@ templates:
       common_mistake: null
     final_answer: 15 ovens
   random_seed: 1227400
-  rendered_question: A bakery has 6 ovens that can bake a batch of cookies in 10 hours. The bakery needs
-    to bake the same batch in at most 4 hours. What is the minimum number of ovens needed?
+  rendered_question: A bakery has 6 ovens that can bake the day's whole order in 10 hours. The bakery
+    needs to finish the same order in at most 4 hours. What is the minimum number of ovens needed?
   option_a: 15 ovens
   option_b: 2 ovens
   option_c: 24 ovens

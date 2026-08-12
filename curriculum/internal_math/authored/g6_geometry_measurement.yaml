@@ -737,8 +737,8 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A toy chest has dimensions of 11 centimeters long, 6 centimeters wide, and 4 centimeters high.
-    What is the surface area of the toy chest?
+  stem: A pencil box has dimensions of 11 centimeters long, 6 centimeters wide, and 4 centimeters high.
+    What is the surface area of the pencil box?
   context_block: ''
   answer_expression: Eq(x, 2*(11*6) + 2*(11*4) + 2*(6*4))
   figure_spec: null
@@ -770,8 +770,8 @@ templates:
       common_mistake: null
     final_answer: 268 square centimeters
   random_seed: 1147500
-  rendered_question: A toy chest has dimensions of 11 centimeters long, 6 centimeters wide, and 4 centimeters
-    high. What is the surface area of the toy chest?
+  rendered_question: A pencil box has dimensions of 11 centimeters long, 6 centimeters wide, and 4 centimeters
+    high. What is the surface area of the pencil box?
   option_a: 264 square centimeters
   option_b: 134 square centimeters
   option_c: 268 square centimeters

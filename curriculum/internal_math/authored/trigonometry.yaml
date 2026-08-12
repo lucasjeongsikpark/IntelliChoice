@@ -191,8 +191,8 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A playground slide is 30 meters long and makes a 30-degree angle with the horizontal ground. What
-    is the vertical drop of the slide?
+  stem: A water slide is 30 meters long and makes a 30-degree angle with the horizontal ground. What is
+    the vertical drop of the slide?
   context_block: null
   answer_expression: Eq(x, 30 * sin(pi/6))
   figure_spec: null
@@ -228,8 +228,8 @@ templates:
       common_mistake: null
     final_answer: 15 meters
   random_seed: 1285302
-  rendered_question: A playground slide is 30 meters long and makes a 30-degree angle with the horizontal
-    ground. What is the vertical drop of the slide?
+  rendered_question: A water slide is 30 meters long and makes a 30-degree angle with the horizontal ground.
+    What is the vertical drop of the slide?
   option_a: 30 meters
   option_b: 15 meters
   option_c: 17.32 meters

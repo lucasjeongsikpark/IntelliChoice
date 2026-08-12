@@ -892,7 +892,7 @@ templates:
   review_priority: normal
   version: 1
   stem: A concert promoter models ticket sales using the polynomial C(x) = 7x³ + ax² − 9x + 20, where
-    C(x) is sales in hundreds of tickets after x weeks. After 3 weeks the promoter sold exactly 200 hundred
+    C(x) is sales in hundreds of tickets after x weeks. After 3 weeks the promoter had sold exactly 20,000
     tickets. What is the value of a?
   context_block: null
   answer_expression: 7*27 + a*9 - 9*3 + 20 = 200
@@ -932,8 +932,8 @@ templates:
     final_answer: '2'
   random_seed: 1270502
   rendered_question: A concert promoter models ticket sales using the polynomial C(x) = 7x³ + ax² − 9x
-    + 20, where C(x) is sales in hundreds of tickets after x weeks. After 3 weeks the promoter sold exactly
-    200 hundred tickets. What is the value of a?
+    + 20, where C(x) is sales in hundreds of tickets after x weeks. After 3 weeks the promoter had sold
+    exactly 20,000 tickets. What is the value of a?
   option_a: '2'
   option_b: '-2'
   option_c: '18'
