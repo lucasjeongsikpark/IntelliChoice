@@ -20675,3 +20675,115 @@ reported **44%**. That number was wrong in the alarming direction and would have
 gate that broke K-2. The corrected figure is 19%. Recorded because two measurements of the same
 bank differed by more than a factor of two on a definition choice, and only the definition
 changed.
+
+### D-288 — C1 Phase 6: what four grade bands looked like the first time anyone watched
+
+**Date:** 2026-08-12 · **Session:** C1 (Phase 6) · **Status:** ⏸ partial — band walks green, one product defect open
+
+620 items shipped across 33 topics, and the only band any e2e walk had ever touched was 6-7,
+via one topic, as a grade-3 student. Phase 6 is the phase that watches the rest. Every defect
+below was found by a different step of getting there, which is the argument for the phase
+existing at all.
+
+**1. Students were reading SymPy.** The frontend renders stems and options as **raw strings** —
+`RichText` covers tutor text only, never `QuestionStem` or the option buttons. So 36 shipped
+option lines showed an eighth-grader `(x + 1)*(x + 12)` and `6*t + 5`, with 28 more starred
+fields in hints, explanations and final answers, plus one `2**5`. Nothing asked the generator
+to write SymPy into student-facing text; nothing refused it either, which is D-252 a fourth
+time. 64 fields rewritten, and `check_math_notation_is_readable` added so no wave re-ships it —
+`step.expression` exempt, because it renders inside `<code>` where `x = 9.45 / 2.5` is honest.
+
+*Deliberately not a frontend transform.* A display rule for `*` is ambiguous against
+`RichText`'s own `**bold**` delimiter, changes every string in the app, and leaves the bank
+wrong for every other consumer. The content was the defect.
+
+**2. 17 of 33 topics were invisible to students — 208 approved items.** A topic serves only
+when **every** difficulty 1-5 has ≥2 approved templates (D-187's floor × `QUESTIONS_PER_DIFFICULTY`),
+and no wave's "done when" ever checked it: Phase 1's criterion was "≥10 approved with every
+skill stocked", which a topic can satisfy while remaining unopenable. `algebra_1` — audited by
+hand that morning, six defects fixed, deployed twice — has **zero d1 items and had never been
+openable at all**. The four figure topics are fixed here (12 deterministic rows); the other 13
+are Phase 3's deepening pass, now with an exact per-tier shopping list instead of a guess.
+
+**3. Exam finalize 503'd, intermittently, on calculus** — caught by the walk locally.
+`build_study_plan` ranks the *taxonomy's* skills weakest-first, and a taxonomy skill with zero
+bank items has no mastery row, ties at 0.0, and **wins selection precisely because nobody has
+ever practised it**. The intermittency was the tie-break: on runs where every stocked skill
+also graded to 0.0, curriculum order pushed the empty skill last. Five topics carry such skills;
+only calculus is servable today, which is why only calculus fired — the rest would have armed
+the moment Phase 3 unblocked them. Study targets now filter to skills with ≥1 servable item; a
+topic with none still fails closed.
+
+**4. The staging walk had never once exercised the retry ladder.** `clearInterventionIfPresent`
+read `count()` with no wait, so on staging the SSE-delivered pause always arrived after the
+check and the walk clicked straight through the panel. Measured on the first whole staging run:
+**11 study answers, 0 ladder pauses**, on a walk that picks the first option every time and is
+therefore wrong about 74% of the time — the bank's correct answer sits at option A in 26% of
+items, so eleven in a row is roughly one in a million. SPEC §5.11.3's retry ladder, the
+centrepiece of the study phase, had never been exercised against staging at all.
+
+**What is green.** All four band walks pass on staging — grade 1 × Telling the Time (the figure
+walk: the clock SVG is asserted, closing the "no e2e walk for figures" carry-over), grade 4 ×
+Multi-Digit, grade 7 × Pre-Algebra, grade 10 × Calculus. Each on its own fixture student, each
+asserting no rendered stem or option contains `)*(` or digit-star-letter, zero console errors
+throughout. Staging learning suite: 21 passed → **22 passed, 2 failed** over the session.
+
+**What is not, and is left open rather than guessed at.** `journey-student`'s refresh test
+fails on staging and passes locally: before the reload the student is on **"Question 3 of 10"**,
+after it **"Question 1 of 10"**. Four explanations were tested and killed:
+
+| ruled out | how |
+|---|---|
+| session sharing between tests | the test now runs on its own fixture student |
+| answers not durable at reload | both POSTs counted as acknowledged 2xx before reloading |
+| CloudFront caching the overview | API path patterns use `CachingDisabled` |
+| the D-272 restore guard misfiring | `answeredSelections` is written only by `handleSubmitClick`, so it is empty on a fresh mount |
+
+So the server reports item 1 unanswered after two acknowledged answers, and the next step is
+server-side logs for that session — a session's work, not a tail-end fix. Recorded with the
+eliminations because a finding whose wrong explanations are written down is cheaper to pick up
+than one that starts from scratch.
+
+**A method note.** Three of the four defects were found *before* any staging walk ran — one
+while reading the frontend during planning, one while preparing fixture students, one on the
+first local run. The phase's value was not the staging run; it was taking seriously the
+question "has anyone ever looked at this?"
+
+### D-284 addendum — the origin, and a bug in every write script in this repo
+
+**Date:** 2026-08-12 · **Session:** C1 (Phase 6)
+
+D-284 recorded 29 approved-but-unreachable `linear_equations` items and said the origin had to
+be established before deciding anything. It is this project's own documentation:
+
+```
+"Reverting is a bulk `UPDATE question_templates SET active_status='pending'`"
+```
+
+`active_status` is the **serving** column; `validation_status` is the **approval** column. So
+the documented undo un-*serves* items instead of un-approving them, leaving exactly the state
+nothing else writes. The instruction was corrected in `dee30e6`; these 29 are what it left
+behind, across three waves dated 2026-08-06 to 08-10. Not mystery rows — genuine gate-passed
+approvals, parked by a one-word documentation defect.
+
+Re-gated before deciding: **26 of 29 pass today's gate.** All three failures are the 30-word
+readability ceiling D-280 examined and upheld. The user's decision was activate 26, retire 3.
+`linear_equations` 47 → 73 exported, the bank 632 → 658.
+
+**The bug found doing it is worth more than the items.** `session_scope` yields a session and
+closes it — **it never commits**. `set_active_status` flushes, so the first run printed
+`activated 26, retired 3` and rolled the whole thing back on exit; the count came from my own
+loop, not from the database. It was caught only because the export that followed produced an
+empty diff, and nothing else would have said a word.
+
+So: **any one-off script in this repo that writes through `session_scope` without an explicit
+commit is a no-op that reports success.** The pipeline and CLIs are safe (they commit
+deliberately — `_settle` exists for exactly that); the exposure is ad-hoc scripts, which is
+where it is least likely to be noticed and most likely to be trusted.
+
+**And one downstream consequence, recorded for the distinction it forces.** Activating 26 items
+grew every difficulty's candidate pool, so the seeded pre-exam capture in
+`test_select_topic_sql_shape.py` no longer matched and CI caught it. Re-capturing was correct
+here — a **content** change legitimately moves the draw — but the same failure from a
+**refactor** would mean the opposite, and re-capturing would be the mistake. That distinction
+is now written next to the pin rather than left to whoever hits it next.
