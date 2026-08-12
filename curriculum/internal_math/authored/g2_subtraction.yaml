@@ -108,6 +108,121 @@ templates:
   option_c: '2446'
   option_d: '2456'
   correct_option: a
+- question_template_id: authored-g2_subtraction-d4-95400
+  topic_id: g2_subtraction
+  skill_id: g2_sub_multi_digit
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - failed_to_borrow_across_zero_in_tens
+  - added_instead_of_subtracted
+  - borrowed_from_tens_without_propagating_from_hundreds
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school library had 500 books and donated 237 books to another school. How many books remain
+    in the library?
+  context_block: null
+  answer_expression: x = 500 - 237
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by writing down how many books the library had at first and how many were donated.
+  - Subtract the number of books donated from the number the library started with.
+  - Set up 500 minus 237 and borrow carefully across the zero in the tens place.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The library starts with 500 books and donates 237 books, so we need to subtract 237
+        from 500.
+      expression: 500 - 237
+      common_mistake: null
+    - step_number: 2
+      explanation: In the ones place, 0 minus 7 requires borrowing. The tens place is 0, so we must borrow
+        from the hundreds. The 5 hundreds becomes 4 hundreds, and the 0 tens becomes 10 tens.
+      expression: 4 hundreds, 10 tens, 0 ones → 4 hundreds, 9 tens, 10 ones
+      common_mistake: null
+    - step_number: 3
+      explanation: Now borrow 1 ten to make 10 ones. 10 minus 7 equals 3 in the ones place.
+      expression: 'ones: 10 - 7 = 3'
+      common_mistake: null
+    - step_number: 4
+      explanation: In the tens place, 9 minus 3 equals 6.
+      expression: 'tens: 9 - 3 = 6'
+      common_mistake: null
+    - step_number: 5
+      explanation: In the hundreds place, 4 minus 2 equals 2.
+      expression: 'hundreds: 4 - 2 = 2'
+      common_mistake: null
+    final_answer: 263 books
+  random_seed: 95400
+  rendered_question: A school library had 500 books and donated 237 books to another school. How many
+    books remain in the library?
+  option_a: 263 books
+  option_b: 363 books
+  option_c: 273 books
+  option_d: 737 books
+  correct_option: a
+- question_template_id: authored-g2_subtraction-d4-95401
+  topic_id: g2_subtraction
+  skill_id: g2_sub_multi_digit
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_instead_of_subtracting
+  - failed_to_borrow_across_zero_ones_place
+  - failed_to_borrow_across_zero_tens_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A store had 600 cans of soup in stock and sold 248 cans during a sale. How many cans remain in
+    stock?
+  context_block: null
+  answer_expression: Eq(x, 600 - 248)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the total number of cans the store had before the sale.
+  - You need to subtract the number of cans sold from the starting amount.
+  - Set up 600 minus 248 and borrow carefully across the zero in the tens place.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the subtraction using the starting amount and the amount sold.
+      expression: 600 - 248
+      common_mistake: null
+    - step_number: 2
+      explanation: Since there is a zero in the tens place of 600, borrow from the hundreds. The 6 hundreds
+        becomes 5 hundreds, and we now have 10 tens. Then borrow 1 ten to make 10 ones. This gives us
+        5 hundreds, 9 tens, and 10 ones.
+      expression: 5 hundreds, 9 tens, 10 ones minus 2 hundreds, 4 tens, 8 ones
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Subtract in each place: 10 ones minus 8 ones is 2 ones; 9 tens minus 4 tens is 5 tens;
+        5 hundreds minus 2 hundreds is 3 hundreds.'
+      expression: '352'
+      common_mistake: null
+    final_answer: 352 cans
+  random_seed: 95401
+  rendered_question: A store had 600 cans of soup in stock and sold 248 cans during a sale. How many cans
+    remain in stock?
+  option_a: 362 cans
+  option_b: 352 cans
+  option_c: 452 cans
+  option_d: 848 cans
+  correct_option: b
 - question_template_id: authored-g2_subtraction-d5-6501
   topic_id: g2_subtraction
   skill_id: g2_sub_three_numbers
@@ -155,6 +270,207 @@ templates:
   option_c: 44 cards
   option_d: 126 cards
   correct_option: c
+- question_template_id: authored-g2_subtraction-d5-96501
+  topic_id: g2_subtraction
+  skill_id: g2_sub_three_numbers
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_only_one_of_two_values
+  - subtracted_smaller_from_larger_in_a_column
+  - added_instead_of_subtracting_one_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A bakery had 456 cookies. In the morning they sold 178 cookies, and in the afternoon they sold
+    125 cookies. How many cookies are left?
+  context_block: null
+  answer_expression: Eq(x, 456 - 178 - 125)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You need to take away both the morning and afternoon sales from the starting amount.
+  - Subtract the first amount sold, then subtract the second amount from what remains.
+  - Set up 456 - 178 - 125 and work from left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Start with the initial number of cookies the bakery had.
+      expression: '456'
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the number of cookies sold in the morning.
+      expression: 456 - 178 = 278
+      common_mistake: Stopping here without subtracting the afternoon sales.
+    - step_number: 3
+      explanation: Subtract the number of cookies sold in the afternoon from the result.
+      expression: 278 - 125 = 153
+      common_mistake: null
+    final_answer: 153 cookies
+  random_seed: 96501
+  rendered_question: A bakery had 456 cookies. In the morning they sold 178 cookies, and in the afternoon
+    they sold 125 cookies. How many cookies are left?
+  option_a: 278 cookies
+  option_b: 331 cookies
+  option_c: 303 cookies
+  option_d: 153 cookies
+  correct_option: d
+- question_template_id: authored-g2_subtraction-d1-37100
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - confused_minuend_with_subtrahend
+  - ignored_the_subtraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student had 80 stickers and gave away 30 stickers to friends. How many stickers does the student
+    have left?
+  context_block: null
+  answer_expression: Eq(x, 80 - 30)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens to the total number of stickers when some are given away.
+  - You started with 80 stickers and gave away 30. Write a subtraction to show how many are left.
+  - Write 80 minus 30, then find the answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student started with 80 stickers and gave away 30 stickers, so we need to subtract
+        to find how many are left.
+      expression: 80 - 30
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtracting 30 from 80 gives us 50.
+      expression: '50'
+      common_mistake: null
+    final_answer: 50 stickers
+  random_seed: 37100
+  rendered_question: A student had 80 stickers and gave away 30 stickers to friends. How many stickers
+    does the student have left?
+  option_a: 80 stickers
+  option_b: 110 stickers
+  option_c: 30 stickers
+  option_d: 50 stickers
+  correct_option: d
+- question_template_id: authored-g2_subtraction-d1-37101
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - added_tens_digit_twice
+  - subtracted_from_smaller_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery had 70 cupcakes in the morning and sold 20 cupcakes by noon. How many cupcakes are left?
+  context_block: null
+  answer_expression: Eq(x, 70 - 20)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about whether the bakery has more or fewer cupcakes after selling some.
+  - You need to subtract the number sold from the number the bakery started with.
+  - Write 70 - 20 and find the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bakery started with 70 cupcakes.
+      expression: '70'
+      common_mistake: null
+    - step_number: 2
+      explanation: The bakery sold 20 cupcakes, so we subtract 20 from 70.
+      expression: 70 - 20
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract to find the number of cupcakes remaining.
+      expression: '50'
+      common_mistake: null
+    final_answer: 50 cupcakes
+  random_seed: 37101
+  rendered_question: A bakery had 70 cupcakes in the morning and sold 20 cupcakes by noon. How many cupcakes
+    are left?
+  option_a: 90 cupcakes
+  option_b: 50 cupcakes
+  option_c: 52 cupcakes
+  option_d: 30 cupcakes
+  correct_option: b
+- question_template_id: authored-g2_subtraction-d1-37102
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracting
+  - subtracted_wrong_amount
+  - reversed_subtraction_order
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A library had 90 books on a shelf. Readers checked out 40 books. How many books are still on the
+    shelf?
+  context_block: ''
+  answer_expression: Eq(x, 90 - 40)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens to the number of books on the shelf when some are checked out.
+  - You need to take away the number of books that were checked out from the number that started on the
+    shelf.
+  - Write 90 minus 40 and find the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The shelf started with 90 books.
+      expression: '90'
+      common_mistake: null
+    - step_number: 2
+      explanation: Readers checked out 40 books, so we subtract that amount from what was on the shelf.
+      expression: 90 - 40
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Subtract: 90 minus 40 equals 50.'
+      expression: '50'
+      common_mistake: null
+    final_answer: 50 books
+  random_seed: 37102
+  rendered_question: A library had 90 books on a shelf. Readers checked out 40 books. How many books are
+    still on the shelf?
+  option_a: 50 books
+  option_b: 30 books
+  option_c: 60 books
+  option_d: 130 books
+  correct_option: a
 - question_template_id: authored-g2_subtraction-d1-7100
   topic_id: g2_subtraction
   skill_id: g2_sub_two_digit
@@ -314,6 +630,116 @@ templates:
   option_c: 42 marbles
   option_d: 44 marbles
   correct_option: d
+- question_template_id: authored-g2_subtraction-d2-97200
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - digit_reversal_or_place_value_error
+  - subtraction_fact_error_in_ones_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker made 68 cookies in the morning and sold 24 cookies before lunch. How many cookies does
+    the baker have left?
+  context_block: ''
+  answer_expression: Eq(x, 68 - 24)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about whether the baker has more or fewer cookies after selling some.
+  - You need to take away the number of cookies sold from the number the baker started with.
+  - Write 68 minus 24 and subtract each place value starting from the ones.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'The baker started with 68 cookies and sold 24, so we need to subtract: 68 - 24.'
+      expression: 68 - 24
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Subtract the ones place: 8 - 4 = 4.'
+      expression: 8 - 4 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Subtract the tens place: 6 - 2 = 4.'
+      expression: 6 - 2 = 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the results to get 44 cookies remaining.
+      expression: '44'
+      common_mistake: null
+    final_answer: 44 cookies
+  random_seed: 97200
+  rendered_question: A baker made 68 cookies in the morning and sold 24 cookies before lunch. How many
+    cookies does the baker have left?
+  option_a: 46 cookies
+  option_b: 44 cookies
+  option_c: 92 cookies
+  option_d: 42 cookies
+  correct_option: b
+- question_template_id: authored-g2_subtraction-d2-97201
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracted
+  - subtracted_only_tens_place
+  - reversed_subtraction_order
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 57 toy cars in his collection. He gives 23 toy cars to his friend Ethan. How many toy
+    cars does Liam have left?
+  context_block: null
+  answer_expression: Eq(x, 57 - 23)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens to Liam's collection when he gives some cars away.
+  - You need to subtract the number of cars given away from the number he started with.
+  - Write 57 - 23 and find the difference by subtracting the ones, then the tens.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 57 toy cars and gives away 23, so we subtract 23 from 57.
+      expression: 57 - 23
+      common_mistake: null
+    - step_number: 2
+      explanation: 'First subtract the ones: 7 - 3 = 4.'
+      expression: 7 - 3 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Next subtract the tens: 5 - 2 = 3.'
+      expression: 50 - 20 = 30
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the tens and ones to get the final answer.
+      expression: 30 + 4 = 34
+      common_mistake: null
+    final_answer: 34 toy cars
+  random_seed: 97201
+  rendered_question: Liam has 57 toy cars in his collection. He gives 23 toy cars to his friend Ethan.
+    How many toy cars does Liam have left?
+  option_a: 34 toy cars
+  option_b: 30 toy cars
+  option_c: 24 toy cars
+  option_d: 80 toy cars
+  correct_option: a
 - question_template_id: authored-g2_subtraction-d3-7300
   topic_id: g2_subtraction
   skill_id: g2_sub_two_digit
@@ -422,3 +848,115 @@ templates:
   option_c: 26 stickers
   option_d: 61 stickers
   correct_option: b
+- question_template_id: authored-g2_subtraction-d3-97300
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - regrouping_error_in_tens_place
+  - added_instead_of_subtracted
+  - incorrect_regrouping_procedure
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 71 pencils in a supply box. Students take 38 pencils for a project. How many pencils
+    are left in the supply box?
+  context_block: ''
+  answer_expression: Eq(x, 71 - 38)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the number of pencils the teacher had and think about what happened to them.
+  - You need to subtract the number of pencils taken from the number the teacher started with.
+  - Write 71 minus 38 and remember to regroup from the tens place when subtracting the ones.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We start with 71 pencils and need to subtract the 38 pencils that were taken.
+      expression: 71 - 38
+      common_mistake: null
+    - step_number: 2
+      explanation: In the ones place, 1 is less than 8, so we regroup 1 ten as 10 ones. Now we have 6
+        tens and 11 ones.
+      expression: 11 - 8 = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: In the tens place, we now have 6 tens minus 3 tens.
+      expression: 6 - 3 = 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Combining the tens and ones, we get 3 tens and 3 ones.
+      expression: 30 + 3 = 33
+      common_mistake: null
+    final_answer: 33 pencils
+  random_seed: 97300
+  rendered_question: A teacher has 71 pencils in a supply box. Students take 38 pencils for a project.
+    How many pencils are left in the supply box?
+  option_a: 33 pencils
+  option_b: 109 pencils
+  option_c: 39 pencils
+  option_d: 43 pencils
+  correct_option: a
+- question_template_id: authored-g2_subtraction-d3-97301
+  topic_id: g2_subtraction
+  skill_id: g2_sub_two_digit
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting
+  - forgot_to_regroup_and_subtracted_larger_from_smaller
+  - regrouped_incorrectly_in_tens_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 62 marbles in his collection. He trades 28 of them to a classmate for a puzzle. How many
+    marbles does Liam have left?
+  context_block: ''
+  answer_expression: Eq(x, 62 - 28)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by writing a subtraction to show how many marbles Liam has after trading some away.
+  - You need to subtract the number he traded from the number he started with.
+  - Set up 62 - 28 and remember to regroup from the tens place when subtracting the ones.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Liam starts with 62 marbles and trades away 28, so we subtract: 62 - 28.'
+      expression: 62 - 28
+      common_mistake: null
+    - step_number: 2
+      explanation: In the ones place, 2 - 8 requires regrouping. Borrow 1 ten from the 6 tens, leaving
+        5 tens. The 2 ones becomes 12 ones.
+      expression: 12 - 8 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: In the tens place, 5 - 2 = 3.
+      expression: 5 - 2 = 3
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the tens and ones to get the final answer.
+      expression: '34'
+      common_mistake: null
+    final_answer: '34'
+  random_seed: 97301
+  rendered_question: Liam has 62 marbles in his collection. He trades 28 of them to a classmate for a
+    puzzle. How many marbles does Liam have left?
+  option_a: '36'
+  option_b: '30'
+  option_c: '90'
+  option_d: '34'
+  correct_option: d

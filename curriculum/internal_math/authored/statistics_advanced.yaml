@@ -1,6 +1,62 @@
 curriculum_version: '2026.1'
 topic_id: statistics_advanced
 templates:
+- question_template_id: authored-statistics_advanced-d4-97400
+  topic_id: statistics_advanced
+  skill_id: adv_matrices
+  grade_band: 11-12
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_only_first_supplier
+  - added_quantities_instead_of_multiplying
+  - added_one_quantity_and_one_cost
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A bakery orders flour from two suppliers. Matrix A shows the number of bags ordered: 3 from supplier
+    1 and 4 from supplier 2. Matrix B shows delivery costs per bag in dollars: supplier 1 charges 7 for
+    the west zone and supplier 2 charges 2 for the west zone. What is the total cost in dollars for flour
+    delivered to the west zone?'
+  context_block: null
+  answer_expression: x = 3*7 + 4*2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Multiply the number of bags from each supplier by that supplier's cost to the west zone.
+  - The cost from supplier 1 is 3 × 7, and the cost from supplier 2 is 4 × 2.
+  - Add those two products together to find the total cost.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the quantities and costs. The bakery orders 3 bags from supplier 1 at 7 dollars
+        per bag, and 4 bags from supplier 2 at 2 dollars per bag.
+      expression: 3*7 + 4*2
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the number of bags by the cost per bag for each supplier.
+      expression: 21 + 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the two products to find the total cost for flour in the west zone.
+      expression: '29'
+      common_mistake: null
+    final_answer: '29'
+  random_seed: 97400
+  rendered_question: 'A bakery orders flour from two suppliers. Matrix A shows the number of bags ordered:
+    3 from supplier 1 and 4 from supplier 2. Matrix B shows delivery costs per bag in dollars: supplier
+    1 charges 7 for the west zone and supplier 2 charges 2 for the west zone. What is the total cost in
+    dollars for flour delivered to the west zone?'
+  option_a: '35'
+  option_b: '10'
+  option_c: '21'
+  option_d: '29'
+  correct_option: d
 - question_template_id: authored-statistics_advanced-d5-1505500
   topic_id: statistics_advanced
   skill_id: adv_matrices
@@ -872,6 +928,67 @@ templates:
   option_c: 17 kilometers
   option_d: 20 kilometers
   correct_option: a
+- question_template_id: authored-statistics_advanced-d3-99300
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - calculated_simple_mean_instead_of_weighted
+  - counted_exam_once_instead_of_twice
+  - divided_by_number_of_scores_not_total_weight
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A student''s grade is based on two quizzes and one exam. Each quiz counts once: the scores are
+    80 and 90. The exam score is 85 and counts twice. What is the weighted mean of the student''s grade?'
+  context_block: ''
+  answer_expression: Eq(x, (80*1 + 90*1 + 85*2) / (1 + 1 + 2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Each quiz counts once and the exam counts twice, so four scores total contribute to the average.
+  - 'Multiply each score by how many times it counts: 80×1, 90×1, and 85×2, then add those products.'
+  - Divide the sum of all weighted scores by the total number of times scores are counted.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the weight for each score. The two quizzes (80 and 90) each count once, and
+        the exam (85) counts twice.
+      expression: 'weights: 1, 1, 2'
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply each score by its weight: 80×1 = 80, 90×1 = 90, and 85×2 = 170.'
+      expression: 80*1 + 90*1 + 85*2 = 80 + 90 + 170
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the weighted scores together.
+      expression: 80 + 90 + 170 = 340
+      common_mistake: null
+    - step_number: 4
+      explanation: Find the total number of weights by adding 1 + 1 + 2.
+      expression: 1 + 1 + 2 = 4
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide the sum of weighted scores by the total weight to find the weighted mean.
+      expression: 340 / 4 = 85
+      common_mistake: null
+    final_answer: 85 points
+  random_seed: 99300
+  rendered_question: 'A student''s grade is based on two quizzes and one exam. Each quiz counts once:
+    the scores are 80 and 90. The exam score is 85 and counts twice. What is the weighted mean of the
+    student''s grade?'
+  option_a: 83.75 points
+  option_b: 84 points
+  option_c: 86.67 points
+  option_d: 85 points
+  correct_option: d
 - question_template_id: authored-statistics_advanced-d2-1328200
   topic_id: statistics_advanced
   skill_id: stat_probability
@@ -1255,6 +1372,66 @@ templates:
   option_c: 6/49
   option_d: 5/14
   correct_option: c
+- question_template_id: authored-statistics_advanced-d3-100300
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_probabilities_instead_of_multiplying
+  - multiplied_numerators_only
+  - calculated_complement_instead
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A bag contains 2 red, 3 blue, and 1 green marble. Layla picks one marble at random, notes its
+    color, replaces it, then picks another marble. What is the probability she picks red first and blue
+    second?
+  context_block: null
+  answer_expression: Eq(x, Rational(1,3) * Rational(1,2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many marbles are in the bag, and how many ways can each color be chosen?
+  - The probability of red on the first draw is 2/6, and the probability of blue on the second draw is
+    3/6. Because the marble is replaced, the draws are independent.
+  - Multiply the two probabilities together to find the chance of both events happening.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Count the total number of marbles in the bag: 2 red + 3 blue + 1 green = 6 marbles.'
+      expression: '6'
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Find the probability of drawing a red marble on the first pick: 2 red out of 6 total.'
+      expression: 2/6 = 1/3
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Because Layla replaces the marble, the bag still has 6 marbles for the second draw.
+        Find the probability of drawing a blue marble: 3 blue out of 6 total.'
+      expression: 3/6 = 1/2
+      common_mistake: null
+    - step_number: 4
+      explanation: Since the events are independent (the first marble was replaced), multiply the two
+        probabilities to find the combined probability.
+      expression: (1/3) * (1/2) = 1/6
+      common_mistake: null
+    final_answer: 1/6
+  random_seed: 100300
+  rendered_question: A bag contains 2 red, 3 blue, and 1 green marble. Layla picks one marble at random,
+    notes its color, replaces it, then picks another marble. What is the probability she picks red first
+    and blue second?
+  option_a: 1/2
+  option_b: 5/36
+  option_c: 5/6
+  option_d: 1/6
+  correct_option: d
 - question_template_id: authored-statistics_advanced-d3-1328302
   topic_id: statistics_advanced
   skill_id: stat_probability
@@ -1422,6 +1599,62 @@ templates:
   option_c: 4/14
   option_d: 4/5
   correct_option: a
+- question_template_id: authored-statistics_advanced-d4-100400
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_numerators_and_denominators
+  - simplified_before_multiplying
+  - added_probabilities_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A chef randomly selects one fruit from a basket of 7 pieces, of which 3 are ripe. She then selects
+    one vegetable from a bin of 5 vegetables, of which 2 are fresh. What is the probability that both
+    the fruit is ripe and the vegetable is fresh?
+  context_block: null
+  answer_expression: Eq(x, Rational(3, 7) * Rational(2, 5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the probability the fruit is ripe, then find the probability the vegetable is fresh.
+  - Since the two selections are independent, multiply the two probabilities together.
+  - Set up (3/7) times (2/5) and simplify the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The probability the fruit selected is ripe is the number of ripe fruits divided by
+        the total number of fruits.
+      expression: 3/7
+      common_mistake: null
+    - step_number: 2
+      explanation: The probability the vegetable selected is fresh is the number of fresh vegetables divided
+        by the total number of vegetables.
+      expression: 2/5
+      common_mistake: null
+    - step_number: 3
+      explanation: Since the two selections are independent, multiply the two probabilities to find the
+        probability both events occur.
+      expression: (3/7) * (2/5) = 6/35
+      common_mistake: null
+    final_answer: 6/35
+  random_seed: 100400
+  rendered_question: A chef randomly selects one fruit from a basket of 7 pieces, of which 3 are ripe.
+    She then selects one vegetable from a bin of 5 vegetables, of which 2 are fresh. What is the probability
+    that both the fruit is ripe and the vegetable is fresh?
+  option_a: 5/35
+  option_b: 6/35
+  option_c: 5/12
+  option_d: 6/12
+  correct_option: b
 - question_template_id: authored-statistics_advanced-d4-1328401
   topic_id: statistics_advanced
   skill_id: stat_probability

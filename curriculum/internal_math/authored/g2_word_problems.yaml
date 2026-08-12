@@ -1,6 +1,108 @@
 curriculum_version: '2026.1'
 topic_id: g2_word_problems
 templates:
+- question_template_id: authored-g2_word_problems-d3-35301
+  topic_id: g2_word_problems
+  skill_id: g2_wp_measurement_context
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracting
+  - regrouping_error_in_subtraction
+  - digit_confusion_or_misreading
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bag of rice weighed 92 grams. Someone used 45 grams for cooking. How many grams of rice are
+    left in the bag?
+  context_block: ''
+  answer_expression: Eq(x, 92 - 45)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the amount of rice the bag had at the beginning.
+  - You need to subtract the amount that was used for cooking from the starting amount.
+  - Write 92 minus 45 and calculate the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The bag started with 92 grams of rice.
+      expression: '92'
+      common_mistake: null
+    - step_number: 2
+      explanation: Someone used 45 grams, so we subtract that amount from the starting weight.
+      expression: 92 - 45
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 45 from 92. First, 92 - 40 = 52, then 52 - 5 = 47.
+      expression: '47'
+      common_mistake: null
+    final_answer: 47 grams
+  random_seed: 35301
+  rendered_question: A bag of rice weighed 92 grams. Someone used 45 grams for cooking. How many grams
+    of rice are left in the bag?
+  option_a: 37 grams
+  option_b: 57 grams
+  option_c: 137 grams
+  option_d: 47 grams
+  correct_option: d
+- question_template_id: authored-g2_word_problems-d3-35302
+  topic_id: g2_word_problems
+  skill_id: g2_wp_measurement_context
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracted
+  - regrouping_error_in_tens_place
+  - regrouping_error_in_ones_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rope was 73 meters long. A worker cut off 28 meters to use for a project. How many meters of
+    rope are left?
+  context_block: null
+  answer_expression: x = 73 - 28
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the original length of the rope and think about what happens when you cut part of it off.
+  - When you cut 28 meters off a 73-meter rope, you need to subtract the part that was removed.
+  - 'Write the subtraction: 73 minus 28, then compute the result.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We start with the full length of the rope, which is 73 meters.
+      expression: '73'
+      common_mistake: null
+    - step_number: 2
+      explanation: The worker cut off 28 meters, so we subtract that amount from the original length.
+      expression: 73 - 28
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the subtraction: 73 minus 28 equals 45.'
+      expression: '45'
+      common_mistake: null
+    final_answer: 45 meters
+  random_seed: 35302
+  rendered_question: A rope was 73 meters long. A worker cut off 28 meters to use for a project. How many
+    meters of rope are left?
+  option_a: 55 meters
+  option_b: 45 meters
+  option_c: 51 meters
+  option_d: 101 meters
+  correct_option: b
 - question_template_id: authored-g2_word_problems-d3-5301
   topic_id: g2_word_problems
   skill_id: g2_wp_measurement_context
@@ -52,6 +154,104 @@ templates:
   option_c: 53 stickers
   option_d: 28 stickers
   correct_option: b
+- question_template_id: authored-g2_word_problems-d3-96300
+  topic_id: g2_word_problems
+  skill_id: g2_wp_measurement_context
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - subtracted_in_wrong_order_or_place_value_error
+  - off_by_small_amount_arithmetic_slip
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Lin has a ribbon that is 87 centimeters long. She cuts off 34 centimeters to wrap a gift. How
+    much ribbon does she have left?
+  context_block: ''
+  answer_expression: Eq(x, 87 - 34)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens to the ribbon's length when part of it is cut away.
+  - You started with 87 centimeters and removed 34 centimeters.
+  - 'Write a subtraction to find what remains: 87 minus 34.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Lin starts with 87 centimeters of ribbon.
+      expression: '87'
+      common_mistake: null
+    - step_number: 2
+      explanation: She cuts off 34 centimeters, so we subtract that amount from the original length.
+      expression: 87 - 34
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Subtract: 87 minus 34 equals 53.'
+      expression: '53'
+      common_mistake: null
+    final_answer: 53 centimeters
+  random_seed: 96300
+  rendered_question: Lin has a ribbon that is 87 centimeters long. She cuts off 34 centimeters to wrap
+    a gift. How much ribbon does she have left?
+  option_a: 63 centimeters
+  option_b: 53 centimeters
+  option_c: 121 centimeters
+  option_d: 57 centimeters
+  correct_option: b
+- question_template_id: authored-g2_word_problems-d3-96301
+  topic_id: g2_word_problems
+  skill_id: g2_wp_measurement_context
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_subtracting
+  - subtracted_the_wrong_order
+  - regrouping_error_in_ones_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rope is 95 meters long. A delivery driver uses 28 meters of it to tie packages. How many meters
+    of rope are left?
+  context_block: ''
+  answer_expression: Eq(x, 95 - 28)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the total length of the rope.
+  - Subtract the amount used for tying packages.
+  - Write the subtraction and find the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The rope starts at 95 meters and 28 meters are used.
+      expression: x = 95 - 28
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 28 from 95.
+      expression: x = 67
+      common_mistake: null
+    final_answer: 67 meters
+  random_seed: 96301
+  rendered_question: A rope is 95 meters long. A delivery driver uses 28 meters of it to tie packages.
+    How many meters of rope are left?
+  option_a: 67 meters
+  option_b: 77 meters
+  option_c: 123 meters
+  option_d: 63 meters
+  correct_option: a
 - question_template_id: authored-g2_word_problems-d5-6500
   topic_id: g2_word_problems
   skill_id: g2_wp_multi_step
@@ -146,6 +346,53 @@ templates:
   option_c: 42 dollars
   option_d: 78 dollars
   correct_option: c
+- question_template_id: authored-g2_word_problems-d5-97500
+  topic_id: g2_word_problems
+  skill_id: g2_wp_multi_step
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_after_first_operation
+  - added_all_three_numbers
+  - subtracted_before_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student collected 36 stickers on Monday and 28 stickers on Tuesday. She then gave 19 stickers
+    to a friend. How many stickers does she have left?
+  context_block: ''
+  answer_expression: Eq(x, (36 + 28) - 19)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find the total number of stickers collected on Monday and Tuesday combined.
+  - Now that you know how many stickers she had, figure out what happens when she gives some away.
+  - Write one expression that adds the two days together, then subtracts the 19 stickers she gave away.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the stickers collected on Monday and Tuesday to find the total collected.
+      expression: 36 + 28 = 64
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the stickers given to a friend from the total collected.
+      expression: 64 - 19 = 45
+      common_mistake: null
+    final_answer: 45 stickers
+  random_seed: 97500
+  rendered_question: A student collected 36 stickers on Monday and 28 stickers on Tuesday. She then gave
+    19 stickers to a friend. How many stickers does she have left?
+  option_a: 45 stickers
+  option_b: 17 stickers
+  option_c: 83 stickers
+  option_d: 64 stickers
+  correct_option: a
 - question_template_id: authored-g2_word_problems-d1-7100
   topic_id: g2_word_problems
   skill_id: g2_wp_single_operation
@@ -241,6 +488,101 @@ templates:
   option_b: 11 stickers
   option_c: 59 stickers
   option_d: 9 stickers
+  correct_option: c
+- question_template_id: authored-g2_word_problems-d1-98100
+  topic_id: g2_word_problems
+  skill_id: g2_wp_single_operation
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_only_ones_place
+  - subtracted_instead_of_added
+  - added_tens_digit_twice
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Emma collected 34 seashells on Monday and 28 seashells on Tuesday. How many seashells did she
+    collect in total?
+  context_block: null
+  answer_expression: x = 34 + 28
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what you need to do with the seashells Emma found on both days.
+  - To find the total, you need to combine the 34 seashells from Monday with the 28 seashells from Tuesday.
+  - Write an addition equation using the two amounts Emma collected.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Emma collected 34 seashells on Monday and 28 seashells on Tuesday. To find the total,
+        we add these two amounts.
+      expression: x = 34 + 28
+      common_mistake: null
+    - step_number: 2
+      explanation: Adding 34 and 28 together gives us the total number of seashells.
+      expression: x = 62
+      common_mistake: null
+    final_answer: 62 seashells
+  random_seed: 98100
+  rendered_question: Emma collected 34 seashells on Monday and 28 seashells on Tuesday. How many seashells
+    did she collect in total?
+  option_a: 52 seashells
+  option_b: 6 seashells
+  option_c: 62 seashells
+  option_d: 66 seashells
+  correct_option: c
+- question_template_id: authored-g2_word_problems-d1-98101
+  topic_id: g2_word_problems
+  skill_id: g2_wp_single_operation
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - added_only_tens_place
+  - added_tens_to_ones
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Leo read 45 pages in his book on Saturday and 38 pages on Sunday. How many pages did he read in
+    total?
+  context_block: null
+  answer_expression: x = 45 + 38
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens when you combine the pages Leo read on both days.
+  - Add the number of pages from Saturday to the number of pages from Sunday.
+  - Write 45 plus 38 and find the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Leo read 45 pages on Saturday and 38 pages on Sunday, so we add those two amounts together.
+      expression: 45 + 38
+      common_mistake: null
+    - step_number: 2
+      explanation: Adding 45 and 38 gives 83.
+      expression: '83'
+      common_mistake: null
+    final_answer: 83 pages
+  random_seed: 98101
+  rendered_question: Leo read 45 pages in his book on Saturday and 38 pages on Sunday. How many pages
+    did he read in total?
+  option_a: 7 pages
+  option_b: 73 pages
+  option_c: 83 pages
+  option_d: 93 pages
   correct_option: c
 - question_template_id: authored-g2_word_problems-d2-7200
   topic_id: g2_word_problems
@@ -340,3 +682,104 @@ templates:
   option_c: 56 stickers
   option_d: 57 stickers
   correct_option: d
+- question_template_id: authored-g2_word_problems-d2-98200
+  topic_id: g2_word_problems
+  skill_id: g2_wp_single_operation
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - subtraction_error_with_borrowing_by_5
+  - subtraction_error_with_borrowing_by_10
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker made 75 cookies in the morning and sold 48 cookies during the day. How many cookies does
+    the baker have left?
+  context_block: ''
+  answer_expression: x = 75 - 48
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens when you start with some cookies and sell some of them.
+  - You need to subtract the number sold from the number the baker started with.
+  - Write 75 minus 48 and find the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker starts with 75 cookies and sells 48, so we subtract to find what remains.
+      expression: 75 - 48
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 48 from 75 to get the number of cookies left.
+      expression: '27'
+      common_mistake: null
+    final_answer: 27 cookies
+  random_seed: 98200
+  rendered_question: A baker made 75 cookies in the morning and sold 48 cookies during the day. How many
+    cookies does the baker have left?
+  option_a: 123 cookies
+  option_b: 33 cookies
+  option_c: 27 cookies
+  option_d: 37 cookies
+  correct_option: c
+- question_template_id: authored-g2_word_problems-d2-98201
+  topic_id: g2_word_problems
+  skill_id: g2_wp_single_operation
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - regrouping_error_in_addition
+  - place_value_alignment_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam collected 52 stickers on Wednesday and 36 stickers on Thursday. How many stickers did he
+    collect in total?
+  context_block: null
+  answer_expression: x = 52 + 36
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what operation you use when you want to find how many stickers Liam has altogether from
+    both days.
+  - Add the number of stickers from Wednesday to the number of stickers from Thursday.
+  - Write 52 + 36 and calculate the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam collected 52 stickers on Wednesday and 36 stickers on Thursday. To find the total,
+        we add these two amounts together.
+      expression: 52 + 36
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Adding the ones place: 2 + 6 = 8. Adding the tens place: 50 + 30 = 80. Combining them
+        gives us 80 + 8.'
+      expression: 80 + 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Combining the tens and ones gives the total number of stickers.
+      expression: '88'
+      common_mistake: null
+    final_answer: 88 stickers
+  random_seed: 98201
+  rendered_question: Liam collected 52 stickers on Wednesday and 36 stickers on Thursday. How many stickers
+    did he collect in total?
+  option_a: 89 stickers
+  option_b: 88 stickers
+  option_c: 16 stickers
+  option_d: 82 stickers
+  correct_option: b

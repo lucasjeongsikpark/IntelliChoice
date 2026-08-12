@@ -122,6 +122,166 @@ templates:
   option_c: 4834 books
   option_d: 3734 books
   correct_option: a
+- question_template_id: authored-g2_addition-d4-97400
+  topic_id: g2_addition
+  skill_id: g2_add_multi_digit
+  grade_band: 2-3
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - forgot_to_carry_from_tens_to_hundreds
+  - subtracted_instead_of_added
+  - forgot_to_carry_from_ones_to_tens
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school library had 2567 books. It received a donation of 1658 more books. How many books are
+    now in the library?
+  context_block: null
+  answer_expression: Eq(x, 2567 + 1658)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by writing the total as the original number of books plus the donated books.
+  - 'Set up the addition: 2567 + 1658. Line up the digits by place value.'
+  - Add column by column from right to left, carrying when a column sum is ten or more.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the total number of books as the sum of what the library had and what was donated.
+      expression: x = 2567 + 1658
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones place: 7 + 8 = 15. Write 5 in the ones place and carry 1 to the tens.'
+      expression: ones digit = 5, carry 1
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tens place: 6 + 5 = 11, plus the carried 1 = 12. Write 2 in the tens place
+        and carry 1 to the hundreds.'
+      expression: tens digit = 2, carry 1
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the hundreds place: 5 + 6 = 11, plus the carried 1 = 12. Write 2 in the hundreds
+        place and carry 1 to the thousands.'
+      expression: hundreds digit = 2, carry 1
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Add the thousands place: 2 + 1 = 3, plus the carried 1 = 4. Write 4 in the thousands
+        place.'
+      expression: thousands digit = 4
+      common_mistake: null
+    - step_number: 6
+      explanation: Combine all the digits to form the final sum.
+      expression: '4225'
+      common_mistake: null
+    final_answer: '4225'
+  random_seed: 97400
+  rendered_question: A school library had 2567 books. It received a donation of 1658 more books. How many
+    books are now in the library?
+  option_a: '4115'
+  option_b: '3125'
+  option_c: '4215'
+  option_d: '4225'
+  correct_option: d
+- question_template_id: authored-g2_addition-d5-36500
+  topic_id: g2_addition
+  skill_id: g2_add_three_numbers
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_after_first_pair
+  - added_only_two_of_three
+  - regrouping_error_in_tens_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library receives 234 books on Monday, 156 books on Tuesday, and 327 books on Wednesday. How
+    many books did the library receive in all?
+  context_block: null
+  answer_expression: Eq(x, 234 + 156 + 327)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Add the first two amounts together to find how many books arrived on Monday and Tuesday.
+  - Now add the result to the number of books that arrived on Wednesday.
+  - Find 234 + 156 first, then add 327 to that sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the books from Monday and Tuesday first.
+      expression: 234 + 156 = 390
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the books from Wednesday to the previous sum.
+      expression: 390 + 327 = 717
+      common_mistake: null
+    final_answer: 717 books
+  random_seed: 36500
+  rendered_question: A library receives 234 books on Monday, 156 books on Tuesday, and 327 books on Wednesday.
+    How many books did the library receive in all?
+  option_a: 717 books
+  option_b: 561 books
+  option_c: 390 books
+  option_d: 707 books
+  correct_option: a
+- question_template_id: authored-g2_addition-d5-36502
+  topic_id: g2_addition
+  skill_id: g2_add_three_numbers
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_after_two_addends
+  - error_in_ones_place_carry
+  - error_in_tens_place_carry
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A toy store receives 245 toys on Monday, 178 toys on Tuesday, and 136 toys on Wednesday. How many
+    toys did the store receive in total?
+  context_block: null
+  answer_expression: Eq(x, 245 + 178 + 136)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Add the toys received on the first two days together.
+  - Now take that sum and add the toys received on Wednesday.
+  - Write out 245 + 178 + 136 and compute from left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the toys received on Monday and Tuesday.
+      expression: 245 + 178 = 423
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the toys received on Wednesday to the running total.
+      expression: 423 + 136 = 559
+      common_mistake: null
+    final_answer: 559 toys
+  random_seed: 36502
+  rendered_question: A toy store receives 245 toys on Monday, 178 toys on Tuesday, and 136 toys on Wednesday.
+    How many toys did the store receive in total?
+  option_a: 469 toys
+  option_b: 559 toys
+  option_c: 423 toys
+  option_d: 558 toys
+  correct_option: b
 - question_template_id: authored-g2_addition-d5-6501
   topic_id: g2_addition
   skill_id: g2_add_three_numbers
@@ -172,6 +332,199 @@ templates:
   option_c: 90 stickers
   option_d: 89 stickers
   correct_option: c
+- question_template_id: authored-g2_addition-d5-98500
+  topic_id: g2_addition
+  skill_id: g2_add_three_numbers
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - stopped_after_two_addends
+  - added_only_first_and_last
+  - regrouping_error_in_ones_place
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A school collected 342 cans on Monday, 156 cans on Tuesday, and 281 cans on Wednesday for a food
+    drive. How many cans did they collect in total?
+  context_block: null
+  answer_expression: Eq(x, 342 + 156 + 281)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Add the cans from all three days to find the total.
+  - 'Start with Monday and Tuesday: 342 + 156, then add Wednesday''s cans to that sum.'
+  - Write 342 + 156 + 281 and compute each addition carefully, regrouping where needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the cans collected on Monday and Tuesday.
+      expression: 342 + 156 = 498
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the cans collected on Wednesday to the sum from the first two days.
+      expression: 498 + 281 = 779
+      common_mistake: null
+    final_answer: 779 cans
+  random_seed: 98500
+  rendered_question: A school collected 342 cans on Monday, 156 cans on Tuesday, and 281 cans on Wednesday
+    for a food drive. How many cans did they collect in total?
+  option_a: 779 cans
+  option_b: 623 cans
+  option_c: 778 cans
+  option_d: 498 cans
+  correct_option: a
+- question_template_id: authored-g2_addition-d5-98501
+  topic_id: g2_addition
+  skill_id: g2_add_three_numbers
+  grade_band: 2-3
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_after_two_addends
+  - skipped_middle_addend
+  - place_value_regrouping_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library received 425 books in January, 238 books in February, and 167 books in March. How many
+    books did the library receive altogether?
+  context_block: null
+  answer_expression: Eq(x, 425 + 238 + 167)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Add the number of books received each month to find the total.
+  - 'Start by adding the first two months: 425 + 238. Then add the result to the third month''s books.'
+  - Write the sum 425 + 238 + 167 and compute it step by step from left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the books from January and February first.
+      expression: 425 + 238 = 663
+      common_mistake: null
+    - step_number: 2
+      explanation: Now add the books from March to that total.
+      expression: 663 + 167 = 830
+      common_mistake: null
+    final_answer: 830 books
+  random_seed: 98501
+  rendered_question: A library received 425 books in January, 238 books in February, and 167 books in
+    March. How many books did the library receive altogether?
+  option_a: 830 books
+  option_b: 820 books
+  option_c: 592 books
+  option_d: 663 books
+  correct_option: a
+- question_template_id: authored-g2_addition-d1-37100
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - added_only_the_units_digit
+  - added_an_extra_ten
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library has 30 books on one shelf and 40 books on another shelf. How many books are on both
+    shelves altogether?
+  context_block: null
+  answer_expression: Eq(x, 30 + 40)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many books are on the first shelf and how many are on the second shelf.
+  - To find the total, add the number of books on the first shelf to the number on the second shelf.
+  - Write 30 plus 40 and find the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of books on the first shelf and the second shelf.
+      expression: 30 and 40
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the two quantities to find the total number of books.
+      expression: 30 + 40 = 70
+      common_mistake: null
+    final_answer: 70 books
+  random_seed: 37100
+  rendered_question: A library has 30 books on one shelf and 40 books on another shelf. How many books
+    are on both shelves altogether?
+  option_a: 80 books
+  option_b: 10 books
+  option_c: 60 books
+  option_d: 70 books
+  correct_option: d
+- question_template_id: authored-g2_addition-d1-37102
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted instead of added
+  - treated digits as single-digit numbers ignoring place value
+  - added only the tens digits without considering full place value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A store has 10 apples in one basket and 60 apples in another basket. How many apples are there
+    altogether?
+  context_block: null
+  answer_expression: Eq(x, 10 + 60)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what operation you use to find a total when you have two groups.
+  - You need to combine 10 apples from the first basket and 60 apples from the second basket.
+  - Write 10 + 60 and then find the sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the number of apples in each basket: the first basket has 10 apples and the
+        second basket has 60 apples.'
+      expression: 10 and 60
+      common_mistake: null
+    - step_number: 2
+      explanation: To find the total, add the two amounts together.
+      expression: 10 + 60
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Perform the addition: 10 + 60 equals 70.'
+      expression: '70'
+      common_mistake: null
+    final_answer: 70 apples
+  random_seed: 37102
+  rendered_question: A store has 10 apples in one basket and 60 apples in another basket. How many apples
+    are there altogether?
+  option_a: 70 apples
+  option_b: 16 apples
+  option_c: 7 apples
+  option_d: 50 apples
+  correct_option: a
 - question_template_id: authored-g2_addition-d1-7101
   topic_id: g2_addition
   skill_id: g2_add_within_100
@@ -223,6 +576,103 @@ templates:
   option_c: 70 stickers
   option_d: 34 stickers
   correct_option: c
+- question_template_id: authored-g2_addition-d1-99100
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - subtracted_instead_of_adding
+  - concatenated_digits_instead_of_adding
+  - dropped_place_value_zero
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Emma collects 30 stickers in January and 40 stickers in February. How many stickers does she have
+    in all?
+  context_block: null
+  answer_expression: Eq(x, 30 + 40)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many stickers Emma collected in each month.
+  - To find the total, combine the January stickers and the February stickers.
+  - 'Write an addition: 30 plus 40.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Emma collected 30 stickers in January and 40 stickers in February. To find the total,
+        we add the two amounts.
+      expression: 30 + 40
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the tens: 3 tens plus 4 tens equals 7 tens, which is 70.'
+      expression: '70'
+      common_mistake: null
+    final_answer: 70 stickers
+  random_seed: 99100
+  rendered_question: Emma collects 30 stickers in January and 40 stickers in February. How many stickers
+    does she have in all?
+  option_a: 7 stickers
+  option_b: 70 stickers
+  option_c: 34 stickers
+  option_d: 10 stickers
+  correct_option: b
+- question_template_id: authored-g2_addition-d1-99101
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted_instead_of_added
+  - misread_place_value_in_multiples_of_ten
+  - dropped_zero_from_tens
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library receives 20 books on Monday and 50 books on Tuesday. How many books did the library
+    receive altogether?
+  context_block: null
+  answer_expression: Eq(x, 20 + 50)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many books came in on each day?
+  - Add the number of books from Monday to the number from Tuesday.
+  - 'Write the addition: 20 plus 50.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of books received on Monday and Tuesday. The library received 20
+        books on Monday and 50 books on Tuesday.
+      expression: 20 + 50
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the two amounts together. Both are multiples of ten, so add the tens: 2 tens plus
+        5 tens equals 7 tens.'
+      expression: '70'
+      common_mistake: null
+    final_answer: 70 books
+  random_seed: 99101
+  rendered_question: A library receives 20 books on Monday and 50 books on Tuesday. How many books did
+    the library receive altogether?
+  option_a: 80 books
+  option_b: 30 books
+  option_c: 7 books
+  option_d: 70 books
+  correct_option: d
 - question_template_id: authored-g2_addition-d2-7200
   topic_id: g2_addition
   skill_id: g2_add_within_100
@@ -326,6 +776,113 @@ templates:
   option_c: 55 stickers
   option_d: 56 stickers
   correct_option: d
+- question_template_id: authored-g2_addition-d2-99200
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - subtracted instead of added
+  - added only the ones digit without the tens
+  - miscounted by one
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker makes 43 cookies in the morning and 6 cookies in the afternoon. How many cookies does
+    the baker make altogether?
+  context_block: null
+  answer_expression: Eq(x, 43 + 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What operation do you use when you want to combine amounts to find a total?
+  - Write an addition problem with the morning cookies and the afternoon cookies.
+  - Add 43 plus 6, starting with the ones place.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to add the morning cookies and the afternoon cookies together.
+      expression: 43 + 6
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones place: 3 + 6 = 9.'
+      expression: 3 + 6 = 9
+      common_mistake: null
+    - step_number: 3
+      explanation: The tens place stays 4 because there is no carry.
+      expression: 40 + 9 = 49
+      common_mistake: null
+    final_answer: 49 cookies
+  random_seed: 99200
+  rendered_question: A baker makes 43 cookies in the morning and 6 cookies in the afternoon. How many
+    cookies does the baker make altogether?
+  option_a: 37 cookies
+  option_b: 50 cookies
+  option_c: 49 cookies
+  option_d: 48 cookies
+  correct_option: c
+- question_template_id: authored-g2_addition-d2-99201
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - made_arithmetic_error_in_ones_place
+  - added_tens_incorrectly
+  - subtracted_instead_of_added
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants 52 tulip bulbs on Saturday and 7 tulip bulbs on Sunday. How many tulip bulbs
+    did the gardener plant in total?
+  context_block: null
+  answer_expression: Eq(x, 52 + 7)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what operation you use when you combine two amounts.
+  - Write an equation that adds the Saturday bulbs and the Sunday bulbs.
+  - Calculate 52 + 7 to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the number of tulip bulbs planted on Saturday, which is 52.
+      expression: '52'
+      common_mistake: null
+    - step_number: 2
+      explanation: Identify the number of tulip bulbs planted on Sunday, which is 7.
+      expression: '7'
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the two amounts together to find the total number of tulip bulbs planted.
+      expression: 52 + 7
+      common_mistake: null
+    - step_number: 4
+      explanation: Calculate 52 + 7. Since 2 + 7 = 9, which is less than 10, there is no carrying. The
+        sum is 59.
+      expression: '59'
+      common_mistake: null
+    final_answer: 59 tulip bulbs
+  random_seed: 99201
+  rendered_question: A gardener plants 52 tulip bulbs on Saturday and 7 tulip bulbs on Sunday. How many
+    tulip bulbs did the gardener plant in total?
+  option_a: 60 tulip bulbs
+  option_b: 45 tulip bulbs
+  option_c: 59 tulip bulbs
+  option_d: 58 tulip bulbs
+  correct_option: c
 - question_template_id: authored-g2_addition-d3-7300
   topic_id: g2_addition
   skill_id: g2_add_within_100
@@ -436,4 +993,113 @@ templates:
   option_b: 63 stickers
   option_c: 7 stickers
   option_d: 513 stickers
+  correct_option: b
+- question_template_id: authored-g2_addition-d3-99300
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_carry
+  - place_value_concatenation
+  - added_only_ones_digits
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A child has 48 trading cards in one album and 35 trading cards in another album. How many trading
+    cards does the child have altogether?
+  context_block: ''
+  answer_expression: Eq(x, 48 + 35)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - You need to combine the number of cards in both albums.
+  - 'Write the sum of the two amounts: 48 plus 35.'
+  - Add the ones digits first, then the tens digits, remembering to carry if needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Add the ones digits: 8 + 5 = 13. Write down 3 in the ones place and carry 1 to the
+        tens place.'
+      expression: 8 + 5 = 13
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the tens digits along with the carried 1: 4 + 3 + 1 = 8. Write down 8 in the tens
+        place.'
+      expression: 4 + 3 + 1 = 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Combine the tens and ones digits to get the total.
+      expression: 48 + 35 = 83
+      common_mistake: null
+    final_answer: 83 trading cards
+  random_seed: 99300
+  rendered_question: A child has 48 trading cards in one album and 35 trading cards in another album.
+    How many trading cards does the child have altogether?
+  option_a: 713 trading cards
+  option_b: 13 trading cards
+  option_c: 73 trading cards
+  option_d: 83 trading cards
+  correct_option: d
+- question_template_id: authored-g2_addition-d3-99301
+  topic_id: g2_addition
+  skill_id: g2_add_within_100
+  grade_band: 2-3
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_carry
+  - treated_columns_as_separate_numbers
+  - added_without_regrouping_but_wrote_both_digits
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A child collects 26 seashells on Monday and 37 seashells on Tuesday at the beach. How many seashells
+    does the child have altogether?
+  context_block: null
+  answer_expression: Eq(x, 26 + 37)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What operation combines the seashells from both days?
+  - Write an addition sentence using the number of seashells from Monday and Tuesday.
+  - Add the ones digits first, then the tens digits, remembering to carry if needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the addition of the seashells from both days.
+      expression: 26 + 37
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the ones digits: 6 + 7 = 13. Write 3 in the ones place and carry 1 to the tens
+        place.'
+      expression: 6 + 7 = 13, carry 1
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tens digits including the carried 1: 2 + 3 + 1 = 6. Write 6 in the tens place.'
+      expression: 2 + 3 + 1 = 6
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the tens and ones to form the final answer.
+      expression: '63'
+      common_mistake: null
+    final_answer: 63 seashells
+  random_seed: 99301
+  rendered_question: A child collects 26 seashells on Monday and 37 seashells on Tuesday at the beach.
+    How many seashells does the child have altogether?
+  option_a: 59 seashells
+  option_b: 63 seashells
+  option_c: 513 seashells
+  option_d: 53 seashells
   correct_option: b

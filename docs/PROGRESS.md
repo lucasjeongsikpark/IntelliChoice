@@ -7,162 +7,84 @@ Newest entries first. Keep entries short — details belong in code, tests, and 
 
 ### Next session
 
-**Session C1: Phases 0 ✅, R ✅, 1 ✅ (all four grade bands), 5 ✅ (figures), 6 ⏸ partial.
-2026-08-11/12, D-273 through D-288. 658 approved and exported, 0 pending, ~$28 spent,
-1392 passing. Merged as #234 through #244 and deployed — the bank is live on staging.**
+**Session C1: Phases 0 ✅, R ✅, 1 ✅ (all four grade bands), 5 ✅ (figures), 6 ⏸ partial,
+3 ⏸ partial. 2026-08-11/12, D-273 through D-293. 852 approved and exported, 0 pending,
+~$41 spent, 1410 passing.** Phase 3 added **194 items for $12.95** and took the bank from
+**20 to 25 of 33 topics a student can actually open**.
 
-**Phase 6 watched all four grade bands for the first time (D-288), and found four defects
-before the staging run even started.** The order matters: the frontend one came from *reading*
-during planning, the serving-floor one from *preparing* fixture students, the 503 from the
-*first local* walk, and the retry-ladder one from the *first staging* walk.
+**The auto-approval decision is taken and recorded (D-289).** All five pre-registered criteria
+pass — yield 57-91%, human rejection 13% with **0 wrong answer keys**, dispersion real in 26 of
+26 generated topics, **0 of 852** bank items failing today's full gate, **4.7¢** per accepted
+item. The user's decision was **auto-approve with no spot-check sampling**; a 20-item-per-wave
+sample was recommended and declined, and both are recorded. What the criteria never asked about
+is where the bank actually fails: D-285's ~1-in-8 prose defect rate, which no gate can see.
 
-1. **Students were reading SymPy.** Options and stems render as raw strings — `RichText` covers
-   tutor text only — so 64 fields showed `(x + 1)*(x + 12)`, `6*t + 5`, `2**5`. Rewritten, plus
-   a gate check so no wave re-ships it.
-2. **17 of 33 topics were invisible to students** — 208 approved items in topics that could not
-   be opened, because serving needs ≥2 items at *every* tier and no wave's "done when" checked
-   it. `algebra_1`, hand-audited that morning and deployed twice, has **zero d1 items**.
-3. **Exam finalize 503'd on calculus.** An empty *taxonomy* skill has no mastery row, ties at
-   0.0, and wins study-target selection **because nobody has ever practised it**.
-4. **The staging walk had never once exercised the retry ladder** — 11 study answers, 0 pauses,
-   on a walk that is wrong ~74% of the time.
+**Three topics could never have been stocked, and spending would not have found out.**
 
-**Open, with its wrong explanations already eliminated:** `journey-student`'s refresh test
-fails on staging (Question 3 → Question 1 after a reload) and passes locally. Session sharing,
-answer durability, CloudFront caching and the D-272 restore guard were each tested and killed;
-the next step is server-side logs.
+1. **`g5_word_problems` was unopenable by construction** (D-290) — its skills spanned `[2,3]`,
+   `[3,4]`, `[4,5]`, so the plan could not schedule a tier-1 item while the serving floor demands
+   one. From outside it looked exactly like a yield problem. The durable half is a test: every
+   pipeline-authorable topic's plan must span all five tiers, verified in both directions.
+2. **`algebra_1` tier 1 had never been achievable** (D-291) — `Eq(x**2, 64)` for a square's side
+   derives `{8, -8}` and was held against "8 metres". **7 of 7** candidates ever generated died
+   on it. Fixed at D-281's seam; the guard that makes it safe (no option may match a non-positive
+   root) is what stops `solve x**2 = 81` being accepted with a wrong key, and it accounts for 3 of
+   the 6 declines the measurement recorded.
+3. **`g6_fractions` tier 1 is still unauthorable, and the gate is right.** A "lowest terms"
+   question's best distractor (`6/8` beside `3/4`) is **equal in value** to its answer, so the
+   uniqueness check refuses the item. An explicit prompt clause forbidding it scored **0 of 4** —
+   D-252 a fifth time, and this time the model was arguably right to ignore it. Recorded with a
+   design rather than fixed: the fix weakens duplicate detection for every rational-answer item.
 
-**The first hand audit of generated content happened here (D-285), four waves late.** 54 items,
-every answer re-derived: **0 wrong keys, 13% carrying a defect determinism cannot see.** Six
-fixed. The two patterns it exposed — duplicate scenarios across skills, and a difficulty ladder
-that does not ascend — are carry-over #2 and are worth more than the 13%.
+**The measurement that changes how the next wave is planned (D-292).** 52% of Phase 3's
+rejections were the judge disagreeing about difficulty, always inward — 18 items designed for
+tier 4 landed at tier 2. Re-judging **16 items already in the bank at their own tiers** gives
+**19% exact agreement, 88% within one tier**, drifting about a tier downward. So the topics are
+not the problem and neither is the pipeline: every one of the 38 rejections was ≥2 tiers away and
+the ±1 cases were retiered, which is the correct policy. **A ±1-resolution instrument is being
+asked for ±1 agreement**, so its noise lands directly on yield, and tier-4/5 slots cost ~3× for
+reasons that have nothing to do with the content. Not acted on — widening the tolerance weakens
+the only difficulty control the pipeline has, and re-anchoring the rubric is a separate decision.
 
-**The 6-12 wave is shipped.** It had been generated but never exported, so twelve topics held
-approvable content and zero served items; ten topic files were created for the first time.
-Auto-approved without review on the user's instruction — the fourth wave that way. Every item
-keeps `review_priority='high'` and `scripts/list_unreviewed_bank_items.py` reproduces the set,
-so the skipped review stays visible and revertible.
+**The same defect turned up in a third place mid-run (D-293).** `final_answer 'x >= 10'` against
+option `'at least 10 boxes'` — D-281 widened the equation check and left the solution-text check
+shut. Fixed in the check rather than in `answers_agree`, **because that helper is shared with the
+running tutor** and widening it would have changed serving behaviour nobody measured.
 
-**Three gate defects found by reading the re-run's rejections rather than its acceptances:**
-
-1. **The gate could not accept an inequality word problem at all** (D-281) — **0 of 28** across
-   all three inequality skills. It derived the solution *set* (`Interval(7, oo)`) and compared
-   it against the boundary a student writes ("7 months"). A threshold question is the ordinary
-   way to ask an inequality. **27 rejections recovered**, free.
-2. **The gate could not read an answer written the way a child says it** (D-282) —
-   `_option_as_solution_set` needed a `<` or `>`, so `"more than 10 hours"` was rejected as
-   *wrong* rather than unreadable. That is an incentive, not a gap: the gate was paying the
-   generator to write algebra at children.
-3. **A skill at zero was invisible** — `algebra_1` reported 33% while three of its skills
-   accepted nothing, and `skill_id` was not in the structured logs either. The run summary now
-   names a shut-out skill and says re-running will not fix it.
-
-**Repair verdict (D-283): 199 Generator calls bought 13 items — the flag stays off.** The one
-topic where it paid (calculus, 27→7) is the only one whose deterministic gate rejected nothing,
-which points at the rejection *messages* rather than the mechanism. The cheap experiment that
-would settle it is written down in D-283.
-
-**A correction I had to make to my own work, mid-session.** D-281 justified declining open
-boundaries with "costs nothing measurable — all 19 recoveries came from closed boundaries."
-**Circular**: open-boundary items were excluded by construction, so none *could* appear. It
-costs 3 items, and the rule I declined would have misread 6. The conservative choice was right
-and the reason given for it was wrong — the combination that survives review and carries into
-the next decision. See D-282.
-
-**Every one of the 246 CSV rows is now either stocked or dispositioned.** 33 internal topics,
-112 skills. The figures decision — the last open gate in the plan — was taken by the user and
-the answer was build, so family C is no longer deferred: 28 items across `telling_time`,
-`data_graphs`, `plane_figures` and `coordinate_geometry`, plus the contract that makes the
-remaining C rows authorable.
-
-**Wave results, and what they cost:**
-
-| band | items | acceptance | spend |
-|---|---|---|---|
-| K-2 | 54 | 86% | $1.51 |
-| 3-5 | 160 → 153 kept | 91% | $6.03 |
-| 6-8 + 9-12 | 201 | 57% | $13.05 |
-| figures | 28 | authored, not generated | $0 |
-
-**The 57% is understood, not shrugged at.** All 109 rejections were re-gated *offline* against
-the fixed parser — free, because D-195 stores candidate content with the rejection — and the
-parser fixes recover only 11. So "algebra_1 at 4% means the gate is broken" was wrong, and a
-blind re-run would have spent ~$8 reproducing the same yields. Measured causes: 43 answer keys
-disagreeing with their equation, 19 sentences over the readability ceiling, 17 pairs of options
-equal in value, 7 hints stating the answer.
-
-**A re-run of the six weakest topics with D-198's repair path enabled was still in flight when
-this session ended.** It is the lever for the mechanical defects, because the generator prompt
-*already* asks for what 19 items ignored — D-252's finding a third time.
-
-**What this session found, ranked by what missing it would have cost:**
-
-1. **The pipeline never ran `check_sympy_independent_solve`** (D-276). D-202 removed the gate
-   from the generation path, so **5 items with wrong answer keys were generated, approved and
-   exported**; two solvers and a judge passed all five. Pipeline and loader now share one gate.
-2. **The design gate could not design any B-family form** (D-277). It still demanded one
-   equation, one unknown, one solution, so a quadratic, an inequality, a system, a factorisation
-   and a surd could each pass the *item* gate and none could ever be written.
-3. **A family rule installed as a universal constant** (D-274): every answer had to be a
-   positive whole number, and **26 of 184 shipped items failed it**.
-4. **Options were parsed differently from the equations they answer** (D-278) — `2x(x+1)(x+3)`
-   rejected as wrong, and `^` read as XOR.
-5. **160 items sat in topics no student could reach** (D-277): the 3-5 wave's topics were never
-   added to `grade_topic_mapping.yaml`.
-6. **Per-skill config lived in Python** (D-274) — a new skill needed a source edit to be
-   generatable at all.
-7. Three fail-closed violations, all the same class: a comma crashed the gate, `route_answer`
-   raised on `"None"`, and `_parse_side` returned non-values. The third was fixed at the shared
-   parser rather than the reporting site.
-8. **The documented undo path for auto-approval had never been run** (D-276) — it crashed, its
-   filter hid 97% of the set, and its revert SQL named the wrong column.
-
-**Corrections made to my own claims this session, kept because a correction that only ever runs
-in the flattering direction is not a correction:** `decimal_divide` was 0 of 6 non-whole before
-the fix, not 2 of 6; `make curriculum-load` reporting "N unchanged" verifies *nothing* (the gate
-runs on insert/update only); `list_unreviewed_bank_items.py` reports an upper bound (305), not
-the auto-approved set; the readability ceiling is **not** miscalibrated for older students; and
-`test_every_rational_skill_states_that_its_answer_is_not_whole` was my own over-generalisation.
+**Corrections I had to make to my own work this session, kept because a correction that only runs
+in the flattering direction is not one:** I inferred from one example that the never-attempted
+slots were generally unplannable — measured across all 13 topics, exactly one was; I widened
+`g5_wp_fractions` to tier 1 and the generator then wrote the topic's own **d3** form three times,
+because the skill's `structure` offered it as an equal alternative and the judge caught it; I
+killed two of three generation streams on a rate estimate taken from a slow patch, and the real
+throughput was 3× what I read; and I wrote a recall test asserting `x <= 10` agrees with "at least
+10 boxes" — it must not, and the failure was the fix working.
 
 **Carry-over, in the order they matter:**
 
-1. ~~**There is no human-rejection rate.**~~ **Taken, four waves late — D-285.** 54 items read
-   end to end, one per (topic × difficulty) across the twelve topics that shipped, every answer
-   re-derived. **All 54 answer keys correct**; **7 of 54 (13%)** carry a defect the gate cannot
-   see, all of it prose: 2 incoherent, 5 impossible-world. Six fixed, one withdrawn on a closer
-   read. Auto-approval ships a bank whose *answers* are trustworthy and whose *prose* is roughly
-   one-in-eight unreliable — a credibility cost for a K-12 product, not a correctness one.
-   **Still open:** the sample over-weights high tiers, so 13% is an order of magnitude rather
-   than a rate, and 566 of the 620 items remain unread.
-2. ~~**Two systemic patterns cost more than the 13%.**~~ **Both measured and closed** — the
-   duplicate half in D-286 (bank-wide it is **1.5%, not 28%**; the audit's strata took adjacent
-   tiers *within* a skill, which is where a generator repeats itself, so the sample design
-   manufactured the rate — and the real defect, three cross-topic story repeats, is closed by a
-   skeleton check), the ladder half in D-287 (**19% of rungs are flat**, measured and reported
-   rather than gated, because `9 + 8` and `7 + 2` share a shape and a magnitude and one is
-   genuinely harder). The **content** work those two measurements name is Phase 3's.
-3. **13 topics are still below the serving floor** (D-288) — every difficulty needs ≥2 approved
-   items or the topic cannot be opened at all, and 208 approved items sit in ones that cannot.
-   `algebra_1` has zero d1 items. This is Phase 3's deepening pass and it now has an exact
-   per-tier shopping list rather than a guess.
+1. **14 items still stand between 8 topics and being openable**, and **12 of them are tier 5**
+   (plus `algebra_2` d1 and `g6_fractions` d1). This is not a spending problem — see D-292. The
+   real question is whether every topic must span all five tiers, which is a product decision.
+2. **The difficulty rubric is the highest-value thing left** (D-292). Re-anchoring it and
+   re-running the 16-call probe is cheap, and every future wave's yield depends on it.
+3. **The two spend numbers this project keeps disagree by 31%** — the pipeline's own run summaries
+   total **1278¢** for the runs this session while `question_validation_runs.cost_cents` sums to
+   **884¢** over the same window, with candidate counts nearly matching (368 vs 378). The budget
+   ceiling enforces the first. Cost accounting is CLAUDE.md rule 7, so an unexplained 31% gap in it
+   is worth one session's attention. **Not diagnosed — flagged rather than explained away.**
 4. **A refresh mid-exam restores the wrong question, on staging only** (D-288). Question 3 →
    Question 1 after a reload; passes locally. Session sharing, answer durability, CloudFront
    caching and the D-272 restore guard were each tested and **killed** — the next step is
-   server-side logs for that session. `time-telemetry` also fails on staging, uninvestigated.
-5. **Grade-1 reading level in tutor replies is unmeasured** (D-288) — the one clause of Phase
-   6's own "done when" that no work was done against. Stems are gate-checked at authoring; the
-   replies are not, and no runtime readability check exists. Prompts say "age-appropriate" and
-   carry the student's grade, but never tie the two together.
-6. **`session_scope` never commits** (D-284 addendum) — any one-off script writing through it
-   without an explicit commit is a no-op **that reports success**. The pipeline and CLIs commit
-   deliberately; the exposure is ad-hoc scripts.
-7. **The rejection messages name symptoms, not remedies** (D-283). Rewriting them is the
-   experiment that decides whether repair is worth turning on, and it is cheap: one topic,
-   repair on, compare.
-8. `arithmetic_identity` is still unwired (from D-273), and the cross-skill duplicate limit
-   (2 of 160 in `measurement`) is recorded rather than fixed.
-9. **`main` is still unprotected** — carried since #20. Everything this session went through a
-   PR with CI, but by choice rather than by anything preventing otherwise.
+   server-side logs. `time-telemetry` also fails on staging, uninvestigated.
+5. **Grade-1 reading level in tutor replies is unmeasured** (D-288) — the one clause of Phase 6's
+   "done when" nothing was done against. Stems are gate-checked at authoring; replies are not.
+6. **Depth is half-done against D-223's target**: 83 of 165 (topic × tier) cells hold ≥5 items.
+   The remaining half is mostly tiers 4-5, so item 2 above gates it.
+7. **`session_scope` never commits** (D-284 addendum) — any one-off script writing through it
+   without an explicit commit is a no-op **that reports success**.
+8. **The rejection messages name symptoms, not remedies** (D-283), and `arithmetic_identity` is
+   still unwired (D-273).
+9. **`main` is still unprotected** — carried since #20.
 
 **Superseded plan text below, kept for the phase definitions:** Phase 1 is the first phase that spends money, and two
 things it must carry from Phase R: **teach `Eq(x, Max(...))` in the rubric work** — comparison
@@ -524,6 +446,42 @@ and D-220 measured zero wrong tiers live.
 **Budget a judge measurement at n=4 per condition, not n=2** (D-237). Judge runs cost ~11¢ per
 16-item set, so a two-condition comparison is ~90¢ done properly and ~45¢ done in a way that can
 mislead you — this session paid the difference to find that out. Repeat only the metric in dispute.
+
+### Session log — the ruler, not the shelf (2026-08-12, D-289 → D-293)
+
+**Verification:** `ruff` clean · `pyright` 0 errors · **1410 passed**, 2 skipped, 1 xfailed
+(+18 on the 1392 baseline) · bank **852 items re-gate with 0 failures** · `curriculum-load`
+reports 852 unchanged, so the export round trip is byte-identical. **$12.95**: $3.44 the
+serving-floor batch, $0.32 the retry, $9.02 the depth pass, $0.17 the judge probe.
+
+**Built:** the auto-approval decision with its five criteria (D-289); a taxonomy invariant test
+that no topic's plan can miss a tier its serving floor demands (D-290); two gate readings at
+D-281's seam — the positive root of a measured quantity (D-291) and an inequality boundary in
+the solution text (D-293); three measurement scripts (`measure_gate_census.py`,
+`measure_multi_root_reading.py`, `measure_judge_tier_agreement.py`); **194 items**, taking
+openable topics **20 → 25 of 33**.
+
+**The result worth carrying is not the 194 items.** It is that the difficulty judge reproduces
+its own labels **19% of the time** (D-292). 52% of this phase's rejections were difficulty
+disagreements, always inward, and the obvious reading — "these topics do not span five tiers" —
+is wrong: re-judging items *already in the bank at their own tiers* fails the same way. The
+pipeline is behaving correctly (±1 retiered, ≥2 rejected); the instrument it trusts has ±1
+resolution. **Everything measured per tier — depth targets, the serving floor, D-287's flat
+rungs — is measured with that ruler.**
+
+**Three defects that no amount of spending would have found**, because each made a slot
+*unreachable* rather than *expensive*: a plan that could not schedule tier 1 (D-290), an answer
+model that read a set where the student writes a value (D-291, **7 of 7** candidates), and a
+uniqueness rule that refuses the one distractor a "lowest terms" question needs (still open, and
+the gate is right). The method that found all three was the same: for each missing slot, ask
+*"was this ever attempted, and what did it say?"* — free, because D-195 stores rejected content.
+
+**Two lessons about my own measurements.** Three times a first number ran in the alarming
+direction and only the *definition* changed on inspection — the never-attempted slots (1 topic,
+not 9), the generation throughput (3× what a slow patch showed), and a recall test that was
+really a precision test. And the sample matters more than the count: the judge probe's first
+version drew every tier-4/5 item alphabetically, from topics where the phenomenon never
+happened. **A sample that cannot see the phenomenon reports that it is absent.**
 
 ### Session log — the taxonomy scoped, the gate widened, and the first wave seeded (2026-08-11, D-273)
 

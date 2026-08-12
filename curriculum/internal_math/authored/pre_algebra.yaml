@@ -856,6 +856,63 @@ templates:
   option_c: 9 boxes
   option_d: 18 boxes
   correct_option: d
+- question_template_id: authored-pre_algebra-d1-98101
+  topic_id: pre_algebra
+  skill_id: prealg_gcf_lcm
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - found_least_common_multiple_instead
+  - chose_a_common_factor_but_not_greatest
+  - divided_the_smaller_by_the_larger
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 60 cookies and 90 brownies. She wants to pack them into identical boxes so that each
+    box has the same number of cookies and the same number of brownies, with no items left over. What
+    is the greatest number of boxes she can make?
+  context_block: null
+  answer_expression: x = gcd(60, 90)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find all the numbers that divide evenly into both 60 and 90.
+  - The greatest common factor is the largest number that appears in both lists of factors.
+  - List the factors of 60 and the factors of 90, then identify the largest one they share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'List all factors of 60: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60.'
+      expression: factors of 60
+      common_mistake: null
+    - step_number: 2
+      explanation: 'List all factors of 90: 1, 2, 3, 5, 6, 9, 10, 15, 18, 30, 45, 90.'
+      expression: factors of 90
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Identify the common factors that appear in both lists: 1, 2, 3, 5, 6, 10, 15, 30.'
+      expression: common factors
+      common_mistake: null
+    - step_number: 4
+      explanation: The greatest common factor is the largest number in the common list.
+      expression: '30'
+      common_mistake: null
+    final_answer: 30 boxes
+  random_seed: 98101
+  rendered_question: A baker has 60 cookies and 90 brownies. She wants to pack them into identical boxes
+    so that each box has the same number of cookies and the same number of brownies, with no items left
+    over. What is the greatest number of boxes she can make?
+  option_a: 15 boxes
+  option_b: 10 boxes
+  option_c: 30 boxes
+  option_d: 6 boxes
+  correct_option: c
 - question_template_id: authored-pre_algebra-d2-1167200
   topic_id: pre_algebra
   skill_id: prealg_gcf_lcm

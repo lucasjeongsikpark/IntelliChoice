@@ -235,6 +235,69 @@ templates:
   option_c: 17.32 meters
   option_d: 25.98 meters
   correct_option: b
+- question_template_id: authored-trigonometry-d3-95300
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - confused_hypotenuse_with_adjacent
+  - used_sine_instead_of_cosine
+  - used_tangent_or_complementary_angle
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A construction crew is building a wheelchair ramp. The ramp is 24 feet long and makes a 60-degree
+    angle with the ground. What is the horizontal distance the ramp covers?
+  context_block: null
+  answer_expression: x = 24 * cos(pi/3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw a right triangle where the ramp is the hypotenuse, and identify which side represents the horizontal
+    distance.
+  - The horizontal distance is adjacent to the 60-degree angle, and you know the hypotenuse length.
+  - 'Write the cosine ratio: cos(60°) equals the horizontal distance divided by 24, then solve for the
+    distance.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Draw a right triangle where the 24-foot ramp is the hypotenuse, the horizontal distance
+        is the adjacent side to the 60-degree angle, and the height is the opposite side.
+      expression: hypotenuse = 24, angle = 60°
+      common_mistake: null
+    - step_number: 2
+      explanation: The cosine of an angle in a right triangle is the ratio of the adjacent side to the
+        hypotenuse, so cos(60°) = x / 24.
+      expression: cos(60°) = x / 24
+      common_mistake: null
+    - step_number: 3
+      explanation: The value of cos(60°) is 1/2.
+      expression: 1/2 = x / 24
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply both sides by 24 to solve for x.
+      expression: x = 24 * (1/2)
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify the multiplication.
+      expression: x = 12
+      common_mistake: null
+    final_answer: 12 feet
+  random_seed: 95300
+  rendered_question: A construction crew is building a wheelchair ramp. The ramp is 24 feet long and makes
+    a 60-degree angle with the ground. What is the horizontal distance the ramp covers?
+  option_a: 13.9 feet
+  option_b: 20.8 feet
+  option_c: 24 feet
+  option_d: 12 feet
+  correct_option: d
 - question_template_id: authored-trigonometry-d4-1285402
   topic_id: trigonometry
   skill_id: trig_functions
@@ -295,6 +358,169 @@ templates:
   option_c: 14 meters
   option_d: 48.5 meters
   correct_option: b
+- question_template_id: authored-trigonometry-d4-35402
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 150
+  common_error_tags:
+  - multiplied_only_part_of_expression
+  - forgot_to_apply_double_angle_identity
+  - computed_product_before_simplifying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A computer graphics programmer calculates 8 times the value of the expression 2sin(π/4)cos(π/4)
+    for a rotation transformation. What is the result?
+  context_block: null
+  answer_expression: Eq(x, 8 * 2*sin(pi/4)*cos(pi/4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Evaluate sin(π/4) and cos(π/4) separately first, or look for a double-angle identity that combines
+    them.
+  - The pattern 2sin(θ)cos(θ) matches the double-angle formula sin(2θ), so 2sin(π/4)cos(π/4) = sin(π/2).
+  - Calculate sin(π/2) and multiply the result by 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recognize that 2sin(π/4)cos(π/4) matches the double-angle identity sin(2θ) = 2sin(θ)cos(θ),
+        with θ = π/4.
+      expression: 2sin(π/4)cos(π/4) = sin(2·π/4) = sin(π/2)
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate sin(π/2), which is 1.
+      expression: sin(π/2) = 1
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the simplified value by 8.
+      expression: 8 × 1 = 8
+      common_mistake: null
+    final_answer: '8'
+  random_seed: 35402
+  rendered_question: A computer graphics programmer calculates 8 times the value of the expression 2sin(π/4)cos(π/4)
+    for a rotation transformation. What is the result?
+  option_a: 8√2
+  option_b: 16√2
+  option_c: '8'
+  option_d: '4'
+  correct_option: c
+- question_template_id: authored-trigonometry-d4-95401
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - ignored_angle_used_full_length
+  - confused_angle_with_complementary_expression
+  - incorrect_simplification_of_trig_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A kite is flying on a string that is 20 meters long. The string makes an angle of 60° with the
+    horizontal ground. The vertical height of the kite is given by 20·sin(π/2 − π/3) meters. What is the
+    height?
+  context_block: null
+  answer_expression: Eq(x, 20*sin(pi/2 - pi/3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Use the complementary angle identity to rewrite sin(π/2 − π/3) as a function of the angle π/3.
+  - Recall that sin(π/2 − θ) = cos(θ), so sin(π/2 − π/3) = cos(π/3).
+  - Evaluate cos(π/3) and then multiply that result by 20.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Apply the complementary angle identity sin(π/2 − θ) = cos(θ) with θ = π/3.
+      expression: sin(π/2 − π/3) = cos(π/3)
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate cos(π/3) using the unit circle or standard trigonometric values.
+      expression: cos(π/3) = 1/2
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the result by 20 to find the vertical height.
+      expression: 20 · (1/2) = 10
+      common_mistake: null
+    final_answer: 10 meters
+  random_seed: 95401
+  rendered_question: A kite is flying on a string that is 20 meters long. The string makes an angle of
+    60° with the horizontal ground. The vertical height of the kite is given by 20·sin(π/2 − π/3) meters.
+    What is the height?
+  option_a: 5 meters
+  option_b: 10 meters
+  option_c: 17.32 meters
+  option_d: 20 meters
+  correct_option: b
+- question_template_id: authored-trigonometry-d5-35500
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - evaluated_only_first_term
+  - computed_individual_values_without_simplification
+  - stopped_before_final_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A music producer calculates 10 times the value of the expression sin(π/3)cos(π/6) + cos(π/3)sin(π/6)
+    to determine the phase shift in a sound wave. What is the result?
+  context_block: null
+  answer_expression: Eq(x, 10 * (sin(pi/3)*cos(pi/6) + cos(pi/3)*sin(pi/6)))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look at the structure of the expression. Does it match a trigonometric identity you know?
+  - 'The expression sin(π/3)cos(π/6) + cos(π/3)sin(π/6) is the sine addition formula: sin(A + B) = sin(A)cos(B)
+    + cos(A)sin(B).'
+  - Add the two angles to get π/3 + π/6 = π/2, then find sin(π/2) and multiply by 10.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Recognize that the expression sin(π/3)cos(π/6) + cos(π/3)sin(π/6) matches the sine
+        addition formula sin(A + B) = sin(A)cos(B) + cos(A)sin(B), where A = π/3 and B = π/6.
+      expression: sin(π/3)cos(π/6) + cos(π/3)sin(π/6) = sin(π/3 + π/6)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the angles: π/3 + π/6 = 2π/6 + π/6 = 3π/6 = π/2.'
+      expression: sin(π/2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate sin(π/2), which equals 1.
+      expression: '1'
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply the result by 10 as specified in the problem.
+      expression: 10 * 1 = 10
+      common_mistake: null
+    final_answer: '10'
+  random_seed: 35500
+  rendered_question: A music producer calculates 10 times the value of the expression sin(π/3)cos(π/6)
+    + cos(π/3)sin(π/6) to determine the phase shift in a sound wave. What is the result?
+  option_a: '5'
+  option_b: '7.5'
+  option_c: '10'
+  option_d: '8.66'
+  correct_option: c
 - question_template_id: authored-trigonometry-d1-1286100
   topic_id: trigonometry
   skill_id: trig_ratios
@@ -465,6 +691,183 @@ templates:
   option_c: 3/5
   option_d: 4/5
   correct_option: d
+- question_template_id: authored-trigonometry-d1-96100
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confused_sine_and_cosine
+  - used_hypotenuse_as_answer
+  - doubled_hypotenuse_instead_of_multiplying_by_ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A kite is flying at the end of a 10-metre string. The string makes a 30° angle with the ground.
+    How high is the kite above the ground?
+  context_block: null
+  answer_expression: x = 10 * sin(pi/6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw a right triangle where the string is the hypotenuse, the height is the opposite side, and the
+    30° angle is at the ground.
+  - 'The sine ratio relates the opposite side to the hypotenuse: sine = opposite ÷ hypotenuse.'
+  - Set up the equation sin(30°) = height ÷ 10, then multiply both sides by 10.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the parts of the right triangle. The string is the hypotenuse (10 m), the
+        height is the opposite side to the 30° angle, and we need to find the opposite side.
+      expression: hypotenuse = 10, angle = 30°
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the sine ratio, which relates the opposite side to the hypotenuse: sin(angle)
+        = opposite / hypotenuse.'
+      expression: sin(30°) = x / 10
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply both sides by 10 to isolate x.
+      expression: x = 10 × sin(30°)
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate sin(30°), which equals 1/2.
+      expression: sin(30°) = 0.5
+      common_mistake: null
+    - step_number: 5
+      explanation: Multiply 10 by 0.5 to find the height.
+      expression: x = 10 × 0.5 = 5
+      common_mistake: null
+    final_answer: 5 metres
+  random_seed: 96100
+  rendered_question: A kite is flying at the end of a 10-metre string. The string makes a 30° angle with
+    the ground. How high is the kite above the ground?
+  option_a: 5 metres
+  option_b: 8.66 metres
+  option_c: 20 metres
+  option_d: 10 metres
+  correct_option: a
+- question_template_id: authored-trigonometry-d1-96101
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_by_two_instead_of_tan
+  - divided_instead_of_multiplied
+  - used_sine_or_cosine_instead_of_tangent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A ramp rises at a 45-degree angle from the ground. The horizontal distance from the base of the
+    ramp to the wall is 8 metres. What is the vertical height where the ramp meets the wall?
+  context_block: ''
+  answer_expression: Eq(x, 8*tan(pi/4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Sketch the right triangle formed by the ramp, the ground, and the wall. Label the horizontal distance
+    and the angle.
+  - The tangent of an angle in a right triangle is the ratio of the opposite side to the adjacent side.
+  - Set up the equation tan(45°) = height / 8, then solve for the height.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Draw a right triangle where the horizontal leg (adjacent to the 45-degree angle) is
+        8 metres and the vertical leg (opposite the 45-degree angle) is the unknown height x.
+      expression: tan(45°) = x / 8
+      common_mistake: null
+    - step_number: 2
+      explanation: Recall that tan(45°) equals 1.
+      expression: 1 = x / 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply both sides by 8 to isolate x.
+      expression: x = 8 * 1
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the product.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 metres
+  random_seed: 96101
+  rendered_question: A ramp rises at a 45-degree angle from the ground. The horizontal distance from the
+    base of the ramp to the wall is 8 metres. What is the vertical height where the ramp meets the wall?
+  option_a: 4 metres
+  option_b: 16 metres
+  option_c: 5.66 metres
+  option_d: 8 metres
+  correct_option: d
+- question_template_id: authored-trigonometry-d3-96301
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confused_side_with_hypotenuse
+  - used_adjacent_instead_of_opposite
+  - inverted_trigonometric_ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A playground slide is 14 feet long and makes a 30° angle with the ground. What is the vertical
+    height from the ground to the top of the slide?
+  context_block: null
+  answer_expression: x = 14 * sin(pi/6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw a right triangle where the slide is the hypotenuse, the ground is the base, and the height is
+    what you are finding.
+  - The 30° angle is between the slide and the ground, so height is opposite to it. Use sine.
+  - Set up sin(30°) = height / 14, then multiply both sides by 14 and evaluate sin(30°).
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In the right triangle formed by the slide, the ground, and the vertical height, the
+        slide is the hypotenuse (14 feet) and the 30° angle is at the base. The height is the side opposite
+        the 30° angle.
+      expression: sin(30°) = height / 14
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply both sides by 14 to isolate the height.
+      expression: height = 14 * sin(30°)
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate sin(30°) which equals 0.5.
+      expression: height = 14 * 0.5
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply to find the height.
+      expression: height = 7
+      common_mistake: null
+    final_answer: 7 feet
+  random_seed: 96301
+  rendered_question: A playground slide is 14 feet long and makes a 30° angle with the ground. What is
+    the vertical height from the ground to the top of the slide?
+  option_a: 7 feet
+  option_b: 12.1 feet
+  option_c: 14 feet
+  option_d: 28 feet
+  correct_option: a
 - question_template_id: authored-trigonometry-d2-1286201
   topic_id: trigonometry
   skill_id: trig_ratios
@@ -583,6 +986,126 @@ templates:
   option_c: 15 meters
   option_d: 13 meters
   correct_option: d
+- question_template_id: authored-trigonometry-d2-96200
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confused_hypotenuse_with_adjacent_side
+  - used_sine_instead_of_cosine
+  - used_tangent_or_incorrect_trigonometric_ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A ladder of length 12 feet leans against a wall. The angle between the ladder and the ground is
+    60 degrees. How far is the base of the ladder from the wall?
+  context_block: null
+  answer_expression: x = 12 * cos(pi/3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify which sides of the right triangle you know and which one you need to find.
+  - The horizontal distance is adjacent to the 60-degree angle, and the ladder is the hypotenuse. Which
+    trigonometric ratio uses adjacent and hypotenuse?
+  - Set up the equation cos(60°) = distance / 12, then solve for distance.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ladder, wall, and ground form a right triangle. The ladder is the hypotenuse (12
+        feet), the angle at the ground is 60 degrees, and the horizontal distance from the wall is the
+        side adjacent to that angle.
+      expression: cos(60°) = adjacent / hypotenuse
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute the known values into the cosine ratio.
+      expression: cos(60°) = x / 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply both sides by 12 to solve for x.
+      expression: x = 12 * cos(60°)
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate cos(60°), which equals 0.5.
+      expression: x = 12 * 0.5
+      common_mistake: null
+    - step_number: 5
+      explanation: Multiply to find the horizontal distance.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 feet
+  random_seed: 96200
+  rendered_question: A ladder of length 12 feet leans against a wall. The angle between the ladder and
+    the ground is 60 degrees. How far is the base of the ladder from the wall?
+  option_a: 10.4 feet
+  option_b: 12 feet
+  option_c: 6 feet
+  option_d: 6.9 feet
+  correct_option: c
+- question_template_id: authored-trigonometry-d2-96201
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - used_hypotenuse_as_answer
+  - used_cosine_instead_of_sine
+  - arithmetic_error_halving
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A wheelchair ramp is built against the side of a building. The ramp is 16 feet long and makes
+    a 30-degree angle with the ground. What is the vertical height the ramp reaches on the building?
+  context_block: null
+  answer_expression: x = 16 * sin(pi/6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Sketch the right triangle formed by the ramp, the building, and the ground. Label the hypotenuse,
+    the angle, and the side you need to find.
+  - The height is opposite the 30-degree angle, and the ramp is the hypotenuse. Use the sine ratio.
+  - 'Set up the equation: sin(30°) = height / 16, then solve for the height.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the right triangle: the ramp is the hypotenuse (16 feet), the vertical height
+        is the side opposite the 30-degree angle, and the ground distance is the adjacent side.'
+      expression: hypotenuse = 16, angle = 30°
+      common_mistake: null
+    - step_number: 2
+      explanation: The sine of an angle in a right triangle is the ratio of the opposite side to the hypotenuse.
+        Write sin(30°) = height / 16.
+      expression: sin(30°) = x / 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Recall that sin(30°) = 1/2. Substitute this value into the equation.
+      expression: 1/2 = x / 16
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply both sides by 16 to solve for x.
+      expression: x = 16 * (1/2) = 8
+      common_mistake: null
+    final_answer: 8 feet
+  random_seed: 96201
+  rendered_question: A wheelchair ramp is built against the side of a building. The ramp is 16 feet long
+    and makes a 30-degree angle with the ground. What is the vertical height the ramp reaches on the building?
+  option_a: 16 feet
+  option_b: 4 feet
+  option_c: 8 feet
+  option_d: 13.9 feet
+  correct_option: c
 - question_template_id: authored-trigonometry-d3-1286300
   topic_id: trigonometry
   skill_id: trig_ratios

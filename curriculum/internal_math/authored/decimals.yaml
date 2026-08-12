@@ -1,6 +1,62 @@
 curriculum_version: '2026.1'
 topic_id: decimals
 templates:
+- question_template_id: authored-decimals-d1-96100
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_ones_incorrectly
+  - subtracted_tenths_instead_of_adding
+  - ignored_whole_number_part
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya walks 3.4 kilometres to school in the morning. After school she walks 2.5 kilometres to the
+    library. How far does she walk in total?
+  context_block: ''
+  answer_expression: x = 3.4 + 2.5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many kilometres does Maya walk altogether? You need to combine the two distances.
+  - Add the distance to school and the distance to the library.
+  - 'Line up the decimal points: 3.4 plus 2.5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the two distances Maya walks: 3.4 kilometres to school and 2.5 kilometres
+        to the library.'
+      expression: 3.4 + 2.5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Line up the decimal points and add the whole numbers: 3 + 2 = 5.'
+      expression: '5'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the decimal parts: 0.4 + 0.5 = 0.9.'
+      expression: '0.9'
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the whole number and decimal parts to get the total distance.
+      expression: '5.9'
+      common_mistake: null
+    final_answer: 5.9 kilometres
+  random_seed: 96100
+  rendered_question: Maya walks 3.4 kilometres to school in the morning. After school she walks 2.5 kilometres
+    to the library. How far does she walk in total?
+  option_a: 5.9 kilometres
+  option_b: 6.9 kilometres
+  option_c: 0.9 kilometres
+  option_d: 5.1 kilometres
+  correct_option: a
 - question_template_id: authored-decimals-d1-995100
   topic_id: decimals
   skill_id: decimal_add_sub
@@ -164,6 +220,119 @@ templates:
   option_b: 2.3 liters
   option_c: 4.7 liters
   option_d: 5.7 liters
+  correct_option: c
+- question_template_id: authored-decimals-d2-96200
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_whole_and_tenths_only_ignoring_hundredths
+  - subtracted_instead_of_added
+  - misaligned_decimal_points
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener uses 4.25 litres of water for the vegetable patch in the morning and 3.8 litres for
+    the flower bed in the evening. How many litres of water does she use altogether?
+  context_block: ''
+  answer_expression: Eq(x, 4.25 + 3.8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify the two amounts of water and what operation combines them.
+  - Write the sum 4.25 + 3.8, lining up the decimal points carefully.
+  - Add the digits in each column from right to left, remembering that 3.8 is the same as 3.80.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the two amounts with decimal points aligned: 4.25 and 3.80.'
+      expression: 4.25 + 3.80
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Add the hundredths column: 5 + 0 = 5.'
+      expression: '0.05'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the tenths column: 2 + 8 = 10, which is 0 tenths and carry 1.'
+      expression: '0.0'
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the ones column with the carry: 4 + 3 + 1 = 8.'
+      expression: '8'
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine the columns to get the total.
+      expression: '8.05'
+      common_mistake: null
+    final_answer: 8.05 litres
+  random_seed: 96200
+  rendered_question: A gardener uses 4.25 litres of water for the vegetable patch in the morning and 3.8
+    litres for the flower bed in the evening. How many litres of water does she use altogether?
+  option_a: 7.65 litres
+  option_b: 8.65 litres
+  option_c: 8.05 litres
+  option_d: 8.15 litres
+  correct_option: c
+- question_template_id: authored-decimals-d2-96201
+  topic_id: decimals
+  skill_id: decimal_add_sub
+  grade_band: 4-5
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_adding_decimals
+  - misaligned_decimal_addition
+  - ignored_decimal_parts
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A swimmer practices in a pool for 5.3 hours during the week and 2.75 hours on the weekend. How
+    many hours does the swimmer practice in total?
+  context_block: null
+  answer_expression: x = 5.3 + 2.75
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what you need to do with the weekday hours and the weekend hours to find the total.
+  - 'You need to add the two amounts of time: the 5.3 hours and the 2.75 hours.'
+  - 'Line up the decimal points and add: 5.30 plus 2.75.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write down the two amounts of time: 5.3 hours during the week and 2.75 hours on the
+        weekend.'
+      expression: 5.3 + 2.75
+      common_mistake: null
+    - step_number: 2
+      explanation: Line up the decimal points by writing 5.3 as 5.30 so both numbers have two decimal
+        places.
+      expression: 5.30 + 2.75
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the hundredths: 0 + 5 = 5. Add the tenths: 3 + 7 = 10, write 0 and carry 1. Add
+        the ones: 5 + 2 + 1 = 8.'
+      expression: '8.05'
+      common_mistake: null
+    final_answer: 8.05 hours
+  random_seed: 96201
+  rendered_question: A swimmer practices in a pool for 5.3 hours during the week and 2.75 hours on the
+    weekend. How many hours does the swimmer practice in total?
+  option_a: 7.85 hours
+  option_b: 8 hours
+  option_c: 8.05 hours
+  option_d: 8.35 hours
   correct_option: c
 - question_template_id: authored-decimals-d2-995200
   topic_id: decimals
@@ -559,6 +728,59 @@ templates:
   option_c: 4.8 litres
   option_d: 9.28 litres
   correct_option: c
+- question_template_id: authored-decimals-d5-97500
+  topic_id: decimals
+  skill_id: decimal_divide
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - misplaced_decimal_one_place_left
+  - forgot_to_place_decimal_in_quotient
+  - arithmetic_error_in_decimal_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A delivery robot travels 6.3 miles in 1.5 hours at a constant speed. What is the robot's speed
+    in miles per hour?
+  context_block: ''
+  answer_expression: Eq(x, 6.3 / 1.5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Speed is the distance traveled divided by the time taken.
+  - You need to divide 6.3 miles by 1.5 hours.
+  - Move the decimal point in both numbers one place to the right, then divide 63 by 15.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Speed is found by dividing distance by time, so we calculate 6.3 ÷ 1.5.
+      expression: 6.3 / 1.5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'To divide decimals, multiply both the dividend and divisor by 10 to eliminate the
+        decimal in the divisor: 6.3 × 10 = 63 and 1.5 × 10 = 15.'
+      expression: 63 / 15
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide 63 by 15. Since 15 × 4 = 60, we have 3 remaining. Bring down a 0 to make 30,
+        and 15 × 2 = 30.
+      expression: '4.2'
+      common_mistake: null
+    final_answer: 4.2 miles per hour
+  random_seed: 97500
+  rendered_question: A delivery robot travels 6.3 miles in 1.5 hours at a constant speed. What is the
+    robot's speed in miles per hour?
+  option_a: 4.2 miles per hour
+  option_b: 4.8 miles per hour
+  option_c: 42 miles per hour
+  option_d: 0.42 miles per hour
+  correct_option: a
 - question_template_id: authored-decimals-d5-996500
   topic_id: decimals
   skill_id: decimal_divide

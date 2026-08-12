@@ -168,6 +168,58 @@ templates:
   option_c: 9 hours
   option_d: 6 hours
   correct_option: d
+- question_template_id: authored-g68_word_problems-d1-95101
+  topic_id: g68_word_problems
+  skill_id: g68_wp_equations
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - ignored_hours_worked
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A babysitter works for 4 hours and receives an 8 dollar tip. She is paid 32 dollars in total.
+    What is her hourly rate?
+  context_block: ''
+  answer_expression: Eq(4*x + 8, 32)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Write an expression for how much the babysitter earns: hourly rate times hours worked, plus the tip.'
+  - If x is the hourly rate in dollars, her total pay is 4x + 8, and that equals 32.
+  - Subtract the tip from both sides, then divide by the number of hours.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x represent the babysitter's hourly rate in dollars. She works 4 hours, so her
+        pay for hours worked is 4x. Adding the 8 dollar tip gives total pay 4x + 8.
+      expression: 4*x + 8 = 32
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract the 8 dollar tip from both sides to isolate the term with x.
+      expression: 4*x = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 4 to find the hourly rate.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 dollars
+  random_seed: 95101
+  rendered_question: A babysitter works for 4 hours and receives an 8 dollar tip. She is paid 32 dollars
+    in total. What is her hourly rate?
+  option_a: 10 dollars
+  option_b: 24 dollars
+  option_c: 8 dollars
+  option_d: 6 dollars
+  correct_option: d
 - question_template_id: authored-g68_word_problems-d2-1225200
   topic_id: g68_word_problems
   skill_id: g68_wp_equations
@@ -448,6 +500,231 @@ templates:
   option_c: 27 months
   option_d: 11 months
   correct_option: a
+- question_template_id: authored-g68_word_problems-d5-96501
+  topic_id: g68_word_problems
+  skill_id: g68_wp_inequalities
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - rounded_up_when_boundary_already_exact
+  - stopped_before_final_division
+  - misread_constraint_direction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker is preparing cookies for an event. She already has 25 cookies and needs at least 130 cookies
+    in total. Each batch she bakes makes 15 cookies. What is the smallest number of batches she must bake?
+  context_block: null
+  answer_expression: 25 + 15*b >= 130
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for how many cookies the baker will have after baking b batches.
+  - She will have 25 + 15b cookies, and that must be at least 130.
+  - Subtract 25 from both sides, then divide by 15 and remember the inequality symbol.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker starts with 25 cookies and bakes b batches of 15 cookies each, so her total
+        is 25 + 15b.
+      expression: 25 + 15*b
+      common_mistake: null
+    - step_number: 2
+      explanation: She needs at least 130 cookies, so we write the inequality 25 + 15b ≥ 130.
+      expression: 25 + 15*b >= 130
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 25 from both sides to isolate the term with b.
+      expression: 15*b >= 105
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 15 to solve for b.
+      expression: b >= 7
+      common_mistake: null
+    final_answer: 7 batches
+  random_seed: 96501
+  rendered_question: A baker is preparing cookies for an event. She already has 25 cookies and needs at
+    least 130 cookies in total. Each batch she bakes makes 15 cookies. What is the smallest number of
+    batches she must bake?
+  option_a: 9 batches
+  option_b: 105 batches
+  option_c: 8 batches
+  option_d: 7 batches
+  correct_option: d
+- question_template_id: authored-g68_word_problems-d4-36400
+  topic_id: g68_word_problems
+  skill_id: g68_wp_inequalities
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - ignored_reserved_amount_and_divided_total_by_cost
+  - arithmetic_error_in_final_division
+  - subtracted_coefficient_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Elena has $95 to spend at the bookstore. She needs to keep at least $15 for pens and other supplies.
+    Notebooks cost $8 each. How many notebooks can she buy?
+  context_block: ''
+  answer_expression: 8*x + 15 <= 95
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for how much Elena spends on notebooks if she buys x of them, then add the $15
+    she must reserve.
+  - The total she spends and reserves is 8x + 15, and that amount cannot be more than 95.
+  - Write the inequality 8x + 15 ≤ 95, subtract 15 from both sides, then divide by 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Elena's total spending and reserved amount is 8x + 15, where x is the number of notebooks.
+      expression: 8*x + 15
+      common_mistake: null
+    - step_number: 2
+      explanation: She has $95, so 8x + 15 cannot exceed 95. Write the inequality.
+      expression: 8*x + 15 <= 95
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 15 from both sides to isolate the term with x.
+      expression: 8*x <= 80
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 8 to solve for x.
+      expression: x <= 10
+      common_mistake: null
+    final_answer: at most 10 notebooks
+  random_seed: 36400
+  rendered_question: Elena has $95 to spend at the bookstore. She needs to keep at least $15 for pens
+    and other supplies. Notebooks cost $8 each. How many notebooks can she buy?
+  option_a: at most 12 notebooks
+  option_b: at most 10 notebooks
+  option_c: at most 11 notebooks
+  option_d: at most 9 notebooks
+  correct_option: b
+- question_template_id: authored-g68_word_problems-d4-96400
+  topic_id: g68_word_problems
+  skill_id: g68_wp_inequalities
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - treated_inequality_as_equation_or_reversed_direction
+  - stopped_one_step_early_or_divided_incorrectly
+  - divided_total_by_rate_without_subtracting_fixed_cost
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student has $95 to spend at the store. She wants to buy a backpack that costs $15 and some notebooks
+    that cost $8 each. What is the greatest number of notebooks she can buy?
+  context_block: ''
+  answer_expression: 8*x + 15 <= 95
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total cost if she buys x notebooks, including the backpack.
+  - The total cost is 15 + 8x, and that amount must be at most 95 dollars.
+  - Write the inequality 8x + 15 ≤ 95, subtract 15 from both sides, then divide by 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The total cost is the backpack plus the notebooks. If x is the number of notebooks,
+        the cost is 15 + 8x.
+      expression: 15 + 8*x
+      common_mistake: null
+    - step_number: 2
+      explanation: The total cost must be at most 95 dollars, so we write the inequality 8x + 15 ≤ 95.
+      expression: 8*x + 15 <= 95
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 15 from both sides to isolate the term with x.
+      expression: 8*x <= 80
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 8 to solve for x.
+      expression: x <= 10
+      common_mistake: null
+    final_answer: 10 notebooks
+  random_seed: 96400
+  rendered_question: A student has $95 to spend at the store. She wants to buy a backpack that costs $15
+    and some notebooks that cost $8 each. What is the greatest number of notebooks she can buy?
+  option_a: 11 notebooks
+  option_b: 12 notebooks
+  option_c: 10 notebooks
+  option_d: 9 notebooks
+  correct_option: c
+- question_template_id: authored-g68_word_problems-d4-96401
+  topic_id: g68_word_problems
+  skill_id: g68_wp_inequalities
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_wrong_value
+  - divided_the_right_side_incorrectly
+  - stopped_before_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Jamal has saved $22 for a concert ticket and saves $6 each week from his allowance. He needs at
+    least $70 to buy the ticket and a band T-shirt. How many weeks must he save to afford both?
+  context_block: null
+  answer_expression: 22 + 6*w >= 70
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total amount Jamal will have saved after w weeks.
+  - Set up an inequality showing that 22 + 6w must be at least 70.
+  - Subtract 22 from both sides, then divide by 6 to isolate w.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: After w weeks, Jamal will have saved his initial $22 plus $6 for each week.
+      expression: 22 + 6*w
+      common_mistake: null
+    - step_number: 2
+      explanation: He needs this total to be at least $70, so we write an inequality.
+      expression: 22 + 6*w >= 70
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 22 from both sides to isolate the term with w.
+      expression: 6*w >= 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 6 to solve for w.
+      expression: w >= 8
+      common_mistake: null
+    final_answer: w >= 8
+  random_seed: 96401
+  rendered_question: Jamal has saved $22 for a concert ticket and saves $6 each week from his allowance.
+    He needs at least $70 to buy the ticket and a band T-shirt. How many weeks must he save to afford
+    both?
+  option_a: w >= 48
+  option_b: w >= 8
+  option_c: w >= 12
+  option_d: w >= 7
+  correct_option: b
 - question_template_id: authored-g68_word_problems-d2-1227200
   topic_id: g68_word_problems
   skill_id: g68_wp_proportion
@@ -623,6 +900,234 @@ templates:
   option_c: 15 books
   option_d: 9 books
   correct_option: a
+- question_template_id: authored-g68_word_problems-d4-37400
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_instead_of_using_proportion
+  - calculated_unit_rate_but_did_not_apply
+  - multiplied_original_values_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A car travels 240 miles on 8 gallons of gas. You need to drive at least 420 miles. What is the
+    minimum number of gallons of gas you need?
+  context_block: null
+  answer_expression: Eq(x / 420, 8 / 240)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find how many miles the car travels for each gallon of gas.
+  - 'Set up a proportion: if 8 gallons gives 240 miles, then x gallons gives 420 miles.'
+  - Write the proportion as x/420 = 8/240 and solve for x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The car travels 240 miles on 8 gallons, so we set up a proportion comparing gallons
+        to miles. If x is the gallons needed for 420 miles, then x/420 = 8/240.
+      expression: x / 420 = 8 / 240
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Cross-multiply to solve for x: 240x = 8 × 420.'
+      expression: 240*x = 3360
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 240 to isolate x.
+      expression: x = 3360 / 240
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the division to find the number of gallons needed.
+      expression: x = 14
+      common_mistake: null
+    final_answer: 14 gallons
+  random_seed: 37400
+  rendered_question: A car travels 240 miles on 8 gallons of gas. You need to drive at least 420 miles.
+    What is the minimum number of gallons of gas you need?
+  option_a: 30 gallons
+  option_b: 11 gallons
+  option_c: 14 gallons
+  option_d: 16 gallons
+  correct_option: c
+- question_template_id: authored-g68_word_problems-d4-37402
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_instead_of_scaling
+  - stopped_before_final_division
+  - confused_additive_and_multiplicative_reasoning
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A recipe uses 5 eggs to make 8 pancakes. You need to make at least 24 pancakes for a breakfast
+    event. How many eggs do you need?
+  context_block: null
+  answer_expression: Eq(x / 24, 5 / 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If 5 eggs make 8 pancakes, think about how many times you need to scale up the recipe to reach at
+    least 24 pancakes.
+  - 'Set up a proportion: the ratio of eggs to pancakes stays the same, so x eggs to 24 pancakes equals
+    5 eggs to 8 pancakes.'
+  - Write the equation x/24 = 5/8, then multiply both sides by 24 to find x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set up a proportion where the ratio of eggs to pancakes remains constant. If x is the
+        number of eggs needed for 24 pancakes, then x/24 = 5/8.
+      expression: x/24 = 5/8
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply both sides of the equation by 24 to isolate x.
+      expression: x = 24 * (5/8)
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 24 times 5, which gives 120, then divide by 8.
+      expression: x = 120/8
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction to find the number of eggs.
+      expression: x = 15
+      common_mistake: null
+    final_answer: 15 eggs
+  random_seed: 37402
+  rendered_question: A recipe uses 5 eggs to make 8 pancakes. You need to make at least 24 pancakes for
+    a breakfast event. How many eggs do you need?
+  option_a: 19 eggs
+  option_b: 15 eggs
+  option_c: 16 eggs
+  option_d: 120 eggs
+  correct_option: b
+- question_template_id: authored-g68_word_problems-d4-97400
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_target_by_original_ratio_incorrectly
+  - ignored_cups_in_original_recipe
+  - multiplied_without_dividing_in_proportion
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A recipe uses 3 cups of flour to make 12 cookies. How many cups of flour are needed to make 48
+    cookies?
+  context_block: null
+  answer_expression: Eq(x / 48, 3 / 12)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Set up a proportion comparing cups to cookies in both the original and the scaled recipe.
+  - If x is the cups needed for 48 cookies, then x divided by 48 equals 3 divided by 12.
+  - Simplify the fraction on the right side, then multiply both sides by 48 to solve for x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the proportion comparing cups of flour to cookies. The original recipe uses 3
+        cups for 12 cookies, and we need x cups for 48 cookies.
+      expression: x / 48 = 3 / 12
+      common_mistake: null
+    - step_number: 2
+      explanation: Simplify the right side by dividing both numerator and denominator by 3.
+      expression: x / 48 = 1 / 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply both sides by 48 to isolate x.
+      expression: x = 48 / 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide 48 by 4 to find the number of cups needed.
+      expression: x = 12
+      common_mistake: null
+    final_answer: 12 cups
+  random_seed: 97400
+  rendered_question: A recipe uses 3 cups of flour to make 12 cookies. How many cups of flour are needed
+    to make 48 cookies?
+  option_a: 144 cups
+  option_b: 4 cups
+  option_c: 16 cups
+  option_d: 12 cups
+  correct_option: d
+- question_template_id: authored-g68_word_problems-d4-97401
+  topic_id: g68_word_problems
+  skill_id: g68_wp_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_direct_proportion_instead_of_inverse
+  - confused_proportional_relationship_direction
+  - stopped_at_intermediate_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A construction crew of 4 workers can finish painting a community center in 18 days. The project
+    manager needs the job done in no more than 12 days. At least how many workers are needed?
+  context_block: ''
+  answer_expression: Eq(x * 12, 4 * 18)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In an inverse proportion, when the number of workers increases, the days needed decrease. How are
+    workers and days related when the total work stays the same?
+  - 'The product of workers and days is constant: 4 workers times 18 days equals x workers times 12 days.'
+  - Set up the equation 12x = 4 × 18, then solve for x by dividing both sides by 12.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In an inverse proportion, the product of workers and days remains constant. The original
+        crew has 4 workers working for 18 days, so the total work is 4 × 18 = 72 worker-days.
+      expression: 4 * 18 = 72
+      common_mistake: null
+    - step_number: 2
+      explanation: If x workers are needed to complete the same job in 12 days, then x times 12 must also
+        equal 72 worker-days.
+      expression: x * 12 = 72
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 12 to isolate x.
+      expression: x = 72 / 12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the division.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 workers
+  random_seed: 97401
+  rendered_question: A construction crew of 4 workers can finish painting a community center in 18 days.
+    The project manager needs the job done in no more than 12 days. At least how many workers are needed?
+  option_a: 3 workers
+  option_b: 72 workers
+  option_c: 6 workers
+  option_d: 8 workers
+  correct_option: c
 - question_template_id: authored-g68_word_problems-d3-1227300
   topic_id: g68_word_problems
   skill_id: g68_wp_proportion

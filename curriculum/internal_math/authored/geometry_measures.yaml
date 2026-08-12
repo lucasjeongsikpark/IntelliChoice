@@ -323,6 +323,119 @@ templates:
   option_c: 17 inches
   option_d: 23 inches
   correct_option: c
+- question_template_id: authored-geometry_measures-d4-97400
+  topic_id: geometry_measures
+  skill_id: geo_pythagorean
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_legs_without_squaring
+  - mistook_x_squared_for_x
+  - forgot_to_take_square_root
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A ladder leans against a wall. The base of the ladder is 5 feet from the wall, and the top reaches
+    12 feet up the wall. How long is the ladder?
+  context_block: null
+  answer_expression: Eq(x, sqrt(5**2 + 12**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The ladder, wall, and ground form a right triangle with legs of 5 feet and 12 feet.
+  - 'Use the Pythagorean theorem: the square of the ladder''s length equals the sum of 5² and 12².'
+  - Set up the equation x² = 5² + 12², then find the square root of the result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ladder, wall, and ground form a right triangle. The two legs are 5 feet (base)
+        and 12 feet (height), and the ladder is the hypotenuse.
+      expression: x² = 5² + 12²
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the squares of the two legs.
+      expression: x² = 25 + 144
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the two values.
+      expression: x² = 169
+      common_mistake: null
+    - step_number: 4
+      explanation: Take the square root of both sides to solve for x.
+      expression: x = 13
+      common_mistake: null
+    final_answer: 13 feet
+  random_seed: 97400
+  rendered_question: A ladder leans against a wall. The base of the ladder is 5 feet from the wall, and
+    the top reaches 12 feet up the wall. How long is the ladder?
+  option_a: 169 feet
+  option_b: 15 feet
+  option_c: 17 feet
+  option_d: 13 feet
+  correct_option: d
+- question_template_id: authored-geometry_measures-d4-97401
+  topic_id: geometry_measures
+  skill_id: geo_pythagorean
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_legs_instead_of_pythagorean
+  - confused_area_with_distance
+  - forgot_square_root
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular park measures 9 meters by 12 meters. Kai wants to walk straight across from one
+    corner to the opposite corner. How far will Kai walk?
+  context_block: null
+  answer_expression: Eq(x, sqrt(9**2 + 12**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Walking from one corner to the opposite corner forms a right triangle with the two sides of the park.
+  - 'Use the Pythagorean theorem: the square of the diagonal equals the sum of the squares of the two
+    sides.'
+  - Set up the equation with the diagonal as the unknown, square both sides, then take the square root.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The diagonal path across the park forms the hypotenuse of a right triangle with legs
+        9 meters and 12 meters.
+      expression: x² = 9² + 12²
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the squares of each leg.
+      expression: x² = 81 + 144
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the squared values.
+      expression: x² = 225
+      common_mistake: null
+    - step_number: 4
+      explanation: Take the square root of both sides to find the diagonal distance.
+      expression: x = 15
+      common_mistake: null
+    final_answer: 15 meters
+  random_seed: 97401
+  rendered_question: A rectangular park measures 9 meters by 12 meters. Kai wants to walk straight across
+    from one corner to the opposite corner. How far will Kai walk?
+  option_a: 108 meters
+  option_b: 225 meters
+  option_c: 15 meters
+  option_d: 21 meters
+  correct_option: c
 - question_template_id: authored-geometry_measures-d5-1206500
   topic_id: geometry_measures
   skill_id: geo_pythagorean
@@ -440,6 +553,63 @@ templates:
   option_b: 15 meters
   option_c: 32 meters
   option_d: 2 meters
+  correct_option: a
+- question_template_id: authored-geometry_measures-d5-97501
+  topic_id: geometry_measures
+  skill_id: geo_pythagorean
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_sides_instead_of_squares
+  - subtracted_instead_of_adding_squares
+  - stopped_at_squared_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A kite is flying 24 metres high and is positioned 7 metres horizontally away from directly above
+    Liam. The string is stretched taut. What is the length of the kite string?
+  context_block: null
+  answer_expression: Eq(x, sqrt(7**2 + 24**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The string, the vertical height, and the horizontal distance form a right triangle.
+  - 'Use the Pythagorean theorem: the square of the string length equals the sum of the squares of 7 and
+    24.'
+  - Write the equation x² = 7² + 24² and find the square root of the right side.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The string, the 24-metre height, and the 7-metre horizontal distance form a right triangle,
+        with the string as the hypotenuse.
+      expression: x² = 7² + 24²
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate 7² and 24².
+      expression: x² = 49 + 576
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the squares.
+      expression: x² = 625
+      common_mistake: null
+    - step_number: 4
+      explanation: Take the square root of both sides to find x.
+      expression: x = 25
+      common_mistake: null
+    final_answer: 25 metres
+  random_seed: 97501
+  rendered_question: A kite is flying 24 metres high and is positioned 7 metres horizontally away from
+    directly above Liam. The string is stretched taut. What is the length of the kite string?
+  option_a: 25 metres
+  option_b: 625 metres
+  option_c: 31 metres
+  option_d: 17 metres
   correct_option: a
 - question_template_id: authored-geometry_measures-d3-1207302
   topic_id: geometry_measures
@@ -761,6 +931,59 @@ templates:
   option_c: 4 times
   option_d: 6 times
   correct_option: d
+- question_template_id: authored-geometry_measures-d3-98301
+  topic_id: geometry_measures
+  skill_id: geo_ratios
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_dimensions_instead_of_areas
+  - multiplied_areas_instead_of_dividing
+  - reported_first_area_not_ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A classroom has two rectangular posters. The first poster measures 12 inches by 10 inches. The
+    second poster measures 6 inches by 5 inches. What is the ratio of the first poster's area to the second
+    poster's area?
+  context_block: null
+  answer_expression: Eq(x, (12 * 10) / (6 * 5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the area of each poster by multiplying its length and width.
+  - The first poster has area 12 × 10 and the second has area 6 × 5.
+  - Write the ratio as the first area divided by the second area, then simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the area of the first poster by multiplying length and width.
+      expression: 12 * 10 = 120
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the area of the second poster by multiplying length and width.
+      expression: 6 * 5 = 30
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the first poster's area by the second poster's area to find the ratio.
+      expression: 120 / 30 = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 98301
+  rendered_question: A classroom has two rectangular posters. The first poster measures 12 inches by 10
+    inches. The second poster measures 6 inches by 5 inches. What is the ratio of the first poster's area
+    to the second poster's area?
+  option_a: '2'
+  option_b: '4'
+  option_c: '120'
+  option_d: '8'
+  correct_option: b
 - question_template_id: authored-geometry_measures-d5-1208500
   topic_id: geometry_measures
   skill_id: geo_surface_area
@@ -821,6 +1044,62 @@ templates:
   option_c: 114 square inches
   option_d: 228 square inches
   correct_option: d
+- question_template_id: authored-geometry_measures-d5-99500
+  topic_id: geometry_measures
+  skill_id: geo_surface_area
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - confused_surface_area_with_volume
+  - forgot_to_double_all_pairs_of_faces
+  - calculated_only_one_of_each_face_pair
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A shipping company needs to wrap a rectangular crate that is 9 feet long, 6 feet wide, and 4 feet
+    tall. What is the total surface area of the crate?
+  context_block: ''
+  answer_expression: Eq(x, 2*(9*6) + 2*(9*4) + 2*(6*4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'A rectangular crate has six faces: top, bottom, front, back, left side, and right side.'
+  - 'Find the area of each pair of opposite faces: two faces are 9×6, two are 9×4, and two are 6×4.'
+  - 'Add the areas of all six faces by doubling each pair: 2(9×6) + 2(9×4) + 2(6×4).'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the three pairs of opposite faces on the rectangular crate. The top and bottom
+        are each 9 feet by 6 feet.
+      expression: 2*(9*6) = 2*54 = 108
+      common_mistake: null
+    - step_number: 2
+      explanation: The front and back faces are each 9 feet by 4 feet.
+      expression: 2*(9*4) = 2*36 = 72
+      common_mistake: null
+    - step_number: 3
+      explanation: The left and right side faces are each 6 feet by 4 feet.
+      expression: 2*(6*4) = 2*24 = 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the areas of all six faces to find the total surface area.
+      expression: 108 + 72 + 48 = 228
+      common_mistake: null
+    final_answer: 228 square feet
+  random_seed: 99500
+  rendered_question: A shipping company needs to wrap a rectangular crate that is 9 feet long, 6 feet
+    wide, and 4 feet tall. What is the total surface area of the crate?
+  option_a: 180 square feet
+  option_b: 114 square feet
+  option_c: 228 square feet
+  option_d: 216 square feet
+  correct_option: c
 - question_template_id: authored-geometry_measures-d4-1208400
   topic_id: geometry_measures
   skill_id: geo_surface_area
@@ -941,6 +1220,66 @@ templates:
   option_c: 208 square centimeters
   option_d: 248 square centimeters
   correct_option: d
+- question_template_id: authored-geometry_measures-d4-99401
+  topic_id: geometry_measures
+  skill_id: geo_surface_area
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - calculated_perimeter_instead_of_area
+  - forgot_to_double_each_face
+  - omitted_two_faces
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Zara is painting the outside of an aquarium tank that measures 10 inches long, 7 inches wide,
+    and 3 inches tall. She wants to know the total surface area she needs to cover. What is the surface
+    area of the tank?
+  context_block: null
+  answer_expression: Eq(x, 2*(10*7) + 2*(10*3) + 2*(7*3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'A rectangular tank has six faces: a top, a bottom, a front, a back, a left side, and a right side.
+    Find the area of each pair.'
+  - The top and bottom are each 10 by 7, the front and back are each 10 by 3, and the left and right sides
+    are each 7 by 3.
+  - 'Add twice the area of each unique face: 2(10×7) + 2(10×3) + 2(7×3).'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the three pairs of opposite faces. The top and bottom are each 10 inches by
+        7 inches.
+      expression: 10 * 7 = 70
+      common_mistake: null
+    - step_number: 2
+      explanation: The front and back faces are each 10 inches by 3 inches.
+      expression: 10 * 3 = 30
+      common_mistake: null
+    - step_number: 3
+      explanation: The left and right sides are each 7 inches by 3 inches.
+      expression: 7 * 3 = 21
+      common_mistake: null
+    - step_number: 4
+      explanation: Since there are two of each face, multiply each area by 2 and add them together.
+      expression: 2*70 + 2*30 + 2*21 = 140 + 60 + 42 = 242
+      common_mistake: null
+    final_answer: 242 square inches
+  random_seed: 99401
+  rendered_question: Zara is painting the outside of an aquarium tank that measures 10 inches long, 7
+    inches wide, and 3 inches tall. She wants to know the total surface area she needs to cover. What
+    is the surface area of the tank?
+  option_a: 121 square inches
+  option_b: 210 square inches
+  option_c: 242 square inches
+  option_d: 182 square inches
+  correct_option: c
 - question_template_id: authored-geometry_measures-d5-1208502
   topic_id: geometry_measures
   skill_id: geo_surface_area
@@ -998,6 +1337,109 @@ templates:
   option_c: 338 square inches
   option_d: 418 square inches
   correct_option: d
+- question_template_id: authored-geometry_measures-d3-100300
+  topic_id: geometry_measures
+  skill_id: geo_volume
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - multiplied_only_two_dimensions
+  - incorrect_order_of_operations_or_partial_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A storage container in the shape of a rectangular prism has a length of 6 feet, a width of 4 feet,
+    and a height of 5 feet. What is the volume of the container?
+  context_block: null
+  answer_expression: Eq(x, 6 * 4 * 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'The volume of a rectangular prism is found by multiplying its three dimensions: length, width, and
+    height.'
+  - Write the product 6 × 4 × 5 to represent the volume.
+  - Multiply the first two numbers together, then multiply that result by the third number.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the volume of a rectangular prism: V = length × width × height.'
+      expression: V = 6 * 4 * 5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the length and width first: 6 × 4 = 24.'
+      expression: V = 24 * 5
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the result by the height: 24 × 5 = 120.'
+      expression: V = 120
+      common_mistake: null
+    final_answer: 120 cubic feet
+  random_seed: 100300
+  rendered_question: A storage container in the shape of a rectangular prism has a length of 6 feet, a
+    width of 4 feet, and a height of 5 feet. What is the volume of the container?
+  option_a: 30 cubic feet
+  option_b: 15 cubic feet
+  option_c: 50 cubic feet
+  option_d: 120 cubic feet
+  correct_option: d
+- question_template_id: authored-geometry_measures-d3-100301
+  topic_id: geometry_measures
+  skill_id: geo_volume
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - multiplied_only_two_dimensions
+  - stopped_after_first_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: An aquarium has dimensions 8 feet by 3 feet by 4 feet. What is the volume of the aquarium?
+  context_block: null
+  answer_expression: Eq(x, 8 * 3 * 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume measures how much space a three-dimensional object fills. For a rectangular prism, you need
+    all three dimensions.
+  - The volume of a rectangular prism is found by multiplying length times width times height.
+  - 'Set up the calculation: 8 × 3 × 4. Work through the multiplication step by step.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The aquarium is a rectangular prism, so its volume is length × width × height.
+      expression: V = 8 × 3 × 4
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the first two dimensions together.
+      expression: 8 × 3 = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: Now multiply that result by the third dimension.
+      expression: 24 × 4 = 96
+      common_mistake: null
+    final_answer: 96 cubic feet
+  random_seed: 100301
+  rendered_question: An aquarium has dimensions 8 feet by 3 feet by 4 feet. What is the volume of the
+    aquarium?
+  option_a: 32 cubic feet
+  option_b: 96 cubic feet
+  option_c: 24 cubic feet
+  option_d: 15 cubic feet
+  correct_option: b
 - question_template_id: authored-geometry_measures-d3-1209300
   topic_id: geometry_measures
   skill_id: geo_volume
@@ -1106,6 +1548,64 @@ templates:
   option_c: 189 cubic inches
   option_d: 108 cubic inches
   correct_option: a
+- question_template_id: authored-geometry_measures-d4-100400
+  topic_id: geometry_measures
+  skill_id: geo_volume
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - multiplied_only_two_dimensions
+  - summed_all_dimensions
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A shipping company is building a storage crate with dimensions 10 metres long, 5 metres wide,
+    and 2 metres tall. What is the volume of the crate?
+  context_block: ''
+  answer_expression: Eq(V, 10*5*2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume measures how much space a three-dimensional object fills. For a rectangular box, you need to
+    combine all three dimensions.
+  - The volume of a rectangular prism is found by multiplying length times width times height.
+  - 'Set up the calculation: 10 × 5 × 2. Work left to right or in any order.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the volume of a rectangular prism: volume equals length times
+        width times height.'
+      expression: V = l × w × h
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Substitute the given dimensions: length is 10 metres, width is 5 metres, and height
+        is 2 metres.'
+      expression: V = 10 × 5 × 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the first two dimensions.
+      expression: 10 × 5 = 50
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply the result by the height.
+      expression: 50 × 2 = 100
+      common_mistake: null
+    final_answer: 100 cubic metres
+  random_seed: 100400
+  rendered_question: A shipping company is building a storage crate with dimensions 10 metres long, 5
+    metres wide, and 2 metres tall. What is the volume of the crate?
+  option_a: 17 cubic metres
+  option_b: 100 cubic metres
+  option_c: 34 cubic metres
+  option_d: 50 cubic metres
+  correct_option: b
 - question_template_id: authored-geometry_measures-d4-1209400
   topic_id: geometry_measures
   skill_id: geo_volume

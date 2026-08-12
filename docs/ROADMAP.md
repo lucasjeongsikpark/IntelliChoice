@@ -1888,6 +1888,44 @@ D-223 measured target, chosen by the user over SPEC §5.8.1's unmeasured 100/top
 per-run caps, and the auto-approval decision is recorded in DECISIONS.md with the numbers that
 drove it.
 
+⏸ **partial, 2026-08-12 — D-289 through D-292.** Clause by clause:
+
+- **The auto-approval decision is recorded with its numbers: ✅ D-289.** All five pre-registered
+  criteria pass — yield 57-91%, human rejection 13% with 0 wrong answer keys, dispersion real in
+  26 of 26 generated topics, **0 of 658** bank items failing today's full gate, 4.7¢ per accepted
+  item. The user's decision was **auto-approve with no spot-check sampling**; a 20-item-per-wave
+  sample was recommended and declined, and D-289 records both.
+- **Total spend stayed within the per-run caps: ✅** every run behind a preflight and an explicit
+  `--run-budget-cents` sized from its own scheduled-candidate count.
+- **Every A/B row stocked at target depth: ❌ not yet**, and the reason is measured rather than
+  a shortfall of effort. See D-292.
+
+**What the phase found that its criteria did not ask about.** Three defects, each blocking
+content that no amount of spending would have produced:
+
+1. **`g5_word_problems` could never open** (D-290) — its skills spanned `[2,3]`, `[3,4]`, `[4,5]`,
+   so the plan could not schedule a tier-1 item while the serving floor demands one. Fixed, with
+   a test asserting every authorable topic's plan spans all five tiers.
+2. **`algebra_1` tier 1 had never been achievable** (D-291) — `Eq(x**2, 64)` for a square's side
+   derives `{8, -8}` and was held against "8 metres". D-281's interval defect in a second answer
+   model; **7 of 7** candidates ever generated died on it.
+3. **The difficulty judge does not reproduce its own labels** (D-292) — re-judging 16 shipped
+   bank items at their own tiers gives **19% exact agreement, 88% within one tier**, drifting
+   about a tier downward. 52% of this phase's rejections were difficulty disagreements, and the
+   tier-4/5 slots are therefore priced against instrument noise rather than content difficulty.
+
+**Serving floor: 13 topics below it → 8; openable topics 20 → 25 of 33; the bank 658 → 852.**
+On the user's decision the depth pass ran at **the tiers each topic's plan already spans**,
+accepting retiering rather than paying ~3× to fight it: **25 topics, 156 accepted of 257 (61%),
+$9.02**, against 35 of 99 (35%) when the serving-floor batch targeted the extremes directly. The
+difference between those two yields is D-292 measured from the spending side.
+
+**What remains, and why it is not a spending problem.** 14 items stand between 8 topics and being
+openable, and **12 of them are tier 5**. Depth against D-223's 5-per-tier target is **83 of 165
+(topic × tier) cells**, with the unfilled half concentrated at tiers 4-5. Both numbers are gated
+on the same question — whether the difficulty rubric or the five-tier requirement is what should
+change — which is the first item of the next session rather than more generation.
+
 **Phase 4 — Video catalog across the taxonomy.**
 Runs after Phase 1's taxonomy lands (the classifier can only assign skills that exist). Choose
 K-12 math channels; verify YouTube API key + `packages/youtube` settings prerequisites; run

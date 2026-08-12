@@ -153,6 +153,115 @@ templates:
   option_c: 8 tickets
   option_d: 40.50 tickets
   correct_option: c
+- question_template_id: authored-g4_word_problems-d3-96300
+  topic_id: g4_word_problems
+  skill_id: g4_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_dividing
+  - subtracted_instead_of_dividing
+  - multiplied_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A family spent $96.00 on movie tickets, which was 8 times the cost of one ticket. How much does
+    one movie ticket cost?
+  context_block: null
+  answer_expression: Eq(8*x, 96.00)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If the family bought 8 tickets all at the same price, how is the total spending related to the price
+    of one ticket?
+  - Write an equation that says 8 times the price of one ticket equals $96.00.
+  - To find the price of one ticket, divide the total spent by the number of tickets.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the cost of one movie ticket in dollars. The family spent 8 times that amount,
+        so 8x equals the total spent.
+      expression: 8*x = 96.00
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both sides by 8 to find the cost of one ticket.
+      expression: x = 96.00 / 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Carry out the division.
+      expression: x = 12.00
+      common_mistake: null
+    final_answer: $12.00
+  random_seed: 96300
+  rendered_question: A family spent $96.00 on movie tickets, which was 8 times the cost of one ticket.
+    How much does one movie ticket cost?
+  option_a: $88.00
+  option_b: $12.00
+  option_c: $104.00
+  option_d: $768.00
+  correct_option: b
+- question_template_id: authored-g4_word_problems-d3-96301
+  topic_id: g4_word_problems
+  skill_id: g4_wp_decimals
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_dividing
+  - subtracted_instead_of_dividing
+  - decimal_division_error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker spent $67.50 on flour, which was enough for 15 batches of cookies. Each batch requires
+    the same amount of flour. How much does the flour for one batch cost?
+  context_block: ''
+  answer_expression: Eq(15*x, 67.50)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total cost if one batch costs x dollars and the baker makes 15 batches.
+  - The total spent is 15 times the cost per batch, so 15x equals 67.50.
+  - Set up the equation 15x = 67.50 and divide both sides by 15.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker spent $67.50 on flour for 15 batches. If one batch costs x dollars, then
+        15 batches cost 15x dollars.
+      expression: 15*x
+      common_mistake: null
+    - step_number: 2
+      explanation: The total cost is $67.50, so we write the equation 15x = 67.50.
+      expression: 15*x = 67.50
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 15 to find the cost for one batch.
+      expression: x = 67.50 / 15
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Compute the division: 67.50 divided by 15 equals 4.50.'
+      expression: x = 4.50
+      common_mistake: null
+    final_answer: 4.50 dollars
+  random_seed: 96301
+  rendered_question: A baker spent $67.50 on flour, which was enough for 15 batches of cookies. Each batch
+    requires the same amount of flour. How much does the flour for one batch cost?
+  option_a: 4.50 dollars
+  option_b: 52.50 dollars
+  option_c: 82.50 dollars
+  option_d: 5.00 dollars
+  correct_option: a
 - question_template_id: authored-g4_word_problems-d3-975300
   topic_id: g4_word_problems
   skill_id: g4_wp_decimals
@@ -314,6 +423,100 @@ templates:
   option_c: 8 bottles
   option_d: 7 bottles
   correct_option: c
+- question_template_id: authored-g4_word_problems-d1-97100
+  topic_id: g4_word_problems
+  skill_id: g4_wp_division
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_divided
+  - multiplied_instead_of_divided
+  - divided_incorrectly_by_dropping_a_digit
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 1680 stickers to divide equally among 12 students. How many stickers does each student
+    receive?
+  context_block: null
+  answer_expression: Eq(x, 1680 / 12)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what operation shares a total into equal parts.
+  - 'Write a division: the total number of stickers divided by the number of students.'
+  - Set up 1680 ÷ 12 and calculate the result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The teacher has 1680 stickers to share equally among 12 students, so we divide the
+        total by the number of students.
+      expression: 1680 / 12
+      common_mistake: null
+    - step_number: 2
+      explanation: Perform the division. 12 × 140 = 1680, so each student receives 140 stickers.
+      expression: '140'
+      common_mistake: null
+    final_answer: 140 stickers
+  random_seed: 97100
+  rendered_question: A teacher has 1680 stickers to divide equally among 12 students. How many stickers
+    does each student receive?
+  option_a: 14 stickers
+  option_b: 20160 stickers
+  option_c: 1668 stickers
+  option_d: 140 stickers
+  correct_option: d
+- question_template_id: authored-g4_word_problems-d1-97101
+  topic_id: g4_word_problems
+  skill_id: g4_wp_division
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_instead_of_divided
+  - multiplied_instead_of_divided
+  - computational_error_in_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery has 1536 cookies to pack equally into 16 boxes. How many cookies will be in each box?
+  context_block: null
+  answer_expression: Eq(x, 1536 / 16)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what operation you use when you split a total into equal groups.
+  - You need to divide the total number of cookies by the number of boxes.
+  - Set up the division 1536 ÷ 16 and work through it step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to divide the total cookies by the number of boxes.
+      expression: 1536 ÷ 16
+      common_mistake: null
+    - step_number: 2
+      explanation: Dividing 1536 by 16 gives us the number of cookies per box.
+      expression: '96'
+      common_mistake: null
+    final_answer: 96 cookies
+  random_seed: 97101
+  rendered_question: A bakery has 1536 cookies to pack equally into 16 boxes. How many cookies will be
+    in each box?
+  option_a: 24576 cookies
+  option_b: 96 cookies
+  option_c: 90 cookies
+  option_d: 1520 cookies
+  correct_option: b
 - question_template_id: authored-g4_word_problems-d1-976100
   topic_id: g4_word_problems
   skill_id: g4_wp_division
@@ -603,6 +806,57 @@ templates:
   option_c: 99 apples
   option_d: 882 apples
   correct_option: b
+- question_template_id: authored-g4_word_problems-d5-98501
+  topic_id: g4_word_problems
+  skill_id: g4_wp_formula_mixed
+  grade_band: 4-5
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_one_operation_early
+  - added_two_lengths_and_one_width
+  - doubled_only_length_ignored_width
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A rectangular playground has a length of 22 feet and a width of 15 feet. What is the perimeter
+    of the playground?
+  context_block: null
+  answer_expression: x = 2 * (22 + 15)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The perimeter is the total distance around the playground. Use the formula P = 2 × (length + width).
+  - Substitute 22 for the length and 15 for the width into the formula, then follow the order of operations.
+  - First add what is inside the parentheses, then multiply that sum by 2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the perimeter formula and substitute the given length and width.
+      expression: x = 2 * (22 + 15)
+      common_mistake: null
+    - step_number: 2
+      explanation: Add the length and width inside the parentheses first, following the order of operations.
+      expression: x = 2 * 37
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply by 2 to find the perimeter.
+      expression: x = 74
+      common_mistake: null
+    final_answer: 74 feet
+  random_seed: 98501
+  rendered_question: A rectangular playground has a length of 22 feet and a width of 15 feet. What is
+    the perimeter of the playground?
+  option_a: 74 feet
+  option_b: 44 feet
+  option_c: 59 feet
+  option_d: 37 feet
+  correct_option: a
 - question_template_id: authored-g4_word_problems-d4-977400
   topic_id: g4_word_problems
   skill_id: g4_wp_formula_mixed
@@ -702,3 +956,50 @@ templates:
   option_c: 114 cookies
   option_d: 108 cookies
   correct_option: c
+- question_template_id: authored-g4_word_problems-d5-37500
+  topic_id: g4_word_problems
+  skill_id: g4_wp_formula_mixed
+  grade_band: 4-5
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - stopped_at_intermediate_result
+  - added_coverage_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener is buying fertilizer for a rectangular garden that is 12 feet long and 8 feet wide.
+    Each bag of fertilizer covers 6 square feet. How many bags does the gardener need?
+  context_block: null
+  answer_expression: x = (12 * 8) / 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the total area of the garden by multiplying its length and width.
+  - You now know the garden's area in square feet. Each bag covers 6 square feet.
+  - Divide the total area by the coverage of one bag to find how many bags are needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Multiply the length and width to find the area of the garden.
+      expression: 12 * 8 = 96
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total area by the area one bag covers to find the number of bags needed.
+      expression: 96 / 6 = 16
+      common_mistake: null
+    final_answer: 16 bags
+  random_seed: 37500
+  rendered_question: A gardener is buying fertilizer for a rectangular garden that is 12 feet long and
+    8 feet wide. Each bag of fertilizer covers 6 square feet. How many bags does the gardener need?
+  option_a: 26 bags
+  option_b: 16 bags
+  option_c: 96 bags
+  option_d: 20 bags
+  correct_option: b

@@ -300,6 +300,54 @@ templates:
   option_c: 45.6 eggs
   option_d: 27 eggs
   correct_option: d
+- question_template_id: authored-g5_word_problems-d1-66101
+  topic_id: g5_word_problems
+  skill_id: g5_wp_fractions
+  grade_band: 4-5
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_denominators_instead_of_numerators
+  - added_numerators_and_denominators_separately
+  - multiplied_numerators_and_denominators
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Tommy ate 3/8 of a pizza for lunch and 4/8 of the pizza for dinner. What fraction of the pizza
+    did Tommy eat in total?
+  context_block: ''
+  answer_expression: Eq(x, 3/8 + 4/8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how much pizza Tommy ate at lunch and how much he ate at dinner.
+  - Since both fractions have the same denominator, you can add the numerators together.
+  - Write the sum as 3 plus 4 in the numerator, keeping the denominator 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Tommy ate 3/8 of the pizza for lunch and 4/8 for dinner. To find the total, add these
+        two fractions.
+      expression: x = 3/8 + 4/8
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Since both fractions have the same denominator (8), add the numerators: 3 + 4 = 7.'
+      expression: x = 7/8
+      common_mistake: null
+    final_answer: 7/8
+  random_seed: 66101
+  rendered_question: Tommy ate 3/8 of a pizza for lunch and 4/8 of the pizza for dinner. What fraction
+    of the pizza did Tommy eat in total?
+  option_a: 7/8
+  option_b: '1'
+  option_c: 12/64
+  option_d: 7/16
+  correct_option: a
 - question_template_id: authored-g5_word_problems-d2-986200
   topic_id: g5_word_problems
   skill_id: g5_wp_fractions

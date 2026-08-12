@@ -153,6 +153,119 @@ templates:
   option_c: 1962.5 meters
   option_d: 157 meters
   correct_option: d
+- question_template_id: authored-g6_geometry_measurement-d3-97300
+  topic_id: g6_geometry_measurement
+  skill_id: g6_circle_measures
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_radius_times_pi_instead_of_diameter_times_pi
+  - doubled_radius_without_using_pi
+  - calculated_area_instead_of_circumference
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A circular garden has a radius of 25 meters. A gardener plans to install a fence around its edge.
+    What is the circumference of the garden?
+  context_block: Use π = 3.14 for all calculations.
+  answer_expression: Eq(x, 2 * 3.14 * 25)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The circumference is the distance around the circle.
+  - The formula for circumference uses π times the diameter, or 2 times π times the radius.
+  - Multiply 2 by 3.14 and then by the radius of 25 meters.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the circumference of a circle: C = 2 × π × r, where r is
+        the radius.'
+      expression: C = 2 × 3.14 × 25
+      common_mistake: null
+    - step_number: 2
+      explanation: First multiply 2 by 3.14 to get 6.28.
+      expression: C = 6.28 × 25
+      common_mistake: null
+    - step_number: 3
+      explanation: Now multiply 6.28 by 25 to find the circumference.
+      expression: C = 157
+      common_mistake: null
+    final_answer: 157 meters
+  random_seed: 97300
+  rendered_question: 'Use π = 3.14 for all calculations.
+
+
+    A circular garden has a radius of 25 meters. A gardener plans to install a fence around its edge.
+    What is the circumference of the garden?'
+  option_a: 157 meters
+  option_b: 50 meters
+  option_c: 78.5 meters
+  option_d: 1962.5 meters
+  correct_option: a
+- question_template_id: authored-g6_geometry_measurement-d3-97301
+  topic_id: g6_geometry_measurement
+  skill_id: g6_circle_measures
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_circumference_formula_instead_of_area
+  - forgot_to_square_radius
+  - multiplied_radius_by_pi_only
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A city is building a circular fountain in the park. The fountain will have a radius of 10 meters.
+    What is the area of the fountain?
+  context_block: Use 3.14 for π.
+  answer_expression: x = 3.14 * 10**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What formula relates the area of a circle to its radius?
+  - The area formula is A = πr². Identify the value of r from the problem.
+  - Substitute r = 10 and π = 3.14 into the formula, then calculate 10² before multiplying.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the area of a circle: A = πr², where r is the radius.'
+      expression: A = π * r²
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Substitute the given values: radius r = 10 meters and π = 3.14.'
+      expression: A = 3.14 * 10²
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 10² first.
+      expression: 10² = 100
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 3.14 by 100 to find the area.
+      expression: A = 3.14 * 100 = 314
+      common_mistake: null
+    final_answer: 314 square meters
+  random_seed: 97301
+  rendered_question: 'Use 3.14 for π.
+
+
+    A city is building a circular fountain in the park. The fountain will have a radius of 10 meters.
+    What is the area of the fountain?'
+  option_a: 100 square meters
+  option_b: 31.4 square meters
+  option_c: 62.8 square meters
+  option_d: 314 square meters
+  correct_option: d
 - question_template_id: authored-g6_geometry_measurement-d4-1145401
   topic_id: g6_geometry_measurement
   skill_id: g6_circle_measures
@@ -380,6 +493,121 @@ templates:
   option_c: 42 plates
   option_d: 6 plates
   correct_option: d
+- question_template_id: authored-g6_geometry_measurement-d1-98100
+  topic_id: g6_geometry_measurement
+  skill_id: g6_factors_multiples
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - chose_a_common_factor_that_is_not_the_greatest
+  - confused_GCF_with_one_of_the_original_numbers
+  - added_the_two_numbers_instead_of_finding_GCF
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 24 pencils and 36 erasers to divide equally among students. Each student must get
+    the same number of pencils and the same number of erasers. What is the largest number of students
+    who can receive supplies?
+  context_block: ''
+  answer_expression: Eq(x, gcd(24, 36))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - List the factors of 24 and the factors of 36 to see which numbers divide both evenly.
+  - The common factors are the numbers that appear in both lists; you need the greatest one.
+  - The greatest common factor tells you the largest group size where both 24 and 36 split evenly.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find all factors of 24 by listing the whole numbers that divide 24 evenly.
+      expression: 'Factors of 24: 1, 2, 3, 4, 6, 8, 12, 24'
+      common_mistake: null
+    - step_number: 2
+      explanation: Find all factors of 36 by listing the whole numbers that divide 36 evenly.
+      expression: 'Factors of 36: 1, 2, 3, 4, 6, 9, 12, 18, 36'
+      common_mistake: null
+    - step_number: 3
+      explanation: Identify the common factors that appear in both lists.
+      expression: 'Common factors: 1, 2, 3, 4, 6, 12'
+      common_mistake: null
+    - step_number: 4
+      explanation: Select the greatest of the common factors, which is the greatest common factor (GCF).
+      expression: GCF(24, 36) = 12
+      common_mistake: null
+    final_answer: 12 students
+  random_seed: 98100
+  rendered_question: A teacher has 24 pencils and 36 erasers to divide equally among students. Each student
+    must get the same number of pencils and the same number of erasers. What is the largest number of
+    students who can receive supplies?
+  option_a: 24 students
+  option_b: 6 students
+  option_c: 12 students
+  option_d: 60 students
+  correct_option: c
+- question_template_id: authored-g6_geometry_measurement-d1-98101
+  topic_id: g6_geometry_measurement
+  skill_id: g6_factors_multiples
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - found_a_common_factor_but_not_the_greatest
+  - stopped_at_smaller_common_factor
+  - confused_total_quantity_with_number_of_groups
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 30 cookies and 45 candies to pack into identical gift boxes. Each box must get the
+    same number of cookies and the same number of candies. What is the largest number of boxes the baker
+    can make?
+  context_block: null
+  answer_expression: Eq(x, gcd(30, 45))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what number must divide evenly into both 30 and 45 if each box gets the same whole number
+    of cookies and candies.
+  - You are looking for the greatest common factor of 30 and 45.
+  - List the factors of each number, then find the largest factor they share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'List the factors of 30: 1, 2, 3, 5, 6, 10, 15, 30.'
+      expression: factors(30) = {1, 2, 3, 5, 6, 10, 15, 30}
+      common_mistake: null
+    - step_number: 2
+      explanation: 'List the factors of 45: 1, 3, 5, 9, 15, 45.'
+      expression: factors(45) = {1, 3, 5, 9, 15, 45}
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Identify the common factors: 1, 3, 5, 15.'
+      expression: common_factors = {1, 3, 5, 15}
+      common_mistake: null
+    - step_number: 4
+      explanation: The greatest common factor is 15, so the baker can make 15 boxes.
+      expression: gcd(30, 45) = 15
+      common_mistake: null
+    final_answer: 15 boxes
+  random_seed: 98101
+  rendered_question: A baker has 30 cookies and 45 candies to pack into identical gift boxes. Each box
+    must get the same number of cookies and the same number of candies. What is the largest number of
+    boxes the baker can make?
+  option_a: 10 boxes
+  option_b: 5 boxes
+  option_c: 15 boxes
+  option_d: 30 boxes
+  correct_option: c
 - question_template_id: authored-g6_geometry_measurement-d2-1146200
   topic_id: g6_geometry_measurement
   skill_id: g6_factors_multiples
@@ -560,6 +788,120 @@ templates:
   option_c: 90 bins
   option_d: 18 bins
   correct_option: d
+- question_template_id: authored-g6_geometry_measurement-d2-98200
+  topic_id: g6_geometry_measurement
+  skill_id: g6_factors_multiples
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - selected_half_the_GCF
+  - listed_factor_of_only_one_number
+  - chose_smallest_common_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A party planner has 42 balloons and 28 streamers to arrange into identical bundles. Each bundle
+    must contain the same number of balloons and the same number of streamers. What is the largest number
+    of bundles she can make?
+  context_block: null
+  answer_expression: Eq(x, gcd(42, 28))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what number must divide evenly into both 42 and 28 to split them into equal groups.
+  - List the factors of 42 and the factors of 28, then find the largest number that appears in both lists.
+  - The common factors are the numbers that divide both 42 and 28 exactly; pick the greatest one.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the factors of 42 by testing which whole numbers divide evenly into 42.
+      expression: 'Factors of 42: 1, 2, 3, 6, 7, 14, 21, 42'
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the factors of 28 by testing which whole numbers divide evenly into 28.
+      expression: 'Factors of 28: 1, 2, 4, 7, 14, 28'
+      common_mistake: null
+    - step_number: 3
+      explanation: Identify the common factors that appear in both lists.
+      expression: 'Common factors: 1, 2, 7, 14'
+      common_mistake: null
+    - step_number: 4
+      explanation: The greatest common factor is the largest number in the common factors list.
+      expression: GCF = 14
+      common_mistake: null
+    final_answer: 14 bundles
+  random_seed: 98200
+  rendered_question: A party planner has 42 balloons and 28 streamers to arrange into identical bundles.
+    Each bundle must contain the same number of balloons and the same number of streamers. What is the
+    largest number of bundles she can make?
+  option_a: 7 bundles
+  option_b: 6 bundles
+  option_c: 14 bundles
+  option_d: 2 bundles
+  correct_option: c
+- question_template_id: authored-g6_geometry_measurement-d2-98201
+  topic_id: g6_geometry_measurement
+  skill_id: g6_factors_multiples
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_at_smaller_common_factor
+  - stopped_at_even_smaller_common_factor
+  - added_instead_of_finding_gcf
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has 48 tulips and 32 daffodils to plant in rows. Each row must have the same number
+    of tulips and the same number of daffodils. What is the largest number of rows possible?
+  context_block: ''
+  answer_expression: Eq(x, gcd(48, 32))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Think about what it means for each row to have the same arrangement: the number of rows must divide
+    evenly into both 48 and 32.'
+  - List the factors of 48 and the factors of 32, then find which factors appear in both lists.
+  - The largest factor that 48 and 32 share is the greatest common factor, which tells you the maximum
+    number of rows.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Find the factors of 48: 1, 2, 3, 4, 6, 8, 12, 16, 24, 48.'
+      expression: factors(48) = {1, 2, 3, 4, 6, 8, 12, 16, 24, 48}
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Find the factors of 32: 1, 2, 4, 8, 16, 32.'
+      expression: factors(32) = {1, 2, 4, 8, 16, 32}
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Identify the common factors: 1, 2, 4, 8, 16.'
+      expression: common_factors = {1, 2, 4, 8, 16}
+      common_mistake: null
+    - step_number: 4
+      explanation: The largest common factor is 16.
+      expression: gcd(48, 32) = 16
+      common_mistake: null
+    final_answer: 16 rows
+  random_seed: 98201
+  rendered_question: A gardener has 48 tulips and 32 daffodils to plant in rows. Each row must have the
+    same number of tulips and the same number of daffodils. What is the largest number of rows possible?
+  option_a: 4 rows
+  option_b: 16 rows
+  option_c: 8 rows
+  option_d: 80 rows
+  correct_option: b
 - question_template_id: authored-g6_geometry_measurement-d4-1147400
   topic_id: g6_geometry_measurement
   skill_id: g6_surface_area_volume
@@ -841,4 +1183,65 @@ templates:
   option_b: 142 square inches
   option_c: 35 square inches
   option_d: 71 square inches
+  correct_option: b
+- question_template_id: authored-g6_geometry_measurement-d5-99501
+  topic_id: g6_geometry_measurement
+  skill_id: g6_surface_area_volume
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - found_volume_instead_of_surface_area
+  - forgot_to_double_each_face_area
+  - miscalculated_one_pair_of_faces
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A gift box measures 5 cm by 7 cm by 4 cm. Mia wants to wrap it completely with no overlap. What
+    is the total surface area she needs to cover?
+  context_block: null
+  answer_expression: x = 2*(5*7) + 2*(5*4) + 2*(7*4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'A rectangular prism has six faces: top and bottom, front and back, left and right.'
+  - Find the area of each pair of opposite faces. The box is 5 cm by 7 cm by 4 cm, so compute the area
+    of each unique face and double it.
+  - Calculate 2(5×7) + 2(5×4) + 2(7×4) to find the total surface area.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the three unique pairs of faces on the rectangular prism with dimensions 5
+        cm, 7 cm, and 4 cm.
+      expression: 'Faces: 5×7, 5×4, 7×4'
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the area of the top and bottom faces.
+      expression: 2 × (5 × 7) = 2 × 35 = 70
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the area of the front and back faces.
+      expression: 2 × (5 × 4) = 2 × 20 = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: Calculate the area of the left and right faces.
+      expression: 2 × (7 × 4) = 2 × 28 = 56
+      common_mistake: null
+    - step_number: 5
+      explanation: Add the areas of all six faces to find the total surface area.
+      expression: 70 + 40 + 56 = 166
+      common_mistake: null
+    final_answer: 166 square cm
+  random_seed: 99501
+  rendered_question: A gift box measures 5 cm by 7 cm by 4 cm. Mia wants to wrap it completely with no
+    overlap. What is the total surface area she needs to cover?
+  option_a: 146 square cm
+  option_b: 166 square cm
+  option_c: 83 square cm
+  option_d: 140 square cm
   correct_option: b

@@ -171,6 +171,119 @@ templates:
   option_c: w >= 35
   option_d: w >= 8.6
   correct_option: a
+- question_template_id: authored-algebra_1-d2-97200
+  topic_id: algebra_1
+  skill_id: alg1_inequalities
+  grade_band: 8-9
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_instead_of_subtracting
+  - arithmetic_error_in_division
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Luca has $25 saved and plans to save $8 each week. He wants to have at least $73 to buy a skateboard.
+    How many weeks must he save?
+  context_block: ''
+  answer_expression: 25 + 8*w >= 73
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for how much Luca will have saved after w weeks.
+  - He will have 25 + 8w dollars, and that amount must be at least 73.
+  - Set up the inequality 25 + 8w ≥ 73, subtract 25 from both sides, then divide by 8.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for Luca's total savings after w weeks. He starts with $25 and
+        saves $8 each week, so his total is 25 + 8w.
+      expression: 25 + 8*w
+      common_mistake: null
+    - step_number: 2
+      explanation: He needs at least $73, so set up the inequality 25 + 8w ≥ 73.
+      expression: 25 + 8*w >= 73
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 25 from both sides to isolate the term with w.
+      expression: 8*w >= 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 8 to solve for w.
+      expression: w >= 6
+      common_mistake: null
+    final_answer: w >= 6
+  random_seed: 97200
+  rendered_question: Luca has $25 saved and plans to save $8 each week. He wants to have at least $73
+    to buy a skateboard. How many weeks must he save?
+  option_a: w >= 7
+  option_b: w >= 6
+  option_c: w >= 12
+  option_d: w >= 48
+  correct_option: b
+- question_template_id: authored-algebra_1-d2-97201
+  topic_id: algebra_1
+  skill_id: alg1_inequalities
+  grade_band: 8-9
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Used the rate as the answer instead of solving
+  - Ignored the starting amount when setting up the inequality
+  - Stopped after isolating the variable term without dividing by the coefficient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A library is building a new section and needs at least 150 books. It already has 42 books and
+    receives 12 books from each donation drive. How many donation drives does the library need?
+  context_block: ''
+  answer_expression: 42 + 12*d >= 150
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total number of books the library will have after d donation drives.
+  - The library will have 42 + 12d books, and that total must be at least 150.
+  - Write the inequality 42 + 12d ≥ 150, then subtract 42 from both sides and divide by 12.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The library starts with 42 books and receives 12 books each donation drive. After d
+        drives, the total is 42 + 12d.
+      expression: 42 + 12*d
+      common_mistake: null
+    - step_number: 2
+      explanation: The library needs at least 150 books, so we write the inequality 42 + 12d ≥ 150.
+      expression: 42 + 12*d >= 150
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 42 from both sides to isolate the term with d.
+      expression: 12*d >= 108
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 12 to solve for d.
+      expression: d >= 9
+      common_mistake: null
+    final_answer: At least 9 donation drives
+  random_seed: 97201
+  rendered_question: A library is building a new section and needs at least 150 books. It already has
+    42 books and receives 12 books from each donation drive. How many donation drives does the library
+    need?
+  option_a: At least 9 donation drives
+  option_b: At least 10 donation drives
+  option_c: At least 108 donation drives
+  option_d: At least 12 donation drives
+  correct_option: a
 - question_template_id: authored-algebra_1-d3-1407300
   topic_id: algebra_1
   skill_id: alg1_inequalities
@@ -228,6 +341,63 @@ templates:
   option_b: d >= 5 days
   option_c: d >= 8 days
   option_d: d >= 7 days
+  correct_option: d
+- question_template_id: authored-algebra_1-d4-97400
+  topic_id: algebra_1
+  skill_id: alg1_inequalities
+  grade_band: 8-9
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_rate_to_goal_instead_of_subtracting_starting_amount
+  - confused_coefficient_with_constant_in_division
+  - stopped_after_subtraction_without_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A team collecting canned goods for a food drive already has 48 cans and collects 14 cans each
+    day. Their goal is to collect at least 132 cans. How many days must they collect to reach their goal?
+  context_block: null
+  answer_expression: 48 + 14*d >= 132
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total number of cans the team will have after d days of collecting.
+  - The team will have 48 + 14d cans after d days, and this amount must be at least 132.
+  - Subtract 48 from both sides of the inequality, then divide by 14.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write an expression for the total cans after d days. They start with 48 and collect
+        14 each day, so the total is 48 + 14d.
+      expression: 48 + 14*d
+      common_mistake: null
+    - step_number: 2
+      explanation: Set up the inequality. The total must be at least 132, so 48 + 14d >= 132.
+      expression: 48 + 14*d >= 132
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 48 from both sides to isolate the term with d.
+      expression: 14*d >= 84
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 14 to solve for d.
+      expression: d >= 6
+      common_mistake: null
+    final_answer: At least 6 days
+  random_seed: 97400
+  rendered_question: A team collecting canned goods for a food drive already has 48 cans and collects
+    14 cans each day. Their goal is to collect at least 132 cans. How many days must they collect to reach
+    their goal?
+  option_a: At least 84 days
+  option_b: At least 12 days
+  option_c: At least 7 days
+  option_d: At least 6 days
   correct_option: d
 - question_template_id: authored-algebra_1-d5-1408500
   topic_id: algebra_1
@@ -295,6 +465,70 @@ templates:
   option_b: 3 boxes
   option_c: 2 boxes
   option_d: 6 boxes
+  correct_option: a
+- question_template_id: authored-algebra_1-d5-98501
+  topic_id: algebra_1
+  skill_id: alg1_quadratics
+  grade_band: 8-9
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - arithmetic_slip_in_solving_factor
+  - sign_error_on_both_roots
+  - misread_coefficient_or_constant
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A ball is thrown upward and lands on the ground twice. Its height above the ground follows the
+    equation 3x² − 21x + 30 = 0, where x is the time in seconds when the ball is at ground level. What
+    are the two times when the ball is at ground level?
+  context_block: ''
+  answer_expression: 3*x**2 - 21*x + 30 = 0
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for a common factor you can divide out of every term in the equation before trying to factor
+    further.
+  - After factoring out 3, you will have x² − 7x + 10 = 0. Now find two numbers that multiply to 10 and
+    add to −7.
+  - Factor the quadratic into two binomials, set each factor equal to zero, and solve for x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Factor out the greatest common factor, which is 3, from all terms.
+      expression: 3(x² − 7x + 10) = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide both sides by 3 to simplify the equation.
+      expression: x² − 7x + 10 = 0
+      common_mistake: null
+    - step_number: 3
+      explanation: Factor the quadratic. We need two numbers that multiply to 10 and add to −7. Those
+        numbers are −2 and −5.
+      expression: (x − 2)(x − 5) = 0
+      common_mistake: null
+    - step_number: 4
+      explanation: Set each factor equal to zero and solve for x.
+      expression: x − 2 = 0  or  x − 5 = 0
+      common_mistake: null
+    - step_number: 5
+      explanation: Solving each equation gives the two times when the ball is at ground level.
+      expression: x = 2  or  x = 5
+      common_mistake: null
+    final_answer: 2 seconds and 5 seconds
+  random_seed: 98501
+  rendered_question: A ball is thrown upward and lands on the ground twice. Its height above the ground
+    follows the equation 3x² − 21x + 30 = 0, where x is the time in seconds when the ball is at ground
+    level. What are the two times when the ball is at ground level?
+  option_a: 2 seconds and 5 seconds
+  option_b: 7 seconds and 10 seconds
+  option_c: -2 seconds and -5 seconds
+  option_d: 2 seconds and 10 seconds
   correct_option: a
 - question_template_id: authored-algebra_1-d4-1408401
   topic_id: algebra_1
@@ -439,6 +673,253 @@ templates:
   option_c: 6 tables
   option_d: 3 tables
   correct_option: a
+- question_template_id: authored-algebra_1-d1-69100
+  topic_id: algebra_1
+  skill_id: alg1_square_roots
+  grade_band: 8-9
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_negative_root
+  - halved_instead_of_square_root
+  - squared_instead_of_square_root
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A magician asks you to think of a number, square it, and tell her the result. You say 64. What
+    number were you thinking of?
+  context_block: ''
+  answer_expression: x**2 - 64
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an equation where your unknown number is squared and the result is 64.
+  - To undo squaring, take the square root of both sides of the equation.
+  - Remember that both a positive and a negative number can square to give a positive result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number you were thinking of. Since you squared it and got 64, the equation
+        is x² = 64.
+      expression: x**2 = 64
+      common_mistake: null
+    - step_number: 2
+      explanation: Take the square root of both sides to solve for x.
+      expression: x = ±sqrt(64)
+      common_mistake: null
+    - step_number: 3
+      explanation: The square root of 64 is 8, so x can be either 8 or -8.
+      expression: x = 8 or x = -8
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Check: 8² = 64 and (-8)² = 64, so both solutions work.'
+      expression: 8**2 = 64 and (-8)**2 = 64
+      common_mistake: null
+    final_answer: 8 or -8
+  random_seed: 69100
+  rendered_question: A magician asks you to think of a number, square it, and tell her the result. You
+    say 64. What number were you thinking of?
+  option_a: 8 or -8
+  option_b: '4096'
+  option_c: '32'
+  option_d: '8'
+  correct_option: a
+- question_template_id: authored-algebra_1-d1-69101
+  topic_id: algebra_1
+  skill_id: alg1_square_roots
+  grade_band: 8-9
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_negative_square_root
+  - halved_instead_of_square_root
+  - left_answer_unsimplified
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A puzzle asks you to find a number that, when squared, equals 36. What is the number?
+  context_block: null
+  answer_expression: x**2 - 36
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what operation undoes squaring a number.
+  - Taking the square root of both sides will help, but remember that both a positive and a negative number
+    can square to give the same result.
+  - Write the equation x² = 36, then consider both the positive and negative square roots of 36.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We start with the equation x² = 36.
+      expression: x**2 = 36
+      common_mistake: null
+    - step_number: 2
+      explanation: To solve for x, we take the square root of both sides. Remember that squaring removes
+        the sign, so we must consider both positive and negative roots.
+      expression: x = ±sqrt(36)
+      common_mistake: null
+    - step_number: 3
+      explanation: The square root of 36 is 6, so x can be either 6 or -6.
+      expression: x = 6 or x = -6
+      common_mistake: Forgetting the negative solution and only writing x = 6.
+    final_answer: 6 or -6
+  random_seed: 69101
+  rendered_question: A puzzle asks you to find a number that, when squared, equals 36. What is the number?
+  option_a: '6'
+  option_b: 6 or -6
+  option_c: ±√36
+  option_d: '18'
+  correct_option: b
+- question_template_id: authored-algebra_1-d3-100300
+  topic_id: algebra_1
+  skill_id: alg1_systems
+  grade_band: 8-9
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - swapped_variables
+  - incorrect_arithmetic_after_substitution
+  - stopped_at_intermediate_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student buys notebooks and pens for $23. Each notebook costs $3 and each pen costs $2. The student
+    buys one more notebook than pens. How many notebooks and pens does the student buy?
+  context_block: ''
+  answer_expression: Eq(3*x + 2*y, 23); Eq(x - y, 1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Let x be the number of notebooks and y be the number of pens. Write two equations: one for the total
+    cost and one for the relationship between the counts.'
+  - The cost equation is 3x + 2y = 23, and the count relationship is x - y = 1. Use the second equation
+    to express x in terms of y.
+  - Substitute x = y + 1 into the cost equation and solve for y. Then find x using the count relationship.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of notebooks and y be the number of pens. The cost equation is
+        3x + 2y = 23. The count relationship is x - y = 1.
+      expression: 3*x + 2*y = 23; x - y = 1
+      common_mistake: null
+    - step_number: 2
+      explanation: From the second equation, solve for x to get x = y + 1.
+      expression: x = y + 1
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Substitute x = y + 1 into the cost equation: 3(y + 1) + 2y = 23.'
+      expression: 3*(y + 1) + 2*y = 23
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Distribute the 3: 3y + 3 + 2y = 23.'
+      expression: 3*y + 3 + 2*y = 23
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine like terms: 5y + 3 = 23.'
+      expression: 5*y + 3 = 23
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Subtract 3 from both sides: 5y = 20.'
+      expression: 5*y = 20
+      common_mistake: null
+    - step_number: 7
+      explanation: Divide both sides by 5 to find y = 4.
+      expression: y = 4
+      common_mistake: null
+    - step_number: 8
+      explanation: Substitute y = 4 back into x = y + 1 to find x = 5.
+      expression: x = 5
+      common_mistake: null
+    final_answer: (5, 4)
+  random_seed: 100300
+  rendered_question: A student buys notebooks and pens for $23. Each notebook costs $3 and each pen costs
+    $2. The student buys one more notebook than pens. How many notebooks and pens does the student buy?
+  option_a: (6, 5)
+  option_b: (4, 5)
+  option_c: (20, 5)
+  option_d: (5, 4)
+  correct_option: d
+- question_template_id: authored-algebra_1-d3-100301
+  topic_id: algebra_1
+  skill_id: alg1_systems
+  grade_band: 8-9
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - confused_chickens_with_rabbits
+  - stopped_after_combining_like_terms
+  - divided_total_legs_by_number_of_animals
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A farm has chickens and rabbits. There are 12 animals in total and 38 legs in total. How many
+    chickens are on the farm?
+  context_block: null
+  answer_expression: Eq(2*c + 4*(12 - c), 38)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Let c be the number of chickens. Then the number of rabbits is 12 - c.
+  - Chickens have 2 legs each and rabbits have 4 legs each. Write an equation for the total number of
+    legs.
+  - Set up 2c + 4(12 - c) = 38, then distribute and solve for c.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let c represent the number of chickens. Since there are 12 animals total, the number
+        of rabbits is 12 - c.
+      expression: rabbits = 12 - c
+      common_mistake: null
+    - step_number: 2
+      explanation: Chickens have 2 legs and rabbits have 4 legs. The total number of legs is 2c + 4(12
+        - c).
+      expression: 2c + 4(12 - c) = 38
+      common_mistake: null
+    - step_number: 3
+      explanation: Distribute the 4 into the parentheses.
+      expression: 2c + 48 - 4c = 38
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine like terms by adding 2c and -4c.
+      expression: -2c + 48 = 38
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 48 from both sides.
+      expression: -2c = -10
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by -2.
+      expression: c = 5
+      common_mistake: null
+    final_answer: 5 chickens
+  random_seed: 100301
+  rendered_question: A farm has chickens and rabbits. There are 12 animals in total and 38 legs in total.
+    How many chickens are on the farm?
+  option_a: 6 chickens
+  option_b: 5 chickens
+  option_c: 10 chickens
+  option_d: 7 chickens
+  correct_option: b
 - question_template_id: authored-algebra_1-d3-1410300
   topic_id: algebra_1
   skill_id: alg1_systems
@@ -505,6 +986,148 @@ templates:
   option_c: 5 adult tickets
   option_d: 6 adult tickets
   correct_option: c
+- question_template_id: authored-algebra_1-d4-100400
+  topic_id: algebra_1
+  skill_id: alg1_systems
+  grade_band: 8-9
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - solved_for_wrong_variable
+  - incorrect_system_solution_method
+  - ignored_second_constraint
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A theater sold 18 tickets total for one showing. Adult tickets cost $6 each and child tickets
+    cost $3 each. The total revenue was $90. How many adult tickets were sold?
+  context_block: ''
+  answer_expression: Eq(6*x + 3*(18 - x), 90)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Let x be the number of adult tickets. If 18 tickets were sold total, how many must be child tickets?
+  - The revenue from adults is 6x and from children is 3(18 - x). Together they equal 90.
+  - Distribute the 3, combine like terms, then isolate x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of adult tickets sold. Then the number of child tickets is 18 -
+        x.
+      expression: y = 18 - x
+      common_mistake: null
+    - step_number: 2
+      explanation: Revenue from adult tickets is 6x dollars, and revenue from child tickets is 3(18 -
+        x) dollars. Together they total 90.
+      expression: 6*x + 3*(18 - x) = 90
+      common_mistake: null
+    - step_number: 3
+      explanation: Distribute the 3 into the parentheses.
+      expression: 6*x + 54 - 3*x = 90
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the x terms on the left.
+      expression: 3*x + 54 = 90
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 54 from both sides.
+      expression: 3*x = 36
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 3.
+      expression: x = 12
+      common_mistake: null
+    final_answer: '12'
+  random_seed: 100400
+  rendered_question: A theater sold 18 tickets total for one showing. Adult tickets cost $6 each and child
+    tickets cost $3 each. The total revenue was $90. How many adult tickets were sold?
+  option_a: '15'
+  option_b: '12'
+  option_c: '6'
+  option_d: '10'
+  correct_option: b
+- question_template_id: authored-algebra_1-d4-100401
+  topic_id: algebra_1
+  skill_id: alg1_systems
+  grade_band: 8-9
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 240
+  common_error_tags:
+  - swapped_variables_in_ordered_pair
+  - used_wrong_constraint_for_substitution
+  - arithmetic_error_in_system_solution
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery sells bagels at $2 each and muffins at $5 each. In one morning they sold 15 items total
+    and brought in $54. How many bagels and how many muffins did they sell?
+  context_block: null
+  answer_expression: Eq(x + y, 15); Eq(2*x + 5*y, 54)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Write two equations: one for the total number of items and one for the total revenue in dollars.'
+  - If b is bagels and m is muffins, then b + m = 15 and 2b + 5m = 54.
+  - Solve one equation for b or m, substitute into the other, then solve the single-variable equation.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let b represent the number of bagels and m the number of muffins. The total number
+        of items gives the equation b + m = 15.
+      expression: b + m = 15
+      common_mistake: null
+    - step_number: 2
+      explanation: Each bagel costs $2 and each muffin costs $5, so the revenue equation is 2b + 5m =
+        54.
+      expression: 2b + 5m = 54
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Solve the first equation for b in terms of m: b = 15 - m.'
+      expression: b = 15 - m
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Substitute b = 15 - m into the revenue equation: 2(15 - m) + 5m = 54.'
+      expression: 2(15 - m) + 5m = 54
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Distribute the 2: 30 - 2m + 5m = 54.'
+      expression: 30 - 2m + 5m = 54
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Combine like terms: 30 + 3m = 54.'
+      expression: 30 + 3m = 54
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Subtract 30 from both sides: 3m = 24.'
+      expression: 3m = 24
+      common_mistake: null
+    - step_number: 8
+      explanation: 'Divide both sides by 3: m = 8.'
+      expression: m = 8
+      common_mistake: null
+    - step_number: 9
+      explanation: 'Substitute m = 8 back into b = 15 - m: b = 15 - 8 = 7.'
+      expression: b = 7
+      common_mistake: null
+    final_answer: (7, 8)
+  random_seed: 100401
+  rendered_question: A bakery sells bagels at $2 each and muffins at $5 each. In one morning they sold
+    15 items total and brought in $54. How many bagels and how many muffins did they sell?
+  option_a: (10, 5)
+  option_b: (6, 9)
+  option_c: (8, 7)
+  option_d: (7, 8)
+  correct_option: d
 - question_template_id: authored-algebra_1-d4-1410400
   topic_id: algebra_1
   skill_id: alg1_systems
@@ -570,6 +1193,76 @@ templates:
   option_c: 6 apples
   option_d: 9 apples
   correct_option: a
+- question_template_id: authored-algebra_1-d5-100500
+  topic_id: algebra_1
+  skill_id: alg1_systems
+  grade_band: 8-9
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - solved_for_wrong_variable
+  - stopped_at_combined_equation
+  - skipped_distribution_step
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A parking lot has 16 vehicles: some cars and some motorcycles. Counting all the wheels on these
+    vehicles gives a total of 50 wheels. How many cars are in the lot?'
+  context_block: null
+  answer_expression: Eq(4*c + 2*(16 - c), 50)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write expressions for the total number of vehicles and the total number of wheels in terms of the
+    number of cars and motorcycles.
+  - If c represents cars and m represents motorcycles, then c + m = 16 and 4c + 2m = 50.
+  - Use the first equation to write m in terms of c, then substitute into the second equation and solve
+    for c.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let c represent the number of cars and m represent the number of motorcycles. Each
+        car has 4 wheels and each motorcycle has 2 wheels.
+      expression: c + m = 16, 4c + 2m = 50
+      common_mistake: null
+    - step_number: 2
+      explanation: From the first equation, solve for m in terms of c.
+      expression: m = 16 - c
+      common_mistake: null
+    - step_number: 3
+      explanation: Substitute m = 16 - c into the wheel equation.
+      expression: 4c + 2(16 - c) = 50
+      common_mistake: null
+    - step_number: 4
+      explanation: Distribute the 2 through the parentheses.
+      expression: 4c + 32 - 2c = 50
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine like terms on the left side.
+      expression: 2c + 32 = 50
+      common_mistake: null
+    - step_number: 6
+      explanation: Subtract 32 from both sides.
+      expression: 2c = 18
+      common_mistake: null
+    - step_number: 7
+      explanation: Divide both sides by 2 to find the number of cars.
+      expression: c = 9
+      common_mistake: null
+    final_answer: 9 cars
+  random_seed: 100500
+  rendered_question: 'A parking lot has 16 vehicles: some cars and some motorcycles. Counting all the
+    wheels on these vehicles gives a total of 50 wheels. How many cars are in the lot?'
+  option_a: 7 cars
+  option_b: 12 cars
+  option_c: 9 cars
+  option_d: 11 cars
+  correct_option: c
 - question_template_id: authored-algebra_1-d5-1410500
   topic_id: algebra_1
   skill_id: alg1_systems

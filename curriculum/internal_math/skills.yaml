@@ -414,12 +414,24 @@ skills:
       perimeter of a rectangle, or two operations of different kinds in one expression"
 
   # g5_word_problems
+  # Tier 1 was added 2026-08-12 (C1 Phase 3): this topic's three skills spanned [2,3], [3,4]
+  # and [4,5], so its authoring plan could not schedule a difficulty-1 item at all - and a
+  # topic serves only when *every* tier 1-5 holds two approved items (D-187 × QUESTIONS_PER_
+  # DIFFICULTY). `g5_word_problems` was therefore unopenable by construction, not by yield.
+  # The easiest skill carries tier 1 here exactly as `g4_wp_division` does in the sibling
+  # topic, and a fraction OF a quantity ("half of 30") is honest grade-5 tier-1 work.
   - skill_id: g5_wp_fractions
     topic_id: g5_word_problems
     name: "Solve a word problem about fractions"
-    difficulty_tiers: [2, 3]
-    structure: "one operation on fractions, written with Rational, e.g. Eq(x, Rational(3,4) -
-      Rational(1,6)), or a fraction OF a quantity, e.g. Eq(x, Rational(2,5) * 350)"
+    difficulty_tiers: [1, 2, 3]
+    # The two forms below are NOT interchangeable, and saying so is what makes tier 1
+    # reachable. Offered as equal alternatives, the generator wrote "three-fourths of 24"
+    # for every tier-1 slot and the judge rated all three difficulty 3 - correctly, since
+    # this topic's own d3 anchor is "a fraction OF a quantity". The skill spans both forms;
+    # the tier decides which one.
+    structure: "one operation on two fractions, written with Rational, e.g. Eq(x,
+      Rational(3,4) - Rational(1,6)) - like denominators at tier 1, unlike at tier 2. A
+      fraction OF a quantity, e.g. Eq(x, Rational(2,5) * 350), is the tier-3 form only"
     answer_family: rational
 
   - skill_id: g5_wp_decimals
@@ -455,8 +467,17 @@ skills:
     topic_id: g6_fractions
     name: "Reduce a fraction to lowest terms"
     difficulty_tiers: [1, 2]
-    structure: "one fraction written as a division that reduces, e.g. Eq(x, Rational(24, 36)) -
-      the answer is the reduced fraction, so it must not be a whole number"
+    # The distractor rule is the load-bearing sentence. A "lowest terms" question's most
+    # natural wrong answer is the *unreduced* form - and that form is equal in VALUE to the
+    # answer, so `check_sympy_independent_solve` reports two options matching and refuses
+    # the item. All three tier-1 candidates in the C1 Phase 3 batch died that way (6/8
+    # beside 3/4, 4/6 beside 2/3). The gate is right on its own terms: two options a student
+    # cannot tell apart must never both be on screen. What it costs is this skill's best
+    # distractor, so the constraint is stated to the author instead.
+    structure: "one fraction written as a division that reduces, e.g. Eq(x, Rational(24, 36))
+      - the answer is the reduced fraction, so it must not be a whole number. No distractor
+      may be an unreduced form of the answer (never 6/8 beside 3/4): use a fraction of a
+      DIFFERENT value, such as the reciprocal or one with a mis-divided numerator"
     answer_family: rational
 
   - skill_id: g6_fraction_mul_div

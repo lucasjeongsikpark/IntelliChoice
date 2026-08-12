@@ -454,6 +454,61 @@ templates:
   option_c: 1/9 containers
   option_d: 4 containers
   correct_option: d
+- question_template_id: authored-g6_fractions-d2-97200
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_numerators_and_denominators_instead_of_multiplying
+  - multiplied_numerators_but_added_denominators
+  - added_numerators_and_multiplied_denominators
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker is following a recipe that calls for 8/3 cups of flour, but she only wants to make 3/4
+    of the recipe. How many cups of flour does she use?
+  context_block: ''
+  answer_expression: Eq(x, Rational(3,4) * Rational(8,3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find part of an amount, multiply the fraction by the total amount.
+  - You need to calculate 3/4 times 8/3. Multiply the numerators together and the denominators together.
+  - Set up (3 × 8)/(4 × 3) and simplify the resulting fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find 3/4 of 8/3 cups, multiply the two fractions.
+      expression: x = (3/4) × (8/3)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerators: 3 × 8 = 24.'
+      expression: numerator = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the denominators: 4 × 3 = 12.'
+      expression: denominator = 12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify 24/12 by dividing both numerator and denominator by 12.
+      expression: 24/12 = 2
+      common_mistake: null
+    final_answer: 2 cups
+  random_seed: 97200
+  rendered_question: A baker is following a recipe that calls for 8/3 cups of flour, but she only wants
+    to make 3/4 of the recipe. How many cups of flour does she use?
+  option_a: 24/7 cups
+  option_b: 2 cups
+  option_c: 11/7 cups
+  option_d: 11/12 cups
+  correct_option: b
 - question_template_id: authored-g6_fractions-d3-1106300
   topic_id: g6_fractions
   skill_id: g6_fraction_mul_div

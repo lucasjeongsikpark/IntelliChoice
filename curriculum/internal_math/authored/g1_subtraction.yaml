@@ -96,6 +96,108 @@ templates:
   option_c: 5 stickers
   option_d: 13 stickers
   correct_option: c
+- question_template_id: authored-g1_subtraction-d5-95500
+  topic_id: g1_subtraction
+  skill_id: g1_sub_three_numbers
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_only_the_first_or_second_amount
+  - stopped_after_first_subtraction
+  - added_instead_of_subtracting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Ava had 15 stickers. She gave 4 stickers to her friend Ben and 6 stickers to her friend Cara.
+    How many stickers does Ava have left?
+  context_block: ''
+  answer_expression: Eq(x, 15 - 4 - 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the number of stickers Ava had at the beginning.
+  - Subtract the stickers she gave to Ben, then subtract the stickers she gave to Cara.
+  - Write 15 minus 4 minus 6 and work from left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Ava starts with 15 stickers.
+      expression: '15'
+      common_mistake: null
+    - step_number: 2
+      explanation: She gives away 4 stickers to Ben, so we subtract 4 from 15.
+      expression: 15 - 4 = 11
+      common_mistake: null
+    - step_number: 3
+      explanation: Then she gives away 6 stickers to Cara, so we subtract 6 from 11.
+      expression: 11 - 6 = 5
+      common_mistake: null
+    final_answer: 5 stickers
+  random_seed: 95500
+  rendered_question: Ava had 15 stickers. She gave 4 stickers to her friend Ben and 6 stickers to her
+    friend Cara. How many stickers does Ava have left?
+  option_a: 11 stickers
+  option_b: 25 stickers
+  option_c: 7 stickers
+  option_d: 5 stickers
+  correct_option: d
+- question_template_id: authored-g1_subtraction-d5-95501
+  topic_id: g1_subtraction
+  skill_id: g1_sub_three_numbers
+  grade_band: 1-2
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_only_one_amount
+  - stopped_after_first_subtraction
+  - subtracted_smaller_from_larger
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Amir had 14 cookies. He ate 5 cookies in the morning and 3 cookies in the afternoon. How many
+    cookies does Amir have left?
+  context_block: null
+  answer_expression: x = 14 - 5 - 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the number of cookies Amir had at the beginning of the day.
+  - Subtract the cookies he ate in the morning first, then subtract the cookies he ate in the afternoon.
+  - Write 14 minus 5 minus 3 and work from left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Amir starts with 14 cookies.
+      expression: '14'
+      common_mistake: null
+    - step_number: 2
+      explanation: In the morning he ate 5 cookies, so subtract 5 from 14.
+      expression: 14 - 5 = 9
+      common_mistake: null
+    - step_number: 3
+      explanation: In the afternoon he ate 3 more cookies, so subtract 3 from 9.
+      expression: 9 - 3 = 6
+      common_mistake: null
+    final_answer: 6 cookies
+  random_seed: 95501
+  rendered_question: Amir had 14 cookies. He ate 5 cookies in the morning and 3 cookies in the afternoon.
+    How many cookies does Amir have left?
+  option_a: 12 cookies
+  option_b: 6 cookies
+  option_c: 2 cookies
+  option_d: 9 cookies
+  correct_option: b
 - question_template_id: authored-g1_subtraction-d1-6100
   topic_id: g1_subtraction
   skill_id: g1_sub_within_10
@@ -195,6 +297,102 @@ templates:
   option_c: 6 apple slices
   option_d: 8 apple slices
   correct_option: c
+- question_template_id: authored-g1_subtraction-d1-96100
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_10
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - reported_the_amount_given_away
+  - did_not_perform_subtraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya has 8 stickers. She gives 3 stickers to her friend. How many stickers does Maya have left?
+  context_block: null
+  answer_expression: Eq(x, 8 - 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Maya starts with 8 stickers. How many does she give away?
+  - When you give away stickers, you subtract that number from what you started with.
+  - Write 8 minus 3 to find how many Maya has now.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Maya starts with 8 stickers and gives away 3 stickers.
+      expression: 8 - 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract to find how many stickers are left.
+      expression: '5'
+      common_mistake: null
+    final_answer: 5 stickers
+  random_seed: 96100
+  rendered_question: Maya has 8 stickers. She gives 3 stickers to her friend. How many stickers does Maya
+    have left?
+  option_a: 5 stickers
+  option_b: 11 stickers
+  option_c: 8 stickers
+  option_d: 3 stickers
+  correct_option: a
+- question_template_id: authored-g1_subtraction-d1-96101
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_10
+  grade_band: 1-2
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 30
+  common_error_tags:
+  - added_instead_of_subtracted
+  - confused_quantity_given_away_with_quantity_left
+  - ignored_subtraction_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A boy has 9 toy cars and gives 2 to his brother. How many toy cars does the boy have left?
+  context_block: null
+  answer_expression: Eq(x, 9 - 2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The boy starts with 9 toy cars and gives some away.
+  - When you give away 2 cars, you subtract 2 from what you started with.
+  - Write 9 minus 2 and find the answer.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The boy starts with 9 toy cars.
+      expression: '9'
+      common_mistake: null
+    - step_number: 2
+      explanation: He gives 2 toy cars to his brother, so we subtract 2 from 9.
+      expression: 9 - 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Counting back 2 from 9 gives us 7.
+      expression: '7'
+      common_mistake: null
+    final_answer: 7 toy cars
+  random_seed: 96101
+  rendered_question: A boy has 9 toy cars and gives 2 to his brother. How many toy cars does the boy have
+    left?
+  option_a: 2 toy cars
+  option_b: 11 toy cars
+  option_c: 9 toy cars
+  option_d: 7 toy cars
+  correct_option: d
 - question_template_id: authored-g1_subtraction-d2-6200
   topic_id: g1_subtraction
   skill_id: g1_sub_within_10
@@ -287,6 +485,106 @@ templates:
   option_c: 7 apples
   option_d: 9 apples
   correct_option: b
+- question_template_id: authored-g1_subtraction-d2-96200
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_10
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - counted_one_more_than_answer
+  - gave_subtracted_amount_instead_of_remainder
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Lila bakes 10 cookies for her family. She eats 8 cookies. How many cookies does Lila have left?
+  context_block: null
+  answer_expression: Eq(x, 10 - 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many cookies Lila starts with and how many she eats.
+  - When you eat cookies, you subtract that number from what you started with.
+  - Write 10 minus 8 to find how many are left.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Lila starts with 10 cookies.
+      expression: '10'
+      common_mistake: null
+    - step_number: 2
+      explanation: She eats 8 cookies, so we subtract 8 from 10.
+      expression: 10 - 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtracting gives the number of cookies left.
+      expression: '2'
+      common_mistake: Adding instead of subtracting would give 18.
+    final_answer: 2 cookies
+  random_seed: 96200
+  rendered_question: Lila bakes 10 cookies for her family. She eats 8 cookies. How many cookies does Lila
+    have left?
+  option_a: 3 cookies
+  option_b: 18 cookies
+  option_c: 2 cookies
+  option_d: 8 cookies
+  correct_option: c
+- question_template_id: authored-g1_subtraction-d2-96201
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_10
+  grade_band: 1-2
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_subtracting
+  - wrote_the_amount_given_away
+  - subtracted_one_less
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 9 pencils. He gives 7 pencils to his classmates. How many pencils does Liam have left?
+  context_block: null
+  answer_expression: Eq(x, 9 - 7)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens when Liam gives away pencils.
+  - If he starts with 9 and gives away 7, you need to subtract.
+  - Write 9 - 7 and find the difference.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Liam starts with 9 pencils.
+      expression: '9'
+      common_mistake: null
+    - step_number: 2
+      explanation: He gives away 7 pencils, so we subtract 7 from 9.
+      expression: 9 - 7
+      common_mistake: null
+    - step_number: 3
+      explanation: 9 minus 7 equals 2.
+      expression: '2'
+      common_mistake: null
+    final_answer: 2 pencils
+  random_seed: 96201
+  rendered_question: Liam has 9 pencils. He gives 7 pencils to his classmates. How many pencils does Liam
+    have left?
+  option_a: 16 pencils
+  option_b: 3 pencils
+  option_c: 2 pencils
+  option_d: 7 pencils
+  correct_option: c
 - question_template_id: authored-g1_subtraction-d3-7300
   topic_id: g1_subtraction
   skill_id: g1_sub_within_20
@@ -387,6 +685,107 @@ templates:
   option_c: 3 marbles
   option_d: 9 marbles
   correct_option: b
+- question_template_id: authored-g1_subtraction-d3-97300
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_20
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_wrong_amount
+  - added_instead_of_subtracted
+  - kept_only_ones_digit
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Emma has 15 stickers and gives 7 stickers to her friend. How many stickers does Emma have left?
+  context_block: ''
+  answer_expression: Eq(x, 15 - 7)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many stickers Emma starts with and how many she gives away.
+  - 'You need to subtract the stickers she gives from the stickers she starts with: 15 - 7.'
+  - To find 15 - 7, break 15 into 10 and 5, then take 7 from the 10.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Emma starts with 15 stickers and gives away 7 stickers, so we need to subtract 7 from
+        15.
+      expression: x = 15 - 7
+      common_mistake: null
+    - step_number: 2
+      explanation: To subtract 7 from 15, break 15 into 10 + 5. First subtract 7 from 10 to get 3.
+      expression: 10 - 7 = 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Now add the remaining 5 to the 3 we just found.
+      expression: 3 + 5 = 8
+      common_mistake: null
+    final_answer: 8 stickers
+  random_seed: 97300
+  rendered_question: Emma has 15 stickers and gives 7 stickers to her friend. How many stickers does Emma
+    have left?
+  option_a: 8 stickers
+  option_b: 22 stickers
+  option_c: 12 stickers
+  option_d: 5 stickers
+  correct_option: a
+- question_template_id: authored-g1_subtraction-d3-97301
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_20
+  grade_band: 1-2
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - subtracted_from_ones_only
+  - miscounted_by_one
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam has 13 marbles. He loses 5 marbles at recess. How many marbles does Liam have left?
+  context_block: null
+  answer_expression: Eq(x, 13 - 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many marbles Liam started with and how many he lost.
+  - You need to subtract the marbles he lost from the marbles he started with.
+  - 'Break the ten: 13 is 10 + 3, so take 5 from the 10 to get 5, then add back the 3.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Liam starts with 13 marbles and loses 5 marbles, so we subtract: 13 - 5.'
+      expression: 13 - 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Break 13 into 10 + 3. Subtract 5 from 10 to get 5.
+      expression: 10 - 5 = 5
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Now add the remaining 3 back: 5 + 3 = 8.'
+      expression: 5 + 3 = 8
+      common_mistake: null
+    final_answer: 8 marbles
+  random_seed: 97301
+  rendered_question: Liam has 13 marbles. He loses 5 marbles at recess. How many marbles does Liam have
+    left?
+  option_a: 7 marbles
+  option_b: 9 marbles
+  option_c: 18 marbles
+  option_d: 8 marbles
+  correct_option: d
 - question_template_id: authored-g1_subtraction-d4-7400
   topic_id: g1_subtraction
   skill_id: g1_sub_within_20
@@ -497,3 +896,110 @@ templates:
   option_c: 4 stickers
   option_d: 10 stickers
   correct_option: a
+- question_template_id: authored-g1_subtraction-d4-97400
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_20
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_subtracted
+  - miscounted_during_decomposition
+  - subtracted_wrong_amount
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student has 12 crayons and gives 8 crayons to a classmate. How many crayons does the student
+    have left?
+  context_block: ''
+  answer_expression: Eq(x, 12 - 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with how many crayons the student had and think about what happens when some are given away.
+  - You need to subtract the number of crayons given away from the number the student started with.
+  - Break the 12 into 10 and 2, subtract 8 from the 10 first, then add what is left.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The student starts with 12 crayons and gives away 8 crayons, so we need to subtract
+        8 from 12.
+      expression: 12 - 8
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Break the 12 into a ten and 2 ones: 12 = 10 + 2.'
+      expression: 10 + 2
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Subtract 8 from the 10 first: 10 - 8 = 2.'
+      expression: 10 - 8 = 2
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Now add the 2 ones back: 2 + 2 = 4.'
+      expression: 2 + 2 = 4
+      common_mistake: null
+    final_answer: 4 crayons
+  random_seed: 97400
+  rendered_question: A student has 12 crayons and gives 8 crayons to a classmate. How many crayons does
+    the student have left?
+  option_a: 6 crayons
+  option_b: 5 crayons
+  option_c: 20 crayons
+  option_d: 4 crayons
+  correct_option: d
+- question_template_id: authored-g1_subtraction-d4-97401
+  topic_id: g1_subtraction
+  skill_id: g1_sub_within_20
+  grade_band: 1-2
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_only_the_ones_digit
+  - added_instead_of_subtracting
+  - broke_ten_but_forgot_to_add_remaining_ones
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 14 cookies and sells 6 cookies to a customer. How many cookies does the baker have
+    left?
+  context_block: ''
+  answer_expression: Eq(x, 14 - 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the 14 cookies the baker had at the beginning.
+  - You need to take away the 6 cookies that were sold.
+  - Break the 14 into 10 and 4, then subtract the 6 from the 10 first.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker starts with 14 cookies. We can think of 14 as 10 + 4.
+      expression: 14 = 10 + 4
+      common_mistake: null
+    - step_number: 2
+      explanation: The baker sells 6 cookies. Since 4 is smaller than 6, we take 6 from the 10.
+      expression: 10 - 6 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Now add the 4 we got from the ten to the 4 ones that were left.
+      expression: 4 + 4 = 8
+      common_mistake: null
+    final_answer: 8 cookies
+  random_seed: 97401
+  rendered_question: A baker has 14 cookies and sells 6 cookies to a customer. How many cookies does the
+    baker have left?
+  option_a: 20 cookies
+  option_b: 4 cookies
+  option_c: 8 cookies
+  option_d: 10 cookies
+  correct_option: c

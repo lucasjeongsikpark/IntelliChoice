@@ -512,6 +512,68 @@ templates:
   option_c: 256 people
   option_d: 625 people
   correct_option: d
+- question_template_id: authored-algebra_2-d4-96400
+  topic_id: algebra_2
+  skill_id: alg2_exponential_log
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 150
+  common_error_tags:
+  - off_by_one_exponent
+  - added_one_to_exponent
+  - subtracted_initial_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bacterial culture triples in size each generation. A scientist starts with 1 colony and observes
+    that after several generations there are now 243 colonies. How many generations have passed?
+  context_block: null
+  answer_expression: Eq(x, log(243, 3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Each generation, the number of colonies is multiplied by 3. Write an expression for the size after
+    x generations.
+  - Starting with 1 colony, after x generations you have 3^x colonies. You need this to equal 243.
+  - 'Ask yourself: what power of 3 gives 243? That is the definition of a base-3 logarithm.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The culture starts with 1 colony and triples each generation, so after x generations
+        the size is 3^x.
+      expression: 3^x
+      common_mistake: null
+    - step_number: 2
+      explanation: We need the size to reach 243 colonies, so we set up the equation 3^x = 243.
+      expression: 3^x = 243
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Rewrite this as a logarithm: x = log₃(243).'
+      expression: x = log(243, 3)
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Evaluate by repeated multiplication: 3^1 = 3, 3^2 = 9, 3^3 = 27, 3^4 = 81, 3^5 = 243.'
+      expression: 3^5 = 243
+      common_mistake: null
+    - step_number: 5
+      explanation: So x = 5.
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 generations
+  random_seed: 96400
+  rendered_question: A bacterial culture triples in size each generation. A scientist starts with 1 colony
+    and observes that after several generations there are now 243 colonies. How many generations have
+    passed?
+  option_a: 81 generations
+  option_b: 242 generations
+  option_c: 5 generations
+  option_d: 6 generations
+  correct_option: c
 - question_template_id: authored-algebra_2-d3-1267301
   topic_id: algebra_2
   skill_id: alg2_polynomial_factor
@@ -567,6 +629,65 @@ templates:
   option_c: x(x + 1)(x + 3)
   option_d: 3x(x + 2)(x + 2)
   correct_option: b
+- question_template_id: authored-algebra_2-d4-98401
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 240
+  common_error_tags:
+  - sign_error_in_factors
+  - stopped_after_one_factor
+  - omitted_linear_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A company makes puzzle boxes whose locking code is the factored form of a polynomial. The polynomial
+    x³ + 2x² - 5x - 6 unlocks one box. What is the completely factored form?
+  context_block: null
+  answer_expression: x**3 + 2*x**2 - 5*x - 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Test small integer values in the polynomial to find one that gives zero; that value is a root and
+    tells you one factor.
+  - Once you find that x = 2 is a root, divide the polynomial by (x - 2) to get a quadratic.
+  - Factor the quadratic you obtained by finding two numbers that multiply to 3 and add to 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Test small integers in the polynomial x³ + 2x² - 5x - 6. When x = 2, we get 8 + 8 -
+        10 - 6 = 0, so (x - 2) is a factor.
+      expression: 2³ + 2(2²) - 5(2) - 6 = 0
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the polynomial by (x - 2) using synthetic or long division to find the quotient
+        quadratic.
+      expression: (x³ + 2x² - 5x - 6) ÷ (x - 2) = x² + 4x + 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Factor the quadratic x² + 4x + 3 by finding two numbers that multiply to 3 and add
+        to 4, which are 1 and 3.
+      expression: x² + 4x + 3 = (x + 1)(x + 3)
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine all factors to write the complete factorization.
+      expression: (x - 2)(x + 1)(x + 3)
+      common_mistake: null
+    final_answer: (x - 2)(x + 1)(x + 3)
+  random_seed: 98401
+  rendered_question: A company makes puzzle boxes whose locking code is the factored form of a polynomial.
+    The polynomial x³ + 2x² - 5x - 6 unlocks one box. What is the completely factored form?
+  option_a: (x - 2)(x + 1)(x + 3)
+  option_b: (x + 2)(x - 1)(x - 3)
+  option_c: (x - 2)(x + 3)
+  option_d: (x - 2)(x² + 4x + 3)
+  correct_option: a
 - question_template_id: authored-algebra_2-d3-1268300
   topic_id: algebra_2
   skill_id: alg2_quadratic_functions
@@ -873,6 +994,324 @@ templates:
   option_c: '7'
   option_d: '4'
   correct_option: c
+- question_template_id: authored-algebra_2-d5-101501
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - confused_variable_with_input_value
+  - skipped_final_division
+  - stopped_after_combining_constants
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A temperature model T(d) = d³ + kd² + 3d − 8 predicts that on day 5 the temperature will be 157
+    degrees. What is the value of k?
+  context_block: null
+  answer_expression: Eq(157, 5**3 + k*5**2 + 3*5 - 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The remainder theorem says that the value of the polynomial at d = 5 is found by substituting 5 for
+    d in every term.
+  - 'Substitute d = 5 into the expression: 5³ + k(5²) + 3(5) − 8 = 157.'
+  - Simplify the powers and products first, then collect the constant terms on one side before dividing.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the remainder theorem, substitute d = 5 into the polynomial to get the temperature
+        on day 5.
+      expression: 5³ + k·5² + 3·5 − 8 = 157
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the powers and products: 5³ = 125, 5² = 25, and 3·5 = 15.'
+      expression: 125 + 25k + 15 − 8 = 157
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Combine the constant terms on the left: 125 + 15 − 8 = 132.'
+      expression: 132 + 25k = 157
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 132 from both sides to isolate the term with k.
+      expression: 25k = 25
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 25 to solve for k.
+      expression: k = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 101501
+  rendered_question: A temperature model T(d) = d³ + kd² + 3d − 8 predicts that on day 5 the temperature
+    will be 157 degrees. What is the value of k?
+  option_a: '1'
+  option_b: '5'
+  option_c: '132'
+  option_d: '25'
+  correct_option: a
+- question_template_id: authored-algebra_2-d4-101401
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - skipped_final_division
+  - subtracted_variable_term_instead_of_constant
+  - arithmetic_error_combining_constants
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory quality-control machine tests polynomials by evaluating them at specific inputs. When
+    the polynomial 2x³ - 3x² + mx - 5 is evaluated at x = 3, the output is 40. What is the value of m?
+  context_block: null
+  answer_expression: Eq(40, 2*3**3 - 3*3**2 + m*3 - 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Substitute x = 3 into every term of the polynomial and replace the result with 40.
+  - Calculate 2(3³), -3(3²), and -5 separately, then write an equation involving m.
+  - Combine the constant terms on the left side, leaving only the term with m, then isolate m.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute x = 3 into the polynomial 2x³ - 3x² + mx - 5 and set it equal to 40.
+      expression: 2(3)³ - 3(3)² + m(3) - 5 = 40
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate each power and product: 3³ = 27, so 2(27) = 54; 3² = 9, so -3(9) = -27; m(3)
+        = 3m.'
+      expression: 54 - 27 + 3m - 5 = 40
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Combine the constant terms on the left: 54 - 27 - 5 = 22.'
+      expression: 22 + 3m = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: Subtract 22 from both sides.
+      expression: 3m = 18
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide both sides by 3 to solve for m.
+      expression: m = 6
+      common_mistake: null
+    final_answer: '6'
+  random_seed: 101401
+  rendered_question: A factory quality-control machine tests polynomials by evaluating them at specific
+    inputs. When the polynomial 2x³ - 3x² + mx - 5 is evaluated at x = 3, the output is 40. What is the
+    value of m?
+  option_a: '18'
+  option_b: '8'
+  option_c: '6'
+  option_d: '22'
+  correct_option: c
+- question_template_id: authored-algebra_2-d4-40401
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - stopped_before_final_division
+  - sign_error_when_dividing_negatives
+  - divided_wrong_terms
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cubic polynomial p(x) = x³ + 2x² − bx + 15 leaves a remainder of 55 when divided by (x − 4).
+    What is the value of b?
+  context_block: null
+  answer_expression: Eq(64 + 32 - 4*b + 15, 55)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - By the remainder theorem, the remainder when p(x) is divided by (x − 4) equals p(4).
+  - 'Substitute x = 4 into the polynomial: p(4) = 4³ + 2(4)² − b(4) + 15.'
+  - Simplify the constants first, then set the result equal to 55 and solve for b.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the remainder theorem, when p(x) is divided by (x − 4), the remainder equals p(4).
+      expression: p(4) = 55
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute x = 4 into p(x) = x³ + 2x² − bx + 15.
+      expression: p(4) = 4³ + 2(4)² − b(4) + 15
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Evaluate the powers and products: 4³ = 64, 2(4)² = 2(16) = 32, and b(4) = 4b.'
+      expression: p(4) = 64 + 32 − 4b + 15
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine the constant terms: 64 + 32 + 15 = 111.'
+      expression: p(4) = 111 − 4b
+      common_mistake: null
+    - step_number: 5
+      explanation: Set this equal to the given remainder of 55.
+      expression: 111 − 4b = 55
+      common_mistake: null
+    - step_number: 6
+      explanation: Subtract 111 from both sides.
+      expression: −4b = −56
+      common_mistake: null
+    - step_number: 7
+      explanation: Divide both sides by −4.
+      expression: b = 14
+      common_mistake: null
+    final_answer: '14'
+  random_seed: 40401
+  rendered_question: A cubic polynomial p(x) = x³ + 2x² − bx + 15 leaves a remainder of 55 when divided
+    by (x − 4). What is the value of b?
+  option_a: '14'
+  option_b: '-14'
+  option_c: '56'
+  option_d: '27.75'
+  correct_option: a
+- question_template_id: authored-algebra_2-d4-40402
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - skipped_final_division
+  - sign_error_in_evaluation
+  - confused_remainder_with_unknown
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A scientist is testing a polynomial growth model p(x) = x³ - 3x² + ax + 7 for a bacteria culture,
+    where x is time in hours. When she divides the model by (x - 3), the remainder is 10. What is the
+    value of a?
+  context_block: null
+  answer_expression: Eq(3**3 - 3*3**2 + 3*a + 7, 10)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The remainder theorem tells you that when p(x) is divided by (x - 3), the remainder equals p(3).
+  - Substitute x = 3 into the polynomial and set that expression equal to 10.
+  - Evaluate 3³ - 3·3² + 3a + 7 = 10, then combine the constants and isolate the term with a.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the remainder theorem, when p(x) is divided by (x - 3), the remainder is p(3).
+      expression: p(3) = 10
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute x = 3 into p(x) = x³ - 3x² + ax + 7.
+      expression: 3³ - 3·3² + 3a + 7 = 10
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate the powers and products.
+      expression: 27 - 27 + 3a + 7 = 10
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine the constant terms on the left side.
+      expression: 3a + 7 = 10
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 7 from both sides.
+      expression: 3a = 3
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 3.
+      expression: a = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 40402
+  rendered_question: A scientist is testing a polynomial growth model p(x) = x³ - 3x² + ax + 7 for a bacteria
+    culture, where x is time in hours. When she divides the model by (x - 3), the remainder is 10. What
+    is the value of a?
+  option_a: '-4'
+  option_b: '1'
+  option_c: '3'
+  option_d: '10'
+  correct_option: b
+- question_template_id: authored-algebra_2-d5-101500
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - skipped_final_division
+  - dropped_a_term_when_substituting
+  - stopped_before_solving_equation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A polynomial q(x) = x³ - 2x² + nx - 7 gives a remainder of 45 when divided by (x - 4). What is
+    the value of n?
+  context_block: null
+  answer_expression: Eq(45, 4**3 - 2*4**2 + n*4 - 7)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The remainder theorem says that q(4) equals the remainder when q(x) is divided by (x - 4).
+  - 'Substitute x = 4 into the polynomial: 4³ - 2(4²) + n(4) - 7 equals 45.'
+  - Simplify the powers and products first, then collect the constant terms on one side and solve for
+    n.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the remainder theorem, q(4) equals the remainder, so substitute x = 4 into q(x).
+      expression: q(4) = 4^3 - 2*(4^2) + n*4 - 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate each power and product.
+      expression: 64 - 2*16 + 4n - 7
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the constant terms.
+      expression: 64 - 32 + 4n - 7 = 25 + 4n
+      common_mistake: null
+    - step_number: 4
+      explanation: Set this expression equal to the remainder and solve for n.
+      expression: 25 + 4n = 45
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 25 from both sides.
+      expression: 4n = 20
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 4.
+      expression: n = 5
+      common_mistake: null
+    final_answer: '5'
+  random_seed: 101500
+  rendered_question: A polynomial q(x) = x³ - 2x² + nx - 7 gives a remainder of 45 when divided by (x
+    - 4). What is the value of n?
+  option_a: '20'
+  option_b: '65'
+  option_c: '5'
+  option_d: '25'
+  correct_option: c
 - question_template_id: authored-algebra_2-d5-1270502
   topic_id: algebra_2
   skill_id: alg2_remainder_factor_theorem
@@ -939,6 +1378,135 @@ templates:
   option_c: '18'
   option_d: '182'
   correct_option: a
+- question_template_id: authored-algebra_2-d5-40500
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - stopped_at_5a_equals_5_without_dividing
+  - confused_remainder_with_constant_term
+  - sign_error_when_combining_constants
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A game awards points using the polynomial p(x) = x³ - 4x² + ax - 8, where x is the level number.
+    When a player completes level 5, the score modulo system leaves a remainder of 22 points. What is
+    the value of the mystery coefficient a?
+  context_block: null
+  answer_expression: Eq(5**3 - 4*5**2 + 5*a - 8, 22)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - By the remainder theorem, substitute the level number into the polynomial to find the remainder.
+  - Replace x with 5 in the expression x³ - 4x² + ax - 8 and set it equal to 22.
+  - Evaluate 5³ - 4(5²) + 5a - 8 = 22, then isolate the term with a.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: By the remainder theorem, the remainder when dividing p(x) by (x - 5) is p(5). Substitute
+        x = 5 into the polynomial.
+      expression: p(5) = 5³ - 4(5²) + 5a - 8
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the powers and products: 5³ = 125 and 4(5²) = 4(25) = 100.'
+      expression: p(5) = 125 - 100 + 5a - 8
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Combine the constant terms: 125 - 100 - 8 = 17.'
+      expression: p(5) = 17 + 5a
+      common_mistake: null
+    - step_number: 4
+      explanation: The remainder is given as 22, so set the expression equal to 22.
+      expression: 17 + 5a = 22
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 17 from both sides to isolate the term with a.
+      expression: 5a = 5
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 5 to solve for a.
+      expression: a = 1
+      common_mistake: null
+    final_answer: '1'
+  random_seed: 40500
+  rendered_question: A game awards points using the polynomial p(x) = x³ - 4x² + ax - 8, where x is the
+    level number. When a player completes level 5, the score modulo system leaves a remainder of 22 points.
+    What is the value of the mystery coefficient a?
+  option_a: '1'
+  option_b: '5'
+  option_c: '-3'
+  option_d: '17'
+  correct_option: a
+- question_template_id: authored-algebra_2-d5-40501
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - skipped_final_division
+  - ignored_variable_term
+  - confused_output_with_coefficient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A polynomial machine is programmed with the rule p(x) = x³ - 5x² + bx + 20. When you input 6,
+    the machine outputs 80. What is the value of b?
+  context_block: null
+  answer_expression: Eq(6**3 - 5*6**2 + 6*b + 20, 80)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Substitute x = 6 into the polynomial and set the result equal to the output.
+  - Calculate 6³ and 5×6², then write 56 + 6b = 80.
+  - Isolate the term with b by subtracting, then divide by the coefficient of b.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute x = 6 into the polynomial p(x) = x³ - 5x² + bx + 20.
+      expression: p(6) = 6³ - 5×6² + 6b + 20
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate 6³ = 216 and 5×6² = 5×36 = 180.
+      expression: p(6) = 216 - 180 + 6b + 20
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Combine the constant terms: 216 - 180 + 20 = 56.'
+      expression: p(6) = 56 + 6b
+      common_mistake: null
+    - step_number: 4
+      explanation: Set p(6) equal to the output 80.
+      expression: 56 + 6b = 80
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 56 from both sides.
+      expression: 6b = 24
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 6.
+      expression: b = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 40501
+  rendered_question: A polynomial machine is programmed with the rule p(x) = x³ - 5x² + bx + 20. When
+    you input 6, the machine outputs 80. What is the value of b?
+  option_a: '56'
+  option_b: '4'
+  option_c: '24'
+  option_d: '80'
+  correct_option: b
 - question_template_id: authored-algebra_2-d2-1271202
   topic_id: algebra_2
   skill_id: alg2_sequences
@@ -1121,6 +1689,129 @@ templates:
   option_c: 63 books
   option_d: 68 books
   correct_option: d
+- question_template_id: authored-algebra_2-d4-41400
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used n instead of n minus one in arithmetic sequence formula
+  - off by one in counting term position
+  - forgot to add the first term after computing the increments
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A theater builds rows of seats with 8 seats in the first row. Each row after that has 5 more seats
+    than the row before it. How many seats are in the 12th row?
+  context_block: ''
+  answer_expression: x = 8 + 11*5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the number of seats in row n, starting from the first row's 8 seats.
+  - Each row adds 5 seats, so by the 12th row you have added 5 seats a total of 11 times.
+  - Calculate 8 plus 11 groups of 5 to find the 12th row's seat count.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the first term and common difference. The first row has 8 seats, and each
+        row increases by 5 seats.
+      expression: a_1 = 8, d = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Use the arithmetic sequence formula a_n = a_1 + (n - 1)d. For the 12th row, n = 12.
+      expression: a_12 = 8 + (12 - 1) × 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the expression inside the parentheses.
+      expression: a_12 = 8 + 11 × 5
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 11 by 5.
+      expression: a_12 = 8 + 55
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 8 and 55 to find the number of seats in the 12th row.
+      expression: a_12 = 63
+      common_mistake: null
+    final_answer: '63'
+  random_seed: 41400
+  rendered_question: A theater builds rows of seats with 8 seats in the first row. Each row after that
+    has 5 more seats than the row before it. How many seats are in the 12th row?
+  option_a: '68'
+  option_b: '63'
+  option_c: '55'
+  option_d: '60'
+  correct_option: b
+- question_template_id: authored-algebra_2-d4-41401
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_n_instead_of_n_minus_1
+  - used_wrong_term_number
+  - confused_term_position
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A student reads 15 pages on the first day of a reading challenge and increases by 7 pages each
+    subsequent day. How many pages does the student read on the 9th day?
+  context_block: null
+  answer_expression: x = 15 + 8*7
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what the student reads on day 2, day 3, and look for a pattern that connects the day number
+    to the page count.
+  - 'An arithmetic sequence has the form: first term plus how many steps times the common difference.
+    On day 9, there are 8 steps beyond day 1.'
+  - Set up the expression 15 + 8 × 7 and evaluate it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the first term and common difference. The student reads 15 pages on day 1,
+        and increases by 7 pages each day, so the first term is 15 and the common difference is 7.
+      expression: a_1 = 15, d = 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Determine how many steps beyond the first term. Day 9 is 8 steps after day 1.
+      expression: n - 1 = 9 - 1 = 8
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Use the arithmetic sequence formula: nth term equals first term plus (n minus 1) times
+        the common difference.'
+      expression: a_9 = 15 + 8 × 7
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 8 by 7 to get 56.
+      expression: a_9 = 15 + 56
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 15 and 56 to find the number of pages on day 9.
+      expression: a_9 = 71
+      common_mistake: null
+    final_answer: 71 pages
+  random_seed: 41401
+  rendered_question: A student reads 15 pages on the first day of a reading challenge and increases by
+    7 pages each subsequent day. How many pages does the student read on the 9th day?
+  option_a: 22 pages
+  option_b: 71 pages
+  option_c: 63 pages
+  option_d: 78 pages
+  correct_option: b
 - question_template_id: authored-algebra_2-d5-1271500
   topic_id: algebra_2
   skill_id: alg2_sequences
@@ -1305,6 +1996,113 @@ templates:
   option_c: 59 laps
   option_d: 31 laps
   correct_option: b
+- question_template_id: authored-algebra_2-d5-41501
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_term_number_instead_of_number_of_increases
+  - miscounted_number_of_increases
+  - forgot_to_add_first_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker decorates cakes for a wedding, placing 18 fondant flowers on the first cake and increasing
+    by 4 flowers on each subsequent cake. How many flowers are on the 7th cake?
+  context_block: ''
+  answer_expression: x = 18 + 4*6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The first cake has 18 flowers, and each cake after that has 4 more than the one before it.
+  - To find the 7th cake's flowers, add 4 flowers six times to the starting 18.
+  - Write 18 plus 4 times the number of increases from cake 1 to cake 7.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The first cake has 18 flowers. Each subsequent cake has 4 more flowers than the previous
+        one.
+      expression: '18'
+      common_mistake: null
+    - step_number: 2
+      explanation: From the first cake to the 7th cake, there are 7 - 1 = 6 increases.
+      expression: 7 - 1 = 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Each increase adds 4 flowers, so 6 increases add 4 × 6 = 24 flowers.
+      expression: 4 * 6 = 24
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the 24 additional flowers to the starting 18 flowers.
+      expression: 18 + 24 = 42
+      common_mistake: null
+    final_answer: 42 flowers
+  random_seed: 41501
+  rendered_question: A baker decorates cakes for a wedding, placing 18 fondant flowers on the first cake
+    and increasing by 4 flowers on each subsequent cake. How many flowers are on the 7th cake?
+  option_a: 40 flowers
+  option_b: 46 flowers
+  option_c: 24 flowers
+  option_d: 42 flowers
+  correct_option: d
+- question_template_id: authored-algebra_2-d5-41502
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 150
+  common_error_tags:
+  - used term number instead of step count
+  - miscounted the number of steps in the sequence
+  - computed only the increase without adding the starting value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A gardener plants tulip bulbs in rows. She plants 25 bulbs in the first row and increases the
+    count by 8 bulbs in each row after that. How many bulbs does she plant in the 6th row?
+  context_block: ''
+  answer_expression: Eq(x, 25 + 8*5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify the number of bulbs in the first row and how much the count increases with each new row.
+  - The 6th row is 5 steps beyond the first row, so multiply the increase by 5.
+  - Add the product of the increase and the number of steps to the starting amount.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The first row has 25 bulbs, and each row after that increases by 8 bulbs.
+      expression: first row = 25
+      common_mistake: null
+    - step_number: 2
+      explanation: The 6th row is 5 rows after the first, so we multiply the increase by 5.
+      expression: increase = 8 * 5 = 40
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the total increase to the number of bulbs in the first row.
+      expression: 25 + 40 = 65
+      common_mistake: null
+    final_answer: 65 bulbs
+  random_seed: 41502
+  rendered_question: A gardener plants tulip bulbs in rows. She plants 25 bulbs in the first row and increases
+    the count by 8 bulbs in each row after that. How many bulbs does she plant in the 6th row?
+  option_a: 65 bulbs
+  option_b: 40 bulbs
+  option_c: 73 bulbs
+  option_d: 55 bulbs
+  correct_option: a
 - question_template_id: authored-algebra_2-d3-1271302
   topic_id: algebra_2
   skill_id: alg2_sequences
@@ -1366,3 +2164,203 @@ templates:
   option_c: 25 minutes
   option_d: 67 minutes
   correct_option: b
+- question_template_id: authored-algebra_2-d5-102500
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - doubled_the_sum
+  - summed_only_last_four_terms
+  - calculated_only_the_fifth_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A rumor spreads at school. In the first period, 4 students hear it. Each following period, the
+    number of new students hearing it triples. After 5 periods, how many students in total have heard
+    the rumor?
+  context_block: null
+  answer_expression: Eq(x, 4 * (3**5 - 1) / (3 - 1))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write down how many new students hear the rumor in each of the five periods, starting from 4.
+  - The counts form a pattern where each term is 3 times the previous. Add all five terms to find the
+    total who have heard it.
+  - 'You are summing a geometric series: first term 4, ratio 3, five terms. Use the formula or add 4 +
+    12 + 36 + 108 + 324.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the number of students hearing the rumor in each period. Period 1: 4 students.
+        Period 2: 4 × 3 = 12. Period 3: 12 × 3 = 36. Period 4: 36 × 3 = 108. Period 5: 108 × 3 = 324.'
+      expression: 4, 12, 36, 108, 324
+      common_mistake: null
+    - step_number: 2
+      explanation: Recognize this as a geometric series with first term a = 4, common ratio r = 3, and
+        n = 5 terms.
+      expression: a = 4, r = 3, n = 5
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Use the geometric series sum formula: S = a(r^n - 1)/(r - 1).'
+      expression: S = 4 * (3**5 - 1) / (3 - 1)
+      common_mistake: null
+    - step_number: 4
+      explanation: Calculate 3 to the power of 5.
+      expression: 3**5 = 243
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Substitute and simplify: S = 4(243 - 1) / 2 = 4 × 242 / 2.'
+      expression: S = 4 * 242 / 2
+      common_mistake: null
+    - step_number: 6
+      explanation: Multiply 4 by 242, then divide by 2.
+      expression: S = 968 / 2 = 484
+      common_mistake: null
+    final_answer: 484 students
+  random_seed: 102500
+  rendered_question: A rumor spreads at school. In the first period, 4 students hear it. Each following
+    period, the number of new students hearing it triples. After 5 periods, how many students in total
+    have heard the rumor?
+  option_a: 243 students
+  option_b: 972 students
+  option_c: 324 students
+  option_d: 484 students
+  correct_option: d
+- question_template_id: authored-algebra_2-d5-102501
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - included_extra_term_in_sum
+  - summed_only_last_term
+  - computed_sixth_term_instead_of_sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A video game challenge spreads among players. On the first day, 6 players complete it. Each day
+    after that, the number of players who complete it doubles. After 5 days total, how many players have
+    completed the challenge?
+  context_block: null
+  answer_expression: Eq(x, 6 * (2**5 - 1) / (2 - 1))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Write out the number of players completing the challenge each day: day 1 is 6, day 2 is 12, day 3
+    is 24, and so on.'
+  - This is a geometric series with first term 6, common ratio 2, and 5 terms. Use the sum formula for
+    a geometric series.
+  - The formula is S = a(r^n - 1)/(r - 1). Substitute a = 6, r = 2, and n = 5, then compute the numerator
+    and denominator separately.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'List the number of players each day: 6, 12, 24, 48, 96. This is a geometric sequence
+        with first term a = 6 and common ratio r = 2.'
+      expression: a = 6, r = 2, n = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: The sum of a geometric series is S = a(r^n - 1)/(r - 1). Substitute the values.
+      expression: S = 6(2^5 - 1)/(2 - 1)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Evaluate the exponent: 2^5 = 32.'
+      expression: S = 6(32 - 1)/(1)
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Simplify inside the parentheses: 32 - 1 = 31.'
+      expression: S = 6 * 31 / 1
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Multiply: 6 times 31 equals 186.'
+      expression: S = 186
+      common_mistake: null
+    final_answer: 186 players
+  random_seed: 102501
+  rendered_question: A video game challenge spreads among players. On the first day, 6 players complete
+    it. Each day after that, the number of players who complete it doubles. After 5 days total, how many
+    players have completed the challenge?
+  option_a: 186 players
+  option_b: 96 players
+  option_c: 192 players
+  option_d: 180 players
+  correct_option: a
+- question_template_id: authored-algebra_2-d4-102401
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - counted_one_extra_round
+  - multiplied_instead_of_summing_series
+  - skipped_division_in_geometric_sum_formula
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A chain letter is sent to 5 people in the first round. Each person who receives it forwards it
+    to 3 new people in the next round. This continues for 4 rounds total. How many people received the
+    letter altogether?
+  context_block: null
+  answer_expression: Eq(x, 5 * (3**4 - 1) / (3 - 1))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write out how many people receive the letter in each of the four rounds.
+  - 'The number of recipients in each round forms a geometric pattern: 5, then 5·3, then 5·3², then 5·3³.
+    Add all four terms.'
+  - Use the geometric series sum formula with first term 5, common ratio 3, and 4 terms, or add 5 + 15
+    + 45 + 135.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In round 1, 5 people receive the letter.
+      expression: '5'
+      common_mistake: null
+    - step_number: 2
+      explanation: In round 2, each of the 5 people forwards it to 3 new people, so 5 × 3 = 15 people
+        receive it.
+      expression: 5 * 3 = 15
+      common_mistake: null
+    - step_number: 3
+      explanation: In round 3, each of the 15 people forwards it to 3 new people, so 15 × 3 = 45 people
+        receive it.
+      expression: 15 * 3 = 45
+      common_mistake: null
+    - step_number: 4
+      explanation: In round 4, each of the 45 people forwards it to 3 new people, so 45 × 3 = 135 people
+        receive it.
+      expression: 45 * 3 = 135
+      common_mistake: null
+    - step_number: 5
+      explanation: 'The total number of people is the sum of all four rounds: 5 + 15 + 45 + 135.'
+      expression: 5 + 15 + 45 + 135 = 200
+      common_mistake: null
+    final_answer: 200 people
+  random_seed: 102401
+  rendered_question: A chain letter is sent to 5 people in the first round. Each person who receives it
+    forwards it to 3 new people in the next round. This continues for 4 rounds total. How many people
+    received the letter altogether?
+  option_a: 200 people
+  option_b: 405 people
+  option_c: 240 people
+  option_d: 60 people
+  correct_option: a

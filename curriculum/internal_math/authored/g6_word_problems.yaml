@@ -147,6 +147,103 @@ templates:
   option_c: 50 cookies
   option_d: 135 cookies
   correct_option: a
+- question_template_id: authored-g6_word_problems-d1-95100
+  topic_id: g6_word_problems
+  skill_id: g6_wp_average
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - stopped_after_sum_without_dividing
+  - arithmetic_error_in_sum
+  - arithmetic_error_in_division_or_rounding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Jasmine took three math tests this term and wants to know her average score. She scored 84 points
+    on the first test, 90 points on the second test, and 78 points on the third test. What is her average
+    test score?
+  context_block: ''
+  answer_expression: x = (84 + 90 + 78) / 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find an average, you need to combine all the test scores together first.
+  - Once you have the total of all three scores, you need to share that total equally across the three
+    tests.
+  - Add 84, 90, and 78, then divide the sum by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all three test scores together to find the total points Jasmine earned.
+      expression: 84 + 90 + 78 = 252
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of tests to find the average score.
+      expression: 252 / 3 = 84
+      common_mistake: null
+    final_answer: 84 points
+  random_seed: 95100
+  rendered_question: Jasmine took three math tests this term and wants to know her average score. She
+    scored 84 points on the first test, 90 points on the second test, and 78 points on the third test.
+    What is her average test score?
+  option_a: 84 points
+  option_b: 252 points
+  option_c: 86 points
+  option_d: 85 points
+  correct_option: a
+- question_template_id: authored-g6_word_problems-d1-95101
+  topic_id: g6_word_problems
+  skill_id: g6_wp_average
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - summed_without_dividing
+  - confused_average_with_maximum
+  - arithmetic_error_in_sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Layla is reading a mystery novel. On Monday she read 45 pages, on Tuesday she read 36 pages, and
+    on Wednesday she read 54 pages. What is the average number of pages she read per day?
+  context_block: null
+  answer_expression: x = (45 + 36 + 54) / 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the average, first add up all the pages Layla read over the three days.
+  - Now that you have the total pages, remember that she read over 3 days.
+  - Divide the total number of pages by 3 to find the average pages per day.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the number of pages Layla read on each of the three days.
+      expression: 45 + 36 + 54 = 135
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the average.
+      expression: 135 / 3 = 45
+      common_mistake: null
+    final_answer: 45 pages
+  random_seed: 95101
+  rendered_question: Layla is reading a mystery novel. On Monday she read 45 pages, on Tuesday she read
+    36 pages, and on Wednesday she read 54 pages. What is the average number of pages she read per day?
+  option_a: 135 pages
+  option_b: 40 pages
+  option_c: 54 pages
+  option_d: 45 pages
+  correct_option: d
 - question_template_id: authored-g6_word_problems-d2-1125200
   topic_id: g6_word_problems
   skill_id: g6_wp_average
@@ -840,6 +937,58 @@ templates:
   option_c: 36 dollars
   option_d: 64 dollars
   correct_option: b
+- question_template_id: authored-g6_word_problems-d4-97401
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_instead_of_scaling
+  - multiplied_without_dividing_by_original
+  - multiplied_wrong_quantities
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A factory has 4 machines that together produce 10 widgets in one day. The owner buys 10 more identical
+    machines, so now there are 14 machines working at the same rate. How many widgets will all 14 machines
+    produce in one day?
+  context_block: ''
+  answer_expression: Eq(x, 10 * 14 / 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find how many widgets one machine produces in a day, then scale up to 14 machines.
+  - If 4 machines make 10 widgets, divide 10 by 4 to get the output per machine, then multiply by 14.
+  - 'Set up the proportion: 4 machines to 10 widgets equals 14 machines to x widgets, so x = 10 times
+    14 divided by 4.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the number of widgets one machine produces in a day by dividing the total output
+        by the number of machines.
+      expression: 10 / 4 = 2.5
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the output per machine by the new total number of machines to find the total
+        production.
+      expression: 2.5 * 14 = 35
+      common_mistake: null
+    final_answer: 35 widgets
+  random_seed: 97401
+  rendered_question: A factory has 4 machines that together produce 10 widgets in one day. The owner buys
+    10 more identical machines, so now there are 14 machines working at the same rate. How many widgets
+    will all 14 machines produce in one day?
+  option_a: 140 widgets
+  option_b: 56 widgets
+  option_c: 35 widgets
+  option_d: 24 widgets
+  correct_option: c
 - question_template_id: authored-g6_word_problems-d5-1127500
   topic_id: g6_word_problems
   skill_id: g6_wp_ratio_proportion
@@ -951,6 +1100,117 @@ templates:
   option_c: 24 marbles
   option_d: 20 marbles
   correct_option: c
+- question_template_id: authored-g6_word_problems-d5-37501
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_terms_instead_of_using_proportion
+  - divided_only_one_part_of_ratio
+  - cross_multiplied_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: 'A gardener mixes fertilizer according to the directions: 3 tablespoons for every 5 cups of water.
+    Today she needs to prepare 20 cups of water. How many tablespoons of fertilizer should she use?'
+  context_block: ''
+  answer_expression: Eq(x/20, 3/5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write the ratio of tablespoons to cups for the original recipe, then for the new batch.
+  - The original ratio is 3 tablespoons to 5 cups. The new ratio must be x tablespoons to 20 cups, and
+    these ratios must be equal.
+  - Set up the proportion x/20 = 3/5, then multiply both sides by 20 to find x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The recipe says 3 tablespoons of fertilizer for every 5 cups of water. We need to maintain
+        the same ratio for 20 cups.
+      expression: x/20 = 3/5
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply both sides of the equation by 20 to isolate x.
+      expression: x = 20 × 3 / 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side by multiplying first, then dividing.
+      expression: x = 60 / 5
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide 60 by 5 to find the number of tablespoons.
+      expression: x = 12
+      common_mistake: null
+    final_answer: 12 tablespoons
+  random_seed: 37501
+  rendered_question: 'A gardener mixes fertilizer according to the directions: 3 tablespoons for every
+    5 cups of water. Today she needs to prepare 20 cups of water. How many tablespoons of fertilizer should
+    she use?'
+  option_a: 12 tablespoons
+  option_b: 100 tablespoons
+  option_c: 4 tablespoons
+  option_d: 15 tablespoons
+  correct_option: a
+- question_template_id: authored-g6_word_problems-d5-97500
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - inverted_ratio_in_proportion
+  - added_instead_of_scaling
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: If 5 gardeners can plant 12 trees in a morning, how many trees can 15 gardeners plant in a morning
+    at the same rate?
+  context_block: null
+  answer_expression: Eq(x, 12 * 15 / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find how many trees one gardener plants, then scale up to 15 gardeners.
+  - Divide 12 trees by 5 gardeners to get the rate per gardener, then multiply by 15.
+  - 'Set up the proportion: if 5 gardeners give 12 trees, then 15 gardeners give x trees, so x = 12 times
+    15 divided by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the rate per gardener by dividing the number of trees by the number of gardeners.
+      expression: 12 / 5 = 2.4
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the rate per gardener by the new number of gardeners to find the total trees.
+      expression: 2.4 * 15 = 36
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Alternatively, set up the proportion: 5 gardeners to 12 trees equals 15 gardeners
+        to x trees.'
+      expression: x = 12 * 15 / 5 = 180 / 5 = 36
+      common_mistake: null
+    final_answer: 36 trees
+  random_seed: 97500
+  rendered_question: If 5 gardeners can plant 12 trees in a morning, how many trees can 15 gardeners plant
+    in a morning at the same rate?
+  option_a: 36 trees
+  option_b: 180 trees
+  option_c: 27 trees
+  option_d: 60 trees
+  correct_option: a
 - question_template_id: authored-g6_word_problems-d3-1127300
   topic_id: g6_word_problems
   skill_id: g6_wp_ratio_proportion
@@ -1163,6 +1423,55 @@ templates:
   option_c: 32 pencils
   option_d: 24 pencils
   correct_option: d
+- question_template_id: authored-g6_word_problems-d5-97501
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_difference_instead_of_scaling
+  - added_new_amount_to_original
+  - multiplied_without_dividing_in_proportion
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A bakery has 8 decorators who can finish 20 cakes in one afternoon. The manager hires 4 more decorators
+    who work at the same rate. How many cakes can all 12 decorators finish in one afternoon?
+  context_block: ''
+  answer_expression: Eq(x, 20 * 12 / 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many cakes can one decorator finish in an afternoon if 8 decorators together finish 20 cakes?
+  - 'Set up a proportion: 8 decorators to 20 cakes is the same as 12 decorators to an unknown number of
+    cakes.'
+  - Write the equation comparing the two ratios and solve for the number of cakes.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the rate per decorator by dividing the total cakes by the number of decorators.
+      expression: 20 / 8 = 2.5
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the rate per decorator by the new number of decorators to find the total cakes
+        they can finish.
+      expression: 2.5 * 12 = 30
+      common_mistake: null
+    final_answer: 30 cakes
+  random_seed: 97501
+  rendered_question: A bakery has 8 decorators who can finish 20 cakes in one afternoon. The manager hires
+    4 more decorators who work at the same rate. How many cakes can all 12 decorators finish in one afternoon?
+  option_a: 30 cakes
+  option_b: 240 cakes
+  option_c: 24 cakes
+  option_d: 32 cakes
+  correct_option: a
 - question_template_id: authored-g6_word_problems-d4-1127401
   topic_id: g6_word_problems
   skill_id: g6_wp_ratio_proportion
@@ -1215,3 +1524,109 @@ templates:
   option_c: 35 cookies
   option_d: 4 cookies
   correct_option: a
+- question_template_id: authored-g6_word_problems-d4-37401
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - inverted_proportion
+  - confused_which_terms_correspond
+  - added_terms_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A scale model of a museum uses a ratio where 4 inches on the model represents 10 feet in the real
+    building. A hallway measures 6 inches on the model. How long is the real hallway?
+  context_block: null
+  answer_expression: x/6 = 10/4
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write a proportion with inches on the model in one ratio and feet in reality in the other.
+  - Set up 4 inches over 10 feet equal to 6 inches over the unknown length in feet.
+  - Cross-multiply or scale up to find the real length, then simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set up a proportion where 4 inches on the model corresponds to 10 feet in reality,
+        and 6 inches on the model corresponds to x feet in reality.
+      expression: x/6 = 10/4
+      common_mistake: null
+    - step_number: 2
+      explanation: Cross-multiply to solve for x.
+      expression: 4x = 60
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 4 to isolate x.
+      expression: x = 15
+      common_mistake: null
+    final_answer: 15 feet
+  random_seed: 37401
+  rendered_question: A scale model of a museum uses a ratio where 4 inches on the model represents 10
+    feet in the real building. A hallway measures 6 inches on the model. How long is the real hallway?
+  option_a: 2.4 feet
+  option_b: 40 feet
+  option_c: 24 feet
+  option_d: 15 feet
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d4-37402
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_by_wrong_scale_factor
+  - multiplied_without_dividing_in_proportion
+  - simplified_ratio_but_ignored_measurement
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A city map uses a scale where 3 centimetres represents 12 kilometres. Liam measures the distance
+    between the library and the park and finds it is 7 centimetres on the map. What is the actual distance
+    between the library and the park?
+  context_block: ''
+  answer_expression: Eq(x/7, 12/3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Set up a ratio comparing centimetres on the map to kilometres in reality.
+  - 'Write the proportion: 3 cm to 12 km is the same as 7 cm to x km.'
+  - Cross-multiply to solve for x, or simplify the scale ratio first.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The scale tells us that 3 centimetres on the map represents 12 kilometres in reality.
+        We write the ratio for the known scale and set it equal to the ratio for the unknown distance.
+      expression: 3/12 = 7/x
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Cross-multiply to eliminate the fractions: multiply 3 by x and 12 by 7.'
+      expression: 3x = 84
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by 3 to isolate x.
+      expression: x = 28
+      common_mistake: null
+    final_answer: 28 kilometres
+  random_seed: 37402
+  rendered_question: A city map uses a scale where 3 centimetres represents 12 kilometres. Liam measures
+    the distance between the library and the park and finds it is 7 centimetres on the map. What is the
+    actual distance between the library and the park?
+  option_a: 21 kilometres
+  option_b: 28 kilometres
+  option_c: 84 kilometres
+  option_d: 4 kilometres
+  correct_option: b

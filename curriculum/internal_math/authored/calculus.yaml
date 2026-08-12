@@ -1356,6 +1356,116 @@ templates:
   option_c: 48 degrees
   option_d: 50 degrees
   correct_option: c
+- question_template_id: authored-calculus-d1-98100
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_constant_instead_of_subtracting
+  - miscalculated_square
+  - subtracted_instead_of_adding_middle_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A drone's altitude in metres is given by the function h(x) = x² + 3x − 5, where x is the time
+    in seconds. What is the altitude as time approaches 4 seconds?
+  context_block: null
+  answer_expression: Eq(x, 4**2 + 3*4 - 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Since h(x) is a polynomial, it is continuous everywhere, so you can find the limit by substituting
+    x = 4 directly.
+  - 'Substitute 4 into the function: h(4) = 4² + 3(4) − 5.'
+  - Calculate 16 + 12 − 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The function h(x) = x² + 3x − 5 is a polynomial, which is continuous at every real
+        number, so the limit as x approaches 4 equals h(4).
+      expression: h(4) = 4² + 3(4) − 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate 4² to get 16.
+      expression: h(4) = 16 + 3(4) − 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate 3(4) to get 12.
+      expression: h(4) = 16 + 12 − 5
+      common_mistake: null
+    - step_number: 4
+      explanation: Add 16 and 12 to get 28, then subtract 5.
+      expression: h(4) = 28 − 5 = 23
+      common_mistake: null
+    final_answer: 23 metres
+  random_seed: 98100
+  rendered_question: A drone's altitude in metres is given by the function h(x) = x² + 3x − 5, where x
+    is the time in seconds. What is the altitude as time approaches 4 seconds?
+  option_a: 21 metres
+  option_b: 27 metres
+  option_c: 23 metres
+  option_d: 11 metres
+  correct_option: c
+- question_template_id: authored-calculus-d1-98101
+  topic_id: calculus
+  skill_id: calc_limits
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - forgot_to_multiply_squared_term_by_coefficient
+  - added_instead_of_subtracting_linear_term
+  - stopped_before_adding_constant
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An engineer is testing a sensor that outputs values according to the function f(x) = 2x² - x +
+    3. What value does the sensor approach as the input x approaches 5?
+  context_block: null
+  answer_expression: Eq(x, 2*5**2 - 5 + 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Since the function is a polynomial, it is continuous everywhere, so the limit as x approaches 5 equals
+    the function value at x = 5.
+  - Substitute x = 5 into the expression 2x² - x + 3.
+  - Calculate 2(5)², then subtract 5, then add 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Because f(x) = 2x² - x + 3 is a polynomial, it is continuous at x = 5, so the limit
+        as x approaches 5 equals f(5).
+      expression: lim (x → 5) [2x² - x + 3] = 2(5)² - 5 + 3
+      common_mistake: null
+    - step_number: 2
+      explanation: First, compute 5² and multiply by 2.
+      expression: 2(25) - 5 + 3 = 50 - 5 + 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 5 from 50 and then add 3.
+      expression: 45 + 3 = 48
+      common_mistake: null
+    final_answer: '48'
+  random_seed: 98101
+  rendered_question: An engineer is testing a sensor that outputs values according to the function f(x)
+    = 2x² - x + 3. What value does the sensor approach as the input x approaches 5?
+  option_a: '53'
+  option_b: '45'
+  option_c: '48'
+  option_d: '47'
+  correct_option: c
 - question_template_id: authored-calculus-d2-1308201
   topic_id: calculus
   skill_id: calc_limits

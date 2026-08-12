@@ -267,6 +267,62 @@ templates:
   option_c: x > 12
   option_d: x > 6.5
   correct_option: a
+- question_template_id: authored-algebra_foundations-d3-98300
+  topic_id: algebra_foundations
+  skill_id: alg_inequalities
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - rounded_up_for_safety_margin
+  - subtracted_one_from_correct_threshold
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: You have $14 saved and earn $4 each week from chores. You need at least $50 to buy a skateboard.
+    For how many weeks must you save?
+  context_block: ''
+  answer_expression: 14 + 4*w >= 50
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total dollars you will have after w weeks.
+  - Your total savings will be 14 + 4w, and that must be at least 50.
+  - Set up the inequality 14 + 4w ≥ 50, then subtract 14 from both sides and divide by 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the total savings after w weeks. You start with $14 and earn $4 each week, so
+        your savings are 14 + 4w.
+      expression: 14 + 4*w
+      common_mistake: null
+    - step_number: 2
+      explanation: Set up the inequality for needing at least $50.
+      expression: 14 + 4*w >= 50
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 14 from both sides to isolate the term with w.
+      expression: 4*w >= 36
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 4 to solve for w.
+      expression: w >= 9
+      common_mistake: null
+    final_answer: w >= 9 weeks
+  random_seed: 98300
+  rendered_question: You have $14 saved and earn $4 each week from chores. You need at least $50 to buy
+    a skateboard. For how many weeks must you save?
+  option_a: w >= 10 weeks
+  option_b: w >= 36 weeks
+  option_c: w >= 8 weeks
+  option_d: w >= 9 weeks
+  correct_option: d
 - question_template_id: authored-algebra_foundations-d4-1186401
   topic_id: algebra_foundations
   skill_id: alg_inequalities
@@ -379,6 +435,64 @@ templates:
   option_c: x < 18
   option_d: x > 18
   correct_option: c
+- question_template_id: authored-algebra_foundations-d5-98501
+  topic_id: algebra_foundations
+  skill_id: alg_inequalities
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - forgot_to_reverse_inequality_when_dividing_by_negative
+  - solved_as_equation_instead_of_inequality
+  - reversed_inequality_direction_incorrectly
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A storage unit has 75 cubic feet of space. Each box stored takes 4 cubic feet. After storing boxes,
+    at most 15 cubic feet can remain unused. How many boxes must be stored?
+  context_block: null
+  answer_expression: 75 - 4*b <= 15
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How much space will remain after storing b boxes?
+  - The remaining space is 75 - 4b, and the problem says that cannot be more than 15.
+  - Write 75 - 4b ≤ 15, then isolate b. Remember that dividing by a negative flips the inequality sign.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The storage unit starts with 75 cubic feet. Each box takes 4 cubic feet, so b boxes
+        take 4b cubic feet. The space remaining is 75 - 4b.
+      expression: 75 - 4*b
+      common_mistake: null
+    - step_number: 2
+      explanation: The problem says at most 15 cubic feet can remain unused, which means the remaining
+        space must be less than or equal to 15.
+      expression: 75 - 4*b <= 15
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 75 from both sides to isolate the term with b.
+      expression: -4*b <= -60
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -4. Because we are dividing by a negative number, the inequality
+        sign reverses.
+      expression: b >= 15
+      common_mistake: null
+    final_answer: at least 15 boxes
+  random_seed: 98501
+  rendered_question: A storage unit has 75 cubic feet of space. Each box stored takes 4 cubic feet. After
+    storing boxes, at most 15 cubic feet can remain unused. How many boxes must be stored?
+  option_a: at least 15 boxes
+  option_b: exactly 15 boxes
+  option_c: at most 15 boxes
+  option_d: at least 18 boxes
+  correct_option: a
 - question_template_id: authored-algebra_foundations-d4-1187401
   topic_id: algebra_foundations
   skill_id: alg_linear_functions
@@ -598,6 +712,64 @@ templates:
   option_c: 25 roses
   option_d: 7 roses
   correct_option: a
+- question_template_id: authored-algebra_foundations-d3-99300
+  topic_id: algebra_foundations
+  skill_id: alg_linear_functions
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_starting_amount_to_coefficient
+  - misread_threshold_or_added_instead_of_subtracting
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student needs at least 50 points to pass a challenge module. She already has 14 points, and
+    each quiz she completes is worth 6 points. What is the smallest number of quizzes she must complete
+    to pass?
+  context_block: null
+  answer_expression: 6*x + 14 >= 50
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total points after completing x quizzes.
+  - Her total will be 14 + 6x, and that must be at least 50.
+  - Subtract the points she already has, then divide by the points per quiz.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: After completing x quizzes, she will have her starting 14 points plus 6 points for
+        each quiz.
+      expression: 14 + 6*x
+      common_mistake: null
+    - step_number: 2
+      explanation: She needs this total to be at least 50 points, so we set up the inequality.
+      expression: 6*x + 14 >= 50
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 14 from both sides to isolate the term with x.
+      expression: 6*x >= 36
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 6 to find the minimum number of quizzes.
+      expression: x >= 6
+      common_mistake: null
+    final_answer: 6 quizzes
+  random_seed: 99300
+  rendered_question: A student needs at least 50 points to pass a challenge module. She already has 14
+    points, and each quiz she completes is worth 6 points. What is the smallest number of quizzes she
+    must complete to pass?
+  option_a: 8 quizzes
+  option_b: 36 quizzes
+  option_c: 7 quizzes
+  option_d: 6 quizzes
+  correct_option: d
 - question_template_id: authored-algebra_foundations-d1-1188102
   topic_id: algebra_foundations
   skill_id: alg_simplify_expressions
@@ -1087,6 +1259,80 @@ templates:
   option_c: 6 tickets
   option_d: 8 tickets
   correct_option: b
+- question_template_id: authored-algebra_foundations-d5-101500
+  topic_id: algebra_foundations
+  skill_id: alg_simultaneous
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - solved_for_wrong_variable
+  - assumed_equal_distribution
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A theater sells adult tickets at $5 each and child tickets at $3 each. In one evening 20 tickets
+    were sold for a total of $76. How many adult tickets were sold?
+  context_block: null
+  answer_expression: Eq(5*a + 3*(20 - a), 76)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Let a represent the number of adult tickets and c represent the number of child tickets. Write two
+    equations: one for the total tickets and one for the total money.'
+  - Your first equation is a + c = 20 and your second is 5a + 3c = 76. Use the first equation to express
+    c in terms of a.
+  - Substitute your expression for c into the second equation, then solve for a.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let a be the number of adult tickets and c be the number of child tickets. The total
+        number of tickets sold is 20.
+      expression: a + c = 20
+      common_mistake: null
+    - step_number: 2
+      explanation: Adult tickets cost $5 each and child tickets cost $3 each, for a total revenue of $76.
+      expression: 5a + 3c = 76
+      common_mistake: null
+    - step_number: 3
+      explanation: From the first equation, solve for c in terms of a.
+      expression: c = 20 - a
+      common_mistake: null
+    - step_number: 4
+      explanation: Substitute c = 20 - a into the second equation.
+      expression: 5a + 3(20 - a) = 76
+      common_mistake: null
+    - step_number: 5
+      explanation: Distribute the 3 across the parentheses.
+      expression: 5a + 60 - 3a = 76
+      common_mistake: null
+    - step_number: 6
+      explanation: Combine like terms by subtracting 3a from 5a.
+      expression: 2a + 60 = 76
+      common_mistake: null
+    - step_number: 7
+      explanation: Subtract 60 from both sides to isolate the term with a.
+      expression: 2a = 16
+      common_mistake: null
+    - step_number: 8
+      explanation: Divide both sides by 2 to solve for a.
+      expression: a = 8
+      common_mistake: null
+    final_answer: 8 tickets
+  random_seed: 101500
+  rendered_question: A theater sells adult tickets at $5 each and child tickets at $3 each. In one evening
+    20 tickets were sold for a total of $76. How many adult tickets were sold?
+  option_a: 12 tickets
+  option_b: 10 tickets
+  option_c: 8 tickets
+  option_d: 16 tickets
+  correct_option: c
 - question_template_id: authored-algebra_foundations-d4-1189402
   topic_id: algebra_foundations
   skill_id: alg_simultaneous
@@ -1150,6 +1396,77 @@ templates:
   option_b: 3 apples
   option_c: 7 apples
   option_d: 10 apples
+  correct_option: a
+- question_template_id: authored-algebra_foundations-d5-101501
+  topic_id: algebra_foundations
+  skill_id: alg_simultaneous
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - confused_muffins_with_cookies
+  - used_item_total_instead_of_revenue
+  - stopped_before_combining_like_terms
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery sells muffins and cookies at a fair. By noon, 18 items have been sold. Muffins cost $4
+    each and cookies cost $3 each, and the total revenue is $62. How many muffins were sold?
+  context_block: null
+  answer_expression: Eq(4*m + 3*(18 - m), 62)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Let m stand for muffins and c for cookies. Write one equation for the total number of items and another
+    for the total revenue.
+  - Your first equation is m + c = 18 and your second is 4m + 3c = 62. Use the first equation to express
+    c in terms of m.
+  - Substitute c = 18 - m into the second equation and solve for m.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let m be the number of muffins and c the number of cookies. The total number of items
+        sold is 18, so m + c = 18.
+      expression: m + c = 18
+      common_mistake: null
+    - step_number: 2
+      explanation: Muffins cost $4 each and cookies cost $3 each, and the total revenue is $62, so 4m
+        + 3c = 62.
+      expression: 4*m + 3*c = 62
+      common_mistake: null
+    - step_number: 3
+      explanation: 'From the first equation, solve for c: c = 18 - m.'
+      expression: c = 18 - m
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Substitute c = 18 - m into the second equation: 4m + 3(18 - m) = 62.'
+      expression: 4*m + 3*(18 - m) = 62
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Distribute the 3: 4m + 54 - 3m = 62.'
+      expression: 4*m + 54 - 3*m = 62
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Combine like terms: m + 54 = 62.'
+      expression: m + 54 = 62
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Subtract 54 from both sides: m = 8.'
+      expression: m = 8
+      common_mistake: null
+    final_answer: 8 muffins
+  random_seed: 101501
+  rendered_question: A bakery sells muffins and cookies at a fair. By noon, 18 items have been sold. Muffins
+    cost $4 each and cookies cost $3 each, and the total revenue is $62. How many muffins were sold?
+  option_a: 8 muffins
+  option_b: 10 muffins
+  option_c: 14 muffins
+  option_d: 6 muffins
   correct_option: a
 - question_template_id: authored-algebra_foundations-d5-1189500
   topic_id: algebra_foundations

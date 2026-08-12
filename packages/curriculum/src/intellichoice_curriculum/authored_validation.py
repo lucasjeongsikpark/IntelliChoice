@@ -988,6 +988,51 @@ def _option_as_tuple(text: str) -> tuple[sympy.Basic, ...] | None:
     return tuple(values)
 
 
+def _positive_root_reading(
+    derivation: DerivedAnswer, options: dict[str, str]
+) -> list[DerivedAnswer]:
+    """The one root a measured quantity can be (C1 Phase 3), when the options say so.
+
+    `Eq(x**2, 64)` for "a square garden has an area of 64 square metres, what is the side
+    length?" derives `multi_root {8, -8}` and was compared against "8 metres". Same shape as
+    D-281's interval defect in a second answer model: the gate derived a solution *set* and
+    held it against the single value the student writes. Measured cost: `alg1_square_roots`
+    had **never** produced an accepted tier-1 item, and difficulty 1 is the tier that kept
+    `algebra_1` under the serving floor.
+
+    **Two conditions, and the second is half the rule rather than a flourish.**
+
+    1. Exactly one root is positive. Two positive roots is a real quadratic whose answer is
+       both, and this declines rather than picking one.
+    2. **No option matches a non-positive root.** This is what separates "a square's side"
+       from "solve x**2 = 81". The abstract item offers `-9` as a distractor precisely
+       because ±9 is its honest answer, so "9" alone would be a *wrong* key; a measurement
+       item never offers "-9 metres", because a length cannot be negative. The domain
+       constraint is therefore read off the item's own options - data the gate already
+       trusts - instead of parsing the stem for units or asking a model (D-252).
+
+    Measured over the stored rejections, both directions (D-221): 4 recovered, 6 declined,
+    and **3 of the 6 declines are condition 2 alone** - without it those three would have
+    been accepted with a wrong key. 0 items rejected for other reasons become acceptable.
+    """
+    if derivation.model != "multi_root" or not isinstance(derivation.payload, frozenset):
+        return []
+    roots = list(derivation.payload)
+    if not all(getattr(root, "is_number", False) for root in roots):
+        return []
+    positive = [root for root in roots if root.is_positive]
+    if len(positive) != 1:
+        return []
+    if any(
+        _option_matches(DerivedAnswer("value", (other,)), text)
+        for other in roots
+        if not other.is_positive
+        for text in options.values()
+    ):
+        return []
+    return [DerivedAnswer("value", (positive[0],))]
+
+
 def _second_readings(derivation: DerivedAnswer, equation: str) -> list[DerivedAnswer]:
     """Other answers the same verified model legitimately supports (D-281).
 
@@ -1068,7 +1113,11 @@ def check_sympy_independent_solve(
     # turn a rejection into a pass, but it can never turn a rejection into a *different*
     # pass, and an item the gate already accepted takes this path not at all.
     if not matches:
-        for reading in _second_readings(derivation, item.equation):
+        readings = [
+            *_second_readings(derivation, item.equation),
+            *_positive_root_reading(derivation, options),
+        ]
+        for reading in readings:
             second = [
                 label for label, text in options.items() if _option_matches(reading, text)
             ]
@@ -1251,11 +1300,42 @@ def check_hint_solution_answer_agreement(
     item: AuthoredGeneratedItemResponse, result: AuthoredValidationResult
 ) -> None:
     correct_text = _options(item)[item.correct_option]
-    if not answers_agree(item.canonical_solution.final_answer, correct_text):
-        result.fail(
-            f"canonical_solution.final_answer {item.canonical_solution.final_answer!r} "
-            f"does not match the declared correct option {correct_text!r}"
-        )
+    final_answer = item.canonical_solution.final_answer
+    if answers_agree(final_answer, correct_text):
+        return
+
+    # **D-281's defect, in a third place.** D-281 taught `check_sympy_independent_solve` that
+    # an inequality's solution *set* and the boundary a student writes are both honest
+    # readings of one verified inequality. This check does its own comparison and never got
+    # the same treatment, so a threshold word problem that now clears the equation check is
+    # killed here instead: `final_answer 'x >= 10'` against option `'at least 10 boxes'`.
+    # Six items in one C1 Phase 3 depth run, every one an inequality skill.
+    #
+    # Deliberately *not* fixed in `answers_agree`, which is the tempting place: that helper
+    # is shared with the serving path (`tutor.generate_solution`, D-207), so widening it
+    # would change what the running tutor accepts as a matching solution. The gate's
+    # tolerance and the tutor's are the same today by coincidence of implementation, not by
+    # intent, and only one of them has this evidence behind it.
+    #
+    # Same restraint as D-281: only a **closed** boundary yields a value, so `x > 10` still
+    # fails, and the off-by-one distractor these items carry ("11 boxes") is still rejected
+    # because the boundary is compared by value.
+    # Both readings are needed because the option text comes in two shapes, and the real
+    # rejections included both: `'x >= 10'` against the prose option `'at least 10 boxes'`
+    # (the solution set matches directly, via D-282's prose-interval reading) and against
+    # the plain option `'10 movies'` (only the boundary value matches).
+    derivation, _ = route_answer(final_answer)
+    if derivation is not None:
+        if _option_matches(derivation, correct_text):
+            return
+        for reading in _second_readings(derivation, final_answer):
+            if _option_matches(reading, correct_text):
+                return
+
+    result.fail(
+        f"canonical_solution.final_answer {final_answer!r} "
+        f"does not match the declared correct option {correct_text!r}"
+    )
 
 
 def check_difficulty_rubric_compliance(
