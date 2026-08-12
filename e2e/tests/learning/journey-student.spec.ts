@@ -129,9 +129,36 @@ test("a refresh mid-exam restores the exact position (SPEC Phase 11)", async ({ 
   await chooseTopic(page);
   await expect(page.locator(".phase-chip")).toHaveText(/pre-exam/i, { timeout: 60_000 });
 
+  // **Count the answers the SERVER acknowledged, not the clicks (D-288).**
+  //
+  // `answerCurrentQuestion` returns as soon as it clicks Submit; it waits out the POST only
+  // at the start of the next call. The restore below lands on *the first item still needing
+  // an answer*, so a second answer still in flight at reload brings the student back to a
+  // question this test has already left - two entirely different questions, which is the
+  // staging symptom carried since 2026-08-07 and read there as session sharing.
+  //
+  // Waiting on the "Submitting…" button label was the first fix and is itself a race: if
+  // React has not re-rendered yet the label is absent, and `waitFor({state:"detached"})`
+  // resolves against nothing. `networkidle` is no good either - the SSE stream never goes
+  // idle. Counting acknowledged 2xx responses is the only form with nothing to lose to
+  // timing.
+  const acknowledged: string[] = [];
+  page.on("response", (response) => {
+    if (
+      response.request().method() === "POST" &&
+      response.url().includes("/answers") &&
+      response.status() < 300
+    ) {
+      acknowledged.push(response.url());
+    }
+  });
+
   // Answer two, so the restored position is provably not just "the first question".
   await answerCurrentQuestion(page);
   await answerCurrentQuestion(page);
+  await expect
+    .poll(() => acknowledged.length, { timeout: 30_000 })
+    .toBeGreaterThanOrEqual(2);
   const before = await page.locator(".progress-bar").innerText();
   const questionBefore = await page.locator("h1").innerText();
   audit.note(`before refresh: ${before.replace(/\s+/g, " ")}`);
