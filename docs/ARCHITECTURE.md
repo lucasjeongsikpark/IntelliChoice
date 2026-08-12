@@ -530,6 +530,26 @@ to rot, because nothing fails when it does.)*
   duplication measured in C1's first wave had an upstream cause (both candidates of a slot got an
   identical design payload), and `avoid_equations` removes the reason rather than rejecting the
   result after paying for it.
+- **One verified model can support more than one honest reading, and the item's own options
+  decide between them** (D-281, D-282, D-291, D-293 — four instances of one idea). `route_answer`
+  says what an equation *means*; it cannot say what the student was *asked to write*. An
+  inequality solves to `Interval(7, oo)` and the question wants "7 months"; `Eq(x**2, 64)` for a
+  square's side solves to `{8, -8}` and a length cannot be negative. The gate used to treat its
+  first reading as the only one, which cost whole tiers: **0 of 28** inequality candidates and
+  **7 of 7** square-root candidates, none of them wrong.
+  The shape that makes this safe rather than lenient is the same every time and is worth
+  reusing rather than re-deriving: a second reading runs **only when the first matched nothing**,
+  it must match **exactly one** option (the same bar the first clears), and it declines wherever
+  the item's own data leaves the answer genuinely ambiguous — an open boundary, two positive
+  roots, a non-positive root offered as a distractor. So it can turn a rejection into a pass and
+  can never turn one pass into a different one, and an item the gate already accepted never
+  reaches the code at all. Nothing is asked of a model; the disambiguation comes from options the
+  gate already trusts.
+  **One boundary here is load-bearing and easy to miss.** `answers_agree` is shared between the
+  offline gate and the *running* tutor (`tutor.generate_solution`, D-207). Widening it to fix a
+  gate rejection would silently change what the deployed tutor accepts as a matching solution, so
+  D-293's reading went into the gate's own check instead. The two tolerances are identical today
+  by implementation accident, not by intent — treat them as separate when changing either.
 - **A rule that grades content lives with the content** (D-232) — the §5.8.5 judge's 1-5
   difficulty rubric sits in `topics.yaml`, on the topic it rates, not beside the prompt that uses it.
   It used to be one global table written for `linear_equations`, correct for it, and applied
