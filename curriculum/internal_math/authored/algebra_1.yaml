@@ -19,9 +19,9 @@ templates:
     judge: bedrock-question-judge
   review_priority: normal
   version: 1
-  stem: A school banner is shaped like a rectangle. Its width is x metres, its length is 3 metres more
-    than its width, and its height is 4 metres more than its width. If the expression x² + 7x + 12 represents
-    the product of two of these measurements, which factored form is equivalent?
+  stem: A storage crate has a width of x metres. Its length is 3 metres more than its width, and its height
+    is 4 metres more than its width. If the expression x² + 7x + 12 represents the product of two of these
+    measurements, which factored form is equivalent?
   context_block: null
   answer_expression: x**2 + 7*x + 12
   figure_spec: null
@@ -55,9 +55,9 @@ templates:
       common_mistake: null
     final_answer: (x + 3)*(x + 4)
   random_seed: 1405200
-  rendered_question: A school banner is shaped like a rectangle. Its width is x metres, its length is
-    3 metres more than its width, and its height is 4 metres more than its width. If the expression x²
-    + 7x + 12 represents the product of two of these measurements, which factored form is equivalent?
+  rendered_question: A storage crate has a width of x metres. Its length is 3 metres more than its width,
+    and its height is 4 metres more than its width. If the expression x² + 7x + 12 represents the product
+    of two of these measurements, which factored form is equivalent?
   option_a: (x + 1)*(x + 12)
   option_b: (x + 7)*(x + 12)
   option_c: (x + 3)*(x + 4)
