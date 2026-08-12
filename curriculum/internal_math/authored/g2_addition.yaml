@@ -22,6 +22,8 @@ templates:
   stem: A library owns 2456 books on science and 1378 books on history. How many books do they own altogether?
   context_block: null
   answer_expression: x = 2456 + 1378
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what operation you need to find a combined total from two separate groups.
   - Add the number of science books to the number of history books.
@@ -79,6 +81,8 @@ templates:
     books does the library receive altogether?
   context_block: null
   answer_expression: x = 2456 + 1378
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how you would combine the number of books from each donation.
   - Write an addition problem that adds the first donation and the second donation together.
@@ -140,6 +144,8 @@ templates:
     the store, and 31 stickers from trading cards. How many stickers does Emma collect in total?
   context_block: null
   answer_expression: Eq(x, 24 + 35 + 31)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - You need to add all three amounts together to find the total.
   - First add the stickers from her friend and the store, then add the stickers from trading cards to
@@ -188,6 +194,8 @@ templates:
     does Liam have now?
   context_block: null
   answer_expression: Eq(x, 30 + 40)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many stickers Liam starts with and how many he gets from his friend.
   - Write an addition problem that combines the stickers he has with the stickers he receives.
@@ -237,6 +245,8 @@ templates:
     the student have now?
   context_block: ''
   answer_expression: x = 42 + 6
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The student starts with some stickers and then gets more. What operation combines two amounts?
   - You need to add the stickers the student already has to the stickers received as a gift.
@@ -283,6 +293,8 @@ templates:
     have now?
   context_block: null
   answer_expression: Eq(x, 32 + 24)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Maria starts with some stickers and receives more. What operation combines these two amounts?
   - Write an addition sentence using the starting number of stickers and the number her friend gives her.
@@ -336,6 +348,8 @@ templates:
     now?
   context_block: ''
   answer_expression: Eq(x, 28 + 34)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by writing down the number of stickers Maya started with and how many she received.
   - You need to combine these two amounts to find the total.
@@ -389,6 +403,8 @@ templates:
     How many stickers does she have now?
   context_block: null
   answer_expression: x = 28 + 35
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by identifying how many stickers the student begins with and how many she receives.
   - You need to combine the starting amount and the new amount to find the total.

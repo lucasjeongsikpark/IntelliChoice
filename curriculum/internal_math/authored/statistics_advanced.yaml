@@ -1,0 +1,1549 @@
+curriculum_version: '2026.1'
+topic_id: statistics_advanced
+templates:
+- question_template_id: authored-statistics_advanced-d5-1505500
+  topic_id: statistics_advanced
+  skill_id: adv_matrices
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_row_by_column_without_summing
+  - added_only_the_diagonal_or_first_elements
+  - used_row_2_instead_of_row_1
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A delivery company tracks packages in a matrix. Row 1 is Driver 1, row 2 is Driver 2; column 1
+    is Route A, column 2 is Route B. The package matrix is [[6, 8], [5, 7]]. The fee per package for each
+    route is [[3], [4]], where the first entry is Route A and the second is Route B. What are Driver 1's
+    total delivery fees in dollars?
+  context_block: null
+  answer_expression: Eq(x, 6*3 + 8*4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Driver 1 delivered 6 packages on Route A and 8 packages on Route B. Each route has its own fee per
+    package.
+  - Multiply the number of packages Driver 1 delivered on each route by that route's fee, then add those
+    two products together.
+  - Write 6 times 3 plus 8 times 4, which is the first row of the package matrix multiplied by the fee
+    column.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Driver 1 delivered 6 packages on Route A and 8 packages on Route B.
+      expression: 6, 8
+      common_mistake: null
+    - step_number: 2
+      explanation: The fee per package is $3 for Route A and $4 for Route B.
+      expression: 3, 4
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply packages on Route A by its fee: 6 × 3 = 18.'
+      expression: 6*3 = 18
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Multiply packages on Route B by its fee: 8 × 4 = 32.'
+      expression: 8*4 = 32
+      common_mistake: null
+    - step_number: 5
+      explanation: Add the two products to find Driver 1's total fees.
+      expression: 18 + 32 = 50
+      common_mistake: null
+    final_answer: '50'
+  random_seed: 1505500
+  rendered_question: A delivery company tracks packages in a matrix. Row 1 is Driver 1, row 2 is Driver
+    2; column 1 is Route A, column 2 is Route B. The package matrix is [[6, 8], [5, 7]]. The fee per package
+    for each route is [[3], [4]], where the first entry is Route A and the second is Route B. What are
+    Driver 1's total delivery fees in dollars?
+  option_a: '46'
+  option_b: '14'
+  option_c: '42'
+  option_d: '50'
+  correct_option: d
+- question_template_id: authored-statistics_advanced-d5-1505501
+  topic_id: statistics_advanced
+  skill_id: adv_matrices
+  grade_band: 11-12
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - only_computed_first_product
+  - multiplied_hours_by_only_one_wage
+  - added_all_four_values_without_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A store tracks hours worked by two employees in two departments. The matrix H shows hours: employee
+    1 worked 7 hours in department A and 5 hours in department B. The matrix W shows hourly wages: department
+    A pays $12 per hour and department B pays $15 per hour. What are employee 1''s total earnings in dollars?'
+  context_block: null
+  answer_expression: Eq(x, 7*12 + 5*15)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Multiply each hour amount by the corresponding wage, then add those products.
+  - Employee 1's earnings are 7 times the department A wage plus 5 times the department B wage.
+  - Set up 7 · 12 + 5 · 15 and compute each product before adding.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify employee 1''s hours in each department: 7 hours in department A and 5 hours
+        in department B.'
+      expression: 7, 5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Identify the hourly wage for each department: $12 for department A and $15 for department
+        B.'
+      expression: 12, 15
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply employee 1's hours in department A by that department's wage.
+      expression: 7 * 12 = 84
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply employee 1's hours in department B by that department's wage.
+      expression: 5 * 15 = 75
+      common_mistake: null
+    - step_number: 5
+      explanation: Add the two amounts to find total earnings.
+      expression: 84 + 75 = 159
+      common_mistake: null
+    final_answer: '159'
+  random_seed: 1505501
+  rendered_question: 'A store tracks hours worked by two employees in two departments. The matrix H shows
+    hours: employee 1 worked 7 hours in department A and 5 hours in department B. The matrix W shows hourly
+    wages: department A pays $12 per hour and department B pays $15 per hour. What are employee 1''s total
+    earnings in dollars?'
+  option_a: '159'
+  option_b: '19'
+  option_c: '144'
+  option_d: '84'
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d5-1506500
+  topic_id: statistics_advanced
+  skill_id: adv_vectors
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_components_without_squaring
+  - forgot_square_root_after_summing_squares
+  - used_incorrect_pythagorean_triple
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A fishing boat sails 9 km due east from the harbour, then turns and sails 12 km due north. What
+    is the straight-line distance from the harbour to the boat's final position?
+  context_block: ''
+  answer_expression: Eq(x, sqrt(9**2 + 12**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Sketch the boat''s path: east then north forms two sides of a right triangle; the straight-line distance
+    is the hypotenuse.'
+  - 'Use the Pythagorean theorem: the square of the hypotenuse equals the sum of the squares of the two
+    legs.'
+  - Write the equation as distance squared equals 9² plus 12², then take the square root.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The boat's path forms a right triangle with legs 9 km east and 12 km north. The straight-line
+        distance is the hypotenuse.
+      expression: d = sqrt(9^2 + 12^2)
+      common_mistake: null
+    - step_number: 2
+      explanation: Square each leg and add them.
+      expression: 9^2 + 12^2 = 81 + 144 = 225
+      common_mistake: null
+    - step_number: 3
+      explanation: Take the square root to find the distance.
+      expression: d = sqrt(225) = 15
+      common_mistake: null
+    final_answer: 15 km
+  random_seed: 1506500
+  rendered_question: A fishing boat sails 9 km due east from the harbour, then turns and sails 12 km due
+    north. What is the straight-line distance from the harbour to the boat's final position?
+  option_a: 21 km
+  option_b: 15 km
+  option_c: 13.4 km
+  option_d: 225 km
+  correct_option: b
+- question_template_id: authored-statistics_advanced-d5-1506501
+  topic_id: statistics_advanced
+  skill_id: adv_vectors
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_components_instead_of_pythagorean
+  - used_only_vertical_component
+  - forgot_to_take_square_root
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A cable runs 8 meters horizontally and 15 meters vertically to connect two points. What is the
+    straight-line distance of the cable?
+  context_block: ''
+  answer_expression: Eq(x, sqrt(8**2 + 15**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Picture the cable as forming two sides of a right triangle, with the straight-line distance as the
+    hypotenuse.
+  - 'Use the Pythagorean theorem: the square of the hypotenuse equals the sum of the squares of the two
+    legs.'
+  - Set up the equation d² = 8² + 15² and then take the square root.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the horizontal and vertical components as the legs of a right triangle: 8
+        meters and 15 meters.'
+      expression: horizontal = 8, vertical = 15
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Apply the Pythagorean theorem to find the hypotenuse: d² = 8² + 15².'
+      expression: d^2 = 8^2 + 15^2
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Calculate the squares: 8² = 64 and 15² = 225.'
+      expression: d^2 = 64 + 225
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the squared values: 64 + 225 = 289.'
+      expression: d^2 = 289
+      common_mistake: null
+    - step_number: 5
+      explanation: Take the square root of both sides to find d.
+      expression: d = sqrt(289)
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Evaluate the square root: sqrt(289) = 17.'
+      expression: d = 17
+      common_mistake: null
+    final_answer: 17 meters
+  random_seed: 1506501
+  rendered_question: A cable runs 8 meters horizontally and 15 meters vertically to connect two points.
+    What is the straight-line distance of the cable?
+  option_a: 23 meters
+  option_b: 15 meters
+  option_c: 289 meters
+  option_d: 17 meters
+  correct_option: d
+- question_template_id: authored-statistics_advanced-d1-1327100
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - found_median_instead_of_mean
+  - divided_by_incorrect_count
+  - forgot_to_divide_sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Elena took five math quizzes this term and scored 78, 82, 85, 88, and 92 points. What is her mean
+    quiz score?
+  context_block: null
+  answer_expression: Eq(x, (78 + 82 + 85 + 88 + 92) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, add all five quiz scores together.
+  - Divide the total of all five scores by the number of quizzes.
+  - Set up the sum 78 + 82 + 85 + 88 + 92, then divide that result by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five quiz scores together.
+      expression: 78 + 82 + 85 + 88 + 92 = 425
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of quizzes to find the mean.
+      expression: 425 / 5 = 85
+      common_mistake: null
+    final_answer: 85 points
+  random_seed: 1327100
+  rendered_question: Elena took five math quizzes this term and scored 78, 82, 85, 88, and 92 points.
+    What is her mean quiz score?
+  option_a: 85 points
+  option_b: 425 points
+  option_c: 86 points
+  option_d: 87 points
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d1-1327101
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - stopped_at_sum_without_dividing
+  - used_maximum_instead_of_mean
+  - used_median_instead_of_mean
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A factory worker logs 6, 7, 8, 9, and 10 hours over five consecutive days. What is the mean number
+    of hours worked per day?
+  context_block: ''
+  answer_expression: Eq(x, (6 + 7 + 8 + 9 + 10) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, add all five daily hours together first.
+  - Divide the total by the number of days to find the average per day.
+  - Write the sum as 6 + 7 + 8 + 9 + 10, then divide by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all the daily hours together.
+      expression: 6 + 7 + 8 + 9 + 10 = 40
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the mean.
+      expression: 40 / 5 = 8
+      common_mistake: null
+    final_answer: 8 hours
+  random_seed: 1327101
+  rendered_question: A factory worker logs 6, 7, 8, 9, and 10 hours over five consecutive days. What is
+    the mean number of hours worked per day?
+  option_a: 10 hours
+  option_b: 7 hours
+  option_c: 40 hours
+  option_d: 8 hours
+  correct_option: d
+- question_template_id: authored-statistics_advanced-d1-1327102
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_sum_by_incorrect_count
+  - reported_median_instead_of_mean
+  - reported_sum_instead_of_mean
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A meteorologist records the daily high temperature for five days: 62, 65, 68, 71, and 74 degrees.
+    What is the mean temperature over these five days?'
+  context_block: ''
+  answer_expression: Eq(x, (62 + 65 + 68 + 71 + 74) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, you need to add all five temperature values together.
+  - Once you have the total, divide that sum by the number of days to get the mean.
+  - 'Set up the calculation: (62 + 65 + 68 + 71 + 74) divided by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five temperatures together to find the total.
+      expression: 62 + 65 + 68 + 71 + 74 = 340
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the mean.
+      expression: 340 / 5 = 68
+      common_mistake: null
+    final_answer: 68 degrees
+  random_seed: 1327102
+  rendered_question: 'A meteorologist records the daily high temperature for five days: 62, 65, 68, 71,
+    and 74 degrees. What is the mean temperature over these five days?'
+  option_a: 70 degrees
+  option_b: 68 degrees
+  option_c: 340 degrees
+  option_d: 67 degrees
+  correct_option: b
+- question_template_id: authored-statistics_advanced-d1-1507100
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - stopped_after_addition_without_dividing
+  - rounded_mean_incorrectly
+  - used_four_instead_of_five_scores
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student took five quizzes this term and scored 72, 78, 84, 90, and 96 points. What is the mean
+    quiz score?
+  context_block: null
+  answer_expression: x = (72 + 78 + 84 + 90 + 96) / 5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, you need to combine all five quiz scores into one total.
+  - Add the five scores together, then count how many scores there are.
+  - Divide the total by the number of quizzes to find the mean.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five quiz scores together.
+      expression: 72 + 78 + 84 + 90 + 96 = 420
+      common_mistake: null
+    - step_number: 2
+      explanation: Count the number of quiz scores.
+      expression: '5'
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the total by the number of scores to find the mean.
+      expression: 420 / 5 = 84
+      common_mistake: null
+    final_answer: 84 points
+  random_seed: 1507100
+  rendered_question: A student took five quizzes this term and scored 72, 78, 84, 90, and 96 points. What
+    is the mean quiz score?
+  option_a: 86 points
+  option_b: 84 points
+  option_c: 85 points
+  option_d: 420 points
+  correct_option: b
+- question_template_id: authored-statistics_advanced-d1-1507101
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confused_mean_with_median
+  - used_wrong_divisor_for_mean
+  - stopped_at_sum_before_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A coffee shop owner records the number of customers each day for five days: 45, 52, 58, 63, and
+    67. What is the mean number of customers per day?'
+  context_block: null
+  answer_expression: x = (45 + 52 + 58 + 63 + 67) / 5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, add all five daily customer counts together.
+  - Once you have the total, divide by the number of days to find the average.
+  - 'Set up the calculation: add 45, 52, 58, 63, and 67, then divide that sum by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five daily customer counts together.
+      expression: 45 + 52 + 58 + 63 + 67 = 285
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the mean.
+      expression: 285 / 5 = 57
+      common_mistake: null
+    final_answer: 57 customers
+  random_seed: 1507101
+  rendered_question: 'A coffee shop owner records the number of customers each day for five days: 45,
+    52, 58, 63, and 67. What is the mean number of customers per day?'
+  option_a: 57 customers
+  option_b: 58 customers
+  option_c: 56.5 customers
+  option_d: 285 customers
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d3-1327300
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_by_four_instead_of_five
+  - reported_sum_instead_of_mean
+  - confused_mean_with_median
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A gardener harvests tomatoes over five consecutive days. She picks 20 tomatoes on day one, 25
+    on day two, 30 on day three, 35 on day four, and 40 on day five. What is the mean number of tomatoes
+    harvested per day?
+  context_block: null
+  answer_expression: Eq(x, (20 + 25 + 30 + 35 + 40) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, first add all five daily harvest amounts together.
+  - Divide the total number of tomatoes by the number of days to find the average per day.
+  - 'Set up the calculation: add 20, 25, 30, 35, and 40, then divide that sum by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five daily harvest amounts to find the total number of tomatoes.
+      expression: 20 + 25 + 30 + 35 + 40 = 150
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the mean.
+      expression: 150 / 5 = 30
+      common_mistake: null
+    final_answer: 30 tomatoes
+  random_seed: 1327300
+  rendered_question: A gardener harvests tomatoes over five consecutive days. She picks 20 tomatoes on
+    day one, 25 on day two, 30 on day three, 35 on day four, and 40 on day five. What is the mean number
+    of tomatoes harvested per day?
+  option_a: 32 tomatoes
+  option_b: 150 tomatoes
+  option_c: 30 tomatoes
+  option_d: 35 tomatoes
+  correct_option: c
+- question_template_id: authored-statistics_advanced-d3-1327302
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_by_incorrect_count
+  - reported_sum_instead_of_mean
+  - found_median_instead_of_mean
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker decorates 16, 22, 19, 28, and 25 cakes over five consecutive days. What is the mean number
+    of cakes decorated per day?
+  context_block: null
+  answer_expression: Eq(x, (16 + 22 + 19 + 28 + 25) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The mean is the total number of cakes decorated divided by the number of days.
+  - 'Add all five daily counts together first: 16 + 22 + 19 + 28 + 25.'
+  - Now divide that sum by 5 to find the mean.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Add the number of cakes decorated each day: 16 + 22 + 19 + 28 + 25.'
+      expression: 16 + 22 + 19 + 28 + 25 = 110
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the mean.
+      expression: 110 / 5 = 22
+      common_mistake: null
+    final_answer: 22 cakes
+  random_seed: 1327302
+  rendered_question: A baker decorates 16, 22, 19, 28, and 25 cakes over five consecutive days. What is
+    the mean number of cakes decorated per day?
+  option_a: 21 cakes
+  option_b: 22.5 cakes
+  option_c: 22 cakes
+  option_d: 110 cakes
+  correct_option: c
+- question_template_id: authored-statistics_advanced-d2-1327200
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confused_mean_with_mode_or_maximum
+  - computed_sum_but_forgot_to_divide
+  - confused_mean_with_median_or_picked_middle_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A runner tracks her daily distances over five training days: 15 km, 18 km, 21 km, 24 km, and
+    27 km. What is the mean distance she ran per day?'
+  context_block: null
+  answer_expression: Eq(x, (15 + 18 + 21 + 24 + 27) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean distance, first add up all five daily distances.
+  - Once you have the total distance, divide by the number of days to find the average.
+  - Write the sum 15 + 18 + 21 + 24 + 27, then divide that result by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five daily distances together.
+      expression: 15 + 18 + 21 + 24 + 27 = 105
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total distance by the number of days to find the mean.
+      expression: 105 / 5 = 21
+      common_mistake: null
+    final_answer: 21 kilometers
+  random_seed: 1327200
+  rendered_question: 'A runner tracks her daily distances over five training days: 15 km, 18 km, 21 km,
+    24 km, and 27 km. What is the mean distance she ran per day?'
+  option_a: 21 kilometers
+  option_b: 24 kilometers
+  option_c: 27 kilometers
+  option_d: 105 kilometers
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d2-1327201
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Calculated the median instead of the mean
+  - Stopped at the sum without dividing by the count
+  - Added the values and divided by 6 instead of 5
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A barista tracks the number of coffee drinks sold over five consecutive days: 32, 38, 44, 50,
+    and 56 drinks. What is the mean number of drinks sold per day?'
+  context_block: null
+  answer_expression: Eq(x, (32 + 38 + 44 + 50 + 56) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, you need to add all the daily sales together first.
+  - Once you have the total number of drinks sold, divide that total by the number of days.
+  - 'Set up the calculation: add 32, 38, 44, 50, and 56, then divide by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five daily sales together.
+      expression: 32 + 38 + 44 + 50 + 56 = 220
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the mean.
+      expression: 220 / 5 = 44
+      common_mistake: null
+    final_answer: 44 drinks
+  random_seed: 1327201
+  rendered_question: 'A barista tracks the number of coffee drinks sold over five consecutive days: 32,
+    38, 44, 50, and 56 drinks. What is the mean number of drinks sold per day?'
+  option_a: 44 drinks
+  option_b: 43 drinks
+  option_c: 220 drinks
+  option_d: 45 drinks
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d2-1327202
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - arithmetic_error_in_addition
+  - stopped_after_summing_without_dividing
+  - confused_mean_with_median
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A librarian tracks the number of books checked out over five consecutive days: 45, 52, 48, 55,
+    and 60 books. What is the mean number of books checked out per day?'
+  context_block: null
+  answer_expression: Eq(x, (45 + 52 + 48 + 55 + 60) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, you need to add up all the daily totals first.
+  - Once you have the total number of books checked out across all five days, divide by the number of
+    days.
+  - 'Set up the calculation: add 45, 52, 48, 55, and 60, then divide that sum by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five daily totals together.
+      expression: 45 + 52 + 48 + 55 + 60 = 260
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the sum by the number of days to find the mean.
+      expression: 260 / 5 = 52
+      common_mistake: null
+    final_answer: 52 books
+  random_seed: 1327202
+  rendered_question: 'A librarian tracks the number of books checked out over five consecutive days: 45,
+    52, 48, 55, and 60 books. What is the mean number of books checked out per day?'
+  option_a: 53 books
+  option_b: 52 books
+  option_c: 55 books
+  option_d: 260 books
+  correct_option: b
+- question_template_id: authored-statistics_advanced-d2-1507200
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Found the median instead of the mean
+  - Stopped at the sum without dividing by the count
+  - Divided by the wrong count or made an arithmetic error
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: 'A delivery driver records the number of packages delivered each day over five days: 34, 38, 42,
+    46, and 50 packages. What is the mean number of packages delivered per day?'
+  context_block: null
+  answer_expression: x = (34 + 38 + 42 + 46 + 50) / 5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, you need to add all five daily delivery counts together.
+  - Once you have the total number of packages for all five days, divide that sum by the number of days.
+  - The total is 34 + 38 + 42 + 46 + 50; divide that result by 5 to find the mean.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the five daily package counts together.
+      expression: 34 + 38 + 42 + 46 + 50 = 210
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the mean.
+      expression: 210 / 5 = 42
+      common_mistake: null
+    final_answer: 42 packages
+  random_seed: 1507200
+  rendered_question: 'A delivery driver records the number of packages delivered each day over five days:
+    34, 38, 42, 46, and 50 packages. What is the mean number of packages delivered per day?'
+  option_a: 44 packages
+  option_b: 210 packages
+  option_c: 41 packages
+  option_d: 42 packages
+  correct_option: d
+- question_template_id: authored-statistics_advanced-d2-1507201
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_at_sum_without_dividing
+  - divided_by_wrong_count
+  - reported_mode_instead_of_mean
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A basketball player scored 18, 22, 26, 30, and 34 points over five games. What is the mean number
+    of points scored per game?
+  context_block: null
+  answer_expression: x = (18 + 22 + 26 + 30 + 34) / 5
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean, you need to add all five game scores together.
+  - Once you have the total, divide that sum by the number of games played.
+  - 'Set up the calculation: add 18, 22, 26, 30, and 34, then divide by 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five game scores together.
+      expression: 18 + 22 + 26 + 30 + 34 = 130
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of games to find the mean.
+      expression: 130 / 5 = 26
+      common_mistake: null
+    final_answer: 26 points
+  random_seed: 1507201
+  rendered_question: A basketball player scored 18, 22, 26, 30, and 34 points over five games. What is
+    the mean number of points scored per game?
+  option_a: 130 points
+  option_b: 26 points
+  option_c: 34 points
+  option_d: 27 points
+  correct_option: b
+- question_template_id: authored-statistics_advanced-d3-1327301
+  topic_id: statistics_advanced
+  skill_id: stat_descriptive
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_median_instead_of_mean
+  - summed_values_without_dividing_by_count
+  - multiplied_sum_by_count_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cyclist tracks her daily rides for five days. She cycles 12 kilometers on Monday, 18 kilometers
+    on Tuesday, 15 kilometers on Wednesday, 20 kilometers on Thursday, and 25 kilometers on Friday. What
+    is the mean distance she cycles per day?
+  context_block: null
+  answer_expression: Eq(x, (12 + 18 + 15 + 20 + 25) / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find the mean distance, first add up all the distances cycled over the five days.
+  - The total distance is 12 + 18 + 15 + 20 + 25 kilometers. The mean is that total divided by the number
+    of days.
+  - Divide the sum by 5 to find the mean distance per day.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add all five daily distances to find the total distance cycled.
+      expression: 12 + 18 + 15 + 20 + 25 = 90
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total distance by the number of days to find the mean distance per day.
+      expression: 90 / 5 = 18
+      common_mistake: null
+    final_answer: 18 kilometers
+  random_seed: 1327301
+  rendered_question: A cyclist tracks her daily rides for five days. She cycles 12 kilometers on Monday,
+    18 kilometers on Tuesday, 15 kilometers on Wednesday, 20 kilometers on Thursday, and 25 kilometers
+    on Friday. What is the mean distance she cycles per day?
+  option_a: 18 kilometers
+  option_b: 450 kilometers
+  option_c: 17 kilometers
+  option_d: 20 kilometers
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d2-1328200
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - used_favorable_over_unfavorable_instead_of_total
+  - used_unfavorable_over_total
+  - assumed_equal_probability_without_counting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bag contains 5 red marbles and 7 blue marbles. Kai draws one marble at random. What is the probability
+    that the marble is red?
+  context_block: null
+  answer_expression: Eq(p, Rational(5, 12))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Count how many marbles are in the bag in total.
+  - Probability is the number of favorable outcomes divided by the total number of possible outcomes.
+  - Write the number of red marbles over the total number of marbles.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the total number of marbles in the bag.
+      expression: 5 + 7 = 12
+      common_mistake: null
+    - step_number: 2
+      explanation: Identify the number of favorable outcomes, which is the number of red marbles.
+      expression: '5'
+      common_mistake: null
+    - step_number: 3
+      explanation: The probability of an event is the number of favorable outcomes divided by the total
+        number of outcomes.
+      expression: p = 5/12
+      common_mistake: null
+    final_answer: 5/12
+  random_seed: 1328200
+  rendered_question: A bag contains 5 red marbles and 7 blue marbles. Kai draws one marble at random.
+    What is the probability that the marble is red?
+  option_a: 5/12
+  option_b: 5/7
+  option_c: 1/2
+  option_d: 7/12
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d2-1328202
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - used_favorable_over_other_instead_of_favorable_over_total
+  - used_unfavorable_over_total
+  - assumed_equal_probability_without_counting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A jar contains 7 pennies and 9 nickels. You select one coin at random without looking. What is
+    the probability that you select a penny?
+  context_block: null
+  answer_expression: Eq(p, Rational(7, 16))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many coins are in the jar altogether?
+  - Probability is the number of favorable outcomes divided by the total number of possible outcomes.
+  - Write the number of pennies over the total number of coins.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the total number of coins in the jar by adding pennies and nickels.
+      expression: 7 + 9 = 16
+      common_mistake: null
+    - step_number: 2
+      explanation: The probability of selecting a penny is the number of pennies divided by the total
+        number of coins.
+      expression: 7/16
+      common_mistake: null
+    final_answer: 7/16
+  random_seed: 1328202
+  rendered_question: A jar contains 7 pennies and 9 nickels. You select one coin at random without looking.
+    What is the probability that you select a penny?
+  option_a: 7/16
+  option_b: 9/16
+  option_c: 7/9
+  option_d: 1/2
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d2-1508200
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - used_non_favorable_count_as_denominator
+  - computed_complement_probability
+  - assumed_equal_probability_without_counting
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A box contains 5 red marbles and 7 blue marbles. One marble is drawn at random. What is the probability
+    that it is red?
+  context_block: null
+  answer_expression: Eq(x, Rational(5, 12))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many marbles are in the box altogether?
+  - Probability is the number of favorable outcomes divided by the total number of possible outcomes.
+  - Count the red marbles and divide by the total number of marbles.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the total number of marbles by adding red and blue marbles.
+      expression: 5 + 7 = 12
+      common_mistake: null
+    - step_number: 2
+      explanation: The probability of drawing a red marble is the number of red marbles divided by the
+        total.
+      expression: 5/12
+      common_mistake: null
+    final_answer: 5/12
+  random_seed: 1508200
+  rendered_question: A box contains 5 red marbles and 7 blue marbles. One marble is drawn at random. What
+    is the probability that it is red?
+  option_a: 5/12
+  option_b: 1/2
+  option_c: 7/12
+  option_d: 5/7
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d2-1508201
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - used_unfavorable_outcomes_instead_of_favorable
+  - divided_favorable_by_unfavorable_instead_of_total
+  - divided_favorable_by_total_minus_one
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A jar contains 3 green candies and 7 purple candies. One candy is randomly selected. What is the
+    probability of selecting a green candy?
+  context_block: null
+  answer_expression: Eq(x, Rational(3, 10))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many candies are in the jar altogether?
+  - Probability is the number of favorable outcomes divided by the total number of possible outcomes.
+  - Count the green candies for the numerator and the total candies for the denominator.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the total number of candies in the jar.
+      expression: 3 + 7 = 10
+      common_mistake: null
+    - step_number: 2
+      explanation: Identify the number of green candies.
+      expression: '3'
+      common_mistake: null
+    - step_number: 3
+      explanation: The probability of selecting a green candy is the number of green candies divided by
+        the total number of candies.
+      expression: 3/10
+      common_mistake: null
+    final_answer: 3/10
+  random_seed: 1508201
+  rendered_question: A jar contains 3 green candies and 7 purple candies. One candy is randomly selected.
+    What is the probability of selecting a green candy?
+  option_a: 7/10
+  option_b: 1/3
+  option_c: 3/7
+  option_d: 3/10
+  correct_option: d
+- question_template_id: authored-statistics_advanced-d4-1328400
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - used_only_given_categories_ignored_total
+  - simplified_wrong_fraction
+  - used_complement_count
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A shelf contains 6 mystery books and 10 romance books. One book is selected at random. What is
+    the probability that it is a mystery book?
+  context_block: null
+  answer_expression: Eq(p, Rational(3, 8))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Count all the books on the shelf to find the total number of possible outcomes.
+  - The probability of an event is the number of favorable outcomes divided by the total number of outcomes.
+  - Write the fraction with mystery books in the numerator and the total number of books in the denominator,
+    then simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the total number of books on the shelf.
+      expression: 6 + 10 = 16
+      common_mistake: null
+    - step_number: 2
+      explanation: The number of favorable outcomes (mystery books) is 6.
+      expression: '6'
+      common_mistake: null
+    - step_number: 3
+      explanation: The probability is the number of mystery books divided by the total number of books.
+      expression: p = 6/16
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing both numerator and denominator by their greatest
+        common divisor, 2.
+      expression: p = 3/8
+      common_mistake: null
+    final_answer: 3/8
+  random_seed: 1328400
+  rendered_question: A shelf contains 6 mystery books and 10 romance books. One book is selected at random.
+    What is the probability that it is a mystery book?
+  option_a: 6/10
+  option_b: 3/8
+  option_c: 3/5
+  option_d: 10/16
+  correct_option: b
+- question_template_id: authored-statistics_advanced-d4-1328402
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - solved_for_one_event_only
+  - solved_for_die_only
+  - added_probabilities_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A jar contains 8 red marbles and 12 blue marbles. Maya picks one marble at random, then rolls
+    a standard six-sided die. What is the probability that she picks a red marble and rolls a prime number?
+  context_block: ''
+  answer_expression: Eq(p, Rational(2, 5) * Rational(1, 2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Find the probability of each event separately: picking a red marble from the jar, and rolling a prime
+    number on a standard die.'
+  - The jar has 20 marbles total, and the prime numbers on a die from 1 to 6 are 2, 3, and 5.
+  - Multiply the two probabilities together because the events are independent.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Count the total number of marbles in the jar. There are 8 red and 12 blue, so the total
+        is 8 + 12 = 20.
+      expression: 8 + 12 = 20
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the probability of picking a red marble by dividing the number of red marbles
+        by the total.
+      expression: 8/20 = 2/5
+      common_mistake: null
+    - step_number: 3
+      explanation: Identify the prime numbers on a standard six-sided die numbered 1 through 6. The primes
+        are 2, 3, and 5.
+      expression: 'Primes: 2, 3, 5'
+      common_mistake: null
+    - step_number: 4
+      explanation: Find the probability of rolling a prime number by dividing the count of prime outcomes
+        by the total number of outcomes.
+      expression: 3/6 = 1/2
+      common_mistake: null
+    - step_number: 5
+      explanation: Because the marble pick and die roll are independent, multiply the two probabilities
+        to get the combined probability.
+      expression: (2/5) × (1/2) = 2/10 = 1/5
+      common_mistake: null
+    final_answer: 1/5
+  random_seed: 1328402
+  rendered_question: A jar contains 8 red marbles and 12 blue marbles. Maya picks one marble at random,
+    then rolls a standard six-sided die. What is the probability that she picks a red marble and rolls
+    a prime number?
+  option_a: 1/2
+  option_b: 7/10
+  option_c: 2/5
+  option_d: 1/5
+  correct_option: d
+- question_template_id: authored-statistics_advanced-d4-1508401
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_probabilities_instead_of_multiplying
+  - arithmetic_error_in_numerator
+  - treated_as_single_uniform_selection
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A librarian randomly selects one DVD from a shelf of 7 DVDs for the monthly screening. Three of
+    the DVDs are documentaries and four are feature films. She also randomly picks one day from the week
+    for the screening. Two days of the week are weekend days. What is the probability she selects a documentary
+    and a weekend day?
+  context_block: null
+  answer_expression: Eq(x, Rational(3, 7) * Rational(2, 7))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Find the probability of each event separately: selecting a documentary from the shelf, and selecting
+    a weekend day from the week.'
+  - The probability of selecting a documentary is 3 out of 7; the probability of selecting a weekend day
+    is 2 out of 7.
+  - Since the two choices are independent, multiply the two probabilities together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The probability of selecting a documentary from the 7 DVDs is the number of documentaries
+        divided by the total number of DVDs.
+      expression: 3/7
+      common_mistake: null
+    - step_number: 2
+      explanation: The probability of selecting a weekend day from the 7 days is the number of weekend
+        days divided by the total number of days.
+      expression: 2/7
+      common_mistake: null
+    - step_number: 3
+      explanation: Since the two selections are independent events, we multiply the two probabilities
+        to find the probability of both occurring.
+      expression: (3/7) * (2/7) = 6/49
+      common_mistake: null
+    final_answer: 6/49
+  random_seed: 1508401
+  rendered_question: A librarian randomly selects one DVD from a shelf of 7 DVDs for the monthly screening.
+    Three of the DVDs are documentaries and four are feature films. She also randomly picks one day from
+    the week for the screening. Two days of the week are weekend days. What is the probability she selects
+    a documentary and a weekend day?
+  option_a: 5/49
+  option_b: 1/7
+  option_c: 6/49
+  option_d: 5/14
+  correct_option: c
+- question_template_id: authored-statistics_advanced-d3-1328302
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_probabilities_instead_of_multiplying
+  - added_denominators_when_multiplying_fractions
+  - used_only_first_probability
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student randomly guesses the answer to a multiple-choice question with 4 options and then guesses
+    the answer to a true/false question. What is the probability that both guesses are correct?
+  context_block: null
+  answer_expression: Eq(p, Rational(1, 4) * Rational(1, 2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What is the probability of guessing correctly on each question separately?
+  - The probability of both events happening is found by multiplying the individual probabilities together.
+  - Multiply the probability of guessing the multiple-choice question correctly by the probability of
+    guessing the true/false question correctly.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the probability of guessing correctly on the multiple-choice question with 4 options.
+      expression: 1/4
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the probability of guessing correctly on the true/false question with 2 options.
+      expression: 1/2
+      common_mistake: null
+    - step_number: 3
+      explanation: Since the two guesses are independent events, multiply the two probabilities to find
+        the probability that both are correct.
+      expression: (1/4) * (1/2) = 1/8
+      common_mistake: null
+    final_answer: 1/8
+  random_seed: 1328302
+  rendered_question: A student randomly guesses the answer to a multiple-choice question with 4 options
+    and then guesses the answer to a true/false question. What is the probability that both guesses are
+    correct?
+  option_a: 1/8
+  option_b: 3/4
+  option_c: 1/6
+  option_d: 1/4
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d3-1508300
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_unsimplified_fraction_or_miscounted_die_outcomes
+  - added_probabilities_instead_of_multiplying
+  - misunderstood_probability_scale_or_assumed_certainty
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A game has two stages. In the first stage you flip a fair coin. In the second stage you roll a
+    standard six-sided die. What is the probability that you flip heads and roll an even number?
+  context_block: ''
+  answer_expression: Eq(x, Rational(1, 2) * Rational(1, 2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the probability of getting heads on the coin flip, then find the probability of rolling an even
+    number on the die.
+  - The coin has probability 1/2 for heads. The die shows 2, 4, or 6 (three out of six outcomes) for an
+    even number.
+  - For independent events, multiply the two probabilities together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The probability of flipping heads on a fair coin is 1/2.
+      expression: P(heads) = 1/2
+      common_mistake: null
+    - step_number: 2
+      explanation: 'A standard six-sided die has three even outcomes: 2, 4, and 6. So the probability
+        of rolling an even number is 3/6, which simplifies to 1/2.'
+      expression: P(even) = 3/6 = 1/2
+      common_mistake: null
+    - step_number: 3
+      explanation: Since the coin flip and die roll are independent events, multiply their probabilities
+        to find the probability that both occur.
+      expression: P(heads and even) = (1/2) * (1/2) = 1/4
+      common_mistake: null
+    final_answer: 1/4
+  random_seed: 1508300
+  rendered_question: A game has two stages. In the first stage you flip a fair coin. In the second stage
+    you roll a standard six-sided die. What is the probability that you flip heads and roll an even number?
+  option_a: 1/2
+  option_b: '1'
+  option_c: 1/3
+  option_d: 1/4
+  correct_option: d
+- question_template_id: authored-statistics_advanced-d3-1508301
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_numerators_and_denominators_instead_of_multiplying
+  - multiplied_numerators_but_added_denominators
+  - ignored_denominators_when_multiplying_probabilities
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A game booth has a spinner divided into 5 equal sections, with 2 sections marked "Win". After
+    spinning, the player draws one ticket from a bag that contains 9 tickets, of which 2 are prize tickets.
+    What is the probability that the player lands on a winning section and draws a prize ticket?
+  context_block: null
+  answer_expression: Eq(x, Rational(2, 5) * Rational(2, 9))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Find the probability of each event separately: landing on a winning section and drawing a prize ticket.'
+  - For independent events, multiply the probability of the first event by the probability of the second
+    event.
+  - Write the product of the two probabilities as a single fraction, then simplify if needed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The spinner has 5 equal sections, and 2 are marked Win, so the probability of landing
+        on a winning section is 2 out of 5.
+      expression: P(win) = 2/5
+      common_mistake: null
+    - step_number: 2
+      explanation: The bag contains 9 tickets, and 2 are prize tickets, so the probability of drawing
+        a prize ticket is 2 out of 9.
+      expression: P(prize) = 2/9
+      common_mistake: null
+    - step_number: 3
+      explanation: Since the two events are independent, we multiply their probabilities to find the probability
+        that both occur.
+      expression: (2/5) × (2/9) = 4/45
+      common_mistake: null
+    final_answer: 4/45
+  random_seed: 1508301
+  rendered_question: A game booth has a spinner divided into 5 equal sections, with 2 sections marked
+    "Win". After spinning, the player draws one ticket from a bag that contains 9 tickets, of which 2
+    are prize tickets. What is the probability that the player lands on a winning section and draws a
+    prize ticket?
+  option_a: 4/45
+  option_b: 2/7
+  option_c: 4/14
+  option_d: 4/5
+  correct_option: a
+- question_template_id: authored-statistics_advanced-d4-1328401
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_only_one_probability_ignored_second_event
+  - added_numerators_and_denominators_instead_of_multiplying_fractions
+  - multiplied_without_simplifying_or_added_probabilities_instead
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher sets up a game for a class event. A box contains 5 blue pens and 10 black pens. A student
+    will randomly draw one pen from the box, then spin a wheel divided into 6 equal sections, where 3
+    sections say "Win" and 3 say "Try Again." What is the probability that a student draws a blue pen
+    and the spinner lands on a winning section?
+  context_block: null
+  answer_expression: Eq(p, Rational(1, 3) * Rational(1, 2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find the probability of drawing a blue pen from the box, then find the probability the spinner
+    lands on a winning section.
+  - When two events are independent, the probability that both happen is the product of their individual
+    probabilities.
+  - Multiply the probability of drawing blue by the probability of winning on the spinner.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The box contains 5 blue pens and 10 black pens, for a total of 15 pens. The probability
+        of drawing a blue pen is the number of blue pens divided by the total number of pens.
+      expression: P(blue) = 5/15 = 1/3
+      common_mistake: null
+    - step_number: 2
+      explanation: The spinner has 6 equal sections, and 3 of them are winning sections. The probability
+        of landing on a winning section is the number of winning sections divided by the total number
+        of sections.
+      expression: P(win) = 3/6 = 1/2
+      common_mistake: null
+    - step_number: 3
+      explanation: Since the pen draw and the spinner are independent events, the probability that both
+        occur is the product of their individual probabilities.
+      expression: P(blue and win) = (1/3) * (1/2) = 1/6
+      common_mistake: null
+    final_answer: 1/6
+  random_seed: 1328401
+  rendered_question: A teacher sets up a game for a class event. A box contains 5 blue pens and 10 black
+    pens. A student will randomly draw one pen from the box, then spin a wheel divided into 6 equal sections,
+    where 3 sections say "Win" and 3 say "Try Again." What is the probability that a student draws a blue
+    pen and the spinner lands on a winning section?
+  option_a: 8/15
+  option_b: 1/6
+  option_c: 5/12
+  option_d: 1/2
+  correct_option: b
+- question_template_id: authored-statistics_advanced-d4-1508400
+  topic_id: statistics_advanced
+  skill_id: stat_probability
+  grade_band: 11-12
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_probabilities_instead_of_multiplying
+  - added_outcomes_and_totals_as_single_sample_space
+  - calculated_only_one_event_probability
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher randomly selects one student from a class of 8 students to read aloud. Three of the
+    students are girls and five are boys. At the same time, the teacher randomly picks one book from a
+    shelf of 5 books. Two of the books are fiction and three are non-fiction. What is the probability
+    that the selected student is a girl AND the selected book is fiction?
+  context_block: null
+  answer_expression: Eq(x, Rational(3, 8) * Rational(2, 5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What is the probability of selecting a girl from the 8 students, and what is the probability of selecting
+    a fiction book from the 5 books?
+  - Since the student and book are chosen independently, multiply the two individual probabilities together.
+  - Write the product of 3/8 and 2/5, then simplify the resulting fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the probability that the selected student is a girl. There are 3 girls out of
+        8 students.
+      expression: 3/8
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the probability that the selected book is fiction. There are 2 fiction books out
+        of 5 books.
+      expression: 2/5
+      common_mistake: null
+    - step_number: 3
+      explanation: Because the two selections are independent, multiply the probabilities to find the
+        probability that both events occur.
+      expression: (3/8) * (2/5) = 6/40
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing numerator and denominator by their greatest common
+        divisor, which is 2.
+      expression: 6/40 = 3/20
+      common_mistake: null
+    final_answer: 3/20
+  random_seed: 1508400
+  rendered_question: A teacher randomly selects one student from a class of 8 students to read aloud.
+    Three of the students are girls and five are boys. At the same time, the teacher randomly picks one
+    book from a shelf of 5 books. Two of the books are fiction and three are non-fiction. What is the
+    probability that the selected student is a girl AND the selected book is fiction?
+  option_a: 3/8
+  option_b: 1/8
+  option_c: 3/20
+  option_d: 5/13
+  correct_option: c

@@ -20,6 +20,8 @@ templates:
     did the two of them eat altogether?
   context_block: null
   answer_expression: Eq(x, 2/8 + 3/8)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The pizza was cut into equal slices, and both fractions count slices of that same size.
   - When the bottom numbers already match, the size of a slice does not change - only how many slices
@@ -68,6 +70,8 @@ templates:
     fraction of a liter is still in the jug?
   context_block: null
   answer_expression: Eq(x + 4/10, 7/10)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Juice was taken out of the jug, so what is left is smaller than what started there.
   - Both amounts are written in tenths, so you are taking away pieces of the same size.
@@ -116,6 +120,8 @@ templates:
     of the roll did she use over the two days, written in lowest terms?
   context_block: null
   answer_expression: Eq(x, 5/12 + 4/12)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Both days are measured in twelfths of one roll, so the pieces being counted are the same size.
   - Add the top numbers and keep 12 underneath, then look at whether that fraction can be written with
@@ -164,6 +170,8 @@ templates:
     much milk does the whole recipe need, written in lowest terms?
   context_block: null
   answer_expression: Eq(x, 3/8 + 1/8)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The recipe needs milk in two places, and the question asks for the amount for the whole recipe.
   - Both amounts are in eighths of a cup, so add the top numbers and keep 8 underneath.
@@ -211,6 +219,8 @@ templates:
     ribbon now, written in lowest terms?
   context_block: null
   answer_expression: Eq(x + 3/12, 9/12)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Ribbon was cut off, so what is left is shorter than what Mia started with.
   - Both lengths are written in twelfths, so take the top numbers away from each other and keep 12 underneath.
@@ -258,6 +268,8 @@ templates:
     book has the class read so far, written in lowest terms?
   context_block: null
   answer_expression: Eq(x, 2/9 + 3/9 + 1/9)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Three separate amounts were read, and the question asks how much has been read in total.
   - All three amounts are in ninths, so the pieces are the same size and only the top numbers change.
@@ -305,6 +317,8 @@ templates:
     written in lowest terms?
   context_block: null
   answer_expression: Eq(5/16 + x, 13/16)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The two readings describe the tank before and after the second stage, and the question asks about
     the change between them.
@@ -353,6 +367,8 @@ templates:
     and walked back 3/10 of the trail. How far along the trail is Ben now, written in lowest terms?
   context_block: null
   answer_expression: Eq(x, 7/10 - 3/10)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Walking back toward the start moves Ben to a smaller distance, not a larger one.
   - Both distances are in tenths, so the pieces are the same size and only the top numbers change.
@@ -400,6 +416,8 @@ templates:
     What fraction of the jar is filled now?
   context_block: null
   answer_expression: Eq(x, 1/6 + 1/2)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Sixths of a jar and halves of a jar are different sizes, so they cannot be counted together yet.
   - Three sixths fill the same space as one half, so the half can be rewritten in sixths.
@@ -446,6 +464,8 @@ templates:
     What fraction of the bottle did Nina drink altogether?
   context_block: null
   answer_expression: Eq(x, 1/2 + 1/4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - A half of a bottle and a quarter of a bottle are different sizes, so they cannot be counted together
     yet.
@@ -494,6 +514,8 @@ templates:
     did he read over the whole weekend, written in lowest terms?
   context_block: null
   answer_expression: Eq(x, 1/2 + 1/6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The two fractions count pieces of different sizes, so they cannot be combined as they are written.
   - Six is a multiple of two, so only one of the two fractions needs to be rewritten.
@@ -545,6 +567,8 @@ templates:
     of a liter is left in the jug?
   context_block: null
   answer_expression: Eq(x + 1/4, 7/8)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Juice is being poured out, so the amount left is what the jug started with minus what left it.
   - Eight is a multiple of four, so rewrite the quarter as eighths before subtracting.
@@ -591,6 +615,8 @@ templates:
     the album is filled now?
   context_block: null
   answer_expression: Eq(x, 2/5 + 3/10)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Fifths and tenths are pieces of different sizes, so the two amounts cannot be added as they stand.
   - Ten is a multiple of five, so rewriting the fifths as tenths is enough.
@@ -637,6 +663,8 @@ templates:
     of an hour did she spend on homework in total?
   context_block: null
   answer_expression: Eq(x, 1/3 + 1/4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Thirds and quarters are different sizes, so the two times cannot be added as they are written.
   - Neither 3 nor 4 divides the other, so neither one can serve as the shared bottom number on its own.
@@ -684,6 +712,8 @@ templates:
     the full tank was used during the day?
   context_block: null
   answer_expression: Eq(5/6 - x, 1/2)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The amount used is the difference between how full the tank was in the morning and in the evening.
   - Sixths and halves are different sizes, so rewrite one of them before subtracting.
@@ -734,6 +764,8 @@ templates:
     of a liter is still in the jug?
   context_block: null
   answer_expression: Eq(x + 1/4, 5/6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Lemonade was poured out, so what is left is less than what the jug started with.
   - Sixths and quarters are different sizes, so both amounts need rewriting over a shared bottom number.
@@ -780,6 +812,8 @@ templates:
     What fraction of the tank's capacity was used during the day?
   context_block: null
   answer_expression: Eq(1/3 + x, 7/8)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The two readings describe the tank before and after, and the question asks about the amount used between
     them.
@@ -831,6 +865,8 @@ templates:
     fraction of the course is still left to run?
   context_block: null
   answer_expression: Eq(2/5 + 1/3 + x, 1)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The whole course counts as one, and two parts of it have already been run.
   - Combine the two parts that were run first, which needs a shared bottom number because fifths and thirds
@@ -882,6 +918,8 @@ templates:
     student chose the zoo. What fraction of the students chose the zoo?
   context_block: null
   answer_expression: Eq(1/3 + 1/4 + x, 1)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every student made one choice, so the whole group counts as one.
   - Combine the two named groups first, which needs a shared bottom number because thirds and quarters
@@ -928,6 +966,8 @@ templates:
   stem: A bag holds 6 apples. Leo takes half of the apples to school. How many apples does Leo take?
   context_block: null
   answer_expression: Eq(x, 1/2 * 6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Taking half of a group means splitting it into two equal parts and keeping one of them.
   - Six apples split into two equal parts gives two groups of the same size.
@@ -970,6 +1010,8 @@ templates:
     of oats does he need in total?
   context_block: null
   answer_expression: Eq(x, 4*2/3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Making four batches means using that same amount of oats four times over.
   - Repeated addition of the same fraction is the same as multiplying it by the whole number.
@@ -1017,6 +1059,8 @@ templates:
     What is their total length in meters, written in lowest terms?
   context_block: null
   answer_expression: Eq(x, 3*5/6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Three ribbons of the same length means that length used three times over.
   - Multiply the top number by 3 and leave the bottom number alone, because the size of each sixth does
@@ -1063,6 +1107,8 @@ templates:
   stem: A jar holds 24 beads. Priya uses 3/8 of the beads for a bracelet. How many beads does Priya use?
   context_block: null
   answer_expression: Eq(x, 3/8 * 24)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Taking eighths of a group means splitting the group into eight equal parts first.
   - Twenty-four beads split into eight equal parts gives eight groups of the same size.
@@ -1109,6 +1155,8 @@ templates:
     need?
   context_block: null
   answer_expression: Eq(x, 1/2 * 2/3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Making half of a recipe means taking half of every amount it lists, not taking an amount away.
   - Half of a fraction is found by multiplying the two fractions together.
@@ -1155,6 +1203,8 @@ templates:
     bed in square meters, written in lowest terms?
   context_block: null
   answer_expression: Eq(x, 3/4 * 2/3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The area of a rectangle comes from combining its two side lengths, not from adding them.
   - Multiplying fractions does not need a common bottom number, which makes it more direct than adding
@@ -1202,6 +1252,8 @@ templates:
     piece?
   context_block: null
   answer_expression: Eq(x * 3, 3/4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Cutting into equal pieces splits the rope, so each piece is shorter than the whole rope.
   - Three equal pieces together make up the whole rope, so three of the answer make 3/4 of a meter.
@@ -1248,6 +1300,8 @@ templates:
     fill?
   context_block: null
   answer_expression: Eq(x * 1/6, 5/6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The question asks how many box sized portions fit inside the amount the baker has.
   - Both amounts are measured in sixths of a tray, so the boxes and the rolls come in the same size pieces.
@@ -1294,6 +1348,8 @@ templates:
     whole batches can be made from a full jar?
   context_block: null
   answer_expression: Eq(x*1/8, 3/4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The question asks how many small amounts fit inside a larger one, which is a division.
   - Dividing by a fraction can be turned into a multiplication by turning the second fraction over.
@@ -1341,6 +1397,8 @@ templates:
     birdhouses can he paint with the paint he has?
   context_block: null
   answer_expression: Eq(x*1/6, 2/3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Ask how many of the smaller amounts fit inside the amount of paint that is left.
   - That question is a division, and dividing by a fraction becomes multiplying by that fraction turned
@@ -1389,6 +1447,8 @@ templates:
     field is planted with corn?
   context_block: null
   answer_expression: Eq(x, 5/6 * 2/5)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The second fraction describes a part of the planted area, not a part of the whole field.
   - Taking a fraction of a fraction is done by multiplying the two together.

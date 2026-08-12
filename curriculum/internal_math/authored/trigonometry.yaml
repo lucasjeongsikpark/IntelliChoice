@@ -1,0 +1,775 @@
+curriculum_version: '2026.1'
+topic_id: trigonometry
+templates:
+- question_template_id: authored-trigonometry-d5-1285500
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_hypotenuse_as_answer
+  - used_cosine_instead_of_sine
+  - doubled_instead_of_halving
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A cable car travels 36 meters along its inclined cable at a 30-degree angle with the horizontal.
+    What is the vertical rise in meters?
+  context_block: null
+  answer_expression: x = 36 * sin(pi/6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw a right triangle where the hypotenuse is the cable and the vertical leg is the rise you need.
+  - The sine of the angle relates the opposite side (vertical rise) to the hypotenuse (cable length).
+  - Write the equation vertical rise = 36 × sin(30°) and evaluate sin(30°).
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The cable car's path forms the hypotenuse of a right triangle. The vertical rise is
+        the side opposite the 30-degree angle.
+      expression: vertical rise = 36 * sin(30°)
+      common_mistake: null
+    - step_number: 2
+      explanation: Recall that sin(30°) = 1/2.
+      expression: vertical rise = 36 * (1/2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply to find the vertical rise.
+      expression: vertical rise = 18
+      common_mistake: null
+    final_answer: 18 meters
+  random_seed: 1285500
+  rendered_question: A cable car travels 36 meters along its inclined cable at a 30-degree angle with
+    the horizontal. What is the vertical rise in meters?
+  option_a: 36 meters
+  option_b: 18 meters
+  option_c: 72 meters
+  option_d: 31.2 meters
+  correct_option: b
+- question_template_id: authored-trigonometry-d5-1285501
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_sine_instead_of_cosine
+  - ignored_trigonometric_ratio
+  - applied_ratio_twice
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A 48-meter ladder leans against a wall, making a 60-degree angle with the ground. How far is the
+    base of the ladder from the wall?
+  context_block: ''
+  answer_expression: x = 48 * cos(pi/3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw a right triangle where the ladder is the hypotenuse, the ground is the adjacent side to the 60-degree
+    angle, and the wall is the opposite side.
+  - The cosine of an angle equals the adjacent side divided by the hypotenuse, so cos(60°) = distance/48.
+  - Evaluate cos(60°) using the special angle value, then multiply by 48 to find the distance.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ladder, wall, and ground form a right triangle. The ladder is the hypotenuse with
+        length 48 meters, and the angle between the ladder and the ground is 60 degrees.
+      expression: hypotenuse = 48, angle = 60°
+      common_mistake: null
+    - step_number: 2
+      explanation: 'The horizontal distance from the wall is the side adjacent to the 60-degree angle.
+        We use cosine: cos(60°) = adjacent / hypotenuse.'
+      expression: cos(60°) = x / 48
+      common_mistake: null
+    - step_number: 3
+      explanation: The special angle cos(60°) equals 1/2.
+      expression: cos(60°) = 1/2
+      common_mistake: null
+    - step_number: 4
+      explanation: Substitute cos(60°) = 1/2 into the equation and solve for x.
+      expression: x = 48 * (1/2)
+      common_mistake: null
+    - step_number: 5
+      explanation: Multiply 48 by 1/2 to find the horizontal distance.
+      expression: x = 24
+      common_mistake: null
+    final_answer: 24 meters
+  random_seed: 1285501
+  rendered_question: A 48-meter ladder leans against a wall, making a 60-degree angle with the ground.
+    How far is the base of the ladder from the wall?
+  option_a: 12 meters
+  option_b: 41.6 meters
+  option_c: 48 meters
+  option_d: 24 meters
+  correct_option: d
+- question_template_id: authored-trigonometry-d5-1285502
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_sine_instead_of_tangent
+  - multiplied_by_tan_instead_of_dividing
+  - doubled_the_vertical_rise
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A hiking trail climbs a hill at a constant angle of 45 degrees above the horizontal. If the vertical
+    rise is 25 metres, what is the horizontal distance covered along the ground?
+  context_block: null
+  answer_expression: x = 25 / tan(pi/4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw a right triangle where the angle with the ground is 45°, the vertical side is 25 metres, and
+    the horizontal side is unknown.
+  - Recall which trigonometric ratio relates the opposite side and the adjacent side when you know the
+    angle.
+  - Write tan(45°) = 25/x, then solve for x by multiplying both sides by x and dividing by tan(45°).
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Sketch a right triangle with the angle of elevation 45°, vertical rise 25 m (opposite),
+        and unknown horizontal distance x (adjacent).
+      expression: tan(45°) = opposite / adjacent = 25 / x
+      common_mistake: null
+    - step_number: 2
+      explanation: Recall that tan(45°) equals 1.
+      expression: 1 = 25 / x
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply both sides by x to isolate it.
+      expression: x = 25 / 1
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the division.
+      expression: x = 25
+      common_mistake: null
+    final_answer: 25 metres
+  random_seed: 1285502
+  rendered_question: A hiking trail climbs a hill at a constant angle of 45 degrees above the horizontal.
+    If the vertical rise is 25 metres, what is the horizontal distance covered along the ground?
+  option_a: 17.7 metres
+  option_b: 50 metres
+  option_c: 25 metres
+  option_d: 35.4 metres
+  correct_option: c
+- question_template_id: authored-trigonometry-d3-1285302
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - used_hypotenuse_instead_of_sine
+  - used_cosine_instead_of_sine
+  - used_tangent_instead_of_sine
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A playground slide is 30 meters long and makes a 30-degree angle with the horizontal ground. What
+    is the vertical drop of the slide?
+  context_block: null
+  answer_expression: Eq(x, 30 * sin(pi/6))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw a right triangle where the slide is the hypotenuse, and the vertical drop is the side opposite
+    the 30-degree angle.
+  - The sine function relates an angle to the ratio of the opposite side over the hypotenuse.
+  - 'Set up the equation: sin(30°) equals the vertical drop divided by 30, then solve for the drop.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the right triangle: the slide is the hypotenuse (30 m), the vertical drop
+        is the opposite side to the 30-degree angle, and the horizontal distance is the adjacent side.'
+      expression: hypotenuse = 30, angle = 30°
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the sine function, which is opposite over hypotenuse: sin(30°) = vertical drop
+        / 30.'
+      expression: sin(30°) = x / 30
+      common_mistake: null
+    - step_number: 3
+      explanation: Recall that sin(30°) equals 1/2.
+      expression: 1/2 = x / 30
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply both sides by 30 to solve for x.
+      expression: x = 30 * (1/2)
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify the product.
+      expression: x = 15
+      common_mistake: null
+    final_answer: 15 meters
+  random_seed: 1285302
+  rendered_question: A playground slide is 30 meters long and makes a 30-degree angle with the horizontal
+    ground. What is the vertical drop of the slide?
+  option_a: 30 meters
+  option_b: 15 meters
+  option_c: 17.32 meters
+  option_d: 25.98 meters
+  correct_option: b
+- question_template_id: authored-trigonometry-d4-1285402
+  topic_id: trigonometry
+  skill_id: trig_functions
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - confused_adjacent_with_hypotenuse
+  - multiplied_by_ratio_instead_of_dividing
+  - used_decimal_approximation_instead_of_exact_value
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A surveyor stands 28 meters from the base of a tall building and measures the angle from the ground
+    to the top as 60 degrees. She calculates the straight-line distance from her position to the top of
+    the building. What is that distance?
+  context_block: null
+  answer_expression: x = 28 / cos(pi/3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw a right triangle with the horizontal distance as the adjacent side and the straight-line distance
+    as the hypotenuse.
+  - The cosine of 60 degrees relates the adjacent side (28 meters) to the hypotenuse (the distance you
+    need).
+  - Write the equation cos(60°) = 28 / x, then use the fact that cos(60°) = 1/2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the triangle formed: the horizontal distance is 28 meters, the angle is 60
+        degrees, and the unknown straight-line distance x is the hypotenuse.'
+      expression: cos(60°) = adjacent / hypotenuse = 28 / x
+      common_mistake: null
+    - step_number: 2
+      explanation: Recall that cos(60°) equals 1/2.
+      expression: 1/2 = 28 / x
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply both sides by x to clear the denominator.
+      expression: x * (1/2) = 28
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply both sides by 2 to isolate x.
+      expression: x = 28 * 2 = 56
+      common_mistake: null
+    final_answer: 56 meters
+  random_seed: 1285402
+  rendered_question: A surveyor stands 28 meters from the base of a tall building and measures the angle
+    from the ground to the top as 60 degrees. She calculates the straight-line distance from her position
+    to the top of the building. What is that distance?
+  option_a: 28 meters
+  option_b: 56 meters
+  option_c: 14 meters
+  option_d: 48.5 meters
+  correct_option: b
+- question_template_id: authored-trigonometry-d1-1286100
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_adjacent_instead_of_opposite
+  - confused_sine_with_tangent
+  - confused_sine_with_cotangent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A ladder leans against a wall, forming a right triangle with the ground. The ladder is 13 meters
+    long and the base is 5 meters from the wall. What is the sine of the angle the ladder makes with the
+    ground?
+  context_block: null
+  answer_expression: Eq(x, 12/13)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Draw the right triangle and label the ladder as the hypotenuse, the ground distance as one leg, and
+    the wall height as the other leg.
+  - Use the Pythagorean theorem to find the wall height, then recall that sine of an angle equals the
+    opposite side divided by the hypotenuse.
+  - For the angle at the ground, the opposite side is the wall height and the hypotenuse is the ladder
+    length.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the right triangle: the ladder is the hypotenuse (13 m), the ground distance
+        is the adjacent side (5 m), and the wall height is the opposite side (unknown).'
+      expression: hypotenuse = 13, adjacent = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the Pythagorean theorem to find the opposite side: opposite² + adjacent² = hypotenuse².'
+      expression: opposite² + 5² = 13²
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Simplify: opposite² + 25 = 169.'
+      expression: opposite² = 144
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Take the square root: opposite = 12.'
+      expression: opposite = 12
+      common_mistake: null
+    - step_number: 5
+      explanation: Sine of the angle at the ground equals opposite divided by hypotenuse.
+      expression: sin(angle) = 12/13
+      common_mistake: null
+    final_answer: 12/13
+  random_seed: 1286100
+  rendered_question: A ladder leans against a wall, forming a right triangle with the ground. The ladder
+    is 13 meters long and the base is 5 meters from the wall. What is the sine of the angle the ladder
+    makes with the ground?
+  option_a: 12/5
+  option_b: 12/13
+  option_c: 5/12
+  option_d: 5/13
+  correct_option: b
+- question_template_id: authored-trigonometry-d1-1286101
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - inverted_tangent_ratio
+  - used_hypotenuse_instead_of_adjacent
+  - added_sides_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A carpenter is building a roof truss. One section forms a right triangle where the vertical support
+    is 3 feet tall and the horizontal base is 4 feet long. What is the tangent of the angle at the base?
+  context_block: null
+  answer_expression: Eq(x, 3/4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify which side is opposite the angle and which is adjacent to it.
+  - Tangent of an angle is the ratio of the opposite side to the adjacent side.
+  - Write the ratio as opposite over adjacent using the two given lengths.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The angle at the base has the vertical support (3 feet) as the opposite side and the
+        horizontal base (4 feet) as the adjacent side.
+      expression: opposite = 3, adjacent = 4
+      common_mistake: null
+    - step_number: 2
+      explanation: The tangent ratio is defined as opposite divided by adjacent.
+      expression: tan(angle) = 3/4
+      common_mistake: null
+    final_answer: 3/4
+  random_seed: 1286101
+  rendered_question: A carpenter is building a roof truss. One section forms a right triangle where the
+    vertical support is 3 feet tall and the horizontal base is 4 feet long. What is the tangent of the
+    angle at the base?
+  option_a: 5/3
+  option_b: '7'
+  option_c: 3/4
+  option_d: 4/3
+  correct_option: c
+- question_template_id: authored-trigonometry-d1-1286102
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - inverted_ratio
+  - confused_sine_and_cosine
+  - forgot_to_divide_by_hypotenuse
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A wheelchair ramp forms a right triangle with the ground. The horizontal distance from the base
+    of the ramp to the building is 8 feet, and the length of the ramp itself is 10 feet. What is cos(C),
+    where C is the angle the ramp makes with the ground?
+  context_block: null
+  answer_expression: Eq(x, 8/10)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify which side of the triangle is adjacent to angle C and which side is the hypotenuse.
+  - Cosine of an angle in a right triangle is the ratio of the adjacent side to the hypotenuse.
+  - Write the ratio using the horizontal distance and the ramp length, then simplify the fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In the right triangle, angle C is at the bottom of the ramp where it meets the ground.
+        The horizontal distance of 8 feet is adjacent to angle C, and the ramp length of 10 feet is the
+        hypotenuse.
+      expression: adjacent = 8, hypotenuse = 10
+      common_mistake: null
+    - step_number: 2
+      explanation: The cosine of angle C is the ratio of the adjacent side to the hypotenuse.
+      expression: cos(C) = 8/10
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the fraction by dividing both numerator and denominator by their greatest
+        common divisor, which is 2.
+      expression: cos(C) = 4/5
+      common_mistake: null
+    final_answer: 4/5
+  random_seed: 1286102
+  rendered_question: A wheelchair ramp forms a right triangle with the ground. The horizontal distance
+    from the base of the ramp to the building is 8 feet, and the length of the ramp itself is 10 feet.
+    What is cos(C), where C is the angle the ramp makes with the ground?
+  option_a: '8'
+  option_b: 5/4
+  option_c: 3/5
+  option_d: 4/5
+  correct_option: d
+- question_template_id: authored-trigonometry-d2-1286201
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_opposite_instead_of_adjacent
+  - used_tangent_ratio_instead_of_cosine
+  - inverted_the_ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A playground slide forms a right triangle with the ground. The horizontal distance from the base
+    of the ladder to the bottom of the slide is 5 feet, and the slide itself is 13 feet long. What is
+    the cosine of the angle at the bottom of the slide?
+  context_block: null
+  answer_expression: Eq(x, 5/13)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Identify which sides of the triangle you know: the horizontal distance and the slide length.'
+  - Cosine of an angle equals the adjacent side divided by the hypotenuse.
+  - Set up the ratio with 5 feet as the adjacent side and 13 feet as the hypotenuse.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the sides relative to the angle at the bottom of the slide. The horizontal
+        distance of 5 feet is adjacent to this angle, and the slide length of 13 feet is the hypotenuse.
+      expression: adjacent = 5, hypotenuse = 13
+      common_mistake: null
+    - step_number: 2
+      explanation: Recall that cosine of an angle in a right triangle is the ratio of the adjacent side
+        to the hypotenuse.
+      expression: cos(angle) = adjacent / hypotenuse
+      common_mistake: null
+    - step_number: 3
+      explanation: Substitute the known values into the cosine ratio.
+      expression: cos(angle) = 5 / 13
+      common_mistake: null
+    final_answer: 5/13
+  random_seed: 1286201
+  rendered_question: A playground slide forms a right triangle with the ground. The horizontal distance
+    from the base of the ladder to the bottom of the slide is 5 feet, and the slide itself is 13 feet
+    long. What is the cosine of the angle at the bottom of the slide?
+  option_a: 13/5
+  option_b: 5/12
+  option_c: 12/13
+  option_d: 5/13
+  correct_option: d
+- question_template_id: authored-trigonometry-d2-1286202
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_cosine_instead_of_sine
+  - confused_height_with_hypotenuse
+  - incorrect_trigonometric_calculation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A support cable for a flagpole forms a right triangle with the ground. The cable is 26 meters
+    long and makes a 30° angle with the ground. What is the vertical height where the cable attaches to
+    the pole?
+  context_block: null
+  answer_expression: Eq(x, 26*sin(pi/6))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify which side of the triangle you need to find and which sides or angles you already know.
+  - 'The cable is the hypotenuse, the height is opposite the 30° angle, so use the sine ratio: sin(30°)
+    = opposite/hypotenuse.'
+  - Write the equation sin(30°) = height/26, then multiply both sides by 26 and evaluate sin(30°).
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The cable is the hypotenuse (26 meters), the angle with the ground is 30°, and the
+        vertical height is the side opposite that angle.
+      expression: sin(30°) = opposite/hypotenuse
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute the known values into the sine ratio.
+      expression: sin(30°) = h/26
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply both sides by 26 to isolate h.
+      expression: h = 26 × sin(30°)
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate sin(30°) which equals 0.5.
+      expression: h = 26 × 0.5
+      common_mistake: null
+    - step_number: 5
+      explanation: Multiply to find the height.
+      expression: h = 13
+      common_mistake: null
+    final_answer: 13 meters
+  random_seed: 1286202
+  rendered_question: A support cable for a flagpole forms a right triangle with the ground. The cable
+    is 26 meters long and makes a 30° angle with the ground. What is the vertical height where the cable
+    attaches to the pole?
+  option_a: 22.5 meters
+  option_b: 26 meters
+  option_c: 15 meters
+  option_d: 13 meters
+  correct_option: d
+- question_template_id: authored-trigonometry-d3-1286300
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_sine_instead_of_cosine
+  - used_hypotenuse_as_answer
+  - used_tangent_instead_of_cosine
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A kite is flying at the end of a 24-meter string that forms a 60-degree angle with the ground.
+    What is the horizontal distance from the person holding the string to the point on the ground directly
+    below the kite?
+  context_block: ''
+  answer_expression: Eq(x, 24*cos(pi/3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Sketch the right triangle. The string is the hypotenuse, the angle with the ground is given, and you
+    need the side along the ground.
+  - Which trigonometric ratio connects the hypotenuse and the side adjacent to the 60-degree angle?
+  - 'Write the equation using cosine: the adjacent side equals the hypotenuse times the cosine of 60 degrees.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the sides and angle in the right triangle. The string is the hypotenuse (24
+        meters), the angle with the ground is 60 degrees, and the horizontal distance is the side adjacent
+        to the 60-degree angle.
+      expression: hypotenuse = 24, angle = 60°, adjacent = x
+      common_mistake: null
+    - step_number: 2
+      explanation: 'The cosine ratio relates the adjacent side to the hypotenuse: cos(angle) = adjacent
+        / hypotenuse.'
+      expression: cos(60°) = x / 24
+      common_mistake: null
+    - step_number: 3
+      explanation: Evaluate cos(60°), which equals 1/2.
+      expression: 1/2 = x / 24
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply both sides by 24 to solve for x.
+      expression: x = 24 * (1/2)
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify the multiplication.
+      expression: x = 12
+      common_mistake: null
+    final_answer: 12 meters
+  random_seed: 1286300
+  rendered_question: A kite is flying at the end of a 24-meter string that forms a 60-degree angle with
+    the ground. What is the horizontal distance from the person holding the string to the point on the
+    ground directly below the kite?
+  option_a: 13.9 meters
+  option_b: 24 meters
+  option_c: 12 meters
+  option_d: 20.8 meters
+  correct_option: c
+- question_template_id: authored-trigonometry-d3-1286301
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - used_cosine_instead_of_sine
+  - multiplied_angle_by_hypotenuse
+  - confused_reciprocal_ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A roof support beam is 18 feet long and forms a 30° angle with the horizontal floor. What is the
+    vertical height from the floor to the top of the beam?
+  context_block: null
+  answer_expression: Eq(x, 18*sin(pi/6))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Sketch the right triangle with the beam as the hypotenuse, the floor as the base, and the vertical
+    height as the side you need.
+  - The angle given is between the beam and the floor. Which trigonometric ratio relates the opposite
+    side to the hypotenuse?
+  - Write sin(30°) = height / 18, then solve for the height.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the right triangle. The beam is the hypotenuse (18 feet), the angle at the
+        floor is 30°, and the vertical height is the side opposite that angle.
+      expression: sin(30°) = opposite / hypotenuse
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute the known values into the sine ratio.
+      expression: sin(30°) = x / 18
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply both sides by 18 to solve for x.
+      expression: x = 18 * sin(30°)
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluate sin(30°), which equals 0.5.
+      expression: x = 18 * 0.5
+      common_mistake: null
+    - step_number: 5
+      explanation: Multiply to find the height.
+      expression: x = 9
+      common_mistake: null
+    final_answer: 9 feet
+  random_seed: 1286301
+  rendered_question: A roof support beam is 18 feet long and forms a 30° angle with the horizontal floor.
+    What is the vertical height from the floor to the top of the beam?
+  option_a: 6 feet
+  option_b: 15.6 feet
+  option_c: 36 feet
+  option_d: 9 feet
+  correct_option: d
+- question_template_id: authored-trigonometry-d3-1286302
+  topic_id: trigonometry
+  skill_id: trig_ratios
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_hypotenuse_as_answer
+  - forgot_final_division_in_simplification
+  - divided_prematurely_or_used_wrong_ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A wheelchair ramp rises from the ground to a doorway. The ramp is 20√2 feet long and makes a 45°
+    angle with the horizontal ground. What is the vertical height of the doorway above the ground?
+  context_block: ''
+  answer_expression: Eq(x, 20*sqrt(2)*sin(pi/4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify which side of the right triangle the vertical height represents and which side the ramp length
+    represents.
+  - The ramp is the hypotenuse and the height is the side opposite the 45° angle. Sine relates the opposite
+    side to the hypotenuse.
+  - Write sin(45°) = height / (20√2), then solve for the height by multiplying both sides by 20√2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ramp, ground, and wall form a right triangle. The ramp is the hypotenuse with length
+        20√2 feet, and the vertical height is the side opposite the 45° angle.
+      expression: hypotenuse = 20√2, angle = 45°
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the sine ratio: sin(angle) = opposite / hypotenuse. So sin(45°) = height / (20√2).'
+      expression: sin(45°) = x / (20√2)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply both sides by 20√2 to isolate the height: x = 20√2 · sin(45°).'
+      expression: x = 20√2 · sin(45°)
+      common_mistake: null
+    - step_number: 4
+      explanation: Recall that sin(45°) = √2/2. Substitute this value.
+      expression: x = 20√2 · (√2/2)
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Multiply: 20√2 · √2 = 20 · 2 = 40, then divide by 2.'
+      expression: x = 40/2 = 20
+      common_mistake: null
+    final_answer: 20 feet
+  random_seed: 1286302
+  rendered_question: A wheelchair ramp rises from the ground to a doorway. The ramp is 20√2 feet long
+    and makes a 45° angle with the horizontal ground. What is the vertical height of the doorway above
+    the ground?
+  option_a: 20√2 feet
+  option_b: 10√2 feet
+  option_c: 20 feet
+  option_d: 40 feet
+  correct_option: c

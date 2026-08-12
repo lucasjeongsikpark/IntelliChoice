@@ -23,6 +23,8 @@ templates:
     teacher have left?
   context_block: null
   answer_expression: Eq(x, 4000 - 237)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by writing down how many stickers the teacher began with and how many were given away.
   - To find how many remain, subtract the number given away from the starting amount.
@@ -74,6 +76,8 @@ templates:
   stem: A store has 3000 ribbons in stock and sells 456 of them. How many ribbons remain?
   context_block: null
   answer_expression: x = 3000 - 456
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many ribbons did the store start with, and how many were sold?
   - To find the number remaining, subtract the number sold from the number the store had at the start.
@@ -126,6 +130,8 @@ templates:
     friend Ava. How many cards does Jamal have left?
   context_block: ''
   answer_expression: Eq(x, 85 - 23 - 18)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the number of cards Jamal had at the beginning.
   - Subtract the cards he gave to Leo first, then subtract the cards he gave to Ava from what remains.
@@ -171,6 +177,8 @@ templates:
     does she have left?
   context_block: null
   answer_expression: Eq(x, 70 - 40)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what happens to the total number of stickers when some are given away.
   - You started with 70 stickers and gave away 40. Write a subtraction to show what is left.
@@ -216,6 +224,8 @@ templates:
   stem: A student has 68 stickers and gives away 35 of them. How many stickers does the student have left?
   context_block: null
   answer_expression: Eq(x, 68 - 35)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the total number of stickers the student has and think about what happens when some are
     given away.
@@ -271,6 +281,8 @@ templates:
     Liam have left?
   context_block: null
   answer_expression: Eq(x, 68 - 24)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what happens to Liam's total when he gives marbles away.
   - You need to subtract the number of marbles he gave away from the number he started with.
@@ -324,6 +336,8 @@ templates:
     does Luca have left?
   context_block: null
   answer_expression: Eq(x, 63 - 28)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many stickers did Luca start with, and how many did he give away?
   - You need to subtract the number of stickers given away from the number he started with.
@@ -378,6 +392,8 @@ templates:
     left?
   context_block: ''
   answer_expression: Eq(x, 43 - 18)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the number of stickers Liam had at the beginning.
   - You need to subtract the number of stickers he gave away from the total he started with.

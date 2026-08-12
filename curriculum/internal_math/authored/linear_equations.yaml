@@ -24,6 +24,8 @@ templates:
     how many minutes will they have planted the same total number of flowers?
   context_block: null
   answer_expression: Eq(5 + 3*t, 11 + 2*t)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for each gardener's total flowers after t minutes.
   - Asha has 5 + 3*t and Jasmine has 11 + 2*t. The question asks when those totals are equal.
@@ -88,6 +90,8 @@ templates:
     they have read the same number of pages?
   context_block: null
   answer_expression: Eq(20 + 5*d, 32 + 3*d)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Lena and Jake are both reading the same book. How many pages has each read so far?
   - Lena’s total pages are her starting pages plus 5 pages per day. Jake’s total is his starting pages
@@ -156,6 +160,8 @@ templates:
     how many weeks will they have the same number of cards?
   context_block: null
   answer_expression: Eq(120 - 5*w, 5*w)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Liam has some trading cards, and Emma starts with none. Think about how many each has after Liam gives
     away 5 cards every week.
@@ -217,6 +223,8 @@ templates:
     \ him the same amount of money?"
   context_block: null
   answer_expression: Eq(80 - 4*x, 20 + x)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how much money Leo has under each offer after buying x items.
   - 'Write an expression for the first offer: $80 minus $4 for each item. Write one for the second: $20
@@ -287,6 +295,8 @@ templates:
   context_block: Marcus and his sister are saving money for a gift. They want to know when they’ll have
     the same amount, so they can combine their savings.
   answer_expression: Eq(24 + 3*m, 6 + 5*m)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how much money each has after m weeks. Write an expression for Marcus and one for his
     sister.
@@ -359,6 +369,8 @@ templates:
     of emojis?
   context_block: null
   answer_expression: Eq(12 + 5*t, 3 + 8*t)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for each friend's total emojis after t turns.
   - Priya has 12 + 5t and Kai has 3 + 8t. The question asks when those are equal.
@@ -422,6 +434,8 @@ templates:
     miles do the two taxis cost the same?
   context_block: null
   answer_expression: Eq(5 + 3*x, 11 + 2*x)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for each taxi's cost after x miles.
   - Taxi A costs 5 + 3x and Taxi B costs 11 + 2x. Set them equal.
@@ -476,6 +490,8 @@ templates:
     2 liters per minute. After how many minutes do the pools hold the same amount?
   context_block: null
   answer_expression: Eq(40 + 4*x, 100 - 2*x)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Pool A gains water each minute while Pool B loses water each minute.
   - Write 40 + 4x for Pool A and 100 - 2x for Pool B, then set them equal.
@@ -530,6 +546,8 @@ templates:
     amount of money under both options?'
   context_block: null
   answer_expression: 4*w + 6 = 2*w + 18
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for how much money Maya will have after w weeks under each option.
   - Under Option 1 she has 6 + 4w dollars, and under Option 2 she has 18 + 2w dollars. When are these
@@ -598,6 +616,8 @@ templates:
     After how many weeks will they have saved the same amount of money?
   context_block: null
   answer_expression: 6*w = 20 + 2*w
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - After w weeks, write how much money Alex will have and how much Jamie will have.
   - Alex has 6w dollars and Jamie has 20 + 2w dollars. When are those equal?
@@ -663,6 +683,8 @@ templates:
     amount of water?
   context_block: null
   answer_expression: Eq(8*t, 20 + 3*t)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for how much water each tank has after t minutes.
   - Tank A has 8*t liters and Tank B has 20 + 3*t liters. These should be equal.
@@ -729,6 +751,8 @@ templates:
     They end up with the same number of items. How many items are in one of Mia’s groups?
   context_block: null
   answer_expression: Eq(2*(w + 4) + 1, 3*w + 3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many items Leo packs in one group.
   - Leo has 2 of those groups, plus one extra item. Write an expression for his total.
@@ -797,6 +821,8 @@ templates:
     each pack?
   context_block: null
   answer_expression: Eq(3*(x + 5) + 2*x, 35)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many cards are in one pack. Each pack has x regular cards plus 5 bonus cards.
   - Three packs mean 3 times the cards in one pack, and then 2x individual cards are added to that total.
@@ -857,6 +883,8 @@ templates:
     stickers, giving 40 stickers in all. How many stickers of the counted kind are in each bag?
   context_block: null
   answer_expression: Eq(4*(x + 3) + 8, 40)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - 'First figure out how many stickers are in one bag: x plus 3.'
   - Four bags hold 4 times (x + 3), and then 8 loose stickers are added.
@@ -912,6 +940,8 @@ templates:
     there are 37 people in all. How many runners of the counted kind are on each team?
   context_block: null
   answer_expression: Eq(3*(2*x + 1) + 4, 37)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - 'Work out how many people are on one team: 2x runners plus 1 captain.'
   - Three teams hold 3 times (2x + 1), and then 4 referees are added.
@@ -966,6 +996,8 @@ templates:
     checks her wallet and sees she has $20 left. For how many days has she been buying lunch?
   context_block: null
   answer_expression: Eq(60 - 5*x, 20)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how much money Maya has left after each day.
   - Write an expression for the amount of money Maya has after x days.
@@ -1024,6 +1056,8 @@ templates:
     take until he has only $12 left.
   context_block: null
   answer_expression: Eq(60 - 4*w, 12)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Determine how much money the student has left after each week.
   - Write an equation showing the starting amount minus the weekly spending equals the remaining money.
@@ -1083,6 +1117,8 @@ templates:
     at 42 percent?
   context_block: null
   answer_expression: Eq(90 - 8*x, 42)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how the battery level changes each hour, starting from 90 percent.
   - Write an expression for the battery level after x hours, then set it equal to 42.
@@ -1137,6 +1173,8 @@ templates:
     club before anyone left?
   context_block: null
   answer_expression: Eq(x - x/3, 18)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - If one third of the members left, what fraction of the members stayed?
   - Two thirds of the members are still there, and that equals 18.
@@ -1192,6 +1230,8 @@ templates:
   context_block: A student is saving money to buy small toys. Each toy costs the same amount, and the
     student wants to know how many toys they can buy without spending all their money.
   answer_expression: Eq(50 - 3*x, 14)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how much money the person has left after buying each item.
   - Write an expression for the money left after buying x items.
@@ -1255,6 +1295,8 @@ templates:
     8 liters of soup?
   context_block: null
   answer_expression: Eq(2 + 0.5*t, 8)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for how much soup is in the pot after t minutes.
   - The chef starts with 2 liters and adds 0.5 liters per minute, so after t minutes she has 2 + 0.5*t
@@ -1317,6 +1359,8 @@ templates:
     take for Liam to have run as far as Zoe?
   context_block: null
   answer_expression: Eq(1200 + 150*m, 2400)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Liam has already run part of his workout. Think about how many metres he runs each minute.
   - Write an expression for how far Liam has run after m more minutes.
@@ -1376,6 +1420,8 @@ templates:
     of ribbon. How many days will it take Lena to finish the banner?
   context_block: null
   answer_expression: Eq(3/4 + 1/8 * d, 3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Lena has already sewn part of the dance banner. How much ribbon does she add each day, and how much
     does she start with?
@@ -1442,6 +1488,8 @@ templates:
     move. After how many moves will they have the same score?
   context_block: null
   answer_expression: 36 - 3*x = 12 + x
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - After x moves, Maya's score is 36 - 3x and Kai's score is 12 + x. You need to find when those are
     equal.
@@ -1518,6 +1566,8 @@ templates:
     how many hours the two shelves will have the same number of games.
   context_block: null
   answer_expression: Eq(60 - 3*m, 2*m)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many games are on each shelf after m hours.
   - The main shelf starts with 60 games and loses 3 games every hour.
@@ -1582,6 +1632,8 @@ templates:
   context_block: Liam collects baseball cards. After buying 5 more cards, he counts his collection and
     finds he has 12 cards altogether.
   answer_expression: Eq(x + 5, 12)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many cards Liam had before he bought the new ones.
   - If he added 5 cards and now has 12, how can you write that as an equation?
@@ -1635,6 +1687,8 @@ templates:
     still has 12 sunflowers left, how many sunflowers did she start with?
   context_block: null
   answer_expression: Eq(s, 5*8 + 12)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many sunflowers are in 5 rows if each row has 8?
   - Five rows means 5 times 8 equals 40 sunflowers planted. What about the leftover ones?
@@ -1682,6 +1736,8 @@ templates:
     much had they saved before the chores?
   context_block: null
   answer_expression: Eq(x + 12, 28)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how much money the student had before the chores.
   - The total after adding the chores money is $28. What operation connects the starting amount and the
@@ -1732,6 +1788,8 @@ templates:
     selling large popcorn buckets on Friday. How many buckets did they sell?
   context_block: null
   answer_expression: Eq(8*b, 144)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an equation where b is the number of buckets. What does 8b represent?
   - The total revenue is 8b = 144. You need to undo the multiplication by 8.
@@ -1782,6 +1840,8 @@ templates:
     on it. After Liam adds some more books, there are 28 books in total. How many books did Liam add?
   context_block: null
   answer_expression: Eq(b + 15, 28)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many books are on the shelf before any new ones are added.
   - If the shelf ends up with 28 books after adding some, what equation connects the starting amount,
@@ -1834,6 +1894,8 @@ templates:
     20 cups ready for tomorrow. How many cups should he make?
   context_block: null
   answer_expression: Eq(x + (15 - 7), 20)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - First, figure out how many cups Liam has left at the end of today.
   - The number of cups he needs to make plus the cups he has left should equal 20.
@@ -1894,6 +1956,8 @@ templates:
     water. He adds 5 litres of water every day. How many days will it take for the tank to have 70 litres?
   context_block: Liam’s father is setting up for a community event.
   answer_expression: Eq(30 + 5*d, 70)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how much water is already in the tank and how much is added each day.
   - Liam’s father starts with 30 litres and adds 5 litres every day. How much water is in the tank after
@@ -1958,6 +2022,8 @@ templates:
     with toppings and pays $18 total. How many toppings did Marcus add to his pizza?
   context_block: null
   answer_expression: Eq(8 + 2*t, 18)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for Marcus's total bill using the base price and the cost per topping.
   - The total bill is 8 + 2t and it equals 18. Use subtraction to get the topping cost alone.
@@ -2017,6 +2083,8 @@ templates:
     5 markers, how many groups can the teacher make?
   context_block: null
   answer_expression: Eq(5*x, 20)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many markers the teacher started with and how many each group received.
   - If each group gets 5 markers, how can you express the total number of groups using the total markers?
@@ -2068,6 +2136,8 @@ templates:
     one notebook cost?
   context_block: null
   answer_expression: Eq(3*x + 5, 26)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What is the total cost made up of?
   - How much does each notebook contribute to the total cost?
@@ -2127,6 +2197,8 @@ templates:
   context_block: Keisha is preparing for a running challenge. Each week, her training increases by a fixed
     amount.
   answer_expression: Eq(2 + 1*(w - 1), 10)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - What distance does Keisha run in week 1? What about week 2? Week 3?
   - She runs 2 km in week 1, then 3 km in week 2, then 4 km in week 3, and so on. Her distance in week
@@ -2183,6 +2255,8 @@ templates:
     does Liam need to build?
   context_block: null
   answer_expression: Eq(9 + 3*l, 30)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many blocks Liam has used so far and how many he still needs.
   - The total blocks needed are 30, and he already has 9 stacked. How many blocks remain to be added?
@@ -2235,6 +2309,8 @@ templates:
     costs $50. How many weeks will Jamie need to save?
   context_block: null
   answer_expression: Eq(20 + 5*w, 50)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how much money the student has saved after each week.
   - Write an expression for the total savings after w weeks.
@@ -2294,6 +2370,8 @@ templates:
     has Liam been saving?
   context_block: null
   answer_expression: Eq(5*w + 8, 48)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how Liam’s total savings grow each week. What two amounts make up his $48?
   - Liam’s total savings come from the $8 he already had plus $5 for each week he worked.
@@ -2356,6 +2434,8 @@ templates:
   context_block: A video game awards points for completing levels and bonus points for special achievements.
     Maya wants to understand how many levels she completed based on her final score.
   answer_expression: Eq(15*n + 12, 72)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an equation where n is the number of levels Maya completed. What two parts make up her total
     of 72 points?
@@ -2421,6 +2501,8 @@ templates:
     packs of stickers did he buy?
   context_block: null
   answer_expression: Eq(5*x + 12, 42)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what you pay for first and how much money remains.
   - After buying the $12 item, the remaining money is spent on identical $5 items.
@@ -2480,6 +2562,8 @@ templates:
     to buy?
   context_block: null
   answer_expression: Eq(3*18 - 25, extra_straws)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many straws does Liam need for an 18 cm bridge?
   - The total straws needed are 3 straws per cm times 18 cm.
@@ -2534,6 +2618,8 @@ templates:
     the total is 3 times the cold brew amount. How many liters of hot coffee did they add?
   context_block: null
   answer_expression: Eq(8 + h, 3*8)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The total mixture is 3 times the amount of cold brew. What is 3 × 8?
   - 'If the total is 24 liters and 8 liters are cold brew, write an equation: 8 + h = 24.'
@@ -2584,6 +2670,8 @@ templates:
     use. Marco spends a total of $63 on his class. How many pieces of clay did he use?
   context_block: null
   answer_expression: Eq(15 + 8*p, 63)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an equation for Marco's total cost using a variable for the number of clay pieces.
   - His total is the flat fee plus the cost per piece times the number of pieces. Set it equal to $63.
@@ -2641,6 +2729,8 @@ templates:
   stem: Maya has $60 and spends $8 each week at the arcade. After how many weeks will she have $12 left?
   context_block: null
   answer_expression: 60 - 8*w = 12
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for how much money Maya has left after w weeks.
   - She starts with 60 and subtracts 8 each week, so after w weeks she has 60 - 8w. Set that equal to
@@ -2697,6 +2787,8 @@ templates:
     boxes of these items. After selling, 20 items remain. How many items were in each box?
   context_block: null
   answer_expression: Eq(50 - 5*x, 20)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many items the store started with and how many were sold.
   - Each of the 5 boxes holds the same number of items. How many items were sold in total?
@@ -2757,6 +2849,8 @@ templates:
     goal?
   context_block: null
   answer_expression: Eq(27 + 3*n, 48)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Write an expression for how far Marcus will have run after n more mornings.
   - His total will be 27 + 3n kilometers. This needs to equal his goal of 48 km.

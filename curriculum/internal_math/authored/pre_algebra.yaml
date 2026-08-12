@@ -1,0 +1,2112 @@
+curriculum_version: '2026.1'
+topic_id: pre_algebra
+templates:
+- question_template_id: authored-pre_algebra-d4-1165401
+  topic_id: pre_algebra
+  skill_id: prealg_evaluate_expressions
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - treated_negative_squared_as_negative
+  - multiplied_negatives_incorrectly
+  - added_instead_of_handling_double_negative
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: In a video game, your score is calculated by the formula 3t² - 5t, where t is the number value
+    of your last move. You just made a move with value -2. What is your score for that move?
+  context_block: ''
+  answer_expression: Eq(x, 3*(-2)**2 - 5*(-2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Substitute t = -2 into the formula 3t² - 5t and calculate each term separately.
+  - Remember that (-2)² equals positive 4, and that 3 times 4 gives the first term.
+  - The second term is -5 times -2, which is positive 10. Now combine both terms.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute t = -2 into the expression 3t² - 5t.
+      expression: 3*(-2)² - 5*(-2)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the exponent first: (-2)² = 4.'
+      expression: 3*(4) - 5*(-2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 3 by 4 to get 12.
+      expression: 12 - 5*(-2)
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply -5 by -2 to get 10.
+      expression: 12 - (-10)
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtracting a negative is the same as adding, so 12 - (-10) = 12 + 10.
+      expression: 12 + 10
+      common_mistake: null
+    - step_number: 6
+      explanation: Add 12 and 10 to get the final score.
+      expression: '22'
+      common_mistake: null
+    final_answer: 22 points
+  random_seed: 1165401
+  rendered_question: In a video game, your score is calculated by the formula 3t² - 5t, where t is the
+    number value of your last move. You just made a move with value -2. What is your score for that move?
+  option_a: 2 points
+  option_b: 32 points
+  option_c: -2 points
+  option_d: 22 points
+  correct_option: d
+- question_template_id: authored-pre_algebra-d4-1165402
+  topic_id: pre_algebra
+  skill_id: prealg_evaluate_expressions
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - computed_square_of_negative_incorrectly
+  - treated_negative_times_negative_as_negative
+  - stopped_before_final_addition
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A science experiment uses the formula 4p² - 7p to calculate energy output in joules, where p represents
+    a charge value. What is the energy when p = -5?
+  context_block: null
+  answer_expression: Eq(x, 4*(-5)**2 - 7*(-5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Substitute -5 for p in the expression 4p² - 7p.
+  - Calculate 4 times (-5) squared first, then calculate -7 times (-5) separately.
+  - Add the two results together to find the energy output.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute p = -5 into the expression 4p² - 7p.
+      expression: 4*(-5)² - 7*(-5)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the exponent first: (-5)² = 25.'
+      expression: 4*25 - 7*(-5)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 4 by 25 to get 100.
+      expression: 100 - 7*(-5)
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply -7 by -5 to get 35.
+      expression: 100 + 35
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 100 and 35.
+      expression: '135'
+      common_mistake: null
+    final_answer: 135 joules
+  random_seed: 1165402
+  rendered_question: A science experiment uses the formula 4p² - 7p to calculate energy output in joules,
+    where p represents a charge value. What is the energy when p = -5?
+  option_a: 65 joules
+  option_b: -135 joules
+  option_c: 135 joules
+  option_d: 100 joules
+  correct_option: c
+- question_template_id: authored-pre_algebra-d5-1165500
+  topic_id: pre_algebra
+  skill_id: prealg_evaluate_expressions
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - treated_squared_negative_as_negative
+  - applied_negative_to_squared_term_incorrectly
+  - sign_error_in_combining_terms
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery uses the formula 5h² + 6h to calculate its net profit in dollars based on a pricing adjustment
+    value h. What is the bakery's net profit when h = -4?
+  context_block: null
+  answer_expression: Eq(x, 5*(-4)**2 + 6*(-4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Substitute -4 for h in the expression 5h² + 6h.
+  - 'Evaluate the exponent first: (-4)² equals 16, then multiply by 5.'
+  - Calculate 5 times 16, then add 6 times -4 to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute h = -4 into the expression 5h² + 6h.
+      expression: 5(-4)² + 6(-4)
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate the exponent first. (-4)² = 16.
+      expression: 5(16) + 6(-4)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 5 by 16 to get 80.
+      expression: 80 + 6(-4)
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 6 by -4 to get -24.
+      expression: 80 + (-24)
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 80 and -24 to get the final answer.
+      expression: '56'
+      common_mistake: null
+    final_answer: 56 dollars
+  random_seed: 1165500
+  rendered_question: A bakery uses the formula 5h² + 6h to calculate its net profit in dollars based on
+    a pricing adjustment value h. What is the bakery's net profit when h = -4?
+  option_a: -56 dollars
+  option_b: 104 dollars
+  option_c: 56 dollars
+  option_d: -104 dollars
+  correct_option: c
+- question_template_id: authored-pre_algebra-d5-1165501
+  topic_id: pre_algebra
+  skill_id: prealg_evaluate_expressions
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - squared_negative_incorrectly
+  - applied_exponent_to_coefficient
+  - sign_error_in_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A weather model uses the formula 6m² + 8m to predict temperature change in degrees, where m represents
+    a pressure value. What is the predicted temperature change when m = -3?
+  context_block: ''
+  answer_expression: Eq(x, 6*(-3)**2 + 8*(-3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Substitute -3 for m everywhere you see it in the formula 6m² + 8m.
+  - 'Remember that squaring a negative number gives a positive result: (-3)² equals 9, not -9.'
+  - Calculate 6 times 9 first, then 8 times -3, and add those two results together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute m = -3 into the expression 6m² + 8m.
+      expression: 6*(-3)² + 8*(-3)
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate the exponent first. (-3)² means -3 times -3, which equals 9.
+      expression: 6*9 + 8*(-3)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 6 by 9 to get 54.
+      expression: 54 + 8*(-3)
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 8 by -3 to get -24.
+      expression: 54 + (-24)
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 54 and -24 to get the final temperature change.
+      expression: '30'
+      common_mistake: null
+    final_answer: 30 degrees
+  random_seed: 1165501
+  rendered_question: A weather model uses the formula 6m² + 8m to predict temperature change in degrees,
+    where m represents a pressure value. What is the predicted temperature change when m = -3?
+  option_a: -30 degrees
+  option_b: -78 degrees
+  option_c: 6 degrees
+  option_d: 30 degrees
+  correct_option: d
+- question_template_id: authored-pre_algebra-d5-1165502
+  topic_id: pre_algebra
+  skill_id: prealg_evaluate_expressions
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - treated_squared_negative_as_negative
+  - evaluated_exponent_incorrectly
+  - added_instead_of_subtracting_negative
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A robotics team uses the formula 7d² + 3d to calculate the battery drain in units, where d represents
+    a directional adjustment value. What is the battery drain when d = -2?
+  context_block: null
+  answer_expression: Eq(x, 7*(-2)**2 + 3*(-2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Substitute -2 for d in the expression 7d² + 3d.
+  - Remember that (-2)² equals 4, not -4, because the exponent applies before the negative.
+  - Calculate 7 times 4 first, then 3 times -2, and add those two results.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute d = -2 into the expression 7d² + 3d.
+      expression: 7*(-2)² + 3*(-2)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the exponent: (-2)² equals 4.'
+      expression: 7*4 + 3*(-2)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply: 7 times 4 is 28, and 3 times -2 is -6.'
+      expression: 28 + (-6)
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the two values: 28 + (-6) equals 22.'
+      expression: '22'
+      common_mistake: null
+    final_answer: 22 units
+  random_seed: 1165502
+  rendered_question: A robotics team uses the formula 7d² + 3d to calculate the battery drain in units,
+    where d represents a directional adjustment value. What is the battery drain when d = -2?
+  option_a: 20 units
+  option_b: 22 units
+  option_c: 34 units
+  option_d: -22 units
+  correct_option: b
+- question_template_id: authored-pre_algebra-d2-1166200
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_base_by_exponent_instead_of_exponentiating
+  - reversed_base_and_exponent
+  - used_exponent_one_less
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A colony of bacteria starts with 1 bacterium and doubles every hour. After 5 hours, how many bacteria
+    are in the colony?
+  context_block: ''
+  answer_expression: Eq(x, 2**5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Each hour the colony doubles, so after 5 hours you multiply by 2 five times.
+  - Write this as 2 to the power of 5, which means 2 × 2 × 2 × 2 × 2.
+  - 'Calculate the product step by step: 2 × 2 = 4, then 4 × 2 = 8, and so on.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The colony doubles every hour, so after 5 hours the number of bacteria is 2 multiplied
+        by itself 5 times.
+      expression: 2**5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate 2 to the power of 5 by repeated multiplication: 2 × 2 = 4.'
+      expression: '4'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Continue multiplying: 4 × 2 = 8.'
+      expression: '8'
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Continue multiplying: 8 × 2 = 16.'
+      expression: '16'
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Final multiplication: 16 × 2 = 32.'
+      expression: '32'
+      common_mistake: null
+    final_answer: 32 bacteria
+  random_seed: 1166200
+  rendered_question: A colony of bacteria starts with 1 bacterium and doubles every hour. After 5 hours,
+    how many bacteria are in the colony?
+  option_a: 25 bacteria
+  option_b: 16 bacteria
+  option_c: 10 bacteria
+  option_d: 32 bacteria
+  correct_option: d
+- question_template_id: authored-pre_algebra-d2-1166201
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - confused_base_and_exponent
+  - multiplied_base_and_exponent_instead_of_exponentiating
+  - stopped_one_iteration_early
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A viral video is shared online. One person shares it with 3 friends. Each of those friends shares
+    it with 3 more people. This pattern continues for 4 rounds total. How many people receive the video
+    in the 4th round?
+  context_block: ''
+  answer_expression: Eq(x, 3**4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Each round, every person from the previous round shares with 3 new people. Count how many times the
+    number 3 is multiplied.
+  - After 4 rounds of tripling, the number of recipients is 3 × 3 × 3 × 3.
+  - 'Write that repeated multiplication as a power: 3 raised to the 4th power.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In the first round, 1 person shares with 3 people, so 3 people receive the video.
+      expression: '3'
+      common_mistake: null
+    - step_number: 2
+      explanation: In the second round, each of those 3 people shares with 3 more, so 3 × 3 = 9 people
+        receive the video.
+      expression: 3 × 3 = 9
+      common_mistake: null
+    - step_number: 3
+      explanation: In the third round, each of those 9 people shares with 3 more, so 3 × 3 × 3 = 27 people
+        receive the video.
+      expression: 3 × 3 × 3 = 27
+      common_mistake: null
+    - step_number: 4
+      explanation: In the fourth round, each of those 27 people shares with 3 more, so 3 × 3 × 3 × 3 =
+        81 people receive the video.
+      expression: 3 × 3 × 3 × 3 = 81
+      common_mistake: null
+    - step_number: 5
+      explanation: 'We can write this repeated multiplication as an exponent: 3 to the power of 4.'
+      expression: 3**4 = 81
+      common_mistake: null
+    final_answer: 81 people
+  random_seed: 1166201
+  rendered_question: A viral video is shared online. One person shares it with 3 friends. Each of those
+    friends shares it with 3 more people. This pattern continues for 4 rounds total. How many people receive
+    the video in the 4th round?
+  option_a: 81 people
+  option_b: 27 people
+  option_c: 12 people
+  option_d: 64 people
+  correct_option: a
+- question_template_id: authored-pre_algebra-d2-1166202
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - confused_exponent_with_base
+  - computed_dividend_only
+  - arithmetic_error_in_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A printing shop organizes paper. Each stack contains 5 folders, and each folder contains 5 sheets.
+    Initially they had 5³ sheets arranged this way. Now they reorganize into 5¹ folders. How many sheets
+    are in each folder now?
+  context_block: null
+  answer_expression: Eq(x, 5**3 / 5**1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First calculate how many sheets the shop has in total by evaluating the power 5³.
+  - Now determine how many folders they are reorganizing into by evaluating 5¹.
+  - Divide the total number of sheets by the number of folders to find how many sheets go in each folder.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the total number of sheets by evaluating the exponent 5³.
+      expression: 5**3 = 5 * 5 * 5 = 125
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the number of folders by evaluating the exponent 5¹.
+      expression: 5**1 = 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the total sheets by the number of folders to find sheets per folder.
+      expression: 125 / 5 = 25
+      common_mistake: null
+    final_answer: 25 sheets
+  random_seed: 1166202
+  rendered_question: A printing shop organizes paper. Each stack contains 5 folders, and each folder contains
+    5 sheets. Initially they had 5³ sheets arranged this way. Now they reorganize into 5¹ folders. How
+    many sheets are in each folder now?
+  option_a: 15 sheets
+  option_b: 5 sheets
+  option_c: 125 sheets
+  option_d: 25 sheets
+  correct_option: d
+- question_template_id: authored-pre_algebra-d3-1166300
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplying
+  - evaluated_one_exponent_only_multiplied_base
+  - added_bases_and_exponents_instead_of_evaluating
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A tournament has 2³ groups and each group contains 3² players. How many players are in the tournament
+    altogether?
+  context_block: null
+  answer_expression: Eq(x, 2**3 * 3**2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Start by evaluating each exponent separately: 2³ and 3².'
+  - The number of groups is 2³ = 8, and each group has 3² = 9 players.
+  - Multiply the number of groups by the number of players in each group to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Evaluate the first exponent: 2 raised to the third power.'
+      expression: 2^3 = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the second exponent: 3 raised to the second power.'
+      expression: 3^2 = 9
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the number of groups by the number of players in each group.
+      expression: 8 * 9 = 72
+      common_mistake: null
+    final_answer: 72 players
+  random_seed: 1166300
+  rendered_question: A tournament has 2³ groups and each group contains 3² players. How many players are
+    in the tournament altogether?
+  option_a: 17 players
+  option_b: 36 players
+  option_c: 13 players
+  option_d: 72 players
+  correct_option: d
+- question_template_id: authored-pre_algebra-d3-1166301
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_after_first_exponent
+  - subtracted_exponents_instead_of_dividing
+  - multiplied_base_by_exponent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A warehouse receives a shipment of 4 to the power of 4 boxes. The manager redistributes them into
+    packages, each holding 4 to the power of 1 boxes. How many packages are created?
+  context_block: ''
+  answer_expression: Eq(x, 4**4 / 4**1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'First, write out what 4 to the power of 4 means: how many times do you multiply 4 by itself?'
+  - Calculate 4 raised to the fourth power, then calculate 4 raised to the first power.
+  - Divide the total number of boxes by the number of boxes in each package to find how many packages
+    are created.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate 4 to the power of 4, which means 4 multiplied by itself four times.
+      expression: 4^4 = 4 × 4 × 4 × 4 = 256
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate 4 to the power of 1, which is simply 4.
+      expression: 4^1 = 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the total number of boxes by the number of boxes in each package.
+      expression: 256 ÷ 4 = 64
+      common_mistake: null
+    final_answer: 64 packages
+  random_seed: 1166301
+  rendered_question: A warehouse receives a shipment of 4 to the power of 4 boxes. The manager redistributes
+    them into packages, each holding 4 to the power of 1 boxes. How many packages are created?
+  option_a: 4 packages
+  option_b: 256 packages
+  option_c: 16 packages
+  option_d: 64 packages
+  correct_option: d
+- question_template_id: authored-pre_algebra-d3-1166302
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_wrong_exponent_for_base_three
+  - added_exponents_instead_of_multiplying_bases
+  - ignored_second_exponent_or_miscounted_multiplications
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A garden has 3 sections, each section has 3 rows, each row has 3 planters, and each planter holds
+    2 to the fourth power flower bulbs. How many flower bulbs are in the garden altogether?
+  context_block: null
+  answer_expression: Eq(x, 3**3 * 2**4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find how many planters are in the garden by multiplying 3 sections times 3 rows times 3 planters.
+  - Each planter holds 2 to the fourth power bulbs, which means 2 × 2 × 2 × 2.
+  - Multiply the total number of planters by the number of bulbs per planter to find the total.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Calculate the number of planters in the garden: 3 sections × 3 rows × 3 planters =
+        3³.'
+      expression: 3**3 = 27
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate the number of bulbs in each planter: 2 to the fourth power = 2⁴ = 2 × 2
+        × 2 × 2.'
+      expression: 2**4 = 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the total number of planters by the number of bulbs per planter.
+      expression: 27 * 16 = 432
+      common_mistake: null
+    final_answer: 432 bulbs
+  random_seed: 1166302
+  rendered_question: A garden has 3 sections, each section has 3 rows, each row has 3 planters, and each
+    planter holds 2 to the fourth power flower bulbs. How many flower bulbs are in the garden altogether?
+  option_a: 432 bulbs
+  option_b: 1296 bulbs
+  option_c: 144 bulbs
+  option_d: 243 bulbs
+  correct_option: a
+- question_template_id: authored-pre_algebra-d4-1166400
+  topic_id: pre_algebra
+  skill_id: prealg_exponents
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - negative_base_stays_negative_regardless_of_even_exponent
+  - misread_exponent_4_as_2
+  - combined_wrong_exponent_and_incorrect_sign
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A video game calculates a final score by first raising -2 to the fourth power, then multiplying
+    the result by 5 squared. What is the final score?
+  context_block: ''
+  answer_expression: Eq(x, (-2)**4 * 5**2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - When you raise a negative number to an even power, what is the sign of the result?
+  - Calculate (-2) to the fourth power first, then calculate 5 squared separately.
+  - Multiply your two results together to find the final score.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Calculate (-2) raised to the fourth power. Since the exponent is even, the result
+        is positive: (-2) × (-2) × (-2) × (-2) = 16.'
+      expression: (-2)**4 = 16
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate 5 raised to the second power: 5 × 5 = 25.'
+      expression: 5**2 = 25
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the two results together to find the final score.
+      expression: 16 * 25 = 400
+      common_mistake: null
+    final_answer: 400 points
+  random_seed: 1166400
+  rendered_question: A video game calculates a final score by first raising -2 to the fourth power, then
+    multiplying the result by 5 squared. What is the final score?
+  option_a: 400 points
+  option_b: -400 points
+  option_c: -100 points
+  option_d: 100 points
+  correct_option: a
+- question_template_id: authored-pre_algebra-d1-1167100
+  topic_id: pre_algebra
+  skill_id: prealg_gcf_lcm
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_at_smaller_common_factor_12
+  - stopped_at_smaller_common_factor_8
+  - stopped_at_smaller_common_factor_6
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 48 pencils and 72 erasers to divide into identical gift bags. Each bag must contain
+    the same number of pencils and the same number of erasers, with nothing left over. What is the greatest
+    number of bags she can make?
+  context_block: null
+  answer_expression: Eq(x, gcd(48, 72))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many pencils and erasers must go into each bag if you want to use all of them with nothing left
+    over?
+  - The number of bags must divide evenly into both 48 and 72. Find the factors they share.
+  - List the common factors of 48 and 72, then choose the largest one.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Find the factors of 48: 1, 2, 3, 4, 6, 8, 12, 16, 24, 48.'
+      expression: factors(48) = {1, 2, 3, 4, 6, 8, 12, 16, 24, 48}
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Find the factors of 72: 1, 2, 3, 4, 6, 8, 9, 12, 18, 24, 36, 72.'
+      expression: factors(72) = {1, 2, 3, 4, 6, 8, 9, 12, 18, 24, 36, 72}
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Identify the common factors: 1, 2, 3, 4, 6, 8, 12, 24.'
+      expression: common_factors = {1, 2, 3, 4, 6, 8, 12, 24}
+      common_mistake: null
+    - step_number: 4
+      explanation: The greatest common factor is the largest number in the list of common factors.
+      expression: gcd(48, 72) = 24
+      common_mistake: null
+    final_answer: 24 bags
+  random_seed: 1167100
+  rendered_question: A teacher has 48 pencils and 72 erasers to divide into identical gift bags. Each
+    bag must contain the same number of pencils and the same number of erasers, with nothing left over.
+    What is the greatest number of bags she can make?
+  option_a: 8 bags
+  option_b: 24 bags
+  option_c: 6 bags
+  option_d: 12 bags
+  correct_option: b
+- question_template_id: authored-pre_algebra-d1-1167101
+  topic_id: pre_algebra
+  skill_id: prealg_gcf_lcm
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_gcf_by_two
+  - chose_common_factor_not_greatest
+  - confused_gcf_with_product_operation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian has 60 books and 90 bookmarks to organize into identical packages. Each package must
+    contain the same number of books and the same number of bookmarks. What is the greatest number of
+    packages she can make?
+  context_block: null
+  answer_expression: Eq(x, gcd(60, 90))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what number divides evenly into both 60 books and 90 bookmarks.
+  - The greatest common factor tells you the largest number of equal groups you can make when dividing
+    two quantities.
+  - List the factors of 60 and the factors of 90, then find the largest factor they share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the prime factorization of 60.
+      expression: 60 = 2^2 * 3 * 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the prime factorization of 90.
+      expression: 90 = 2 * 3^2 * 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Identify the common prime factors with the lowest power.
+      expression: 'common: 2^1, 3^1, 5^1'
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply the common prime factors together to get the greatest common factor.
+      expression: 2 * 3 * 5 = 30
+      common_mistake: null
+    final_answer: 30 packages
+  random_seed: 1167101
+  rendered_question: A librarian has 60 books and 90 bookmarks to organize into identical packages. Each
+    package must contain the same number of books and the same number of bookmarks. What is the greatest
+    number of packages she can make?
+  option_a: 30 packages
+  option_b: 150 packages
+  option_c: 10 packages
+  option_d: 15 packages
+  correct_option: a
+- question_template_id: authored-pre_algebra-d1-1167102
+  topic_id: pre_algebra
+  skill_id: prealg_gcf_lcm
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_at_first_large_common_factor
+  - missed_larger_common_factors
+  - found_only_smallest_prime_common_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A party planner has 36 cupcakes and 54 cookies to arrange into identical party boxes. Each box
+    must contain the same number of cupcakes and the same number of cookies. What is the greatest number
+    of boxes she can make?
+  context_block: null
+  answer_expression: Eq(x, gcd(36, 54))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many cupcakes and how many cookies would go into each box if you made a certain number of boxes?
+  - The number of boxes must divide evenly into both 36 and 54 so that each box gets a whole number of
+    cupcakes and a whole number of cookies.
+  - Find all the common factors of 36 and 54, then choose the largest one.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'List the factors of 36: 1, 2, 3, 4, 6, 9, 12, 18, 36.'
+      expression: factors(36) = {1, 2, 3, 4, 6, 9, 12, 18, 36}
+      common_mistake: null
+    - step_number: 2
+      explanation: 'List the factors of 54: 1, 2, 3, 6, 9, 18, 27, 54.'
+      expression: factors(54) = {1, 2, 3, 6, 9, 18, 27, 54}
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Identify the common factors: 1, 2, 3, 6, 9, 18.'
+      expression: common_factors = {1, 2, 3, 6, 9, 18}
+      common_mistake: null
+    - step_number: 4
+      explanation: The greatest common factor is the largest of the common factors.
+      expression: gcd(36, 54) = 18
+      common_mistake: null
+    final_answer: 18 boxes
+  random_seed: 1167102
+  rendered_question: A party planner has 36 cupcakes and 54 cookies to arrange into identical party boxes.
+    Each box must contain the same number of cupcakes and the same number of cookies. What is the greatest
+    number of boxes she can make?
+  option_a: 6 boxes
+  option_b: 2 boxes
+  option_c: 9 boxes
+  option_d: 18 boxes
+  correct_option: d
+- question_template_id: authored-pre_algebra-d2-1167200
+  topic_id: pre_algebra
+  skill_id: prealg_gcf_lcm
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - chose_first_common_factor_not_greatest
+  - chose_smallest_common_factor
+  - used_factor_of_only_one_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A florist has 42 roses and 63 carnations to arrange into identical bouquets. Each bouquet must
+    contain the same number of roses and the same number of carnations. What is the greatest number of
+    bouquets she can make?
+  context_block: ''
+  answer_expression: Eq(x, gcd(42, 63))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what number can divide evenly into both 42 and 63 so that every bouquet has whole flowers.
+  - List the factors of 42 and the factors of 63, then find which ones appear in both lists.
+  - The greatest common factor tells you the maximum number of identical groups you can form from both
+    quantities.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Find the prime factorization of 42: 42 = 2 × 3 × 7.'
+      expression: 42 = 2 × 3 × 7
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Find the prime factorization of 63: 63 = 3 × 3 × 7 = 3² × 7.'
+      expression: 63 = 3² × 7
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Identify the common prime factors: both numbers share 3 and 7.'
+      expression: 'Common factors: 3, 7'
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Multiply the common factors together to find the greatest common factor: 3 × 7 = 21.'
+      expression: 3 × 7 = 21
+      common_mistake: null
+    final_answer: 21 bouquets
+  random_seed: 1167200
+  rendered_question: A florist has 42 roses and 63 carnations to arrange into identical bouquets. Each
+    bouquet must contain the same number of roses and the same number of carnations. What is the greatest
+    number of bouquets she can make?
+  option_a: 9 bouquets
+  option_b: 21 bouquets
+  option_c: 7 bouquets
+  option_d: 3 bouquets
+  correct_option: b
+- question_template_id: authored-pre_algebra-d2-1167201
+  topic_id: pre_algebra
+  skill_id: prealg_gcf_lcm
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - found_a_common_factor_but_not_greatest
+  - confused_GCD_with_LCM_or_other_operation
+  - stopped_at_smallest_prime_common_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A coach has 45 soccer balls and 75 water bottles to distribute into identical training kits. Each
+    kit must contain the same number of soccer balls and the same number of water bottles. What is the
+    greatest number of kits the coach can make?
+  context_block: null
+  answer_expression: Eq(x, gcd(45, 75))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what number must divide evenly into both 45 and 75 so that each kit gets a whole number
+    of soccer balls and water bottles.
+  - You need to find the largest number that divides both 45 and 75 with no remainder.
+  - List the factors of 45 and the factors of 75, then identify the greatest factor that appears in both
+    lists.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: List all factors of 45. A factor is a number that divides 45 evenly.
+      expression: 1, 3, 5, 9, 15, 45
+      common_mistake: null
+    - step_number: 2
+      explanation: List all factors of 75. A factor is a number that divides 75 evenly.
+      expression: 1, 3, 5, 15, 25, 75
+      common_mistake: null
+    - step_number: 3
+      explanation: Identify the common factors that appear in both lists.
+      expression: 1, 3, 5, 15
+      common_mistake: null
+    - step_number: 4
+      explanation: The greatest common factor is the largest number in the common list.
+      expression: '15'
+      common_mistake: null
+    final_answer: 15 kits
+  random_seed: 1167201
+  rendered_question: A coach has 45 soccer balls and 75 water bottles to distribute into identical training
+    kits. Each kit must contain the same number of soccer balls and the same number of water bottles.
+    What is the greatest number of kits the coach can make?
+  option_a: 5 kits
+  option_b: 30 kits
+  option_c: 15 kits
+  option_d: 3 kits
+  correct_option: c
+- question_template_id: authored-pre_algebra-d2-1167202
+  topic_id: pre_algebra
+  skill_id: prealg_gcf_lcm
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - divided_gcf_by_two
+  - took_only_one_common_prime_factor_missing_2
+  - took_only_one_common_prime_factor_missing_7
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has 56 tulip bulbs and 84 daffodil bulbs. She wants to plant them in identical garden
+    beds, with each bed having the same number of tulip bulbs and the same number of daffodil bulbs. What
+    is the greatest number of beds she can make?
+  context_block: ''
+  answer_expression: Eq(x, gcd(56, 84))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Each bed must have the same number of tulips and the same number of daffodils. What does that tell
+    you about the number of beds?
+  - The number of beds must divide evenly into both 56 and 84. List the factors of each number.
+  - The greatest number of beds is the largest number that divides both 56 and 84 with no remainder.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The number of beds must divide evenly into both 56 tulip bulbs and 84 daffodil bulbs
+        so each bed receives a whole number of each type.
+      expression: x divides 56 and x divides 84
+      common_mistake: null
+    - step_number: 2
+      explanation: 'We need the greatest common divisor of 56 and 84. Find the prime factorization of
+        56: 56 = 2³ × 7.'
+      expression: 56 = 8 × 7 = 2^3 × 7
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Find the prime factorization of 84: 84 = 2² × 3 × 7.'
+      expression: 84 = 4 × 21 = 2^2 × 3 × 7
+      common_mistake: null
+    - step_number: 4
+      explanation: The common prime factors are 2² and 7. Multiply the lowest powers of common factors.
+      expression: gcd(56, 84) = 2^2 × 7 = 4 × 7
+      common_mistake: null
+    - step_number: 5
+      explanation: Calculate the product to find the greatest common factor.
+      expression: 4 × 7 = 28
+      common_mistake: null
+    final_answer: 28 beds
+  random_seed: 1167202
+  rendered_question: A gardener has 56 tulip bulbs and 84 daffodil bulbs. She wants to plant them in identical
+    garden beds, with each bed having the same number of tulip bulbs and the same number of daffodil bulbs.
+    What is the greatest number of beds she can make?
+  option_a: 4 beds
+  option_b: 14 beds
+  option_c: 7 beds
+  option_d: 28 beds
+  correct_option: d
+- question_template_id: authored-pre_algebra-d5-1168500
+  topic_id: pre_algebra
+  skill_id: prealg_negative_numbers
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - subtracted_absolute_values_instead_of_adding_negatives
+  - ignored_multiplier_in_repeated_operation
+  - added_absolute_values_then_applied_sign
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A submarine starts at 20 meters below sea level. It dives 6 meters deeper on each of 3 missions.
+    What is the submarine's final depth in meters?
+  context_block: Depths below sea level are represented by negative numbers.
+  answer_expression: Eq(x, -20 + 3 * (-6))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by writing the submarine's starting depth as a negative number since it is below sea level.
+  - The submarine dives 6 meters deeper on each mission, so the total change in depth is 3 times -6.
+  - 'Write the expression -20 + 3 × (-6) and follow the order of operations: multiply first, then add.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The submarine starts at 20 meters below sea level, which is represented as -20 meters.
+      expression: '-20'
+      common_mistake: null
+    - step_number: 2
+      explanation: Each of the 3 missions involves diving 6 meters deeper, which is -6 meters per mission.
+        The total change is 3 times -6.
+      expression: 3 * (-6) = -18
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the starting depth and the total change: -20 + (-18).'
+      expression: -20 + (-18) = -38
+      common_mistake: null
+    final_answer: '-38'
+  random_seed: 1168500
+  rendered_question: 'Depths below sea level are represented by negative numbers.
+
+
+    A submarine starts at 20 meters below sea level. It dives 6 meters deeper on each of 3 missions. What
+    is the submarine''s final depth in meters?'
+  option_a: '-38'
+  option_b: '-44'
+  option_c: '-26'
+  option_d: '-14'
+  correct_option: a
+- question_template_id: authored-pre_algebra-d3-1168300
+  topic_id: pre_algebra
+  skill_id: prealg_negative_numbers
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_initial_position
+  - dropped_negative_signs
+  - added_multiplier_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A submarine is at 8 meters below sea level. It then descends an additional 4 meters on each of
+    3 dives. What is the submarine's final position relative to sea level?
+  context_block: null
+  answer_expression: x = -8 + 3 * (-4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by writing the submarine's initial position as a negative number, since it is below sea level.
+  - Multiply the number of dives by the meters descended per dive, keeping in mind that descent is negative.
+  - Add the starting position and the total descent from the three dives to find the final position.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The submarine starts 8 meters below sea level, which we write as -8 meters.
+      expression: x = -8 + 3 * (-4)
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the 3 dives by the 4 meters descended each time. Since descent is negative,
+        3 times -4 equals -12.
+      expression: 3 * (-4) = -12
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the starting position and the total descent: -8 + (-12) = -20.'
+      expression: -8 + (-12) = -20
+      common_mistake: null
+    final_answer: -20 meters
+  random_seed: 1168300
+  rendered_question: A submarine is at 8 meters below sea level. It then descends an additional 4 meters
+    on each of 3 dives. What is the submarine's final position relative to sea level?
+  option_a: -15 meters
+  option_b: -20 meters
+  option_c: -4 meters
+  option_d: 4 meters
+  correct_option: b
+- question_template_id: authored-pre_algebra-d3-1168301
+  topic_id: pre_algebra
+  skill_id: prealg_negative_numbers
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - subtracted_only_one_fee_instead_of_multiplying
+  - treated_fees_as_positive
+  - added_absolute_values_then_chose_wrong_sign
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Leo's bank account is overdrawn by 15 dollars. The bank then charges 4 fees, each costing 2 dollars.
+    What is the balance in Leo's account after all the fees are applied?
+  context_block: null
+  answer_expression: x = -15 + 4 * (-2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by writing the initial balance as a negative number, since the account is overdrawn.
+  - Each fee is also a negative amount because it takes money away. Multiply the number of fees by the
+    cost of one fee.
+  - Add the initial balance and the total of all the fees together to find the final balance.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The account is overdrawn by 15 dollars, so the starting balance is -15 dollars.
+      expression: '-15'
+      common_mistake: null
+    - step_number: 2
+      explanation: Each fee costs 2 dollars and is subtracted from the balance, so each fee is -2 dollars.
+        There are 4 fees.
+      expression: 4 * (-2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 4 by -2 to find the total cost of all fees.
+      expression: 4 * (-2) = -8
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the starting balance and the total fees to find the final balance.
+      expression: -15 + (-8)
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Adding two negatives: -15 + (-8) = -23.'
+      expression: '-23'
+      common_mistake: null
+    final_answer: -23 dollars
+  random_seed: 1168301
+  rendered_question: Leo's bank account is overdrawn by 15 dollars. The bank then charges 4 fees, each
+    costing 2 dollars. What is the balance in Leo's account after all the fees are applied?
+  option_a: -23 dollars
+  option_b: -13 dollars
+  option_c: -17 dollars
+  option_d: -7 dollars
+  correct_option: a
+- question_template_id: authored-pre_algebra-d3-1168302
+  topic_id: pre_algebra
+  skill_id: prealg_negative_numbers
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_starting_temperature_by_outage_count
+  - subtracted_change_from_zero_instead_of_adding_to_starting
+  - forgot_to_add_starting_temperature
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A freezer starts at -10 degrees Celsius. During each of 5 power outages, the temperature drops
+    3 degrees. What is the final temperature?
+  context_block: ''
+  answer_expression: x = -10 + 5 * (-3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the total temperature change caused by all 5 outages.
+  - Each outage drops the temperature by 3 degrees, which means -3 degrees each time.
+  - Multiply 5 by -3 to find the total change, then add that to the starting temperature of -10.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each power outage causes a drop of 3 degrees, which is represented as -3 degrees.
+      expression: '-3'
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the number of outages by the change per outage to find the total change.
+      expression: 5 * (-3) = -15
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the total change to the starting temperature.
+      expression: -10 + (-15) = -25
+      common_mistake: null
+    final_answer: -25 degrees Celsius
+  random_seed: 1168302
+  rendered_question: A freezer starts at -10 degrees Celsius. During each of 5 power outages, the temperature
+    drops 3 degrees. What is the final temperature?
+  option_a: -15 degrees Celsius
+  option_b: -25 degrees Celsius
+  option_c: -40 degrees Celsius
+  option_d: -13 degrees Celsius
+  correct_option: b
+- question_template_id: authored-pre_algebra-d4-1168401
+  topic_id: pre_algebra
+  skill_id: prealg_negative_numbers
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_negatives_incorrectly_yielding_-50
+  - treated_descent_as_positive_and_subtracted_from_starting_depth
+  - subtracted_absolute_values_instead_of_adding_negatives
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A mine elevator starts at 14 meters below ground level. It then descends 3 meters on each of 6
+    trips. What is the elevator's final depth below ground level, in meters?
+  context_block: Depths below ground level are represented as negative numbers.
+  answer_expression: x = -14 + 6 * (-3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by finding the total distance the elevator descends over all 6 trips.
+  - Multiply the number of trips by the distance per trip, remembering that descending means a negative
+    change.
+  - Add the starting depth (already negative) to the total descent to find the final depth.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The elevator starts at 14 meters below ground, which we write as -14 meters.
+      expression: '-14'
+      common_mistake: null
+    - step_number: 2
+      explanation: Each descent is 3 meters down, represented as -3 meters, and this happens 6 times.
+      expression: 6 * (-3)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Calculate the product: 6 times -3 equals -18 meters.'
+      expression: 6 * (-3) = -18
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the total descent to the starting depth: -14 + (-18).'
+      expression: -14 + (-18)
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the two negative numbers: -14 - 18 = -32.'
+      expression: '-32'
+      common_mistake: null
+    final_answer: '-32'
+  random_seed: 1168401
+  rendered_question: 'Depths below ground level are represented as negative numbers.
+
+
+    A mine elevator starts at 14 meters below ground level. It then descends 3 meters on each of 6 trips.
+    What is the elevator''s final depth below ground level, in meters?'
+  option_a: '-50'
+  option_b: '-4'
+  option_c: '-32'
+  option_d: '4'
+  correct_option: c
+- question_template_id: authored-pre_algebra-d4-1168402
+  topic_id: pre_algebra
+  skill_id: prealg_negative_numbers
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_terms_without_multiplying
+  - linear_addition_of_all_values
+  - treated_negative_as_positive
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A parking garage entrance starts at 12 levels below street level. An elevator descends 3 more
+    levels on each of 4 trips. What is the elevator's final position relative to street level?
+  context_block: ''
+  answer_expression: x = -12 + 4 * (-3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Street level is 0. Starting at 12 levels below means starting at -12.
+  - Each of the 4 trips goes down 3 levels, so multiply 4 by -3 to find the total change from those trips.
+  - Add the starting position and the change from the four trips.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The elevator starts at 12 levels below street level, which is -12.
+      expression: '-12'
+      common_mistake: null
+    - step_number: 2
+      explanation: Each of the 4 trips descends 3 levels, so the total descent is 4 times -3.
+      expression: 4 * (-3) = -12
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the starting position and the total descent to find the final position.
+      expression: -12 + (-12) = -24
+      common_mistake: null
+    final_answer: -24 levels
+  random_seed: 1168402
+  rendered_question: A parking garage entrance starts at 12 levels below street level. An elevator descends
+    3 more levels on each of 4 trips. What is the elevator's final position relative to street level?
+  option_a: 0 levels
+  option_b: -15 levels
+  option_c: -24 levels
+  option_d: -9 levels
+  correct_option: c
+- question_template_id: authored-pre_algebra-d5-1168501
+  topic_id: pre_algebra
+  skill_id: prealg_negative_numbers
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - ignored_order_of_operations_added_first
+  - sign_confusion_fees_cancel_overdraft
+  - stopped_after_one_fee_instead_of_four
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bank account is overdrawn by $16. The bank then charges a $4 overdraft fee for each of 4 transactions.
+    What is the account balance now?
+  context_block: ''
+  answer_expression: Eq(x, -16 + 4*(-4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start with the overdrawn amount as a negative number, then decide what the total fees add to that.
+  - Four fees of $4 each cost 4 × 4 dollars, but because these are charges that make the debt worse, they
+    act as a negative.
+  - Write -16 plus 4 times -4, then multiply before you add.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The account starts overdrawn by $16, so the initial balance is -16 dollars.
+      expression: '-16'
+      common_mistake: null
+    - step_number: 2
+      explanation: Each overdraft fee is $4, and there are 4 transactions, so the total fee is 4 × (-4)
+        dollars because fees increase the debt.
+      expression: 4 * (-4) = -16
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the initial balance and the total fees: -16 + (-16).'
+      expression: -16 + (-16) = -32
+      common_mistake: null
+    final_answer: -32 dollars
+  random_seed: 1168501
+  rendered_question: A bank account is overdrawn by $16. The bank then charges a $4 overdraft fee for
+    each of 4 transactions. What is the account balance now?
+  option_a: -20 dollars
+  option_b: -12 dollars
+  option_c: 0 dollars
+  option_d: -32 dollars
+  correct_option: d
+- question_template_id: authored-pre_algebra-d5-1168502
+  topic_id: pre_algebra
+  skill_id: prealg_negative_numbers
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 150
+  common_error_tags:
+  - multiplied_by_one_instead_of_count
+  - ignored_negative_signs_in_calculation
+  - added_positive_instead_of_negative
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A laboratory freezer is set at 22 degrees below zero. During a storm, five power outages occur,
+    and after each outage the temperature drops by 4 more degrees. What is the final temperature inside
+    the freezer?
+  context_block: null
+  answer_expression: x = -22 + 5 * (-4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by writing the initial temperature as a negative number, since it is below zero.
+  - Each of the five outages causes a drop of 4 degrees. A drop means you add five copies of a negative
+    change.
+  - 'Write the expression: the starting temperature plus five times the change from each outage, then
+    perform the multiplication before the addition.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The initial temperature is 22 degrees below zero, which is written as -22 degrees.
+      expression: '-22'
+      common_mistake: null
+    - step_number: 2
+      explanation: Each power outage causes a drop of 4 degrees, which is a change of -4 degrees. There
+        are five outages, so the total change is 5 times -4.
+      expression: 5 * (-4) = -20
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the total change to the initial temperature to find the final temperature.
+      expression: -22 + (-20) = -22 - 20 = -42
+      common_mistake: null
+    final_answer: -42 degrees
+  random_seed: 1168502
+  rendered_question: A laboratory freezer is set at 22 degrees below zero. During a storm, five power
+    outages occur, and after each outage the temperature drops by 4 more degrees. What is the final temperature
+    inside the freezer?
+  option_a: -26 degrees
+  option_b: -2 degrees
+  option_c: -42 degrees
+  option_d: -18 degrees
+  correct_option: c
+- question_template_id: authored-pre_algebra-d4-1169401
+  topic_id: pre_algebra
+  skill_id: prealg_order_of_operations
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_in_wrong_order
+  - squared_before_subtracting
+  - forgot_to_square
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A store owner checks their account at the end of the day. They owe 5 dollars, but they receive
+    3 dollars for each squared point in a loyalty program. Yesterday they had 4 points, and today they
+    have 8 points. What is their final balance in dollars?
+  context_block: null
+  answer_expression: x = -5 + 3 * (4 - 8)**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the difference between yesterday's points and today's points first.
+  - Square that difference, then multiply by 3 to find the loyalty bonus.
+  - Add the loyalty bonus to the starting balance of -5 dollars.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the difference between the points yesterday and today.
+      expression: 4 - 8 = -4
+      common_mistake: null
+    - step_number: 2
+      explanation: Square the difference to find the squared points.
+      expression: (-4)**2 = 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the squared points by 3 to find the loyalty bonus.
+      expression: 3 * 16 = 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the loyalty bonus to the starting balance of -5 dollars.
+      expression: -5 + 48 = 43
+      common_mistake: null
+    final_answer: '43'
+  random_seed: 1169401
+  rendered_question: A store owner checks their account at the end of the day. They owe 5 dollars, but
+    they receive 3 dollars for each squared point in a loyalty program. Yesterday they had 4 points, and
+    today they have 8 points. What is their final balance in dollars?
+  option_a: '53'
+  option_b: '43'
+  option_c: '7'
+  option_d: '-17'
+  correct_option: b
+- question_template_id: authored-pre_algebra-d3-1169300
+  topic_id: pre_algebra
+  skill_id: prealg_order_of_operations
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - squared_the_sum_instead_of_difference
+  - added_before_multiplying
+  - forgot_to_square
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Luca plays a video game with two rounds. He earns 5 base points, then gains 2 bonus points for
+    every point of squared difference between his round scores. If his round 1 score is 6 and his round
+    2 score is 3, how many total points does he earn?
+  context_block: null
+  answer_expression: x = 5 + 2 * (6 - 3)**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the difference between Luca's two round scores first.
+  - Square that difference, then multiply by 2 to find the bonus points.
+  - Add the base points to the bonus points, making sure to follow the order of operations.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the difference between the two round scores.
+      expression: 6 - 3 = 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Square the difference to calculate the squared difference.
+      expression: 3**2 = 9
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply by 2 to find the bonus points.
+      expression: 2 * 9 = 18
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the base points to the bonus points for the total.
+      expression: 5 + 18 = 23
+      common_mistake: null
+    final_answer: 23 points
+  random_seed: 1169300
+  rendered_question: Luca plays a video game with two rounds. He earns 5 base points, then gains 2 bonus
+    points for every point of squared difference between his round scores. If his round 1 score is 6 and
+    his round 2 score is 3, how many total points does he earn?
+  option_a: 23 points
+  option_b: 11 points
+  option_c: 17 points
+  option_d: 41 points
+  correct_option: a
+- question_template_id: authored-pre_algebra-d3-1169301
+  topic_id: pre_algebra
+  skill_id: prealg_order_of_operations
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - squared_after_multiplying
+  - added_before_multiplying
+  - misapplied_exponent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery calculates their morning sales. They sold 7 cupcakes at opening, then 3 batches, each
+    batch containing a number of cupcakes equal to the square of the temperature difference between two
+    ovens. The ovens are set at 9 and 5 degrees apart. How many cupcakes were sold in total?
+  context_block: null
+  answer_expression: x = 7 + 3 * (9 - 5)**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First, find the temperature difference between the two ovens.
+  - Square that difference, then multiply by the number of batches.
+  - Add the 7 cupcakes sold at opening to complete the calculation.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the temperature difference between the two ovens.
+      expression: 9 - 5 = 4
+      common_mistake: null
+    - step_number: 2
+      explanation: Square the temperature difference.
+      expression: 4**2 = 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply by the number of batches.
+      expression: 3 * 16 = 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the 7 cupcakes sold at opening.
+      expression: 7 + 48 = 55
+      common_mistake: null
+    final_answer: 55 cupcakes
+  random_seed: 1169301
+  rendered_question: A bakery calculates their morning sales. They sold 7 cupcakes at opening, then 3
+    batches, each batch containing a number of cupcakes equal to the square of the temperature difference
+    between two ovens. The ovens are set at 9 and 5 degrees apart. How many cupcakes were sold in total?
+  option_a: 31 cupcakes
+  option_b: 91 cupcakes
+  option_c: 55 cupcakes
+  option_d: 151 cupcakes
+  correct_option: c
+- question_template_id: authored-pre_algebra-d3-1169302
+  topic_id: pre_algebra
+  skill_id: prealg_order_of_operations
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - performed_operations_left_to_right_ignoring_order
+  - squared_the_sum_instead_of_difference
+  - added_before_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener starts with 10 seedlings. Over two weeks, she grows 7 plants in week one and 3 plants
+    in week two. She then multiplies the difference by itself and takes 4 copies of that result. How many
+    plants does she have in total?
+  context_block: ''
+  answer_expression: x = 10 + 4 * (7 - 3)**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by finding the difference between the number of plants grown in week one and week two.
+  - Square that difference, then multiply the result by 4 before adding anything.
+  - Write the expression as 10 + 4 × (difference)² and follow the order of operations carefully.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the difference between plants grown in week one and week two.
+      expression: 7 - 3 = 4
+      common_mistake: null
+    - step_number: 2
+      explanation: Square the difference.
+      expression: 4**2 = 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the squared result by 4.
+      expression: 4 * 16 = 64
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the starting number of seedlings.
+      expression: 10 + 64 = 74
+      common_mistake: null
+    final_answer: 74 plants
+  random_seed: 1169302
+  rendered_question: A gardener starts with 10 seedlings. Over two weeks, she grows 7 plants in week one
+    and 3 plants in week two. She then multiplies the difference by itself and takes 4 copies of that
+    result. How many plants does she have in total?
+  option_a: 42 plants
+  option_b: 74 plants
+  option_c: 138 plants
+  option_d: 26 plants
+  correct_option: b
+- question_template_id: authored-pre_algebra-d4-1169400
+  topic_id: pre_algebra
+  skill_id: prealg_order_of_operations
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - treated_multiplier_as_negative
+  - forgot_to_square
+  - forgot_to_multiply_by_coefficient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A weather station records its final temperature reading. It starts at -3 degrees, then adds 5
+    times the square of the difference between a morning change of 2 degrees and an evening change of
+    6 degrees. What is the final reading?
+  context_block: ''
+  answer_expression: x = -3 + 5 * (2 - 6)**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by working out the difference between the two temperature changes inside the parentheses.
+  - Square that difference, then multiply the result by 5 before adding anything.
+  - Combine the -3 with the product you just calculated.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the difference inside the parentheses first, following order of operations.
+      expression: 2 - 6 = -4
+      common_mistake: null
+    - step_number: 2
+      explanation: Square the result from step 1.
+      expression: (-4)**2 = 16
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 5 by the squared result.
+      expression: 5 * 16 = 80
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the initial temperature of -3 to the product from step 3.
+      expression: -3 + 80 = 77
+      common_mistake: null
+    final_answer: 77 degrees
+  random_seed: 1169400
+  rendered_question: A weather station records its final temperature reading. It starts at -3 degrees,
+    then adds 5 times the square of the difference between a morning change of 2 degrees and an evening
+    change of 6 degrees. What is the final reading?
+  option_a: 77 degrees
+  option_b: 13 degrees
+  option_c: -23 degrees
+  option_d: -83 degrees
+  correct_option: a
+- question_template_id: authored-pre_algebra-d4-1169402
+  topic_id: pre_algebra
+  skill_id: prealg_order_of_operations
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - incorrect_order_of_exponent_and_multiplication
+  - forgot_to_square_or_squared_incorrectly
+  - added_before_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A submarine calculates its depth as -8 metres plus 4 times the square of the difference between
+    two sonar readings. The first reading is 3 metres and the second is 7 metres. What is the final depth
+    measurement?
+  context_block: null
+  answer_expression: x = -8 + 4 * (3 - 7)**2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by finding the difference between the two sonar readings.
+  - Square that difference before multiplying by 4.
+  - Add the result to -8, remembering order of operations.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the difference between the two sonar readings.
+      expression: 3 - 7 = -4
+      common_mistake: null
+    - step_number: 2
+      explanation: Square the difference.
+      expression: (-4)**2 = 16
+      common_mistake: Students sometimes forget that squaring a negative number gives a positive result.
+    - step_number: 3
+      explanation: Multiply the squared result by 4.
+      expression: 4 * 16 = 64
+      common_mistake: null
+    - step_number: 4
+      explanation: Add this to the initial -8 metres to find the final depth measurement.
+      expression: -8 + 64 = 56
+      common_mistake: null
+    final_answer: 56 metres
+  random_seed: 1169402
+  rendered_question: A submarine calculates its depth as -8 metres plus 4 times the square of the difference
+    between two sonar readings. The first reading is 3 metres and the second is 7 metres. What is the
+    final depth measurement?
+  option_a: -24 metres
+  option_b: 56 metres
+  option_c: -72 metres
+  option_d: 48 metres
+  correct_option: b
+- question_template_id: authored-pre_algebra-d2-1170200
+  topic_id: pre_algebra
+  skill_id: prealg_percent_convert
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - divided_by_1000_instead_of_100
+  - multiplied_without_dividing_by_100
+  - used_percent_value_as_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A library donated 30% of its 200 old books to a school. How many books did the school receive?
+  context_block: null
+  answer_expression: x = 0.30 * 200
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Convert the percentage to a decimal before calculating the number of books.
+  - To change 30% to a decimal, divide 30 by 100, then multiply that decimal by 200.
+  - 'Write an equation for the number of books donated: number = 0.30 × 200.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the percentage to a decimal by dividing by 100.
+      expression: 30% = 30 ÷ 100 = 0.30
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the decimal by the total number of books to find how many were donated.
+      expression: 0.30 × 200 = 60
+      common_mistake: null
+    final_answer: 60 books
+  random_seed: 1170200
+  rendered_question: A library donated 30% of its 200 old books to a school. How many books did the school
+    receive?
+  option_a: 30 books
+  option_b: 6000 books
+  option_c: 6 books
+  option_d: 60 books
+  correct_option: d
+- question_template_id: authored-pre_algebra-d2-1170201
+  topic_id: pre_algebra
+  skill_id: prealg_percent_convert
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_percent_from_total
+  - moved_decimal_two_places_in_wrong_direction
+  - used_percent_as_whole_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A store has 150 items in stock. During a weekend sale, 40% of the items are sold. How many items
+    were sold?
+  context_block: null
+  answer_expression: x = 0.40 * 150
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What decimal is the same as 40%?
+  - Multiply the total number of items by the decimal form of 40%.
+  - Write 40% as 0.40 and multiply 0.40 by 150.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert 40% to a decimal by dividing by 100.
+      expression: 40% = 0.40
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the decimal by the total number of items.
+      expression: x = 0.40 * 150
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the product.
+      expression: x = 60
+      common_mistake: null
+    final_answer: 60 items
+  random_seed: 1170201
+  rendered_question: A store has 150 items in stock. During a weekend sale, 40% of the items are sold.
+    How many items were sold?
+  option_a: 90 items
+  option_b: 6 items
+  option_c: 110 items
+  option_d: 60 items
+  correct_option: d
+- question_template_id: authored-pre_algebra-d2-1170202
+  topic_id: pre_algebra
+  skill_id: prealg_percent_convert
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_percent_instead_of_multiplying
+  - multiplied_percent_as_whole_number
+  - found_remainder_instead_of_part
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher collected 25% of the 80 homework assignments that were due on Monday. How many assignments
+    did the teacher collect?
+  context_block: ''
+  answer_expression: Eq(x, 0.25 * 80)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Convert 25% to a decimal before calculating.
+  - 25% means 0.25, so you need to multiply 0.25 by the total number of assignments.
+  - Set up the multiplication 0.25 × 80 and compute the result.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the percent to a decimal by dividing by 100.
+      expression: 25% = 25/100 = 0.25
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the decimal by the total number of assignments to find how many were collected.
+      expression: 0.25 × 80 = 20
+      common_mistake: null
+    final_answer: 20 assignments
+  random_seed: 1170202
+  rendered_question: A teacher collected 25% of the 80 homework assignments that were due on Monday. How
+    many assignments did the teacher collect?
+  option_a: 20 assignments
+  option_b: 60 assignments
+  option_c: 55 assignments
+  option_d: 2000 assignments
+  correct_option: a
+- question_template_id: authored-pre_algebra-d3-1170300
+  topic_id: pre_algebra
+  skill_id: prealg_percent_convert
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_percent_from_whole
+  - forgot_to_divide_by_100
+  - added_percent_to_total
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bakery baked 240 muffins for the day. By lunchtime, 35% of them had been sold. How many muffins
+    were sold by lunchtime?
+  context_block: null
+  answer_expression: x = 0.35 * 240
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Convert the percent to a decimal or a fraction so you can multiply.
+  - 35% means 35 out of 100, which is 0.35 or 35/100.
+  - Multiply the total number of muffins by the decimal form of the percent.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert 35% to a decimal by dividing by 100.
+      expression: 35 / 100 = 0.35
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the total number of muffins by the decimal.
+      expression: 0.35 * 240 = 84
+      common_mistake: null
+    final_answer: 84 muffins
+  random_seed: 1170300
+  rendered_question: A bakery baked 240 muffins for the day. By lunchtime, 35% of them had been sold.
+    How many muffins were sold by lunchtime?
+  option_a: 205 muffins
+  option_b: 84 muffins
+  option_c: 156 muffins
+  option_d: 8400 muffins
+  correct_option: b
+- question_template_id: authored-pre_algebra-d3-1170301
+  topic_id: pre_algebra
+  skill_id: prealg_percent_convert
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - subtracted_percent_from_total
+  - divided_instead_of_multiplying
+  - multiplied_without_converting_percent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A farmer harvested 160 apples from one tree. He sold 45% of them at the market. How many apples
+    did he sell?
+  context_block: ''
+  answer_expression: Eq(x, 0.45 * 160)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Convert the percent to a decimal by dividing by 100.
+  - Multiply the total number of apples by the decimal form of the percent.
+  - Set up the calculation 0.45 times 160 and work through the arithmetic.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert 45% to a decimal by dividing 45 by 100.
+      expression: 45 / 100 = 0.45
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the total number of apples by the decimal to find how many were sold.
+      expression: 0.45 * 160 = 72
+      common_mistake: null
+    final_answer: 72 apples
+  random_seed: 1170301
+  rendered_question: A farmer harvested 160 apples from one tree. He sold 45% of them at the market. How
+    many apples did he sell?
+  option_a: 88 apples
+  option_b: 72 apples
+  option_c: 115 apples
+  option_d: 7200 apples
+  correct_option: b
+- question_template_id: authored-pre_algebra-d3-1170302
+  topic_id: pre_algebra
+  skill_id: prealg_percent_convert
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - rounded_percent_to_nearest_ten
+  - subtracted_percent_as_whole_number
+  - multiplied_without_converting_percent_to_decimal
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A theater has 220 seats. During a matinee show, 55% of the seats were filled. How many seats were
+    occupied?
+  context_block: ''
+  answer_expression: Eq(x, 0.55 * 220)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find a percent of a number, first convert the percent to a decimal.
+  - 55% as a decimal is 0.55, so you need to multiply 0.55 by the total number of seats.
+  - Set up the multiplication 0.55 × 220 and compute the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the percent to a decimal by dividing by 100.
+      expression: 55% = 55 ÷ 100 = 0.55
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the decimal form by the total number of seats.
+      expression: 0.55 × 220
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 0.5 × 220 = 110 and 0.05 × 220 = 11, then add them together.
+      expression: 110 + 11 = 121
+      common_mistake: null
+    final_answer: 121 seats
+  random_seed: 1170302
+  rendered_question: A theater has 220 seats. During a matinee show, 55% of the seats were filled. How
+    many seats were occupied?
+  option_a: 110 seats
+  option_b: 165 seats
+  option_c: 121 seats
+  option_d: 12100 seats
+  correct_option: c

@@ -1,0 +1,1039 @@
+curriculum_version: '2026.1'
+topic_id: g6_fractions
+templates:
+- question_template_id: authored-g6_fractions-d3-1105301
+  topic_id: g6_fractions
+  skill_id: g6_fraction_decimal_percent
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_before_converting_to_percent
+  - incorrect_division_by_fraction
+  - converted_to_decimal_not_percent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has 3 gallons of water and pours it into containers that each hold 1/4 gallon. She
+    needs 24 containers in total. What percent of the containers can she fill?
+  context_block: ''
+  answer_expression: Eq(x, (3 / (1/4)) / 24 * 100)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find how many containers the gardener can fill with 3 gallons if each container holds 1/4 gallon.
+  - Divide the total water by the size of one container, then compare that number to the 24 containers
+    she needs.
+  - Write the fraction of filled containers over total containers, then convert that fraction to a percent
+    by multiplying by 100.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Divide the total water by the capacity of one container to find how many containers
+        can be filled.
+      expression: 3 ÷ (1/4) = 3 × 4 = 12
+      common_mistake: null
+    - step_number: 2
+      explanation: Write the ratio of filled containers to total containers needed.
+      expression: 12 / 24 = 1/2
+      common_mistake: null
+    - step_number: 3
+      explanation: Convert the fraction to a percent by multiplying by 100.
+      expression: (1/2) × 100 = 0.5 × 100 = 50
+      common_mistake: null
+    final_answer: '50'
+  random_seed: 1105301
+  rendered_question: A gardener has 3 gallons of water and pours it into containers that each hold 1/4
+    gallon. She needs 24 containers in total. What percent of the containers can she fill?
+  option_a: '0.5'
+  option_b: '12'
+  option_c: '75'
+  option_d: '50'
+  correct_option: d
+- question_template_id: authored-g6_fractions-d3-1105302
+  topic_id: g6_fractions
+  skill_id: g6_fraction_decimal_percent
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_by_the_fraction_instead_of_dividing
+  - stopped_at_the_number_of_pieces_without_converting_to_percent
+  - divided_pieces_by_yards_instead_of_yards_by_piece_length
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An artist has 4 yards of ribbon and cuts it into pieces that are each 1/2 yard long. She needs
+    20 pieces total for her project. What percent of the pieces she needs does the ribbon provide?
+  context_block: null
+  answer_expression: Eq(x, (4 / (1/2)) / 20 * 100)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many 1/2-yard pieces can you cut from 4 yards of ribbon?
+  - Divide the total yards by 1/2 to find the number of pieces, then compare that to the 20 pieces needed.
+  - Write the fraction of pieces obtained over pieces needed, then multiply by 100 to convert to a percent.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find how many 1/2-yard pieces can be cut from 4 yards by dividing 4 by 1/2.
+      expression: 4 / (1/2) = 4 * 2 = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: Determine what fraction of the 20 pieces needed the artist has by dividing 8 by 20.
+      expression: 8 / 20 = 0.4
+      common_mistake: null
+    - step_number: 3
+      explanation: Convert the decimal 0.4 to a percent by multiplying by 100.
+      expression: 0.4 * 100 = 40
+      common_mistake: null
+    final_answer: 40 percent
+  random_seed: 1105302
+  rendered_question: An artist has 4 yards of ribbon and cuts it into pieces that are each 1/2 yard long.
+    She needs 20 pieces total for her project. What percent of the pieces she needs does the ribbon provide?
+  option_a: 20 percent
+  option_b: 40 percent
+  option_c: 8 percent
+  option_d: 2 percent
+  correct_option: b
+- question_template_id: authored-g6_fractions-d4-1445401
+  topic_id: g6_fractions
+  skill_id: g6_fraction_decimal_percent
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_by_the_fraction_instead_of_dividing
+  - converted_the_given_fraction_to_percent_instead_of_the_answer
+  - forgot_to_convert_to_percent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker used 0.9 pounds of flour for a batch of cookies. That amount represents three-fifths of
+    what the recipe requires. What is the full recipe flour amount, expressed as a percent of one pound?
+  context_block: null
+  answer_expression: Eq(x, (0.9 / (3/5)) * 100)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If 0.9 pounds is three-fifths of the total, write an equation with the full amount as an unknown.
+  - Divide 0.9 by the fraction three-fifths to find the full recipe amount in pounds.
+  - Once you have the full amount in pounds, multiply by 100 to convert it to a percent of one pound.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The baker used 0.9 pounds, which is three-fifths of the total. To find the total, divide
+        0.9 by the fraction 3/5.
+      expression: 0.9 ÷ (3/5)
+      common_mistake: null
+    - step_number: 2
+      explanation: Dividing by a fraction is the same as multiplying by its reciprocal, so multiply 0.9
+        by 5/3.
+      expression: 0.9 × (5/3) = (0.9 × 5) / 3 = 4.5 / 3 = 1.5
+      common_mistake: null
+    - step_number: 3
+      explanation: The full recipe requires 1.5 pounds of flour. To express this as a percent of one pound,
+        multiply by 100.
+      expression: 1.5 × 100 = 150
+      common_mistake: null
+    final_answer: 150 percent
+  random_seed: 1445401
+  rendered_question: A baker used 0.9 pounds of flour for a batch of cookies. That amount represents three-fifths
+    of what the recipe requires. What is the full recipe flour amount, expressed as a percent of one pound?
+  option_a: 150 percent
+  option_b: 135 percent
+  option_c: 60 percent
+  option_d: 54 percent
+  correct_option: a
+- question_template_id: authored-g6_fractions-d5-1105502
+  topic_id: g6_fractions
+  skill_id: g6_fraction_decimal_percent
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_by_fraction_instead_of_dividing
+  - ignored_fractional_subdivision
+  - stopped_before_percent_conversion
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 10 boxes of markers. She divides them into cases that hold 1/2 box each. The school
+    needs 40 cases total. What percent of the needed cases does she have?
+  context_block: ''
+  answer_expression: Eq(x, (10 / (1/2)) / 40 * 100)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First find how many 1/2-box cases can be made from 10 boxes.
+  - Dividing 10 by 1/2 tells you how many cases; then compare that number to the 40 needed.
+  - Write the fraction (number of cases you have) / 40, then multiply by 100 to convert to a percent.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Divide 10 boxes by 1/2 to find how many cases she can make. Dividing by 1/2 is the
+        same as multiplying by 2.
+      expression: 10 ÷ (1/2) = 10 × 2 = 20
+      common_mistake: null
+    - step_number: 2
+      explanation: Now find what fraction 20 cases is of the 40 needed.
+      expression: 20 / 40 = 0.5
+      common_mistake: null
+    - step_number: 3
+      explanation: Convert the decimal 0.5 to a percent by multiplying by 100.
+      expression: 0.5 × 100 = 50
+      common_mistake: null
+    final_answer: 50 percent
+  random_seed: 1105502
+  rendered_question: A teacher has 10 boxes of markers. She divides them into cases that hold 1/2 box
+    each. The school needs 40 cases total. What percent of the needed cases does she have?
+  option_a: 50 percent
+  option_b: 20 percent
+  option_c: 0.5 percent
+  option_d: 5 percent
+  correct_option: a
+- question_template_id: authored-g6_fractions-d5-1445500
+  topic_id: g6_fractions
+  skill_id: g6_fraction_decimal_percent
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_fraction_by_decimal_instead_of_dividing
+  - stopped_before_percent_conversion
+  - converted_the_fraction_to_decimal_instead_of_finding_whole
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener watered 0.6 acres on Monday. That area is 2/5 of her whole garden. What is the size
+    of her whole garden, expressed as a percent of one acre?
+  context_block: null
+  answer_expression: Eq(x, (0.6 / (2/5)) * 100)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If 2/5 of the garden is 0.6 acres, how would you find the whole garden size in acres?
+  - Divide 0.6 by 2/5 to find the whole garden. Then remember the question asks for that size as a percent
+    of one acre.
+  - The whole garden is 0.6 ÷ (2/5) acres. Multiply that result by 100 to convert it to a percent.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The gardener watered 0.6 acres, which is 2/5 of the whole garden. To find the whole
+        garden size, divide the part by the fraction it represents.
+      expression: 0.6 ÷ (2/5)
+      common_mistake: null
+    - step_number: 2
+      explanation: Dividing by a fraction is the same as multiplying by its reciprocal. So 0.6 ÷ (2/5)
+        equals 0.6 × (5/2).
+      expression: 0.6 × (5/2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 0.6 by 5 to get 3, then divide by 2 to get 1.5 acres.
+      expression: '1.5'
+      common_mistake: null
+    - step_number: 4
+      explanation: The question asks for the size as a percent of one acre. Multiply the number of acres
+        by 100 to convert to a percent.
+      expression: 1.5 × 100
+      common_mistake: null
+    - step_number: 5
+      explanation: Multiply to find the final answer.
+      expression: '150'
+      common_mistake: null
+    final_answer: 150 percent
+  random_seed: 1445500
+  rendered_question: A gardener watered 0.6 acres on Monday. That area is 2/5 of her whole garden. What
+    is the size of her whole garden, expressed as a percent of one acre?
+  option_a: 60 percent
+  option_b: 40 percent
+  option_c: 24 percent
+  option_d: 150 percent
+  correct_option: d
+- question_template_id: authored-g6_fractions-d2-1106202
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_fractions_instead_of_multiplying
+  - multiplied_denominators_only
+  - multiplied_without_simplifying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has 9/2 pounds of seeds and plants 2/3 of them in the community garden. How many pounds
+    of seeds does she plant?
+  context_block: null
+  answer_expression: Eq(x, Rational(2,3) * Rational(9,2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find part of a quantity, multiply the fraction by the total amount.
+  - Write 2/3 multiplied by 9/2, then multiply the numerators together and the denominators together.
+  - Once you have the product, simplify the fraction by dividing the numerator by the denominator.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the operation needed: to find 2/3 of 9/2 pounds, we multiply the two fractions.'
+      expression: x = (2/3) * (9/2)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the numerators: 2 times 9 equals 18.'
+      expression: 2 * 9 = 18
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the denominators: 3 times 2 equals 6.'
+      expression: 3 * 2 = 6
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Write the product as a fraction: 18 over 6.'
+      expression: x = 18/6
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify the fraction by dividing numerator and denominator by their greatest common
+        divisor, which is 6.
+      expression: 18 ÷ 6 = 3, 6 ÷ 6 = 1
+      common_mistake: null
+    - step_number: 6
+      explanation: The simplified result is 3.
+      expression: x = 3
+      common_mistake: null
+    final_answer: 3 pounds
+  random_seed: 1106202
+  rendered_question: A gardener has 9/2 pounds of seeds and plants 2/3 of them in the community garden.
+    How many pounds of seeds does she plant?
+  option_a: 3 pounds
+  option_b: 6 pounds
+  option_c: 27/4 pounds
+  option_d: 11/6 pounds
+  correct_option: a
+- question_template_id: authored-g6_fractions-d2-1446200
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_numerators_only_ignored_denominators
+  - subtracted_instead_of_dividing_fractions
+  - multiplied_numerators_forgot_to_divide_by_denominator
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 3/4 of a pound of dough and wants to divide it into pieces that are each 1/8 of a
+    pound. How many pieces can the baker make?
+  context_block: ''
+  answer_expression: Eq(x, Rational(3,4) / Rational(1,8))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what operation you use when you want to find how many pieces of a certain size fit into
+    a total amount.
+  - Write an expression that divides the total dough (3/4 pound) by the size of each piece (1/8 pound).
+  - Set up (3/4) ÷ (1/8) and remember that dividing by a fraction means multiplying by its reciprocal.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find how many pieces of size 1/8 pound fit into 3/4 pound, we divide the total by
+        the piece size.
+      expression: x = (3/4) ÷ (1/8)
+      common_mistake: null
+    - step_number: 2
+      explanation: Dividing by a fraction is the same as multiplying by its reciprocal. The reciprocal
+        of 1/8 is 8/1.
+      expression: x = (3/4) × (8/1)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators together and the denominators together.
+      expression: x = (3 × 8) / (4 × 1) = 24/4
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing 24 by 4.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 pieces
+  random_seed: 1446200
+  rendered_question: A baker has 3/4 of a pound of dough and wants to divide it into pieces that are each
+    1/8 of a pound. How many pieces can the baker make?
+  option_a: 24 pieces
+  option_b: 6 pieces
+  option_c: 3 pieces
+  option_d: 2 pieces
+  correct_option: b
+- question_template_id: authored-g6_fractions-d2-1446201
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied fractions instead of dividing
+  - stopped before simplifying the fraction
+  - multiplied numerators only without taking reciprocal
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A painter has 2/3 of a gallon of paint left. She wants to fill small containers that each hold
+    1/6 of a gallon. How many containers can she fill completely?
+  context_block: null
+  answer_expression: Eq(x, Rational(2,3) / Rational(1,6))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many 1/6-gallon portions fit into 2/3 of a gallon.
+  - 'To find how many times 1/6 goes into 2/3, you need to divide: (2/3) ÷ (1/6).'
+  - 'When dividing fractions, multiply by the reciprocal: (2/3) × (6/1).'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to divide the total paint by the size of each container to find how many containers
+        can be filled.
+      expression: (2/3) ÷ (1/6)
+      common_mistake: null
+    - step_number: 2
+      explanation: To divide fractions, we multiply by the reciprocal of the divisor. The reciprocal of
+        1/6 is 6/1.
+      expression: (2/3) × (6/1)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators together and the denominators together.
+      expression: (2 × 6) / (3 × 1) = 12/3
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing 12 by 3.
+      expression: 12/3 = 4
+      common_mistake: null
+    final_answer: 4 containers
+  random_seed: 1446201
+  rendered_question: A painter has 2/3 of a gallon of paint left. She wants to fill small containers that
+    each hold 1/6 of a gallon. How many containers can she fill completely?
+  option_a: 12 containers
+  option_b: 2 containers
+  option_c: 1/9 containers
+  option_d: 4 containers
+  correct_option: d
+- question_template_id: authored-g6_fractions-d3-1106300
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_fractions_instead_of_dividing
+  - multiplied_by_original_fraction_not_reciprocal
+  - forgot_to_flip_second_fraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A painter has 6/5 gallons of paint. Each wall requires 3/10 gallon. How many walls can be painted?
+  context_block: null
+  answer_expression: Eq(x, Rational(6,5) / Rational(3,10))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find how many walls can be painted, divide the total paint by the amount needed for one wall.
+  - You need to compute (6/5) ÷ (3/10). Remember that dividing by a fraction is the same as multiplying
+    by its reciprocal.
+  - Multiply 6/5 by 10/3, then simplify the resulting fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set up the division of total paint by paint per wall.
+      expression: (6/5) ÷ (3/10)
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the division as multiplication by the reciprocal of 3/10.
+      expression: (6/5) × (10/3)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators and the denominators.
+      expression: (6 × 10) / (5 × 3) = 60/15
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing both numerator and denominator by their greatest
+        common divisor, which is 15.
+      expression: 60/15 = 4
+      common_mistake: null
+    final_answer: 4 walls
+  random_seed: 1106300
+  rendered_question: A painter has 6/5 gallons of paint. Each wall requires 3/10 gallon. How many walls
+    can be painted?
+  option_a: 9/50 walls
+  option_b: 2 walls
+  option_c: 4 walls
+  option_d: 18/50 walls
+  correct_option: c
+- question_template_id: authored-g6_fractions-d3-1106301
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_fractions_instead_of_dividing
+  - took_reciprocal_of_wrong_fraction
+  - divided_and_then_inverted_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker has 4/5 of a batch of cookie dough. She divides it into portions, where each portion is
+    2/15 of a batch. How many portions can she make?
+  context_block: ''
+  answer_expression: Eq(x, Rational(4,5) / Rational(2,15))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find how many portions fit into the dough she has, divide the total amount by the size of one portion.
+  - Write the division as (4/5) ÷ (2/15), which means multiply 4/5 by the reciprocal of 2/15.
+  - Multiply 4/5 by 15/2, then simplify the resulting fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the number of portions, divide the total dough by the size of one portion.
+      expression: x = (4/5) ÷ (2/15)
+      common_mistake: null
+    - step_number: 2
+      explanation: Dividing by a fraction is the same as multiplying by its reciprocal. The reciprocal
+        of 2/15 is 15/2.
+      expression: x = (4/5) × (15/2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators together and the denominators together.
+      expression: x = (4 × 15) / (5 × 2) = 60/10
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing both numerator and denominator by their greatest
+        common divisor, which is 10.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 portions
+  random_seed: 1106301
+  rendered_question: A baker has 4/5 of a batch of cookie dough. She divides it into portions, where each
+    portion is 2/15 of a batch. How many portions can she make?
+  option_a: 12/25 portions
+  option_b: 6 portions
+  option_c: 3 portions
+  option_d: 8/75 portions
+  correct_option: b
+- question_template_id: authored-g6_fractions-d3-1106302
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_fractions_instead_of_dividing
+  - multiplied_only_numerators_or_denominators
+  - inverted_dividend_instead_of_divisor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A tailor has 5/6 of a yard of ribbon and needs to cut pieces that are each 5/18 of a yard long.
+    How many pieces can be cut?
+  context_block: ''
+  answer_expression: Eq(x, Rational(5,6) / Rational(5,18))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find how many pieces fit, divide the total ribbon by the length of one piece.
+  - 'Write the division: (5/6) ÷ (5/18). Remember that dividing by a fraction means multiplying by its
+    reciprocal.'
+  - Rewrite as (5/6) × (18/5), then multiply the numerators and denominators.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the number of pieces, divide the total ribbon by the length of one piece.
+      expression: x = (5/6) ÷ (5/18)
+      common_mistake: null
+    - step_number: 2
+      explanation: Dividing by a fraction is the same as multiplying by its reciprocal. The reciprocal
+        of 5/18 is 18/5.
+      expression: x = (5/6) × (18/5)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators together and the denominators together.
+      expression: x = (5 × 18) / (6 × 5)
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Compute the products: 5 × 18 = 90 and 6 × 5 = 30.'
+      expression: x = 90/30
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify the fraction by dividing both numerator and denominator by 30.
+      expression: x = 3
+      common_mistake: null
+    final_answer: 3 pieces
+  random_seed: 1106302
+  rendered_question: A tailor has 5/6 of a yard of ribbon and needs to cut pieces that are each 5/18 of
+    a yard long. How many pieces can be cut?
+  option_a: 15/108 pieces
+  option_b: 25/108 pieces
+  option_c: 18 pieces
+  option_d: 3 pieces
+  correct_option: d
+- question_template_id: authored-g6_fractions-d3-1446300
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_fractions_instead_of_dividing
+  - multiplied_without_taking_reciprocal
+  - inverted_the_wrong_fraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has 3/4 of a yard of ribbon and wants to cut it into pieces that are each 1/12 of a
+    yard long. How many pieces can she cut?
+  context_block: ''
+  answer_expression: Eq(x, Rational(3,4) / Rational(1,12))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find how many pieces, divide the total ribbon by the length of each piece.
+  - Write the division (3/4) ÷ (1/12) to find the number of pieces.
+  - Remember that dividing by a fraction is the same as multiplying by its reciprocal, so rewrite as (3/4)
+    × (12/1).
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Set up the division of the total ribbon by the length of one piece.
+      expression: (3/4) ÷ (1/12)
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the division as multiplication by the reciprocal of 1/12, which is 12/1.
+      expression: (3/4) × (12/1)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators and the denominators.
+      expression: (3 × 12) / (4 × 1) = 36/4
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify 36/4 by dividing both numerator and denominator by 4.
+      expression: 36 ÷ 4 = 9
+      common_mistake: null
+    final_answer: 9 pieces
+  random_seed: 1446300
+  rendered_question: A gardener has 3/4 of a yard of ribbon and wants to cut it into pieces that are each
+    1/12 of a yard long. How many pieces can she cut?
+  option_a: 16 pieces
+  option_b: 1/16 pieces
+  option_c: 9 pieces
+  option_d: 3 pieces
+  correct_option: c
+- question_template_id: authored-g6_fractions-d3-1446301
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_fractions_instead_of_dividing
+  - ignored_denominator_or_misapplied_operation
+  - added_fractions_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Lena has 2/3 of a liter of juice and wants to pour it into cups that each hold 1/9 of a liter.
+    How many cups can she fill completely?
+  context_block: null
+  answer_expression: Eq(x, Rational(2,3) / Rational(1,9))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find how many cups can be filled, think about how many 1/9-liter portions fit into 2/3 of a liter.
+  - Dividing 2/3 by 1/9 will tell you the number of cups.
+  - 'Rewrite the division as multiplication by the reciprocal: (2/3) × (9/1), then multiply the numerators
+    and denominators.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need to divide the total juice by the size of one cup to find how many cups can
+        be filled.
+      expression: x = (2/3) ÷ (1/9)
+      common_mistake: null
+    - step_number: 2
+      explanation: To divide by a fraction, multiply by its reciprocal. The reciprocal of 1/9 is 9/1.
+      expression: x = (2/3) × (9/1)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators together and the denominators together.
+      expression: x = (2×9)/(3×1) = 18/3
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing 18 by 3.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 cups
+  random_seed: 1446301
+  rendered_question: Lena has 2/3 of a liter of juice and wants to pour it into cups that each hold 1/9
+    of a liter. How many cups can she fill completely?
+  option_a: 6 cups
+  option_b: 3 cups
+  option_c: 2/27 cups
+  option_d: 11/9 cups
+  correct_option: a
+- question_template_id: authored-g6_fractions-d4-1106400
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 150
+  common_error_tags:
+  - multiplied_fractions_instead_of_dividing
+  - canceled_then_inverted_order
+  - multiplied_numerators_divided_by_one_denominator
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Lena has 1¾ hours to prepare for a science fair. She splits her time into equal sessions, each
+    lasting ⁷⁄₁₂ of an hour. How many sessions can she complete?
+  context_block: ''
+  answer_expression: Eq(x, Rational(7,4) / Rational(7,12))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How can you write the total time Lena has as an improper fraction?
+  - To find how many sessions fit into her total time, you need to divide the total hours by the length
+    of one session.
+  - Set up the division ⁷⁄₄ ÷ ⁷⁄₁₂ and remember to multiply by the reciprocal of the second fraction.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the mixed number 1¾ hours into an improper fraction.
+      expression: 1¾ = ⁷⁄₄
+      common_mistake: null
+    - step_number: 2
+      explanation: To find the number of sessions, divide the total time by the time per session.
+      expression: x = (⁷⁄₄) ÷ (⁷⁄₁₂)
+      common_mistake: null
+    - step_number: 3
+      explanation: Rewrite the division as multiplication by the reciprocal of the second fraction.
+      expression: x = (⁷⁄₄) × (¹²⁄₇)
+      common_mistake: null
+    - step_number: 4
+      explanation: Cancel the common factor of 7 in the numerator and denominator.
+      expression: x = (1 × 12) / (4 × 1) = 12/4
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify the fraction by dividing numerator and denominator by 4.
+      expression: x = 3
+      common_mistake: null
+    final_answer: 3 sessions
+  random_seed: 1106400
+  rendered_question: Lena has 1¾ hours to prepare for a science fair. She splits her time into equal sessions,
+    each lasting ⁷⁄₁₂ of an hour. How many sessions can she complete?
+  option_a: 1 session
+  option_b: 3 sessions
+  option_c: 21 sessions
+  option_d: 4 sessions
+  correct_option: b
+- question_template_id: authored-g6_fractions-d4-1106401
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_fractions_instead_of_dividing
+  - used_only_numerators_ignored_denominators
+  - confused_numerator_with_quotient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A chef has 8/3 cups of flour and wants to divide it into scoops that are each 4/9 of a cup. How
+    many scoops can the chef make?
+  context_block: null
+  answer_expression: Eq(x, Rational(8,3) / Rational(4,9))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find how many scoops, you need to divide the total amount of flour by the size of one scoop.
+  - Write the division as (8/3) ÷ (4/9), then remember that dividing by a fraction means multiplying by
+    its reciprocal.
+  - Multiply (8/3) by (9/4) and simplify the product by canceling common factors in the numerator and
+    denominator.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the number of scoops, divide the total flour by the size of one scoop.
+      expression: x = (8/3) ÷ (4/9)
+      common_mistake: null
+    - step_number: 2
+      explanation: Dividing by a fraction is the same as multiplying by its reciprocal, so flip 4/9 to
+        get 9/4.
+      expression: x = (8/3) × (9/4)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators and the denominators.
+      expression: x = (8 × 9) / (3 × 4) = 72 / 12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify by dividing both numerator and denominator by their greatest common factor,
+        12.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 scoops
+  random_seed: 1106401
+  rendered_question: A chef has 8/3 cups of flour and wants to divide it into scoops that are each 4/9
+    of a cup. How many scoops can the chef make?
+  option_a: 6 scoops
+  option_b: 32/27 scoops
+  option_c: 8 scoops
+  option_d: 3 scoops
+  correct_option: a
+- question_template_id: authored-g6_fractions-d4-1106402
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_fractions_instead_of_dividing
+  - multiplied_denominators_without_reciprocal
+  - computed_only_numerators
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener has 9/4 pounds of fertilizer and wants to divide it into bags that each hold 3/8 pound.
+    How many bags can be filled?
+  context_block: ''
+  answer_expression: Eq(x, Rational(9,4) / Rational(3,8))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find how many bags, you need to divide the total amount of fertilizer by the amount in each bag.
+  - 'Set up the division: (9/4) ÷ (3/8). Remember that dividing by a fraction means multiplying by its
+    reciprocal.'
+  - Rewrite as (9/4) × (8/3), then multiply the numerators together and the denominators together before
+    simplifying.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the number of bags, divide the total fertilizer by the amount per bag.
+      expression: x = (9/4) ÷ (3/8)
+      common_mistake: null
+    - step_number: 2
+      explanation: Dividing by a fraction is the same as multiplying by its reciprocal. The reciprocal
+        of 3/8 is 8/3.
+      expression: x = (9/4) × (8/3)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators together and the denominators together.
+      expression: x = (9 × 8)/(4 × 3) = 72/12
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing both numerator and denominator by their greatest
+        common divisor, 12.
+      expression: x = 6
+      common_mistake: null
+    final_answer: 6 bags
+  random_seed: 1106402
+  rendered_question: A gardener has 9/4 pounds of fertilizer and wants to divide it into bags that each
+    hold 3/8 pound. How many bags can be filled?
+  option_a: 3 bags
+  option_b: 27/32 bags
+  option_c: 4 bags
+  option_d: 6 bags
+  correct_option: d
+- question_template_id: authored-g6_fractions-d4-1446400
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_numerators_and_denominators_without_reciprocal
+  - multiplied_denominators_only
+  - multiplied_numerators_instead_of_using_reciprocal
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A coach has mapped out 4/5 of a mile for a relay race and wants to divide it into equal segments
+    that are each 1/10 of a mile long. How many segments can be created?
+  context_block: null
+  answer_expression: Eq(x, Rational(4,5) / Rational(1,10))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find how many segments fit into the total distance, you need to divide the total distance by the
+    length of one segment.
+  - 'Write a division: take 4/5 and divide it by 1/10.'
+  - Dividing by a fraction is the same as multiplying by its reciprocal. Rewrite the division and then
+    multiply.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The number of segments is found by dividing the total distance by the length of each
+        segment.
+      expression: x = (4/5) ÷ (1/10)
+      common_mistake: null
+    - step_number: 2
+      explanation: Dividing by a fraction is the same as multiplying by its reciprocal. The reciprocal
+        of 1/10 is 10/1.
+      expression: x = (4/5) × (10/1)
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the numerators and multiply the denominators.
+      expression: x = (4 × 10) / (5 × 1) = 40/5
+      common_mistake: null
+    - step_number: 4
+      explanation: Simplify the fraction by dividing numerator by denominator.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 segments
+  random_seed: 1446400
+  rendered_question: A coach has mapped out 4/5 of a mile for a relay race and wants to divide it into
+    equal segments that are each 1/10 of a mile long. How many segments can be created?
+  option_a: 4 segments
+  option_b: 8 segments
+  option_c: 2 segments
+  option_d: 40 segments
+  correct_option: b
+- question_template_id: authored-g6_fractions-d4-1446401
+  topic_id: g6_fractions
+  skill_id: g6_fraction_mul_div
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_fractions_instead_of_dividing
+  - inverted_division_order
+  - did_not_simplify_final_fraction
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A carpenter has 2 1/2 meters of wood trim and wants to cut pieces that are each 1/4 meter long.
+    How many pieces can the carpenter cut?
+  context_block: ''
+  answer_expression: Eq(x, Rational(5,2) / Rational(1,4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find how many pieces fit, you need to divide the total length by the length of one piece.
+  - Convert 2 1/2 to an improper fraction, then divide by 1/4.
+  - Dividing by a fraction means multiplying by its reciprocal, so multiply 5/2 by 4/1.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Convert the mixed number 2 1/2 to an improper fraction.
+      expression: 5/2
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Write the division problem: total length divided by piece length.'
+      expression: (5/2) ÷ (1/4)
+      common_mistake: null
+    - step_number: 3
+      explanation: Dividing by a fraction is the same as multiplying by its reciprocal.
+      expression: (5/2) × (4/1)
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply the numerators and denominators.
+      expression: 20/2
+      common_mistake: null
+    - step_number: 5
+      explanation: Simplify the fraction.
+      expression: '10'
+      common_mistake: null
+    final_answer: 10 pieces
+  random_seed: 1446401
+  rendered_question: A carpenter has 2 1/2 meters of wood trim and wants to cut pieces that are each 1/4
+    meter long. How many pieces can the carpenter cut?
+  option_a: 20 pieces
+  option_b: 10 pieces
+  option_c: 5/8 pieces
+  option_d: 5 pieces
+  correct_option: b

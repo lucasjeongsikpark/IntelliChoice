@@ -22,6 +22,8 @@ templates:
   stem: A rectangular garden measures 12 meters long and 15 meters wide. What is the area of the garden?
   context_block: null
   answer_expression: Eq(x, 12 * 15)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Area measures the space inside a flat shape. For a rectangle, you need to combine the length and width.
   - The formula for the area of a rectangle is length times width.
@@ -66,6 +68,8 @@ templates:
   stem: A rectangular classroom rug measures 8 feet long and 14 feet wide. What is the area of the rug?
   context_block: null
   answer_expression: Eq(x, 8 * 14)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many square feet cover the entire rug when you fill its length and width.
   - Area of a rectangle is found by multiplying its length by its width.
@@ -115,6 +119,8 @@ templates:
     parking lot?
   context_block: null
   answer_expression: Eq(x, 25 * 16)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - To find the area of a rectangle, you need to use its length and its width.
   - The formula for the area of a rectangle is length times width.
@@ -169,6 +175,8 @@ templates:
     the court?
   context_block: null
   answer_expression: Eq(x, 22 * 13)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Remember that area measures the space inside a rectangle.
   - Area is found by multiplying length by width.
@@ -218,6 +226,8 @@ templates:
     pool?
   context_block: ''
   answer_expression: Eq(x, 24 * 17)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - To find the area of a rectangle, you need to multiply its two dimensions together.
   - The formula for the area of a rectangle is length times width.
@@ -269,6 +279,8 @@ templates:
     of juice are in the pitcher now?
   context_block: null
   answer_expression: x = 2 * 1000 + 350
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many millilitres are in 1 litre?
   - Multiply the number of litres by 1000 to convert to millilitres.
@@ -314,6 +326,8 @@ templates:
     of water are in the tank now?
   context_block: ''
   answer_expression: x = 3 * 1000 + 450
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many millilitres are in one litre?
   - Convert the 3 litres to millilitres, then add the extra 450 millilitres.
@@ -359,6 +373,8 @@ templates:
     and then adds 275 milliliters from a measuring cup. How many milliliters of water are in the jug altogether?
   context_block: null
   answer_expression: Eq(x, 4*1000 + 275)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many milliliters are in one liter?
   - Convert the 4 liters to milliliters by multiplying 4 by 1000, then add the extra milliliters.
@@ -405,6 +421,8 @@ templates:
     How many milliliters of soup are in the pot altogether?
   context_block: null
   answer_expression: x = 5 * 1000 + 325
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Recall how many milliliters are in one liter.
   - Convert the 5 liters to milliliters separately, then add the extra 325 milliliters.
@@ -454,6 +472,8 @@ templates:
     the bucket altogether?
   context_block: null
   answer_expression: x = 6 * 1000 + 480
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many milliliters are in one liter?
   - Multiply the number of liters by 1000 to convert to milliliters, then add the extra milliliters.
@@ -499,6 +519,8 @@ templates:
     in the can altogether?
   context_block: null
   answer_expression: x = 7 * 1000 + 625
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - First, decide how many milliliters are in 7 liters.
   - Since 1 liter equals 1000 milliliters, multiply 7 by 1000 and then add the extra milliliters.
@@ -544,6 +566,8 @@ templates:
     is the concert?
   context_block: null
   answer_expression: Eq(x, (12*60 + 40) - (9*60 + 25))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - First, figure out how many minutes past midnight the concert starts, and how many minutes past midnight
     it ends.
@@ -598,6 +622,8 @@ templates:
     last?
   context_block: null
   answer_expression: Eq(x, (11*60 + 30) - (8*60 + 50))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many minutes past midnight is 8:50, and how many minutes past midnight is 11:30?
   - Convert each time to total minutes from midnight by multiplying the hours by 60 and adding the minutes.
@@ -648,6 +674,8 @@ templates:
   stem: A museum tour starts at 9:15 and ends at 12:50. How many minutes long is the tour?
   context_block: null
   answer_expression: Eq(x, (12*60 + 50) - (9*60 + 15))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Convert both times to minutes after midnight so you can compare them easily.
   - 9:15 is 9×60 + 15 minutes after midnight, and 12:50 is 12×60 + 50 minutes after midnight.
@@ -698,6 +726,8 @@ templates:
     the mixing session last?
   context_block: null
   answer_expression: Eq(x, (11*60 + 10) - (8*60 + 25))
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Find how many total minutes past midnight each time represents.
   - Convert 8:25 to minutes by calculating 8×60 + 25, and 11:10 by calculating 11×60 + 10.
@@ -749,6 +779,8 @@ templates:
     of the plank in centimeters?
   context_block: null
   answer_expression: x = 3 * 100 + 45
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many centimeters are in one meter?
   - Multiply the number of meters by 100 to convert to centimeters, then add the centimeters already given.
@@ -794,6 +826,8 @@ templates:
   stem: A jump rope is 5 meters and 60 centimeters long. What is its total length in centimeters?
   context_block: null
   answer_expression: x = 5 * 100 + 60
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many centimeters are in 1 meter?
   - Multiply the number of meters by 100 to convert them to centimeters.
@@ -839,6 +873,8 @@ templates:
     the curtain in centimeters?
   context_block: null
   answer_expression: Eq(x, 6*100 + 80)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many centimeters are in one meter?
   - Multiply the number of meters by 100 to convert them to centimeters, then add the extra centimeters.
@@ -885,6 +921,8 @@ templates:
     rope in centimeters?
   context_block: null
   answer_expression: x = 7 * 100 + 50
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many centimeters are in one meter?
   - Convert the 7 meters to centimeters first, then think about what to do with the 50 centimeters.
@@ -931,6 +969,8 @@ templates:
     ribbon in centimeters?
   context_block: null
   answer_expression: x = 2 * 100 + 35
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about how many centimeters are in one meter.
   - To convert 2 meters to centimeters, multiply 2 by 100, then add the 35 centimeters.
@@ -979,6 +1019,8 @@ templates:
   stem: A garden hose is 4 meters and 25 centimeters long. What is the total length of the hose in centimeters?
   context_block: null
   answer_expression: x = 4 * 100 + 25
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many centimeters are in one meter?
   - Multiply the number of meters by 100 to convert them to centimeters.
@@ -1025,6 +1067,8 @@ templates:
     long. What is the total length of the banner in centimeters?
   context_block: ''
   answer_expression: x = 8 * 100 + 35
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many centimeters are in one meter?
   - Convert the 8 meters to centimeters, then think about how to combine that with the 35 centimeters.
@@ -1070,6 +1114,8 @@ templates:
   stem: A garden hose is 9 meters and 25 centimeters long. What is the total length of the hose in centimeters?
   context_block: null
   answer_expression: Eq(x, 9 * 100 + 25)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many centimeters are in one meter?
   - Multiply the number of meters by 100 to convert to centimeters, then add the remaining centimeters.
@@ -1115,6 +1161,8 @@ templates:
   stem: A climbing rope is 4 meters and 15 centimeters long. What is the total length of the rope in centimeters?
   context_block: null
   answer_expression: Eq(x, 4 * 100 + 15)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many centimeters are in one meter?
   - Multiply the number of meters by 100 to convert to centimeters, then add the extra centimeters.
@@ -1160,6 +1208,8 @@ templates:
   stem: Jordan had $15.75 and spent $6.25 on a book. How much money does Jordan have left?
   context_block: null
   answer_expression: Eq(x, 15.75 - 6.25)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the amount Jordan had at the beginning.
   - When you spend money, you take away that amount from what you started with.
@@ -1206,6 +1256,8 @@ templates:
     the baker have left?
   context_block: ''
   answer_expression: Eq(x, 28.50 - 12.75)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about whether the baker's money increases or decreases when supplies are purchased.
   - You need to subtract the amount spent from the starting amount.
@@ -1254,6 +1306,8 @@ templates:
   stem: A gardener has $24.80 and spends $8.30 on seeds. How much money does the gardener have left?
   context_block: ''
   answer_expression: Eq(x, 24.80 - 8.30)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the amount of money the gardener had at the beginning.
   - To find how much is left after spending, subtract the amount spent from the starting amount.
@@ -1303,6 +1357,8 @@ templates:
   stem: A musician had $32.40 and spent $14.65 on guitar strings. How much money does she have left?
   context_block: ''
   answer_expression: Eq(x, 32.40 - 14.65)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Think about what happens to the musician's money when she buys the strings.
   - Subtract the cost of the strings from the amount she started with.
@@ -1356,6 +1412,8 @@ templates:
     does Liam have left?
   context_block: null
   answer_expression: Eq(x, 18.60 - 7.45)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start by identifying how much money Liam had at the beginning and how much he spent.
   - To find how much is left, subtract the amount spent from the amount he started with.
@@ -1401,6 +1459,8 @@ templates:
   stem: A cyclist had $21.50 and spent $9.35 on a water bottle. How much money does the cyclist have left?
   context_block: ''
   answer_expression: Eq(x, 21.50 - 9.35)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Start with the amount the cyclist had at the beginning.
   - Subtract the cost of the water bottle from the starting amount.
@@ -1458,6 +1518,8 @@ templates:
     in grams?
   context_block: ''
   answer_expression: x = 3 * 1000 + 450
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Remember that 1 kilogram equals 1000 grams, so you need to convert the kilograms first.
   - Multiply the number of kilograms by 1000 to find how many grams that part weighs, then add the remaining
@@ -1503,6 +1565,8 @@ templates:
   stem: A watermelon at the market weighs 5 kg 280 g. What is its weight in grams?
   context_block: ''
   answer_expression: x = 5 * 1000 + 280
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many grams are in one kilogram?
   - Multiply the number of kilograms by 1000 to convert them to grams.
@@ -1547,6 +1611,8 @@ templates:
   stem: A bag of flour weighs 4 kg 275 g. How much does the bag weigh in grams?
   context_block: ''
   answer_expression: Eq(x, 4*1000 + 275)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many grams are in one kilogram?
   - To convert 4 kilograms to grams, multiply 4 by 1000.
@@ -1590,6 +1656,8 @@ templates:
   stem: A farmer harvests a pumpkin that weighs 6 kg 340 g. What is the weight of the pumpkin in grams?
   context_block: ''
   answer_expression: Eq(x, 6*1000 + 340)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many grams are in one kilogram?
   - Multiply the number of kilograms by 1000 to convert, then think about what to do with the remaining
@@ -1635,6 +1703,8 @@ templates:
   stem: A baby elephant at the zoo weighs 7 kg 125 g. What is the elephant's weight in grams?
   context_block: null
   answer_expression: x = 7 * 1000 + 125
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - How many grams are in one kilogram?
   - Multiply the number of kilograms by 1000 to convert to grams, then add the extra grams.
@@ -1678,6 +1748,8 @@ templates:
   stem: A pet cat weighs 8 kg 465 g. What is the cat's weight in grams?
   context_block: null
   answer_expression: x = 8 * 1000 + 465
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Recall how many grams are in one kilogram.
   - Convert the kilograms to grams first, then add the grams that are already given.

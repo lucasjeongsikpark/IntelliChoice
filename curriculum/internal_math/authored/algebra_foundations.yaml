@@ -1,0 +1,1233 @@
+curriculum_version: '2026.1'
+topic_id: algebra_foundations
+templates:
+- question_template_id: authored-algebra_foundations-d2-1185201
+  topic_id: algebra_foundations
+  skill_id: alg_distribute
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - distributed_only_the_first_term
+  - ignored_subtraction_of_trays
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker makes 3 batches of cookies. Each batch has 2 trays plus 4 extra cookies. After making
+    them, the baker removes 2 trays to cool separately. Altogether, 28 cookies remain. How many cookies
+    are on each tray?
+  context_block: null
+  answer_expression: 3*(2*x + 4) - 2*x = 28
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the number of cookies in one batch, if each tray holds x cookies.
+  - Three batches hold 3(2x + 4) cookies, then 2 trays are removed, which is 2x cookies less.
+  - Expand the bracket and collect the x terms before solving 6x + 12 - 2x = 28.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each batch contains 2 trays plus 4 extra cookies. If each tray holds x cookies, one
+        batch has 2x + 4 cookies.
+      expression: 2*x + 4
+      common_mistake: null
+    - step_number: 2
+      explanation: Three batches are made, so the total before removing trays is 3 times the amount in
+        one batch.
+      expression: 3*(2*x + 4)
+      common_mistake: null
+    - step_number: 3
+      explanation: Expand the bracket by distributing 3 to both terms inside.
+      expression: 6*x + 12
+      common_mistake: null
+    - step_number: 4
+      explanation: The baker then removes 2 trays, which is 2x cookies.
+      expression: 6*x + 12 - 2*x
+      common_mistake: null
+    - step_number: 5
+      explanation: Collect like terms by combining 6x and -2x.
+      expression: 4*x + 12
+      common_mistake: null
+    - step_number: 6
+      explanation: Set the expression equal to the total remaining, 28 cookies.
+      expression: 4*x + 12 = 28
+      common_mistake: null
+    - step_number: 7
+      explanation: Subtract 12 from both sides to isolate the term with x.
+      expression: 4*x = 16
+      common_mistake: null
+    - step_number: 8
+      explanation: Divide both sides by 4 to solve for x.
+      expression: x = 4
+      common_mistake: null
+    final_answer: 4 cookies per tray
+  random_seed: 1185201
+  rendered_question: A baker makes 3 batches of cookies. Each batch has 2 trays plus 4 extra cookies.
+    After making them, the baker removes 2 trays to cool separately. Altogether, 28 cookies remain. How
+    many cookies are on each tray?
+  option_a: 4 cookies per tray
+  option_b: 8 cookies per tray
+  option_c: 5 cookies per tray
+  option_d: 6 cookies per tray
+  correct_option: a
+- question_template_id: authored-algebra_foundations-d2-1185202
+  topic_id: algebra_foundations
+  skill_id: alg_distribute
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - distributed_only_the_first_term_in_bracket
+  - dropped_coefficient_when_combining_like_terms
+  - stopped_before_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants 5 flower beds. Each bed has 2 rows of plants plus 3 border plants. After planting,
+    she removes 6 rows for transplanting. She now has 35 plants total. How many plants are in each row?
+  context_block: ''
+  answer_expression: 5*(2*x + 3) - 6*x = 35
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total plants in one bed if each row has x plants.
+  - Five beds give 5(2x + 3) plants. Then 6 rows, each with x plants, are removed.
+  - Expand the bracket, combine the x terms, then solve for x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each bed contains 2 rows (each with x plants) plus 3 border plants, so one bed has
+        2x + 3 plants.
+      expression: 2*x + 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Five beds together contain 5(2x + 3) plants.
+      expression: 5*(2*x + 3)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Expand the bracket: 5(2x + 3) = 10x + 15.'
+      expression: 10*x + 15
+      common_mistake: null
+    - step_number: 4
+      explanation: After removing 6 rows (6x plants), the total is 10x + 15 - 6x = 4x + 15.
+      expression: 4*x + 15
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Set this equal to the total given: 4x + 15 = 35.'
+      expression: 4*x + 15 = 35
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Subtract 15 from both sides: 4x = 20.'
+      expression: 4*x = 20
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Divide both sides by 4: x = 5.'
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 plants per row
+  random_seed: 1185202
+  rendered_question: A gardener plants 5 flower beds. Each bed has 2 rows of plants plus 3 border plants.
+    After planting, she removes 6 rows for transplanting. She now has 35 plants total. How many plants
+    are in each row?
+  option_a: 10 plants per row
+  option_b: 5 plants per row
+  option_c: 2 plants per row
+  option_d: 4 plants per row
+  correct_option: b
+- question_template_id: authored-algebra_foundations-d2-1425200
+  topic_id: algebra_foundations
+  skill_id: alg_distribute
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - distributed_only_the_first_term
+  - forgot_to_combine_constants
+  - forgot_to_subtract_variable_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A craft shop sells bundles of stickers. Each bundle contains 3 sheets plus 2 bonus stickers, and
+    a customer buys 4 bundles. The shop then removes 5 sheets and adds 1 extra sticker to the order. How
+    many total items does the customer receive if each sheet has x stickers?
+  context_block: null
+  answer_expression: 4*(3*x + 2) - 5*x + 1
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the number of items in one bundle if each sheet has x stickers.
+  - Four bundles give you 4(3x + 2) items, then 5 sheets with x stickers each are removed and 1 sticker
+    is added.
+  - Distribute the 4 across the bracket, then combine all the x terms and all the plain numbers separately.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each bundle contains 3 sheets plus 2 bonus stickers. If each sheet has x stickers,
+        one bundle has 3x + 2 items.
+      expression: 3*x + 2
+      common_mistake: null
+    - step_number: 2
+      explanation: The customer buys 4 bundles, so multiply the expression for one bundle by 4.
+      expression: 4*(3*x + 2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Distribute the 4 across the bracket to get 12x + 8.
+      expression: 12*x + 8
+      common_mistake: null
+    - step_number: 4
+      explanation: The shop removes 5 sheets (each with x stickers) and adds 1 extra sticker, so subtract
+        5x and add 1.
+      expression: 12*x + 8 - 5*x + 1
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine like terms: (12x - 5x) gives 7x, and (8 + 1) gives 9.'
+      expression: 7*x + 9
+      common_mistake: null
+    final_answer: 7x + 9
+  random_seed: 1425200
+  rendered_question: A craft shop sells bundles of stickers. Each bundle contains 3 sheets plus 2 bonus
+    stickers, and a customer buys 4 bundles. The shop then removes 5 sheets and adds 1 extra sticker to
+    the order. How many total items does the customer receive if each sheet has x stickers?
+  option_a: 12x + 9
+  option_b: 7x + 9
+  option_c: 17x + 9
+  option_d: 7x + 8
+  correct_option: b
+- question_template_id: authored-algebra_foundations-d3-1186300
+  topic_id: algebra_foundations
+  skill_id: alg_inequalities
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - skipped_final_division
+  - subtracted_instead_of_dividing
+  - wrong_order_of_operations
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Lena is playing a trivia game. She already has 5 points and earns 2 points for each question she
+    answers correctly. She needs more than 17 points to advance to the next round. How many questions
+    must she answer correctly?
+  context_block: ''
+  answer_expression: 5 + 2*x > 17
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for Lena's total points after answering x questions correctly.
+  - Her total is 5 + 2x, and that must be greater than 17.
+  - Subtract 5 from both sides, then divide by 2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Lena starts with 5 points and earns 2 points per question, so after x questions her
+        total is 5 + 2x.
+      expression: 5 + 2*x
+      common_mistake: null
+    - step_number: 2
+      explanation: She needs more than 17 points, so we write the inequality 5 + 2x > 17.
+      expression: 5 + 2*x > 17
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 5 from both sides to isolate the term with x.
+      expression: 2*x > 12
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by 2 to solve for x.
+      expression: x > 6
+      common_mistake: null
+    final_answer: x > 6
+  random_seed: 1186300
+  rendered_question: Lena is playing a trivia game. She already has 5 points and earns 2 points for each
+    question she answers correctly. She needs more than 17 points to advance to the next round. How many
+    questions must she answer correctly?
+  option_a: x > 6
+  option_b: x > 11
+  option_c: x > 12
+  option_d: x > 6.5
+  correct_option: a
+- question_template_id: authored-algebra_foundations-d4-1186401
+  topic_id: algebra_foundations
+  skill_id: alg_inequalities
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - divided_initial_amount_by_rate_without_accounting_for_coefficient
+  - failed_to_reverse_inequality_when_dividing_by_negative
+  - arithmetic_error_in_simplification_or_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A streaming service account has 90 downloads available. Each movie downloaded uses 7 downloads.
+    How many movies can you download and still have more than 20 downloads left?
+  context_block: ''
+  answer_expression: 90 - 7*m > 20
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the number of downloads remaining after downloading m movies.
+  - The downloads remaining are 90 - 7m, and that must be greater than 20.
+  - Isolate m by moving 90 to the other side, then dividing by the coefficient—remember the inequality
+    sign flips when you divide by a negative.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the inequality for downloads remaining after m movies: 90 minus 7 times m must
+        be greater than 20.'
+      expression: 90 - 7*m > 20
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 90 from both sides to isolate the term with m.
+      expression: -7*m > 20 - 90
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the right side.
+      expression: -7*m > -70
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide both sides by -7. Dividing by a negative reverses the inequality sign.
+      expression: m < 10
+      common_mistake: null
+    final_answer: m < 10
+  random_seed: 1186401
+  rendered_question: A streaming service account has 90 downloads available. Each movie downloaded uses
+    7 downloads. How many movies can you download and still have more than 20 downloads left?
+  option_a: m > 10
+  option_b: m < 10
+  option_c: m < 70
+  option_d: m < 13
+  correct_option: b
+- question_template_id: authored-algebra_foundations-d5-1186501
+  topic_id: algebra_foundations
+  skill_id: alg_inequalities
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 240
+  common_error_tags:
+  - forgot_to_reverse_inequality_when_dividing_by_negative
+  - divided_by_wrong_coefficient_or_made_arithmetic_error
+  - misread_subtraction_or_division_step
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A prepaid parking meter starts with 240 minutes. Each hour the meter decreases by 10 minutes.
+    For how many hours can you park if you need more than 60 minutes remaining when you leave?
+  context_block: null
+  answer_expression: 240 - 10*x > 60
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for how many minutes remain on the meter after x hours.
+  - The meter has 240 - 10x minutes left, and that amount must be more than 60.
+  - Solve 240 - 10x > 60 by isolating x, and remember to reverse the inequality sign when dividing by
+    a negative.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: After x hours, the meter has 240 - 10x minutes remaining, and we need that to be more
+        than 60.
+      expression: 240 - 10*x > 60
+      common_mistake: null
+    - step_number: 2
+      explanation: Subtract 240 from both sides to isolate the term with x.
+      expression: -10*x > -180
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide both sides by -10. When dividing an inequality by a negative number, reverse
+        the inequality sign.
+      expression: x < 18
+      common_mistake: Forgetting to reverse the inequality sign when dividing by a negative produces x
+        > 18.
+    final_answer: x < 18
+  random_seed: 1186501
+  rendered_question: A prepaid parking meter starts with 240 minutes. Each hour the meter decreases by
+    10 minutes. For how many hours can you park if you need more than 60 minutes remaining when you leave?
+  option_a: x < 12
+  option_b: x < 30
+  option_c: x < 18
+  option_d: x > 18
+  correct_option: c
+- question_template_id: authored-algebra_foundations-d4-1187401
+  topic_id: algebra_foundations
+  skill_id: alg_linear_functions
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 210
+  common_error_tags:
+  - Distributed only the first term inside the bracket
+  - Ignored the subtraction term when setting up the equation
+  - Made an arithmetic error when isolating the variable term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A bakery prepares sandwich boxes. Each box contains x sandwiches plus 5 cookies. After preparing
+    6 boxes, the bakery removes 2x sandwiches to sell individually. Altogether there are 58 items. How
+    many sandwiches were in each box originally?
+  context_block: null
+  answer_expression: Eq(6*(x + 5) - 2*x, 58)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total number of items in one box if it contains x sandwiches.
+  - Six boxes give 6(x + 5) items, but then 2x sandwiches are removed, leaving 6(x + 5) - 2x items in
+    total.
+  - Expand the bracket, combine like terms with x, then isolate x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the total items in one box. Each box has x sandwiches and 5 cookies, so one box
+        contains x + 5 items.
+      expression: x + 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the total items in 6 boxes. Multiply the expression for one box by 6.
+      expression: 6(x + 5)
+      common_mistake: null
+    - step_number: 3
+      explanation: Account for the sandwiches removed. The bakery removes 2x sandwiches, so subtract that
+        from the total.
+      expression: 6(x + 5) - 2x
+      common_mistake: null
+    - step_number: 4
+      explanation: Set up the equation. The total number of items is 58.
+      expression: 6(x + 5) - 2x = 58
+      common_mistake: null
+    - step_number: 5
+      explanation: Distribute 6 into the bracket.
+      expression: 6x + 30 - 2x = 58
+      common_mistake: null
+    - step_number: 6
+      explanation: Combine the x terms on the left side.
+      expression: 4x + 30 = 58
+      common_mistake: null
+    - step_number: 7
+      explanation: Subtract 30 from both sides to isolate the term with x.
+      expression: 4x = 28
+      common_mistake: null
+    - step_number: 8
+      explanation: Divide both sides by 4 to solve for x.
+      expression: x = 7
+      common_mistake: null
+    final_answer: 7 sandwiches
+  random_seed: 1187401
+  rendered_question: A bakery prepares sandwich boxes. Each box contains x sandwiches plus 5 cookies.
+    After preparing 6 boxes, the bakery removes 2x sandwiches to sell individually. Altogether there are
+    58 items. How many sandwiches were in each box originally?
+  option_a: 9 sandwiches
+  option_b: 7 sandwiches
+  option_c: 12 sandwiches
+  option_d: 14 sandwiches
+  correct_option: b
+- question_template_id: authored-algebra_foundations-d4-1187402
+  topic_id: algebra_foundations
+  skill_id: alg_linear_functions
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - ignored_subtraction_term
+  - incorrect_distribution_or_combining
+  - skipped_final_division
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A book fair organizes reading kits. Each kit contains x bookmarks plus 3 pencils. The organizers
+    make 8 kits but then donate 2x bookmarks to a classroom. Altogether they have 54 items. How many bookmarks
+    were in each kit?
+  context_block: ''
+  answer_expression: 8*(x + 3) - 2*x = 54
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the number of items in one kit if each kit has x bookmarks.
+  - Eight kits hold 8(x + 3) items, then 2x bookmarks are removed, leaving 8(x + 3) - 2x items.
+  - Distribute the 8 first, combine like terms, then solve the two-step equation.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: One kit contains x bookmarks and 3 pencils, so each kit has x + 3 items.
+      expression: x + 3
+      common_mistake: null
+    - step_number: 2
+      explanation: Eight kits contain 8(x + 3) items in total.
+      expression: 8(x + 3)
+      common_mistake: null
+    - step_number: 3
+      explanation: After donating 2x bookmarks, the number of items remaining is 8(x + 3) - 2x, and this
+        equals 54.
+      expression: 8(x + 3) - 2x = 54
+      common_mistake: null
+    - step_number: 4
+      explanation: Distribute the 8 into the parentheses.
+      expression: 8x + 24 - 2x = 54
+      common_mistake: null
+    - step_number: 5
+      explanation: Combine the like terms 8x and -2x.
+      expression: 6x + 24 = 54
+      common_mistake: null
+    - step_number: 6
+      explanation: Subtract 24 from both sides.
+      expression: 6x = 30
+      common_mistake: null
+    - step_number: 7
+      explanation: Divide both sides by 6 to solve for x.
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 bookmarks
+  random_seed: 1187402
+  rendered_question: A book fair organizes reading kits. Each kit contains x bookmarks plus 3 pencils.
+    The organizers make 8 kits but then donate 2x bookmarks to a classroom. Altogether they have 54 items.
+    How many bookmarks were in each kit?
+  option_a: 30 bookmarks
+  option_b: 5 bookmarks
+  option_c: 3 bookmarks
+  option_d: 6 bookmarks
+  correct_option: b
+- question_template_id: authored-algebra_foundations-d3-1187302
+  topic_id: algebra_foundations
+  skill_id: alg_linear_functions
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - Distributed only over the first term in the parentheses
+  - Combined the constant into the coefficient before distributing
+  - Stopped at the intermediate step 5x = 25 without dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A flower shop creates bouquets. Each bouquet contains x roses plus 2 lilies. After making 9 bouquets,
+    the shop removes 4x roses for individual sales. Altogether 43 flowers have been arranged. How many
+    roses are in each bouquet?
+  context_block: null
+  answer_expression: Eq(9*(x + 2) - 4*x, 43)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the total flowers in one bouquet if each contains x roses.
+  - Nine bouquets hold 9(x + 2) flowers, then 4x roses are removed, and the total is 43.
+  - Distribute the 9, combine the x terms, then solve for x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each bouquet contains x roses plus 2 lilies, so one bouquet has x + 2 flowers.
+      expression: x + 2
+      common_mistake: null
+    - step_number: 2
+      explanation: Nine bouquets contain 9 times that amount.
+      expression: 9*(x + 2)
+      common_mistake: null
+    - step_number: 3
+      explanation: Distribute the 9 to both terms inside the parentheses.
+      expression: 9*x + 18
+      common_mistake: null
+    - step_number: 4
+      explanation: The shop then removes 4x roses, so subtract 4x from the total.
+      expression: 9*x + 18 - 4*x
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine like terms: 9x - 4x = 5x.'
+      expression: 5*x + 18
+      common_mistake: null
+    - step_number: 6
+      explanation: Set the expression equal to the total number of flowers arranged, which is 43.
+      expression: 5*x + 18 = 43
+      common_mistake: null
+    - step_number: 7
+      explanation: Subtract 18 from both sides to isolate the term with x.
+      expression: 5*x = 25
+      common_mistake: null
+    - step_number: 8
+      explanation: Divide both sides by 5 to solve for x.
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 roses
+  random_seed: 1187302
+  rendered_question: A flower shop creates bouquets. Each bouquet contains x roses plus 2 lilies. After
+    making 9 bouquets, the shop removes 4x roses for individual sales. Altogether 43 flowers have been
+    arranged. How many roses are in each bouquet?
+  option_a: 5 roses
+  option_b: 3 roses
+  option_c: 25 roses
+  option_d: 7 roses
+  correct_option: a
+- question_template_id: authored-algebra_foundations-d1-1188102
+  topic_id: algebra_foundations
+  skill_id: alg_simplify_expressions
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - combined_only_one_variable
+  - combined_only_one_variable
+  - multiplied_coefficients_instead_of_adding
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants 5 rose bushes and 2 tulip bulbs in the front yard, then plants 3 more rose bushes
+    and 6 more tulip bulbs in the back yard. Which expression shows the total number of plants?
+  context_block: null
+  answer_expression: 5*r + 2*t + 3*r + 6*t
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Write down all four quantities the gardener planted: rose bushes in the front, tulip bulbs in the
+    front, rose bushes in the back, and tulip bulbs in the back.'
+  - Group the rose bush terms together and the tulip bulb terms together.
+  - Add the coefficients of the r terms and the coefficients of the t terms separately.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the expression for all plants. Front yard has 5 rose bushes and 2 tulip bulbs.
+        Back yard has 3 rose bushes and 6 tulip bulbs. Total is 5*r + 2*t + 3*r + 6*t.
+      expression: 5*r + 2*t + 3*r + 6*t
+      common_mistake: null
+    - step_number: 2
+      explanation: Group the rose bush terms together and the tulip bulb terms together.
+      expression: (5*r + 3*r) + (2*t + 6*t)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Add the coefficients of r: 5 + 3 = 8. Add the coefficients of t: 2 + 6 = 8.'
+      expression: 8*r + 8*t
+      common_mistake: null
+    final_answer: 8*r + 8*t
+  random_seed: 1188102
+  rendered_question: A gardener plants 5 rose bushes and 2 tulip bulbs in the front yard, then plants
+    3 more rose bushes and 6 more tulip bulbs in the back yard. Which expression shows the total number
+    of plants?
+  option_a: 8*r + 8*t
+  option_b: 16*r*t
+  option_c: 8*r + 2*t
+  option_d: 5*r + 8*t
+  correct_option: a
+- question_template_id: authored-algebra_foundations-d1-1428100
+  topic_id: algebra_foundations
+  skill_id: alg_simplify_expressions
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Added constants instead of subtracting
+  - Multiplied coefficients instead of adding
+  - Ignored constant terms when simplifying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Liam collects trading cards over two days. On Monday he gets 4 packs plus 7 loose cards. On Tuesday
+    he gets 3 packs minus 2 cards he traded away. How many cards does he have in total?
+  context_block: Each pack contains x cards.
+  answer_expression: 4*x + 7 + 3*x - 2
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write down all the cards Liam received on Monday, then all the cards from Tuesday.
+  - Combine the pack terms together and the loose card numbers together.
+  - Add 4x and 3x to get the total packs, then combine 7 and -2 for the loose cards.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the expression for Monday''s cards: 4 packs plus 7 loose cards is 4x + 7.'
+      expression: 4*x + 7
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Write the expression for Tuesday''s cards: 3 packs minus 2 cards traded is 3x - 2.'
+      expression: 3*x - 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Combine both days by adding the expressions together.
+      expression: 4*x + 7 + 3*x - 2
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine like terms. Add the x terms: 4x + 3x = 7x.'
+      expression: 7*x + 7 - 2
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the constant terms: 7 - 2 = 5.'
+      expression: 7*x + 5
+      common_mistake: null
+    final_answer: 7*x + 5
+  random_seed: 1428100
+  rendered_question: 'Each pack contains x cards.
+
+
+    Liam collects trading cards over two days. On Monday he gets 4 packs plus 7 loose cards. On Tuesday
+    he gets 3 packs minus 2 cards he traded away. How many cards does he have in total?'
+  option_a: 7*x + 5
+  option_b: 12*x + 5
+  option_c: 7*x + 9
+  option_d: 7*x
+  correct_option: a
+- question_template_id: authored-algebra_foundations-d1-1428101
+  topic_id: algebra_foundations
+  skill_id: alg_simplify_expressions
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_constants_incorrectly
+  - multiplied_coefficients_instead_of_adding
+  - ignored_first_x_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker makes cookies in two batches. In the morning she bakes 5x + 3 cookies, and in the afternoon
+    she bakes 2x + 4 cookies. Which expression shows the total number of cookies she baked?
+  context_block: null
+  answer_expression: 5*x + 3 + 2*x + 4
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write down both expressions and think about what operation combines them into one total.
+  - 'Add the two expressions together: (5x + 3) + (2x + 4). Group the x-terms and the constants separately.'
+  - Combine 5x and 2x to get one x-term, then combine 3 and 4 to get one constant.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the morning and afternoon batches as one sum.
+      expression: (5*x + 3) + (2*x + 4)
+      common_mistake: null
+    - step_number: 2
+      explanation: Group the x-terms together and the constant terms together.
+      expression: (5*x + 2*x) + (3 + 4)
+      common_mistake: null
+    - step_number: 3
+      explanation: Combine 5x and 2x.
+      expression: 7*x + (3 + 4)
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine 3 and 4.
+      expression: 7*x + 7
+      common_mistake: null
+    final_answer: 7*x + 7
+  random_seed: 1428101
+  rendered_question: A baker makes cookies in two batches. In the morning she bakes 5x + 3 cookies, and
+    in the afternoon she bakes 2x + 4 cookies. Which expression shows the total number of cookies she
+    baked?
+  option_a: 5*x + 9
+  option_b: 7*x + 12
+  option_c: 10*x + 7
+  option_d: 7*x + 7
+  correct_option: d
+- question_template_id: authored-algebra_foundations-d2-1188200
+  topic_id: algebra_foundations
+  skill_id: alg_simplify_expressions
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - combined_only_one_variable
+  - combined_only_fiction_terms
+  - added_all_coefficients_together
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian shelves 6 fiction books and 2 reference books in the morning, then shelves 3 more
+    fiction books and 7 more reference books in the afternoon. Which expression shows the total number
+    of books she shelved?
+  context_block: null
+  answer_expression: 6*f + 2*r + 3*f + 7*r
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the morning books and another for the afternoon books.
+  - The morning gives you 6*f + 2*r and the afternoon gives you 3*f + 7*r. Add those two expressions together.
+  - Combine the terms that have f and combine the terms that have r separately.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the expression for the morning books: 6 fiction and 2 reference.'
+      expression: 6*f + 2*r
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Write the expression for the afternoon books: 3 fiction and 7 reference.'
+      expression: 3*f + 7*r
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the two expressions together to get the total.
+      expression: 6*f + 2*r + 3*f + 7*r
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine the fiction terms: 6*f + 3*f = 9*f.'
+      expression: 9*f
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the reference terms: 2*r + 7*r = 9*r.'
+      expression: 9*r
+      common_mistake: null
+    - step_number: 6
+      explanation: Write the simplified expression.
+      expression: 9*f + 9*r
+      common_mistake: null
+    final_answer: 9*f + 9*r
+  random_seed: 1188200
+  rendered_question: A librarian shelves 6 fiction books and 2 reference books in the morning, then shelves
+    3 more fiction books and 7 more reference books in the afternoon. Which expression shows the total
+    number of books she shelved?
+  option_a: 11*f + 11*r
+  option_b: 9*f + 2*r
+  option_c: 6*f + 7*r
+  option_d: 9*f + 9*r
+  correct_option: d
+- question_template_id: authored-algebra_foundations-d2-1188202
+  topic_id: algebra_foundations
+  skill_id: alg_simplify_expressions
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_add_second_location_helmets
+  - misidentified_like_terms
+  - added_all_coefficients_to_each_variable
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A coach stores 2 soccer balls and 6 helmets in the gym closet, then stores 5 more soccer balls
+    and 3 more helmets in the equipment shed. Which expression shows the total equipment stored?
+  context_block: null
+  answer_expression: 2*s + 6*h + 5*s + 3*h
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify how many soccer balls are stored in total and how many helmets are stored in total.
+  - Write an expression for the gym closet (2*s + 6*h) and another for the equipment shed (5*s + 3*h),
+    then combine them.
+  - Collect the terms with s together and the terms with h together to simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Write the expression for the gym closet: 2 soccer balls and 6 helmets is 2*s + 6*h.'
+      expression: 2*s + 6*h
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Write the expression for the equipment shed: 5 soccer balls and 3 helmets is 5*s +
+        3*h.'
+      expression: 5*s + 3*h
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the two expressions together to find the total equipment stored.
+      expression: 2*s + 6*h + 5*s + 3*h
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Collect the terms with s: 2*s + 5*s equals 7*s.'
+      expression: 7*s
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Collect the terms with h: 6*h + 3*h equals 9*h.'
+      expression: 9*h
+      common_mistake: null
+    - step_number: 6
+      explanation: Combine the simplified terms to write the final expression.
+      expression: 7*s + 9*h
+      common_mistake: null
+    final_answer: 7*s + 9*h
+  random_seed: 1188202
+  rendered_question: A coach stores 2 soccer balls and 6 helmets in the gym closet, then stores 5 more
+    soccer balls and 3 more helmets in the equipment shed. Which expression shows the total equipment
+    stored?
+  option_a: 2*s + 5*h
+  option_b: 7*s + 6*h
+  option_c: 7*s + 9*h
+  option_d: 16*s + 11*h
+  correct_option: c
+- question_template_id: authored-algebra_foundations-d2-1428200
+  topic_id: algebra_foundations
+  skill_id: alg_simplify_expressions
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - combined_x_terms_incorrectly
+  - forgot_to_subtract_final_constant
+  - distributed_only_first_term_or_stopped_partway
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener plants flowers in 3 rows with 2x + 5 flowers in each row, then plants 4x more individual
+    flowers and removes 6 flowers. Write the simplified expression for the total number of flowers.
+  context_block: null
+  answer_expression: 3*(2*x + 5) + 4*x - 6
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Start by finding how many flowers are in the 3 rows before adding or removing any others.
+  - Distribute the 3 to both terms inside the parentheses, then add the 4x and subtract the 6.
+  - Write out 3(2x + 5) as 6x + 15, then combine all the x terms and all the constant terms separately.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Distribute the 3 across the parentheses to multiply both terms inside.
+      expression: 3(2x + 5) = 6x + 15
+      common_mistake: null
+    - step_number: 2
+      explanation: Rewrite the entire expression with the distributed terms.
+      expression: 6x + 15 + 4x - 6
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Combine the x terms: 6x and 4x.'
+      expression: 6x + 4x = 10x
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine the constant terms: 15 and -6.'
+      expression: 15 - 6 = 9
+      common_mistake: null
+    - step_number: 5
+      explanation: Write the simplified expression by combining the results from the previous steps.
+      expression: 10x + 9
+      common_mistake: null
+    final_answer: 10x + 9
+  random_seed: 1428200
+  rendered_question: A gardener plants flowers in 3 rows with 2x + 5 flowers in each row, then plants
+    4x more individual flowers and removes 6 flowers. Write the simplified expression for the total number
+    of flowers.
+  option_a: 10x + 9
+  option_b: 10x + 21
+  option_c: 9x + 9
+  option_d: 6x + 13
+  correct_option: a
+- question_template_id: authored-algebra_foundations-d2-1428201
+  topic_id: algebra_foundations
+  skill_id: alg_simplify_expressions
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - distributed_only_to_constant
+  - added_instead_of_subtracted_final_term
+  - dropped_one_variable_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian organizes books on 2 shelves with 3x + 4 books on each shelf, then adds 5x more books
+    and removes 3 books. Write the simplified expression for the total number of books.
+  context_block: null
+  answer_expression: 2*(3*x + 4) + 5*x - 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the books on both shelves before any are added or removed.
+  - Distribute the 2 across the expression inside the parentheses, then write the full expression including
+    the added and removed books.
+  - Combine all the x terms together and all the constant terms together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each shelf has 3x + 4 books. With 2 shelves, the expression is 2(3x + 4).
+      expression: 2(3x + 4)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Distribute the 2 across the parentheses: 2 times 3x is 6x, and 2 times 4 is 8.'
+      expression: 6x + 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Add 5x more books and remove 3 books to get the full expression.
+      expression: 6x + 8 + 5x - 3
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine the x terms: 6x + 5x equals 11x.'
+      expression: 11x + 8 - 3
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Combine the constant terms: 8 minus 3 equals 5.'
+      expression: 11x + 5
+      common_mistake: null
+    final_answer: 11*x + 5
+  random_seed: 1428201
+  rendered_question: A librarian organizes books on 2 shelves with 3x + 4 books on each shelf, then adds
+    5x more books and removes 3 books. Write the simplified expression for the total number of books.
+  option_a: 11*x + 11
+  option_b: 10*x + 5
+  option_c: 6*x + 13
+  option_d: 11*x + 5
+  correct_option: d
+- question_template_id: authored-algebra_foundations-d4-1189400
+  topic_id: algebra_foundations
+  skill_id: alg_simultaneous
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - answered with the other unknown
+  - solved total tickets equation only ignoring cost
+  - stopped before dividing by coefficient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: At a fair, adult tickets cost $8 and child tickets cost $5. A family buys 10 tickets and spends
+    exactly $62. How many adult tickets did they buy?
+  context_block: null
+  answer_expression: Eq(8*a + 5*(10 - a), 62)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write one expression for the total number of tickets and another for the total cost in dollars.
+  - If a is the number of adult tickets, then the number of child tickets is 10 - a. The cost is 8a +
+    5(10 - a).
+  - Expand the bracket and combine like terms, then solve for a.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let a be the number of adult tickets. Since the family bought 10 tickets in total,
+        the number of child tickets is 10 - a.
+      expression: child tickets = 10 - a
+      common_mistake: null
+    - step_number: 2
+      explanation: The total cost is the cost of adult tickets plus the cost of child tickets. Adult tickets
+        cost $8 each and child tickets cost $5 each, so the total cost is 8a + 5(10 - a).
+      expression: 8a + 5(10 - a) = 62
+      common_mistake: null
+    - step_number: 3
+      explanation: Distribute the 5 through the bracket.
+      expression: 8a + 50 - 5a = 62
+      common_mistake: null
+    - step_number: 4
+      explanation: Combine like terms on the left side.
+      expression: 3a + 50 = 62
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 50 from both sides.
+      expression: 3a = 12
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 3.
+      expression: a = 4
+      common_mistake: null
+    final_answer: 4 tickets
+  random_seed: 1189400
+  rendered_question: At a fair, adult tickets cost $8 and child tickets cost $5. A family buys 10 tickets
+    and spends exactly $62. How many adult tickets did they buy?
+  option_a: 5 tickets
+  option_b: 4 tickets
+  option_c: 6 tickets
+  option_d: 8 tickets
+  correct_option: b
+- question_template_id: authored-algebra_foundations-d4-1189402
+  topic_id: algebra_foundations
+  skill_id: alg_simultaneous
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - solved_for_wrong_variable
+  - misunderstood_constraint_relationship
+  - arithmetic_error_in_substitution
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A grocery store sells apples for $4 each and oranges for $3 each. A customer buys 15 pieces of
+    fruit for exactly $50. How many apples did the customer buy?
+  context_block: null
+  answer_expression: Eq(4*x + 3*(15 - x), 50)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Let x be the number of apples. Since the customer bought 15 pieces of fruit total, how many oranges
+    did they buy in terms of x?
+  - 'The customer spent $50: 4 dollars times the number of apples plus 3 dollars times the number of oranges
+    equals 50.'
+  - Substitute the number of oranges as 15 - x into the cost equation, then simplify and solve for x.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let x be the number of apples. Since the total number of fruit is 15, the number of
+        oranges is 15 - x.
+      expression: y = 15 - x
+      common_mistake: null
+    - step_number: 2
+      explanation: The total cost is the cost of apples plus the cost of oranges. Apples cost $4 each
+        and oranges cost $3 each, and the total is $50.
+      expression: 4*x + 3*(15 - x) = 50
+      common_mistake: null
+    - step_number: 3
+      explanation: Distribute the 3 into the parentheses.
+      expression: 4*x + 45 - 3*x = 50
+      common_mistake: Some students distribute only to the first term, getting 4*x + 3*15 = 50 without
+        subtracting 3*x.
+    - step_number: 4
+      explanation: Combine like terms on the left side.
+      expression: x + 45 = 50
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 45 from both sides to isolate x.
+      expression: x = 5
+      common_mistake: null
+    final_answer: 5 apples
+  random_seed: 1189402
+  rendered_question: A grocery store sells apples for $4 each and oranges for $3 each. A customer buys
+    15 pieces of fruit for exactly $50. How many apples did the customer buy?
+  option_a: 5 apples
+  option_b: 3 apples
+  option_c: 7 apples
+  option_d: 10 apples
+  correct_option: a
+- question_template_id: authored-algebra_foundations-d5-1189500
+  topic_id: algebra_foundations
+  skill_id: alg_simultaneous
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - swapped_variable_order
+  - assumed_equal_quantities
+  - solved_only_one_equation
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cafe sells coffee for $5 each and tea for $3 each. A customer buys 14 drinks in total and spends
+    exactly $54. How many coffees and how many teas did the customer buy?
+  context_block: null
+  answer_expression: Eq(x + y, 14); Eq(5*x + 3*y, 54)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Let the number of coffees be c and the number of teas be t. Write two equations: one for the total
+    number of drinks and one for the total cost.'
+  - From c + t = 14, solve for one variable in terms of the other. Then substitute that expression into
+    5c + 3t = 54.
+  - After substituting, simplify and solve for the first variable, then use that value to find the second
+    variable.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Let c be the number of coffees and t be the number of teas. The total number of drinks
+        is 14, so c + t = 14.
+      expression: c + t = 14
+      common_mistake: null
+    - step_number: 2
+      explanation: Each coffee costs $5 and each tea costs $3, and the total spent is $54, so 5c + 3t
+        = 54.
+      expression: 5c + 3t = 54
+      common_mistake: null
+    - step_number: 3
+      explanation: 'From the first equation, solve for t: t = 14 - c.'
+      expression: t = 14 - c
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Substitute t = 14 - c into the second equation: 5c + 3(14 - c) = 54.'
+      expression: 5c + 3(14 - c) = 54
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Distribute the 3: 5c + 42 - 3c = 54.'
+      expression: 5c + 42 - 3c = 54
+      common_mistake: null
+    - step_number: 6
+      explanation: 'Combine like terms: 2c + 42 = 54.'
+      expression: 2c + 42 = 54
+      common_mistake: null
+    - step_number: 7
+      explanation: 'Subtract 42 from both sides: 2c = 12.'
+      expression: 2c = 12
+      common_mistake: null
+    - step_number: 8
+      explanation: 'Divide both sides by 2: c = 6.'
+      expression: c = 6
+      common_mistake: null
+    - step_number: 9
+      explanation: 'Substitute c = 6 back into t = 14 - c: t = 14 - 6 = 8.'
+      expression: t = 8
+      common_mistake: null
+    final_answer: (6, 8)
+  random_seed: 1189500
+  rendered_question: A cafe sells coffee for $5 each and tea for $3 each. A customer buys 14 drinks in
+    total and spends exactly $54. How many coffees and how many teas did the customer buy?
+  option_a: (7, 7)
+  option_b: (6, 8)
+  option_c: (12, 2)
+  option_d: (8, 6)
+  correct_option: b

@@ -1,0 +1,844 @@
+curriculum_version: '2026.1'
+topic_id: g6_geometry_measurement
+templates:
+- question_template_id: authored-g6_geometry_measurement-d3-1145300
+  topic_id: g6_geometry_measurement
+  skill_id: g6_circle_measures
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_circumference_formula_instead_of_area
+  - forgot_to_square_the_radius
+  - multiplied_pi_by_radius_only
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A circular garden has a radius of 10 meters. What is the area of the garden?
+  context_block: null
+  answer_expression: Eq(x, 3.14 * 10**2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The area of a circle depends on its radius. Which formula relates area and radius?
+  - The area formula is π times the radius squared. Use 3.14 for π.
+  - Substitute the radius into A = π × r², then calculate the square and multiply.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the formula for the area of a circle using the given radius.
+      expression: A = π × r²
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute π = 3.14 and r = 10 meters into the formula.
+      expression: A = 3.14 × 10²
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 10 squared.
+      expression: 10² = 100
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 3.14 by 100 to find the area.
+      expression: A = 3.14 × 100 = 314
+      common_mistake: null
+    final_answer: 314 square meters
+  random_seed: 1145300
+  rendered_question: A circular garden has a radius of 10 meters. What is the area of the garden?
+  option_a: 314 square meters
+  option_b: 100 square meters
+  option_c: 62.8 square meters
+  option_d: 31.4 square meters
+  correct_option: a
+- question_template_id: authored-g6_geometry_measurement-d3-1145301
+  topic_id: g6_geometry_measurement
+  skill_id: g6_circle_measures
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_radius_instead_of_diameter
+  - used_area_formula_instead_of_circumference
+  - used_diameter_instead_of_radius
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A circular pond has a radius of 50 meters. What is the circumference of the pond?
+  context_block: null
+  answer_expression: Eq(x, 2 * 3.14 * 50)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Circumference is the distance around a circle, which depends on the radius.
+  - The formula for circumference uses 2, pi (use 3.14), and the radius.
+  - 'Set up the formula: multiply 2 by 3.14 by 50, then calculate.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Write the formula for circumference with the given radius.
+      expression: x = 2 * 3.14 * 50
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply 2 by 3.14.
+      expression: x = 6.28 * 50
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 6.28 by 50 to find the circumference.
+      expression: x = 314
+      common_mistake: null
+    final_answer: 314 meters
+  random_seed: 1145301
+  rendered_question: A circular pond has a radius of 50 meters. What is the circumference of the pond?
+  option_a: 100 meters
+  option_b: 157 meters
+  option_c: 314 meters
+  option_d: 7850 meters
+  correct_option: c
+- question_template_id: authored-g6_geometry_measurement-d3-1145302
+  topic_id: g6_geometry_measurement
+  skill_id: g6_circle_measures
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_radius_instead_of_circumference_formula
+  - calculated_area_instead_of_circumference
+  - used_diameter_directly_without_multiplying_by_pi
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A circular running track has a radius of 25 meters. What is the circumference of the track?
+  context_block: null
+  answer_expression: Eq(x, 2 * 3.14 * 25)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Circumference is the distance around a circle. Which formula connects circumference to radius?
+  - The formula is C = 2 × π × r. Use 3.14 for π and substitute the radius.
+  - Write 2 × 3.14 × 25 and calculate step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The circumference formula for a circle is C = 2 × π × r, where r is the radius.
+      expression: C = 2 × 3.14 × 25
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply 2 by 3.14 first.
+      expression: C = 6.28 × 25
+      common_mistake: null
+    - step_number: 3
+      explanation: Now multiply 6.28 by 25 to find the circumference.
+      expression: C = 157
+      common_mistake: null
+    final_answer: 157 meters
+  random_seed: 1145302
+  rendered_question: A circular running track has a radius of 25 meters. What is the circumference of
+    the track?
+  option_a: 78.5 meters
+  option_b: 50 meters
+  option_c: 1962.5 meters
+  option_d: 157 meters
+  correct_option: d
+- question_template_id: authored-g6_geometry_measurement-d4-1145401
+  topic_id: g6_geometry_measurement
+  skill_id: g6_circle_measures
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_circumference_formula_instead_of_area
+  - forgot_to_square_the_radius
+  - calculated_half_the_circumference
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A circular skating rink has a radius of 30 meters. What is the area of the skating rink?
+  context_block: null
+  answer_expression: Eq(x, 3.14 * 30**2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Recall that the area of a circle depends on its radius and the constant pi.
+  - The formula for the area of a circle is pi times the radius squared. Use 3.14 for pi.
+  - 'Substitute the radius into the formula: Area = 3.14 × 30². Calculate the square first, then multiply.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the formula for the area of a circle, which is A = π × r², where r is the
+        radius.
+      expression: A = 3.14 × r²
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute the given radius of 30 meters into the formula.
+      expression: A = 3.14 × 30²
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate 30 squared.
+      expression: 30² = 900
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 3.14 by 900 to find the area.
+      expression: A = 3.14 × 900 = 2826
+      common_mistake: null
+    final_answer: 2826 square meters
+  random_seed: 1145401
+  rendered_question: A circular skating rink has a radius of 30 meters. What is the area of the skating
+    rink?
+  option_a: 900 square meters
+  option_b: 188.4 square meters
+  option_c: 2826 square meters
+  option_d: 94.2 square meters
+  correct_option: c
+- question_template_id: authored-g6_geometry_measurement-d4-1145402
+  topic_id: g6_geometry_measurement
+  skill_id: g6_circle_measures
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_factor_of_two_in_circumference
+  - incorrect_order_of_operations_with_decimals
+  - confused_circumference_with_diameter
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A circular fountain in a city park has a radius of 100 meters. A landscaper needs to install a
+    decorative stone border along the outer edge. What is the total length of border needed?
+  context_block: null
+  answer_expression: Eq(x, 2 * 3.14 * 100)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The border runs along the outer edge of the fountain, which means you need the distance around the
+    circle.
+  - The distance around a circle is its circumference. Use the formula that involves the radius and pi.
+  - Multiply 2 by pi by the radius. Use 3.14 for pi.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The border runs around the entire edge of the circular fountain, so we need to find
+        the circumference.
+      expression: C = 2πr
+      common_mistake: null
+    - step_number: 2
+      explanation: The radius is 100 meters and we use 3.14 for pi. Substitute these values into the formula.
+      expression: C = 2 × 3.14 × 100
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 2 by 3.14 first.
+      expression: C = 6.28 × 100
+      common_mistake: null
+    - step_number: 4
+      explanation: Now multiply 6.28 by 100.
+      expression: C = 628
+      common_mistake: null
+    final_answer: 628 meters
+  random_seed: 1145402
+  rendered_question: A circular fountain in a city park has a radius of 100 meters. A landscaper needs
+    to install a decorative stone border along the outer edge. What is the total length of border needed?
+  option_a: 31400 meters
+  option_b: 628 meters
+  option_c: 314 meters
+  option_d: 200 meters
+  correct_option: b
+- question_template_id: authored-g6_geometry_measurement-d1-1146100
+  topic_id: g6_geometry_measurement
+  skill_id: g6_factors_multiples
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - found_a_common_factor_not_greatest
+  - added_the_two_quantities
+  - found_smallest_common_factor
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A teacher has 48 pencils and 36 erasers to divide into identical gift bags. Each bag must have
+    the same number of pencils and the same number of erasers, and all items must be used. What is the
+    greatest number of gift bags the teacher can make?
+  context_block: null
+  answer_expression: Eq(x, gcd(48, 36))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what number of bags would let you split both 48 pencils and 36 erasers evenly, with none
+    left over.
+  - The number of bags must be a factor of both 48 and 36. List the factors of each.
+  - Find the largest number that appears in both factor lists.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'List all factors of 48: 1, 2, 3, 4, 6, 8, 12, 16, 24, 48.'
+      expression: factors(48) = {1, 2, 3, 4, 6, 8, 12, 16, 24, 48}
+      common_mistake: null
+    - step_number: 2
+      explanation: 'List all factors of 36: 1, 2, 3, 4, 6, 9, 12, 18, 36.'
+      expression: factors(36) = {1, 2, 3, 4, 6, 9, 12, 18, 36}
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Identify the common factors: 1, 2, 3, 4, 6, 12.'
+      expression: common factors = {1, 2, 3, 4, 6, 12}
+      common_mistake: null
+    - step_number: 4
+      explanation: The greatest common factor is 12, so the teacher can make 12 gift bags.
+      expression: gcd(48, 36) = 12
+      common_mistake: null
+    final_answer: 12 gift bags
+  random_seed: 1146100
+  rendered_question: A teacher has 48 pencils and 36 erasers to divide into identical gift bags. Each
+    bag must have the same number of pencils and the same number of erasers, and all items must be used.
+    What is the greatest number of gift bags the teacher can make?
+  option_a: 4 gift bags
+  option_b: 12 gift bags
+  option_c: 84 gift bags
+  option_d: 6 gift bags
+  correct_option: b
+- question_template_id: authored-g6_geometry_measurement-d1-1146102
+  topic_id: g6_geometry_measurement
+  skill_id: g6_factors_multiples
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - checked_only_one_quantity
+  - added_instead_of_finding_gcf
+  - chose_common_factor_not_greatest
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A party host has 24 cookies and 18 cupcakes. She wants to arrange them on plates so that every
+    plate gets the same number of cookies and the same number of cupcakes, with no treats left over. What
+    is the greatest number of plates she can make?
+  context_block: ''
+  answer_expression: Eq(x, gcd(24, 18))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - List the factors of 24 and the factors of 18 to see which numbers divide both evenly.
+  - A number that divides both 24 and 18 with no remainder is called a common factor. Find all of them.
+  - The greatest common factor is the largest number that appears in both lists.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find all the factors of 24. These are the numbers that divide 24 evenly.
+      expression: 1, 2, 3, 4, 6, 8, 12, 24
+      common_mistake: null
+    - step_number: 2
+      explanation: Find all the factors of 18. These are the numbers that divide 18 evenly.
+      expression: 1, 2, 3, 6, 9, 18
+      common_mistake: null
+    - step_number: 3
+      explanation: Identify the common factors - the numbers that appear in both lists.
+      expression: 1, 2, 3, 6
+      common_mistake: null
+    - step_number: 4
+      explanation: The greatest common factor (GCF) is the largest number in the common list.
+      expression: '6'
+      common_mistake: null
+    final_answer: 6 plates
+  random_seed: 1146102
+  rendered_question: A party host has 24 cookies and 18 cupcakes. She wants to arrange them on plates
+    so that every plate gets the same number of cookies and the same number of cupcakes, with no treats
+    left over. What is the greatest number of plates she can make?
+  option_a: 12 plates
+  option_b: 3 plates
+  option_c: 42 plates
+  option_d: 6 plates
+  correct_option: d
+- question_template_id: authored-g6_geometry_measurement-d2-1146200
+  topic_id: g6_geometry_measurement
+  skill_id: g6_factors_multiples
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - stopped_at_non_greatest_common_factor
+  - multiplied_instead_of_finding_gcf
+  - only_considered_one_quantity
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A craft store worker has 30 beads and 45 buttons to organize into identical craft kits. Each kit
+    must have the same number of beads and the same number of buttons, using all items. What is the greatest
+    number of kits that can be made?
+  context_block: null
+  answer_expression: Eq(x, gcd(30, 45))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What does 'using all items' mean for how the beads and buttons divide among the kits?
+  - The number of kits must divide evenly into both 30 and 45 with no remainder.
+  - Find the greatest common factor of 30 and 45.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Since each kit must have the same number of beads and we use all 30 beads, the number
+        of kits must be a factor of 30.
+      expression: 'factors of 30: 1, 2, 3, 5, 6, 10, 15, 30'
+      common_mistake: null
+    - step_number: 2
+      explanation: Since each kit must have the same number of buttons and we use all 45 buttons, the
+        number of kits must be a factor of 45.
+      expression: 'factors of 45: 1, 3, 5, 9, 15, 45'
+      common_mistake: null
+    - step_number: 3
+      explanation: The number of kits must be a factor of both 30 and 45. The common factors are 1, 3,
+        5, and 15.
+      expression: 'common factors: 1, 3, 5, 15'
+      common_mistake: null
+    - step_number: 4
+      explanation: The greatest common factor is 15, so the maximum number of kits is 15. Each kit will
+        have 2 beads and 3 buttons.
+      expression: gcd(30, 45) = 15
+      common_mistake: null
+    final_answer: 15 kits
+  random_seed: 1146200
+  rendered_question: A craft store worker has 30 beads and 45 buttons to organize into identical craft
+    kits. Each kit must have the same number of beads and the same number of buttons, using all items.
+    What is the greatest number of kits that can be made?
+  option_a: 15 kits
+  option_b: 5 kits
+  option_c: 10 kits
+  option_d: 75 kits
+  correct_option: a
+- question_template_id: authored-g6_geometry_measurement-d2-1146201
+  topic_id: g6_geometry_measurement
+  skill_id: g6_factors_multiples
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_at_smaller_common_factor
+  - added_instead_of_finding_gcf
+  - confused_gcf_with_factor_of_one_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian has 32 books and 40 magazines to organize into identical display boxes. Each box must
+    contain the same number of books and the same number of magazines, and all items must be used. What
+    is the greatest number of boxes she can make?
+  context_block: ''
+  answer_expression: Eq(x, gcd(32, 40))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what number must divide evenly into both 32 books and 40 magazines so each box gets whole
+    items.
+  - The greatest number of boxes is the greatest common factor of 32 and 40.
+  - List the factors of each number and find the largest one they share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: To find the greatest number of identical boxes, we need the greatest common factor
+        (GCF) of 32 and 40.
+      expression: gcd(32, 40)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'List the factors of 32: 1, 2, 4, 8, 16, 32.'
+      expression: factors(32) = {1, 2, 4, 8, 16, 32}
+      common_mistake: null
+    - step_number: 3
+      explanation: 'List the factors of 40: 1, 2, 4, 5, 8, 10, 20, 40.'
+      expression: factors(40) = {1, 2, 4, 5, 8, 10, 20, 40}
+      common_mistake: null
+    - step_number: 4
+      explanation: The common factors are 1, 2, 4, and 8. The greatest is 8.
+      expression: gcd(32, 40) = 8
+      common_mistake: null
+    final_answer: 8 boxes
+  random_seed: 1146201
+  rendered_question: A librarian has 32 books and 40 magazines to organize into identical display boxes.
+    Each box must contain the same number of books and the same number of magazines, and all items must
+    be used. What is the greatest number of boxes she can make?
+  option_a: 8 boxes
+  option_b: 4 boxes
+  option_c: 72 boxes
+  option_d: 10 boxes
+  correct_option: a
+- question_template_id: authored-g6_geometry_measurement-d2-1146202
+  topic_id: g6_geometry_measurement
+  skill_id: g6_factors_multiples
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - found_a_common_factor_not_the_greatest
+  - added_the_two_numbers_instead_of_finding_GCF
+  - confused_number_of_bins_with_items_per_bin
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A coach has 54 tennis balls and 36 basketballs to organize into identical storage bins. Each bin
+    must have the same number of tennis balls and the same number of basketballs, and all equipment must
+    be used. What is the greatest number of bins the coach can make?
+  context_block: null
+  answer_expression: Eq(x, gcd(54, 36))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many tennis balls and basketballs would go into each bin if you made different numbers of bins?
+  - The number of bins must divide evenly into both 54 and 36 so that each bin gets a whole number of
+    each type of ball.
+  - Find the greatest common factor of 54 and 36 by listing factors or using prime factorization.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: We need a number of bins that divides evenly into both 54 and 36.
+      expression: x divides 54 and x divides 36
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the prime factorization of each number. 54 = 2 × 3 × 3 × 3 and 36 = 2 × 2 × 3
+        × 3.
+      expression: 54 = 2 × 3^3, 36 = 2^2 × 3^2
+      common_mistake: null
+    - step_number: 3
+      explanation: 'The greatest common factor uses the lowest power of each prime that appears in both
+        factorizations: 2^1 and 3^2.'
+      expression: GCF = 2 × 3^2 = 2 × 9
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply to find the greatest common factor.
+      expression: 2 × 9 = 18
+      common_mistake: null
+    final_answer: 18 bins
+  random_seed: 1146202
+  rendered_question: A coach has 54 tennis balls and 36 basketballs to organize into identical storage
+    bins. Each bin must have the same number of tennis balls and the same number of basketballs, and all
+    equipment must be used. What is the greatest number of bins the coach can make?
+  option_a: 9 bins
+  option_b: 6 bins
+  option_c: 90 bins
+  option_d: 18 bins
+  correct_option: d
+- question_template_id: authored-g6_geometry_measurement-d4-1147400
+  topic_id: g6_geometry_measurement
+  skill_id: g6_surface_area_volume
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - multiplied_only_two_dimensions
+  - multiplied_correctly_but_halved_the_result
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A storage container is shaped like a rectangular prism. It is 12 feet long, 7 feet wide, and 4
+    feet high. What is the volume of the container?
+  context_block: null
+  answer_expression: Eq(x, 12 * 7 * 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Volume of a rectangular prism is found by multiplying the three dimensions: length, width, and height.'
+  - Multiply 12 feet by 7 feet by 4 feet.
+  - Set up the calculation 12 × 7 × 4 and work through the multiplication step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify that volume of a rectangular prism is length × width × height.
+      expression: V = 12 × 7 × 4
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the first two dimensions: 12 × 7.'
+      expression: 12 × 7 = 84
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply that result by the height: 84 × 4.'
+      expression: 84 × 4 = 336
+      common_mistake: null
+    final_answer: 336 cubic feet
+  random_seed: 1147400
+  rendered_question: A storage container is shaped like a rectangular prism. It is 12 feet long, 7 feet
+    wide, and 4 feet high. What is the volume of the container?
+  option_a: 168 cubic feet
+  option_b: 84 cubic feet
+  option_c: 46 cubic feet
+  option_d: 336 cubic feet
+  correct_option: d
+- question_template_id: authored-g6_geometry_measurement-d4-1147401
+  topic_id: g6_geometry_measurement
+  skill_id: g6_surface_area_volume
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_only_two_dimensions
+  - added_dimensions_instead_of_multiplying
+  - confused_volume_with_perimeter
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: An aquarium is shaped like a rectangular prism. It is 10 inches long, 6 inches wide, and 5 inches
+    tall. What is the volume of the aquarium?
+  context_block: null
+  answer_expression: Eq(x, 10 * 6 * 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume measures how much space is inside a three-dimensional shape. For a rectangular prism, you need
+    all three dimensions.
+  - The volume of a rectangular prism is found by multiplying length times width times height.
+  - 'Set up the calculation: 10 × 6 × 5.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the volume of a rectangular prism: V = length × width × height.'
+      expression: V = l × w × h
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Substitute the given dimensions into the formula: length = 10 inches, width = 6 inches,
+        height = 5 inches.'
+      expression: V = 10 × 6 × 5
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the first two dimensions: 10 × 6 = 60.'
+      expression: V = 60 × 5
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Multiply the result by the third dimension: 60 × 5 = 300.'
+      expression: V = 300
+      common_mistake: null
+    final_answer: 300 cubic inches
+  random_seed: 1147401
+  rendered_question: An aquarium is shaped like a rectangular prism. It is 10 inches long, 6 inches wide,
+    and 5 inches tall. What is the volume of the aquarium?
+  option_a: 150 cubic inches
+  option_b: 300 cubic inches
+  option_c: 21 cubic inches
+  option_d: 110 cubic inches
+  correct_option: b
+- question_template_id: authored-g6_geometry_measurement-d4-1147402
+  topic_id: g6_geometry_measurement
+  skill_id: g6_surface_area_volume
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_only_two_dimensions
+  - added_dimensions_instead_of_multiplying
+  - used_incorrect_dimension
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A shipping company needs to calculate space for small boxes. One box is 9 centimetres long, 8
+    centimetres wide, and 3 centimetres high. What is the volume of the box?
+  context_block: ''
+  answer_expression: Eq(x, 9 * 8 * 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Volume of a rectangular prism is found by multiplying its three dimensions: length, width, and height.'
+  - Write the calculation as 9 × 8 × 3 and work step by step.
+  - Multiply the first two dimensions together, then multiply that result by the third dimension.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The volume of a rectangular prism is length × width × height.
+      expression: V = 9 × 8 × 3
+      common_mistake: null
+    - step_number: 2
+      explanation: First multiply 9 by 8.
+      expression: 9 × 8 = 72
+      common_mistake: null
+    - step_number: 3
+      explanation: Then multiply that result by 3.
+      expression: 72 × 3 = 216
+      common_mistake: null
+    final_answer: 216 cubic centimetres
+  random_seed: 1147402
+  rendered_question: A shipping company needs to calculate space for small boxes. One box is 9 centimetres
+    long, 8 centimetres wide, and 3 centimetres high. What is the volume of the box?
+  option_a: 72 cubic centimetres
+  option_b: 20 cubic centimetres
+  option_c: 216 cubic centimetres
+  option_d: 144 cubic centimetres
+  correct_option: c
+- question_template_id: authored-g6_geometry_measurement-d5-1147500
+  topic_id: g6_geometry_measurement
+  skill_id: g6_surface_area_volume
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - arithmetic_error_in_one_pair
+  - omitted_one_pair_of_faces
+  - forgot_to_double_face_areas
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A toy chest has dimensions of 11 centimeters long, 6 centimeters wide, and 4 centimeters high.
+    What is the surface area of the toy chest?
+  context_block: ''
+  answer_expression: Eq(x, 2*(11*6) + 2*(11*4) + 2*(6*4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'A rectangular prism has six faces: top, bottom, front, back, left side, and right side. Each pair
+    of opposite faces has the same area.'
+  - Find the area of each pair of opposite faces. Multiply length by width for the top and bottom, length
+    by height for front and back, and width by height for the sides.
+  - Add together 2 times (11 × 6), plus 2 times (11 × 4), plus 2 times (6 × 4) to get the total surface
+    area.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the area of the top and bottom faces. Each face is 11 cm by 6 cm.
+      expression: 2 * (11 * 6) = 2 * 66 = 132
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the area of the front and back faces. Each face is 11 cm by 4 cm.
+      expression: 2 * (11 * 4) = 2 * 44 = 88
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the area of the left and right side faces. Each face is 6 cm by 4 cm.
+      expression: 2 * (6 * 4) = 2 * 24 = 48
+      common_mistake: null
+    - step_number: 4
+      explanation: Add all the face areas together to find the total surface area.
+      expression: 132 + 88 + 48 = 268
+      common_mistake: null
+    final_answer: 268 square centimeters
+  random_seed: 1147500
+  rendered_question: A toy chest has dimensions of 11 centimeters long, 6 centimeters wide, and 4 centimeters
+    high. What is the surface area of the toy chest?
+  option_a: 264 square centimeters
+  option_b: 134 square centimeters
+  option_c: 268 square centimeters
+  option_d: 220 square centimeters
+  correct_option: c
+- question_template_id: authored-g6_geometry_measurement-d5-1147502
+  topic_id: g6_geometry_measurement
+  skill_id: g6_surface_area_volume
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - confused_volume_with_surface_area
+  - counted_only_one_of_each_face_pair
+  - calculated_only_one_pair_of_faces
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A planter box has dimensions of 7 inches long, 5 inches wide, and 3 inches high. What is the surface
+    area of the planter box?
+  context_block: null
+  answer_expression: Eq(x, 2*(7*5) + 2*(7*3) + 2*(5*3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'A rectangular prism has six faces: top, bottom, front, back, left side, and right side. Find the
+    area of each pair.'
+  - The top and bottom each measure 7 by 5, the front and back each measure 7 by 3, and the left and right
+    sides each measure 5 by 3.
+  - Multiply the dimensions for each pair of faces, then add all six face areas together.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the six faces of the rectangular planter box. Top and bottom are 7 by 5 inches,
+        front and back are 7 by 3 inches, and the two sides are 5 by 3 inches.
+      expression: 'Top/bottom: 7 × 5, Front/back: 7 × 3, Sides: 5 × 3'
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the area of the top and bottom faces. Each is 7 times 5, so two of them total
+        2 × 35.
+      expression: 2 × (7 × 5) = 2 × 35 = 70
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the area of the front and back faces. Each is 7 times 3, so two of them total
+        2 × 21.
+      expression: 2 × (7 × 3) = 2 × 21 = 42
+      common_mistake: null
+    - step_number: 4
+      explanation: Calculate the area of the left and right side faces. Each is 5 times 3, so two of them
+        total 2 × 15.
+      expression: 2 × (5 × 3) = 2 × 15 = 30
+      common_mistake: null
+    - step_number: 5
+      explanation: Add all six face areas together to find the total surface area.
+      expression: 70 + 42 + 30 = 142
+      common_mistake: null
+    final_answer: 142 square inches
+  random_seed: 1147502
+  rendered_question: A planter box has dimensions of 7 inches long, 5 inches wide, and 3 inches high.
+    What is the surface area of the planter box?
+  option_a: 105 square inches
+  option_b: 142 square inches
+  option_c: 35 square inches
+  option_d: 71 square inches
+  correct_option: b

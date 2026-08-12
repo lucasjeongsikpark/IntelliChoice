@@ -1,0 +1,1368 @@
+curriculum_version: '2026.1'
+topic_id: algebra_2
+templates:
+- question_template_id: authored-algebra_2-d2-1265201
+  topic_id: algebra_2
+  skill_id: alg2_exponential_log
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - treated_exponentiation_as_multiplication
+  - off_by_one_exponent
+  - swapped_base_and_exponent
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A chain letter starts with one person. Each person who receives the letter sends it to exactly
+    3 new people. After 4 rounds of sending, how many people receive the letter in the 4th round?
+  context_block: ''
+  answer_expression: x = 3**4
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Each round, the number of people receiving the letter is multiplied by 3.
+  - If round 1 has 3 people, round 2 has 3×3, round 3 has 3×3×3, and so on.
+  - Write the number of recipients in round 4 as a power of 3 and evaluate it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In the first round, one person sends to 3 people, so 3 people receive the letter.
+      expression: 3^1 = 3
+      common_mistake: null
+    - step_number: 2
+      explanation: In the second round, each of those 3 people sends to 3 new people, so 3×3 = 9 people
+        receive the letter.
+      expression: 3^2 = 9
+      common_mistake: null
+    - step_number: 3
+      explanation: In the third round, each of those 9 people sends to 3 new people, so 3×3×3 = 27 people
+        receive the letter.
+      expression: 3^3 = 27
+      common_mistake: null
+    - step_number: 4
+      explanation: In the fourth round, each of those 27 people sends to 3 new people, so we multiply
+        by 3 one more time.
+      expression: 3^4 = 3 × 3 × 3 × 3
+      common_mistake: null
+    - step_number: 5
+      explanation: 'Calculate 3 to the fourth power by multiplying: 3×3 = 9, then 9×3 = 27, then 27×3
+        = 81.'
+      expression: 3^4 = 81
+      common_mistake: null
+    final_answer: 81 people
+  random_seed: 1265201
+  rendered_question: A chain letter starts with one person. Each person who receives the letter sends
+    it to exactly 3 new people. After 4 rounds of sending, how many people receive the letter in the 4th
+    round?
+  option_a: 81 people
+  option_b: 64 people
+  option_c: 27 people
+  option_d: 12 people
+  correct_option: a
+- question_template_id: authored-algebra_2-d2-1265202
+  topic_id: algebra_2
+  skill_id: alg2_exponential_log
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_base_and_exponent
+  - confused_base_with_nearby_value
+  - stopped_one_exponent_early
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A square piece of paper is folded so that each fold divides every section into 4 smaller sections.
+    After 3 folds, how many sections are there?
+  context_block: ''
+  answer_expression: x = 4**3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Each fold multiplies the number of sections by 4.
+  - After 3 folds, you multiply 4 by itself 3 times.
+  - Write the expression 4³ and evaluate it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Each fold divides every section into 4 sections, so the number of sections is multiplied
+        by 4 with each fold.
+      expression: 4^3
+      common_mistake: null
+    - step_number: 2
+      explanation: Evaluate 4 to the power of 3 by multiplying 4 by itself three times.
+      expression: 4 × 4 × 4
+      common_mistake: null
+    - step_number: 3
+      explanation: First multiply 4 × 4 to get 16.
+      expression: 16 × 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Then multiply 16 by 4 to get the total number of sections.
+      expression: '64'
+      common_mistake: null
+    final_answer: 64 sections
+  random_seed: 1265202
+  rendered_question: A square piece of paper is folded so that each fold divides every section into 4
+    smaller sections. After 3 folds, how many sections are there?
+  option_a: 12 sections
+  option_b: 64 sections
+  option_c: 81 sections
+  option_d: 16 sections
+  correct_option: b
+- question_template_id: authored-algebra_2-d2-1485200
+  topic_id: algebra_2
+  skill_id: alg2_exponential_log
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_base_by_exponent_instead_of_exponentiation
+  - used_wrong_base
+  - stopped_one_multiplication_early
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A science lab starts a bacteria study with 1 colony. The colony triples every hour. After 4 hours,
+    how many colonies are there?
+  context_block: ''
+  answer_expression: Eq(x, 3**4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - If the colony triples each hour, what operation describes that growth?
+  - After 4 hours of tripling, the number of colonies is 3 raised to the 4th power.
+  - 'Write 3^4 and evaluate it step by step: 3×3×3×3.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The colony triples every hour, so after 4 hours the growth factor is 3 multiplied by
+        itself 4 times.
+      expression: 3^4
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate 3^4 by multiplying: 3 × 3 = 9.'
+      expression: '9'
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Continue: 9 × 3 = 27.'
+      expression: '27'
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Finally: 27 × 3 = 81.'
+      expression: '81'
+      common_mistake: null
+    final_answer: 81 colonies
+  random_seed: 1485200
+  rendered_question: A science lab starts a bacteria study with 1 colony. The colony triples every hour.
+    After 4 hours, how many colonies are there?
+  option_a: 27 colonies
+  option_b: 12 colonies
+  option_c: 81 colonies
+  option_d: 64 colonies
+  correct_option: c
+- question_template_id: authored-algebra_2-d2-1485201
+  topic_id: algebra_2
+  skill_id: alg2_exponential_log
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - multiplied_base_and_exponent_instead_of_exponentiation
+  - reversed_base_and_exponent
+  - evaluated_exponent_one_less
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A sheet of paper starts as a single layer. Each time you fold it in half, the number of layers
+    doubles. After 5 folds, how many layers of paper are there?
+  context_block: ''
+  answer_expression: Eq(x, 2**5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Each fold doubles the number of layers. Start with 1 layer and count how many times you multiply by
+    2.
+  - After n folds, the number of layers is 2 raised to the power of n.
+  - Write 2 to the power of 5 and evaluate it by multiplying 2 by itself five times.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Start with 1 layer. Each fold doubles the number, so after 5 folds the number of layers
+        is 2 multiplied by itself 5 times.
+      expression: 2**5
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Expand the exponent: 2**5 = 2 × 2 × 2 × 2 × 2.'
+      expression: 2 * 2 * 2 * 2 * 2
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply step by step: 2 × 2 = 4, then 4 × 2 = 8, then 8 × 2 = 16, then 16 × 2 = 32.'
+      expression: '32'
+      common_mistake: null
+    final_answer: 32 layers
+  random_seed: 1485201
+  rendered_question: A sheet of paper starts as a single layer. Each time you fold it in half, the number
+    of layers doubles. After 5 folds, how many layers of paper are there?
+  option_a: 25 layers
+  option_b: 16 layers
+  option_c: 10 layers
+  option_d: 32 layers
+  correct_option: d
+- question_template_id: authored-algebra_2-d3-1265300
+  topic_id: algebra_2
+  skill_id: alg2_exponential_log
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_base_times_exponent_instead_of_exponentiation
+  - confused_base_and_exponent
+  - used_wrong_base
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bacteria colony in a petri dish multiplies by a factor of 5 every hour. After 3 hours, how many
+    times larger is the colony than it was at the start?
+  context_block: ''
+  answer_expression: x = 5**3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - When something multiplies by 5 every hour, after 1 hour it is 5 times larger, and after 2 hours it
+    is 5 × 5 times larger.
+  - After 3 hours, the colony has been multiplied by 5 three times, which means you calculate 5 raised
+    to the power of 3.
+  - Write 5³ and evaluate it by multiplying 5 by itself three times.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The colony multiplies by 5 each hour, so after 3 hours the growth factor is 5 raised
+        to the power of 3.
+      expression: x = 5^3
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate the exponent by multiplying: 5 × 5 = 25.'
+      expression: 5^2 = 25
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply that result by 5 one more time: 25 × 5 = 125.'
+      expression: 25 × 5 = 125
+      common_mistake: null
+    final_answer: '125'
+  random_seed: 1265300
+  rendered_question: A bacteria colony in a petri dish multiplies by a factor of 5 every hour. After 3
+    hours, how many times larger is the colony than it was at the start?
+  option_a: '243'
+  option_b: '15'
+  option_c: '125'
+  option_d: '8'
+  correct_option: c
+- question_template_id: authored-algebra_2-d3-1265302
+  topic_id: algebra_2
+  skill_id: alg2_exponential_log
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_base_by_exponent
+  - added_base_and_exponent
+  - cubed_instead_of_squared
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A book club starts with one founder. In each recruitment round every current member recruits 6
+    new members. How many new members join during the second round?
+  context_block: null
+  answer_expression: Eq(x, 6**2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many members are there after the first round of recruitment?
+  - After round 1 there are 6 new members. Each of those 6 recruits 6 more in round 2.
+  - Write 6 raised to the power of 2 and evaluate it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The founder recruits 6 members in round 1, so after round 1 there are 6 members who
+        can recruit.
+      expression: '6'
+      common_mistake: null
+    - step_number: 2
+      explanation: In round 2, each of the 6 members recruits 6 new members, giving 6 times 6 new recruits.
+      expression: 6 * 6
+      common_mistake: null
+    - step_number: 3
+      explanation: This is the same as 6 raised to the power of 2.
+      expression: 6**2
+      common_mistake: null
+    - step_number: 4
+      explanation: Evaluating 6 squared gives 36.
+      expression: '36'
+      common_mistake: null
+    final_answer: 36 members
+  random_seed: 1265302
+  rendered_question: A book club starts with one founder. In each recruitment round every current member
+    recruits 6 new members. How many new members join during the second round?
+  option_a: 36 members
+  option_b: 12 members
+  option_c: 216 members
+  option_d: 18 members
+  correct_option: a
+- question_template_id: authored-algebra_2-d3-1485300
+  topic_id: algebra_2
+  skill_id: alg2_exponential_log
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - stopped_one_exponent_early
+  - added_instead_of_multiplying
+  - computed_one_exponent_too_high
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A social media post goes viral. In the first round, 4 people share it. In each new round, every
+    person from the previous round causes 4 more people to share. How many new sharers appear in the third
+    round?
+  context_block: ''
+  answer_expression: Eq(x, 4**3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In each round, the number of new sharers is 4 raised to the power of the round number.
+  - The third round means you need to calculate 4 to the power of 3.
+  - 'Write 4³ and multiply: 4 × 4 × 4.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: In round 1, there are 4 sharers. In round 2, each of those 4 causes 4 more to share,
+        giving 4 × 4 = 16. In round 3, each of those 16 causes 4 more, so the pattern is 4 raised to the
+        round number.
+      expression: x = 4^3
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate 4 cubed by multiplying: 4 × 4 = 16, then 16 × 4 = 64.'
+      expression: x = 64
+      common_mistake: null
+    final_answer: 64 sharers
+  random_seed: 1485300
+  rendered_question: A social media post goes viral. In the first round, 4 people share it. In each new
+    round, every person from the previous round causes 4 more people to share. How many new sharers appear
+    in the third round?
+  option_a: 12 sharers
+  option_b: 256 sharers
+  option_c: 64 sharers
+  option_d: 16 sharers
+  correct_option: c
+- question_template_id: authored-algebra_2-d3-1485301
+  topic_id: algebra_2
+  skill_id: alg2_exponential_log
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_base_and_exponent
+  - swapped_base_and_exponent
+  - used_wrong_base
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A game developer designs a tournament bracket. Each match has 5 competitors, and the winner advances
+    to the next round. After 3 rounds of advancement, one champion remains. How many competitors started
+    in the very first round?
+  context_block: null
+  answer_expression: Eq(x, 5**3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how many competitors feed into the champion at each round working backwards.
+  - Each winner came from a group of 5, and this happens at every round.
+  - The expression is 5 raised to the power of the number of rounds.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Working backwards from the champion, the final round had 5 competitors (one winner
+        emerges).
+      expression: '5'
+      common_mistake: null
+    - step_number: 2
+      explanation: Each of those 5 came from a group of 5 in the previous round, so the second-to-last
+        round had 5 × 5 = 25 competitors.
+      expression: 5 * 5 = 25
+      common_mistake: null
+    - step_number: 3
+      explanation: Each of those 25 came from a group of 5 in the first round, so the starting number
+        is 5 × 5 × 5.
+      expression: 5 * 5 * 5 = 125
+      common_mistake: null
+    - step_number: 4
+      explanation: This can be written as 5 raised to the power of 3.
+      expression: 5**3 = 125
+      common_mistake: null
+    final_answer: 125 competitors
+  random_seed: 1485301
+  rendered_question: A game developer designs a tournament bracket. Each match has 5 competitors, and
+    the winner advances to the next round. After 3 rounds of advancement, one champion remains. How many
+    competitors started in the very first round?
+  option_a: 243 competitors
+  option_b: 125 competitors
+  option_c: 15 competitors
+  option_d: 8 competitors
+  correct_option: b
+- question_template_id: authored-algebra_2-d4-1265401
+  topic_id: algebra_2
+  skill_id: alg2_exponential_log
+  grade_band: 10-11
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - multiplied_base_by_exponent_instead_of_exponentiating
+  - swapped_base_and_exponent
+  - used_exponent_as_base
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A chain message starts with one person. That person forwards it to exactly 5 friends. Each of
+    those friends forwards it to exactly 5 more people. This pattern continues. How many people receive
+    the message in the fourth round of forwarding?
+  context_block: null
+  answer_expression: x = 5**4
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In each round, every person who received the message forwards it to 5 new people. Count which round
+    is the fourth.
+  - The first round has 5 recipients, the second has 5×5, the third has 5×5×5. The fourth round multiplies
+    5 by itself one more time.
+  - Write 5 raised to the power that matches the round number, then evaluate.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify that in the first round, the original person forwards to 5 people, so 5 receive
+        the message.
+      expression: 5^1 = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: In the second round, each of those 5 people forwards to 5 more, so 5×5 = 25 people
+        receive it.
+      expression: 5^2 = 25
+      common_mistake: null
+    - step_number: 3
+      explanation: In the third round, each of the 25 forwards to 5, giving 5×5×5 = 125 recipients.
+      expression: 5^3 = 125
+      common_mistake: null
+    - step_number: 4
+      explanation: In the fourth round, each of the 125 forwards to 5, so we compute 5 to the fourth power.
+      expression: 5^4 = 625
+      common_mistake: null
+    final_answer: 625 people
+  random_seed: 1265401
+  rendered_question: A chain message starts with one person. That person forwards it to exactly 5 friends.
+    Each of those friends forwards it to exactly 5 more people. This pattern continues. How many people
+    receive the message in the fourth round of forwarding?
+  option_a: 1024 people
+  option_b: 20 people
+  option_c: 256 people
+  option_d: 625 people
+  correct_option: d
+- question_template_id: authored-algebra_2-d3-1267301
+  topic_id: algebra_2
+  skill_id: alg2_polynomial_factor
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - factored_out_GCF_only_did_not_factor_quadratic
+  - dropped_constant_factor_in_final_answer
+  - incorrect_binomial_factors_for_quadratic
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A landscaper designs a rectangular garden border. The area of the border is given by the expression
+    3x³ + 12x² + 9x square feet. Write the expression in completely factored form.
+  context_block: null
+  answer_expression: 3*x**3 + 12*x**2 + 9*x
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Look for the greatest common factor in all three terms of the polynomial.
+  - After factoring out the GCF, you will have a quadratic expression inside the parentheses that can
+    be factored further.
+  - Find two numbers that multiply to give the constant term and add to give the middle coefficient of
+    the quadratic.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the greatest common factor of all terms: 3x³, 12x², and 9x. Each term contains
+        at least one factor of 3 and one factor of x.'
+      expression: GCF = 3*x
+      common_mistake: null
+    - step_number: 2
+      explanation: Factor out 3x from each term in the polynomial.
+      expression: 3*x*(x**2 + 4*x + 3)
+      common_mistake: null
+    - step_number: 3
+      explanation: Factor the quadratic x² + 4x + 3 by finding two numbers that multiply to 3 and add
+        to 4. Those numbers are 1 and 3.
+      expression: 3*x*(x + 1)*(x + 3)
+      common_mistake: null
+    final_answer: 3*x*(x + 1)*(x + 3)
+  random_seed: 1267301
+  rendered_question: A landscaper designs a rectangular garden border. The area of the border is given
+    by the expression 3x³ + 12x² + 9x square feet. Write the expression in completely factored form.
+  option_a: 3*x*(x² + 4*x + 3)
+  option_b: 3*x*(x + 1)*(x + 3)
+  option_c: x*(x + 1)*(x + 3)
+  option_d: 3*x*(x + 2)*(x + 2)
+  correct_option: b
+- question_template_id: authored-algebra_2-d3-1268300
+  topic_id: algebra_2
+  skill_id: alg2_quadratic_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - dropped_negative_sign
+  - used_wrong_coefficient_in_vertex_formula
+  - confused_vertex_x_with_constant_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A company's daily profit in hundreds of dollars is modeled by the function y = x² - 10x + 21,
+    where x is the number of hours the factory operates. At how many hours does the minimum profit occur?
+  context_block: null
+  answer_expression: x = -(-10)/(2*1)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - For a parabola that opens upward, the minimum occurs at the vertex.
+  - The x-coordinate of the vertex for y = ax² + bx + c is given by the formula -b/(2a).
+  - Identify a = 1 and b = -10, then substitute those values into the vertex formula.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The profit function is quadratic with a = 1, b = -10, and c = 21. Since a is positive,
+        the parabola opens upward and the vertex is a minimum.
+      expression: a = 1, b = -10, c = 21
+      common_mistake: null
+    - step_number: 2
+      explanation: The x-coordinate of the vertex is given by the formula -b/(2a).
+      expression: x = -b/(2a)
+      common_mistake: null
+    - step_number: 3
+      explanation: Substitute b = -10 and a = 1 into the formula.
+      expression: x = -(-10)/(2*1)
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Simplify the numerator: -(-10) = 10.'
+      expression: x = 10/2
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide 10 by 2 to find the x-coordinate of the vertex.
+      expression: x = 5
+      common_mistake: null
+    final_answer: '5'
+  random_seed: 1268300
+  rendered_question: A company's daily profit in hundreds of dollars is modeled by the function y = x²
+    - 10x + 21, where x is the number of hours the factory operates. At how many hours does the minimum
+    profit occur?
+  option_a: '-5'
+  option_b: '5'
+  option_c: '10'
+  option_d: '21'
+  correct_option: b
+- question_template_id: authored-algebra_2-d3-1268301
+  topic_id: algebra_2
+  skill_id: alg2_quadratic_functions
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_factor_of_2_in_vertex_formula
+  - sign_error_in_vertex_calculation
+  - used_b_coefficient_as_vertex
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A ball is thrown into the air. Its height in meters above the ground is given by the function
+    h = -2t² + 12t + 5, where t is the time in seconds after the throw. At what time does the ball reach
+    its maximum height?
+  context_block: null
+  answer_expression: Eq(-12/(2*(-2)), t)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - A quadratic function reaches its maximum or minimum at a point called the vertex.
+  - For a quadratic in the form h = at² + bt + c, the time at the vertex is t = -b/(2a).
+  - Identify a = -2 and b = 12, then substitute those values into the vertex formula and simplify.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The height function is h = -2t² + 12t + 5, which is quadratic with a = -2, b = 12,
+        and c = 5.
+      expression: a = -2, b = 12, c = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: The vertex formula for the time coordinate is t = -b/(2a).
+      expression: t = -b/(2a)
+      common_mistake: null
+    - step_number: 3
+      explanation: Substitute a = -2 and b = 12 into the formula.
+      expression: t = -12/(2*(-2))
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Simplify the denominator: 2 times -2 equals -4.'
+      expression: t = -12/(-4)
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide -12 by -4 to get 3.
+      expression: t = 3
+      common_mistake: null
+    final_answer: 3 seconds
+  random_seed: 1268301
+  rendered_question: A ball is thrown into the air. Its height in meters above the ground is given by
+    the function h = -2t² + 12t + 5, where t is the time in seconds after the throw. At what time does
+    the ball reach its maximum height?
+  option_a: -3 seconds
+  option_b: 3 seconds
+  option_c: 6 seconds
+  option_d: 12 seconds
+  correct_option: b
+- question_template_id: authored-algebra_2-d5-1269500
+  topic_id: algebra_2
+  skill_id: alg2_rational_radical
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - factored_incorrectly
+  - canceled_only_one_term_instead_of_whole_factor
+  - substituted_before_simplifying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A rectangular garden has an area of x² + 7x + 12 square feet and a width of x + 3 feet. When x
+    is 5, what is the garden's length in feet?
+  context_block: ''
+  answer_expression: L = (5**2 + 7*5 + 12)/(5 + 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Factor the numerator x² + 7x + 12 to find two binomials that multiply to give it.
+  - Notice that x + 3 appears in both the numerator and the denominator, so you can cancel it.
+  - After canceling, substitute x = 5 into the simplified expression.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The area formula for a rectangle is length × width, so length = area ÷ width. Here,
+        length = (x² + 7x + 12)/(x + 3).
+      expression: L = (x^2 + 7*x + 12)/(x + 3)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Factor the numerator. Looking for two numbers that multiply to 12 and add to 7: 3
+        and 4. So x² + 7x + 12 = (x + 3)(x + 4).'
+      expression: (x + 3)*(x + 4)/(x + 3)
+      common_mistake: null
+    - step_number: 3
+      explanation: Cancel the common factor (x + 3) from numerator and denominator.
+      expression: x + 4
+      common_mistake: null
+    - step_number: 4
+      explanation: Substitute x = 5 into the simplified expression.
+      expression: 5 + 4
+      common_mistake: null
+    - step_number: 5
+      explanation: Evaluate the sum.
+      expression: '9'
+      common_mistake: null
+    final_answer: 9 feet
+  random_seed: 1269500
+  rendered_question: A rectangular garden has an area of x² + 7x + 12 square feet and a width of x + 3
+    feet. When x is 5, what is the garden's length in feet?
+  option_a: 9 feet
+  option_b: 13 feet
+  option_c: 8 feet
+  option_d: 12 feet
+  correct_option: a
+- question_template_id: authored-algebra_2-d5-1269502
+  topic_id: algebra_2
+  skill_id: alg2_rational_radical
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - canceled_denominator_without_factoring_numerator
+  - stopped_at_numerator_only
+  - reported_denominator_instead_of_quotient
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A swimming pool's maintenance cost formula is (x² + 9x + 20)/(x + 4) dollars, where x is the number
+    of months. What is the cost after 7 months?
+  context_block: null
+  answer_expression: C = (7**2 + 9*7 + 20)/(7 + 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - First substitute x = 7 into the numerator and the denominator separately.
+  - The numerator x² + 9x + 20 can be factored into two binomials before you substitute, which will make
+    the simplification easier.
+  - Factor the numerator as (x + 4)(x + 5), cancel the common factor with the denominator, then evaluate
+    what remains at x = 7.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute x = 7 into the expression (x² + 9x + 20)/(x + 4).
+      expression: (7² + 9·7 + 20)/(7 + 4)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Compute the numerator: 7² = 49, 9·7 = 63, so 49 + 63 + 20 = 132.'
+      expression: 132/(7 + 4)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Compute the denominator: 7 + 4 = 11.'
+      expression: 132/11
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide 132 by 11 to get 12.
+      expression: '12'
+      common_mistake: null
+    final_answer: 12 dollars
+  random_seed: 1269502
+  rendered_question: A swimming pool's maintenance cost formula is (x² + 9x + 20)/(x + 4) dollars, where
+    x is the number of months. What is the cost after 7 months?
+  option_a: 7 dollars
+  option_b: 12 dollars
+  option_c: 11 dollars
+  option_d: 132 dollars
+  correct_option: b
+- question_template_id: authored-algebra_2-d5-1270501
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - stopped_before_final_division
+  - confused_coefficient_with_solution
+  - sign_error_combining_constants
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A museum tracks daily visitors using the polynomial M(x) = 6x³ + ax² − 8x + 15, where M gives
+    the number of visitors in tens after x days. On day 2, exactly 75 tens of visitors came. What is the
+    value of a?
+  context_block: null
+  answer_expression: Eq(6*2**3 + a*2**2 - 8*2 + 15, 75)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Substitute x = 2 into the polynomial M(x) and set the result equal to 75.
+  - Evaluate 6(2)³, 2², and −8(2), then combine those with 15 to get an expression in a only.
+  - You will have 47 + 4a = 75; isolate a by subtracting 47 and then dividing.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute x = 2 into the polynomial M(x) = 6x³ + ax² − 8x + 15.
+      expression: 6(2)³ + a(2)² − 8(2) + 15
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate each term: 6(8) = 48, a(4) = 4a, −8(2) = −16, and the constant is 15.'
+      expression: 48 + 4a − 16 + 15
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Combine the constant terms: 48 − 16 + 15 = 47.'
+      expression: 47 + 4a
+      common_mistake: null
+    - step_number: 4
+      explanation: Set the expression equal to 75 (the given value of M(2)).
+      expression: 47 + 4a = 75
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 47 from both sides.
+      expression: 4a = 28
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 4.
+      expression: a = 7
+      common_mistake: null
+    final_answer: '7'
+  random_seed: 1270501
+  rendered_question: A museum tracks daily visitors using the polynomial M(x) = 6x³ + ax² − 8x + 15, where
+    M gives the number of visitors in tens after x days. On day 2, exactly 75 tens of visitors came. What
+    is the value of a?
+  option_a: '28'
+  option_b: '-7'
+  option_c: '7'
+  option_d: '4'
+  correct_option: c
+- question_template_id: authored-algebra_2-d5-1270502
+  topic_id: algebra_2
+  skill_id: alg2_remainder_factor_theorem
+  grade_band: 10-11
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - skipped_final_division
+  - sign_error_during_simplification
+  - stopped_before_combining_constants
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A concert promoter models ticket sales using the polynomial C(x) = 7x³ + ax² − 9x + 20, where
+    C(x) is sales in hundreds of tickets after x weeks. After 3 weeks the promoter sold exactly 200 hundred
+    tickets. What is the value of a?
+  context_block: null
+  answer_expression: 7*27 + a*9 - 9*3 + 20 = 200
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Substitute x = 3 into the polynomial and set the result equal to the total sales after three weeks.
+  - Evaluate 7(3³) and then simplify the constants before isolating the term containing a.
+  - Combine all the known terms on one side, then divide both sides by the coefficient of a.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Substitute x = 3 into the polynomial C(x) = 7x³ + ax² − 9x + 20 and set it equal to
+        200.
+      expression: 7(3³) + a(3²) − 9(3) + 20 = 200
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Evaluate each power and product: 3³ = 27, 3² = 9, and 9·3 = 27.'
+      expression: 7(27) + a(9) − 27 + 20 = 200
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 7 by 27 to get 189.
+      expression: 189 + 9a − 27 + 20 = 200
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Combine the constant terms on the left: 189 − 27 + 20 = 182.'
+      expression: 182 + 9a = 200
+      common_mistake: null
+    - step_number: 5
+      explanation: Subtract 182 from both sides to isolate the term with a.
+      expression: 9a = 18
+      common_mistake: null
+    - step_number: 6
+      explanation: Divide both sides by 9 to solve for a.
+      expression: a = 2
+      common_mistake: null
+    final_answer: '2'
+  random_seed: 1270502
+  rendered_question: A concert promoter models ticket sales using the polynomial C(x) = 7x³ + ax² − 9x
+    + 20, where C(x) is sales in hundreds of tickets after x weeks. After 3 weeks the promoter sold exactly
+    200 hundred tickets. What is the value of a?
+  option_a: '2'
+  option_b: '-2'
+  option_c: '18'
+  option_d: '182'
+  correct_option: a
+- question_template_id: authored-algebra_2-d2-1271202
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_difference_five_times_instead_of_four
+  - used_wrong_term_number
+  - stopped_before_adding_first_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A student practices math problems daily. On day 1 she solves 15 problems, and each day after that
+    she solves 6 more problems than the day before. How many problems does she solve on day 5?
+  context_block: null
+  answer_expression: Eq(x, 15 + 6*4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write out the number of problems she solves each day, starting from day 1.
+  - Day 1 is 15, day 2 is 15 + 6, day 3 is 15 + 6 + 6, and so on. The pattern adds 6 for each day past
+    the first.
+  - For day 5, you need to add 6 four times to the starting 15. Set up that sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the first term and the common difference. The first day she solves 15 problems,
+        and each day she solves 6 more than the previous day.
+      expression: a_1 = 15, d = 6
+      common_mistake: null
+    - step_number: 2
+      explanation: The formula for the nth term of an arithmetic sequence is a_n = a_1 + d(n - 1). For
+        day 5, n = 5.
+      expression: x = 15 + 6*(5 - 1)
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the expression inside the parentheses.
+      expression: x = 15 + 6*4
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 6 by 4.
+      expression: x = 15 + 24
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 15 and 24 to find the number of problems on day 5.
+      expression: x = 39
+      common_mistake: null
+    final_answer: 39 problems
+  random_seed: 1271202
+  rendered_question: A student practices math problems daily. On day 1 she solves 15 problems, and each
+    day after that she solves 6 more problems than the day before. How many problems does she solve on
+    day 5?
+  option_a: 45 problems
+  option_b: 30 problems
+  option_c: 39 problems
+  option_d: 36 problems
+  correct_option: c
+- question_template_id: authored-algebra_2-d4-1271400
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 150
+  common_error_tags:
+  - off_by_one_in_term_count
+  - confused_term_number_with_number_of_increases
+  - multiplied_first_term_by_n
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A musician practices scales for 10 minutes on the first day and increases the practice time by
+    5 minutes each day. How many minutes does the musician practice on the 9th day?
+  context_block: null
+  answer_expression: Eq(x, 10 + 8*5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about how the practice time changes each day and what pattern that creates.
+  - The time on any day is the starting time plus the increase multiplied by how many times the practice
+    has increased.
+  - On day 9, the practice has increased 8 times from day 1, so write 10 plus 8 times the daily increase.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the starting time and the pattern. The musician starts with 10 minutes on
+        day 1 and adds 5 minutes each day.
+      expression: a_1 = 10, d = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Count how many times the increase has happened by day 9. From day 1 to day 9 is 8 increases.
+      expression: n - 1 = 9 - 1 = 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Calculate the total increase by multiplying the number of increases by the daily increase.
+      expression: 8 * 5 = 40
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the total increase to the starting time to find the practice time on day 9.
+      expression: 10 + 40 = 50
+      common_mistake: null
+    final_answer: 50 minutes
+  random_seed: 1271400
+  rendered_question: A musician practices scales for 10 minutes on the first day and increases the practice
+    time by 5 minutes each day. How many minutes does the musician practice on the 9th day?
+  option_a: 45 minutes
+  option_b: 55 minutes
+  option_c: 50 minutes
+  option_d: 90 minutes
+  correct_option: c
+- question_template_id: authored-algebra_2-d4-1271401
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_n_instead_of_n_minus_1
+  - miscounted_number_of_steps
+  - omitted_first_term_or_undercounted_steps
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A library volunteer shelves 14 books in the first hour. Each hour after that, she shelves 9 more
+    books than the previous hour. How many books does she shelve in the 7th hour?
+  context_block: null
+  answer_expression: Eq(x, 14 + 9*6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write down how many books are shelved in hour 1, hour 2, and hour 3 to see the pattern.
+  - 'The number of books in hour n follows the arithmetic sequence formula: first term plus the common
+    difference times how many steps you''ve taken from the first term.'
+  - For the 7th hour, calculate 14 plus 9 times the number of hours after the first.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the first term and common difference. The volunteer shelves 14 books in hour
+        1, and the number increases by 9 each hour.
+      expression: a_1 = 14, d = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: Use the arithmetic sequence formula a_n = a_1 + d(n - 1) to find the number of books
+        in the 7th hour.
+      expression: a_7 = 14 + 9(7 - 1)
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify inside the parentheses.
+      expression: a_7 = 14 + 9(6)
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 9 by 6.
+      expression: a_7 = 14 + 54
+      common_mistake: null
+    - step_number: 5
+      explanation: Add to find the total for the 7th hour.
+      expression: a_7 = 68
+      common_mistake: null
+    final_answer: 68 books
+  random_seed: 1271401
+  rendered_question: A library volunteer shelves 14 books in the first hour. Each hour after that, she
+    shelves 9 more books than the previous hour. How many books does she shelve in the 7th hour?
+  option_a: 62 books
+  option_b: 77 books
+  option_c: 63 books
+  option_d: 68 books
+  correct_option: d
+- question_template_id: authored-algebra_2-d5-1271500
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_n_instead_of_n_minus_one
+  - ignored_first_term
+  - arithmetic_error_in_final_sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A gardener plants 22 flowers in the first row and increases the count by 9 flowers in each row
+    after that. How many flowers are in the fifth row?
+  context_block: ''
+  answer_expression: Eq(x, 22 + 9*4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write an expression for the number of flowers in any row by starting with the first row and adding
+    the increase for each additional row.
+  - The fifth row is 4 rows after the first, so you add 9 flowers four times to the starting 22.
+  - Set up the calculation 22 + 9×4 and evaluate it.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the first term and the common difference. The first row has 22 flowers, and
+        each subsequent row adds 9 flowers.
+      expression: a_1 = 22, d = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the arithmetic sequence formula for the nth term: a_n = a_1 + d(n - 1). For the
+        fifth row, n = 5.'
+      expression: a_5 = 22 + 9(5 - 1)
+      common_mistake: null
+    - step_number: 3
+      explanation: Simplify the expression inside the parentheses.
+      expression: a_5 = 22 + 9(4)
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 9 by 4.
+      expression: a_5 = 22 + 36
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 22 and 36 to find the number of flowers in the fifth row.
+      expression: a_5 = 58
+      common_mistake: null
+    final_answer: 58 flowers
+  random_seed: 1271500
+  rendered_question: A gardener plants 22 flowers in the first row and increases the count by 9 flowers
+    in each row after that. How many flowers are in the fifth row?
+  option_a: 58 flowers
+  option_b: 49 flowers
+  option_c: 67 flowers
+  option_d: 54 flowers
+  correct_option: a
+- question_template_id: authored-algebra_2-d5-1271501
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - multiplied_by_n_instead_of_n_minus_one
+  - used_n_as_coefficient_directly
+  - stopped_before_adding_first_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A baker decorates 16 cupcakes in the first batch and increases by 8 cupcakes in each subsequent
+    batch. How many cupcakes does the baker decorate in the 6th batch?
+  context_block: ''
+  answer_expression: Eq(x, 16 + 8*5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Identify the first term and the amount the baker adds with each new batch.
+  - 'Use the arithmetic sequence formula: nth term equals first term plus common difference times (n minus
+    1).'
+  - Substitute n = 6, first term = 16, and common difference = 8 into the formula, then compute.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the pattern: the first batch has 16 cupcakes, and each subsequent batch increases
+        by 8 cupcakes. This is an arithmetic sequence with first term a₁ = 16 and common difference d
+        = 8.'
+      expression: a₁ = 16, d = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the formula for the nth term of an arithmetic sequence: aₙ = a₁ + d(n - 1). For
+        the 6th batch, n = 6.'
+      expression: a₆ = 16 + 8(6 - 1)
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Evaluate the expression inside the parentheses: 6 - 1 = 5.'
+      expression: a₆ = 16 + 8(5)
+      common_mistake: null
+    - step_number: 4
+      explanation: Multiply 8 by 5 to get 40.
+      expression: a₆ = 16 + 40
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 16 and 40 to find the number of cupcakes in the 6th batch.
+      expression: a₆ = 56
+      common_mistake: null
+    final_answer: 56 cupcakes
+  random_seed: 1271501
+  rendered_question: A baker decorates 16 cupcakes in the first batch and increases by 8 cupcakes in each
+    subsequent batch. How many cupcakes does the baker decorate in the 6th batch?
+  option_a: 56 cupcakes
+  option_b: 64 cupcakes
+  option_c: 48 cupcakes
+  option_d: 54 cupcakes
+  correct_option: a
+- question_template_id: authored-algebra_2-d5-1271502
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - used_n_instead_of_n_minus_1
+  - used_first_step_instead_of_fourth
+  - forgot_to_add_first_term
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A jogger runs 24 laps around a track in the first week and increases by 7 laps each subsequent
+    week. How many laps does the jogger run in the fifth week?
+  context_block: ''
+  answer_expression: Eq(x, 24 + 7*4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - In an arithmetic sequence, each term equals the first term plus the common difference multiplied by
+    how many steps you have moved from the start.
+  - The fifth week is 4 steps beyond the first week, so you need to add 4 times the weekly increase to
+    the starting lap count.
+  - Write 24 + 7 times the number of weeks beyond the first, then compute.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The jogger runs 24 laps in the first week and increases by 7 laps each week. The fifth
+        week is 4 weeks beyond the first.
+      expression: weeks_beyond_first = 5 - 1 = 4
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the arithmetic sequence formula: nth term = first term + common difference × (n
+        - 1).'
+      expression: laps_in_week_5 = 24 + 7*4
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the weekly increase by the number of weeks beyond the first.
+      expression: 7*4 = 28
+      common_mistake: null
+    - step_number: 4
+      explanation: Add this to the first week's lap count.
+      expression: 24 + 28 = 52
+      common_mistake: null
+    final_answer: 52 laps
+  random_seed: 1271502
+  rendered_question: A jogger runs 24 laps around a track in the first week and increases by 7 laps each
+    subsequent week. How many laps does the jogger run in the fifth week?
+  option_a: 28 laps
+  option_b: 52 laps
+  option_c: 59 laps
+  option_d: 31 laps
+  correct_option: b
+- question_template_id: authored-algebra_2-d3-1271302
+  topic_id: algebra_2
+  skill_id: alg2_sequences
+  grade_band: 10-11
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_term_number_instead_of_step_count
+  - confused_term_position_with_second_term
+  - multiplied_starting_value_by_term_number
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A runner trains by running 18 minutes on the first day and adds 7 minutes to her time each day.
+    How many minutes does she run on the 7th day?
+  context_block: ''
+  answer_expression: Eq(x, 18 + 7*6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Write down how much the runner increases her time from day 1 to day 7.
+  - She starts at 18 minutes and adds 7 minutes for each of the six increases from day 1 to day 7.
+  - Calculate 18 plus 7 times the number of days she has increased.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the starting time on day 1 and the daily increase. The runner runs 18 minutes
+        on day 1 and adds 7 minutes each day.
+      expression: first_day = 18, increase = 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Count the number of increases from day 1 to day 7. From day 1 to day 7 is 6 increases
+        (day 2, 3, 4, 5, 6, 7).
+      expression: number_of_increases = 7 - 1 = 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the daily increase by the number of increases, then add the starting time.
+      expression: x = 18 + 7*6
+      common_mistake: null
+    - step_number: 4
+      explanation: Compute 7 times 6, which is 42.
+      expression: 7*6 = 42
+      common_mistake: null
+    - step_number: 5
+      explanation: Add 18 and 42 to find the total time on day 7.
+      expression: x = 18 + 42 = 60
+      common_mistake: null
+    final_answer: 60 minutes
+  random_seed: 1271302
+  rendered_question: A runner trains by running 18 minutes on the first day and adds 7 minutes to her
+    time each day. How many minutes does she run on the 7th day?
+  option_a: 126 minutes
+  option_b: 60 minutes
+  option_c: 25 minutes
+  option_d: 67 minutes
+  correct_option: b

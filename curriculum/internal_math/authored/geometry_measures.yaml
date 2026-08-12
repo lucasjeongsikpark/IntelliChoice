@@ -1,0 +1,1314 @@
+curriculum_version: '2026.1'
+topic_id: geometry_measures
+templates:
+- question_template_id: authored-geometry_measures-d1-1205100
+  topic_id: geometry_measures
+  skill_id: geo_area
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 45
+  common_error_tags:
+  - added_instead_of_multiplying
+  - used_only_one_dimension
+  - halved_the_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular garden has a length of 12 meters and a width of 8 meters. What is the area of the
+    garden?
+  context_block: null
+  answer_expression: x = 12 * 8
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what formula you use to find the area of a rectangle.
+  - The area of a rectangle is its length multiplied by its width.
+  - Multiply 12 meters by 8 meters to find the area.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the area of a rectangle: area equals length times width.'
+      expression: area = length × width
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute the given dimensions into the formula. The length is 12 meters and the width
+        is 8 meters.
+      expression: area = 12 × 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 12 by 8 to find the area.
+      expression: area = 96
+      common_mistake: null
+    final_answer: 96 square meters
+  random_seed: 1205100
+  rendered_question: A rectangular garden has a length of 12 meters and a width of 8 meters. What is the
+    area of the garden?
+  option_a: 96 square meters
+  option_b: 40 square meters
+  option_c: 20 square meters
+  option_d: 24 square meters
+  correct_option: a
+- question_template_id: authored-geometry_measures-d1-1205101
+  topic_id: geometry_measures
+  skill_id: geo_area
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_divide_by_two
+  - added_dimensions_instead_of_multiplying
+  - stopped_before_dividing_by_two
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A triangular flag has a base of 10 meters and a height of 6 meters. What is the area of the flag?
+  context_block: null
+  answer_expression: Eq(x, Rational(1,2) * 10 * 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - What formula do you use to find the area of a triangle?
+  - The area of a triangle is half the base times the height.
+  - Multiply the base by the height, then divide by 2.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the base and height of the triangle. The base is 10 meters and the height
+        is 6 meters.
+      expression: base = 10, height = 6
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the formula for the area of a triangle: Area = (1/2) × base × height.'
+      expression: Area = (1/2) × 10 × 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the base by the height.
+      expression: 10 × 6 = 60
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide by 2 to find the area.
+      expression: 60 ÷ 2 = 30
+      common_mistake: null
+    final_answer: 30 square meters
+  random_seed: 1205101
+  rendered_question: A triangular flag has a base of 10 meters and a height of 6 meters. What is the area
+    of the flag?
+  option_a: 60 square meters
+  option_b: 30 square meters
+  option_c: 15 square meters
+  option_d: 16 square meters
+  correct_option: b
+- question_template_id: authored-geometry_measures-d1-1205102
+  topic_id: geometry_measures
+  skill_id: geo_area
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - calculated_perimeter_instead_of_area
+  - doubled_the_correct_area
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A rectangular poster has a length of 15 centimetres and a width of 6 centimetres. What is the
+    area of the poster?
+  context_block: ''
+  answer_expression: Eq(x, 15 * 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The area of a rectangle is found by multiplying its length by its width.
+  - You have a length of 15 cm and a width of 6 cm.
+  - 'Set up the multiplication: area = 15 × 6.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the formula for the area of a rectangle, which is length times width.
+      expression: A = l × w
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute the given length (15 cm) and width (6 cm) into the formula.
+      expression: A = 15 × 6
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the two values to find the area.
+      expression: A = 90
+      common_mistake: null
+    final_answer: 90 square centimetres
+  random_seed: 1205102
+  rendered_question: A rectangular poster has a length of 15 centimetres and a width of 6 centimetres.
+    What is the area of the poster?
+  option_a: 21 square centimetres
+  option_b: 90 square centimetres
+  option_c: 42 square centimetres
+  option_d: 180 square centimetres
+  correct_option: b
+- question_template_id: authored-geometry_measures-d2-1205201
+  topic_id: geometry_measures
+  skill_id: geo_area
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - divided_base_by_two
+  - doubled_correct_area
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A parallelogram-shaped parking lot has a base of 9 meters and a height of 7 meters. What is the
+    area of the parking lot?
+  context_block: null
+  answer_expression: Eq(x, 9 * 7)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'Recall the formula for the area of a parallelogram: it is base times height.'
+  - The base is 9 meters and the height is 7 meters. Write down the multiplication.
+  - Calculate 9 times 7 to find the area in square meters.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the area of a parallelogram: Area = base × height.'
+      expression: A = 9 * 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the base by the height to find the area.
+      expression: A = 63
+      common_mistake: null
+    final_answer: 63 square meters
+  random_seed: 1205201
+  rendered_question: A parallelogram-shaped parking lot has a base of 9 meters and a height of 7 meters.
+    What is the area of the parking lot?
+  option_a: 126 square meters
+  option_b: 16 square meters
+  option_c: 32 square meters
+  option_d: 63 square meters
+  correct_option: d
+- question_template_id: authored-geometry_measures-d4-1206400
+  topic_id: geometry_measures
+  skill_id: geo_pythagorean
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_legs_instead_of_using_pythagorean_theorem
+  - stopped_before_taking_square_root
+  - arithmetic_error_or_averaging
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A ladder leans against a wall. The base of the ladder is 9 feet from the wall, and the top reaches
+    12 feet up the wall. How long is the ladder?
+  context_block: ''
+  answer_expression: Eq(x, sqrt(9**2 + 12**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The ladder, wall, and ground form a right triangle. What are the lengths of the two legs?
+  - The Pythagorean theorem says that the square of the ladder's length equals 9² plus 12².
+  - Calculate 9² + 12² first, then find the square root of that sum.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ladder, wall, and ground form a right triangle. The two legs are 9 feet (base)
+        and 12 feet (height). The ladder is the hypotenuse.
+      expression: x² = 9² + 12²
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Square each leg: 9² = 81 and 12² = 144.'
+      expression: x² = 81 + 144
+      common_mistake: null
+    - step_number: 3
+      explanation: Add the squares together.
+      expression: x² = 225
+      common_mistake: null
+    - step_number: 4
+      explanation: Take the square root of both sides to find the ladder's length.
+      expression: x = √225 = 15
+      common_mistake: null
+    final_answer: 15 feet
+  random_seed: 1206400
+  rendered_question: A ladder leans against a wall. The base of the ladder is 9 feet from the wall, and
+    the top reaches 12 feet up the wall. How long is the ladder?
+  option_a: 15 feet
+  option_b: 21 feet
+  option_c: 225 feet
+  option_d: 13.5 feet
+  correct_option: a
+- question_template_id: authored-geometry_measures-d4-1206402
+  topic_id: geometry_measures
+  skill_id: geo_pythagorean
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 120
+  common_error_tags:
+  - added_instead_of_applying_pythagorean_theorem
+  - forgot_to_square_legs_before_adding
+  - stopped_before_taking_square_root
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular television screen is 8 inches tall and 15 inches wide. What is the diagonal length
+    of the screen?
+  context_block: ''
+  answer_expression: Eq(x, sqrt(8**2 + 15**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Picture the rectangle with the diagonal cutting from one corner to the opposite corner, forming a
+    right triangle.
+  - The height and width are the two legs of the triangle, and the diagonal is the hypotenuse.
+  - 'Use the Pythagorean theorem: square each leg, add them, then take the square root.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The diagonal of a rectangle forms a right triangle with the height and width as the
+        two legs.
+      expression: a = 8, b = 15
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Apply the Pythagorean theorem: the diagonal x satisfies x² = a² + b².'
+      expression: x² = 8² + 15²
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Calculate the squares: 8² = 64 and 15² = 225.'
+      expression: x² = 64 + 225
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the squares.
+      expression: x² = 289
+      common_mistake: null
+    - step_number: 5
+      explanation: Take the square root of both sides to find x.
+      expression: x = sqrt(289) = 17
+      common_mistake: null
+    final_answer: 17 inches
+  random_seed: 1206402
+  rendered_question: A rectangular television screen is 8 inches tall and 15 inches wide. What is the
+    diagonal length of the screen?
+  option_a: 15.3 inches
+  option_b: 289 inches
+  option_c: 17 inches
+  option_d: 23 inches
+  correct_option: c
+- question_template_id: authored-geometry_measures-d5-1206500
+  topic_id: geometry_measures
+  skill_id: geo_pythagorean
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - subtracted_hypotenuse_minus_leg
+  - stopped_at_x_squared
+  - computed_25_squared_instead_of_difference
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A boat travels from a dock to an island. The island is 25 miles away in a straight line and 24
+    miles due east from the dock. How many miles north of the dock is the island?
+  context_block: null
+  answer_expression: Eq(x, sqrt(25**2 - 24**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The boat, dock, and island form a right triangle. Which leg and which side do you know?
+  - The straight-line distance is the hypotenuse (25 miles), and the eastward leg is 24 miles. Use the
+    Pythagorean theorem to find the northward leg.
+  - Write x² + 24² = 25², then solve for x by finding the difference of the squares and taking the square
+    root.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The dock, island, and the point due east of the dock form a right triangle. The straight-line
+        distance to the island is the hypotenuse (25 miles), and the eastward distance is one leg (24
+        miles). Let x be the northward distance.
+      expression: x² + 24² = 25²
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute the known values and simplify the squares.
+      expression: x² + 576 = 625
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 576 from both sides to isolate x².
+      expression: x² = 49
+      common_mistake: null
+    - step_number: 4
+      explanation: Take the square root of both sides. Since distance is positive, x = 7.
+      expression: x = 7
+      common_mistake: null
+    final_answer: 7 miles
+  random_seed: 1206500
+  rendered_question: A boat travels from a dock to an island. The island is 25 miles away in a straight
+    line and 24 miles due east from the dock. How many miles north of the dock is the island?
+  option_a: 1 mile
+  option_b: 625 miles
+  option_c: 7 miles
+  option_d: 49 miles
+  correct_option: c
+- question_template_id: authored-geometry_measures-d5-1206501
+  topic_id: geometry_measures
+  skill_id: geo_pythagorean
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - added_instead_of_using_pythagorean_theorem
+  - subtracted_sides_instead_of_using_pythagorean_theorem
+  - confused_leg_with_hypotenuse
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A zipline cable is 17 meters long and is anchored 15 meters horizontally from the base of the
+    platform. What is the vertical height of the platform?
+  context_block: ''
+  answer_expression: Eq(x, sqrt(17**2 - 15**2))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The cable, horizontal distance, and height form a right triangle. Identify which measurement is the
+    hypotenuse.
+  - 'Use the Pythagorean theorem: the square of the hypotenuse equals the sum of the squares of the two
+    legs.'
+  - Set up the equation with the height as the unknown, then isolate the height squared before taking
+    the square root.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The cable is the hypotenuse of a right triangle, the horizontal distance is one leg,
+        and the vertical height is the other leg.
+      expression: x^2 + 15^2 = 17^2
+      common_mistake: null
+    - step_number: 2
+      explanation: Square the known values.
+      expression: x^2 + 225 = 289
+      common_mistake: null
+    - step_number: 3
+      explanation: Subtract 225 from both sides to isolate x squared.
+      expression: x^2 = 64
+      common_mistake: null
+    - step_number: 4
+      explanation: Take the positive square root of both sides because height is positive.
+      expression: x = 8
+      common_mistake: null
+    final_answer: 8 meters
+  random_seed: 1206501
+  rendered_question: A zipline cable is 17 meters long and is anchored 15 meters horizontally from the
+    base of the platform. What is the vertical height of the platform?
+  option_a: 8 meters
+  option_b: 15 meters
+  option_c: 32 meters
+  option_d: 2 meters
+  correct_option: a
+- question_template_id: authored-geometry_measures-d3-1207302
+  topic_id: geometry_measures
+  skill_id: geo_ratios
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - compared_one_dimension_instead_of_areas
+  - multiplied_or_added_areas_instead_of_dividing
+  - subtracted_areas_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A recreation center has two rectangular swimming pools. The large pool measures 14 meters by 10
+    meters. The small pool measures 7 meters by 5 meters. How many times larger is the area of the large
+    pool than the area of the small pool?
+  context_block: null
+  answer_expression: x = (14 * 10) / (7 * 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the area of each pool by multiplying length by width.
+  - The large pool has area 14 × 10 and the small pool has area 7 × 5.
+  - Divide the large pool's area by the small pool's area to find how many times larger it is.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the area of the large pool by multiplying its length and width.
+      expression: 14 * 10 = 140
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the area of the small pool by multiplying its length and width.
+      expression: 7 * 5 = 35
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the large pool's area by the small pool's area to find how many times larger
+        the large pool is.
+      expression: 140 / 35 = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 1207302
+  rendered_question: A recreation center has two rectangular swimming pools. The large pool measures 14
+    meters by 10 meters. The small pool measures 7 meters by 5 meters. How many times larger is the area
+    of the large pool than the area of the small pool?
+  option_a: '2'
+  option_b: '4'
+  option_c: '8'
+  option_d: '105'
+  correct_option: b
+- question_template_id: authored-geometry_measures-d2-1207200
+  topic_id: geometry_measures
+  skill_id: geo_ratios
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_side_ratio_instead_of_area_ratio
+  - stopped_after_one_area_calculation
+  - divided_area_by_single_dimension
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular garden has two sections. The vegetable section measures 12 metres by 8 metres. The
+    flower section measures 6 metres by 4 metres. How many times larger is the area of the vegetable section
+    than the area of the flower section?
+  context_block: null
+  answer_expression: x = (12 * 8) / (6 * 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the area of each section by multiplying its length and width.
+  - Divide the vegetable section area by the flower section area to see how many times larger it is.
+  - Calculate 12 × 8 for the vegetable section and 6 × 4 for the flower section, then divide the first
+    result by the second.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the area of the vegetable section by multiplying its length and width.
+      expression: 12 * 8 = 96
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the area of the flower section by multiplying its length and width.
+      expression: 6 * 4 = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the vegetable section area by the flower section area to find how many times
+        larger it is.
+      expression: 96 / 24 = 4
+      common_mistake: null
+    final_answer: 4 times
+  random_seed: 1207200
+  rendered_question: A rectangular garden has two sections. The vegetable section measures 12 metres by
+    8 metres. The flower section measures 6 metres by 4 metres. How many times larger is the area of the
+    vegetable section than the area of the flower section?
+  option_a: 4 times
+  option_b: 2 times
+  option_c: 96 times
+  option_d: 6 times
+  correct_option: a
+- question_template_id: authored-geometry_measures-d2-1207201
+  topic_id: geometry_measures
+  skill_id: geo_ratios
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added dimensions instead of multiplying for area
+  - divided individual dimensions instead of areas
+  - stopped after computing one area without forming the ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A classroom has two poster boards. The science poster measures 15 inches by 6 inches. The math
+    poster measures 10 inches by 3 inches. How many times larger is the science poster's area than the
+    math poster's area?
+  context_block: null
+  answer_expression: x = (15 * 6) / (10 * 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the area of each poster by multiplying its length by its width.
+  - The science poster's area is 15 × 6 and the math poster's area is 10 × 3.
+  - Divide the science poster's area by the math poster's area to find how many times larger it is.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the area of the science poster by multiplying length by width.
+      expression: 15 * 6 = 90
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the area of the math poster by multiplying length by width.
+      expression: 10 * 3 = 30
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the science poster's area by the math poster's area to find the ratio.
+      expression: 90 / 30 = 3
+      common_mistake: null
+    final_answer: 3 times
+  random_seed: 1207201
+  rendered_question: A classroom has two poster boards. The science poster measures 15 inches by 6 inches.
+    The math poster measures 10 inches by 3 inches. How many times larger is the science poster's area
+    than the math poster's area?
+  option_a: 5 times
+  option_b: 2.5 times
+  option_c: 30 times
+  option_d: 3 times
+  correct_option: d
+- question_template_id: authored-geometry_measures-d2-1207202
+  topic_id: geometry_measures
+  skill_id: geo_ratios
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - compared_linear_dimensions_instead_of_areas
+  - multiplied_ratios_of_dimensions
+  - divided_only_one_pair_of_dimensions
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A living room rug measures 18 feet by 4 feet. A bedroom rug measures 9 feet by 2 feet. How many
+    times as large is the area of the living room rug compared to the bedroom rug?
+  context_block: null
+  answer_expression: x = (18 * 4) / (9 * 2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the area of each rug by multiplying its length by its width.
+  - The living room rug has area 18 × 4 and the bedroom rug has area 9 × 2.
+  - Divide the living room rug area by the bedroom rug area to find how many times larger it is.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the area of the living room rug by multiplying length by width.
+      expression: 18 * 4 = 72
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the area of the bedroom rug by multiplying length by width.
+      expression: 9 * 2 = 18
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the living room rug area by the bedroom rug area to find the ratio.
+      expression: 72 / 18 = 4
+      common_mistake: null
+    final_answer: '4'
+  random_seed: 1207202
+  rendered_question: A living room rug measures 18 feet by 4 feet. A bedroom rug measures 9 feet by 2
+    feet. How many times as large is the area of the living room rug compared to the bedroom rug?
+  option_a: '8'
+  option_b: '2'
+  option_c: '36'
+  option_d: '4'
+  correct_option: d
+- question_template_id: authored-geometry_measures-d3-1207300
+  topic_id: geometry_measures
+  skill_id: geo_ratios
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - divided_only_one_dimension_instead_of_areas
+  - multiplied_areas_instead_of_dividing
+  - subtracted_areas_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A shopping center has two parking lots. The main lot measures 20 meters by 6 meters. The side
+    lot measures 10 meters by 4 meters. How many times larger is the main lot's area compared to the side
+    lot's area?
+  context_block: null
+  answer_expression: x = (20 * 6) / (10 * 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the area of each parking lot using length times width.
+  - The main lot has area 20 × 6 and the side lot has area 10 × 4.
+  - Divide the main lot's area by the side lot's area to find how many times larger it is.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Find the area of the main parking lot by multiplying its length and width.
+      expression: 20 * 6 = 120
+      common_mistake: null
+    - step_number: 2
+      explanation: Find the area of the side parking lot by multiplying its length and width.
+      expression: 10 * 4 = 40
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the main lot's area by the side lot's area to find how many times larger the
+        main lot is.
+      expression: 120 / 40 = 3
+      common_mistake: null
+    final_answer: 3 times
+  random_seed: 1207300
+  rendered_question: A shopping center has two parking lots. The main lot measures 20 meters by 6 meters.
+    The side lot measures 10 meters by 4 meters. How many times larger is the main lot's area compared
+    to the side lot's area?
+  option_a: 30 times
+  option_b: 2 times
+  option_c: 80 times
+  option_d: 3 times
+  correct_option: d
+- question_template_id: authored-geometry_measures-d3-1207301
+  topic_id: geometry_measures
+  skill_id: geo_ratios
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - compared_linear_dimensions_instead_of_areas
+  - multiplied_one_pair_of_dimensions_only
+  - stopped_at_large_area_without_forming_ratio
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A store displays two rectangular promotional banners. The large banner measures 16 feet by 9 feet.
+    The small banner measures 8 feet by 3 feet. How many times larger is the area of the large banner
+    compared to the small banner?
+  context_block: null
+  answer_expression: x = (16 * 9) / (8 * 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Find the area of each banner by multiplying its length and width.
+  - The large banner has area 16 × 9 and the small banner has area 8 × 3.
+  - Divide the large banner's area by the small banner's area to find how many times larger it is.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Calculate the area of the large banner by multiplying length and width.
+      expression: 16 * 9 = 144
+      common_mistake: null
+    - step_number: 2
+      explanation: Calculate the area of the small banner by multiplying length and width.
+      expression: 8 * 3 = 24
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the large banner area by the small banner area to find how many times larger.
+      expression: 144 / 24 = 6
+      common_mistake: null
+    final_answer: 6 times
+  random_seed: 1207301
+  rendered_question: A store displays two rectangular promotional banners. The large banner measures 16
+    feet by 9 feet. The small banner measures 8 feet by 3 feet. How many times larger is the area of the
+    large banner compared to the small banner?
+  option_a: 2 times
+  option_b: 48 times
+  option_c: 4 times
+  option_d: 6 times
+  correct_option: d
+- question_template_id: authored-geometry_measures-d5-1208500
+  topic_id: geometry_measures
+  skill_id: geo_surface_area
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 240
+  common_error_tags:
+  - calculated_volume_instead_of_surface_area
+  - forgot_to_double_one_pair_of_faces
+  - added_areas_without_doubling
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A rectangular tool box has a length of 9 inches, a width of 6 inches, and a height of 4 inches.
+    What is the total surface area of the tool box?
+  context_block: null
+  answer_expression: Eq(x, 2*(9*6) + 2*(9*4) + 2*(6*4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - 'A rectangular box has six faces: top and bottom, front and back, left side and right side.'
+  - Find the area of each pair of opposite faces. The top and bottom are each 9 by 6, the front and back
+    are each 9 by 4, and the sides are each 6 by 4.
+  - Add together twice the area of the top, twice the area of the front, and twice the area of one side.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The top and bottom faces each have area 9 × 6 = 54 square inches. Two of these faces
+        give 2 × 54 = 108 square inches.
+      expression: 2*(9*6) = 108
+      common_mistake: null
+    - step_number: 2
+      explanation: The front and back faces each have area 9 × 4 = 36 square inches. Two of these faces
+        give 2 × 36 = 72 square inches.
+      expression: 2*(9*4) = 72
+      common_mistake: null
+    - step_number: 3
+      explanation: The left and right faces each have area 6 × 4 = 24 square inches. Two of these faces
+        give 2 × 24 = 48 square inches.
+      expression: 2*(6*4) = 48
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Add the areas of all six faces to find the total surface area: 108 + 72 + 48 = 228
+        square inches.'
+      expression: 108 + 72 + 48 = 228
+      common_mistake: null
+    final_answer: 228 square inches
+  random_seed: 1208500
+  rendered_question: A rectangular tool box has a length of 9 inches, a width of 6 inches, and a height
+    of 4 inches. What is the total surface area of the tool box?
+  option_a: 168 square inches
+  option_b: 216 square inches
+  option_c: 114 square inches
+  option_d: 228 square inches
+  correct_option: d
+- question_template_id: authored-geometry_measures-d4-1208400
+  topic_id: geometry_measures
+  skill_id: geo_surface_area
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - calculated_volume_instead_of_surface_area
+  - forgot_to_double_the_face_areas
+  - added_dimensions_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular storage box has a length of 8 inches, a width of 5 inches, and a height of 3 inches.
+    What is the surface area of the box?
+  context_block: null
+  answer_expression: Eq(x, 2*(8*5) + 2*(8*3) + 2*(5*3))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - A rectangular box has six faces. Which faces share the same dimensions?
+  - 'The surface area is the sum of the areas of all six faces. Pair them: two faces are 8 by 5, two are
+    8 by 3, and two are 5 by 3.'
+  - Calculate 2×(8×5) + 2×(8×3) + 2×(5×3) to find the total surface area.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the three pairs of opposite faces on the rectangular box. The first pair has
+        dimensions 8 by 5 inches.
+      expression: 2*(8*5) = 2*40 = 80
+      common_mistake: null
+    - step_number: 2
+      explanation: The second pair of opposite faces has dimensions 8 by 3 inches.
+      expression: 2*(8*3) = 2*24 = 48
+      common_mistake: null
+    - step_number: 3
+      explanation: The third pair of opposite faces has dimensions 5 by 3 inches.
+      expression: 2*(5*3) = 2*15 = 30
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the areas of all six faces to find the total surface area.
+      expression: 80 + 48 + 30 = 158
+      common_mistake: null
+    final_answer: 158 square inches
+  random_seed: 1208400
+  rendered_question: A rectangular storage box has a length of 8 inches, a width of 5 inches, and a height
+    of 3 inches. What is the surface area of the box?
+  option_a: 118 square inches
+  option_b: 79 square inches
+  option_c: 158 square inches
+  option_d: 120 square inches
+  correct_option: c
+- question_template_id: authored-geometry_measures-d4-1208401
+  topic_id: geometry_measures
+  skill_id: geo_surface_area
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 180
+  common_error_tags:
+  - calculated_only_five_faces
+  - divided_total_by_two_instead_of_multiplying_each_pair
+  - forgot_to_double_one_or_more_pairs
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular aquarium has a length of 10 centimeters, a width of 6 centimeters, and a height
+    of 4 centimeters. What is the total surface area of the aquarium?
+  context_block: null
+  answer_expression: Eq(x, 2*(10*6) + 2*(10*4) + 2*(6*4))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - A rectangular prism has six faces. Identify the dimensions of each pair of opposite faces.
+  - 'Calculate the area of each pair: two faces are 10×6, two are 10×4, and two are 6×4.'
+  - Add up the areas of all six faces by doubling each pair's area and summing them.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the three pairs of opposite faces. The aquarium has two faces that are 10
+        cm by 6 cm, two that are 10 cm by 4 cm, and two that are 6 cm by 4 cm.
+      expression: 2*(10*6) + 2*(10*4) + 2*(6*4)
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Calculate the area of the first pair of faces: 10 × 6 = 60, so two faces contribute
+        2 × 60 = 120 square centimeters.'
+      expression: 2*60 = 120
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Calculate the area of the second pair of faces: 10 × 4 = 40, so two faces contribute
+        2 × 40 = 80 square centimeters.'
+      expression: 2*40 = 80
+      common_mistake: null
+    - step_number: 4
+      explanation: 'Calculate the area of the third pair of faces: 6 × 4 = 24, so two faces contribute
+        2 × 24 = 48 square centimeters.'
+      expression: 2*24 = 48
+      common_mistake: null
+    - step_number: 5
+      explanation: Add all the face areas together to find the total surface area.
+      expression: 120 + 80 + 48 = 248
+      common_mistake: null
+    final_answer: 248 square centimeters
+  random_seed: 1208401
+  rendered_question: A rectangular aquarium has a length of 10 centimeters, a width of 6 centimeters,
+    and a height of 4 centimeters. What is the total surface area of the aquarium?
+  option_a: 240 square centimeters
+  option_b: 124 square centimeters
+  option_c: 208 square centimeters
+  option_d: 248 square centimeters
+  correct_option: d
+- question_template_id: authored-geometry_measures-d5-1208502
+  topic_id: geometry_measures
+  skill_id: geo_surface_area
+  grade_band: 6-7
+  difficulty_label: 5
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 180
+  common_error_tags:
+  - confused_lateral_and_total_surface_area
+  - halved_surface_area_or_counted_three_faces
+  - omitted_one_pair_of_faces
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A rectangular planter has a length of 13 inches, a width of 8 inches, and a height of 5 inches.
+    What is the total surface area of the planter?
+  context_block: null
+  answer_expression: Eq(x, 2*(13*8) + 2*(13*5) + 2*(8*5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - A rectangular prism has three pairs of opposite faces. Identify the dimensions of each pair.
+  - 'Calculate the area of each pair: top and bottom (13 × 8), front and back (13 × 5), and left and right
+    (8 × 5).'
+  - 'Add the areas of all six faces: 2(13 × 8) + 2(13 × 5) + 2(8 × 5).'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the three pairs of opposite faces on the rectangular pranter. The top and
+        bottom are each 13 × 8 inches.
+      expression: 2 × (13 × 8) = 2 × 104 = 208
+      common_mistake: null
+    - step_number: 2
+      explanation: The front and back faces are each 13 × 5 inches.
+      expression: 2 × (13 × 5) = 2 × 65 = 130
+      common_mistake: null
+    - step_number: 3
+      explanation: The left and right faces are each 8 × 5 inches.
+      expression: 2 × (8 × 5) = 2 × 40 = 80
+      common_mistake: null
+    - step_number: 4
+      explanation: Add the areas of all six faces together.
+      expression: 208 + 130 + 80 = 418
+      common_mistake: null
+    final_answer: 418 square inches
+  random_seed: 1208502
+  rendered_question: A rectangular planter has a length of 13 inches, a width of 8 inches, and a height
+    of 5 inches. What is the total surface area of the planter?
+  option_a: 520 square inches
+  option_b: 209 square inches
+  option_c: 338 square inches
+  option_d: 418 square inches
+  correct_option: d
+- question_template_id: authored-geometry_measures-d3-1209300
+  topic_id: geometry_measures
+  skill_id: geo_volume
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - multiplied_only_two_dimensions
+  - stopped_after_first_multiplication
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A shipping company needs to know the volume of a storage container. The container is 6 feet long,
+    4 feet wide, and 5 feet tall. What is the volume of the container?
+  context_block: ''
+  answer_expression: Eq(x, 6 * 4 * 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume is the amount of space inside a three-dimensional shape. What formula connects volume to the
+    dimensions of a rectangular box?
+  - The volume of a rectangular prism is found by multiplying length times width times height.
+  - 'Set up the calculation: multiply the three dimensions 6, 4, and 5 together.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the volume of a rectangular prism: volume equals length times
+        width times height.'
+      expression: V = l × w × h
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Substitute the given dimensions into the formula: length is 6 feet, width is 4 feet,
+        and height is 5 feet.'
+      expression: V = 6 × 4 × 5
+      common_mistake: null
+    - step_number: 3
+      explanation: First multiply 6 and 4 to get 24.
+      expression: V = 24 × 5
+      common_mistake: null
+    - step_number: 4
+      explanation: Then multiply 24 by 5 to find the volume.
+      expression: V = 120
+      common_mistake: null
+    final_answer: 120 cubic feet
+  random_seed: 1209300
+  rendered_question: A shipping company needs to know the volume of a storage container. The container
+    is 6 feet long, 4 feet wide, and 5 feet tall. What is the volume of the container?
+  option_a: 60 cubic feet
+  option_b: 120 cubic feet
+  option_c: 15 cubic feet
+  option_d: 24 cubic feet
+  correct_option: b
+- question_template_id: authored-geometry_measures-d3-1209302
+  topic_id: geometry_measures
+  skill_id: geo_volume
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_only_two_dimensions
+  - added_dimensions_instead_of_multiplying
+  - multiplied_length_and_width_only
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A moving box is 12 inches long, 9 inches wide, and 7 inches tall. What is the volume of the box?
+  context_block: null
+  answer_expression: Eq(x, 12 * 9 * 7)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume of a rectangular prism is found by multiplying length, width, and height together.
+  - Multiply 12 inches by 9 inches by 7 inches.
+  - Calculate 12 × 9 first, then multiply that result by 7.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify that the volume of a rectangular prism is length times width times height.
+      expression: V = 12 × 9 × 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Multiply the length and width first.
+      expression: 12 × 9 = 108
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply that result by the height.
+      expression: 108 × 7 = 756
+      common_mistake: null
+    final_answer: 756 cubic inches
+  random_seed: 1209302
+  rendered_question: A moving box is 12 inches long, 9 inches wide, and 7 inches tall. What is the volume
+    of the box?
+  option_a: 756 cubic inches
+  option_b: 252 cubic inches
+  option_c: 189 cubic inches
+  option_d: 108 cubic inches
+  correct_option: a
+- question_template_id: authored-geometry_measures-d4-1209400
+  topic_id: geometry_measures
+  skill_id: geo_volume
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - multiplied_only_two_dimensions
+  - summed_all_three_dimensions
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A garden shed is 8 feet long, 5 feet wide, and 4 feet tall. What is the volume of the shed?
+  context_block: ''
+  answer_expression: Eq(x, 8 * 5 * 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume measures the space inside a three-dimensional object. What formula uses length, width, and
+    height?
+  - For a rectangular prism, volume equals length times width times height.
+  - Write the expression 8 × 5 × 4 and compute the product step by step.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The volume of a rectangular prism is found by multiplying length times width times
+        height.
+      expression: V = 8 × 5 × 4
+      common_mistake: null
+    - step_number: 2
+      explanation: First multiply the length and width.
+      expression: 8 × 5 = 40
+      common_mistake: null
+    - step_number: 3
+      explanation: Then multiply that result by the height.
+      expression: 40 × 4 = 160
+      common_mistake: null
+    final_answer: 160 cubic feet
+  random_seed: 1209400
+  rendered_question: A garden shed is 8 feet long, 5 feet wide, and 4 feet tall. What is the volume of
+    the shed?
+  option_a: 17 cubic feet
+  option_b: 40 cubic feet
+  option_c: 160 cubic feet
+  option_d: 68 cubic feet
+  correct_option: c
+- question_template_id: authored-geometry_measures-d4-1209402
+  topic_id: geometry_measures
+  skill_id: geo_volume
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - multiplied_only_two_dimensions
+  - confused_volume_with_sum_of_dimensions
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A toolbox is 7 inches long, 4 inches wide, and 3 inches tall. What is the volume of the toolbox?
+  context_block: null
+  answer_expression: Eq(x, 7 * 4 * 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume measures how much space is inside a three-dimensional object like the toolbox.
+  - For a rectangular prism, multiply the length by the width by the height.
+  - Set up 7 × 4 × 3 and compute the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The toolbox is a rectangular prism, so its volume is found by multiplying length, width,
+        and height.
+      expression: V = 7 × 4 × 3
+      common_mistake: null
+    - step_number: 2
+      explanation: First multiply 7 by 4.
+      expression: 7 × 4 = 28
+      common_mistake: null
+    - step_number: 3
+      explanation: Now multiply that result by 3.
+      expression: 28 × 3 = 84
+      common_mistake: null
+    final_answer: 84 cubic inches
+  random_seed: 1209402
+  rendered_question: A toolbox is 7 inches long, 4 inches wide, and 3 inches tall. What is the volume
+    of the toolbox?
+  option_a: 84 cubic inches
+  option_b: 28 cubic inches
+  option_c: 14 cubic inches
+  option_d: 21 cubic inches
+  correct_option: a
+- question_template_id: authored-geometry_measures-d4-1209401
+  topic_id: geometry_measures
+  skill_id: geo_volume
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_dimensions_instead_of_multiplying
+  - multiplied_only_two_dimensions
+  - multiplied_length_and_width_then_doubled
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A cargo trailer is 9 feet long, 7 feet wide, and 5 feet tall. What is the volume of the trailer?
+  context_block: null
+  answer_expression: Eq(x, 9 * 7 * 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The trailer is a box shape, so its volume is length times width times height.
+  - 'Multiply the three dimensions together: 9 feet, 7 feet, and 5 feet.'
+  - Set up the multiplication 9 × 7 × 5 and work left to right.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The trailer is a rectangular prism, so its volume is the product of length, width,
+        and height.
+      expression: volume = 9 × 7 × 5
+      common_mistake: null
+    - step_number: 2
+      explanation: First multiply the length and width.
+      expression: 9 × 7 = 63
+      common_mistake: null
+    - step_number: 3
+      explanation: Then multiply the result by the height.
+      expression: 63 × 5 = 315
+      common_mistake: Stopping after finding the area of one face instead of multiplying by the third
+        dimension.
+    final_answer: 315 cubic feet
+  random_seed: 1209401
+  rendered_question: A cargo trailer is 9 feet long, 7 feet wide, and 5 feet tall. What is the volume
+    of the trailer?
+  option_a: 63 cubic feet
+  option_b: 126 cubic feet
+  option_c: 21 cubic feet
+  option_d: 315 cubic feet
+  correct_option: d
+- question_template_id: authored-geometry_measures-d3-1209301
+  topic_id: geometry_measures
+  skill_id: geo_volume
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_only_two_dimensions
+  - added_dimensions_instead_of_multiplying
+  - computed_perimeter_instead_of_volume
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A fish tank is 10 inches long, 8 inches wide, and 6 inches tall. What is the volume of the tank?
+  context_block: null
+  answer_expression: Eq(x, 10 * 8 * 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Volume measures the space inside a three-dimensional shape. For a rectangular tank, you need all three
+    dimensions.
+  - The formula for the volume of a rectangular prism is length times width times height.
+  - Multiply 10 by 8 by 6 to find the volume in cubic inches.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for the volume of a rectangular prism: length × width × height.'
+      expression: V = 10 × 8 × 6
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Multiply the length and width first: 10 × 8 = 80.'
+      expression: V = 80 × 6
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the result by the height: 80 × 6 = 480.'
+      expression: V = 480
+      common_mistake: null
+    final_answer: 480 cubic inches
+  random_seed: 1209301
+  rendered_question: A fish tank is 10 inches long, 8 inches wide, and 6 inches tall. What is the volume
+    of the tank?
+  option_a: 480 cubic inches
+  option_b: 240 cubic inches
+  option_c: 180 cubic inches
+  option_d: 24 cubic inches
+  correct_option: a

@@ -1,0 +1,1217 @@
+curriculum_version: '2026.1'
+topic_id: g6_word_problems
+templates:
+- question_template_id: authored-g6_word_problems-d1-1125100
+  topic_id: g6_word_problems
+  skill_id: g6_wp_average
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - Found sum instead of average (stopped before dividing)
+  - Made an addition error leading to wrong sum
+  - Made an arithmetic error in the sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Maya took three quizzes this month and wants to know her average score. She scored 84 points on
+    the first quiz, 90 points on the second, and 78 points on the third. What is her average quiz score?
+  context_block: ''
+  answer_expression: x = (84 + 90 + 78) / 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find an average, you need to add all the scores together first.
+  - Once you have the total of all three quiz scores, count how many quizzes Maya took.
+  - Divide the total points by the number of quizzes to find the average.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the three quiz scores together to find the total points.
+      expression: 84 + 90 + 78 = 252
+      common_mistake: null
+    - step_number: 2
+      explanation: Count the number of quizzes Maya took.
+      expression: 3 quizzes
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide the total points by the number of quizzes to find the average.
+      expression: 252 / 3 = 84
+      common_mistake: null
+    final_answer: 84 points
+  random_seed: 1125100
+  rendered_question: Maya took three quizzes this month and wants to know her average score. She scored
+    84 points on the first quiz, 90 points on the second, and 78 points on the third. What is her average
+    quiz score?
+  option_a: 84 points
+  option_b: 81 points
+  option_c: 86 points
+  option_d: 252 points
+  correct_option: a
+- question_template_id: authored-g6_word_problems-d1-1125101
+  topic_id: g6_word_problems
+  skill_id: g6_wp_average
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_without_dividing
+  - arithmetic_error_in_sum
+  - divided_partial_sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A basketball player scored 18 points in her first game, 24 points in her second game, and 30 points
+    in her third game. What is her average points per game?
+  context_block: null
+  answer_expression: x = (18 + 24 + 30) / 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find an average, first add up all the scores from the three games.
+  - Divide the total by the number of games to find points per game.
+  - Write the sum 18 + 24 + 30, then divide that result by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the points from all three games together.
+      expression: 18 + 24 + 30 = 72
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total points by the number of games to find the average.
+      expression: 72 / 3 = 24
+      common_mistake: null
+    final_answer: 24 points
+  random_seed: 1125101
+  rendered_question: A basketball player scored 18 points in her first game, 24 points in her second game,
+    and 30 points in her third game. What is her average points per game?
+  option_a: 22 points
+  option_b: 72 points
+  option_c: 21 points
+  option_d: 24 points
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d1-1125102
+  topic_id: g6_word_problems
+  skill_id: g6_wp_average
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_without_dividing
+  - divided_by_wrong_count
+  - used_middle_value_instead_of_mean
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A baker sold 45 cookies on Monday, 36 cookies on Tuesday, and 54 cookies on Wednesday. What is
+    the average number of cookies sold per day?
+  context_block: null
+  answer_expression: x = (45 + 36 + 54) / 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find an average, start by adding all the daily totals together.
+  - Divide the sum of the cookies by the number of days.
+  - 'Set up the calculation: (45 + 36 + 54) divided by 3.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the number of cookies sold each day.
+      expression: 45 + 36 + 54 = 135
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the average.
+      expression: 135 / 3 = 45
+      common_mistake: null
+    final_answer: 45 cookies
+  random_seed: 1125102
+  rendered_question: A baker sold 45 cookies on Monday, 36 cookies on Tuesday, and 54 cookies on Wednesday.
+    What is the average number of cookies sold per day?
+  option_a: 45 cookies
+  option_b: 40 cookies
+  option_c: 50 cookies
+  option_d: 135 cookies
+  correct_option: a
+- question_template_id: authored-g6_word_problems-d2-1125200
+  topic_id: g6_word_problems
+  skill_id: g6_wp_average
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - forgot_to_divide_by_count
+  - averaged_subset_instead_of_all
+  - averaged_only_first_two_values
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cyclist tracks her miles over three days. On Monday she rides 48 miles, on Tuesday 60 miles,
+    and on Wednesday 72 miles. What is her average daily distance?
+  context_block: ''
+  answer_expression: x = (48 + 60 + 72) / 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find an average, add all the daily distances together.
+  - Now divide the total distance by the number of days she rode.
+  - 'Set up the calculation: add 48, 60, and 72, then divide by 3.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the three daily distances together.
+      expression: 48 + 60 + 72 = 180
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total distance by the number of days.
+      expression: 180 / 3 = 60
+      common_mistake: null
+    final_answer: 60 miles
+  random_seed: 1125200
+  rendered_question: A cyclist tracks her miles over three days. On Monday she rides 48 miles, on Tuesday
+    60 miles, and on Wednesday 72 miles. What is her average daily distance?
+  option_a: 66 miles
+  option_b: 180 miles
+  option_c: 60 miles
+  option_d: 54 miles
+  correct_option: c
+- question_template_id: authored-g6_word_problems-d2-1125201
+  topic_id: g6_word_problems
+  skill_id: g6_wp_average
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_but_did_not_divide
+  - divided_sum_by_wrong_count
+  - chose_median_instead_of_mean
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A gardener waters 15 plants on Monday, 27 plants on Tuesday, and 36 plants on Wednesday. What
+    is the average number of plants watered per day?
+  context_block: null
+  answer_expression: x = (15 + 27 + 36) / 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Add up the total number of plants watered across all three days.
+  - Divide the total by the number of days to find the average.
+  - The calculation is (15 + 27 + 36) ÷ 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the number of plants watered on each of the three days.
+      expression: 15 + 27 + 36 = 78
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the average.
+      expression: 78 / 3 = 26
+      common_mistake: null
+    final_answer: 26 plants
+  random_seed: 1125201
+  rendered_question: A gardener waters 15 plants on Monday, 27 plants on Tuesday, and 36 plants on Wednesday.
+    What is the average number of plants watered per day?
+  option_a: 78 plants
+  option_b: 27 plants
+  option_c: 26 plants
+  option_d: 24 plants
+  correct_option: c
+- question_template_id: authored-g6_word_problems-d2-1125202
+  topic_id: g6_word_problems
+  skill_id: g6_wp_average
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - skipped_final_division
+  - arithmetic_error
+  - divided_by_wrong_count
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A librarian tracks the number of books checked out each day. On Monday 22 books were checked out,
+    on Tuesday 34 books, and on Wednesday 28 books. What is the average number of books checked out per
+    day?
+  context_block: ''
+  answer_expression: x = (22 + 34 + 28) / 3
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - To find an average, first add all the daily totals together.
+  - Once you have the sum of all the books, divide by the number of days.
+  - The three daily totals add to a sum, which you then divide by 3.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the number of books checked out on each of the three days.
+      expression: 22 + 34 + 28 = 84
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total by the number of days to find the average.
+      expression: 84 / 3 = 28
+      common_mistake: null
+    final_answer: 28 books
+  random_seed: 1125202
+  rendered_question: A librarian tracks the number of books checked out each day. On Monday 22 books were
+    checked out, on Tuesday 34 books, and on Wednesday 28 books. What is the average number of books checked
+    out per day?
+  option_a: 25 books
+  option_b: 56 books
+  option_c: 28 books
+  option_d: 84 books
+  correct_option: c
+- question_template_id: authored-g6_word_problems-d3-1126301
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 1
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_speed_and_time_instead_of_multiplying
+  - divided_speed_by_time
+  - divided_time_by_speed
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A jogger runs at a steady pace of 8 miles per hour for 3 hours. How far does the jogger travel?
+  context_block: null
+  answer_expression: Eq(x, 8 * 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what you can find when you know a speed and a time.
+  - Distance is found by multiplying speed by time.
+  - 'Set up the calculation: distance equals 8 miles per hour times 3 hours.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the given information: the jogger runs at 8 miles per hour for 3 hours.'
+      expression: speed = 8, time = 3
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the relationship between distance, speed, and time: distance equals speed multiplied
+        by time.'
+      expression: x = 8 * 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 8 by 3 to find the distance.
+      expression: x = 24
+      common_mistake: null
+    final_answer: 24 miles
+  random_seed: 1126301
+  rendered_question: A jogger runs at a steady pace of 8 miles per hour for 3 hours. How far does the
+    jogger travel?
+  option_a: 11 miles
+  option_b: 2.67 miles
+  option_c: 5 miles
+  option_d: 24 miles
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d2-1126200
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_speed_and_time_instead_of_multiplying
+  - subtracted_time_from_speed
+  - divided_speed_by_time_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A cyclist rides at a steady speed of 15 miles per hour for 4 hours. How far does the cyclist travel?
+  context_block: null
+  answer_expression: Eq(x, 15 * 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what distance means when you know speed and time.
+  - Distance is found by multiplying the speed by the time traveled.
+  - Write the equation distance equals 15 times 4, then calculate.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the relationship between distance, speed, and time. Distance equals speed
+        multiplied by time.
+      expression: distance = speed × time
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Substitute the given values: speed is 15 miles per hour and time is 4 hours.'
+      expression: distance = 15 × 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 15 by 4 to find the total distance.
+      expression: distance = 60
+      common_mistake: null
+    final_answer: 60 miles
+  random_seed: 1126200
+  rendered_question: A cyclist rides at a steady speed of 15 miles per hour for 4 hours. How far does
+    the cyclist travel?
+  option_a: 60 miles
+  option_b: 3.75 miles
+  option_c: 19 miles
+  option_d: 11 miles
+  correct_option: a
+- question_template_id: authored-g6_word_problems-d2-1126201
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_multiplying
+  - subtracted_instead_of_multiplying
+  - divided_instead_of_multiplying
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A delivery van drives at a steady speed of 45 miles per hour for 3 hours. How far does the van
+    travel?
+  context_block: ''
+  answer_expression: Eq(x, 45 * 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Distance is related to how fast something moves and how long it moves.
+  - Multiply the speed by the time to find how far the van travels.
+  - Write 45 miles per hour times 3 hours and calculate.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for distance when speed is constant: distance equals speed multiplied
+        by time.'
+      expression: distance = speed × time
+      common_mistake: null
+    - step_number: 2
+      explanation: Substitute the given speed of 45 miles per hour and the time of 3 hours into the formula.
+      expression: distance = 45 × 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 45 by 3 to find the distance.
+      expression: distance = 135
+      common_mistake: null
+    final_answer: 135 miles
+  random_seed: 1126201
+  rendered_question: A delivery van drives at a steady speed of 45 miles per hour for 3 hours. How far
+    does the van travel?
+  option_a: 15 miles
+  option_b: 135 miles
+  option_c: 42 miles
+  option_d: 48 miles
+  correct_option: b
+- question_template_id: authored-g6_word_problems-d2-1126202
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_speed_and_time
+  - subtracted_time_from_speed
+  - confused_rate_with_total_distance
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A train travels at 50 miles per hour for 3 hours. How far does the train travel?
+  context_block: null
+  answer_expression: Eq(x, 50 * 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what distance means when something moves at a steady speed for a certain time.
+  - Distance is found by multiplying speed by time.
+  - Write speed times time and calculate the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Identify the speed and the time. The train travels at 50 miles per hour for 3 hours.
+      expression: speed = 50, time = 3
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the distance formula: distance equals speed multiplied by time.'
+      expression: x = 50 * 3
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 50 by 3 to find the distance.
+      expression: x = 150
+      common_mistake: null
+    final_answer: 150 miles
+  random_seed: 1126202
+  rendered_question: A train travels at 50 miles per hour for 3 hours. How far does the train travel?
+  option_a: 53 miles
+  option_b: 47 miles
+  option_c: 150 miles
+  option_d: 100 miles
+  correct_option: c
+- question_template_id: authored-g6_word_problems-d4-1126400
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_distance_and_time_instead_of_dividing
+  - subtracted_time_from_distance_instead_of_dividing
+  - multiplied_distance_and_time_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A cyclist travels 240 miles in 6 hours at a steady speed. What is the cyclist's speed in miles
+    per hour?
+  context_block: ''
+  answer_expression: Eq(x, 240 / 6)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Speed tells you how many miles are covered in one hour.
+  - To find speed, divide the total distance traveled by the total time taken.
+  - Write the equation x = 240 ÷ 6 where x is the speed.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Speed is the distance traveled divided by the time taken.
+      expression: x = 240 / 6
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide 240 by 6.
+      expression: x = 40
+      common_mistake: null
+    final_answer: 40 miles per hour
+  random_seed: 1126400
+  rendered_question: A cyclist travels 240 miles in 6 hours at a steady speed. What is the cyclist's speed
+    in miles per hour?
+  option_a: 1440 miles per hour
+  option_b: 246 miles per hour
+  option_c: 40 miles per hour
+  option_d: 234 miles per hour
+  correct_option: c
+- question_template_id: authored-g6_word_problems-d4-1126401
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_distance_and_time_instead_of_dividing
+  - subtracted_time_from_distance_instead_of_dividing
+  - multiplied_distance_and_time_instead_of_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A delivery truck travels 210 miles in 5 hours at a steady pace. What is the truck's average speed?
+  context_block: null
+  answer_expression: Eq(x, 210 / 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Speed tells you how far something travels in one unit of time.
+  - Divide the total distance by the total time to find the distance covered per hour.
+  - 'Set up the division: 210 miles ÷ 5 hours.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for average speed: speed equals distance divided by time.'
+      expression: speed = distance / time
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Substitute the given values: distance is 210 miles and time is 5 hours.'
+      expression: speed = 210 / 5
+      common_mistake: null
+    - step_number: 3
+      explanation: Perform the division to find the speed.
+      expression: speed = 42
+      common_mistake: null
+    final_answer: 42 miles per hour
+  random_seed: 1126401
+  rendered_question: A delivery truck travels 210 miles in 5 hours at a steady pace. What is the truck's
+    average speed?
+  option_a: 1050 miles per hour
+  option_b: 215 miles per hour
+  option_c: 205 miles per hour
+  option_d: 42 miles per hour
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d4-1126402
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_divided
+  - subtracted_instead_of_divided
+  - multiplied_instead_of_divided
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A train travels 180 miles in 4 hours. What is the speed of the train?
+  context_block: null
+  answer_expression: Eq(x, 180 / 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Speed tells how far something travels in one unit of time.
+  - Divide the total distance by the total time to find miles per hour.
+  - Set up 180 divided by 4.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula for speed: speed equals distance divided by time.'
+      expression: x = 180 / 4
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide 180 by 4 to find the speed.
+      expression: x = 45
+      common_mistake: null
+    final_answer: 45 miles per hour
+  random_seed: 1126402
+  rendered_question: A train travels 180 miles in 4 hours. What is the speed of the train?
+  option_a: 184 miles per hour
+  option_b: 176 miles per hour
+  option_c: 720 miles per hour
+  option_d: 45 miles per hour
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d3-1126300
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 60
+  common_error_tags:
+  - added_instead_of_multiplied
+  - subtracted_instead_of_multiplied
+  - divided_instead_of_multiplied
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: A boat travels at 25 miles per hour for 4 hours. How far does the boat travel?
+  context_block: null
+  answer_expression: Eq(x, 25 * 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what quantity you get when you combine speed and time.
+  - Distance equals speed multiplied by time.
+  - Write the equation distance = 25 × 4 and compute the product.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the formula that relates distance, speed, and time: distance = speed × time.'
+      expression: distance = speed × time
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Substitute the given values: speed is 25 miles per hour and time is 4 hours.'
+      expression: distance = 25 × 4
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 25 by 4 to find the distance.
+      expression: distance = 100
+      common_mistake: null
+    final_answer: 100 miles
+  random_seed: 1126300
+  rendered_question: A boat travels at 25 miles per hour for 4 hours. How far does the boat travel?
+  option_a: 100 miles
+  option_b: 6.25 miles
+  option_c: 29 miles
+  option_d: 21 miles
+  correct_option: a
+- question_template_id: authored-g6_word_problems-d3-1126302
+  topic_id: g6_word_problems
+  skill_id: g6_wp_rate_speed
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - added_instead_of_multiplied
+  - divided_instead_of_multiplied
+  - doubled_the_product
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: A bus travels at 35 miles per hour for 2 hours. How far does the bus travel?
+  context_block: null
+  answer_expression: Eq(x, 35 * 2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Think about what happens when you travel at a steady speed for a certain amount of time.
+  - Distance is found by multiplying the speed by the time traveled.
+  - 'Set up the calculation: 35 miles per hour times 2 hours.'
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Identify the given values: the bus travels at 35 miles per hour for 2 hours.'
+      expression: speed = 35, time = 2
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Use the distance formula: distance equals speed multiplied by time.'
+      expression: x = 35 * 2
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 35 by 2 to find the distance.
+      expression: x = 70
+      common_mistake: null
+    final_answer: 70 miles
+  random_seed: 1126302
+  rendered_question: A bus travels at 35 miles per hour for 2 hours. How far does the bus travel?
+  option_a: 140 miles
+  option_b: 17.5 miles
+  option_c: 70 miles
+  option_d: 37 miles
+  correct_option: c
+- question_template_id: authored-g6_word_problems-d4-1127400
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - multiplied_total_parts_by_ratio_part
+  - stopped_at_finding_one_part
+  - used_wrong_ratio_part
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Two youth clubs are sharing 84 raffle tickets in the ratio 4:3, with the larger share going to
+    the Mountain Club. How many tickets does the Mountain Club receive?
+  context_block: null
+  answer_expression: x = 84 * 4 / 7
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The ratio 4:3 means that for every 7 parts total, the Mountain Club gets 4 parts and the other club
+    gets 3 parts.
+  - Find the value of one part by dividing the total number of tickets by the number of parts in the ratio.
+  - Multiply the value of one part by 4 to find the Mountain Club's share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ratio 4:3 means the tickets are divided into 4 + 3 = 7 equal parts.
+      expression: 4 + 3 = 7
+      common_mistake: null
+    - step_number: 2
+      explanation: Each part represents 84 ÷ 7 = 12 tickets.
+      expression: 84 / 7 = 12
+      common_mistake: null
+    - step_number: 3
+      explanation: The Mountain Club receives 4 parts, so 4 × 12 = 48 tickets.
+      expression: 4 * 12 = 48
+      common_mistake: null
+    final_answer: 48 tickets
+  random_seed: 1127400
+  rendered_question: Two youth clubs are sharing 84 raffle tickets in the ratio 4:3, with the larger share
+    going to the Mountain Club. How many tickets does the Mountain Club receive?
+  option_a: 28 tickets
+  option_b: 36 tickets
+  option_c: 48 tickets
+  option_d: 12 tickets
+  correct_option: c
+- question_template_id: authored-g6_word_problems-d4-1127402
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - miscounted_ratio_parts
+  - solved_for_wrong_quantity
+  - ratio_confusion
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Two business partners split a bonus of 96 dollars in the ratio 5:3. How many dollars does the
+    first partner receive?
+  context_block: ''
+  answer_expression: Eq(x, 96 * 5 / 8)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Add the two parts of the ratio to find the total number of equal shares.
+  - The first partner receives 5 out of every 8 equal shares of the total bonus.
+  - Multiply 96 by the fraction 5/8 to find the first partner's share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the two parts of the ratio to find how many equal parts the total is divided into.
+      expression: 5 + 3 = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: The first partner receives 5 out of 8 equal parts, so we need to find 5/8 of 96 dollars.
+      expression: 96 * 5 / 8
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 96 by 5 first.
+      expression: 96 * 5 = 480
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide 480 by 8 to get the first partner's share.
+      expression: 480 / 8 = 60
+      common_mistake: null
+    final_answer: 60 dollars
+  random_seed: 1127402
+  rendered_question: Two business partners split a bonus of 96 dollars in the ratio 5:3. How many dollars
+    does the first partner receive?
+  option_a: 48 dollars
+  option_b: 60 dollars
+  option_c: 36 dollars
+  option_d: 64 dollars
+  correct_option: b
+- question_template_id: authored-g6_word_problems-d5-1127500
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 150
+  common_error_tags:
+  - used_second_ratio_term_instead_of_first
+  - divided_total_by_2_instead_of_sum_of_ratio_parts
+  - multiplied_by_first_ratio_term_without_dividing_by_sum
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Two friends share 75 stickers in the ratio 3:2. How many stickers does the first friend receive?
+  context_block: null
+  answer_expression: x = 75 * 3 / (3 + 2)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - How many total parts are there in the ratio 3:2?
+  - The first friend gets 3 parts out of 5 total parts, so the first friend receives three-fifths of all
+    the stickers.
+  - Multiply 75 by 3, then divide by 5.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ratio 3:2 means the stickers are divided into 3 + 2 = 5 equal parts.
+      expression: 3 + 2 = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: The first friend receives 3 parts out of the 5 total parts.
+      expression: 3/5
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the total number of stickers by the fraction that goes to the first friend.
+      expression: 75 * 3/5
+      common_mistake: null
+    - step_number: 4
+      explanation: Calculate 75 times 3, which equals 225.
+      expression: '225'
+      common_mistake: null
+    - step_number: 5
+      explanation: Divide 225 by 5 to find the first friend's share.
+      expression: 225 / 5 = 45
+      common_mistake: null
+    final_answer: 45 stickers
+  random_seed: 1127500
+  rendered_question: Two friends share 75 stickers in the ratio 3:2. How many stickers does the first
+    friend receive?
+  option_a: 50 stickers
+  option_b: 37.5 stickers
+  option_c: 45 stickers
+  option_d: 25 stickers
+  correct_option: c
+- question_template_id: authored-g6_word_problems-d5-1127501
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 2
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_ratio_part_as_direct_divisor
+  - confused_parts_with_whole
+  - multiplied_total_by_second_part
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Two siblings are sharing 60 marbles in the ratio 2:3. How many marbles does the first sibling
+    receive?
+  context_block: null
+  answer_expression: x = 60 * 2 / (2 + 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Add the two parts of the ratio together to find how many equal parts make up the whole.
+  - The total number of parts is 2 + 3 = 5, so each part represents 60 ÷ 5 marbles.
+  - Multiply the value of one part by the number of parts the first sibling receives.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the two parts of the ratio to find the total number of parts.
+      expression: 2 + 3 = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Divide the total number of marbles by the total number of parts to find the value of
+        one part.
+      expression: 60 / 5 = 12
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply the value of one part by the number of parts the first sibling receives.
+      expression: 12 * 2 = 24
+      common_mistake: null
+    final_answer: 24 marbles
+  random_seed: 1127501
+  rendered_question: Two siblings are sharing 60 marbles in the ratio 2:3. How many marbles does the first
+    sibling receive?
+  option_a: 40 marbles
+  option_b: 30 marbles
+  option_c: 24 marbles
+  option_d: 20 marbles
+  correct_option: c
+- question_template_id: authored-g6_word_problems-d3-1127300
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_ratio_part_as_denominator_without_summing
+  - multiplied_by_wrong_ratio_part
+  - divided_total_by_one_ratio_part
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two friends collect 72 stickers and decide to split them in the ratio 5:4. How many stickers does
+    the first friend receive?
+  context_block: ''
+  answer_expression: x = 72 * 5 / (5 + 4)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Add the two parts of the ratio to find the total number of parts.
+  - The first friend gets 5 parts out of the total, so multiply 72 by 5 and then divide by the total parts.
+  - Write the calculation as 72 times 5 divided by 9, then compute.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the two parts of the ratio to find the total number of parts.
+      expression: 5 + 4 = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: The first friend receives 5 parts out of 9 total parts, so multiply the total stickers
+        by the first friend's share.
+      expression: 72 * 5 = 360
+      common_mistake: null
+    - step_number: 3
+      explanation: Divide by the total number of parts to find the number of stickers the first friend
+        gets.
+      expression: 360 / 9 = 40
+      common_mistake: null
+    final_answer: 40 stickers
+  random_seed: 1127300
+  rendered_question: Two friends collect 72 stickers and decide to split them in the ratio 5:4. How many
+    stickers does the first friend receive?
+  option_a: 8 stickers
+  option_b: 36 stickers
+  option_c: 45 stickers
+  option_d: 40 stickers
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d3-1127301
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - used_wrong_ratio_term
+  - divided_by_ratio_term_instead_of_sum
+  - multiplied_without_dividing_by_total_parts
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Two siblings split a collection of 90 marbles in the ratio 2:3. How many marbles does the first
+    sibling receive?
+  context_block: null
+  answer_expression: x = 90 * 2 / (2 + 3)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - A ratio of 2:3 means for every 2 marbles the first sibling gets, the second gets 3. How many total
+    parts is that?
+  - Add 2 and 3 to find that 5 equal parts make up the whole collection of 90 marbles. Each part is worth
+    90 divided by 5.
+  - The first sibling receives 2 parts. Multiply the value of one part by 2 to find the first sibling's
+    share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ratio 2:3 means the collection is divided into 2 + 3 = 5 equal parts.
+      expression: 2 + 3 = 5
+      common_mistake: null
+    - step_number: 2
+      explanation: Each part is worth 90 marbles divided by 5 parts.
+      expression: 90 / 5 = 18
+      common_mistake: null
+    - step_number: 3
+      explanation: The first sibling receives 2 parts, so multiply the value of one part by 2.
+      expression: 18 * 2 = 36
+      common_mistake: null
+    final_answer: 36 marbles
+  random_seed: 1127301
+  rendered_question: Two siblings split a collection of 90 marbles in the ratio 2:3. How many marbles
+    does the first sibling receive?
+  option_a: 45 marbles
+  option_b: 180 marbles
+  option_c: 36 marbles
+  option_d: 60 marbles
+  correct_option: c
+- question_template_id: authored-g6_word_problems-d3-1127302
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 1.0
+  estimated_time_seconds: 90
+  common_error_tags:
+  - solved_for_wrong_quantity
+  - treated_ratio_as_direct_proportion
+  - divided_by_one_ratio_term_only
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two classes collect 80 cans for a food drive and agree to split them in the ratio 3:5. How many
+    cans does the first class receive?
+  context_block: null
+  answer_expression: x = 80 * 3 / (3 + 5)
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - A ratio of 3:5 means the total is split into 3 + 5 equal parts.
+  - Find the value of one part by dividing the 80 cans by the total number of parts.
+  - Multiply the value of one part by 3 to find the first class's share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: The ratio 3:5 means the cans are divided into 3 + 5 = 8 equal parts.
+      expression: 3 + 5 = 8
+      common_mistake: null
+    - step_number: 2
+      explanation: Each part is worth 80 ÷ 8 = 10 cans.
+      expression: 80 / 8 = 10
+      common_mistake: null
+    - step_number: 3
+      explanation: The first class receives 3 parts, so 3 × 10 = 30 cans.
+      expression: 3 * 10 = 30
+      common_mistake: null
+    final_answer: 30 cans
+  random_seed: 1127302
+  rendered_question: Two classes collect 80 cans for a food drive and agree to split them in the ratio
+    3:5. How many cans does the first class receive?
+  option_a: 50 cans
+  option_b: 16 cans
+  option_c: 48 cans
+  option_d: 30 cans
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d5-1127502
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 3
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 120
+  common_error_tags:
+  - used_second_ratio_part_instead_of_first
+  - multiplied_without_dividing_by_total_parts
+  - stopped_at_numerator_without_dividing
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: high
+  version: 1
+  stem: Two classrooms share 56 pencils in the ratio 3:4. How many pencils does the first classroom receive?
+  context_block: null
+  answer_expression: x = 56 * 3 / 7
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - Add the two parts of the ratio to find the total number of parts being shared.
+  - The first classroom receives 3 parts out of 7 total parts.
+  - Multiply 56 by 3, then divide by 7 to find how many pencils the first classroom gets.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: Add the two parts of the ratio to find the total number of parts.
+      expression: 3 + 4 = 7
+      common_mistake: null
+    - step_number: 2
+      explanation: The first classroom receives 3 parts out of 7 total parts, so we calculate its share.
+      expression: x = 56 * 3 / 7
+      common_mistake: null
+    - step_number: 3
+      explanation: Multiply 56 by 3.
+      expression: 56 * 3 = 168
+      common_mistake: null
+    - step_number: 4
+      explanation: Divide 168 by 7 to find the number of pencils.
+      expression: 168 / 7 = 24
+      common_mistake: null
+    final_answer: 24 pencils
+  random_seed: 1127502
+  rendered_question: Two classrooms share 56 pencils in the ratio 3:4. How many pencils does the first
+    classroom receive?
+  option_a: 168 pencils
+  option_b: 21 pencils
+  option_c: 32 pencils
+  option_d: 24 pencils
+  correct_option: d
+- question_template_id: authored-g6_word_problems-d4-1127401
+  topic_id: g6_word_problems
+  skill_id: g6_wp_ratio_proportion
+  grade_band: 6-7
+  difficulty_label: 4
+  difficulty_confidence: 0.5
+  estimated_time_seconds: 90
+  common_error_tags:
+  - used_second_ratio_part_instead_of_first
+  - divided_total_by_ratio_part_directly
+  - used_raw_ratio_number_as_answer
+  generator_model: bedrock-authored-question-generation
+  review_model_versions:
+    solver_a: bedrock-question-generation
+    solver_b: bedrock-question-review
+    judge: bedrock-question-judge
+  review_priority: normal
+  version: 1
+  stem: Two scout troops share 63 cookies in the ratio 4:5. How many cookies does the first troop receive?
+  context_block: ''
+  answer_expression: Eq(x, 63 * 4 / (4 + 5))
+  figure_spec: null
+  figure_reading: null
+  hint_ladder:
+  - The ratio 4:5 means for every 4 cookies the first troop gets, the second troop gets 5 cookies.
+  - Add the ratio parts together to find how many total parts make up the 63 cookies.
+  - Divide 63 by the total number of parts, then multiply by 4 to find the first troop's share.
+  canonical_solution:
+    steps:
+    - step_number: 1
+      explanation: 'Add the ratio parts to find the total number of parts: 4 + 5 = 9.'
+      expression: 4 + 5 = 9
+      common_mistake: null
+    - step_number: 2
+      explanation: 'Divide the total number of cookies by the total parts to find the value of one part:
+        63 ÷ 9 = 7.'
+      expression: 63 / 9 = 7
+      common_mistake: null
+    - step_number: 3
+      explanation: 'Multiply the value of one part by the first troop''s ratio to find their share: 7
+        × 4 = 28.'
+      expression: 7 * 4 = 28
+      common_mistake: null
+    final_answer: 28 cookies
+  random_seed: 1127401
+  rendered_question: Two scout troops share 63 cookies in the ratio 4:5. How many cookies does the first
+    troop receive?
+  option_a: 28 cookies
+  option_b: 15.75 cookies
+  option_c: 35 cookies
+  option_d: 4 cookies
+  correct_option: a

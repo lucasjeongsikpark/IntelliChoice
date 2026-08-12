@@ -19,6 +19,8 @@ templates:
   stem: Sam shares 10 grapes equally between 2 friends. How many grapes does each friend get?
   context_block: null
   answer_expression: Eq(2*x, 10)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Sharing equally means both friends end up with the same amount.
   - Two equal shares together make the whole ten grapes.
@@ -60,6 +62,8 @@ templates:
   stem: A teacher seats 24 students equally at 4 tables. How many students sit at each table?
   context_block: null
   answer_expression: Eq(4*x, 24)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Seating them equally means every table gets the same number of students.
   - Four equal groups together make the whole class of twenty-four.
@@ -104,6 +108,8 @@ templates:
   stem: A florist ties 35 roses into bunches of 5. How many bunches does the florist make?
   context_block: null
   answer_expression: Eq(5*x, 35)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The question asks how many bunches are made, not how many roses are in one.
   - Each bunch takes five roses away from the pile, and the pile runs out exactly.
@@ -145,6 +151,8 @@ templates:
     baker fill?
   context_block: null
   answer_expression: Eq(9*x, 63)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - The question asks how many bags there are, not how many rolls are in one.
   - Every bag takes nine rolls, and the rolls run out exactly.
@@ -186,6 +194,8 @@ templates:
   stem: A librarian spreads 72 books equally across 8 shelves. How many books go on each shelf?
   context_block: null
   answer_expression: Eq(8*x, 72)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Spreading them equally means every shelf ends up with the same number.
   - Eight equal groups together make the whole seventy-two books.
@@ -228,6 +238,8 @@ templates:
     people. How many people travel in each van?
   context_block: null
   answer_expression: Eq(8*x, 96)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Seating them equally means every van ends up with the same number.
   - Eight equal groups together make the whole ninety-six people.
@@ -270,6 +282,8 @@ templates:
     How many apples go into each crate?
   context_block: null
   answer_expression: Eq(12*x, 144)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Filling them equally means every crate ends up with the same number.
   - Twelve equal groups together make the whole hundred and forty-four apples.
@@ -312,6 +326,8 @@ templates:
     does the teacher fill?
   context_block: null
   answer_expression: Eq(6*x + 5, 29)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Cases are filled one at a time until there are not enough pencils left.
   - Count up in sixes without going past twenty-nine.
@@ -354,6 +370,8 @@ templates:
     bulbs are left over?
   context_block: null
   answer_expression: Eq(7*5 + x, 38)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Beds are filled one at a time until there are not enough bulbs left.
   - Count up in sevens without going past thirty-eight.
@@ -396,6 +414,8 @@ templates:
     complete sets does the club make?
   context_block: null
   answer_expression: Eq(8*x + 2, 50)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - A set counts only when all eight badges are there.
   - Count up in eights without going past fifty.
@@ -442,6 +462,8 @@ templates:
     many trays are filled completely?
   context_block: null
   answer_expression: Eq(12*x + 3, 87)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - A tray counts only when all twelve places are used.
   - Count up in twelves without going past eighty-seven.
@@ -484,6 +506,8 @@ templates:
     many plants are left over?
   context_block: null
   answer_expression: Eq(15*7 + x, 115)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - A row is finished only when all fifteen places are filled.
   - Count up in fifteens without going past a hundred and fifteen.
@@ -526,6 +550,8 @@ templates:
     school need so that every student travels?
   context_block: null
   answer_expression: Eq(30*(x - 1) + 10, 100)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every student must have a seat, including the last few.
   - Count up in thirties without going past a hundred.
@@ -572,6 +598,8 @@ templates:
     altogether?
   context_block: null
   answer_expression: Eq(x, 3*4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every page holds the same number of stickers, so the pages are equal groups.
   - Three equal groups of four can be counted by adding four three times.
@@ -623,6 +651,8 @@ templates:
     total?
   context_block: null
   answer_expression: Eq(x, 4*5)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every tray holds the same number, so the trays are equal groups.
   - Counting by fives is a quick way to count groups of five.
@@ -664,6 +694,8 @@ templates:
   stem: A classroom has 6 rows of chairs with 2 chairs in each row. How many chairs are in the classroom?
   context_block: null
   answer_expression: Eq(x, 6*2)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every row has the same number of chairs, so the rows are equal groups.
   - Six rows with two chairs each can be counted two at a time.
@@ -705,6 +737,8 @@ templates:
   stem: Ana buys 3 packs of pencils. Each pack holds 8 pencils. How many pencils does Ana have?
   context_block: null
   answer_expression: Eq(x, 3*8)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every pack holds the same number, so the packs are equal groups.
   - What is 8 + 8? Add 8 more to that answer.
@@ -755,6 +789,8 @@ templates:
   stem: A shop stacks 7 boxes of tins. Each box holds 6 tins. How many tins are in the stack altogether?
   context_block: null
   answer_expression: Eq(x, 7*6)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every box holds the same number of tins, so the boxes are equal groups.
   - Seven groups of six can be built from a fact you may already know, six groups of six.
@@ -797,6 +833,8 @@ templates:
     plant?
   context_block: null
   answer_expression: Eq(x, 9*4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every row holds the same number, so the rows are equal groups.
   - Nine groups of four is one group less than ten groups of four.
@@ -843,6 +881,8 @@ templates:
     Ravi read that week?
   context_block: null
   answer_expression: Eq(x, 7*8)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every day he reads the same number, so the days are equal groups.
   - A week here is seven days, so there are seven groups.
@@ -885,6 +925,8 @@ templates:
     order in total?
   context_block: null
   answer_expression: Eq(x, 23*3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Break the larger number into its tens and its ones before multiplying.
   - Twenty-three is two tens and three ones, and each part gets multiplied by three.
@@ -931,6 +973,8 @@ templates:
     does the bus carry that morning?
   context_block: null
   answer_expression: Eq(x, 34*2)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Break the larger number into its tens and its ones before multiplying.
   - Thirty-four is three tens and four ones, and each part gets multiplied by two.
@@ -977,6 +1021,8 @@ templates:
     the farmer collect in a month?
   context_block: null
   answer_expression: Eq(x, 15*4)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every hen gives the same number of eggs, so the hens are equal groups.
   - Break fifteen into ten and five before multiplying by four.
@@ -1022,6 +1068,8 @@ templates:
   stem: A hall has 46 rows of seats with 5 seats in every row. How many seats does the hall have in total?
   context_block: null
   answer_expression: Eq(x, 46*5)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Break the larger number into its tens and its ones before multiplying.
   - Forty-six is four tens and six ones, and each part gets multiplied by five.
@@ -1068,6 +1116,8 @@ templates:
     many chairs does the workshop make over those weeks?
   context_block: null
   answer_expression: Eq(x, 128*3)
+  figure_spec: null
+  figure_reading: null
   hint_ladder:
   - Every week produces the same number, so the weeks are equal groups.
   - Break the larger number into hundreds, tens and ones before multiplying.
